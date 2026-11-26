@@ -1,5 +1,7 @@
 import type {
   ScheduleCarrierNeed,
+  ScheduleExecutorAcceptance,
+  ScheduleJobExecutor,
   SchedulePurpose,
   ScheduleWork,
   ScheduleWorkPath,
@@ -33,6 +35,18 @@ export function carriersOf(purpose: SchedulePurpose): readonly ScheduleCarrierNe
   const notice = { kind: 'notification', ref: null } as const
   if (purpose.kind === 'reminder') return [notice]
   return [...workNeeds(purpose.work), ...(purpose.notifications.length > 0 ? [notice] : [])]
+}
+
+/** Whether the executor of the work's path takes it as written. No executor, or one that does not judge, takes it: dispatch answers for a missing carrier. */
+export async function workAcceptance(
+  executor: ScheduleJobExecutor | undefined,
+  work: ScheduleWork,
+): Promise<ScheduleExecutorAcceptance> {
+  try {
+    return (await executor?.accepts?.(work)) ?? { kind: 'accepted' }
+  } catch {
+    return { kind: 'unknown', reason: 'the executor failed to judge the work' }
+  }
 }
 
 /** How a missing carrier is named in the reason a schedule is blocked. */

@@ -2,6 +2,7 @@ import type {
   ScheduleDefinition,
   SchedulePurpose,
   ScheduleRecurrence,
+  ScheduleSessionDefaults,
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 import type { ReleaseDescription, ReleaseRow } from '@omne-harness/tool-contract'
@@ -85,13 +86,20 @@ type Seen = Readonly<{
 const UNSEEN: Seen = { current: undefined, next: { kind: 'unavailable' }, timezone: undefined }
 const ENDING: ReadonlySet<Activation['command']> = new Set(['pause', 'stop'])
 
-function givenOf(args: Activation): Given {
+const NO_DEFAULTS: ScheduleSessionDefaults = { current: null, forNew: null }
+
+async function defaultsOf(reads: ScheduleReads): Promise<ScheduleSessionDefaults> {
+  const faces = await reads.faces()
+  return 'kind' in faces ? NO_DEFAULTS : faces.defaults()
+}
+
+function givenOf(args: Activation, defaults: ScheduleSessionDefaults): Given {
   if (args.command !== 'create' && args.command !== 'replace')
     return { label: undefined, proposed: undefined, schedule: args.params.schedule }
-  const parsed = definitionOf(args.params.definition)
+  const parsed = definitionOf(args.params.definition, defaults)
   return {
     label: args.params.definition.label,
-    proposed: parsed.success ? parsed.data : undefined,
+    proposed: parsed.kind === 'read' ? parsed.definition : undefined,
     schedule: args.command === 'replace' ? args.params.schedule : undefined,
   }
 }
@@ -152,9 +160,23 @@ function changeRows(args: Activation): ReleaseRow[] {
   return [
     {
       label: '改成',
-      value: label === undefined ? `指令：${instruction ?? ''}`.slice(0, 200) : `名字「${label}」`,
+      value:
+        label === undefined
+          ? `指令：${instruction?.purpose ?? ''}`.slice(0, 200)
+          : `名字「${label}」`,
     },
   ]
+}
+
+type Reads = NonNullable<ReturnType<typeof scheduleReadsOf>>
+/** One read of the description, within its time: what it could not read is `otherwise`. */
+async function readOr<T>(
+  reads: Reads | undefined,
+  otherwise: T,
+  ask: (reads: Reads) => Promise<T>,
+): Promise<T> {
+  if (reads === undefined) return otherwise
+  return (await within(() => ask(reads), READ_WITHIN_MS)) ?? otherwise
 }
 
 /** Reads the schedule the call touches and the next times, never a write; a slow or failed read
@@ -163,12 +185,11 @@ export async function describeActivation(
   input: Readonly<{ arguments: Activation; signal: AbortSignal }>,
 ): Promise<ReleaseDescription> {
   const args = input.arguments
-  const given = givenOf(args)
   const reads = scheduleReadsOf(input.signal)
-  const seen =
-    reads === undefined
-      ? UNSEEN
-      : ((await within(() => seenOf(args, given, reads), READ_WITHIN_MS)) ?? UNSEEN)
+  const carries = args.command === 'create' || args.command === 'replace'
+  const defaults = carries ? await readOr(reads, NO_DEFAULTS, defaultsOf) : NO_DEFAULTS
+  const given = givenOf(args, defaults)
+  const seen = await readOr(reads, UNSEEN, found => seenOf(args, given, found))
   const name = seen.current?.definition.label ?? given.label ?? '未命名'
   const next: Next = ENDING.has(args.command) ? { kind: 'none' } : seen.next
   return {

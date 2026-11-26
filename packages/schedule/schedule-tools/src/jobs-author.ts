@@ -41,7 +41,7 @@ const GATE_OF: Readonly<Record<JobsCommandName, string>> = {
 const ENCODING = 'wrapped' as const
 const guide = [
   'A Job is one run: a schedule makes one at each time it accepts, and start makes one outside any schedule. list shows the runs of one schedule, or of all, newest first; a missed stretch is one row with how many times were missed and why.',
-  'start runs a program the deployment registered; it counts toward no schedule. cancel stops a Job: one not started never starts, a running one is asked to stop and ends cancelled once the program has stopped.',
+  'start makes one Job now from work, as the purpose of a schedule carries it: agent work {kind: "agent", instruction, session} (see Schedules help; sessionRef "current" is this session, and a new session takes what it leaves out from this one), or {kind: "program", programRef, input}. It counts toward no schedule. show without job lists the Jobs this session carries out or carried out. The where of a Job carried out in a session names the session; its account.since is the position the work began after: give it to Sessions read as after to read that round; when it is null, read the session from its start. cancel stops a Job: one not started never starts, a running one is asked to stop and ends cancelled once its work has stopped.',
   'A write that answers unknown may or may not have happened: read with show or list; do not send it again.',
   'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, invalid, unavailable.',
 ].join('\n\n')

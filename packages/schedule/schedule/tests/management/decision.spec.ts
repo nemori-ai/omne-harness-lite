@@ -424,7 +424,7 @@ it('executionText only edits an agent instruction and preserves the original wor
       kind: 'execution',
       work: {
         kind: 'agent',
-        instruction: 'Old instruction',
+        instruction: { purpose: 'Old instruction' },
         session: { mode: 'existing', sessionRef: 'session:execution' },
         materials: [],
         returnTo: null,
@@ -448,7 +448,7 @@ it('executionText only edits an agent instruction and preserves the original wor
     kind: 'execute',
     input: ScheduleCommandSchema.parse({
       ...base.request.input,
-      patch: { kind: 'executionText', instruction: 'New instruction', label: null },
+      patch: { kind: 'executionText', instruction: { purpose: 'New instruction' }, label: null },
     }),
   } as const
   const input = {
@@ -465,7 +465,7 @@ it('executionText only edits an agent instruction and preserves the original wor
       definition: {
         purpose: {
           work: {
-            instruction: 'New instruction',
+            instruction: { purpose: 'New instruction' },
             session: { mode: 'existing', sessionRef: 'session:execution' },
           },
         },

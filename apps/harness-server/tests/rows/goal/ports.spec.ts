@@ -88,6 +88,30 @@ describe('who may ask what of the goal of a session on the release', () => {
       expect(await decide(verified, action)).toBe('denied')
   })
 
+  it('schedule, as the creator of the sessions of its Jobs, reads, sets, cancels and aborts their goals, and does nothing else', async () => {
+    const schedule = { kind: 'system', component: 'schedule' }
+    for (const action of ['read', 'set', 'cancel', 'abort'] as const)
+      expect(await decide(schedule, action)).toBe('permitted')
+    const rest = [
+      'revise',
+      'pause',
+      'resume',
+      'settle-by-exit',
+      'observe',
+      'propose',
+      'confirm',
+      'track',
+    ]
+    for (const action of rest as GoalAction[]) expect(await decide(schedule, action)).toBe('denied')
+    expect(
+      await authority(schedule).decide(
+        { tenant: textOf(A), subject: checkSubject(schedule) },
+        'session-1',
+        'set',
+      ),
+    ).toBe('denied')
+  })
+
   it('a person come in by login reads the goal of any session of their tenant and does what only a person does to it', async () => {
     for (const action of OF_THE_PERSON) {
       expect(await decide(login(A), action)).toBe('permitted')

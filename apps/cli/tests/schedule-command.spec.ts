@@ -59,6 +59,7 @@ const answers: Readonly<Record<string, unknown>> = {
   'list-schedules': { items: [card], next: null },
   'list-jobs': { items: [], next: null },
   'read-job': job,
+  'read-session-jobs': { items: [job] },
   'cancel-job': { changed: true, job },
   'query-cancel-job': job,
   'start-job': job,
@@ -133,7 +134,6 @@ describe('omne schedule', () => {
 
   it.each([
     [['rename', '--label', '新名字'], { kind: 'rename', label: '新名字' }],
-    [['edit', '--instruction', '写周报'], { kind: 'edit', instruction: '写周报' }],
     [['pause'], { kind: 'pause', reason: null }],
     [['stop', '--reason', '不要了'], { kind: 'stop', reason: '不要了' }],
     [['discard'], { kind: 'discard', reason: null }],
@@ -152,6 +152,23 @@ describe('omne schedule', () => {
     ])
     expect(result.code).toBe(0)
     expect(body(service, 'manage-schedule')).toMatchObject({ schedule: 's-1', revision: 3, action })
+  })
+
+  it('edits the instruction from a JSON file: the goal body the agent work is to achieve', async () => {
+    const service = await serve()
+    const path = definitionFile('{"purpose":"写周报","criteria":[]}')
+    const at = ['--schedule', 's-1', '--revision', '3', '--action-id', 'a-1']
+    const edited = await cli(['schedule', 'edit', ...at, '--instruction-file', path])
+    expect(edited.code, edited.stderr).toBe(0)
+    expect(body(service, 'manage-schedule')).toEqual({
+      tenant: tenantText,
+      actionId: 'a-1',
+      schedule: 's-1',
+      revision: 3,
+      action: { kind: 'edit', instruction: { purpose: '写周报', criteria: [] } },
+    })
+    const missing = await cli(['schedule', 'edit', ...at, '--instruction-file', `${path}.none`])
+    expect(missing.code).toBe(2)
   })
 
   it('revises and replaces with a definition file and a reason', async () => {
@@ -203,6 +220,9 @@ describe('omne schedule', () => {
     const shown = await cli(['schedule', 'job', '--job', 'j-1'])
     expect(shown.code).toBe(0)
     expect(body(service, 'read-job')).toEqual({ tenant: tenantText, job: 'j-1' })
+    expect((await cli(['schedule', 'session-jobs', '--session', 's-9'])).code).toBe(0)
+    expect(body(service, 'read-session-jobs')).toEqual({ tenant: tenantText, session: 's-9' })
+    expect((await cli(['schedule', 'session-jobs'])).code).toBe(2)
   })
 
   it('cancels a Job with a fresh client id; recalls it only by the id it was sent with', async () => {

@@ -188,6 +188,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
       [ENTRY_COMPONENTS.dispatch]: systemOf(issuer, ENTRY_COMPONENTS.dispatch),
       [ENTRY_COMPONENTS.goal]: systemOf(issuer, ENTRY_COMPONENTS.goal),
+      [ENTRY_COMPONENTS.schedule]: systemOf(issuer, ENTRY_COMPONENTS.schedule),
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
     expect(SYSTEM_ACTION_MATRIX).toHaveLength(13)
@@ -264,6 +265,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
       'goal',
       'governanceDirectoryPrincipals',
       'governanceInstallationPrincipals',
+      'schedule',
       'sessionModesPrincipals',
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',

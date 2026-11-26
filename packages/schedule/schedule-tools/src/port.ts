@@ -5,6 +5,7 @@ import type {
   ScheduleInstant,
   ScheduleJobs,
   ScheduleQueries,
+  ScheduleSessionDefaults,
 } from '@omne-harness/schedule-contract'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 
@@ -15,12 +16,15 @@ export type ScheduleCallSource = Readonly<{
   queries(): ScheduleQueries | undefined
   context(): Promise<ScheduleCallContext | undefined>
   now(): ScheduleInstant
+  /** What a new session takes from the session of this call when the work leaves it out; undefined when it cannot be read now. With the session itself it is what `defaults()` of the faces answers. */
+  newSessionDefaults(): Promise<ScheduleSessionDefaults['forNew'] | undefined>
 }>
 
 export type ScheduleFaces = Readonly<{
   commands: ScheduleCommands
   queries: ScheduleQueries
   context: ScheduleCallContext
+  defaults(): Promise<ScheduleSessionDefaults>
 }>
 
 export type ScheduleUnreachable = Readonly<{
@@ -28,10 +32,9 @@ export type ScheduleUnreachable = Readonly<{
   reason: 'unavailable' | 'forbidden'
 }>
 
-/** The schedule services bound to one call. Keys derive from the call, not the model. */
+/** The schedule services bound to one call. Keys derive from the call, not the model: the same step of the same call is the same write. */
 export type BoundSchedules = Readonly<{
   faces(): Promise<ScheduleFaces | ScheduleUnreachable>
-  /** The operation key of one write of this call; the same step of the same call is the same write. */
   operationKey(step: string): string
   now(): ScheduleInstant
 }>
@@ -79,7 +82,14 @@ export function bindScheduleReads(source: ScheduleReadSource): ScheduleReads {
       if (context === undefined) return unavailable
       if (context.owner.kind !== 'tenant' || context.owner.tenantId !== source.tenant)
         return { kind: 'unreachable', reason: 'forbidden' }
-      return { queries, context }
+      const current = context.originatingSessionRef
+      const defaults = async () => {
+        const forNew = await Promise.resolve()
+          .then(() => source.newSessionDefaults())
+          .catch(() => undefined)
+        return { current, forNew: forNew ?? null }
+      }
+      return { queries, context, defaults }
     },
     now: () => source.now(),
   }

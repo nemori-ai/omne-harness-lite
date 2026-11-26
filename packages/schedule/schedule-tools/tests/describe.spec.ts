@@ -7,7 +7,7 @@ import {
   scheduleReadsOf,
 } from '@omne-harness/schedule-tools'
 import { checkReleaseDescription } from '@omne-harness/tool-contract/testing'
-import { DEFINITION, ID, NOW, TENANT, context, parse, services, view } from './world.ts'
+import { DEFINITION, FOR_NEW, ID, NOW, TENANT, context, parse, services, view } from './world.ts'
 
 type Service = ReturnType<typeof services>
 
@@ -21,6 +21,7 @@ function reading(
     queries: () => service.queries,
     context: async () => context,
     now: () => NOW as never,
+    newSessionDefaults: async () => FOR_NEW,
     ...overrides,
   })
   const detach = attachScheduleReads(controller.signal, reads)
@@ -136,7 +137,7 @@ describe('what an activating call would do, for the release card', () => {
     const { signal } = reading(services([]))
     const instructed = await describing(
       'update',
-      { schedule: ID, revision: 3, instruction: '改成每周一' },
+      { schedule: ID, revision: 3, instruction: { purpose: '改成每周一' } },
       signal,
     )
     expect(rows(instructed)['改成']).toBe('指令：改成每周一')

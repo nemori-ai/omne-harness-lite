@@ -63,6 +63,7 @@ const utf8 = (text: string) => encoder.encode(text)
 const guide = [
   'A definition has label, recurrence, limits and purpose. It always follows the user time zone and calendar; you cannot pick a calendar. Preview a definition before you create it.',
   'create makes a schedule that takes effect now. draft saves one that does not run until promote; use it when the owner should look first.',
+  'A purpose of kind execution carries work. Agent work is {kind: "agent", instruction, session}. instruction is a goal body: purpose, criteria whose evidence a tool can produce (not a person), exits. session is {mode: "existing", sessionRef}, where sessionRef "current" is this session, or {mode: "new"}, which takes the Agent definition, modes and workspace of this session for what it leaves out. Each Job succeeds only when that goal is achieved; a session that is busy or has a goal in progress blocks the Job.',
   'Every change to a saved schedule takes the revision you last read with show or list; a stale revision answers conflict and changes nothing.',
   'A write that answers unknown may or may not have happened: call recover with its operation; do not send it again.',
   'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, limited, invalid, coverage_insufficient, not_configured, unavailable.',
@@ -153,7 +154,10 @@ async function execute(args: SchedulesArguments, execution: ToolExecutionContext
   if (typeof reached === 'string') return reached
   const { bound, faces } = reached
   if (!isWrite(args)) return read(faces, args as ReadArguments, bound.now())
-  const request = writeRequestOf(args, { operationKey: bound.operationKey('initial') })
+  const carries = 'definition' in args.params
+  const defaults = carries ? await faces.defaults() : { current: null, forNew: null }
+  const meta = { operationKey: bound.operationKey('initial') }
+  const request = writeRequestOf(args, meta, defaults)
   if ('invalid' in request) return request.invalid
   return writeLine(args.command, await submit(faces, request))
 }

@@ -317,6 +317,35 @@ describe('the Sessions reads', () => {
     ])
   })
 
+  it('reads from after a position: what the session recorded since, a page at a time going forward', async () => {
+    const { sessions, calls } = reads()
+    const text = await fixture(8192).run('read', { session: 'ses_b', after: 'e-3' }, sessions)
+    expect(calls.read).toHaveBeenCalledWith({
+      session: 'ses_b',
+      cursor: null,
+      direction: 'forward',
+      pageBytes: 2048,
+      after: 'e-3',
+    })
+    expect(text.split('\n')[0]).toBe(
+      'done Sessions read session=ses_b entries=1 exhausted=true next=none',
+    )
+  })
+
+  it.each([
+    ['a cursor', { cursor: 'c-2' }],
+    ['backward', { backward: true }],
+    ['inherited', { inherited: true }],
+  ])(
+    'refuses after together with %s: a position starts a reading, it does not continue one',
+    (_, more) => {
+      const params = { session: 'ses_b', after: 'e-3', ...more }
+      expect(fixture().decode('read', params).parsed).toMatchObject({
+        failure: { kind: 'invalid', reason: expect.stringContaining('after') },
+      })
+    },
+  )
+
   it('reads a page and puts what the other session recorded under material, never as its own lines', async () => {
     const { sessions, calls } = reads()
     const text = await fixture(8192).run('read', { session: 'ses_b', backward: true }, sessions)

@@ -199,6 +199,12 @@ const SPECS: Readonly<Record<string, Spec>> = {
     send: (read, { tenant, messageId }) =>
       call('read-job', { tenant, job: text(read.values, '--job') }, messageId),
   },
+  'session-jobs': {
+    options: ['--session'],
+    required: ['--session'],
+    send: (read, { tenant, messageId }) =>
+      call('read-session-jobs', { tenant, session: text(read.values, '--session') }, messageId),
+  },
   'cancel-job': {
     options: ['--job', '--action-id'],
     required: ['--job'],
@@ -231,10 +237,10 @@ const SPECS: Readonly<Record<string, Spec>> = {
     kind: 'rename',
     label: text(read.values, '--label'),
   })),
-  edit: manage(['--instruction'], ['--instruction'], read => ({
-    kind: 'edit',
-    instruction: text(read.values, '--instruction'),
-  })),
+  edit: manage(['--instruction-file'], ['--instruction-file'], read => {
+    const instruction = read.file('--instruction-file')
+    return typeof instruction === 'string' ? instruction : { kind: 'edit', instruction }
+  }),
   revise: rework('revise'),
   replace: rework('replace'),
   promote: control('promote'),
@@ -287,8 +293,9 @@ async function runSchedule(
 
 export const scheduleCommand: CommandSpec = {
   name: 'schedule',
-  usage: 'list|show|history|agenda|preview|create|jobs|job|cancel-job|start-job|<action>',
+  usage:
+    'list|show|history|agenda|preview|create|jobs|job|session-jobs|cancel-job|start-job|<action>',
   summary:
-    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard. List the Jobs of a schedule or of the tenant, show one, cancel one, or start one directly.',
+    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard. List the Jobs of a schedule or of the tenant, show one, list the Jobs a session carries out (session-jobs), cancel one, or start one directly.',
   run: runSchedule,
 }

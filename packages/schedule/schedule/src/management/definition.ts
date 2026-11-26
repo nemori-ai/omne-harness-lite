@@ -2,6 +2,7 @@ import {
   ScheduleDefinitionSchema,
   type ScheduleCommand,
   type ScheduleDefinition,
+  type ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import type { ManagementRequest, ScheduleRecord } from './types.ts'
 
@@ -45,6 +46,22 @@ export function requestedDefinition(
     default:
       return null
   }
+}
+
+/** The work a request would leave to be carried out, when the request writes or activates one. */
+export function requestedWork(
+  request: ManagementRequest,
+  current: ScheduleRecord | null,
+): ScheduleWork | null {
+  const edited =
+    request.kind === 'execute' &&
+    request.input.action === 'update' &&
+    request.input.patch.kind === 'executionText' &&
+    current !== null
+      ? patchScheduleDefinition(current.view.definition, request.input.patch)
+      : null
+  const purpose = (edited ?? requestedDefinition(request, current))?.purpose
+  return purpose?.kind === 'execution' ? purpose.work : null
 }
 
 export function timeIntent(definition: ScheduleDefinition) {

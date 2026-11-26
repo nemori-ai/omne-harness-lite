@@ -130,6 +130,26 @@ describe('the Sessions binding of the release', () => {
     })
   })
 
+  it('reads after a position the call gives: forward from that entry, and a position Session refuses is refused as `after`', async () => {
+    const { bound, fns } = world()
+    const ask = { session: 'ses_b', cursor: null, direction: 'forward', pageBytes: 100 } as const
+    await bound.read(ask)
+    expect(fns.begin).toHaveBeenLastCalledWith(expect.objectContaining({ from: null }))
+    await bound.read({ ...ask, after: '94' })
+    expect(fns.begin).toHaveBeenLastCalledWith(
+      expect.objectContaining({ session: 'ses_b', from: '94', direction: 'forward' }),
+    )
+    const refused = { kind: 'invalid', field: 'from', reason: 'not an entry of this session' }
+    const strict = world({ begin: async () => ({ failure: refused }) })
+    expect(await strict.bound.read({ ...ask, after: 'nope' })).toEqual({
+      failure: { ...refused, field: 'after' },
+    })
+    expect(await strict.bound.read(ask)).toEqual({ failure: refused })
+    const other = { kind: 'invalid', field: 'pageBytes', reason: 'too small' }
+    const small = world({ begin: async () => ({ failure: other }) })
+    expect(await small.bound.read({ ...ask, after: '94' })).toEqual({ failure: other })
+  })
+
   it('asks for the prefix of a forked session only when the call does, and hands on whose entries a page holds', async () => {
     const page = { entries: [], next: 'k-2', exhausted: false, from: 'ses_parent' }
     const begin = vi.fn(async (input: { inherited?: true }) => ({

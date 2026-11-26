@@ -20,6 +20,7 @@ import { useReading, type Answer } from '../model/reading.ts'
 import { nextText, stateNote, type ScheduleCard, type Succeeded } from '../model/words.ts'
 import { Drawn } from './drawn.tsx'
 import { ReadOnEnd } from './read-on-end.tsx'
+import { JobDetailView, type JobDetailProps } from './job-detail.tsx'
 import { ScheduleDetailView, type Picked } from './schedule-detail.tsx'
 import {
   scheduleFilter,
@@ -40,9 +41,16 @@ const TITLE = '日程'
 const DESCRIPTION = '命令行与 agent 建的日程，要改用 omne schedule。'
 const LIST_REFUSED = () => '服务端不认这次列表请求。'
 
-export type SchedulePageProps = Readonly<{ client: Client; tenant: string }>
+export type SchedulePageProps = Readonly<{
+  client: Client
+  tenant: string
+  /** The Job a jump to this page names: the page opens on it. */
+  job?: string
+  onOpenSession?: JobDetailProps['onOpenSession']
+}>
 
-export function SchedulePage({ client, tenant }: SchedulePageProps): JSX.Element {
+export function SchedulePage(props: SchedulePageProps): JSX.Element {
+  const { client, tenant, job, onOpenSession } = props
   const id = readTenantText(tenant)
   if (id === undefined)
     return (
@@ -57,7 +65,11 @@ export function SchedulePage({ client, tenant }: SchedulePageProps): JSX.Element
         </ReadingState>
       </ListReadingPage>
     )
-  return <Schedules client={client} tenant={id} key={tenant} />
+  const more = {
+    ...(job === undefined ? {} : { job }),
+    ...(onOpenSession === undefined ? {} : { onOpenSession }),
+  }
+  return <Schedules client={client} tenant={id} key={`${tenant} ${job ?? ''}`} {...more} />
 }
 
 /** The list and the reading pane. 刷新 reads the list and the open schedule again: the list does not follow the
@@ -65,10 +77,15 @@ export function SchedulePage({ client, tenant }: SchedulePageProps): JSX.Element
 function Schedules({
   client,
   tenant,
-}: Readonly<{ client: Client; tenant: TenantId }>): JSX.Element {
+  job,
+  onOpenSession,
+}: Readonly<{ client: Client; tenant: TenantId }> &
+  Pick<SchedulePageProps, 'job' | 'onOpenSession'>): JSX.Element {
   const [span, setSpan] = useState<Span>('current')
   const [round, setRound] = useState(0)
   const [picked, setPicked] = useState<Picked | undefined>(undefined)
+  const [jumped, setJumped] = useState(job)
+  const opener = onOpenSession === undefined ? {} : { onOpenSession }
   const readPage: ReadPage = (cursor, signal) =>
     client['list-schedules'](
       { tenant, control: null, terminal: span === 'all', cursor, limit: PAGE_LIMIT },
@@ -76,7 +93,7 @@ function Schedules({
     )
   const [first, reread] = useReading<Page>(`${span} ${round}`, signal => readPage(null, signal))
   const empty = first.kind === 'read' && first.value.items.length === 0
-  const open = picked !== undefined
+  const open = picked !== undefined || jumped !== undefined
   return (
     <ListReadingPage
       title={TITLE}
@@ -115,7 +132,18 @@ function Schedules({
           </Drawn>
         </ListReadingDirectory>
         <ListReadingMain {...scheduleReading.props}>
-          {picked === undefined ? (
+          {jumped !== undefined ? (
+            <JobDetailView
+              key={`${jumped} ${round}`}
+              client={client}
+              tenant={tenant}
+              opened={{ job: jumped, local: null }}
+              backLabel="回到日程"
+              onBack={() => setJumped(undefined)}
+              round={round}
+              {...opener}
+            />
+          ) : picked === undefined ? (
             <ReadingState>
               <EmptyState
                 icon={TimeIcon}
@@ -129,6 +157,7 @@ function Schedules({
               tenant={tenant}
               picked={picked}
               onBack={() => setPicked(undefined)}
+              {...opener}
             />
           )}
         </ListReadingMain>

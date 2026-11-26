@@ -45,6 +45,7 @@ import * as React from 'react'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
+  conversationTarget,
   createSessionUiModule,
   sessionBlockRender,
   sessionCallDetail,
@@ -114,7 +115,7 @@ export const assembly: Assembly = {
     createHumanInterventionUiModule({ sessionDock }),
     createGoalUiModule({ sessionSide }),
     notificationUiModule,
-    createScheduleUiModule({ releaseDetail }),
+    createScheduleUiModule({ releaseDetail, conversation: conversationTarget, sessionStatus }),
     calendarUiModule,
     assetsUiModule,
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),

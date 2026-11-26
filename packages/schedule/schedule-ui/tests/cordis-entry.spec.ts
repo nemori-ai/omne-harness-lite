@@ -6,6 +6,7 @@ it('the cordis entry gives the module factory and its placements only', async ()
     'SCHEDULE_PAGE_ID',
     'SCHEDULE_PAGE_ORDER',
     'createScheduleUiModule',
+    'scheduleJobTarget',
     'scheduleParts',
   ])
   const create = cordis['createScheduleUiModule'] as () => unknown

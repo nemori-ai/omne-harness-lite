@@ -71,6 +71,7 @@ export type SessionsReadInput = Readonly<{
   pageBytes: number
   /** First the conversation a forked session started from. */
   inherited?: true
+  after?: string
 }>
 export type SessionsSearchInput = Readonly<{
   content:

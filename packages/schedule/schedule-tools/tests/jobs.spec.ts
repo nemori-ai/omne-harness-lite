@@ -12,7 +12,8 @@ import {
   type JobsArguments,
   type JobsCommandName,
 } from '@omne-harness/schedule-tools'
-import { CALL, ID, NOW, TENANT, context, scope } from './world.ts'
+import { DEFAULT_AGENT_RESULT_POLICY } from '@omne-harness/schedule-contract'
+import { CALL, FOR_NEW, ID, NOW, TENANT, context, scope } from './world.ts'
 
 const JOB = '0d6c1f8e-2a4b-4c3d-8e5f-6a7b8c9d0e1f'
 const summary = {
@@ -49,9 +50,10 @@ const detail = {
   events: [{ seq: 1, kind: 'accepted', at: NOW }],
 }
 
-type Answers = Partial<Record<'executions' | 'get' | 'cancel' | 'start', unknown>>
+type Answers = Partial<Record<'executions' | 'get' | 'cancel' | 'start' | 'ofExecution', unknown>>
+type Source = Partial<Parameters<typeof bindJobs>[0]>
 
-function world(answers: Answers = {}) {
+function world(answers: Answers = {}, source: Source = {}) {
   const asked: [string, unknown][] = []
   const reply = (name: keyof Answers) => async (_ctx: unknown, input: unknown) => {
     asked.push([name, input])
@@ -62,6 +64,7 @@ function world(answers: Answers = {}) {
     get: reply('get'),
     cancel: reply('cancel'),
     start: reply('start'),
+    ofExecution: reply('ofExecution'),
   } as unknown as ScheduleJobs
   const bound = bindJobs({
     tenant: TENANT,
@@ -70,6 +73,8 @@ function world(answers: Answers = {}) {
     jobs: () => jobs,
     context: async () => context,
     now: () => NOW as never,
+    newSessionDefaults: async () => FOR_NEW,
+    ...source,
   })
   const base = scope()
   const execution = attachJobs(base, bound)
@@ -150,7 +155,8 @@ describe('the Jobs tool', () => {
 
   it('starts a registered program with a key from the call, not from the model; the same call is the same key', async () => {
     const w = world({ start: { kind: 'ok', value: { outcome: 'committed', detail } } })
-    const text = await w.run(parse('start', { program: 'probe', input: { n: 1 } }))
+    const program = { kind: 'program', programRef: 'probe', input: { n: 1 } }
+    const text = await w.run(parse('start', { work: program }))
     expect(text).toMatch(/^done Jobs start\n/)
     expect(w.asked[0]).toEqual([
       'start',
@@ -163,10 +169,109 @@ describe('the Jobs tool', () => {
     expect(w.bound.operationKey('start')).not.toBe(w.bound.operationKey('cancel'))
   })
 
+  const started = { start: { kind: 'ok', value: { outcome: 'committed', detail } } }
+  const instruction = { purpose: '写周报' }
+  const REST = { materials: [], returnTo: null, resultPolicy: DEFAULT_AGENT_RESULT_POLICY }
+  const agent = (session: unknown) => ({ kind: 'agent', instruction, session })
+  const sent = (w: ReturnType<typeof world>) => ((w.asked[0] ?? [])[1] as { work: unknown }).work
+
+  it('starts agent work in the session of the call when the work says current: what is sent names that session', async () => {
+    const w = world(started)
+    const text = await w.run(
+      parse('start', { work: agent({ mode: 'existing', sessionRef: 'current' }) }),
+    )
+    expect(text).toMatch(/^done Jobs start\n/)
+    expect(sent(w)).toEqual({ ...agent({ mode: 'existing', sessionRef: 'session-1' }), ...REST })
+  })
+
+  it('starts agent work in a new session that takes what the work leaves out from the session of the call', async () => {
+    const w = world(started)
+    await w.run(parse('start', { work: agent({ mode: 'new' }) }))
+    expect(sent(w)).toEqual({ ...agent({ mode: 'new', ...FOR_NEW }), ...REST })
+    const named = world(started)
+    await named.run(parse('start', { work: agent({ mode: 'new', agentDefinitionRef: 'review' }) }))
+    expect(sent(named)).toMatchObject({
+      session: { agentDefinitionRef: 'review', modes: FOR_NEW.modes },
+    })
+  })
+
+  it.each([
+    ['cannot be read', async () => undefined],
+    [
+      'fails to read',
+      async () => {
+        throw new Error('down')
+      },
+    ],
+  ])(
+    'starts nothing when the session of the call %s and the work leaves something out; whole work needs no reading',
+    async (_, newSessionDefaults) => {
+      const w = world(started, { newSessionDefaults })
+      expect(await w.run(parse('start', { work: agent({ mode: 'new' }) }))).toMatch(
+        /^unavailable reason=the session of this call cannot be read now/,
+      )
+      expect(w.asked).toEqual([])
+      const whole = agent({ mode: 'new', ...FOR_NEW })
+      expect(await w.run(parse('start', { work: whole }))).toMatch(/^done Jobs start\n/)
+    },
+  )
+
+  it('refuses work that does not form a Job once completed, before any service is asked', async () => {
+    const w = world(started)
+    const internal = {
+      audience: { kind: 'masterInternal' },
+      publication: { kind: 'none' },
+      resultSeriesId: null,
+      attention: 'silent',
+      archive: { kind: 'none' },
+    }
+    const work = { ...agent({ mode: 'existing', sessionRef: 's-2' }), resultPolicy: internal }
+    expect(await w.run(parse('start', { work }))).toBe(
+      'invalid reason=the work does not form a Job: the whole value: Master results require an explicit return target code=invalid_input',
+    )
+    expect(w.asked).toEqual([])
+  })
+
+  it('without a job, shows the Jobs the session of the call carries out or carried out', async () => {
+    const w = world({ ofExecution: { kind: 'ok', value: [detail, detail] } })
+    const text = await w.run(parse('show', {}))
+    expect(w.asked).toEqual([['ofExecution', { executionRef: 'session-1', limit: 20 }]])
+    const shown = JSON.parse(text.split('\n')[1] ?? '') as { session: string; jobs: unknown[] }
+    expect(shown.session).toBe('session-1')
+    expect(shown.jobs).toMatchObject([{ job: JOB }, { job: JOB }])
+    const none = world({ ofExecution: { kind: 'ok', value: [] } })
+    expect(await none.run(parse('show', {}))).toBe(
+      'done Jobs show\n{"session":"session-1","jobs":[]}',
+    )
+  })
+
+  it('without a job and outside any session there is nothing to show; a refusal of the read is one line', async () => {
+    const outside = world(
+      {},
+      { context: async () => ({ ...context, originatingSessionRef: null }) },
+    )
+    expect(await outside.run(parse('show', {}))).toMatch(/^invalid reason=show without job/)
+    expect(outside.asked).toEqual([])
+    const failed = {
+      kind: 'error',
+      error: {
+        code: 'provider_failure',
+        message: 'down',
+        retryable: true,
+        requestId: 'r',
+        details: {},
+      },
+    }
+    expect(await world({ ofExecution: failed }).run(parse('show', {}))).toMatch(
+      /^unavailable reason=down/,
+    )
+  })
+
   it('says unknown, never done, when a write may or may not have happened', async () => {
     const unknown = { kind: 'ok', value: { outcome: 'unknown', detail: null } }
     const w = world({ start: unknown, cancel: unknown })
-    expect(await w.run(parse('start', { program: 'probe' }))).toMatch(/^unknown reason=/)
+    const program = { kind: 'program', programRef: 'probe', input: {} }
+    expect(await w.run(parse('start', { work: program }))).toMatch(/^unknown reason=/)
     expect(await w.run(parse('cancel', { job: JOB }))).toMatch(/^unknown reason=.* job=/)
   })
 

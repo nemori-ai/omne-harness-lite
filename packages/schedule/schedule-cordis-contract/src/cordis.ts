@@ -53,6 +53,7 @@ export abstract class ScheduleJobsService extends Service implements ScheduleJob
   abstract readonly queryCancel: ScheduleJobs['queryCancel']
   abstract readonly start: ScheduleJobs['start']
   abstract readonly queryStart: ScheduleJobs['queryStart']
+  abstract readonly ofExecution: ScheduleJobs['ofExecution']
   /** Told when a tenant's Jobs or history may have changed, and when nothing more will be told. */
   abstract watch(
     tenant: string,
