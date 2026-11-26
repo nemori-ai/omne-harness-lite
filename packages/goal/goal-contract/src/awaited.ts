@@ -14,9 +14,9 @@ export const sameKey = (a: BatchKey, b: BatchKey): boolean =>
 export const BatchSchema = z.strictObject({
   key: BatchKeySchema,
   criteria: z.array(CriterionIdSchema).min(1),
-  delivery: z.enum(['handed', 'unknown']),
+  delivery: z.enum(['owed', 'handed', 'unknown']),
 })
-/** The criteria handed to the examining side together. `unknown`: whether it was taken is not known; it is handed again as the same batch. */
+/** The criteria handed to the examining side together. `owed`: written down, not yet taken. `unknown`: whether it was taken is not known; it is handed again as the same batch. */
 export type Batch = z.infer<typeof BatchSchema>
 
 export const ExaminedValueSchema = z.enum(['holds', 'fails', 'cannot-tell'])
@@ -37,10 +37,21 @@ export const ExaminationSchema = z.strictObject({
   batch: BatchSchema.nullable(),
   used: z.int().nonnegative(),
   read: z.partialRecord(CriterionIdSchema, ExaminedSchema),
+  examiner: z.string().min(1).nullable().default(null),
+  submitted: z
+    .strictObject({ key: BatchKeySchema, digest: z.string().min(1) })
+    .nullable()
+    .default(null),
 })
 /** What a goal keeps of its examinations: the batch that is out, how many were handed over, and what each criterion was last read as. */
 export type Examination = z.infer<typeof ExaminationSchema>
-export const NO_EXAMINATION: Examination = Object.freeze({ batch: null, used: 0, read: {} })
+export const NO_EXAMINATION: Examination = Object.freeze({
+  batch: null,
+  used: 0,
+  read: {},
+  examiner: null,
+  submitted: null,
+})
 
 export const NOT_HANDED_IN = 'the examination ended without handing in its readings'
 export const LEFT_OUT = 'the examiner handed in no reading of it'
@@ -76,7 +87,7 @@ export function handed(
 ): Readonly<{ examination: Examination; replaced: Batch | null }> {
   const { batch } = examination
   if (batch !== null && sameKey(batch.key, key)) return { examination, replaced: null }
-  const next: Batch = { key, criteria: [...criteria], delivery: 'handed' }
+  const next: Batch = { key, criteria: [...criteria], delivery: 'owed' }
   return {
     examination: { ...examination, batch: next, used: examination.used + 1 },
     replaced: batch,
@@ -108,6 +119,26 @@ export function received(
     },
     taken: true,
   }
+}
+
+export function delivered(
+  examination: Examination,
+  key: BatchKey,
+  delivery: 'handed' | 'unknown',
+): Examination {
+  const { batch } = examination
+  if (batch === null || !sameKey(batch.key, key)) return examination
+  return { ...examination, batch: { ...batch, delivery } }
+}
+
+export function submissionOf(
+  examination: Examination,
+  key: BatchKey,
+  digest: string,
+): 'new' | 'repeat' | 'differs' {
+  const { submitted } = examination
+  if (submitted === null || !sameKey(submitted.key, key)) return 'new'
+  return submitted.digest === digest ? 'repeat' : 'differs'
 }
 
 type Dropped = Readonly<{ examination: Examination; cancelled: Batch | null }>

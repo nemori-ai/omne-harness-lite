@@ -207,6 +207,7 @@ export function evidence(
     written: string
     running: boolean
     answers: Readonly<Partial<Record<CriterionId, Handed>>> | null
+    digest?: string
   }>,
 ): EvidenceStep {
   const { state, body } = record
@@ -214,7 +215,10 @@ export function evidence(
   if (!got.taken || state.status === 'settled') return { kind: 'dropped' }
   const now: BatchKey = { revision: state.revision, written: input.written }
   const current = sameKey(input.key, now)
-  const examination = current ? got.examination : { ...record.examination, batch: null }
+  const taken = current ? got.examination : { ...record.examination, batch: null }
+  const { digest } = input
+  const submitted = digest === undefined ? taken.submitted : { key: input.key, digest }
+  const examination = { ...taken, submitted }
   const findings = withAwaited(body, examination, now, keptFindings(record.readings))
   const verdict = rule(body, { ...state, examinations: examination.used }, findings)
   const step = arrive(state, { kind: 'evidence', current, running: input.running, verdict })

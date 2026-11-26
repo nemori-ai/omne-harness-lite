@@ -93,9 +93,9 @@ describe('handing a batch over', () => {
   it('counts one examination and keeps the batch; nothing of an earlier identity is cancelled when none is out', () => {
     expect(handed(NO_EXAMINATION, NOW, [A1, A2])).toEqual({
       examination: {
-        batch: { key: NOW, criteria: [A1, A2], delivery: 'handed' },
+        ...NO_EXAMINATION,
+        batch: { key: NOW, criteria: [A1, A2], delivery: 'owed' },
         used: 1,
-        read: {},
       },
       replaced: null,
     })
@@ -169,7 +169,7 @@ describe('a batch that is out when something else happens to the goal', () => {
     const touched = keptExamination(both, new Set([A2, A3]))
     expect(touched.cancelled?.criteria).toEqual([A1, A2])
     expect(touched.examination).toEqual({
-      batch: null,
+      ...NO_EXAMINATION,
       used: 1,
       read: { [A3]: both.read[A3] },
     })

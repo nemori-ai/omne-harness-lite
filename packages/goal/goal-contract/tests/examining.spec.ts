@@ -112,7 +112,7 @@ const seen = (record: GoalRecord, findings: Findings = FOUND, written = 'call-9'
 const out = (key: BatchKey = NOW, criteria = [A2, A3]): Examination => ({
   ...NO_EXAMINATION,
   used: 1,
-  batch: { key, criteria, delivery: 'handed' },
+  batch: { key, criteria, delivery: 'owed' },
 })
 const HOLD: Handed = { value: 'holds', note: null, refs: ['x-3'] }
 const BOTH = { A2: HOLD, A3: HOLD } as const
@@ -122,7 +122,7 @@ describe('an observation of a goal with criteria that wait', () => {
     const step = seen(recordOf())
     if (step.kind !== 'next') throw new Error(step.kind)
     expect(step.answer).toBe('pass')
-    expect(step.handed).toEqual({ key: NOW, criteria: [A2, A3], delivery: 'handed' })
+    expect(step.handed).toEqual({ key: NOW, criteria: [A2, A3], delivery: 'owed' })
     expect(step.cancelled).toBeNull()
     expect(step.record.state).toEqual(active())
     expect(step.record.examination).toEqual(out())
@@ -323,7 +323,7 @@ describe('the readings of a batch arriving at the goal', () => {
     const step = arrive(waiting(), { written: 'call-12' })
     if (step.kind !== 'next') throw new Error(step.kind)
     expect(step.record.state).toEqual(active())
-    expect(step.record.examination).toEqual({ batch: null, used: 1, read: {} })
+    expect(step.record.examination).toEqual({ ...NO_EXAMINATION, used: 1 })
     expect(step.record.readings.criteria.A3?.value).toBe('no-evidence')
   })
 
@@ -351,6 +351,8 @@ describe('the readings of a batch arriving at the goal', () => {
         [A2]: { key: EARLIER, value: 'cannot-tell', note: null, refs: [] },
         [A3]: { key: NOW, value: 'holds', note: null, refs: [] },
       },
+      examiner: 'x-session',
+      submitted: { key: EARLIER, digest: 'sha256:aa' },
     }
     expect(ExaminationSchema.parse(kept)).toEqual(kept)
     const odd = { ...kept, batch: { ...kept.batch, delivery: 'lost' } }
