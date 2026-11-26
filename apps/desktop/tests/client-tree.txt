@@ -212,6 +212,7 @@ system
         usage  [effective, usage-ui#1]
       session.status  [list]
         usage.occupancy  [effective, usage-ui#1]
+        schedule.job-provenance  [effective, schedule-ui#1]
       session.tool-call  [keyed-one]
         Code
           tool-ui#1  [effective]

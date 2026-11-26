@@ -99,6 +99,7 @@ function world(
           },
           jobs: {
             get: reply('job.get'),
+            ofExecution: reply('job.ofExecution'),
             cancel: reply('job.cancel'),
             queryCancel: reply('job.queryCancel'),
             start: reply('job.start'),
@@ -704,6 +705,8 @@ describe('Jobs: list, read, cancel, start', () => {
         adopted: { name: 'coding', version: 'v7' },
         outcome: 'achieved',
         deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
       }),
     ).toEqual({
       kind: 'session',
@@ -712,8 +715,27 @@ describe('Jobs: list, read, cancel, start', () => {
         definition: { name: 'coding', version: 'v7' },
         outcome: 'achieved',
         deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
       },
     })
+  })
+
+  it('reads the Jobs a session carries out or carried out, as Job details; a refusal or a throw is an unavailable basis', async () => {
+    const body = { tenant: tenantId, session: 's-9' }
+    const { ops, asked } = world({ 'job.ofExecution': ok([detail, detail]) })
+    expect(wire('read-session-jobs', await ops['read-session-jobs'](call, body))).toEqual({
+      outcome: 'succeeded',
+      body: { items: [shownJob, shownJob] },
+    })
+    expect(asked).toEqual([['job.ofExecution', { executionRef: 's-9', limit: 20 }]])
+    for (const answer of [failed('not_found'), new Error('x')])
+      expect(
+        await world({ 'job.ofExecution': answer }).ops['read-session-jobs'](call, body),
+      ).toEqual({ outcome: 'basis-unavailable' })
+    expect(await world({ 'job.ofExecution': ok([]) }).ops['read-session-jobs'](call, body)).toEqual(
+      { outcome: 'succeeded', body: { items: [] } },
+    )
   })
 
   it('reads one Job in full; another tenant and a missing one answer the same; a throw is an unavailable basis', async () => {

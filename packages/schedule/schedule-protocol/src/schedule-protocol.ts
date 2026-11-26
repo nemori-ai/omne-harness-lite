@@ -188,6 +188,8 @@ const jobDetail = object({
                 },
                 outcome: { rule: nullable(text) },
                 deliverables: { rule: array(text) },
+                since: { rule: nullable(text) },
+                run: { rule: nullable(text) },
               }),
             ),
           },
@@ -345,6 +347,11 @@ export const scheduleProtocol = defineProtocol({
       ...read,
       body: ruleCodec(object({ ...ofTenant, job: { rule: text } })),
       outcomes: { succeeded: ruleCodec(jobDetail), 'not-visible': refused['not-visible'] },
+    },
+    'read-session-jobs': {
+      ...read,
+      body: ruleCodec(object({ ...ofTenant, session: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(object({ items: { rule: array(jobDetail) } })) },
     },
     'cancel-job': {
       ...write,

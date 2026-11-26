@@ -7,6 +7,7 @@ import {
   FactList,
   FactRow,
   IconButton,
+  OpenIcon,
   InlineConfirm,
   InlineNotice,
   ReadingDocument,
@@ -23,6 +24,7 @@ import {
   stepText,
   type JobDetail,
 } from '../model/jobs.ts'
+import { beganAt, sessionOf } from '../model/job-session.ts'
 import { readOnce, useReading } from '../model/reading.ts'
 import { localText } from '../model/words.ts'
 import { scheduleJob, scheduleJobCancel } from '../parts.ts'
@@ -41,6 +43,8 @@ export type JobDetailProps = Readonly<{
   backLabel: string
   onBack: () => void
   round: number
+  /** Opens the session a Job is carried out in, at the run its work began in; absent: sessions cannot be opened from here. */
+  onOpenSession?: (session: string, run?: string) => void
 }>
 
 const titleOf = (local: string | null) =>
@@ -70,7 +74,7 @@ export function JobDetailView(props: JobDetailProps): JSX.Element {
       </ReadingToolbar>
       <ReadingDocument>
         <Drawn reading={detail} reread={reread} refused={() => '看不到这份作业。'}>
-          {value => <Job detail={value} />}
+          {value => <Job detail={value} onOpenSession={props.onOpenSession} />}
         </Drawn>
       </ReadingDocument>
     </>
@@ -128,8 +132,24 @@ function Cancel({
   )
 }
 
-function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
+type JobProps = Readonly<{
+  detail: JobDetail
+  onOpenSession: JobDetailProps['onOpenSession'] | undefined
+}>
+
+function Job({ detail, onOpenSession }: JobProps): JSX.Element {
   const word = jobWord(detail)
+  const place = sessionOf(detail.where)
+  const began = beganAt(detail.events)
+  const open = place !== null && onOpenSession !== undefined && (
+    <IconButton
+      label="打开会话"
+      className="schedule-open-session"
+      onClick={() => onOpenSession(place.session, place.run)}
+    >
+      <OpenIcon aria-hidden="true" />
+    </IconButton>
+  )
   const basis =
     detail.calendar === null
       ? `安排的修订 ${detail.revision}`
@@ -146,13 +166,17 @@ function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
         <FactRow term="成因">{ORIGIN_WORDS[detail.origin]}</FactRow>
         <FactRow term="依据">{basis}</FactRow>
         <FactRow term="要求">{`${requirementText(detail.work)}（受理时冻结）`}</FactRow>
-        <FactRow term="承接">{carriedText(detail.where)}</FactRow>
+        <FactRow term="承接">
+          {carriedText(detail.where)}
+          {open}
+        </FactRow>
       </FactList>
       <Section id="schedule-job-steps" title="经过">
         <ol className="schedule-steps" aria-label="经过的每一步">
           {detail.events.map(event => (
             <li key={event.seq}>
               <Ago at={encodeInstant(event.at)} /> {stepText(event.kind)}
+              {event.seq === began && open}
             </li>
           ))}
         </ol>

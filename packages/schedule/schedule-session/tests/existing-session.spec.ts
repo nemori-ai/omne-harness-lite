@@ -389,6 +389,8 @@ describe('the end of a Job in a session that exists', () => {
       adopted: { name: 'coding', version: 'v7' },
       outcome: null,
       deliverables: [],
+      since: null,
+      run: null,
     })
   })
 

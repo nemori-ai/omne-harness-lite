@@ -242,6 +242,8 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
       adopted: { name: 'coding', version: 'v7' },
       outcome: null,
       deliverables: ['report.md'],
+      since: 'entry-3',
+      run: 'run-1',
     }
     /** The session a Job of this test runs in: the one its instruction names, or session-9. */
     const placeOf = (job: { work: unknown }) =>

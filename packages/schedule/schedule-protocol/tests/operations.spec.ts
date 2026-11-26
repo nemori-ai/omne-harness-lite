@@ -35,6 +35,7 @@ describe('schedule/v3', () => {
       'query-manage-schedule',
       'list-jobs',
       'read-job',
+      'read-session-jobs',
       'cancel-job',
       'query-cancel-job',
       'start-job',
@@ -207,13 +208,19 @@ describe('schedule/v3', () => {
       definition: { name: 'coding', version: 'v7' },
       outcome: 'exit:X2',
       deliverables: ['report.md'],
+      since: 'entry-3',
+      run: 'run-1',
     }
     for (const where of [
       null,
       { kind: 'program', program: 'probe', execution: 'program:g:j' },
       { kind: 'session', session: 's-9', account: null },
       { kind: 'session', session: 's-9', account },
-      { kind: 'session', session: 's-9', account: { ...account, definition: null, outcome: null } },
+      {
+        kind: 'session',
+        session: 's-9',
+        account: { ...account, definition: null, outcome: null, since: null, run: null },
+      },
     ])
       expectRoundTrip(read, carried(where))
     for (const wrong of [

@@ -30,6 +30,8 @@ export const ScheduleJobDetailSchema = z.strictObject({
             adopted: z.strictObject({ name: ref, version: ref }).nullable(),
             outcome: ref.nullable(),
             deliverables: z.array(z.string()).readonly(),
+            since: ref.nullable(),
+            run: ref.nullable(),
           })
           .nullable(),
       }),

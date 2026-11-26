@@ -145,7 +145,16 @@ export function world() {
   const made: unknown[] = []
   const stopped: unknown[] = []
   const ended = new Map<string, GoalOutcome>()
-  const faults = { definition: false, create: null as Created | null, standing: false, stop: false }
+  const firstRuns = new Map<string, string>()
+  const asked = { runs: [] as unknown[] }
+  const origin = { moment: '' }
+  const faults = {
+    runs: false as boolean | 'throws',
+    definition: false,
+    create: null as Created | null,
+    standing: false,
+    stop: false,
+  }
   const calls: ExecutorCalls = {
     sessions: {
       async definition({ agent }) {
@@ -171,6 +180,13 @@ export function world() {
         if (faults.stop) return 'unknown'
         stopped.push(input)
         return 'requested'
+      },
+      async roundAfter(input) {
+        asked.runs.push(input)
+        if (faults.runs === 'throws') throw new Error('the history is down')
+        if (faults.runs) return { kind: 'unavailable' }
+        const after = input.moment === origin.moment ? null : input.moment
+        return { kind: 'read', value: { after, run: firstRuns.get(input.session) ?? null } }
       },
       async opened({ session }) {
         const held = sessions.get(session)
@@ -239,6 +255,11 @@ export function world() {
     /** The goal of the Job reads as ended this way from now on: the ends only a judging reaches. */
     ended: (outcome: GoalOutcome, job = jobOf()) => void ended.set(session(job), outcome),
     endedIn: (name: string, outcome: GoalOutcome) => void ended.set(name, outcome),
+    asked,
+    /** From now on this moment is the start of the history: no position stands before the work. */
+    startsAt: (moment: string) => void (origin.moment = moment),
+    /** The first run the session of a Job began after its goal was set. */
+    ran: (run: string, job = jobOf()) => void firstRuns.set(session(job), run),
     settle: (command: Parameters<typeof goals.command>[1]['command'], job = jobOf()) =>
       goals.command({ tenant: TENANT, subject: 'owner' }, { session: session(job), command }),
   }

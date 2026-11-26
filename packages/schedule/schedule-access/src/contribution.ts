@@ -64,6 +64,7 @@ const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const invalid = (code: string) => ({ outcome: 'invalid', body: { code } }) as const
 const MANUAL_DRAFT = '由人建的草稿'
+const SESSION_JOBS = 20
 /** Stopped, used up, discarded or replaced: kept with their history, hidden from the default list. */
 const TERMINAL = new Set(['stopped', 'exhausted', 'discarded', 'superseded'])
 
@@ -459,7 +460,13 @@ function jobHandlers({
   defaultsOf,
 }: Steps): Pick<
   Handlers,
-  'list-jobs' | 'read-job' | 'cancel-job' | 'query-cancel-job' | 'start-job' | 'query-start-job'
+  | 'list-jobs'
+  | 'read-job'
+  | 'read-session-jobs'
+  | 'cancel-job'
+  | 'query-cancel-job'
+  | 'start-job'
+  | 'query-start-job'
 > {
   const scheduleOf = (text: string | null) =>
     text === null ? null : (ScheduleIdSchema.safeParse(text).data ?? undefined)
@@ -514,6 +521,14 @@ function jobHandlers({
       if (found === undefined) return UNAVAILABLE
       if (found.kind === 'error') return refused(found.error, ['not-visible'])
       return { outcome: 'succeeded', body: jobDetailOf(found.value) }
+    },
+    async 'read-session-jobs'(call, body) {
+      const ready = await prepare(call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const request = { executionRef: body.session, limit: SESSION_JOBS }
+      const found = await read(() => ready.faces.jobs.ofExecution(ready.context, request))
+      if (found === undefined || found.kind === 'error') return UNAVAILABLE
+      return { outcome: 'succeeded', body: { items: found.value.map(jobDetailOf) } }
     },
     async 'cancel-job'(call, body) {
       const ready = await prepare(call.principal, body.tenant)

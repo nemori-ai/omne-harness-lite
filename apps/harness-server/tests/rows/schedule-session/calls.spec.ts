@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { readJsonText } from '@omne-harness/json-text'
 import { GOAL_SOURCES } from '@omne-harness/goal-session'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { sourceRequestIdentities } from '@omne-harness/session-contract'
-import { refusedBy, standingOf, startInputOf } from '../../../src/rows/schedule-session/calls.ts'
+import {
+  firstRunIn,
+  refusedBy,
+  standingOf,
+  startInputOf,
+} from '../../../src/rows/schedule-session/calls.ts'
 
 const adopted = { owner: 'o', name: 'coding', revision: 'v7', digest: 'sha256:x' }
 const work = (change: Record<string, unknown> = {}) =>
@@ -92,5 +98,39 @@ describe('what a refused creation of the session means to the Job', () => {
     expect(
       refusedBy({ kind: 'invalid', field: 'modes', reason: 'does not match' } as never),
     ).toEqual({ kind: 'refused', recoverable: false, reason: 'invalid: modes: does not match' })
+  })
+})
+
+describe('the first run a page of the history says began', () => {
+  const LIMITS = {
+    maxBytes: 1024,
+    maxDepth: 4,
+    maxItems: 16,
+    maxMembers: 16,
+    maxStringLength: 256,
+    maxNumberLength: 16,
+  }
+  /** A payload as Session hands it over: the tree its history keeps, never a plain object. */
+  const payload = (value: unknown) => {
+    const read = readJsonText(JSON.stringify(value), LIMITS)
+    if (read.kind !== 'ok') throw new Error(read.kind)
+    return read.value
+  }
+  const entry = (kind: string, value: unknown) => ({ kind, payload: payload(value) })
+  const started = (run: unknown) => entry('run.started', { order: 1, run })
+
+  it('is the run of the first entry that begins one, whatever stands before it', () => {
+    const entries = [entry('input.accepted', { run: 'no' }), started('r-1'), started('r-2')]
+    expect(firstRunIn(entries)).toBe('r-1')
+  })
+
+  it('is none when no entry begins a run, or the one that does names none', () => {
+    expect(firstRunIn([])).toBeNull()
+    expect(firstRunIn([entry('input.accepted', { run: 'r-1' })])).toBeNull()
+    expect(firstRunIn([entry('run.started', {}), started('r-2')])).toBeNull()
+    expect(firstRunIn([started(7)])).toBeNull()
+    expect(firstRunIn([started(true)])).toBeNull()
+    expect(firstRunIn([entry('run.started', ['run', 'r-1'])])).toBeNull()
+    expect(firstRunIn([entry('run.started', null)])).toBeNull()
   })
 })

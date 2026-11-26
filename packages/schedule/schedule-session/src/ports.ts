@@ -12,7 +12,6 @@ export type CreationOfJob = Readonly<{
   workspace: NewSession['workspace']
 }>
 
-/** `refused`: the session was not created. `recoverable`: asking again later may create it. */
 export type Created =
   | Readonly<{ kind: 'created' }>
   | Readonly<{ kind: 'refused'; recoverable: boolean; reason: string }>
@@ -27,6 +26,8 @@ export type SessionStanding = Readonly<{
 }>
 
 /** The calls of Session a Job makes, as the system principal of schedule and only on the sessions it created. */
+/** Where work began: the position to read after, null at the start of the history; and the first run begun after it. */
+export type RoundOfWork = Readonly<{ after: string | null; run: string | null }>
 export type SessionCalls = Readonly<{
   definition(input: Readonly<{ tenant: string; agent: string }>): Promise<Read<boolean>>
   create(input: At & Readonly<{ operation: string; creation: CreationOfJob }>): Promise<Created>
@@ -34,6 +35,7 @@ export type SessionCalls = Readonly<{
   cancelRun(
     input: At & Readonly<{ operation: string; run: string; urgency: 'graceful' | 'forced' }>,
   ): Promise<'requested' | 'unknown'>
+  roundAfter(input: At & Readonly<{ moment: string }>): Promise<Read<RoundOfWork>>
   /** Whether the run going now was opened by the goal's own start reminder of this request; null when no run is going. */
   opened(input: At & Readonly<{ request: string }>): Promise<Read<boolean | null>>
 }>

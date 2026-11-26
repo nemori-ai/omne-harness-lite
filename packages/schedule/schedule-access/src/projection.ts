@@ -234,6 +234,8 @@ function whereOf(where: ScheduleJobDetail['executionWhere']) {
           definition: where.account.adopted,
           outcome: where.account.outcome,
           deliverables: where.account.deliverables,
+          since: where.account.since,
+          run: where.account.run,
         }
   return { kind: 'session' as const, session: where.sessionRef, account }
 }

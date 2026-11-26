@@ -28,6 +28,8 @@ describe('where a Job is carried out, in one line', () => {
         definition: { name: 'coding', version: 'v7' },
         outcome,
         deliverables: ['report.md', 'notes.md'],
+        since: 'e-1',
+        run: 'run-1',
       }
       expect(carriedText({ kind: 'session', session: 's-9', account })).toBe(
         `会话 s-9；定义 coding（v7）；${words}；交付物：report.md、notes.md`,
@@ -36,7 +38,7 @@ describe('where a Job is carried out, in one line', () => {
   )
 
   it('leaves out what is not there: no definition read, a goal still going, nothing delivered', () => {
-    const account = { definition: null, outcome: null, deliverables: [] }
+    const account = { definition: null, outcome: null, deliverables: [], since: null, run: null }
     expect(carriedText({ kind: 'session', session: 's-9', account })).toBe('会话 s-9')
   })
 })

@@ -472,11 +472,27 @@ describe('describe', () => {
   it('reads what the execution left where it is kept: the definition adopted, how the goal ended, what it delivered', async () => {
     const w = world()
     await w.executor.start(jobOf())
+    const since = (await w.goal())?.since
+    expect(since).toMatch(/.+/u)
     expect(await w.executor.describe?.(jobOf())).toEqual({
       adopted: { name: 'coding', version: 'v7' },
       outcome: null,
       deliverables: [],
+      since,
+      run: null,
     })
+    w.move({ run: 'run-1', pending: 0 })
+    w.ran('run-1')
+    expect(await w.executor.describe?.(jobOf())).toMatchObject({ since, run: 'run-1' })
+    expect(w.asked.runs.at(-1)).toEqual({ tenant: TENANT, session: w.session(), moment: since })
+    w.faults.runs = true
+    expect(await w.executor.describe?.(jobOf())).toMatchObject({ since: null, run: null })
+    w.faults.runs = 'throws'
+    expect(await w.executor.describe?.(jobOf())).toMatchObject({ since: null, run: null })
+    w.faults.runs = false
+    w.startsAt(String(since))
+    expect(await w.executor.describe?.(jobOf())).toMatchObject({ since: null, run: 'run-1' })
+    w.startsAt('')
     const agent = { tenant: TENANT, subject: 'agent' }
     await w.goals.track(agent, { session: w.session(), patch: { deliverables: ['report.md'] } })
     w.ended({ kind: 'exit', exit: 'X2', counts: 'success' })
@@ -484,6 +500,8 @@ describe('describe', () => {
       adopted: { name: 'coding', version: 'v7' },
       outcome: 'exit:X2',
       deliverables: ['report.md'],
+      since,
+      run: 'run-1',
     })
   })
 
@@ -491,7 +509,13 @@ describe('describe', () => {
     const w = world()
     w.authority.answer(action => (action === 'set' ? 'unavailable' : 'permitted'))
     await w.executor.start(jobOf())
-    const bare = { adopted: { name: 'coding', version: 'v7' }, outcome: null, deliverables: [] }
+    const bare = {
+      adopted: { name: 'coding', version: 'v7' },
+      outcome: null,
+      deliverables: [],
+      since: null,
+      run: null,
+    }
     expect(await w.executor.describe?.(jobOf())).toEqual(bare)
     w.authority.answer('permitted')
     await w.goals.write(

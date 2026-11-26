@@ -15,6 +15,7 @@ type AgentWork = Extract<ScheduleWork, { kind: 'agent' }>
 
 const CONFIRMED = { kind: 'confirmed' } as const
 const UNAVAILABLE = { kind: 'unavailable' } as const
+const NO_ROUND = { after: null, run: null } as const
 const UNKNOWN = { kind: 'unknown' } as const
 const UNREADABLE = 'the session or its goal cannot be read now'
 export const unknown = (reason: string): ScheduleExecutorUnknown => ({ kind: 'unknown', reason })
@@ -99,7 +100,13 @@ export function jobInSession({ sessions, goals }: ExecutorCalls) {
       const goal = facts.goal !== null && mine(facts.goal, ids) ? facts.goal : null
       const ended = goal?.state.status === 'settled' ? endOf(goal.state.outcome).reason : null
       const { adopted } = facts.standing
-      return { adopted, outcome: ended, deliverables: goal?.progress.deliverables ?? [] }
+      const began =
+        goal === null
+          ? UNAVAILABLE
+          : await sessions.roundAfter({ ...at(ids), moment: goal.since }).catch(() => UNAVAILABLE)
+      const { after: since, run } = began.kind === 'read' ? began.value : NO_ROUND
+      const deliverables = goal?.progress.deliverables ?? []
+      return { adopted, outcome: ended, deliverables, since, run }
     },
 
     /** Whether a run of the session is going: asked after the goal was set, to say whether the work has begun. */

@@ -1,6 +1,6 @@
 {
   "digests": {
-    "1": "sha256:e03244a1ba9aa2bc0af414fe896db28aaa86cfd1cbdfae7132dbade3b830f7c1"
+    "1": "sha256:a374d0554dab0a7894b244147840be815a9f2435c5a42962c1d0ca1509872fca"
   },
   "major": 3,
   "name": "schedule",
@@ -350,6 +350,32 @@
                                               }
                                             },
                                             "outcome": {
+                                              "rule": {
+                                                "kind": "one-of",
+                                                "rules": [
+                                                  {
+                                                    "kind": "text"
+                                                  },
+                                                  {
+                                                    "kind": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "run": {
+                                              "rule": {
+                                                "kind": "one-of",
+                                                "rules": [
+                                                  {
+                                                    "kind": "text"
+                                                  },
+                                                  {
+                                                    "kind": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "since": {
                                               "rule": {
                                                 "kind": "one-of",
                                                 "rules": [
@@ -2222,6 +2248,32 @@
                                             }
                                           ]
                                         }
+                                      },
+                                      "run": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "since": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
                                       }
                                     },
                                     "kind": "object"
@@ -3137,6 +3189,32 @@
                                             }
                                           ]
                                         }
+                                      },
+                                      "run": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "since": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
                                       }
                                     },
                                     "kind": "object"
@@ -3620,6 +3698,32 @@
                                             }
                                           ]
                                         }
+                                      },
+                                      "run": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "since": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
                                       }
                                     },
                                     "kind": "object"
@@ -3968,6 +4072,394 @@
           }
         }
       },
+      "read-session-jobs": {
+        "body": {
+          "fields": {
+            "session": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "items": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "acceptedAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "calendar": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "endedAt": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "events": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "at": {
+                                "rule": {
+                                  "kind": "instant"
+                                }
+                              },
+                              "kind": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "seq": {
+                                "rule": {
+                                  "kind": "positive-integer"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "job": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "local": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "origin": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "due",
+                            "catchUp",
+                            "human",
+                            "agent",
+                            "system"
+                          ]
+                        }
+                      },
+                      "outcome": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "literal",
+                              "values": [
+                                "succeeded",
+                                "failed",
+                                "cancelled"
+                              ]
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "reason": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "revision": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "schedule": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "slot": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "startedAt": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "accepted",
+                            "waiting",
+                            "startPending",
+                            "running",
+                            "blocked",
+                            "concluded"
+                          ]
+                        }
+                      },
+                      "stop": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "none",
+                            "requested",
+                            "pending",
+                            "confirmed",
+                            "unknown"
+                          ]
+                        }
+                      },
+                      "version": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "where": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "execution": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "program"
+                                        ]
+                                      }
+                                    },
+                                    "program": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "account": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "fields": {
+                                              "definition": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "fields": {
+                                                        "name": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        },
+                                                        "version": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "object"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "deliverables": {
+                                                "rule": {
+                                                  "item": {
+                                                    "kind": "text"
+                                                  },
+                                                  "kind": "array"
+                                                }
+                                              },
+                                              "outcome": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "run": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "since": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "session"
+                                        ]
+                                      }
+                                    },
+                                    "session": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "work": {
+                        "rule": {
+                          "kind": "json"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
       "start-job": {
         "body": {
           "fields": {
@@ -4296,6 +4788,32 @@
                                         }
                                       },
                                       "outcome": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "run": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "since": {
                                         "rule": {
                                           "kind": "one-of",
                                           "rules": [

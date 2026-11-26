@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { goalsKey, type GoalsService } from '@omne-harness/goal-cordis-contract/cordis'
-import { GOAL_SOURCES } from '@omne-harness/goal-session'
+import { GOAL_SOURCES, NO_ENTRY } from '@omne-harness/goal-session'
+import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, workspaceCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   Created,
@@ -10,6 +11,7 @@ import type {
 } from '@omne-harness/schedule-session'
 import {
   sourceRequestIdentities,
+  type EntryId,
   type RunId,
   type SessionCreation,
   type SessionFailure,
@@ -62,6 +64,16 @@ export function placedIn(saved: CreationOfJob['workspace']) {
   return workspace.ok ? { workspace: workspace.value, attachment } : undefined
 }
 
+const RUN_STARTED = ['run.started']
+const RUN_PAGE_BYTES = 65_536
+const FORWARD = { direction: 'forward', pageBytes: RUN_PAGE_BYTES } as const
+export function firstRunIn(entries: readonly Readonly<{ kind: string; payload: JsonValue }>[]) {
+  const payload = entries.find(entry => entry.kind === 'run.started')?.payload
+  const members = payload?.kind === 'object' ? payload.entries : []
+  const run = members.find(member => member.key === 'run')?.value
+  return run?.kind === 'string' ? run.value : null
+}
+
 /** The input a goal's start reminder of this request is, as the goal's own adapter derives it. */
 export const startInputOf = (tenant: TenantId, session: SessionId, request: string) =>
   sourceRequestIdentities({ tenant, source: GOAL_SOURCES.start, request, session }).input
@@ -75,11 +87,11 @@ export function refusedBy(failure: SessionFailure): Created {
 
 /** The calls a Job makes of Session and Goal as this release makes them. A tenant text that names no tenant reads as nothing there. */
 export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): ExecutorCalls {
-  const faceOf = (caller: 'intake' | 'maintainer') => {
+  const faceOf = (caller: 'intake' | 'maintainer' | 'reader') => {
     const scope = ctx.intercept(sessionKey, { caller })
     return () => scope.get(sessionKey, false) as SessionService | undefined
   }
-  const [intake, maintainer] = [faceOf('intake'), faceOf('maintainer')]
+  const [intake, maintainer, reader] = [faceOf('intake'), faceOf('maintainer'), faceOf('reader')]
   const { system } = ports
   const legal = (text: string): TenantId | undefined => {
     const parsed = tenantCodec.parse(text)
@@ -190,6 +202,20 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
           urgency: input.urgency === 'forced' ? 'force' : 'graceful',
         })
         return 'ok' in answer ? 'requested' : 'unknown'
+      },
+      async roundAfter(input) {
+        const tenant = legal(input.tenant)
+        const session = input.session as SessionId
+        const issued = tenant === undefined ? undefined : await asSession(tenant, session)
+        const service = reader()
+        if (tenant === undefined || issued === undefined || !('ok' in issued)) return UNAVAILABLE
+        if (service === undefined) return UNAVAILABLE
+        const asked = { principal: issued.ok, tenant, session, kinds: RUN_STARTED, ...FORWARD }
+        const after = input.moment === NO_ENTRY ? null : (input.moment as EntryId)
+        const page = await service.history.begin({ ...asked, from: after })
+        return 'ok' in page
+          ? { kind: 'read', value: { after, run: firstRunIn(page.ok.entries) } }
+          : UNAVAILABLE
       },
       async opened(input) {
         const tenant = legal(input.tenant)

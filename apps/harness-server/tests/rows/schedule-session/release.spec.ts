@@ -215,6 +215,7 @@ describe('agent work in a new session on the release tree', () => {
             const entries = await historyOf(tree, session)
             expect(count(entries, 'run.started')).toBe(1)
             expect(count(entries, 'run.terminal')).toBe(1)
+            const started = entries.find(entry => entry.kind === 'run.started')
             const read = await goals.read(agent, session)
             expect(read).toMatchObject({
               kind: 'done',
@@ -238,6 +239,8 @@ describe('agent work in a new session on the release tree', () => {
                 definition: { name: 'coding', version: expect.stringMatching(/.+/u) },
                 outcome: 'achieved',
                 deliverables: ['CHANGELOG.md'],
+                since: null,
+                run: started?.payload['run'],
               },
             })
           },

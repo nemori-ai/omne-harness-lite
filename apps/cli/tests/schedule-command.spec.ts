@@ -59,6 +59,7 @@ const answers: Readonly<Record<string, unknown>> = {
   'list-schedules': { items: [card], next: null },
   'list-jobs': { items: [], next: null },
   'read-job': job,
+  'read-session-jobs': { items: [job] },
   'cancel-job': { changed: true, job },
   'query-cancel-job': job,
   'start-job': job,
@@ -219,6 +220,9 @@ describe('omne schedule', () => {
     const shown = await cli(['schedule', 'job', '--job', 'j-1'])
     expect(shown.code).toBe(0)
     expect(body(service, 'read-job')).toEqual({ tenant: tenantText, job: 'j-1' })
+    expect((await cli(['schedule', 'session-jobs', '--session', 's-9'])).code).toBe(0)
+    expect(body(service, 'read-session-jobs')).toEqual({ tenant: tenantText, session: 's-9' })
+    expect((await cli(['schedule', 'session-jobs'])).code).toBe(2)
   })
 
   it('cancels a Job with a fresh client id; recalls it only by the id it was sent with', async () => {

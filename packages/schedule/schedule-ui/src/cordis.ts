@@ -1,5 +1,6 @@
 export {
   createScheduleUiModule,
+  scheduleJobTarget,
   SCHEDULE_PAGE_ID,
   SCHEDULE_PAGE_ORDER,
   type ScheduleUiOptions,

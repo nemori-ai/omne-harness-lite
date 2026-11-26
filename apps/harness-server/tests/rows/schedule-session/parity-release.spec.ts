@@ -108,6 +108,29 @@ function following(body: string, made: ScriptedToolCall): readonly ScriptedToolC
   return []
 }
 
+/** What a chain ended with: the answer that is not pending; undefined while it is still going. */
+function endOf(body: string, made: ScriptedToolCall): string | undefined {
+  let id = made.id
+  for (let read = 0; read <= READS; read += 1) {
+    const answer = answerTo(body, id)
+    if (answer === undefined || pendingOf(answer) === null) return answer
+    id = `${made.id}-read-${String(read)}`
+  }
+  return undefined
+}
+
+type Shown = Readonly<{ where?: { sessionRef?: string; account?: { since?: string | null } } }>
+/** Reading the round of a Job as an agent does: show the Job, then read its session after the position it names. */
+function roundOf(body: string, job: string | undefined): readonly ScriptedToolCall[] {
+  const show = call('call-show-round', 'Jobs', 'show', { job })
+  const done = DONE.exec(endOf(body, show) ?? '')
+  const { where } = done === null ? {} : (JSON.parse(done[2] ?? '{}') as Shown)
+  if (where?.sessionRef === undefined) return [show]
+  const after = where.account?.since ?? null
+  const from = after === null ? {} : { after }
+  return [show, call('call-read-round', 'Sessions', 'read', { session: where.sessionRef, ...from })]
+}
+
 /** What the person's session asks its agent to do, by the words of the person; a session of a Job works by its goal. */
 function calls(body: string): readonly ScriptedToolCall[] {
   const asked = /parity: ([a-z]+)(?: ([0-9a-f-]{36}))?/u.exec(body)
@@ -131,6 +154,11 @@ function calls(body: string): readonly ScriptedToolCall[] {
     return chain([call('call-start', 'Jobs', 'start', { work: agent({ mode: 'new' }) })])
   if (what === 'blocked') return chain([call('call-blocked', 'Jobs', 'start', { work: NOWHERE })])
   if (what === 'cancel') return chain([call('call-cancel', 'Jobs', 'cancel', { job })])
+  if (what === 'round') return chain(roundOf(body, job))
+  if (what === 'here') {
+    const session = { mode: 'existing', sessionRef: 'current' }
+    return chain([call('call-here-job', 'Jobs', 'start', { work: agent(session) })])
+  }
   return what === 'show' ? chain([call('call-show', 'Jobs', 'show', { job })]) : []
 }
 
@@ -189,6 +217,10 @@ async function workOfSchedule(tree: ReleaseTree, label: string) {
   return (shown['definition'] as { purpose: { work: Record<string, unknown> } }).purpose.work
 }
 
+const READ = /^done Sessions read session=(\S+) entries=\d+ exhausted=(\S+) [^\n]*\n(.+)$/su
+type ReadItem = Readonly<{ session: string; position: string; kind: string; material: unknown }>
+type Carried = Readonly<{ session: string; account: { since: string | null; run: string | null } }>
+
 /** The Job the first answer of a tool names. */
 const jobIn = (results: readonly { body: unknown }[]) =>
   String((results[0]?.body as { job?: string } | undefined)?.job)
@@ -201,8 +233,14 @@ const sameOf = (job: Record<string, unknown>) => ({
   stop: job['stop'],
   work: job['work'],
   where: (job['where'] as { kind?: string; account?: unknown } | null)?.kind ?? null,
-  account: (job['where'] as { account?: unknown } | null)?.account ?? null,
+  account: leftOf((job['where'] as { account?: Record<string, unknown> | null } | null)?.account),
 })
+/** What an execution left, without where its own session stood: the position and the run are of that session. */
+function leftOf(account: Record<string, unknown> | null | undefined) {
+  if (account === null || account === undefined) return null
+  const { since: _since, run: _run, ...left } = account
+  return left
+}
 
 describe('a person and an agent do the same things with schedules and Jobs', () => {
   it(
@@ -331,6 +369,74 @@ describe('a person and an agent do the same things with schedules and Jobs', () 
           )
           expect(sameOf(other ?? {})).toEqual(sameOf(one ?? {}))
           expect(sameOf(one ?? {})).toMatchObject({ outcome: 'cancelled', work: NOWHERE })
+        },
+      ])
+    },
+  )
+
+  it(
+    'from a Job to its round and back: the Job names the position its work began after, an agent reads the session from there, and a person reads the Jobs of a session',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const script = answeringDecisions(toolCallsByRequest(calls), () => ({ criterion: 'holds' }))
+      await onReleaseTreeRuns({ ...TREE, script, time: fastTime() }, [
+        async tree => {
+          const here = await said(tree, 'parity: here')
+          const jobId = jobIn(here.results)
+          const job = await jobOf(tree, jobId, found => found['state'] === 'concluded')
+          const where = job['where'] as Carried
+          expect(where.session).toBe(here.session)
+          const entries = await historyOf(tree, here.session)
+          const at = entries.findIndex(entry => entry.entryId === where.account.since)
+          expect(at).toBeGreaterThanOrEqual(0)
+          const later = entries.slice(at + 1)
+          const began = later.find(entry => entry.kind === 'run.started')
+          expect(began).toBeDefined()
+          expect(where.account.run).toBe(began?.payload['run'])
+
+          const asked = await said(tree, `parity: round ${jobId}`)
+          expect(asked.results[0]?.head).toBe('done Jobs show')
+          const read = toolResults(await historyOf(tree, asked.session)).flatMap(text => {
+            const done = READ.exec(text)
+            if (done === null) return []
+            const items = JSON.parse(done[3] ?? '[]') as ReadItem[]
+            return [{ session: done[1], exhausted: done[2], items }]
+          })
+          expect(read.map(one => [one.session, one.exhausted])).toEqual([[here.session, 'true']])
+          const items = read[0]?.items ?? []
+          expect(items.every(item => item.session === here.session)).toBe(true)
+          const positions = items.map(item => BigInt(item.position))
+          const since = BigInt(String(where.account.since))
+          expect(positions.every((position, at) => position > (positions[at - 1] ?? since))).toBe(
+            true,
+          )
+          const kinds = new Set(items.map(item => item.kind))
+          const seen = later.filter(entry => kinds.has(entry.kind)).map(entry => entry.entryId)
+          expect(seen.length).toBeGreaterThan(0)
+          expect(seen.filter(id => !positions.includes(BigInt(id)))).toEqual([])
+          expect(items.find(item => item.position === began?.entryId)).toMatchObject({
+            kind: 'run.started',
+            material: { run: where.account.run },
+          })
+
+          const work = fileOf(tree, 'work.json', agent({ mode: 'new' }))
+          const fresh = String(
+            succeeded(
+              await tree.cli(['schedule', 'start-job', '--work-file', work, '--start-id', 's-9']),
+            )['job'],
+          )
+          const inNew = await jobOf(tree, fresh, found => found['state'] === 'concluded')
+          const opened = inNew['where'] as Carried
+          const first = (await historyOf(tree, opened.session)).find(
+            entry => entry.kind === 'run.started',
+          )
+          expect(opened.account).toMatchObject({ since: null, run: first?.payload['run'] })
+
+          const jobsOf = async (session: string) =>
+            succeeded(await tree.cli(['schedule', 'session-jobs', '--session', session]))['items']
+          expect(await jobsOf(opened.session)).toEqual([inNew])
+          expect(await jobsOf(here.session)).toEqual([job])
+          expect(await jobsOf(asked.session)).toEqual([])
         },
       ])
     },
