@@ -105,6 +105,26 @@ describe('rows 2 and 3: the budget is reached', () => {
   })
 })
 
+describe('a budget that also counts examinations', () => {
+  const counted: GoalDraft = {
+    ...HOME,
+    exits: [
+      {
+        ...HOME.exits![0]!,
+        limits: [
+          { amount: 30, unit: 'rounds' },
+          { amount: 3, unit: 'examinations' },
+        ],
+      },
+      ...HOME.exits!.slice(1),
+    ],
+  }
+  it('is reached by its rounds only: the count of examinations is no count of rounds', () => {
+    expect(row(found({ criteria: { A2: 'fails' } }), start, body(counted))).toBe(9)
+    expect(row(found({ criteria: { A2: 'fails' } }), spent, body(counted))).toBe(3)
+  })
+})
+
 describe('a goal of two metrics, its budget written after another exit and with two limits', () => {
   const list = {
     ...HOME.metrics![0]!,

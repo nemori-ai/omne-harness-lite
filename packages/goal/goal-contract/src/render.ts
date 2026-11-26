@@ -12,7 +12,7 @@ export function characters(text: string): number {
 }
 
 const EXIT_KINDS = { budget: '预算', 'good-enough': '够用', condition: '条件', person: '要人定' }
-const UNITS = { rounds: '轮' }
+const UNITS = { rounds: '轮', examinations: '次查验' }
 
 function evidenceText(evidence: Criterion['evidence']): string {
   switch (evidence.kind) {
@@ -26,11 +26,16 @@ function evidenceText(evidence: Criterion['evidence']): string {
       return '人确认'
     case 'activity':
       return '这一轮做过的事'
+    case 'rerun':
+      return `复跑 \`${evidence.command}\``
+    case 'examination':
+      return '查验'
   }
 }
 
 function criterionLines(entry: Criterion): string[] {
   const lines = [`- [${entry.id}] ${entry.statement}`, `  - 证据: ${evidenceText(entry.evidence)}`]
+  if (entry.evidence.kind === 'examination') lines.push(`  - 查法: ${entry.evidence.method}`)
   if (entry.pass !== null)
     lines.push(`  - 通过: ${entry.pass.kind === 'exit-zero' ? '退出码 0' : entry.pass.text}`)
   return lines

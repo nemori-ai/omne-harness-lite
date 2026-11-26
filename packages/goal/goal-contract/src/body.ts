@@ -34,13 +34,11 @@ export const EvidenceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('file'), path: line }),
   z.strictObject({ kind: z.literal('metric'), metric: MetricIdSchema }),
   z.strictObject({ kind: z.literal('person') }),
-])
-/** Where the evidence of a kept criterion comes from: what a draft may write, or what was done in the round, which only the goal a session implies stands on. */
-export const KeptEvidenceSchema = z.discriminatedUnion('kind', [
-  ...EvidenceSchema.options,
   z.strictObject({ kind: z.literal('activity') }),
+  z.strictObject({ kind: z.literal('rerun'), command: line }),
+  z.strictObject({ kind: z.literal('examination'), method: line }),
 ])
-export type Evidence = z.infer<typeof KeptEvidenceSchema>
+export type Evidence = z.infer<typeof EvidenceSchema>
 
 export const PassSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('exit-zero') }),
@@ -75,7 +73,7 @@ export type Standing = z.infer<typeof StandingSchema>
 
 export const LimitSchema = z.strictObject({
   amount: z.int().positive(),
-  unit: z.enum(['rounds']),
+  unit: z.enum(['rounds', 'examinations']),
 })
 export const ExitSchema = z.strictObject({
   statement: line,
@@ -99,9 +97,7 @@ export type Issued = z.infer<typeof IssuedSchema>
 /** The body of a goal as it is kept: typed bones, natural-language leaves. Text is rendered from it. */
 export const GoalBodySchema = z.strictObject({
   purpose: line,
-  criteria: z.array(
-    CriterionSchema.extend({ id: CriterionIdSchema, evidence: KeptEvidenceSchema }),
-  ),
+  criteria: z.array(CriterionSchema.extend({ id: CriterionIdSchema })),
   metrics: z.array(MetricSchema.extend({ id: MetricIdSchema })),
   rules: z.array(RuleSchema.extend({ id: RuleIdSchema })),
   exits: z.array(ExitSchema.extend({ id: ExitIdSchema })),

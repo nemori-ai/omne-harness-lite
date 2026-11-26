@@ -114,7 +114,9 @@ function ruleRow(rule: GoalBody['rules'][number], read: Readings['rules'][RuleId
 }
 
 function budgetRows(body: GoalBody, rounds: number): readonly GapRow[] {
-  const limit = body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+  const limit = body.exits
+    .find(exit => exit.kind === 'budget')
+    ?.limits.find(entry => entry.unit === 'rounds')
   if (limit === undefined) return []
   return [
     {

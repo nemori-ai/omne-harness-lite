@@ -10,10 +10,16 @@ import {
 import { stepsOf } from './judge/measure.ts'
 import { BODY_MAX_CHARACTERS, characters, renderBody } from './render.ts'
 import type { Attendance } from './state.ts'
+import { examined, verificationOf } from './verification.ts'
 
 export const DEFAULT_BUDGET_ROUNDS = 50
+export const DEFAULT_BUDGET_EXAMINATIONS = 3
 
-export type BodyContext = Readonly<{ attendance: Attendance }>
+export type BodyContext = Readonly<{
+  attendance: Attendance
+  examining?: boolean
+  maxExaminations?: number
+}>
 
 /** One thing wrong with a body: which entry, which field, and what. No entry means the body as a whole. */
 export type BodyIssue = Readonly<{ entry: string | null; field: string; problem: string }>
@@ -47,13 +53,24 @@ export const DEFAULT_BUDGET: Omit<Exit, 'id'> = {
   counts: 'failure',
 }
 
+type DraftExit = z.output<typeof GoalDraftSchema>['exits'][number]
+
+function withExaminations(exit: DraftExit, context: BodyContext): DraftExit {
+  if (exit.kind !== 'budget' || exit.limits.some(limit => limit.unit === 'examinations'))
+    return exit
+  const amount = Math.min(DEFAULT_BUDGET_EXAMINATIONS, context.maxExaminations ?? Infinity)
+  return { ...exit, limits: [...exit.limits, { amount, unit: 'examinations' }] }
+}
+
 /** Numbers the entries in the order they stand, and adds the default budget when none is written. */
-function numbered(draft: z.output<typeof GoalDraftSchema>): GoalBody {
+function numbered(draft: z.output<typeof GoalDraftSchema>, context: BodyContext): GoalBody {
   const number = <T>(letter: SectionLetter, list: readonly T[]) =>
     list.map((entry, index) => ({ ...entry, id: `${letter}${String(index + 1)}` }))
-  const exits = draft.exits.some(exit => exit.kind === 'budget')
+  const budgeted = draft.exits.some(exit => exit.kind === 'budget')
     ? draft.exits
     : [...draft.exits, DEFAULT_BUDGET]
+  const waits = draft.criteria.some(entry => examined(verificationOf(entry)))
+  const exits = waits ? budgeted.map(exit => withExaminations(exit, context)) : budgeted
   const issued: Issued = {
     A: draft.criteria.length,
     M: draft.metrics.length,
@@ -91,26 +108,38 @@ function standingIssues(body: GoalBody, exit: Exit, say: Say): void {
   }
 }
 
-function limitIssues(exit: Exit, budgets: number, say: Say): void {
+function limitIssues(exit: Exit, budgets: number, context: BodyContext, say: Say): void {
   if (exit.kind !== 'budget') {
     if (exit.limits.length > 0) say(exit.id, 'limits', 'only a budget exit has limits')
     return
   }
   if (budgets > 1) say(exit.id, 'kind', 'a goal has one budget exit')
   if (exit.limits.length === 0) say(exit.id, 'limits', 'a budget exit needs a limit')
+  const most = context.maxExaminations
+  if (most !== undefined && exit.limits.some(l => l.unit === 'examinations' && l.amount > most))
+    say(exit.id, 'limits', `the settings allow ${String(most)} examinations at most`)
 }
 
-function exitIssues(body: GoalBody): BodyIssue[] {
+function exitIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
   const found: BodyIssue[] = []
   const say: Say = (entry, field, problem) => found.push({ entry, field, problem })
   let budgets = 0
   for (const exit of body.exits) {
     if (exit.kind === 'budget') budgets += 1
-    limitIssues(exit, budgets, say)
+    limitIssues(exit, budgets, context, say)
     if (exit.kind === 'good-enough') standingIssues(body, exit, say)
     else if (exit.by.length > 0) say(exit.id, 'by', 'only a good-enough exit stands on entries')
   }
   return found
+}
+
+function passProblem(entry: GoalBody['criteria'][number]): string | null {
+  const { evidence, pass } = entry
+  if (pass === null) return null
+  const coded = evidence.kind === 'command' || evidence.kind === 'rerun'
+  if (pass.kind === 'exit-zero') return coded ? null : 'only a command has an exit code'
+  if (evidence.kind === 'rerun') return 'a run again is read by its exit code'
+  return evidence.kind === 'examination' ? 'what an examination must see is in its method' : null
 }
 
 function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
@@ -131,8 +160,14 @@ function criterionIssues(body: GoalBody, context: BodyContext): BodyIssue[] {
         field: 'evidence',
         problem: 'nobody is in an unattended session to confirm',
       })
-    if (entry.pass?.kind === 'exit-zero' && evidence.kind !== 'command')
-      found.push({ entry: entry.id, field: 'pass', problem: 'only a command has an exit code' })
+    const problem = passProblem(entry)
+    if (problem !== null) found.push({ entry: entry.id, field: 'pass', problem })
+    if (context.examining === true && examined(verificationOf(entry)))
+      found.push({
+        entry: entry.id,
+        field: 'evidence',
+        problem: 'a session that examines for a goal does not wait for an examination itself',
+      })
   }
   return found
 }
@@ -153,7 +188,7 @@ export const IMPLIED_PURPOSE_MAX = 2000
 export function impliedBody(input: string): GoalBody | null {
   const purpose = [...input.trim()].slice(0, IMPLIED_PURPOSE_MAX).join('').trim()
   if (purpose === '') return null
-  const empty = numbered(GoalDraftSchema.parse({ purpose }))
+  const empty = numbered(GoalDraftSchema.parse({ purpose }), { attendance: 'unattended' })
   const criterion = {
     id: 'A1',
     statement: IMPLIED_STATEMENT,
@@ -168,7 +203,7 @@ export function bodyIssues(body: GoalBody, context: BodyContext): readonly BodyI
   const found: BodyIssue[] = []
   if (body.purpose === '')
     found.push({ entry: null, field: 'purpose', problem: 'a goal needs a purpose' })
-  found.push(...criterionIssues(body, context), ...metricIssues(body), ...exitIssues(body))
+  found.push(...criterionIssues(body, context), ...metricIssues(body), ...exitIssues(body, context))
   if (body.method.some(step => step.trim() === ''))
     found.push({ entry: null, field: 'method', problem: 'a line of method is empty' })
   const length = characters(renderBody(body))
@@ -185,7 +220,7 @@ export function bodyIssues(body: GoalBody, context: BodyContext): readonly BodyI
 export function validateDraft(draft: unknown, context: BodyContext): BodyCheck {
   const parsed = GoalDraftSchema.safeParse(draft)
   if (!parsed.success) return { kind: 'invalid', issues: parsed.error.issues.map(shapeIssue) }
-  const body = numbered(parsed.data)
+  const body = numbered(parsed.data, context)
   const issues = bodyIssues(body, context)
   return issues.length === 0 ? { kind: 'valid', body } : { kind: 'invalid', issues }
 }

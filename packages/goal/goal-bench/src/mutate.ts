@@ -92,7 +92,9 @@ function withoutEvidence(material: JudgeMaterial, target: CriterionId): JudgeMat
 }
 
 function budgetOf(material: JudgeMaterial): number {
-  const limit = material.body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+  const limit = material.body.exits
+    .find(exit => exit.kind === 'budget')
+    ?.limits.find(entry => entry.unit === 'rounds')
   if (limit === undefined) throw new Error('the goal has no budget')
   return limit.amount
 }

@@ -80,7 +80,7 @@ export function closer(before: Gap | null, now: Gap): boolean {
 
 function budgetReached(body: GoalBody, rounds: number): Exit | undefined {
   const budget = body.exits.find(exit => exit.kind === 'budget')
-  const spent = budget?.limits.some(limit => rounds >= limit.amount)
+  const spent = budget?.limits.some(limit => limit.unit === 'rounds' && rounds >= limit.amount)
   return spent ? budget : undefined
 }
 
