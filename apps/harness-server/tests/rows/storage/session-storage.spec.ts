@@ -368,7 +368,7 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/24')
+    expect(COMBINATION_VERSION).toBe('session-composite/25')
   })
 
   test('the version and the manifest digest move together: a new digest needs a new version', () => {
@@ -377,7 +377,7 @@ describe('the composite declaration (acceptance 6)', () => {
       { combinationVersion, manifestDigest },
       'the participants changed: bump COMBINATION_VERSION and serve.distribution.json, then pin the new digest here',
     ).toEqual({
-      combinationVersion: 'session-composite/24',
+      combinationVersion: 'session-composite/25',
       manifestDigest: 'aae234aff8194bd8ffa0ca8de01e5d012e0c131f4353d078266f814273b078ac',
     })
   })

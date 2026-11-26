@@ -1,4 +1,9 @@
-import { ChangeSchema, GoalDraftSchema, TrackSchema } from '@omne-harness/goal-contract'
+import {
+  ChangeSchema,
+  GoalDraftSchema,
+  SubmissionSchema,
+  TrackSchema,
+} from '@omne-harness/goal-contract'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ParameterContract } from '@omne-harness/tool-contract'
@@ -37,7 +42,7 @@ export function tree(value: unknown): JsonValue {
 }
 
 /** Every command of the tool. None of them sets, changes, pauses, resumes, cancels or settles a goal. */
-export const goalCommandNames = ['help', 'show', 'propose', 'track'] as const
+export const goalCommandNames = ['help', 'show', 'propose', 'track', 'brief', 'submit'] as const
 export type GoalCommandName = (typeof goalCommandNames)[number]
 
 const shapes = {
@@ -48,6 +53,8 @@ const shapes = {
     changes: z.array(ChangeSchema).min(1).optional(),
   }),
   track: TrackSchema,
+  brief: z.strictObject({}),
+  submit: SubmissionSchema,
 } as const satisfies Record<GoalCommandName, z.ZodType>
 
 export type GoalArguments = {
@@ -62,6 +69,10 @@ export const goalSummaries: Readonly<Record<GoalCommandName, string>> = {
     'Put a goal, or changes to the goal that stands, in front of the person on a card and wait for their answer. Give body to set a goal, or changes to revise one. Nothing stands until they confirm.',
   track:
     'Update your progress list by entry number: where each criterion is, the call ids of the tool calls that show it, a note. It changes nothing of the goal itself.',
+  brief:
+    'Only in a session that examines for a goal: read the brief of the batch you are to examine.',
+  submit:
+    'Only in a session that examines for a goal: hand in one reading for each criterion of the batch, with the call ids of your own tool calls that show it and what you saw. It changes nothing of the goal itself.',
 }
 
 /** The contract's values are immutable, which zod writes as `readOnly`: in a schema that means "do not send". */

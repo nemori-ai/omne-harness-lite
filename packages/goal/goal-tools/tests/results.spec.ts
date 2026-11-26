@@ -54,7 +54,20 @@ describe('a refusal of the goal services as the result of a call', () => {
   it('a call that may not do it, and a session or a card that is not there, are unsupported', () => {
     expect(reasonOf({ kind: 'denied' })).toEqual({
       kind: 'unsupported',
-      reason: 'denied: this call may not do that',
+      reason:
+        'denied: this call may not do that. A session that examines for a goal has brief and submit, and no goal of its own',
+    })
+    expect(answered('submit', { kind: 'refused', reason: { kind: 'denied' } }, String)).toEqual({
+      failure: {
+        kind: 'unsupported',
+        reason:
+          'denied: this session examines for no goal, or no batch is out. brief and submit are for the session that examines for a goal',
+      },
+    })
+    expect(reasonOf({ kind: 'differs' })).toEqual({
+      kind: 'conflict',
+      reason:
+        'differs: this batch was already handed in with other readings; a batch is handed in once',
     })
     for (const kind of ['no-such-session', 'no-such-card'] as const)
       expect(reasonOf({ kind })).toEqual({

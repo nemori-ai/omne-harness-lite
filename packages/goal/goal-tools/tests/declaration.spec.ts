@@ -11,6 +11,7 @@ import {
 import {
   answerGoal,
   createGoalAuthor,
+  EXAMINING_CONDITIONS,
   goalCommandNames,
   goalExecutor,
   goalToolModule,
@@ -57,24 +58,35 @@ function author(maximum = 65_536) {
 }
 
 describe('the Goal declaration', () => {
-  it('is one wrapped declaration of four commands, none of which sets, changes, pauses, resumes, cancels or settles a goal', () => {
+  it('is one wrapped declaration of six commands, none of which sets, changes, pauses, resumes, cancels or settles a goal', () => {
     const { definition } = author()
     expect(judgeToolDefinition(definition)).toHaveProperty('ok')
     if (definition.kind !== 'commands') throw new Error('commands')
     expect(definition.encoding).toBe('wrapped')
-    expect(definition.commands.map(item => item.name)).toEqual(['help', 'show', 'propose', 'track'])
-    expect(goalCommandNames).toEqual(['help', 'show', 'propose', 'track'])
+    const ALL = ['help', 'show', 'propose', 'track', 'brief', 'submit']
+    expect(definition.commands.map(item => item.name)).toEqual(ALL)
+    expect(goalCommandNames).toEqual(ALL)
+    for (const name of ALL)
+      expect(name).not.toMatch(/set|revise|pause|resume|cancel|settle|achieve/u)
     expect(definition.backgroundAllowed).toBe(false)
   })
 
-  it('offers propose only where a person attends; the other commands everywhere', () => {
+  it('offers propose only where a person attends, and brief and submit only in a session that examines for a goal', () => {
     const { definition } = author()
     if (definition.kind !== 'commands') throw new Error('commands')
     const conditions = Object.fromEntries(
       definition.commands.map(item => [item.name, item.conditions ?? null]),
     )
-    expect(conditions).toEqual({ help: null, show: null, propose: ['person-present'], track: null })
+    expect(conditions).toEqual({
+      help: null,
+      show: null,
+      propose: ['person-present'],
+      track: null,
+      brief: ['examining'],
+      submit: ['examining'],
+    })
     expect(PROPOSE_CONDITIONS).toEqual(['person-present'])
+    expect(EXAMINING_CONDITIONS).toEqual(['examining'])
   })
 
   it('does not vary with what it is constructed with, and refuses a construction it does not know', () => {

@@ -303,6 +303,89 @@ describe('track', () => {
   })
 })
 
+describe('brief and submit, in the session that examines for a goal', () => {
+  const EXAMINER = 'examiner-1'
+  const SNAKE = {
+    purpose: '做一个能玩的贪吃蛇',
+    criteria: [
+      { statement: '验收脚本通过', evidence: { kind: 'rerun', command: 'node accept.js' } },
+      { statement: '写了说明', evidence: { kind: 'file', path: 'README.md' } },
+    ],
+  }
+  const BATCH = 'examine/1/1/'
+  /** A goal of the working session whose batch is out to the session of this world's call. */
+  async function examining() {
+    const made = world(EXAMINER)
+    const direct = { operation: 'op-1', words: null, draftedBy: 'person', by: 'acc-1' } as const
+    const proposal = { kind: 'set', draft: SNAKE } as const
+    await made.goals.write(made.caller, { session: SESSION, proposal, ...direct })
+    const set = made.record()!
+    const key = { revision: 1, written: '' }
+    const batch = { key, criteria: ['A1' as const], delivery: 'handed' as const }
+    const examination = { ...set.examination, batch, used: 1, examiner: EXAMINER }
+    await made.store.commit(TENANT, {
+      session: SESSION,
+      expected: set.version,
+      next: { ...set, examination },
+    })
+    return made
+  }
+  const reading = { criterion: 'A1', value: 'holds', refs: [], note: '退出码 0' }
+
+  it('brief reads the batch that is out: its name, each criterion with its command or method', async () => {
+    const made = await examining()
+    const text = ok(await made.run({ command: 'brief', params: {} }))
+    expect(text.startsWith(`done Goal brief\nBatch: ${BATCH}\n`)).toBe(true)
+    expect(text).toContain('- [A1] 验收脚本通过\n  - 证据: 复跑 `node accept.js`')
+    expect(text).not.toContain('写了说明')
+  })
+
+  it('submit hands in the readings of the batch and answers that they were taken; it writes no state of its own', async () => {
+    const made = await examining()
+    const handed = { batch: BATCH, readings: [reading] } as never
+    expect(ok(await made.run({ command: 'submit', params: handed }))).toBe(
+      'done Goal submit\nThe readings were handed in.',
+    )
+    expect(made.record()?.examination.read).toMatchObject({
+      A1: { value: 'holds', note: '退出码 0' },
+    })
+    expect(ok(await made.run({ command: 'submit', params: handed }))).toContain('already handed in')
+    const other = { batch: BATCH, readings: [{ ...reading, value: 'fails' }] } as never
+    expect(await made.run({ command: 'submit', params: other })).toMatchObject({
+      failure: { kind: 'conflict', reason: expect.stringMatching(/^differs: /u) },
+    })
+  })
+
+  it('a batch that is no longer waited for is taken as out of date, and the answer says where to read the current one', async () => {
+    const made = await examining()
+    const stale = { batch: 'examine/1/1/call-0', readings: [reading] } as never
+    expect(ok(await made.run({ command: 'submit', params: stale }))).toContain('out of date')
+    expect(made.record()?.examination.read).toEqual({})
+  })
+
+  it('in any other session both are refused, and the refusal says whom they are for', async () => {
+    await examining()
+    const elsewhere = world(SESSION)
+    for (const command of ['brief', 'submit'] as const) {
+      const params = (command === 'brief' ? {} : { batch: BATCH, readings: [reading] }) as never
+      expect(await elsewhere.run({ command, params })).toMatchObject({
+        failure: { kind: 'unsupported', reason: expect.stringContaining('examines for no goal') },
+      })
+    }
+  })
+
+  it('the examining session is refused the commands of the working agent', async () => {
+    const made = await examining()
+    made.sessions.add(EXAMINER, 'unattended')
+    expect(await made.run({ command: 'track', params: { notes: ['x'] } })).toMatchObject({
+      failure: { kind: 'unsupported', reason: expect.stringContaining('brief and submit') },
+    })
+    expect(await made.proposed({ body: SNAKE })).toMatchObject({
+      failure: { kind: 'unsupported' },
+    })
+  })
+})
+
 describe('no command changes the state of a goal', () => {
   it('show, track, help and an unconfirmed proposal leave the state as it was, in progress and paused', async () => {
     const made = world()
