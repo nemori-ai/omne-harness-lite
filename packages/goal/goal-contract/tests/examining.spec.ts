@@ -371,6 +371,9 @@ describe('the readings of a batch arriving at the goal', () => {
     if (step.kind !== 'next') throw new Error(step.kind)
     expect(step.record.state).toEqual(paused)
     expect(step.record.examination.read[A2]).toMatchObject({ value: 'holds' })
+    const during = arrive(waiting({ state: paused }), { running: true })
+    if (during.kind !== 'next') throw new Error(during.kind)
+    expect(during.record.examination.arrived).toBe(false)
   })
 
   it('of the batch that is out but no longer the awaited one are not kept: a file was written since', () => {

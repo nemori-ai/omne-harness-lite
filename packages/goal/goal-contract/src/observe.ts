@@ -218,7 +218,7 @@ function ruledOn(
   const next = step.kind === 'changed' ? step.next : state
   const told = TOLD.find(([effect]) => step.effects.includes(effect))?.[1] ?? null
   const hand = step.effects.includes('hand') && verdict.row === 2 ? verdict.hand : []
-  const batches = moved(examination, now, hand, next.status === 'settled')
+  const batches = moved(examination, now, hand, false)
   const arrived = current && running && state.status === 'active'
   return {
     told,

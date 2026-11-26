@@ -49,9 +49,9 @@ export function reran(
   const { batch } = record.examination
   if (input.generation !== record.state.generation) return { kind: 'dropped' }
   if (batch === null || !sameKey(batch.key, key)) return { kind: 'dropped' }
-  const kindOf = (id: CriterionId) =>
-    record.body.criteria.find(entry => entry.id === id)?.evidence.kind
-  const runs = batch.criteria.filter(id => kindOf(id) === 'rerun')
+  const runs = record.body.criteria
+    .filter(entry => entry.evidence.kind === 'rerun' && batch.criteria.includes(entry.id))
+    .map(entry => entry.id)
   const rest = batch.criteria.filter(id => !runs.includes(id))
   const read = runs.map(id => {
     const result = input.results.find(entry => entry.criterion === id)

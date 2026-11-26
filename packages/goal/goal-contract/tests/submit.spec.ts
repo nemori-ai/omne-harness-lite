@@ -10,6 +10,7 @@ import {
   handed,
   handedOf,
   NOT_RUN,
+  ranOf,
   reran,
   NO_EXAMINATION,
   renderBrief,
@@ -428,7 +429,46 @@ describe('readings handed in to a goal', () => {
       expect(step.record.examination.read[A1]).toMatchObject({
         value: 'cannot-tell',
         note: NOT_RUN,
+        refs: [],
       })
+      expect(NOT_RUN).toBe('the command was not run again')
+    })
+
+    it('what is handed in is one {criterion, exit, note} for a command, the note 400 characters at most; anything else is not read', () => {
+      const one = { criterion: A1, exit: 0, note: 'x'.repeat(400) }
+      expect(ranOf([one, { ...one, exit: null }])).toEqual([one, { ...one, exit: null }])
+      expect(ranOf([])).toEqual([])
+      for (const wrong of [
+        { ...one, note: 'x'.repeat(401) },
+        { ...one, exit: 0.5 },
+        { ...one, value: 'holds' },
+        { criterion: A1, exit: 0 },
+      ])
+        expect(ranOf([wrong])).toBeNull()
+      expect(ranOf({ results: [one] })).toBeNull()
+    })
+
+    it('each command is read by its own exit code, and one that did not pass among several brings the batch back', () => {
+      const twice = bodyOf()
+      const [first, second, third] = twice.criteria
+      const body = {
+        ...twice,
+        criteria: [first, second, { ...third, evidence: first.evidence }],
+      } as GoalRecord['body']
+      const examination = handed(NO_EXAMINATION, NOW, [A1, A2, A3]).examination
+      const results = [
+        { criterion: A3, exit: 1, note: '第二条命令没过' },
+        { criterion: A1, exit: 0, note: '第一条命令过了' },
+      ]
+      const step = run(recordOf({ body, examination }), { results })
+      if (step.kind !== 'next') throw new Error(step.kind)
+      expect(step.examine).toEqual([])
+      expect(step.record.examination.batch).toBeNull()
+      expect(step.record.examination.read).toMatchObject({
+        A1: { value: 'holds', note: '第一条命令过了' },
+        A3: { value: 'fails', note: '第二条命令没过' },
+      })
+      expect(Object.keys(step.record.examination.read).sort()).toEqual(['A1', 'A3'])
     })
 
     it('with an examination in the batch and every command passing, the batch stays out for the examining session: what ran is kept with it', () => {

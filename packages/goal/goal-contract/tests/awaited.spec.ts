@@ -3,9 +3,12 @@ import {
   awaitedReading,
   batchRequest,
   cancelled,
+  delivered,
+  ExaminationSchema,
   handed,
   keptExamination,
   NO_EXAMINATION,
+  owesExamination,
   pendingOf,
   received,
   sameKey,
@@ -117,6 +120,19 @@ describe('handing a batch over', () => {
     ])
     const submitted = { ...NO_EXAMINATION, submitted: { key: NOW, digest: 'sha256:aa' } }
     expect(handed(submitted, NOW, [A1])).toEqual({ examination: submitted, replaced: null })
+  })
+})
+
+describe('what a goal owes for its examination', () => {
+  it('is a batch not known to be taken, or a verdict for readings that arrived while a round was going; nothing else', () => {
+    const owed = handed(NO_EXAMINATION, NOW, [A1]).examination
+    expect(owesExamination(owed)).toBe(true)
+    expect(owesExamination(delivered(owed, NOW, 'unknown'))).toBe(true)
+    expect(owesExamination(delivered(owed, NOW, 'handed'))).toBe(false)
+    expect(owesExamination(NO_EXAMINATION)).toBe(false)
+    expect(ExaminationSchema.parse({ batch: null, used: 0, read: {} })).toEqual(NO_EXAMINATION)
+    expect(owesExamination({ ...NO_EXAMINATION, arrived: true })).toBe(true)
+    expect(owesExamination({ ...delivered(owed, NOW, 'handed'), arrived: true })).toBe(true)
   })
 })
 
