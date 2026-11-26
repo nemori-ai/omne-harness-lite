@@ -189,11 +189,17 @@ export const startShell = (): Promise<Started<TestShell>> => startShellOf(TestSh
 export async function mountModule(
   client: ClientOf<SessionProtocol>,
   scope: string | undefined,
-  options: { readonly strict?: boolean } = {},
+  options: {
+    readonly strict?: boolean
+    readonly companionNote?: Readonly<Record<`data-${string}`, string>>
+  } = {},
 ) {
   const { root, shell } = await startShell()
   const served = await serveProtocol(root, sessionProtocol, client)
-  await root.plugin(createSessionUiModule(TAKEN))
+  const { companionNote } = options
+  await root.plugin(
+    createSessionUiModule(companionNote === undefined ? TAKEN : { ...TAKEN, companionNote }),
+  )
   shell.tenant = scope
   const tree = (next: string | undefined, floating?: Floating) => {
     const view = <ShellView shell={shell} scope={next} {...(floating ? { floating } : {})} />

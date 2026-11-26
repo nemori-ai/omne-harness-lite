@@ -14,6 +14,7 @@ import {
   SendIcon,
   Textarea,
   type Box,
+  type DataAttributes,
 } from '@omne-harness/ui-kit'
 import {
   useEffect,
@@ -130,6 +131,7 @@ function SayForm({ sessions, current, say, show, close }: CompanionPanelDrawing)
   return (
     <form
       className="omne-companion-form"
+      {...sessionCompanionPanel.props}
       onSubmit={event => {
         event.preventDefault()
         submit()
@@ -174,6 +176,7 @@ export type CompanionPanelProps = Readonly<{
   figure: RefObject<HTMLElement | null>
   corner: FloatCorner
   unfolded: boolean
+  note?: DataAttributes | undefined
   close: (refocus: boolean) => void
 }>
 
@@ -184,6 +187,7 @@ export function CompanionPanel({
   figure,
   corner,
   unfolded,
+  note,
   close,
 }: CompanionPanelProps) {
   const unfold = useUnfold(unfolded)
@@ -206,7 +210,7 @@ export function CompanionPanel({
       ref={bubble}
       as="section"
       className="omne-companion-panel"
-      {...sessionCompanionPanel.props}
+      {...note}
       role="dialog"
       aria-label={PANEL_LABEL}
       inert={unfold.closing}

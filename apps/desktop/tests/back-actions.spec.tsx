@@ -416,3 +416,19 @@ describe('on the back the keys do not act on the folded front (FE-I57)', () => {
     }
   })
 })
+
+describe('the say note has one name on every surface (DT-59)', () => {
+  it('the panel the companion unfolds in the window is drawn in a bubble named shell.figure.note, with the session panel inside it', async () => {
+    await onTheBack()
+    const companion = screen.getByRole('button', { name: '对 Agent 说一句话' })
+    act(() => void fireEvent.click(companion))
+    await settle()
+    const bubble = document.querySelector<HTMLElement>(
+      '[role="dialog"][aria-label="对 Agent 说一句话"]',
+    )
+    expect(bubble?.getAttribute('data-omne-part')).toBe('shell.figure.note')
+    const panel = document.querySelector('[data-omne-part="session.companion.panel"]')
+    expect(panel).not.toBeNull()
+    expect(bubble?.contains(panel)).toBe(true)
+  })
+})

@@ -57,6 +57,7 @@ import { FigureReport } from './view/figure-report.tsx'
 import { ReadBlock, ReplyReceipt } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
+import type { DataAttributes } from '@omne-harness/ui-kit'
 import type { ToolCallPart } from './view/block-slot.ts'
 import { PartDrawContext } from './view/part-draw.ts'
 import { EntryFocusContext } from './view/shown-entry.ts'
@@ -86,6 +87,7 @@ export type SessionUiOptions = Readonly<{
   canvasPicker?: RenderPointSink<PaperPickerSubject>
   composerAssistant?: ServiceKey<ComposerAssistant>
   pictureIntake?: ServiceKey<PictureIntake>
+  companionNote?: DataAttributes
 }>
 
 /** Where a jump to a session goes: the shell's navigate takes these two, and the conversation page opens it. */
@@ -201,6 +203,7 @@ function companionItem(
   shell: ShellService,
   workspaces: SessionWorkspaces,
   background: BackgroundCallsStore,
+  note: DataAttributes | undefined,
 ): ItemOf<'float'> {
   const show = (): void => shell.navigate(CONVERSATION_PAGE)
   return {
@@ -212,6 +215,7 @@ function companionItem(
         background={background}
         shell={shell}
         float={float}
+        note={note}
         onShow={show}
       />
     ),
@@ -346,7 +350,7 @@ const apply = (
         <BackgroundHint store={background} tenant={scope} session={subject.session} />
       ),
   })
-  shell.contribute('float', companionItem(shell, workspaces, background))
+  shell.contribute('float', companionItem(shell, workspaces, background, options.companionNote))
   const spoken = sessionSayItem(shell, workspaces, CONVERSATION_PAGE, pictureIntake)
   shell.contribute('say', spoken.item)
   shell.contribute('sidebar', listItem(shell, { workspaces, places, conversationShown }))

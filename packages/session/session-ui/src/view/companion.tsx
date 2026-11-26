@@ -1,5 +1,5 @@
 import type { FloatProps, PartDrawer } from '@omne-harness/shell-contract'
-import { Button, InkMotes } from '@omne-harness/ui-kit'
+import { Button, InkMotes, type DataAttributes } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { BackgroundCallsStore } from '../model/background-calls.ts'
 import { companionFacts, type CompanionFacts } from '../model/companion.ts'
@@ -25,6 +25,7 @@ export type CompanionProps = Readonly<{
   background: BackgroundCallsStore
   shell: PartDrawer
   float: FloatProps
+  note?: DataAttributes | undefined
   onShow: () => void
 }>
 
@@ -38,7 +39,7 @@ export function Companion({ workspaces, float, ...rest }: CompanionProps) {
 type HeldProps = Omit<CompanionProps, 'workspaces'> &
   Readonly<{ driver: SessionDriver; tenant: string }>
 
-function Held({ driver, tenant, background, shell, float, onShow }: HeldProps) {
+function Held({ driver, tenant, background, shell, float, note, onShow }: HeldProps) {
   const held = useRef<CompanionFacts | null>(null)
   const facts = useSyncExternalStore(
     driver.subscribe,
@@ -54,7 +55,11 @@ function Held({ driver, tenant, background, shell, float, onShow }: HeldProps) {
   )
   const { grip, corner, dragging } = float
   const given: CompanionDrawing = { ...port, doing, grip, corner, dragging }
-  return sessionCompanion.draw(shell, () => <BuiltIn shell={shell} given={given} />, given)
+  return sessionCompanion.draw(
+    shell,
+    () => <BuiltIn shell={shell} given={given} note={note} />,
+    given,
+  )
 }
 
 /** What the companion looks like: the drawing put on its figure, or the ink motes it ships with. */
@@ -76,9 +81,11 @@ function Figure({
 function BuiltIn({
   shell,
   given,
+  note,
 }: {
   readonly shell: PartDrawer
   readonly given: CompanionDrawing
+  readonly note: DataAttributes | undefined
 }) {
   const { doing, grip, corner, dragging, ...port } = given
   const [unfolded, setUnfolded] = useState(false)
@@ -110,6 +117,7 @@ function BuiltIn({
         figure={figure}
         corner={corner}
         unfolded={unfolded}
+        note={note}
         close={close}
       />
     </div>
