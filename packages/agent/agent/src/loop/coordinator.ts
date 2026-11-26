@@ -260,9 +260,10 @@ export type ReplyAdmissionReadReport = Readonly<{
   facts: number
 }>
 
-export type Halted = Readonly<{ node: LoopNode; failure: Failure; step: StepId | null }>
+export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
 export interface ExecutionDrive {
+  step(): StepId | null
   runExecution(): Promise<Outcome<void, Halted>>
   waitForWake(
     input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
@@ -494,11 +495,7 @@ function coordinate<P>(
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
   let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
   let held: HeldPosition | null = null
-  const haltedAt = (node: LoopNode, failure: Failure): Halted => ({
-    node,
-    failure,
-    step: checkpoint?.step ?? null,
-  })
+  const haltedAt = (node: LoopNode, failure: Failure): Halted => ({ node, failure })
   async function exclusive<T>(
     node: LoopNode,
     run: () => Promise<Outcome<T, Halted>>,
@@ -699,6 +696,7 @@ function coordinate<P>(
         takeLatestPosition(latest.ok)
         if (latest.ok.state.kind === 'ended') return succeed('F4')
         if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+        if (authority === null) return fail(failure)
         const revoked = revocationWait(failure, advancementOf(latest.ok), AGENT_OWNER)
         if (revoked !== null) return waitForFault('E2', revoked)
       }
@@ -3021,6 +3019,7 @@ function coordinate<P>(
   }
 
   return {
+    step: () => checkpoint?.step ?? null,
     async accept(confirmedOpen) {
       return exclusive('E0', async () => {
         const start = originalOpen === null ? 'U0' : 'E0'

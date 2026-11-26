@@ -518,7 +518,7 @@ export function createProvider<P, B extends ContentBlock>(
       }
     }
     const stopped = (halted: Halted | null) => {
-      if (halted !== null) failRun(execution, halted)
+      if (halted !== null) failRun(execution, { ...halted, step: coordinator.step() })
     }
     void drive().then(stopped, (error: unknown) => failRun(execution, threw(error)))
   }
