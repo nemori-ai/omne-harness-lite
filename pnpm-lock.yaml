@@ -946,6 +946,9 @@ importers:
       '@omne-harness/media-image':
         specifier: workspace:*
         version: link:../../packages/media/media-image
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/media-storage-local':
         specifier: workspace:*
         version: link:../../packages/media/media-storage-local
@@ -1286,9 +1289,6 @@ importers:
       '@omne-harness/mcp-protocol':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-protocol
-      '@omne-harness/media-protocol':
-        specifier: workspace:*
-        version: link:../../packages/media/media-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
