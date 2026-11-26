@@ -19,14 +19,19 @@ const unkept: Decide = request =>
   Promise.reject(new Error(`a request to ${request.model} is not among the kept replies`))
 const SIDES = [
   ['the baseline scheme', BASELINE_JUDGE_CONFIG, 'base', ['baseline-verify', 'baseline-canary']],
-  ['the default scheme', DEFAULT_JUDGE_CONFIG, 'candidate', ['final-verify', 'final-canary']],
+  [
+    'the default scheme',
+    DEFAULT_JUDGE_CONFIG,
+    'candidate',
+    ['final-verify', 'final-canary', 'f01-staleness-decided-heldout'],
+  ],
 ] as const
 const replayed = (side: (typeof SIDES)[number]): Promise<Replayed> =>
   replay(HELD_OUT, side[1], { decide: unkept, cache: fileCache(side[3].map(kept)) })
 
 describe('the comparison the default scheme was settled on', () => {
   const compared = JSON.parse(
-    readFileSync(join(EXPERIMENTS, 'final-vs-baseline-heldout', 'compare.json'), 'utf8'),
+    readFileSync(join(EXPERIMENTS, 'default-vs-baseline-heldout', 'compare.json'), 'utf8'),
   ) as Readonly<{ base: Report; candidate: Report; paired: Paired; spreads: readonly Spread[] }>
 
   it.each(SIDES.map(side => ({ scheme: side[0], side })))(

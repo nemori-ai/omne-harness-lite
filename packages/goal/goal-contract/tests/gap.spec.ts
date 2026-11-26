@@ -105,6 +105,18 @@ describe('the gap table', () => {
     )
   })
 
+  it('a criterion whose evidence is stale says what cures it; no other reading does', () => {
+    const shortOf = (value: 'stale' | 'fails' | 'cannot-tell' | 'no-evidence' | 'holds') =>
+      gapTable(
+        home(),
+        { ...NO_READINGS, criteria: { A2: { value, source: 'system', ref: null } } },
+        0,
+      ).find(row => row.id === 'A2')?.short
+    expect(shortOf('stale')).toBe('之后又写过文件：把它的命令单独再跑一次，或把它的文件再读一次')
+    for (const value of ['fails', 'cannot-tell', 'no-evidence', 'holds'] as const)
+      expect(shortOf(value)).toBeNull()
+  })
+
   it.each(['fails', 'stale', 'cannot-tell'] as const)('a criterion read as %s is open', value => {
     const read = { ...READ, criteria: { A2: { value, source: 'judge' as const, ref: null } } }
     expect(gapTable(home(), read, 1).find(row => row.id === 'A2')?.open).toBe(true)

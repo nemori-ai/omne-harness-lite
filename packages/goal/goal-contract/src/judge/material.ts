@@ -91,6 +91,7 @@ export const DEFAULT_JUDGE_CONFIG: JudgeConfig = Object.freeze({
   }),
   packaging: Object.freeze({
     ...BASELINE_JUDGE_CONFIG.packaging,
+    staleness: 'decided',
     activity: 'all',
     flags: 'guarded',
     drafts: 'superseded',

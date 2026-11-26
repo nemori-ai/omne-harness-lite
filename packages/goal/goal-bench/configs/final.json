@@ -1,5 +1,6 @@
 {
   "packaging": {
+    "staleness": "decided",
     "activity": "all",
     "flags": "guarded",
     "drafts": "superseded"

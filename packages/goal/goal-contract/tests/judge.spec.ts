@@ -956,6 +956,7 @@ describe('the three ways of asking the bench can switch on', () => {
     expect(instructions).toEqual({ ...was, exits: 'guided', unattainable: 'plain' })
     expect(packaging).toEqual({
       ...packed,
+      staleness: 'decided',
       activity: 'all',
       flags: 'guarded',
       drafts: 'superseded',

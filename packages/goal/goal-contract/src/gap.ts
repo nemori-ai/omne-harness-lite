@@ -47,6 +47,7 @@ const CRITERION_WORDS: Readonly<Record<CriterionReading, string>> = {
   stale: '证据过时',
   'cannot-tell': '判不了',
 }
+const STALE_CURE = '之后又写过文件：把它的命令单独再跑一次，或把它的文件再读一次'
 const RULE_WORDS: Readonly<Record<RuleReading, string>> = {
   kept: '守住',
   broken: '违反',
@@ -99,7 +100,7 @@ export function gapTable(body: GoalBody, readings: Readings, rounds: number): re
       source: read?.source ?? null,
       ref: read?.ref ?? null,
       open: read?.value !== 'holds',
-      short: null,
+      short: read?.value === 'stale' ? STALE_CURE : null,
     }
   })
   const rules = body.rules.map((rule): GapRow => {
