@@ -270,13 +270,17 @@ describe('the readings of a batch handed in with submit', () => {
   it('row 6: a reading that cites a call which is not of this examination, or holds on none, is handed back whole with the calls of the examination that can be cited; the goal is as it was, and the readings handed in again with a call of it are taken', async () => {
     const w = await handedOver()
     const before = w.record()
-    const loose = [one('A1', { refs: ['call-1'] }), one('A2', { refs: [] })]
+    const loose = [one('A1', { refs: ['call-1', 'x-1', 'call-9'] }), one('A2', { refs: [] })]
     expect(await w.submit(loose)).toEqual({
       kind: 'refused',
       reason: {
         kind: 'invalid',
         issues: [
-          { entry: 'A1', field: 'refs', problem: 'no tool call of this examination: call-1' },
+          {
+            entry: 'A1',
+            field: 'refs',
+            problem: 'no tool call of this examination: call-1, call-9',
+          },
           {
             entry: 'A2',
             field: 'refs',
