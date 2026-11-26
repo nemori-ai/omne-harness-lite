@@ -1081,6 +1081,9 @@ importers:
       '@omne-harness/schedule-protocol':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-protocol
+      '@omne-harness/schedule-session':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-session
       '@omne-harness/schedule-tools':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-tools

@@ -9,6 +9,7 @@ import {
   ScheduleJobDetailSchema,
   type ScheduleCallContext,
   type ScheduleJobDetail,
+  type ScheduleJobExecutor,
   type ScheduleJobs,
   type ScheduleOwner,
   type ScheduleQueries,
@@ -74,6 +75,8 @@ type Ports = Readonly<{
   queries: Pick<ScheduleQueries, 'get'>
   authorizer: ScheduleReadAuthorizer
   dispatcher: JobsDispatcher
+  /** The executor registered now for a work's path: asked what an execution in a session left. */
+  executor?: (work: ScheduleWork) => ScheduleJobExecutor | undefined
 }>
 
 /** Reading, cancelling and directly starting Jobs: a Job is seen by whoever sees its schedule; a direct one by any reader of the tenant. */
@@ -94,6 +97,23 @@ export function createScheduleJobs(ports: Ports): ScheduleJobs {
     )
     return result.kind === 'ok' ? result.value : undefined
   }
+  const accounted = async (detail: ScheduleJobDetail): Promise<ScheduleJobDetail> => {
+    const where = detail.executionWhere
+    if (where?.kind !== 'session' || detail.purpose.kind !== 'execution') return detail
+    const { work } = detail.purpose
+    const job = {
+      owner: ports.owner,
+      jobId: detail.job.jobId,
+      scheduleId: detail.scheduleId,
+      work,
+      executionRef: where.sessionRef,
+      acceptedAt: detail.job.acceptedAt,
+    }
+    const account = await Promise.resolve()
+      .then(() => ports.executor?.(work)?.describe?.(job))
+      .catch(() => null)
+    return account == null ? detail : { ...detail, executionWhere: { ...where, account } }
+  }
   const visible = async (ctx: ScheduleCallContext, detail: ScheduleJobDetail) => {
     if (detail.scheduleId !== null)
       return (await ports.queries.get(ctx, { scheduleId: detail.scheduleId })).kind === 'ok'
@@ -107,7 +127,7 @@ export function createScheduleJobs(ports: Ports): ScheduleJobs {
     const detail = await read(jobId)
     if (detail === undefined) return fail(ctx, 'provider_failure')
     if (detail === null || !(await visible(ctx, detail))) return fail(ctx, 'not_found')
-    return { kind: 'ok', value: detail }
+    return { kind: 'ok', value: await accounted(detail) }
   }
   const may = async (ctx: ScheduleCallContext) => {
     const access = await ports.authorizer.observe({ context: ctx, action: 'executions' })

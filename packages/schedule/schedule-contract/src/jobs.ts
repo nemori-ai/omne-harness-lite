@@ -20,7 +20,20 @@ export const ScheduleJobDetailSchema = z.strictObject({
   definitionRevision: z.int().nonnegative(),
   reason: ref.nullable(),
   executionWhere: z
-    .strictObject({ kind: z.literal('program'), programRef: ref, executionRef: ref })
+    .discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('program'), programRef: ref, executionRef: ref }),
+      z.strictObject({
+        kind: z.literal('session'),
+        sessionRef: ref,
+        account: z
+          .strictObject({
+            adopted: z.strictObject({ name: ref, version: ref }).nullable(),
+            outcome: ref.nullable(),
+            deliverables: z.array(z.string()).readonly(),
+          })
+          .nullable(),
+      }),
+    ])
     .nullable(),
   events: z.array(
     z.strictObject({ seq: z.int().positive(), kind: ref, at: ScheduleInstantSchema }),

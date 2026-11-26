@@ -678,6 +678,31 @@ describe('Jobs: list, read, cancel, start', () => {
     })
   })
 
+  it('reads a Job that runs in a session with what its execution left, or with the session alone when that could not be read; the answer goes over the wire', async () => {
+    const read = async (account: unknown) => {
+      const where = { kind: 'session', sessionRef: 's-9', account }
+      const { ops } = world({ 'job.get': ok({ ...detail, executionWhere: where }) })
+      const answer = wire('read-job', await ops['read-job'](call, { tenant: tenantId, job: JOB }))
+      return (answer as { body: { where: unknown } }).body.where
+    }
+    expect(await read(null)).toEqual({ kind: 'session', session: 's-9', account: null })
+    expect(
+      await read({
+        adopted: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+      }),
+    ).toEqual({
+      kind: 'session',
+      session: 's-9',
+      account: {
+        definition: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+      },
+    })
+  })
+
   it('reads one Job in full; another tenant and a missing one answer the same; a throw is an unavailable basis', async () => {
     const body = { tenant: tenantId, job: JOB }
     expect(

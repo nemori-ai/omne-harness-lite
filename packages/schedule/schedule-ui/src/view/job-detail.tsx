@@ -15,7 +15,14 @@ import {
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, useState, type JSX } from 'react'
-import { jobWord, ORIGIN_WORDS, requirementText, stepText, type JobDetail } from '../model/jobs.ts'
+import {
+  carriedText,
+  jobWord,
+  ORIGIN_WORDS,
+  requirementText,
+  stepText,
+  type JobDetail,
+} from '../model/jobs.ts'
 import { readOnce, useReading } from '../model/reading.ts'
 import { localText } from '../model/words.ts'
 import { scheduleJob, scheduleJobCancel } from '../parts.ts'
@@ -139,11 +146,7 @@ function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
         <FactRow term="成因">{ORIGIN_WORDS[detail.origin]}</FactRow>
         <FactRow term="依据">{basis}</FactRow>
         <FactRow term="要求">{`${requirementText(detail.work)}（受理时冻结）`}</FactRow>
-        <FactRow term="承接">
-          {detail.where === null
-            ? '还没有承接'
-            : `程序 ${detail.where.program}（执行 ${detail.where.execution}）`}
-        </FactRow>
+        <FactRow term="承接">{carriedText(detail.where)}</FactRow>
       </FactList>
       <Section id="schedule-job-steps" title="经过">
         <ol className="schedule-steps" aria-label="经过的每一步">

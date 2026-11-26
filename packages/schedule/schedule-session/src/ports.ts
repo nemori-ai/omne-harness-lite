@@ -6,11 +6,7 @@ export type Read<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'u
 
 type NewSession = Extract<ScheduleAgentSessionPlan, { mode: 'new' }>
 /** What a Job fixes of the session it creates. The assembly adds what the definition and the release fix. */
-export type CreationOfJob = Readonly<{
-  agent: string
-  modes: NewSession['modes']
-  workspace: NewSession['workspace']
-}>
+export type CreationOfJob = Readonly<{ agent: string; modes: NewSession['modes'] }>
 
 /** `refused`: the session was not created. `recoverable`: asking again later may create it. */
 export type Created =

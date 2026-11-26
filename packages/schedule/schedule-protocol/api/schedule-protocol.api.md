@@ -525,6 +525,17 @@ export declare const scheduleProtocol: {
                         readonly execution: string;
                         readonly kind: "program";
                         readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
                     } | null;
                     readonly work: import("@omne-harness/json-text").JsonValue;
                 }>;
@@ -571,6 +582,17 @@ export declare const scheduleProtocol: {
                             readonly execution: string;
                             readonly kind: "program";
                             readonly program: string;
+                        } | {
+                            readonly account: {
+                                readonly definition: {
+                                    readonly name: string;
+                                    readonly version: string;
+                                } | null;
+                                readonly deliverables: readonly string[];
+                                readonly outcome: string | null;
+                            } | null;
+                            readonly kind: "session";
+                            readonly session: string;
                         } | null;
                         readonly work: import("@omne-harness/json-text").JsonValue;
                     };
@@ -618,6 +640,17 @@ export declare const scheduleProtocol: {
                         readonly execution: string;
                         readonly kind: "program";
                         readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
                     } | null;
                     readonly work: import("@omne-harness/json-text").JsonValue;
                 }>;
@@ -664,6 +697,17 @@ export declare const scheduleProtocol: {
                         readonly execution: string;
                         readonly kind: "program";
                         readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
                     } | null;
                     readonly work: import("@omne-harness/json-text").JsonValue;
                 }>;
@@ -716,6 +760,17 @@ export declare const scheduleProtocol: {
                         readonly execution: string;
                         readonly kind: "program";
                         readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
                     } | null;
                     readonly work: import("@omne-harness/json-text").JsonValue;
                 }>;

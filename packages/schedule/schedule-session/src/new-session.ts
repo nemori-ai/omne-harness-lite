@@ -29,6 +29,7 @@ function refusalOf(work: ScheduleWork): string | null {
   if (work.kind !== 'agent' || work.session.mode !== 'new')
     return 'this executor carries out agent work in a new session only'
   if (work.materials.length > 0) return 'materials are not carried into a new session yet'
+  if (work.session.workspace !== null) return 'a workspace is not attached to a new session yet'
   const checked = validateDraft(work.instruction, { attendance: 'unattended' })
   return checked.kind === 'valid' ? null : `instruction: ${issuesText(checked.issues)}`
 }
@@ -60,6 +61,16 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
       return reason === null ? { kind: 'accepted' } : { kind: 'refused', reason }
     },
 
+    async describe(job) {
+      const taken = carried(job)
+      const facts = typeof taken === 'string' ? 'unknown' : await factsOf(taken.ids)
+      if (typeof taken === 'string' || typeof facts === 'string') return null
+      const goal = facts.goal !== null && mine(facts.goal, taken.ids) ? facts.goal : null
+      const ended = goal?.state.status === 'settled' ? endOf(goal.state.outcome).reason : null
+      const { adopted } = facts.standing
+      return { adopted, outcome: ended, deliverables: goal?.progress.deliverables ?? [] }
+    },
+
     async check(job) {
       const taken = carried(job)
       if (typeof taken === 'string') return { kind: 'unsupported', reason: taken }
@@ -76,8 +87,8 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
       const taken = carried(job)
       if (typeof taken === 'string') return never(taken)
       const { ids, work } = taken
-      const { agentDefinitionRef: agent, modes, workspace } = work.session
-      const creation = { agent, modes, workspace }
+      const { agentDefinitionRef: agent, modes } = work.session
+      const creation = { agent, modes }
       const created = await sessions
         .create({ ...at(ids), operation: ids.create, creation })
         .catch(() => UNKNOWN)

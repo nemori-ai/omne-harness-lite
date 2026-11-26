@@ -180,6 +180,50 @@ describe('schedule/v3', () => {
     expectRoundTrip(operations.preview.outcomes.succeeded, { upcoming: [upcoming], complete: true })
   })
 
+  it('a Job reads where it is carried out: the run of a program, or a session with what its execution left; anything else is refused', () => {
+    const read = operations['read-job'].outcomes.succeeded
+    const moment = '2027-01-01T00:01:00.000Z'
+    const carried = (where: unknown) => ({
+      job: 'job-1',
+      state: 'running',
+      outcome: null,
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: moment,
+      startedAt: moment,
+      endedAt: null,
+      schedule: 's',
+      slot: moment,
+      local: null,
+      calendar: null,
+      version: null,
+      revision: 1,
+      work: { kind: 'agent' },
+      reason: null,
+      where,
+      events: [],
+    })
+    const account = {
+      definition: { name: 'coding', version: 'v7' },
+      outcome: 'exit:X2',
+      deliverables: ['report.md'],
+    }
+    for (const where of [
+      null,
+      { kind: 'program', program: 'probe', execution: 'program:g:j' },
+      { kind: 'session', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account },
+      { kind: 'session', session: 's-9', account: { ...account, definition: null, outcome: null } },
+    ])
+      expectRoundTrip(read, carried(where))
+    for (const wrong of [
+      { kind: 'session', session: 's-9' },
+      { kind: 'elsewhere', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account: { ...account, deliverables: 'report.md' } },
+    ])
+      expect(readSample(read, carried(wrong))).toEqual({ ok: false })
+  })
+
   it('an invalid answer says which code, and may say why in words; an edit carries the instruction as data, not as text', () => {
     const invalid = operations['manage-schedule'].outcomes.invalid
     expectRoundTrip(invalid, { code: 'invalid_input' })

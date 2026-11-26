@@ -88,6 +88,7 @@ export async function createScheduleLocalApplication(
             queries,
             authorizer: options.query.authorizer,
             dispatcher,
+            executor: options.dispatch.executor,
           })
     const managed = dispatcher === undefined ? commands : waking(commands, dispatcher.wake)
     return {

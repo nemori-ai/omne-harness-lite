@@ -1002,6 +1002,11 @@
       "config": {}
     },
     {
+      "id": "schedule-session",
+      "plugin": "scheduleSessionRow",
+      "config": {}
+    },
+    {
       "id": "goal-command",
       "plugin": "goalCommandRow",
       "config": {}

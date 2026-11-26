@@ -9,6 +9,7 @@ import {
   ScheduleRefSchema,
   type ScheduleExecutionRow,
   type ScheduleOwner,
+  type ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import type { ReadPort, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonical } from './encoding.ts'
@@ -148,6 +149,14 @@ export function readHistory(port: ReadPort, input: Extract<HistoryRequest, { kin
   }
 }
 
+/** Where the execution of a Job is: a run of a program, or the session agent work runs in. What the session left is read from its executor when the Job is read, so it is null here. */
+function whereOf(work: ScheduleWork | null, executionRef: string | null) {
+  if (executionRef === null || work === null) return null
+  return work.kind === 'program'
+    ? { kind: 'program' as const, programRef: work.programRef, executionRef }
+    : { kind: 'session' as const, sessionRef: executionRef, account: null }
+}
+
 /** A Job with everything recorded about it: its fixed requirement, where it runs and each step it took. */
 export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: string) {
   const job = readJob(port, owner, jobId)
@@ -174,10 +183,7 @@ export function readJobDetail(port: ReadPort, owner: ScheduleOwner, jobId: strin
     purpose: job.purpose,
     definitionRevision: job.definitionRevision,
     reason: job.reason,
-    executionWhere:
-      executionRef !== null && work?.kind === 'program'
-        ? { kind: 'program' as const, programRef: work.programRef, executionRef }
-        : null,
+    executionWhere: whereOf(work, executionRef),
     events,
   }
 }

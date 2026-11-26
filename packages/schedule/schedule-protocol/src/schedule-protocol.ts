@@ -171,11 +171,28 @@ const jobDetail = object({
   reason: { rule: nullable(text) },
   where: {
     rule: nullable(
-      object({
-        kind: { rule: literal('program') },
-        program: { rule: text },
-        execution: { rule: text },
-      }),
+      oneOf(
+        object({
+          kind: { rule: literal('program') },
+          program: { rule: text },
+          execution: { rule: text },
+        }),
+        object({
+          kind: { rule: literal('session') },
+          session: { rule: text },
+          account: {
+            rule: nullable(
+              object({
+                definition: {
+                  rule: nullable(object({ name: { rule: text }, version: { rule: text } })),
+                },
+                outcome: { rule: nullable(text) },
+                deliverables: { rule: array(text) },
+              }),
+            ),
+          },
+        }),
+      ),
     ),
   },
   events: {

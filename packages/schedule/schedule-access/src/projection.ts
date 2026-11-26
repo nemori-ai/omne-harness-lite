@@ -202,6 +202,21 @@ export function historyRowOf(row: ScheduleExecutionRow) {
   } as const
 }
 
+function whereOf(where: ScheduleJobDetail['executionWhere']) {
+  if (where === null) return null
+  if (where.kind === 'program')
+    return { kind: 'program' as const, program: where.programRef, execution: where.executionRef }
+  const account =
+    where.account === null
+      ? null
+      : {
+          definition: where.account.adopted,
+          outcome: where.account.outcome,
+          deliverables: where.account.deliverables,
+        }
+  return { kind: 'session' as const, session: where.sessionRef, account }
+}
+
 export function jobDetailOf(detail: ScheduleJobDetail) {
   const work = detail.purpose.kind === 'execution' ? detail.purpose.work : null
   return {
@@ -213,14 +228,7 @@ export function jobDetailOf(detail: ScheduleJobDetail) {
     version: detail.slot?.basis.calendarVersionId ?? null,
     revision: detail.definitionRevision,
     work: treeOf(work),
-    where:
-      detail.executionWhere === null
-        ? null
-        : {
-            kind: 'program' as const,
-            program: detail.executionWhere.programRef,
-            execution: detail.executionWhere.executionRef,
-          },
+    where: whereOf(detail.executionWhere),
     events: detail.events.map(event => ({ ...event, at: instantOf(event.at) })),
   } as const
 }

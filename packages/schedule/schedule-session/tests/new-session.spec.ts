@@ -4,6 +4,10 @@ import { endOf, identitiesOf, issuesText } from '@omne-harness/schedule-session'
 import { DRAFT, jobOf, TENANT, workOf, world } from './world.ts'
 
 const SYSTEM = { kind: 'system', systemScopeRef: 'fleet' } as const
+const WITH_WORKSPACE = {
+  ...(workOf() as { session: object }).session,
+  workspace: { workspaceRef: 'w', instanceRef: 'i', basisRef: 'b' },
+}
 const EXISTING = { session: { mode: 'existing', sessionRef: 'session-9' } }
 const NO_EVIDENCE = { ...DRAFT, criteria: [{ statement: '写完了', evidence: { kind: 'person' } }] }
 
@@ -51,6 +55,7 @@ describe('whether work stands, asked before it is saved', () => {
       { materials: [{ resourceRef: 'r', versionRef: 'v' }] },
       /materials are not carried/u,
     ],
+    ['a workspace to attach', { session: WITH_WORKSPACE }, /workspace is not attached/u],
   ])('refuses %s, saying what is wrong', async (_, change, reason) => {
     const answer = await world().executor.accepts?.(workOf(change))
     expect(answer).toMatchObject({ kind: 'refused' })
@@ -115,7 +120,6 @@ describe('start', () => {
             environmentAdoptionRef: 'adoption:1',
             collaboration: 'auto-drive',
           },
-          workspace: null,
         },
       },
     ])
@@ -437,5 +441,56 @@ describe('requestStop', () => {
     w.faults.stop = true
     expect(await w.executor.requestStop(jobOf(), 'graceful')).toMatchObject({ kind: 'unknown' })
     expect((await w.goal())?.state.status).toBe('settled')
+  })
+})
+
+describe('describe', () => {
+  it('reads what the execution left where it is kept: the definition adopted, how the goal ended, what it delivered', async () => {
+    const w = world()
+    await w.executor.start(jobOf())
+    expect(await w.executor.describe?.(jobOf())).toEqual({
+      adopted: { name: 'coding', version: 'v7' },
+      outcome: null,
+      deliverables: [],
+    })
+    const agent = { tenant: TENANT, subject: 'agent' }
+    await w.goals.track(agent, { session: w.session(), patch: { deliverables: ['report.md'] } })
+    w.ended({ kind: 'exit', exit: 'X2', counts: 'success' })
+    expect(await w.executor.describe?.(jobOf())).toEqual({
+      adopted: { name: 'coding', version: 'v7' },
+      outcome: 'exit:X2',
+      deliverables: ['report.md'],
+    })
+  })
+
+  it('answers the session alone before the goal is set, and nothing of a goal this Job did not set', async () => {
+    const w = world()
+    w.authority.answer(action => (action === 'set' ? 'unavailable' : 'permitted'))
+    await w.executor.start(jobOf())
+    const bare = { adopted: { name: 'coding', version: 'v7' }, outcome: null, deliverables: [] }
+    expect(await w.executor.describe?.(jobOf())).toEqual(bare)
+    w.authority.answer('permitted')
+    await w.goals.write(
+      { tenant: TENANT, subject: 'other' },
+      {
+        session: w.session(),
+        operation: 'another',
+        proposal: { kind: 'set', draft: DRAFT },
+        words: null,
+        draftedBy: 'creator',
+        by: 'someone',
+      },
+    )
+    await w.settle({ kind: 'cancel' })
+    expect(await w.executor.describe?.(jobOf())).toEqual(bare)
+  })
+
+  it('answers null when there is nothing to read now: no tenant, no session, or the session cannot be read', async () => {
+    const w = world()
+    expect(await w.executor.describe?.(jobOf({ owner: SYSTEM }))).toBeNull()
+    expect(await w.executor.describe?.(jobOf())).toBeNull()
+    await w.executor.start(jobOf())
+    w.faults.standing = true
+    expect(await w.executor.describe?.(jobOf())).toBeNull()
   })
 })

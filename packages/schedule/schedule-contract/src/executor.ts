@@ -45,9 +45,17 @@ export type ScheduleExecutorStop =
   | Readonly<{ kind: 'sent' | 'confirmed' }>
   | ScheduleExecutorUnknown
 
-/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. `accepts` judges work before it is saved; without it every work of the path stands. */
+/** What an execution in a session left, read where it is kept: the definition adopted at the start, how the goal ended, what it delivered. */
+export type ScheduleExecutionAccount = Readonly<{
+  adopted: Readonly<{ name: string; version: string }> | null
+  outcome: string | null
+  deliverables: readonly string[]
+}>
+
+/** One way of carrying out a Job's work. Asking it to start the same Job again answers the same execution. `accepts` judges work before it is saved; without it every work of the path stands. `describe` answers null when the account cannot be read now. */
 export interface ScheduleJobExecutor {
   accepts?(work: ScheduleWork): Promise<ScheduleExecutorAcceptance>
+  describe?(job: ScheduleExecutorJob): Promise<ScheduleExecutionAccount | null>
   check(job: ScheduleExecutorJob): Promise<ScheduleExecutorCheck>
   start(job: ScheduleExecutorJob): Promise<ScheduleExecutorStart>
   inspect(job: ScheduleExecutorJob): Promise<ScheduleExecutorInspection>

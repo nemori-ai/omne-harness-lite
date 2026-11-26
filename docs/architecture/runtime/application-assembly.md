@@ -119,6 +119,7 @@
 | `dispatch-tool` | 行体：`@omne-harness/dispatch-tool` 的 `createReportBridge` 与 `createReportWaits`，派发认识 Tool 的那一侧。把报告等待的契约与桥登记到 Tool 的决定桥表上，把「交到了没有」的读挂给 `dispatch` 行。桥读派发登记用派发的系统主体；读一次调用的等待记录用该会话的工作主体 | 无公开服务 | `dispatchPrincipal`（受信） | `toolCommands`、`toolInstanceHost`、`dispatching`、`dispatchReconciling`；会话工作主体的签发口；`composition`，行体承载，停止时撤下桥与读 | 无 |
 | `goal` | 应用成员的目标组合：`@omne-harness/goal-local` 的 `./cordis` 插件 `createGoalLocalPlugin`，一个提供者服务全部租户；每个租户的目标存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记目标的存储组合。本应用在这一行接上目标留的端口：资格（调用方是它所说的那个会话核验过的工作主体时，许读、提议、凭已答的卡写下；别的调用方与别的动作一律拒绝，主人自己的入口由认识主人的行挂上来）；会话端口与卡片端口由认识它们的行挂上来，每次调用现取，没挂着时读答依据不可用、提醒记着不送、没有一张卡能写下目标 | `goals`、`goalChecking`、`goalReconciling` | `storage`、`tenantDomainLookup`、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；启动时与按间隔的对账以部署扫描主体枚举租户） | `tenantDomainRegistration`（受信；第一次要某个租户的目标时现取）；`composition`，行体承载，停止时先不接新的、等在途的各有结局，再停对账，不让任何目标收场。这一行装上目标的系统主体的授予，卸下时撤销 | 策略 `policy`：对账间隔，由运维层给，发行层不写数值；缺失或无效时这一行不启动 |
 | `goal-session` | 行体：`@omne-harness/goal-session` 的 `createGoalSessions`，目标认识会话的那一侧。向 `sessionInputSources` 登记三个来源（`goal.start`、`goal.resume`、`goal.continue`），把会话端口挂给 `goal` 行。送提醒以目标的系统主体经调用方类 `intake` 调；读一个会话的工作快照（有没有人值守、是不是 `auto-drive`）以装配签发的该会话的工作主体经调用方类 `maintainer` 调；会话照定义的缺省模式创建时，协作模式从 `definitionMappings` 读 | 无公开服务 | `session`、`sessionInputSources`、`definitionMappings`（受信）、`goalPrincipal`（受信） | 会话工作主体的签发口（经 Tool 共享状态的逐次读法）；`composition`，行体承载，停止时撤下会话端口与三个来源 | 无 |
+| `schedule-session` | 行体：`@omne-harness/schedule-session` 的 `createNewSessionExecutor`，日程认识会话与目标的那一侧。把新会话的执行方登记到 `scheduleExecutors` 的 `agent.new` 上，这一行停了就撤下。建会话以日程的系统主体经调用方类 `intake` 调；读一个会话的工作快照、停一轮以装配签发的该会话的工作主体经调用方类 `maintainer` 调；设、读、取消、中止目标以日程的系统主体调 `goals`，每次调用现取，取不到答依据不可用 | 无公开服务 | `session`、`definitionMappings`、`scheduleExecutors`、`schedulePrincipal`（受信） | 开始时登记，停止时撤下；在途的 Job 由日程照「不知道」认回 | 无 |
 | `goal-command` | 应用成员的行：用 `@omne-harness/goal-command` 把 `/goal` 交成一个官方的入口来源（名字 `goal-command`，名字空间 `goal`），登记到 `commandEntrySources`。这条命令是提示词种类，提示词与工具 `Goal` 的用法是同一份文字 | 无公开服务 | `commandEntrySources` | 无；没有生命周期，随插件的作用域登记与撤下 | 无 |
 | `goal-decisions` | 行体：`@omne-harness/goal-decisions` 的 `createGoalDecisions`，目标认识 Model 的那一侧。一次判定的决策调用以被判的那个会话的工作主体发出：经 `modelDecisionPreparation` 形成固定请求，经 `modelRuntime` 受理、等收场、读结果、确认；调用的身份由（租户、会话、判定的轮次与次数）派生，同一个身份再问认回原来那一次。把决策端口挂给 `goal` 行 | 无公开服务 | `modelRuntime`、`modelDecisionPreparation` | 无；两个服务每次调用现取，不在时这一次调用没有答复 | `composition`：停下时把挂给 `goal` 行的端口摘掉 |
 | `system-extensions` | 应用成员的行：受信系统扩展的登记点，配置里写这个发行声明了哪几份贡献。Agent 宿主每次经过开始时来读成员：声明了却不在的贡献算依据不可用，不当作没有成员；没有这一行的装配没有系统来源。成员的实现也从这里解析，按记录里的声明与精确采用找回它的贡献 | `harnessSystemExtensions` | 无 | 无 | 无 |
@@ -225,6 +226,10 @@ flowchart LR
   session-input-sources --> goal-session
   agent-adoptions -->|definitionMappings| goal-session
   goal-session -.-> goal
+  session-provider --> schedule-session
+  agent-adoptions -->|definitionMappings| schedule-session
+  schedule -->|scheduleExecutors| schedule-session
+  goal -.->|goals| schedule-session
   model-host --> goal-decisions
   model-request-preparation --> goal-decisions
   goal-decisions -.-> goal
@@ -550,6 +555,7 @@ flowchart LR
 | `dispatch-tool` | `dispatchPrincipal` |
 | `goal` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal` |
 | `goal-session` | `definitionMappings`、`goalPrincipal` |
+| `schedule-session` | `definitionMappings`、`schedulePrincipal` |
 | `canvas` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `server-entry` | `principalIssuer`、`identityGovernance` |
 | `identity-access` | `identityGovernance` |
@@ -652,6 +658,7 @@ flowchart LR
 | Deployment scanner principal | `tool-body-sweep`, `tool-records`, `session-provider`, `notification`, `media-sweep`, `dispatch`, `goal` and `schedule` only | The entry module `tenantDomainScannerPrincipal` issues the deployment principal that enumerates tenants. The body sweep and the pending scan of the Tool ledger enumerate tenants with it. The `session-provider` row enumerates tenants with it for the startup scan of the Session provider. The `notification` row enumerates tenants with it for the scan of what is due at startup and on its interval. The sweep and the scan run as the Tool runtime and carry no other principal; the principal is not visible to ordinary tools. The `media-sweep` row enumerates tenants with it to sweep the media of each tenant. The `schedule` row enumerates tenants with it at start, so every tenant has a dispatcher without waiting for a call. |
 | 派发的系统主体（`dispatchPrincipal`） | `dispatch`、`dispatch-session`、`dispatch-tool` | 由装配入口签发的系统主体，入口对象模块 `dispatchPrincipal` 在受信作用域 provide，只对这三行可见。它持有维护授予表里建会话、送输入、读去向三项用途，每次调用都带被维护的那个租户；别的会话操作被拒 |
 | 目标的系统主体（`goalPrincipal`） | `goal-session` | 由装配入口签发的系统主体，入口对象模块 `goalPrincipal` 在受信作用域 provide，只对这一行可见。它持有维护授予表里送输入一项用途，每次调用都带那个租户；授予由 `goal` 行装上，那一行没装着时被撤销。别的会话操作被拒 |
+| 日程的系统主体（`schedulePrincipal`） | `schedule-session` | 由装配入口签发的系统主体，入口对象模块 `schedulePrincipal` 在受信作用域 provide，只对这一行可见。它持有维护授予表里建会话一项用途，每次调用都带那个租户；授予由这一行装上，这一行没装着时被撤销。目标的权限口认它是作业会话的建立者：能读、设、取消、中止，别的都不能。它只对自己建的会话调用：会话的编号由租户与 Job 派生 |
 | Tool 贡献来源权威（`toolContributionAuthority`） | `tool-bindings`、`tool-host` | 入口在根上装载 `ToolContributionAuthorityService` 的子类。启动时读发行清单 `config/tool-release.json`，按包产物清单重算已安装 tool-definitions 的摘要，全等才得到带发行代次的受信快照。`verify` 只认与快照全等的官方层发行内置作者来源；`admits` 只认本运行的发行登记者。快照不可用时两方法都答 `unavailable`，不放行。不进插件树，不进插件配置 |
 | 发行登记者（`toolReleaseRegistrant`） | `tool-host`（作者闭包的 `context.access`）；`toolContributionAuthority` 的 `admits` | 由装配入口签发的系统主体加发行登记租户，在根上 provide。签发方式与常驻引用读取主体相同，二者不互借。不在维护授予表里，登记官方贡献只经 `admits` 放行。不进插件树，不进插件配置 |
 | 环境授权、可信作用域绑定与恢复授权 | `execution-environment`；AD-15 另在构造时接收恢复授权 | 入口装载 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService`、`ExecutionRecoveryAuthorityService` 的子类，提供 `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`。逐次现取，缺席按[环境端口规则](../../../packages/execution/SPEC.md#cordis-装配)不可用 |

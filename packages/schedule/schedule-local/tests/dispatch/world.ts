@@ -64,6 +64,8 @@ export type DispatchWorldOptions = Readonly<{
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
   /** How the executor of program work judges work before it is saved; absent: it does not judge. */
   accepts?: NonNullable<ScheduleJobExecutor['accepts']>
+  /** The executor of agent work; absent: no path carries agent work. */
+  agent?: ScheduleJobExecutor
   /** The application runs its own dispatcher, as the release does: started with it, woken by its commands. */
   watching?: boolean
 }>
@@ -100,7 +102,7 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     const programs: ScheduleJobExecutor =
       options.accepts === undefined ? run : { ...run, accepts: options.accepts }
     return {
-      executor: (work: { kind: string }) => (work.kind === 'program' ? programs : undefined),
+      executor: (work: { kind: string }) => (work.kind === 'program' ? programs : options.agent),
       owner: context.owner,
       guards,
       time: clock,
@@ -152,6 +154,7 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       queries: app.queries,
       authorizer: local.query.authorizer,
       dispatcher: from,
+      ...(options.agent === undefined ? {} : { executor: () => options.agent }),
     })
   const rows = (sql: string) => world.sql(sql) as Record<string, unknown>[]
   return {

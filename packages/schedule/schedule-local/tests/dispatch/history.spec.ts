@@ -1,5 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
+import { ScheduleWorkSchema } from '@omne-harness/schedule-contract'
 import type { ScheduleProgram } from '@omne-harness/schedule-local'
 import { context } from '../storage/data.ts'
 import { dispatchWorld, everyMinute, MINUTE, START } from './world.ts'
@@ -212,6 +213,77 @@ describe('reading, cancelling and starting one Job', { tags: ['slow'], timeout: 
       expect(started).toMatchObject(refused)
       expect(w.rows('SELECT job_id FROM sc_jobs')).toEqual([])
       expect(asked).toEqual([work, work])
+    } finally {
+      await w.close()
+    }
+  })
+
+  it('a Job of agent work reads with the session it runs in and what its executor says the execution left; without an answer, with the session alone', async () => {
+    const agentWork = ScheduleWorkSchema.parse({
+      kind: 'agent',
+      instruction: { purpose: '写周报' },
+      session: {
+        mode: 'new',
+        agentDefinitionRef: 'coding',
+        modes: { permission: 'never', environmentAdoptionRef: 'e', collaboration: 'co-work' },
+        workspace: null,
+      },
+      materials: [],
+      returnTo: null,
+      resultPolicy: {
+        audience: { kind: 'userDeliverable', target: { kind: 'owner' } },
+        publication: { kind: 'provider', providerRef: 'p' },
+        resultSeriesId: null,
+        attention: 'silent',
+        archive: { kind: 'none' },
+      },
+    })
+    const account = {
+      adopted: { name: 'coding', version: 'v7' },
+      outcome: null,
+      deliverables: ['report.md'],
+    }
+    const described: unknown[] = []
+    let answer: typeof account | null | Error = account
+    const w = await dispatchWorld({
+      agent: {
+        check: async () => ({ kind: 'ready' }),
+        start: async () => ({ kind: 'started', executionRef: 'session-9', running: true }),
+        inspect: async () => ({ kind: 'running', executionRef: 'session-9' }),
+        requestStop: async () => ({ kind: 'sent' }),
+        async describe(job) {
+          described.push(job)
+          if (answer instanceof Error) throw answer
+          return answer
+        },
+      },
+    })
+    try {
+      const dispatcher = w.dispatcher()
+      const jobs = w.facet(dispatcher)
+      const started = await jobs.start(context, { work: agentWork, operationKey: 'agent-1' })
+      const jobId = (started.kind === 'ok' && started.value.detail?.job.jobId) as never
+      expect(started.kind === 'ok' && started.value.detail?.executionWhere).toBeNull()
+      await dispatcher.round()
+      const where = async () => {
+        const read = await jobs.get(context, { jobId })
+        return read.kind === 'ok' ? read.value.executionWhere : read
+      }
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account })
+      expect(described).toMatchObject([
+        {
+          owner: context.owner,
+          jobId,
+          scheduleId: null,
+          work: agentWork,
+          executionRef: 'session-9',
+        },
+      ])
+      answer = null
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account: null })
+      answer = new Error('lost')
+      expect(await where()).toEqual({ kind: 'session', sessionRef: 'session-9', account: null })
+      await dispatcher.close()
     } finally {
       await w.close()
     }
