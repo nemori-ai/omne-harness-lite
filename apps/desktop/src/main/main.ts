@@ -60,7 +60,7 @@ function focus(window: BrowserWindow | undefined): void {
   window.focus()
 }
 
-function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
+function utilityWatch(retry: () => void): UtilityWatch & { set(state: UtilityState): void } {
   let current: UtilityState = 'starting'
   const listeners = new Set<(state: UtilityState) => void>()
   return {
@@ -73,6 +73,7 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
       current = state
       for (const listener of listeners) listener(state)
     },
+    retry,
   }
 }
 
@@ -113,7 +114,7 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   const utilityPath = fileURLToPath(new URL('../utility/entry.js', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
   // One utility process for the app, not per window: it outlives windows, reloads and crashes.
-  const utility = utilityWatch()
+  const utility = utilityWatch(() => void forwarding.restart().catch(() => {}))
   const forwarding = startServerProcess({
     onLifecycle: ({ state }) => utility.set(state),
     utilityPath,

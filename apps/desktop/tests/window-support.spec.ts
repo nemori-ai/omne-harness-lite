@@ -9,6 +9,7 @@ import {
   createRecovery,
   type LoadFailureChoice,
   type UnresponsiveChoice,
+  type UtilityHeldChoice,
   type UtilityState,
 } from '../src/main/recovery.ts'
 import { TRAFFIC_LIGHT_POSITION, windowChrome } from '../src/main/window-chrome.ts'
@@ -104,6 +105,7 @@ describe('页面的恢复', () => {
     let time = 0
     let loadFailed = gate<LoadFailureChoice>()
     let hung = gate<UnresponsiveChoice>()
+    let held = gate<UtilityHeldChoice>()
     // Like Electron: an aborted question closes and answers as if cancelled.
     const asked =
       <Choice>(name: string, answer: () => { promise: Promise<Choice> }, cancel: Choice) =>
@@ -124,6 +126,8 @@ describe('页面的恢复', () => {
         close: () => void done.push('close'),
         askLoadFailed: asked('load', () => loadFailed, 'close'),
         askUnresponsive: asked('hung', () => hung, 'close'),
+        askUtilityHeld: asked('held', () => held, 'close'),
+        retryUtility: () => void done.push('retry-utility'),
       },
       () => time,
       utility,
@@ -140,6 +144,11 @@ describe('页面的恢复', () => {
       async answerHung(choice: UnresponsiveChoice) {
         hung.open(choice)
         hung = gate()
+        await settle()
+      },
+      async answerHeld(choice: UtilityHeldChoice) {
+        held.open(choice)
+        held = gate()
         await settle()
       },
     }
@@ -239,6 +248,38 @@ describe('页面的恢复', () => {
     expect(done).toEqual(['reload', 'ask-load'])
     made.utility('ready')
     expect(done).toEqual(['reload', 'ask-load', 'reload'])
+  })
+
+  it('utility 进程到上限不再重启：问人；选再试一次就重启它，就绪之后重新加载；选关闭就关', async () => {
+    const first = recovery()
+    first.made.utility('held')
+    first.made.utility('held')
+    expect(first.done).toEqual(['ask-held'])
+    await first.answerHeld('retry')
+    expect(first.done).toEqual(['ask-held', 'retry-utility'])
+    first.made.utility('starting')
+    first.made.utility('ready')
+    expect(first.done).toEqual(['ask-held', 'retry-utility', 'reload'])
+
+    const second = recovery()
+    second.made.utility('held')
+    await second.answerHeld('close')
+    expect(second.done).toEqual(['ask-held', 'close'])
+  })
+
+  it('问着加载失败或没有响应时 utility 进程停了：收起那一问，改问这一件；它自己好了就收起', async () => {
+    const { made, done, advance } = recovery()
+    made.failed()
+    advance(10)
+    made.failed()
+    expect(done).toEqual(['reload', 'ask-load'])
+    made.utility('held')
+    expect(done).toEqual(['reload', 'ask-load', 'dismiss-load', 'ask-held'])
+    made.failed()
+    made.unresponsive()
+    expect(done).toHaveLength(4)
+    made.utility('ready')
+    expect(done.at(-1)).toBe('dismiss-held')
   })
 
   it('等着的时候 utility 进程启动失败：不再等，问人', async () => {

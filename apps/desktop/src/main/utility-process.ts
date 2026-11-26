@@ -1,3 +1,9 @@
+import {
+  beginSupervision,
+  supervise,
+  type SuperviseConfig,
+  type Supervision,
+} from '@omne-harness/assembly'
 import { MessageChannelMain, utilityProcess } from 'electron'
 import {
   createPortFetch,
@@ -16,7 +22,7 @@ export interface ServerProcessOptions {
   env?: Record<string, string> | (() => Record<string, string>)
   onLifecycle?: (event: {
     generation: number
-    state: 'starting' | 'ready' | 'failed'
+    state: 'starting' | 'ready' | 'failed' | 'held'
     restarted: boolean
   }) => void
 }
@@ -50,8 +56,14 @@ export interface ServerProcessDeps {
 
 export const STARTUP_TIMEOUT_MS = 20_000
 export const SHUTDOWN_GRACE_MS = 3_000
-const RESTART_BASE_MS = 250
 export const RESTART_MAX_MS = 5_000
+export const FALL_LIMIT = 5
+export const STABLE_MS = 10_000
+const SUPERVISION: SuperviseConfig = {
+  fallLimit: FALL_LIMIT,
+  backoffBaseMs: 500,
+  backoffMaxMs: RESTART_MAX_MS,
+}
 
 function electronDeps(options: ServerProcessOptions): ServerProcessDeps {
   return {
@@ -96,7 +108,8 @@ class Lifecycle {
   readonly #options: ServerProcessOptions
   readonly #deps: ServerProcessDeps
   #restartTimer: ReturnType<typeof setTimeout> | undefined
-  #restarts = 0
+  #supervision: Supervision = beginSupervision().state
+  #settleTimer: ReturnType<typeof setTimeout> | undefined
   #generations = 0
   #stopping: Promise<void> | undefined
 
@@ -115,6 +128,7 @@ class Lifecycle {
 
   #retire(inst: Instance, reason: Error): void {
     clearTimeout(inst.startupTimer)
+    clearTimeout(this.#settleTimer)
     inst.port2?.close()
     if (!inst.readySettled) {
       inst.readySettled = true
@@ -129,16 +143,29 @@ class Lifecycle {
   #scheduleRestart(why: string): void {
     const { log } = this.#options
     if (this.#isStopping || this.#restartTimer !== undefined || this.instance !== undefined) return
-    this.#restarts++
+    const step = supervise(this.#supervision, { kind: 'exited', code: 1 }, SUPERVISION)
+    this.#supervision = step.state
+    if (step.state.kind === 'held') {
+      const falls = String(step.state.falls)
+      log.error(
+        { why },
+        `server process fell ${falls} times in a row before it stayed up, not restarting`,
+      )
+      this.#options.onLifecycle?.({ generation: this.#generations, state: 'held', restarted: true })
+      return
+    }
     this.#options.onLifecycle?.({
       generation: this.#generations + 1,
       state: 'starting',
       restarted: true,
     })
-    const delay = Math.min(RESTART_MAX_MS, RESTART_BASE_MS * 2 ** Math.min(this.#restarts, 5))
-    log.error({ restarts: this.#restarts, delayMs: delay }, `server process ${why}, restarting`)
+    const wait = step.actions.find(action => action.kind === 'wait')
+    const delay = wait?.kind === 'wait' ? wait.ms : 0
+    const restarts = 'falls' in step.state ? step.state.falls : 0
+    log.error({ restarts, delayMs: delay }, `server process ${why}, restarting`)
     this.#restartTimer = setTimeout(() => {
       this.#restartTimer = undefined
+      this.#supervision = supervise(this.#supervision, { kind: 'waited' }, SUPERVISION).state
       void this.start().then(
         () => this.#options.onRestart?.(),
         (err: unknown) => log.error({ err }, 'server process restart failed'),
@@ -182,6 +209,9 @@ class Lifecycle {
     clearTimeout(inst.startupTimer)
     inst.readySettled = true
     this.state = 'running'
+    this.#settleTimer = setTimeout(() => {
+      this.#supervision = supervise(this.#supervision, { kind: 'settled' }, SUPERVISION).state
+    }, STABLE_MS)
     this.#report(inst.generation, 'ready')
     inst.settleReady.resolve()
   }
@@ -241,6 +271,8 @@ class Lifecycle {
     if (this.instance) return this.instance.ready
     if (this.#restartTimer !== undefined)
       return Promise.reject(new PortClosedError('The server is restarting'))
+    if (this.#supervision.kind === 'held')
+      return Promise.reject(new PortClosedError('The server stopped restarting'))
     this.state = 'starting'
     try {
       this.instance = this.#spawn()
@@ -272,6 +304,7 @@ class Lifecycle {
     if (this.#isStopping) return Promise.reject(new Error('The server is shutting down'))
     clearTimeout(this.#restartTimer)
     this.#restartTimer = undefined
+    this.#supervision = beginSupervision().state
     const inst = this.instance
     if (inst !== undefined) {
       this.#retire(inst, new PortClosedError('The server is restarting'))

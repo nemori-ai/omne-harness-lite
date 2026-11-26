@@ -16,6 +16,7 @@ import { MAIN_WINDOW_READY_MESSAGE } from '../startup-signals.ts'
 import type { Logger } from './log.ts'
 import { createReadiness } from './readiness.ts'
 import { createRecovery, type UtilityState } from './recovery.ts'
+import { FALL_LIMIT } from './utility-process.ts'
 import { windowChrome } from './window-chrome.ts'
 import {
   DEFAULT_SIZE,
@@ -88,10 +89,11 @@ export function harden(contents: WebContents): void {
   )
 }
 
-/** The utility process's state now, and its changes until the returned function is called. */
+/** The utility process's state now, its changes until the returned function is called, and one more try of it. */
 export type UtilityWatch = Readonly<{
   current(): UtilityState
   subscribe(listener: (state: UtilityState) => void): () => void
+  retry(): void
 }>
 
 function recover(
@@ -136,6 +138,17 @@ function recover(
           ],
           signal,
         ),
+      askUtilityHeld: signal =>
+        ask(
+          '连接服务的部件停了',
+          `它连着 ${String(FALL_LIMIT)} 次没有起来，应用不再自动重试。页面里的操作现在都会失败。`,
+          [
+            ['retry', '再试一次'],
+            ['close', '关闭窗口'],
+          ],
+          signal,
+        ),
+      retryUtility: () => utility.retry(),
       askUnresponsive: signal =>
         ask(
           '页面没有响应',
