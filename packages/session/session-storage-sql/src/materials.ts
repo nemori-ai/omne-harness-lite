@@ -1,4 +1,8 @@
 import {
+  MODEL_PROVENANCE_MIGRATION,
+  MODEL_PROVENANCE_TABLE,
+} from './worker/model-provenance-migration.ts'
+import {
   AUTHORIZATION_CONTEXT_MIGRATION,
   AUTHORIZATION_CONTEXT_TABLES,
   PERMISSION_CURRENT_MIGRATION,
@@ -148,13 +152,19 @@ const adoptionMigrationRef = Object.freeze({
   id: ADOPTION_MIGRATION.id,
 })
 const indexMigrations = [
+  MODEL_PROVENANCE_MIGRATION,
   migrationRef,
   attemptGrantMigrationRef,
   recordMigrationRef,
   admissionAttemptMigrationRef,
   factBlobMigrationRef,
 ]
-const factMigrations = [migrationRef, recordMigrationRef, factBlobMigrationRef]
+const factMigrations = [
+  migrationRef,
+  recordMigrationRef,
+  factBlobMigrationRef,
+  MODEL_PROVENANCE_MIGRATION,
+]
 const itemMigrations = [...factMigrations, itemMigrationRef]
 
 export type SessionStorageMaterialsOptions = Readonly<{
@@ -184,21 +194,42 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.compaction-input-check',
     file: 'check-compaction-input',
-    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES, ...FORK_TABLES],
+    tables: [
+      'sl_journal',
+      'sl_model_view',
+      MODEL_PROVENANCE_TABLE,
+      'sl_blob',
+      ...COMPACTION_INDEX_TABLES,
+      ...FORK_TABLES,
+    ],
     migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
     maxRowsRead: 300_010,
   },
   {
     handler: 'session.compaction-context',
     file: 'read-compaction-context',
-    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES, ...FORK_TABLES],
+    tables: [
+      'sl_journal',
+      'sl_model_view',
+      MODEL_PROVENANCE_TABLE,
+      'sl_blob',
+      ...COMPACTION_INDEX_TABLES,
+      ...FORK_TABLES,
+    ],
     migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
     maxRowsRead: 200_010,
   },
   {
     handler: 'session.entry-message',
     file: 'read-entry-message',
-    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob', ...FORK_TABLES],
+    tables: [
+      'sl_journal',
+      'sl_model_view',
+      MODEL_PROVENANCE_TABLE,
+      'sl_entry',
+      'sl_blob',
+      ...FORK_TABLES,
+    ],
     migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
     maxRowsRead: 16,
   },
@@ -283,20 +314,27 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.fork-point',
     file: 'read-fork-point',
-    tables: ['sl_journal', 'sl_model_view', 'sl_entry', ...FORK_TABLES],
+    tables: ['sl_journal', 'sl_model_view', MODEL_PROVENANCE_TABLE, 'sl_entry', ...FORK_TABLES],
     migrations: [migrationRef, FORK_MIGRATION],
     maxRowsRead: 128,
   },
   {
     handler: 'session.history-inherited',
     file: 'read-inherited-history',
-    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob', ...FORK_TABLES],
+    tables: [
+      'sl_journal',
+      'sl_model_view',
+      MODEL_PROVENANCE_TABLE,
+      'sl_entry',
+      'sl_blob',
+      ...FORK_TABLES,
+    ],
     migrations: [...factMigrations, FORK_MIGRATION],
   },
   {
     handler: 'session.model-view',
     file: 'read-model-view',
-    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...FORK_TABLES],
+    tables: ['sl_journal', 'sl_model_view', MODEL_PROVENANCE_TABLE, 'sl_blob', ...FORK_TABLES],
     migrations: [...factMigrations, FORK_MIGRATION],
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
@@ -538,6 +576,7 @@ export function sessionStorageMaterials(
         codeDigest: participant.digest,
         ownedTables: [
           ...SESSION_TABLES,
+          MODEL_PROVENANCE_TABLE,
           ...COMPACTION_INDEX_TABLES,
           ...CALL_LEFT_TABLES,
           ...FORK_TABLES,
@@ -573,6 +612,7 @@ export function sessionStorageMaterials(
     ],
     migrations: [
       migrationOf(migrationRef, 'migration', []),
+      migrationOf(MODEL_PROVENANCE_MIGRATION, 'model-provenance-migration', [migrationRef]),
       migrationOf(recordMigrationRef, 'execution-record-migration', []),
       migrationOf(indexMigrationRef, 'execution-index-migration', [migrationRef]),
       migrationOf(evidenceMigrationRef, 'operation-evidence-migration', [indexMigrationRef]),

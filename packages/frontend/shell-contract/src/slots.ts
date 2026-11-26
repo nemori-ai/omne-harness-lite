@@ -5,6 +5,8 @@ export const slots = {
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
   float: { kind: 'list' },
+  back: { kind: 'one' },
+  say: { kind: 'one' },
   attached: { kind: 'list' },
   actions: { kind: 'list' },
   keymap: { kind: 'one' },
@@ -66,6 +68,39 @@ export type FloatItem = Readonly<{
   render: (props: FloatProps) => ReactNode
 }>
 
+export type BackProps = Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
+
+export type BackItem = Readonly<{
+  id: string
+  render: (props: BackProps) => ReactNode
+}>
+
+export type SayTo = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
+
+export type SayTarget = Readonly<{ key: string; label: string }>
+
+export type SayOutcome =
+  | Readonly<{ kind: 'sent'; key: string }>
+  | Readonly<{ kind: 'failed'; reason: string }>
+  | Readonly<{ kind: 'unknown' }>
+
+export type SayPicture = Readonly<{ name: string; bytes: Uint8Array }>
+
+export type SayItem = Readonly<{
+  id: string
+  targets: (scope: string | undefined) => readonly SayTarget[] | undefined
+  current: (scope: string | undefined) => string | undefined
+  pictures?: (scope: string | undefined) => boolean
+  subscribe: (listener: () => void) => () => void
+  say: (
+    scope: string | undefined,
+    to: SayTo,
+    words: string,
+    pictures?: readonly SayPicture[],
+  ) => Promise<SayOutcome>
+  show: (scope: string | undefined, key: string) => void
+}>
+
 export type AttachedItem = Readonly<{
   id: string
   order: number
@@ -106,6 +141,8 @@ export type SlotItems = {
   pages: PageItem
   sidebar: SidebarItem
   float: FloatItem
+  back: BackItem
+  say: SayItem
   attached: AttachedItem
   actions: ActionItem
   keymap: KeymapItem

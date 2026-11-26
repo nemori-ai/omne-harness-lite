@@ -1,7 +1,12 @@
 import { organizationCodec, tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
-import { isNativeFileType, type ProfileResolution, type ProfileScope } from './profile.ts'
+import {
+  isNativeFileType,
+  LIMIT_METRICS,
+  type ProfileResolution,
+  type ProfileScope,
+} from './profile.ts'
 import { REASONING_EFFORTS, type Parameter, type ToolDeclaration } from './root.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { InputTree, freezeTree, rejected } from './input-tree.ts'
@@ -67,13 +72,7 @@ const supplier = z
   })
   .transform(({ replay, ...value }) => ({ ...value, ...(replay === undefined ? {} : { replay }) }))
 const modality = z.enum(['text', 'image', 'voice'])
-const metric = z.enum([
-  'image-bytes',
-  'image-count',
-  'request-bytes',
-  'voice-bytes',
-  'voice-duration-ms',
-])
+const metric = z.enum(LIMIT_METRICS)
 const parameters = z.array(checked(value => parameter(value, '')))
 const tools = z.array(checked(value => tool(value, '')))
 const profile = z.strictObject({

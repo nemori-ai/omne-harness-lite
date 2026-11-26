@@ -26,8 +26,27 @@ export class ReferenceShell extends ShellService {
     subscribe: () => () => undefined,
   }
 
+  /** What the item on the back asked of the shell, in order. */
+  readonly asked: ('turn' | 'home')[] = []
+
   navigate(pageId: string): void {
     this.navigated.push(pageId)
+  }
+
+  protected override turn(): void {
+    this.asked.push('turn')
+  }
+
+  protected override home(): void {
+    this.asked.push('home')
+  }
+
+  /** The item on the back, drawn with what the shell hands it. */
+  back(): ReactNode {
+    const [item] = this.items('back')
+    const turn = (): void => this.turn()
+    const home = (): void => this.home()
+    return item === undefined ? null : item.render({ scope: this.scope.get(), turn, home })
   }
 
   attached(anchor: string, subject: string): ReactNode {

@@ -26,6 +26,7 @@ import {
   type WorkspaceChoiceSource,
 } from '../../src/cordis.ts'
 import type { BlockReadsSource } from '../../src/model/block-reads.ts'
+import type { PictureIntake } from '../../src/model/pictures.ts'
 
 /** The keys a case provides under: the session module is mounted taking what is on them. */
 export const TAKEN = {
@@ -33,6 +34,7 @@ export const TAKEN = {
   workspaceChoices: serviceKey<WorkspaceChoiceSource>('test.workspace-choices'),
   blockReads: serviceKey<BlockReadsSource>('test.block-reads'),
   composerAssistant: serviceKey<ComposerAssistant>('test.composer-assistant'),
+  pictureIntake: serviceKey<PictureIntake>('test.picture-intake'),
 }
 
 /** Provides under a key as another module does; what `attach` returns takes it back. */
@@ -69,8 +71,12 @@ export class TestShell extends ShellService {
   private chosen: string | undefined = undefined
   private readonly pageListeners = new Set<(page: string | undefined) => void>()
 
-  navigate(pageId: string): void {
+  /** The subject each navigate carried, in order; undefined where it carried none. */
+  readonly subjects: (string | undefined)[] = []
+
+  navigate(pageId: string, subject?: string): void {
     this.navigated.push(pageId)
+    this.subjects.push(subject)
     this.chosen = pageId
     for (const listener of this.pageListeners) listener(pageId)
   }

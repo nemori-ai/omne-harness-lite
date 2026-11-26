@@ -320,7 +320,7 @@ describe('the macOS terminal gate in this process', { skip: process.platform ===
       })
       const kinds = gate.parsed().map(entry => entry.t)
       expect(kinds.slice(0, 2)).toEqual(['ready', 'opened'])
-      expect(kinds).toContain('started')
+      expect(gate.parsed().find(frame => frame.t === 'started')).toMatchObject({ cwd })
       expect(kinds).toContain('begun')
       expect(kinds.at(-1)).toBe('finished')
       expect(bytesOf(gate, 'data', 'leg-1')).toBe('hello')

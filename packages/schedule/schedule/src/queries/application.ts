@@ -206,6 +206,7 @@ export function createScheduleQueryApplication(
                   definitionRevision: 0,
                   activationExclusive: null,
                   eligibleConsumed: 0,
+                  eligibleFrom: null,
                   acceptedJobCount: 0,
                   after: request.after,
                   count: request.count,

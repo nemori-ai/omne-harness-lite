@@ -70,7 +70,7 @@ export type SelfCheck =
   | Readonly<{ kind: 'failed' | 'unknown'; reason: string }>
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-function declared(png: Uint8Array): Size | undefined {
+export function declared(png: Uint8Array): Size | undefined {
   if (png.byteLength < 24 || PNG.some((byte, at) => png[at] !== byte)) return undefined
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
   return { width: view.getUint32(16), height: view.getUint32(20) }

@@ -162,6 +162,16 @@ function carriesState(message: Message): boolean {
   )
 }
 
+/** The messages whose output count the meter may substitute: they carry state the anchor does not cover. */
+export function stateMessages(
+  messages: readonly Message[],
+  covered: readonly MessageId[],
+): readonly Message[] {
+  return messages.filter(
+    message => carriesState(message) && !covered.some(id => messageIdEquals(id, message.id)),
+  )
+}
+
 export function judgeOutputs(
   input: Readonly<{
     sources: ReadonlyMap<MessageId, ModelCallId>

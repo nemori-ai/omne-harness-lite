@@ -81,14 +81,14 @@
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1663,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1625,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1262,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1193,
-      "packages/session/session-contract/src/testing-transactions.ts": 2451,
+      "packages/session/session-contract/src/testing-transactions.ts": 2442,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1026,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
@@ -159,7 +159,7 @@
       },
       "packages/agent/agent-host-local/src/host.ts": {
         "count": 1,
-        "longest": 759
+        "longest": 758
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
@@ -167,7 +167,7 @@
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 598
+        "longest": 595
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
@@ -275,19 +275,19 @@
       },
       "packages/execution/execution-environment-host-local/src/host-command.ts": {
         "count": 1,
-        "longest": 358
+        "longest": 355
       },
       "packages/execution/execution-environment-host-local/src/host-file-batch.ts": {
         "count": 1,
-        "longest": 321
+        "longest": 319
       },
       "packages/execution/execution-environment-host-local/src/host-file-tree.ts": {
         "count": 1,
-        "longest": 743
+        "longest": 720
       },
       "packages/execution/execution-environment-host-local/src/host-files.ts": {
         "count": 2,
-        "longest": 643
+        "longest": 615
       },
       "packages/execution/execution-environment-host-local/src/host-paths.ts": {
         "count": 2,
@@ -307,27 +307,19 @@
       },
       "packages/execution/execution-environment-host-local/src/host-terminal.ts": {
         "count": 1,
-        "longest": 414
-      },
-      "packages/execution/execution-environment-host-local/src/macos-execution/command-gate-run.ts": {
-        "count": 1,
-        "longest": 166
+        "longest": 411
       },
       "packages/execution/execution-environment-host-local/src/macos-execution/commands.ts": {
         "count": 1,
-        "longest": 319
+        "longest": 317
       },
       "packages/execution/execution-environment-host-local/src/macos-execution/terminal-gate-run.ts": {
         "count": 1,
         "longest": 230
       },
-      "packages/execution/execution-environment-host-local/src/macos-files/facility.ts": {
-        "count": 1,
-        "longest": 179
-      },
       "packages/execution/execution-environment-host-local/src/windows-execution/index.ts": {
         "count": 2,
-        "longest": 425
+        "longest": 424
       },
       "packages/execution/execution-environment-host-local/src/windows-execution/terminal.ts": {
         "count": 1,
@@ -335,11 +327,11 @@
       },
       "packages/execution/execution-environment-host-local/src/windows-files/batch.ts": {
         "count": 1,
-        "longest": 263
+        "longest": 257
       },
       "packages/execution/execution-environment-host-local/src/windows-files/facility.ts": {
         "count": 1,
-        "longest": 339
+        "longest": 272
       },
       "packages/execution/execution-environment-host-local/src/windows-files/helper.ts": {
         "count": 1,
@@ -447,7 +439,7 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 528
+        "longest": 505
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
@@ -495,11 +487,11 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
-        "longest": 242
+        "longest": 233
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1115
+        "longest": 1081
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -625,10 +617,6 @@
         "count": 2,
         "longest": 318
       },
-      "packages/tool/tool-host-local/src/author-environment.ts": {
-        "count": 1,
-        "longest": 196
-      },
       "packages/tool/tool-host-local/src/author-generations.ts": {
         "count": 1,
         "longest": 221
@@ -639,7 +627,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 154
+        "longest": 151
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,
@@ -655,7 +643,7 @@
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 484
+        "longest": 436
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
@@ -675,7 +663,7 @@
       },
       "packages/tool/tool-host-local/src/runtime-author.ts": {
         "count": 2,
-        "longest": 324
+        "longest": 231
       },
       "packages/tool/tool-host-local/src/runtime-cordis.ts": {
         "count": 1,

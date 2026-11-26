@@ -398,14 +398,7 @@ export const codeCommands: readonly Command[] = [
   {
     name: 'help',
     readOnly: true,
-    summary:
-      'Show how to write a program: the rules, the limits here, and the functions it can call with their types.',
-    fields: [
-      {
-        name: 'name',
-        kind: 'string',
-        description: 'Optional tool name. Show only the functions of that tool.',
-      },
-    ],
+    summary: 'Show how to write a program: the rules and the limits here.',
+    fields: [],
   },
 ]

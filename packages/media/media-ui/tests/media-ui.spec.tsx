@@ -105,7 +105,7 @@ describe('界面模块', () => {
     expect(['image', 'file', 'voice', 'text'].map(put)).toEqual([true, true, true, false])
   })
 
-  it('声明八个部位，协议有没有服务都一样', async () => {
+  it('声明十个部位，协议有没有服务都一样', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
     const read = partsOn(shell.registry())
@@ -114,6 +114,8 @@ describe('界面模块', () => {
       read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null]),
     ).toEqual([
       ['media.file', 'session.transcript'],
+      ['media.intake', 'canvas.view'],
+      ['media.object', 'canvas.view'],
       ['media.picture', 'session.transcript'],
       ['media.read', 'session.transcript'],
       ['media.tray', 'session.composer'],
@@ -538,6 +540,35 @@ describe('消息里一块非文字内容', () => {
         .querySelector('[data-omne-part="media.read"]')
         ?.classList.contains('omne-media-read'),
     ).toBe(true)
+  })
+
+  it('转不出且有原因的文件，模型读到的是一句说明，块上照实这样写', async () => {
+    const media = fakeMedia(4)
+    const engine = { name: 'pdf.extract-text', revision: '2' }
+    const representation = {
+      outcome: 'inconvertible',
+      definition: engine,
+      engine,
+      reason: 'encrypted',
+    }
+    media.once('describe-media', () => ({
+      outcome: 'succeeded',
+      body: { state: 'held', facts: {}, preprocess: { kind: 'done', representation } },
+    }))
+    const { shell } = await mounted(media)
+    const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+    const told = (read: string, id: string) =>
+      block.draw(
+        shell,
+        kindOf(file),
+        { session: 'ses_a', message: 'msg_1', block: id, content: file, read },
+        () => null,
+      )
+    render(<>{told('transcript', 'b1')}</>)
+    await settle()
+    expect(document.querySelector('.omne-media-read')?.textContent).toBe(
+      '模型读的是一句说明（读不出：文件加密了）',
+    )
   })
 
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {

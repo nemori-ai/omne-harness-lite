@@ -44,12 +44,18 @@ export const toolsCommands = [
   },
   {
     name: 'search',
-    summary: 'Search current lawful nonresident tools with BM25. Copy next to continue.',
+    summary:
+      'Search current lawful nonresident tools with BM25. Copy next to continue. programmable=true lists instead the tools a program can call, the tools in your list too, with their functions.',
     schema: object(
       {
         query: { type: 'string' },
         after: nullableString,
         limit: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+        programmable: {
+          type: 'boolean',
+          description:
+            'true: only the tools a program run by Code can call now, each with its functions.',
+        },
       },
       ['query', 'after', 'limit'],
     ),
@@ -57,7 +63,7 @@ export const toolsCommands = [
   {
     name: 'inspect',
     summary:
-      'Inspect a tool overview (command=null) or one command with its parameters and return schemas.',
+      'Inspect a tool overview (command=null) or one command with its parameters and return schemas. The overview shows the functions a program can call.',
     schema: object({ name: string, command: nullableString }, ['name', 'command']),
   },
   {
@@ -136,6 +142,31 @@ function parseRead(
     : succeed({ kind: 'read_result', arguments: { kind, reference: decoded.ok, after: null } })
 }
 
+function pageSize(count: JsonValue | undefined): number | undefined {
+  const limit = count?.kind === 'number' ? Number(count.lexeme) : NaN
+  return Number.isSafeInteger(limit) && limit >= 1 ? limit : undefined
+}
+
+function narrowing(value: JsonValue | undefined): { programmable?: true } | undefined {
+  if (value === undefined) return {}
+  if (value.kind !== 'boolean') return undefined
+  return value.value ? { programmable: true } : {}
+}
+
+function parseSearch(
+  value: JsonValue,
+): Outcome<ParsedToolsCommand, { kind: 'invalid'; reason: string }> {
+  const map = fields(value, ['query', 'after', 'limit'], ['programmable'])
+  if (map === null) return invalid()
+  const query = text(map.get('query'), true),
+    after = nullableText(map.get('after')),
+    limit = pageSize(map.get('limit')),
+    only = narrowing(map.get('programmable'))
+  return query === undefined || after === undefined || limit === undefined || only === undefined
+    ? invalid()
+    : succeed({ kind: 'search', arguments: { query, after, limit, ...only } })
+}
+
 function parseCommand(
   name: ToolsCommandName,
   value: JsonValue,
@@ -147,17 +178,7 @@ function parseCommand(
       return invalid()
     return succeed({ kind: 'help', command: text(map.get('command')) ?? null })
   }
-  if (name === 'search') {
-    const map = fields(value, ['query', 'after', 'limit'])
-    if (map === null) return invalid()
-    const query = text(map.get('query'), true),
-      after = nullableText(map.get('after')),
-      count = map.get('limit')
-    const limit = count?.kind === 'number' ? Number(count.lexeme) : NaN
-    return query === undefined || after === undefined || !Number.isSafeInteger(limit) || limit < 1
-      ? invalid()
-      : succeed({ kind: 'search', arguments: { query, after, limit } })
-  }
+  if (name === 'search') return parseSearch(value)
   const map = fields(
     value,
     name === 'inspect' ? ['name', 'command'] : ['name', 'command', 'arguments'],

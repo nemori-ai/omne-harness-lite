@@ -1,6 +1,6 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { ShellAssemblyError, type SlotName } from '@omne-harness/shell-contract'
+import { ShellAssemblyError, type BackProps, type SlotName } from '@omne-harness/shell-contract'
 import { render, startShell } from './reference-shell.ts'
 
 const gate = (id: string) => ({ id, render })
@@ -64,6 +64,67 @@ describe('contribute', () => {
       expect(error).toMatchObject({ slot: 'gate', id: 'other', reason: 'duplicate' })
       await settle()
       expect(shell.items('gate')).toEqual([])
+    })
+  })
+
+  describe('the back of the application, which holds one', () => {
+    it('places into an empty slot', async () => {
+      const { root, shell } = await startShell()
+      await place(root, 'a', ctx => ctx.shell.contribute('back', gate('canvas')))
+      expect(shell.items('back').map(item => item.id)).toEqual(['canvas'])
+      expect(shell.conflicts('back')).toEqual([])
+      expect(shell.owner('back', 'canvas')).toBe('a')
+    })
+
+    it('hands its item the tenant, and turn and home, each reaching the shell once a call', async () => {
+      const { root, shell } = await startShell()
+      shell.tenant = 'tenant-x'
+      const handed: BackProps[] = []
+      await place(root, 'a', ctx =>
+        ctx.shell.contribute('back', { id: 'canvas', render: props => void handed.push(props) }),
+      )
+      shell.back()
+      expect(handed.map(props => props.scope)).toEqual(['tenant-x'])
+      handed[0]?.home()
+      handed[0]?.turn()
+      handed[0]?.home()
+      expect(shell.asked).toEqual(['home', 'turn', 'home'])
+    })
+
+    it('answers a conflict when another module puts a back: neither is drawn, both are named, and the one left takes effect', async () => {
+      const { root, shell } = await startShell()
+      const first = await place(root, 'a', ctx => ctx.shell.contribute('back', gate('canvas')))
+      await place(root, 'b', ctx => ctx.shell.contribute('back', gate('board')))
+      expect(shell.items('back')).toEqual([])
+      expect(shell.conflicts('back')).toEqual([
+        { slot: 'back', anchor: undefined, id: '', by: ['a', 'b'] },
+      ])
+      await first.dispose()
+      await settle()
+      expect(shell.items('back').map(item => item.id)).toEqual(['board'])
+      expect(shell.conflicts('back')).toEqual([])
+    })
+
+    it('throws when one module puts a second back, and nothing of that module shows', async () => {
+      const { root, shell } = await startShell()
+      const error = await failure(root, ctx => {
+        ctx.shell.contribute('back', gate('canvas'))
+        ctx.shell.contribute('back', gate('canvas'))
+      })
+      expect(error).toBeInstanceOf(ShellAssemblyError)
+      expect(error).toMatchObject({ slot: 'back', id: 'canvas', reason: 'duplicate' })
+      await settle()
+      expect(shell.items('back')).toEqual([])
+    })
+
+    it('stands apart from the login gate: an item on one is not on the other', async () => {
+      const { root, shell } = await startShell()
+      await place(root, 'a', ctx => {
+        ctx.shell.contribute('gate', gate('login'))
+        ctx.shell.contribute('back', gate('canvas'))
+      })
+      expect(shell.items('gate').map(item => item.id)).toEqual(['login'])
+      expect(shell.items('back').map(item => item.id)).toEqual(['canvas'])
     })
   })
 

@@ -1,9 +1,10 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { Button, LoadingState } from '@omne-harness/ui-kit'
+import { Button, LoadingState, Sheet, SheetContent, SheetTitle } from '@omne-harness/ui-kit'
 import type { ContentBlockKind } from '@omne-harness/content-block'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
+import { UNREADABLE, unreadableOf, type Unreadable } from '../model/prepare.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
 /** The kinds of block that are not words, as both ends name them. */
@@ -14,6 +15,8 @@ export type MediaBlockProps = Readonly<{
   tenant: TenantId
   content: unknown
   modelRead?: string | undefined
+  /** Where the original opens: in place of the thumbnail, as in a message; or over the paper, as on a canvas. */
+  opens?: 'in-place' | 'over'
 }>
 
 const THUMBNAIL: DisplayTarget = {
@@ -85,24 +88,59 @@ function useAddress(props: MediaBlockProps, ref: Reference, whole: boolean): Sho
   return shown
 }
 
-function Picture(props: MediaBlockProps & { readonly read: Read }) {
-  const [whole, setWhole] = useState(false)
-  const shown = useAddress(props, props.read.ref, whole)
+const altOf = (read: Read): string => (read.size === null ? '图片' : `图片 ${read.size}`)
+
+function Shown({ shown, alt }: Readonly<{ shown: Shown; alt: string }>) {
   if (shown.kind === 'reading') return <LoadingState label="正在读图片…" />
   if (shown.kind === 'unreadable')
     return <p className="omne-media-line">图片读不出来：{shown.reason}</p>
-  const { size } = props.read
+  return <img src={shown.url} alt={alt} />
+}
+
+function Original(props: MediaBlockProps & { readonly read: Read }) {
+  return <Shown shown={useAddress(props, props.read.ref, true)} alt={altOf(props.read)} />
+}
+
+function Picture(props: MediaBlockProps & { readonly read: Read }) {
+  const over = props.opens === 'over'
+  const [whole, setWhole] = useState(false)
+  const button = useRef<HTMLButtonElement>(null)
+  const shown = useAddress(props, props.read.ref, whole && !over)
+  if (shown.kind !== 'shown') return <Shown shown={shown} alt="" />
+  const alt = altOf(props.read)
   return (
-    <Button
-      variant="ghost"
-      className="omne-media-picture"
-      {...mediaPicture.props}
-      data-whole={whole}
-      aria-label={whole ? '收起' : '看原图'}
-      onClick={() => setWhole(value => !value)}
-    >
-      <img src={shown.url} alt={size === null ? '图片' : `图片 ${size}`} />
-    </Button>
+    <>
+      <Button
+        ref={button}
+        variant="ghost"
+        className="omne-media-picture"
+        {...mediaPicture.props}
+        data-whole={whole}
+        aria-label={whole && !over ? '收起' : '看原图'}
+        onClick={() => setWhole(value => !value)}
+      >
+        <img src={shown.url} alt={alt} />
+      </Button>
+      {over ? (
+        <Sheet open={whole} onOpenChange={setWhole}>
+          <SheetContent
+            side="top"
+            className="omne-media-original"
+            closeLabel="收起"
+            aria-describedby={undefined}
+            onCloseAutoFocus={event => {
+              event.preventDefault()
+              button.current?.focus({ preventScroll: true })
+            }}
+          >
+            <SheetTitle className="omne-media-original-title">{alt}</SheetTitle>
+            <div className="omne-media-original-frame">
+              <Original {...props} />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </>
   )
 }
 
@@ -113,15 +151,46 @@ const READ: Readonly<Record<string, string>> = {
 }
 
 /** What the model read of a block, in words; null when it is not known. */
-function readText(read: string | undefined, kind: string): string | null {
+function readText(read: string | undefined, kind: string, note: Unreadable | null): string | null {
+  if (read === 'transcript' && note !== null) return `一句说明（${UNREADABLE[note]}）`
   if (read === 'transcript') return kind === 'voice' ? '转写' : '提取的文字'
   return read === undefined ? null : (READ[read] ?? null)
 }
 
-type Said = Readonly<{ kind: MediaBlockKind; modelRead: string | undefined; children: ReactNode }>
+/** A file the model read as words, but nothing could be taken out of it: the words were a sentence saying why. */
+function useNote(
+  props: MediaBlockProps,
+  kind: MediaBlockKind,
+  ref: Reference | null,
+): Unreadable | null {
+  const { client, tenant, modelRead } = props
+  const [note, setNote] = useState<Unreadable | null>(null)
+  const asks = kind === 'file' && modelRead === 'transcript' && ref !== null
+  const key = ref === null ? null : JSON.stringify(ref)
+  useEffect(() => {
+    if (!asks || ref === null) return undefined
+    let live = true
+    void client['describe-media']({ tenant, ref }).then(
+      answer =>
+        live && answer.outcome === 'succeeded' && setNote(unreadableOf(answer.body.preprocess)),
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [client, tenant, key, asks])
+  return note
+}
 
-function WithRead({ kind, modelRead, children }: Said) {
-  const said = readText(modelRead, kind)
+type Said = Readonly<{
+  kind: MediaBlockKind
+  modelRead: string | undefined
+  note?: Unreadable | null
+  children: ReactNode
+}>
+
+function WithRead({ kind, modelRead, note = null, children }: Said) {
+  const said = readText(modelRead, kind, note)
   if (said === null) return children
   return (
     <div className="omne-media-block">
@@ -151,8 +220,9 @@ function ImageBlock(props: MediaBlockProps) {
 const lineBlock = (kind: 'file' | 'voice') =>
   function LineBlock(props: MediaBlockProps) {
     const read = readBlock(props.content)
+    const note = useNote(props, kind, typeof read === 'string' ? null : read.ref)
     return (
-      <WithRead kind={kind} modelRead={props.modelRead}>
+      <WithRead kind={kind} modelRead={props.modelRead} note={note}>
         {typeof read === 'string' ? (
           unread(read)
         ) : (

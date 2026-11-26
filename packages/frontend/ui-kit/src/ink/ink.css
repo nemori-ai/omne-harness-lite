@@ -43,8 +43,20 @@
   pointer-events: auto;
 }
 
-.omne-figure-carried:is([data-phase='flying'], [data-phase='away']) .omne-figure-reach {
+.omne-figure-carried:is([data-phase='flying'], [data-phase='dropped'], [data-phase='away'])
+  .omne-figure-reach {
   pointer-events: none;
+}
+
+.omne-figure-vacant {
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--omne-radius-pill);
+  background: transparent;
+  pointer-events: auto;
 }
 
 .omne-figure-carried .omne-figure-ink,
@@ -76,6 +88,10 @@
 .omne-ink-bubble {
   --omne-ink-bubble-paper: 1;
   isolation: isolate;
+}
+
+.omne-ink-bubble,
+.omne-paper-edge {
   --omne-ink-bubble-edge: light-dark(
     color-mix(in oklab, var(--omne-ink-primary) 46%, transparent),
     color-mix(in oklab, var(--omne-ink-primary) 70%, transparent)
@@ -142,7 +158,8 @@
   color: var(--omne-ink-primary);
 }
 
-.omne-ink-bubble-edge path {
+.omne-ink-bubble-edge path,
+.omne-paper-edge path {
   fill: var(--omne-ink-bubble-edge);
 }
 
@@ -195,4 +212,134 @@
 
 .omne-told-note-words:is(:hover, :focus-visible) {
   color: var(--omne-ink-primary);
+}
+
+.omne-say-bubble {
+  position: fixed;
+  z-index: var(--omne-layer-figure);
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: var(--omne-space-block);
+}
+
+.omne-say-to {
+  align-self: flex-start;
+}
+
+.omne-say-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.omne-say-picture {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.omne-say-thumb {
+  display: block;
+  max-width: 100%;
+  height: calc(var(--omne-control-height) * 2);
+  border-radius: var(--omne-radius-chip);
+  object-fit: cover;
+}
+
+.omne-say-told {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+}
+
+.omne-say-field {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.omne-say-line {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+
+.omne-say-line[data-tone='failed'] {
+  color: var(--omne-danger-ink);
+}
+
+.omne-say-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--omne-space-inline);
+}
+
+.omne-figure-label {
+  position: fixed;
+  z-index: var(--omne-layer-figure);
+  display: grid;
+  max-width: 22em;
+  margin: 0;
+  padding: calc(var(--omne-space-inline) * 0.75) calc(var(--omne-space-inline) * 1.25);
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-surface-overlay);
+  box-shadow: var(--omne-elevation-raised);
+  pointer-events: none;
+}
+
+.omne-figure-label-line {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omne-figure-label-line:first-child {
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-ui);
+}
+
+.omne-figure-label-line[data-tone='hint'] {
+  color: var(--omne-info-ink);
+}
+
+.omne-observation-frame {
+  position: fixed;
+  z-index: calc(var(--omne-layer-figure) - 1);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.omne-observation-frame-line {
+  fill: var(--omne-ink-primary);
+  filter: drop-shadow(
+      0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
+    )
+    drop-shadow(
+      0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
+    );
+}
+
+.omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 18%, transparent);
+}
+
+.omne-observation-frame[data-closed='true'] .omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 32%, transparent);
 }

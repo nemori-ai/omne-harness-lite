@@ -435,6 +435,7 @@ export declare const scheduleProtocol: {
                             readonly job: string;
                             readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                             readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly reason?: string | null;
                             readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                             readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
@@ -462,6 +463,7 @@ export declare const scheduleProtocol: {
                             readonly job: string;
                             readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
                             readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly reason?: string | null;
                             readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
                             readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
                             readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";

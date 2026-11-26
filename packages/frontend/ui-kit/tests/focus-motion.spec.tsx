@@ -9,6 +9,7 @@ import {
   objectPart,
   objectView,
   ownsTyping,
+  reachable,
   useObjectTransition,
   useReducedMotion,
 } from '../src/index.ts'
@@ -65,6 +66,15 @@ it('moveRegion from outside every region starts at the first going forward and t
   document.getElementById('out')?.focus()
   expect(moveRegion('next')).toBe(true)
   expect(document.activeElement?.id).toBe('a')
+})
+
+it('reachable is false under an inert ancestor and off the page, true on the face on show', () => {
+  document.body.innerHTML =
+    '<div inert><section><button id="folded">f</button></section></div><button id="shown">s</button>'
+  expect(reachable(document.getElementById('folded'))).toBe(false)
+  expect(reachable(document.getElementById('shown'))).toBe(true)
+  expect(reachable(document.createElement('button'))).toBe(false)
+  expect(reachable(null)).toBe(false)
 })
 
 it('moveRegion refuses while a modal is up, and blockingOverlay finds the modal', () => {

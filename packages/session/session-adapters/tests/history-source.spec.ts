@@ -35,7 +35,10 @@ import {
   SessionService,
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { createSessionHistorySource } from '../src/cordis/history-source.ts'
+import {
+  createSessionHistorySource,
+  type SessionHistorySourceInput,
+} from '../src/cordis/history-source.ts'
 import {
   invocation,
   m0Checkpoint,
@@ -68,6 +71,7 @@ async function world(
     ctx?: Context
     mount?: readonly Mounted[]
     adopted?: 'absent'
+    historyPorts?: Pick<SessionHistorySourceInput, 'ensureModelHistory' | 'qualifyHistory'>
   }> = {},
 ) {
   const qualification: { -readonly [K in keyof SceneQualification]: SceneQualification[K] } = {
@@ -147,6 +151,7 @@ async function world(
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   const head: DurableEvidence = loaded.history
   const ad04 = createSessionHistorySource({
+    ...options.historyPorts,
     heads: {
       sessionOf: evidence =>
         evidence.record === head.record
@@ -1138,4 +1143,36 @@ describe('the sub-plugins on real Cordis 4.1.0', () => {
     const second = await w.borrow()
     expect(second.parts).not.toBe(first.parts)
   })
+})
+
+it('requalifies history with read-only ports without reentering the journal readiness serial', async () => {
+  let readiness = 0
+  let checking = false
+  let answer: Awaited<ReturnType<NonNullable<SessionHistorySourceInput['qualifyHistory']>>> = {
+    ok: undefined,
+  }
+  const w = await world({
+    historyPorts: {
+      ensureModelHistory: async () => {
+        if (checking) throw new Error('attempted to reacquire the held journal serial')
+        readiness++
+        return { ok: null }
+      },
+      qualifyHistory: async () => answer,
+    },
+  })
+  const { parts } = await w.borrow()
+  const { target } = await resolved(w, parts)
+  const before = readiness
+  checking = true
+  const check = () => parts.eligibility.check({ access: w.access, target, operation: 'history' })
+  expect(await check()).toMatchObject({ kind: 'allowed' })
+  answer = { failure: { kind: 'denied' } }
+  expect(await check()).toEqual({ kind: 'denied' })
+  answer = { failure: { kind: 'unavailable', diagnostic: 'unknown workspace qualification' } }
+  expect(await check()).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'unknown workspace qualification',
+  })
+  expect(readiness).toBe(before)
 })

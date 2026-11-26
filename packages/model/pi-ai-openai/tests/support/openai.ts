@@ -27,7 +27,7 @@ import {
   type OpenAiFamilyConfig,
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 
 export function adoption(name: string): Adoption {
   return { owner: 'pi-ai-openai-tests', name, revision: '1', digest: 'a'.repeat(64) }
@@ -195,7 +195,7 @@ export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unk
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
     declarations: [parts.declaration ?? declarationOf(record)],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(OPENAI_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(requested => ({
       supplier: supplier.adoption,
       applied: requested,

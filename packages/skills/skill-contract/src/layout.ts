@@ -53,7 +53,11 @@ function checkFiles(files: readonly File[]): Outcome<JsonValue, PackageRejection
   if ('ok' in parsed) return succeed(projectAssetBody(parsed.ok))
   if (parsed.failure.kind !== 'rejected')
     throw new Error('unreachable: the control bytes belong to the snapshot')
-  return fail({ kind: 'invalid-package', reason: parsed.failure.code })
+  const { code, detail } = parsed.failure
+  return fail({
+    kind: 'invalid-package',
+    reason: detail === undefined ? code : `${code}: ${detail}`,
+  })
 }
 
 async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRejection>> {

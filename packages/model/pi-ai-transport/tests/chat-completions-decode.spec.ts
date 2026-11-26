@@ -1231,6 +1231,31 @@ describe('in-band error', () => {
     expect(JSON.stringify(facts)).not.toContain('secret')
   })
 
+  it('keeps the codes at the edges of the status range as statuses', async () => {
+    for (const [code, cause] of [
+      [100, 'upstream-protocol'],
+      [599, 'upstream-unavailable'],
+    ] as const) {
+      const facts = await replay(bind(), { error: { code, message: 'm' } })
+      expect(faultOf(facts)).toEqual({
+        cause,
+        diagnostic: 'in-band-error',
+        upstreamStatus: String(code),
+      })
+    }
+  })
+
+  it('keeps a code as the status only when it is one; any other number gives no status', async () => {
+    for (const code of [0, 42, 99, 600, 4290, 1001]) {
+      const facts = await replay(bind(), { error: { code, message: 'm' } })
+      expect(faultOf(facts)).toEqual({
+        cause: 'upstream-protocol',
+        diagnostic: 'in-band-error',
+        upstreamStatus: null,
+      })
+    }
+  })
+
   it('an error without a numeric code is unclassified', async () => {
     const facts = await replay(bind(), { error: { code: 'server_error', message: 'm' } })
     expect(faultOf(facts)).toEqual({

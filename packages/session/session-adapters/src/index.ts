@@ -6,6 +6,7 @@ export type {
   SessionModesPublicationResult,
 } from './mode-publication.ts'
 export { SESSION_MODES_PUBLICATION } from './mode-publication-schema.ts'
+export { SESSION_WORKSPACE_GUIDANCE, type WorkspaceGuidance } from './workspace-guidance.ts'
 export { SESSION_WORKING_DIRECTORY, workingDirectorySchema } from './working-directory-schema.ts'
 export type { WorkingDirectory } from './working-directory-schema.ts'
 export type {

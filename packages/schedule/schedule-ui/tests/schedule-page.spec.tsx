@@ -96,14 +96,17 @@ it('L1 each schedule is a row: its name, a word only when it is not in effect an
 })
 
 it.each([
-  [{ control: 'active', standing: 'blocked' }, '暂时受阻'],
-  [{ control: 'active', standing: 'terminallyInvalidated' }, '永久失效'],
-  [{ control: 'paused', standing: 'blocked' }, '暂停'],
-  [{ control: 'superseded', standing: 'ready' }, '已被取代'],
-])('L1b a schedule %o says %s on its row', async (state, word) => {
-  await listed([{ ...MONTHLY, ...state }])
-  expect(row('月报提醒').textContent).toBe(`月报提醒${word}2026-11-30 17:00`)
-})
+  [{ control: 'active', standing: 'blocked' }, '暂时受阻', '2026-11-30 17:00'],
+  [{ control: 'active', standing: 'terminallyInvalidated' }, '永久失效', '2026-11-30 17:00'],
+  [{ control: 'paused', standing: 'blocked' }, '暂停', '暂停中'],
+  [{ control: 'superseded', standing: 'ready' }, '已被取代', '没有下一次'],
+])(
+  'L1b a schedule %o says %s on its row, and %s as its next time: no time that will not come',
+  async (state, word, next) => {
+    await listed([{ ...MONTHLY, ...state }])
+    expect(row('月报提醒').textContent).toBe(`月报提醒${word}${next}`)
+  },
+)
 
 it('P0 the refresh and the filter are on their own elements from the first read', async () => {
   await listed([MONTHLY])
@@ -255,6 +258,27 @@ it('D1b a schedule that is not normal says the row’s word as its state', async
   expect(state?.textContent).toBe('暂时受阻')
   expect(state?.getAttribute('data-tone')).toBe('caution')
 })
+
+it.each([
+  ['draft', '还没生效', '没有下一次', '草稿还没生效，不会到点。'],
+  ['paused', '恢复之前不会运行', '暂停中', '暂停中，恢复之前不会到点。'],
+  ['stopped', '不会再运行', '没有下一次', '已停止，不会再到点。'],
+  ['exhausted', '不会再运行', '没有下一次', '已到期，不会再到点。'],
+] as const)(
+  'D1c a %s schedule says %s for whether it can run, %s for its next time, and plans nothing',
+  async (control, runnable, next, unplanned) => {
+    const fake = await listed([{ ...MONTHLY, control }])
+    const { read, preview } = await picked(fake)
+    await answer(read, { outcome: 'succeeded', body: { ...DETAIL, control } })
+    await answer(preview, { outcome: 'succeeded', body: { upcoming: [NEXT], complete: true } })
+    const facts = screen.getByLabelText('日程详情').textContent
+    expect(facts).toContain(`能否运行${runnable}下一次${next}修订2`)
+    expect(screen.getByText(unplanned)).toBeTruthy()
+    expect(screen.queryByLabelText('时间表')).toBeNull()
+    expect(screen.queryByText('计划中')).toBeNull()
+    expect(screen.queryByText('到点时按当时的定义重新核')).toBeNull()
+  },
+)
 
 it.each([
   [{ kind: 'human' }, '你建的'],

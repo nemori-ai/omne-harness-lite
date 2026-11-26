@@ -126,20 +126,23 @@ async function listed(world: World) {
   return view.ok
 }
 
-describe('the functions a program can call now', () => {
-  it('are those of the programmable tools the view lists, and never Tools or Code', () =>
+describe('the functions of the tools a program names', () => {
+  it('are those of the programmable tools among the names, and never Tools or Code', () =>
     onWorld(async world => {
-      const functions = await createProgramFunctions(portsOf(world))(codeParent(world))
+      const names = ['Files', 'Shell', 'Tools', 'Code', 'Ask', 'nothing', 'const']
+      const functions = await createProgramFunctions(portsOf(world))(codeParent(world), names)
       if ('failure' in functions) throw new Error(JSON.stringify(functions))
       const entries = functions.ok.map(one => one.entry)
       expect(entries).toContain('Files.read')
       expect(entries).toContain('Shell.execute')
       expect(entries.filter(entry => /^(Tools|Code|Ask)\./u.test(entry))).toEqual([])
       expect(new Set(entries).size).toBe(entries.length)
+      const only = await createProgramFunctions(portsOf(world))(codeParent(world), ['Shell'])
+      expect('ok' in only && only.ok.map(one => one.tool)).toEqual(['Shell'])
     }))
 
-  // TL-71: a program names a tool its session does not keep; the catalog lists those for a program.
-  it('include the tools no view lists that a program can name, read page by page', () =>
+  // TL-75: what a program may call is resolved from the names it wrote, whatever the catalog holds.
+  it('judge only the names that are tools, and never search the catalog', () =>
     onWorld(async world => {
       const open = testingSourceEntry({
         name: 'probe__open',
@@ -151,43 +154,60 @@ describe('the functions a program can call now', () => {
         definition: open.definition,
         executor: open.executor,
         layer: { kind: 'tenant', tenant: world.tenant },
-        resident: false,
+      } as const
+      const judged: (readonly string[])[] = []
+      let searches = 0
+      const catalog: World['catalog'] = {
+        ...world.catalog,
+        search: async () => {
+          searches += 1
+          return fail({ kind: 'unavailable', dependency: 'catalog', diagnostic: 'not for this' })
+        },
+        inspectEach: async request => {
+          judged.push(request.names)
+          const rest = await world.catalog.inspectEach({
+            ...request,
+            names: request.names.filter(name => name !== 'probe__open'),
+          })
+          if ('failure' in rest) return rest
+          return succeed(
+            request.names.includes('probe__open') ? [...rest.ok, succeed(found)] : rest.ok,
+          )
+        },
       }
-      const asked: unknown[] = []
-      const search = (async request => {
-        asked.push([request.invocation, request.query, request.after])
-        return request.after === null
-          ? succeed({ entries: [found], next: 'page-2' })
-          : succeed({ entries: [found], next: null })
-      }) as World['catalog']['search']
-      const catalog = { ...world.catalog, search }
-      const ports = portsOf(world, { catalog: () => catalog })
-      const functions = await createProgramFunctions(ports)(codeParent(world))
+      const sourced = { owns: (name: string) => name.startsWith('probe__'), entry: () => undefined }
+      const ports = portsOf(world, { catalog: () => catalog, sourced: () => sourced })
+      // A program of a thousand identifiers that names two tools.
+      const words = Array.from({ length: 1000 }, (_, index) => `word${String(index)}`)
+      const names = [...words, 'Files', 'probe__open', 'probe__open']
+      const functions = await createProgramFunctions(ports)(codeParent(world), names)
       if ('failure' in functions) throw new Error(JSON.stringify(functions))
       const entries = functions.ok.map(one => one.entry)
       expect(entries).toContain('Files.read')
       expect(entries.filter(entry => entry.startsWith('probe__'))).toEqual(['probe__open.run'])
-      expect(asked).toEqual([
-        ['programmatic', '', null],
-        ['programmatic', '', 'page-2'],
-      ])
+      expect(judged).toEqual([['Files', 'probe__open']])
+      expect(searches).toBe(0)
+      expect(await createProgramFunctions(ports)(codeParent(world), words)).toEqual({ ok: [] })
+      expect(judged).toHaveLength(1)
     }))
 
-  it('are not given when the tools outside the view cannot be listed', () =>
+  it('are not given when the names cannot be judged now', () =>
     onWorld(async world => {
       const failure = { kind: 'unavailable', dependency: 'catalog', diagnostic: 'down' } as const
-      const search = (async () => fail(failure)) as World['catalog']['search']
-      const ports = portsOf(world, { catalog: () => ({ ...world.catalog, search }) })
-      expect(await createProgramFunctions(ports)(codeParent(world))).toEqual({ failure })
+      const inspectEach = (async () => fail(failure)) as World['catalog']['inspectEach']
+      const ports = portsOf(world, { catalog: () => ({ ...world.catalog, inspectEach }) })
+      expect(await createProgramFunctions(ports)(codeParent(world), ['Files'])).toEqual({ failure })
     }))
 
   it('are not given to a call that is not the Code of the release, nor without a catalog', () =>
     onWorld(async world => {
-      expect(await createProgramFunctions(portsOf(world))(world.parent)).toMatchObject({
+      expect(await createProgramFunctions(portsOf(world))(world.parent, ['Files'])).toMatchObject({
         failure: { kind: 'unavailable' },
       })
       const blind = createProgramFunctions(portsOf(world, { catalog: () => undefined }))
-      expect(await blind(codeParent(world))).toMatchObject({ failure: { kind: 'unavailable' } })
+      expect(await blind(codeParent(world), ['Files'])).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
     }))
 })
 

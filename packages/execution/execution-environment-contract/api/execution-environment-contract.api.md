@@ -663,6 +663,7 @@ export type ResidueReport = {
 };
 export type CommandOutcome = {
     readonly kind: 'completed';
+    readonly observedCwd?: string;
     readonly exit: {
         readonly kind: 'code';
         readonly code: number;
@@ -775,6 +776,7 @@ export type HandleGeneration = {
 };
 export type FileVersion = string;
 export type FileRequest<P> = FacilityRequest<P> & {
+    readonly observeDirectory?: true;
     readonly path: string;
     readonly named: ObjectToken | null;
 };
@@ -888,6 +890,7 @@ export interface FileSystemFacility<P> {
         readonly target: FileIdentity;
     }>>;
     commitBatch(request: FacilityRequest<P> & {
+        readonly observeDirectory?: true;
         readonly entries: readonly {
             readonly path: string;
             readonly named: ObjectToken | null;
@@ -1129,6 +1132,7 @@ export type FacilityResult<T> = {
     readonly kind: 'done';
     readonly requestId: string;
     readonly value: T;
+    readonly verifiedDirectories?: readonly string[];
 } | {
     readonly kind: 'unresolved';
     readonly requestId: string;

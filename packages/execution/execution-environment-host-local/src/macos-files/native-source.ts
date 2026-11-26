@@ -24,6 +24,7 @@ int main(void) {
     if (memchr(input, 0, (size_t)size)) refuse("invalidInput");
     document d = parse_document(input);
     rooted = bool_field(&d, "rooted");
+    observe_directory = bool_field(&d, "observeDirectory");
     const char *operation = string_field(&d, "operation", 0);
     if (strcmp(operation, "batch") == 0) {
       batch_operation(&d);
@@ -31,11 +32,21 @@ int main(void) {
       output = open_memstream(&response, &response_size);
       if (!output) refuse("unknown");
       root r = open_root(&d, 0);
-      if (strcmp(operation, "observe") == 0) {
+      if (strcmp(operation, "observe") == 0 || strcmp(operation, "lookup") == 0) {
         location loc = locate(r);
-        struct stat s = entry_stat(loc);
+        struct stat s;
+        if (strcmp(operation, "lookup") == 0) {
+          if (fstatat(loc.parent, loc.name, &s, AT_SYMLINK_NOFOLLOW) != 0)
+            refuse(errno == ENOENT ? "notFound" : open_failure(errno));
+          if (!S_ISREG(s.st_mode)) refuse("unsupported");
+        } else s = entry_stat(loc);
         if (rooted && s.st_dev != r.dev) refuse("notAuthorized");
         fprintf(output, "{\"info\":"); metadata(output, &s, loc.name);
+        if (strcmp(operation, "lookup") == 0) {
+          char directory[PATH_MAX];
+          if (fcntl(loc.parent, F_GETPATH, directory) != 0) refuse("unknown");
+          fprintf(output, ",\"directory\":"); quote(output, directory);
+        }
         result_defaults(output, 0); fputc('}', output);
       }
       else if (strcmp(operation, "read") == 0 || strcmp(operation, "stat") == 0 || strcmp(operation, "write") == 0) basic_operation(&d, r, output, operation);

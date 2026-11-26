@@ -18,6 +18,7 @@ import {
   type SkillsEntry,
   type SkillsFailure,
   type SkillsListing,
+  type SkillsMissingTools,
   type SkillsPage,
   type SkillsText,
 } from './skills-port.ts'
@@ -35,7 +36,7 @@ const MAX_LIMIT = 50
 const DESCRIPTION_SHOWN = 1024
 const HEAD_RESERVE = 8192
 
-const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
+const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show source=<layer> version=<version>: the layer the Skill comes from (official, tenant or workspace) and the version read. A Skill may need tools this session does not have now: search marks it [needs: ...], and read, list and read_file add missing-tools=... to that line; it is still read in full, and unknown means the tools of this session cannot be read now. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
 function skillsMenu(): CommandTable {
   return {
     name: 'Skills',
@@ -78,10 +79,18 @@ function shown(description: string): string {
     ? characters.join('')
     : `${characters.slice(0, DESCRIPTION_SHOWN).join('')}… (read the Skill for the rest)`
 }
+function namesOf(missing: SkillsMissingTools, separator: string): string {
+  return missing === 'unknown' ? missing : missing.join(separator)
+}
 function entryLine(entry: SkillsEntry, index: number): string {
-  const disabled = entry.kind === 'disabled' ? ` [disabled: ${entry.reason}]` : ''
+  const marked =
+    entry.kind === 'disabled'
+      ? ` [disabled: ${entry.reason}]`
+      : entry.needs === undefined
+        ? ''
+        : ` [needs: ${namesOf(entry.needs, ', ')}]`
   const description = entry.description === undefined ? '' : ` - ${shown(entry.description)}`
-  return `${String(index + 1)}. ${entry.name}${disabled}${description}`
+  return `${String(index + 1)}. ${entry.name}${marked}${description}`
 }
 function searchText(query: string, page: SkillsPage): string {
   const next = page.next === null ? '' : ` next=${JSON.stringify(page.next)}`
@@ -94,12 +103,24 @@ function searchText(query: string, page: SkillsPage): string {
       : `\n[more: Skills search with the same query and after=${JSON.stringify(page.next)}]`
   return `${head}\n${page.entries.map(entryLine).join('\n')}${more}`
 }
-function directoryLine(directory: string | undefined): string {
-  return directory === undefined ? '' : `directory=${directory}\n`
+/** The lines that say where the text comes from, what it needs, and where its files are. */
+function headLines(read: SkillsText | SkillsListing): readonly string[] {
+  const missing =
+    read.missingTools === undefined ? '' : ` missing-tools=${namesOf(read.missingTools, ',')}`
+  return [
+    ...(read.source === undefined
+      ? []
+      : [`source=${read.source.layer} version=${read.source.version}${missing}`]),
+    ...(read.directory === undefined ? [] : [`directory=${read.directory}`]),
+  ]
 }
 function textResult(call: string, read: SkillsText): string {
   const more = read.end < read.total ? `\n[more: Skills ${call} offset=${String(read.end)}]` : ''
-  return `done Skills ${call} bytes=${String(read.start)}-${String(read.end)} total=${String(read.total)}\n${directoryLine(read.directory)}${read.text}${more}`
+  return [
+    `done Skills ${call} bytes=${String(read.start)}-${String(read.end)} total=${String(read.total)}`,
+    ...headLines(read),
+    `${read.text}${more}`,
+  ].join('\n')
 }
 function listText(skill: string, listing: SkillsListing): string {
   const files = listing.files.map(
@@ -108,7 +129,7 @@ function listText(skill: string, listing: SkillsListing): string {
   )
   return [
     `done Skills list skill=${skill} files=${String(listing.files.length)}`,
-    ...(listing.directory === undefined ? [] : [`directory=${listing.directory}`]),
+    ...headLines(listing),
     ...files,
   ].join('\n')
 }

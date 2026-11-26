@@ -7,17 +7,53 @@
 ## 入口 `.` · `index.d.ts`
 
 - `MediaProtocol` · `media-protocol.d.ts`
+- `MediaReference` · `media-protocol.d.ts`
 - `mediaProtocol` · `media-protocol.d.ts`
+- `readReferenceText` · `reference-text.d.ts`
+- `referenceText` · `reference-text.d.ts`
 
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { mediaProtocol, type MediaProtocol } from './media-protocol.ts';
+export { mediaProtocol, type MediaProtocol, type MediaReference } from './media-protocol.ts';
+export { readReferenceText, referenceText } from './reference-text.ts';
 ```
 
 ## 声明文件 `media-protocol.d.ts`
 
 ```ts
+import { type RuleValue } from '@omne-harness/public-contract';
+declare const reference: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly storage: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly key: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly mediaType: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly bytes: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly digest: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+    };
+};
+export type MediaReference = RuleValue<typeof reference>;
 export declare const mediaProtocol: {
     readonly operations: {
         readonly 'begin-upload': {
@@ -300,6 +336,7 @@ export declare const mediaProtocol: {
                                 readonly revision: string;
                             };
                             readonly outcome: "inconvertible";
+                            readonly reason?: "damaged" | "encrypted" | "no-text";
                         };
                     } | {
                         readonly kind: "failed";
@@ -368,6 +405,7 @@ export declare const mediaProtocol: {
                                 readonly revision: string;
                             };
                             readonly outcome: "inconvertible";
+                            readonly reason?: "damaged" | "encrypted" | "no-text";
                         };
                     } | {
                         readonly kind: "failed";
@@ -420,4 +458,13 @@ export declare const mediaProtocol: {
     };
 };
 export type MediaProtocol = typeof mediaProtocol;
+export {};
+```
+
+## 声明文件 `reference-text.d.ts`
+
+```ts
+import type { MediaReference } from './media-protocol.ts';
+export declare function referenceText(ref: MediaReference): string;
+export declare function readReferenceText(text: string): MediaReference | null;
 ```

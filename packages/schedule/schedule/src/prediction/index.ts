@@ -23,6 +23,7 @@ const predictionInputSchema = z.strictObject({
   definition: ScheduleDefinitionSchema,
   definitionRevision: z.int().nonnegative(),
   eligibleConsumed: z.int().nonnegative(),
+  eligibleFrom: ScheduleInstantSchema.nullable(),
   acceptedJobCount: z.int().nonnegative(),
   after: ScheduleInstantSchema,
   activationExclusive: ScheduleInstantSchema.nullable(),
@@ -104,7 +105,7 @@ export function createSchedulePredictionService(
         const { context, referenceExclusive, ...prediction } = input
         const result = await calculate(
           context,
-          { ...prediction, after: referenceExclusive, count: 1 },
+          { ...prediction, eligibleFrom: null, after: referenceExclusive, count: 1 },
           budget,
         )
         if (result.kind === 'error') return { kind: 'unavailable', error: result.error }

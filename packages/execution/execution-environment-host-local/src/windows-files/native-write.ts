@@ -51,12 +51,13 @@ public static partial class OmneFiles {
       IntPtr rootHandle=Root(root,expectedRoot,rooted,held), parent=Parent(rootHandle,root,segments,rooted,held);
       string name=segments[segments.Length-1];
       CheckTarget(parent,name,named,version,create);
+      string visited=rooted?null:PhysicalHandlePath(parent);
       if(trailingSlash) throw new IOException("unresolved");
       byte[] bytes=Convert.FromBase64String(encoded);
       staged=CreateNew(parent,".omne-write-"+Guid.NewGuid().ToString("N")); held.Add(staged);
       WriteAll(staged,bytes,bytes.Length); Flush(staged);
       Publish(staged,parent,name,named,version,create); published=true;
-      return new { info=Metadata(staged,""), bytes="", entries=new object[0], next=-1 };
+      return new { info=Metadata(staged,""), directory=visited, bytes="", entries=new object[0], next=-1 };
     } catch {
       if(published || (staged!=IntPtr.Zero && !Discard(staged))) throw new IOException("unknown");
       throw;
@@ -92,6 +93,7 @@ public static partial class OmneFiles {
       if(rooted && info.links>1) throw new IOException("notAuthorized");
       if(hasVersion && Version(info)!=version) throw new IOException("conflict");
       object from=Metadata(source,"");
+      string visited=rooted?null:PhysicalHandlePath(held[held.Count-2]);
       if(targetSegments.Length==0) throw new IOException("notAuthorized");
       IntPtr targetStart=Root(targetRoot,expectedTargetRoot,targetRooted,held), parent=Parent(targetStart,targetRoot,targetSegments,targetRooted,held);
       object existing=Existing(parent,targetSegments[targetSegments.Length-1],targetNamed,replace);
@@ -104,7 +106,7 @@ public static partial class OmneFiles {
         WriteAll(staged,block,(int)read);
       }
       Flush(staged);
-      return new { info=Metadata(staged,""), bytes="", entries=new object[0], next=-1, source=from, target=existing };
+      return new { info=Metadata(staged,""), bytes="", entries=new object[0], next=-1, directory=visited, source=from, target=existing };
     } catch {
       if(staged!=IntPtr.Zero && !Discard(staged)) throw new IOException("unknown");
       throw;
@@ -122,9 +124,10 @@ public static partial class OmneFiles {
         IntPtr opened=OpenRelative(parent,temporary,0x10080,false); held.Add(opened);
         CheckNamed(opened,named,null); staged=opened;
         string name=segments[segments.Length-1];
+        string visited=rooted?null:PhysicalHandlePath(parent);
         if(create) CheckTarget(parent,name,targetNamed,null,true);
         Publish(staged,parent,name,targetNamed,hasVersion?version:null,create); published=true;
-        return new { info=Metadata(staged,""), bytes="", entries=new object[0], next=-1 };
+        return new { info=Metadata(staged,""), directory=visited, bytes="", entries=new object[0], next=-1 };
       } catch {
         if(published || staged==IntPtr.Zero || !Discard(staged)) throw new IOException("unknown");
         throw;

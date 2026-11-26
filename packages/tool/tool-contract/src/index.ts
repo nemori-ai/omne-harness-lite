@@ -92,6 +92,7 @@ export type {
   ToolLookup,
   ToolRelation,
   ToolResult,
+  ToolDirectoryVisit,
   ToolRenderedResult,
   ToolOffloadedBody,
   ToolBodyRetention,
@@ -212,7 +213,6 @@ export type {
   ProgramTools,
 } from './program.ts'
 export type { ProgramFunction } from './program-signature.ts'
-export { isProgramExecutor, programCatalogue } from './program-signature.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
 export type {
   ToolActionResolution,
@@ -228,5 +228,5 @@ export type {
   ToolFixedReadArguments,
   ToolsReadArguments,
 } from './tools-protocol.ts'
-export { returnSummary } from './return-description.ts'
+export { declaredReturn } from './return-description.ts'
 export { offeredDefinition, unmetConditions } from './conditions.ts'

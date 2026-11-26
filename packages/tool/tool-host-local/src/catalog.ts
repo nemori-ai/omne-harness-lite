@@ -310,6 +310,9 @@ function liveReader<P>(input: LocalToolCatalogInput<P>) {
   return { liveFor, stable }
 }
 
+const openToPrograms = (candidate: CatalogCandidate) =>
+  candidate.kind !== 'known' && candidate.definition.programmable === true
+
 export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
   const { availability } = input
   const rank = createCatalogRanking(input.search)
@@ -355,12 +358,9 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     const entries: ToolCatalogSearchEntry[] = []
     for (const name of names) {
       const candidate = candidateFor(observed, name)
-      if (candidate === undefined || candidate.resident) continue
-      if (
-        request.invocation === 'programmatic' &&
-        (candidate.kind === 'known' || candidate.definition.programmable !== true)
-      )
-        continue
+      if (candidate === undefined) continue
+      const callable = request.invocation === 'programmatic'
+      if (callable ? !openToPrograms(candidate) : candidate.resident) continue
       const one = await judged(request, candidate, request.consumer, null)
       if ('failure' in one) return one
       if (request.invocation === 'programmatic' && one.ok.kind !== 'available') continue

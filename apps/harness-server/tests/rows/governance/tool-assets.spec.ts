@@ -2,6 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { pinBody, readBodyText } from '@omne-harness/assets'
 import { canonicalDigest } from '@omne-harness/tool'
 import { writeJsonText } from '@omne-harness/json-text'
+import { crowdedRelease } from './crowded-release.ts'
 import { toolAssetsWorld } from './tool-assets-world.ts'
 
 const worlds: Awaited<ReturnType<typeof toolAssetsWorld>>[] = []
@@ -124,6 +125,26 @@ it('joins actual Assets, standalone and immutable release facts in the real Work
     }),
   ).toMatchObject({ kind: 'committed' })
   expect(await w.captureCurrent()).toMatchObject({ kind: 'rolled_back' })
+})
+it('answers the current participant in the same bytes when the release registers thirty more tools', async () => {
+  const taken = []
+  for (const extra of [0, 30]) {
+    const made = await crowdedRelease(extra)
+    try {
+      const w = await toolAssetsWorld(undefined, made)
+      worlds.push(w)
+      await w.setup()
+      const sizes = await w.captureCurrent(undefined, 'sizes')
+      if (!('answerBytes' in sizes)) throw new Error(JSON.stringify(sizes))
+      taken.push(sizes)
+    } finally {
+      await made.remove()
+    }
+  }
+  const [plain, crowded] = taken
+  expect(crowded?.evidence.bindings).toBe((plain?.evidence.bindings ?? 0) + 30)
+  expect(crowded?.evidence.bytes).toBeGreaterThan((plain?.evidence.bytes ?? 0) + 30 * 100)
+  expect(crowded?.answerBytes).toBe(plain?.answerBytes)
 })
 it('cannot produce current evidence without each actual owner and support participant', async () => {
   const w = await open()

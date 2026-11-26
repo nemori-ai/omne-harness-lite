@@ -11,6 +11,9 @@ import {
   type ExecutionSnapshot,
   type Material,
   type PendingCall,
+  type ReceivedCommitResult,
+  type ReceivedEntry,
+  type Reply,
 } from '@omne-harness/agent-contract'
 import {
   createTestCancellationPolicy,
@@ -91,6 +94,25 @@ type Dependencies = AgentDependencies<unknown, ContentBlock>
 type Original = Extract<ResultPart, { kind: 'sealed' }>['block']
 type Sleep = (ms: number) => Promise<void>
 const sleep: Sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+/** The real Model pushes again after a pause when the receiver did not take the result (push-again). */
+const REPUSHES = 20
+const REPUSH_MS = 50
+const AGAIN = new Set(['unavailable', 'backpressured', 'cancelled-before-accept'])
+type Pushed = Awaited<ReturnType<ModelAdmission['pusher']['settled']>>
+const pushesAgain = (record: Pushed): boolean =>
+  record.status === 'unknown' ||
+  (record.status === 'failed' &&
+    record.failure.kind === 'rejected' &&
+    AGAIN.has(record.failure.failure.kind))
+async function pushedUntilTaken(pusher: ModelAdmission['pusher'], first: Pushed): Promise<Pushed> {
+  let record = first
+  for (let again = 0; again < REPUSHES && pushesAgain(record); again += 1) {
+    await sleep(REPUSH_MS)
+    record = await pusher.redeliver(record.key)
+  }
+  return record
+}
 
 const text = (id: string, body: string): ContentBlock =>
   ({ kind: 'text', id, visibility: { toHuman: true, toModel: true }, text: body }) as ContentBlock
@@ -279,10 +301,10 @@ export type W2Options = Readonly<{
   toolRequests?: Partial<NonNullable<Dependencies['toolRequests']>>
   report?: (report: JournalPublicationReport) => void
   wrapStorage?: NonNullable<LineWorldOptions['wrapStorage']>
+  receivedCommit?: (commit: (input: never) => Promise<unknown>, input: never) => Promise<unknown>
 }>
 
 const LONG_RUN_LIMITS = {
-  maxJsonMembers: 200_000_000,
   maxCommandBytes: 1 << 30,
   maxRequestBytes: 1 << 30,
   globalInFlightWriteBytes: 2 ** 31,
@@ -320,6 +342,7 @@ export async function openW2World(options: W2Options) {
   }
   const modelCalls: string[] = []
   const receivedFailures: unknown[] = []
+  const receivedEntries: ReceivedEntry[] = []
   const toolPushes: Promise<unknown>[] = []
   const toolLatePushes: Promise<unknown>[] = []
   const toolResults: ToolDelivery<ContentBlock>[] = []
@@ -435,9 +458,11 @@ export async function openW2World(options: W2Options) {
         received: {
           ...received,
           commit: async (input: never) => {
-            const answer = await received.commit(input)
-            if (typeof answer === 'object' && answer !== null && 'failure' in answer)
-              receivedFailures.push(answer)
+            const commit = received.commit.bind(received)
+            const answer = (await (options.receivedCommit?.(commit, input) ??
+              commit(input))) as Awaited<Reply<ReceivedCommitResult>>
+            if ('failure' in answer) receivedFailures.push(answer)
+            else if (answer.ok.kind === 'committed') receivedEntries.push(answer.ok.value.entry)
             return answer
           },
         },
@@ -487,7 +512,7 @@ export async function openW2World(options: W2Options) {
           pageTargetBytes: 65536,
           ...(step.replay === undefined ? {} : { replay: step.replay }),
         })
-        pushed = await pusher.settled(target)
+        pushed = await pushedUntilTaken(pusher, await pusher.settled(target))
         afterSave()
       } catch (error) {
         pushed = { late: String(error) }
@@ -976,6 +1001,7 @@ export async function openW2World(options: W2Options) {
     toolRequests,
     modelCalls,
     receivedFailures,
+    receivedEntries,
     toolPushes,
     toolLatePushes,
     toolResults,

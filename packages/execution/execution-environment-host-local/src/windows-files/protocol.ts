@@ -26,7 +26,7 @@ export type RunInput = Start &
     path: string
   }>
 
-export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' }>
+export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' | 'lookup' }>
 
 export type ChangeInput = Start &
   Readonly<{
@@ -105,6 +105,8 @@ export type NativeReply = Readonly<{
   truncated: boolean
   eof: boolean
   source?: Metadata
+  directory?: string
+  targetDirectory?: string
   target?: Metadata | null
 }>
 
@@ -146,6 +148,7 @@ export function parseReplyFrame(line: string): ReplyFrame | undefined {
 function failure(value: unknown): Failure {
   switch (value) {
     case 'notAuthorized':
+    case 'notFound':
     case 'unresolved':
     case 'unsupported':
     case 'busy':
@@ -221,5 +224,9 @@ function reply(value: unknown): NativeReply | Failure {
     truncated: fields['truncated'] === true,
     eof: fields['eof'] === true,
     ...names,
+    ...(typeof fields['targetDirectory'] === 'string'
+      ? { targetDirectory: fields['targetDirectory'] }
+      : {}),
+    ...(typeof fields['directory'] === 'string' ? { directory: fields['directory'] } : {}),
   }
 }

@@ -808,6 +808,26 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
+  it('returns the journal refusal when it cannot record a dependency wait', async () => {
+    const denied = { kind: 'denied', action: 'journal.commit' } as const
+    const assembly = await loopAssembly([execution()], ports => ({
+      ...ports,
+      journal: {
+        ...ports.journal,
+        commit: input =>
+          input.state.kind === 'waiting'
+            ? Promise.resolve(fail(denied))
+            : ports.journal.commit(input),
+      },
+    }))
+    const c = coordinator(assembly)
+    ok(await c.accept())
+    const before = await load(assembly)
+    assembly.controls.journal.failNextRead('load')
+    expect(failure(await c.runExecution())).toEqual({ node: 'W0', failure: denied })
+    expect(await load(assembly)).toEqual(before)
+  })
+
   it('a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)

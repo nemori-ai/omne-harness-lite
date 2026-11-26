@@ -179,6 +179,7 @@ function modelViewReads<P>(
           ...accessOf(value),
           basis: value.basis,
           after: value.after,
+          ...(value.resumeAtEnd ? { resumeAtEnd: true } : {}),
           pageBytes: value.pageBytes,
         }),
       ),

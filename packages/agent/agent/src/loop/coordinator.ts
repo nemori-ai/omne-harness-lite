@@ -1456,7 +1456,7 @@ function coordinate<P>(
           yieldedWait = true
           return step('unsaved-wait', null)
         }
-        if (saved.failure.kind !== 'changed') return saved
+        if (saved.failure.kind !== 'changed' && saved.failure.kind !== 'stale-advance') return saved
         changedAt = revision
         waking = true
         return step('reconciled', null)

@@ -15,7 +15,7 @@ const ALWAYS: readonly RegExp[] = [
   /^\.meta_harness\/design\/product\/.+/u,
   /^\.meta_harness\/agents\/skills\/.+/u,
   /^\.github\/.+/u,
-  /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/skills\/[^/]+\/SKILL\.md$/u,
+  /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/skills\/[^/]+\/(SKILL|references\/[^/]+)\.md$/u,
 ]
 
 const RESERVED_DESIGN: readonly RegExp[] = [

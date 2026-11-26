@@ -1,3 +1,4 @@
+import { decideModelProjection } from './model-projection.ts'
 import { acceptedOrdinary } from './accepted-ordinary.ts'
 import { validSelectionEffort } from './control-values.ts'
 import { originalContent } from './before-intake.ts'
@@ -87,12 +88,6 @@ export const PATH_MUTATIONS = Object.freeze([
 type Origin = HistoryEntry['origin']
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(
-    part => part.length === 0,
-  )
-}
-
-function emptyEvidence(evidence: DurableEvidence): boolean {
-  return [evidence.owner, evidence.record, evidence.revision, evidence.digest].some(
     part => part.length === 0,
   )
 }
@@ -381,7 +376,7 @@ function decideFinishRun(
     if (!snapshot.pending.includes(rejects.input))
       return invalid('bounded.input', 'the first input is no longer pending')
   }
-  if (emptyEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
+  if (!completeEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
   if (rejects !== null)
     out.push(
       encodeEntry(
@@ -486,7 +481,7 @@ function decideHandover(
   if (fact.result.kind === 'accepted' && snapshot.handed.includes(fact.input))
     return invalid('fact.input', 'the input was already handed over')
   const evidence = fact.result.kind === 'accepted' ? fact.result.receipt : fact.result.rejection
-  if (emptyEvidence(evidence)) return invalid('fact.result', 'incomplete evidence')
+  if (!completeEvidence(evidence)) return invalid('fact.result', 'incomplete evidence')
   return entries([
     encodeEntry(
       {
@@ -505,7 +500,9 @@ function decideDeclarationChange(
   command: Extract<SessionCommand, { kind: 'change' }>,
   reads: DecideReads,
 ): Decision {
-  const { declaration } = command.input
+  const { declaration, expected } = command.input
+  if (expected !== undefined && expected !== snapshot.revision)
+    return rejected({ kind: 'changed', revision: snapshot.revision })
   if (declaration.kind === 'permission-assignment')
     return decidePermissionAssignment({
       snapshot,
@@ -738,12 +735,15 @@ function decideDerived(
   if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
   if (input.expected !== snapshot.revision)
     return rejected({ kind: 'changed', revision: snapshot.revision })
+  if (input.value.kind === 'model-projection')
+    return decideModelProjection(snapshot, command, reads, source)
   if (input.value.message.role !== 'system_reminder')
     return invalid('value.message', 'not a context reminder')
   return entries([
     encodeEntry(
       {
         kind: 'message.system_reminder',
+        ...(input.value.provenance === undefined ? {} : { provenance: input.value.provenance }),
         message: input.value.message,
         source: input.value.source,
         admission: null,

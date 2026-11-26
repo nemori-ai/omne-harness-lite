@@ -295,14 +295,13 @@ export type {
   ToolForwardSource,
   ToolForwardRuntime,
 } from './forwarding.ts'
-export { returnGuide } from './return-description.ts'
+export { returnGuide, returnSummary } from './return-description.ts'
 export {
   PROGRAM_FAILURE,
   functionsSignature,
   isProgramName,
   programCallRefusal,
   programFunctions,
-  PROGRAM_CATALOGUE_BYTES,
   PROGRAM_RUN_CAPABILITY,
   programSignature,
   schemaType,

@@ -1,4 +1,4 @@
-import { defineProtocol, ruleCodec, type Rule } from '@omne-harness/public-contract'
+import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
 type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
 
@@ -24,6 +24,7 @@ const reference = object({
   bytes: { rule: text },
   digest: { rule: text },
 })
+export type MediaReference = RuleValue<typeof reference>
 const ofMedium = { ...ofTenant, ref: { rule: reference } } as const
 
 const facts = oneOf(
@@ -73,6 +74,7 @@ const representation = oneOf(
     outcome: { rule: literal('inconvertible') },
     definition: { rule: provenance },
     engine: { rule: provenance },
+    reason: { rule: literal('encrypted', 'damaged', 'no-text'), optional: true, since: 2 },
   }),
 )
 const preprocess = oneOf(

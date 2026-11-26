@@ -1,0 +1,5329 @@
+[
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-astra",
+          "revision": "3",
+          "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-astra",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra",
+              "revision": "3",
+              "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra#evidence",
+                "revision": "3",
+                "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra",
+              "revision": "3",
+              "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra#evidence",
+                "revision": "3",
+                "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra",
+              "revision": "3",
+              "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra#evidence",
+                "revision": "3",
+                "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra",
+              "revision": "3",
+              "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-astra#representation",
+      "revision": "3",
+      "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-astra#meter",
+      "revision": "3",
+      "digest": "b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-astra-pro",
+          "revision": "1",
+          "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-astra-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra-pro",
+              "revision": "1",
+              "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra-pro#evidence",
+                "revision": "1",
+                "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra-pro",
+              "revision": "1",
+              "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra-pro#evidence",
+                "revision": "1",
+                "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra-pro",
+              "revision": "1",
+              "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-astra-pro#evidence",
+                "revision": "1",
+                "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-astra-pro",
+              "revision": "1",
+              "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-astra-pro#representation",
+      "revision": "1",
+      "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-astra-pro#meter",
+      "revision": "1",
+      "digest": "8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-sol",
+          "revision": "3",
+          "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-sol",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol",
+              "revision": "3",
+              "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol#evidence",
+                "revision": "3",
+                "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol",
+              "revision": "3",
+              "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol#evidence",
+                "revision": "3",
+                "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol",
+              "revision": "3",
+              "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol#evidence",
+                "revision": "3",
+                "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol",
+              "revision": "3",
+              "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-sol#representation",
+      "revision": "3",
+      "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-sol#meter",
+      "revision": "3",
+      "digest": "1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-sol-pro",
+          "revision": "1",
+          "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-sol-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol-pro",
+              "revision": "1",
+              "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol-pro",
+              "revision": "1",
+              "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol-pro",
+              "revision": "1",
+              "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-sol-pro",
+              "revision": "1",
+              "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-sol-pro#representation",
+      "revision": "1",
+      "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-sol-pro#meter",
+      "revision": "1",
+      "digest": "227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-luna",
+          "revision": "3",
+          "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna",
+              "revision": "3",
+              "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna#evidence",
+                "revision": "3",
+                "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna",
+              "revision": "3",
+              "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna#evidence",
+                "revision": "3",
+                "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna",
+              "revision": "3",
+              "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna#evidence",
+                "revision": "3",
+                "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna",
+              "revision": "3",
+              "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-luna#representation",
+      "revision": "3",
+      "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-luna#meter",
+      "revision": "3",
+      "digest": "ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-luna-pro",
+          "revision": "1",
+          "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna-pro",
+              "revision": "1",
+              "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna-pro",
+              "revision": "1",
+              "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna-pro",
+              "revision": "1",
+              "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6-luna-pro",
+              "revision": "1",
+              "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-luna-pro#representation",
+      "revision": "1",
+      "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-luna-pro#meter",
+      "revision": "1",
+      "digest": "9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6.1-sol",
+          "revision": "3",
+          "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6.1-sol",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-sol",
+              "revision": "3",
+              "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-sol#evidence",
+                "revision": "3",
+                "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-sol",
+              "revision": "3",
+              "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-sol#evidence",
+                "revision": "3",
+                "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-sol",
+              "revision": "3",
+              "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-sol#evidence",
+                "revision": "3",
+                "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-sol",
+              "revision": "3",
+              "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.1-sol#representation",
+      "revision": "3",
+      "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.1-sol#meter",
+      "revision": "3",
+      "digest": "606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6.1-terra",
+          "revision": "3",
+          "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6.1-terra",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-terra",
+              "revision": "3",
+              "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-terra#evidence",
+                "revision": "3",
+                "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-terra",
+              "revision": "3",
+              "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-terra#evidence",
+                "revision": "3",
+                "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-terra",
+              "revision": "3",
+              "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.1-terra#evidence",
+                "revision": "3",
+                "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.1-terra",
+              "revision": "3",
+              "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.1-terra#representation",
+      "revision": "3",
+      "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.1-terra#meter",
+      "revision": "3",
+      "digest": "f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-sol",
+          "revision": "1",
+          "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-sol",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol",
+              "revision": "1",
+              "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol#evidence",
+                "revision": "1",
+                "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol",
+              "revision": "1",
+              "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol#evidence",
+                "revision": "1",
+                "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol",
+              "revision": "1",
+              "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol#evidence",
+                "revision": "1",
+                "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol",
+              "revision": "1",
+              "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-sol#representation",
+      "revision": "1",
+      "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-sol#meter",
+      "revision": "1",
+      "digest": "c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-sol-pro",
+          "revision": "1",
+          "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-sol-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol-pro",
+              "revision": "1",
+              "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol-pro",
+              "revision": "1",
+              "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol-pro",
+              "revision": "1",
+              "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-sol-pro#evidence",
+                "revision": "1",
+                "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-sol-pro",
+              "revision": "1",
+              "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-sol-pro#representation",
+      "revision": "1",
+      "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-sol-pro#meter",
+      "revision": "1",
+      "digest": "c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra",
+          "revision": "3",
+          "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-terra",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra",
+              "revision": "3",
+              "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra#evidence",
+                "revision": "3",
+                "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra",
+              "revision": "3",
+              "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra#evidence",
+                "revision": "3",
+                "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra",
+              "revision": "3",
+              "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra#evidence",
+                "revision": "3",
+                "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra",
+              "revision": "3",
+              "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra#representation",
+      "revision": "3",
+      "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra#meter",
+      "revision": "3",
+      "digest": "a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-terra-pro",
+          "revision": "1",
+          "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-terra-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra-pro",
+              "revision": "1",
+              "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra-pro#evidence",
+                "revision": "1",
+                "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra-pro",
+              "revision": "1",
+              "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra-pro#evidence",
+                "revision": "1",
+                "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra-pro",
+              "revision": "1",
+              "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-terra-pro#evidence",
+                "revision": "1",
+                "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-terra-pro",
+              "revision": "1",
+              "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra-pro#representation",
+      "revision": "1",
+      "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-terra-pro#meter",
+      "revision": "1",
+      "digest": "43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-luna",
+          "revision": "4",
+          "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-luna",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "fileTypes": [
+      "application/pdf"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna",
+              "revision": "4",
+              "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna#evidence",
+                "revision": "4",
+                "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna",
+              "revision": "4",
+              "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna#evidence",
+                "revision": "4",
+                "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna",
+              "revision": "4",
+              "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna#evidence",
+                "revision": "4",
+                "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna",
+              "revision": "4",
+              "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      {
+        "metric": "file-bytes",
+        "provided": "33554432",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna",
+              "revision": "4",
+              "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-luna#representation",
+      "revision": "4",
+      "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-luna#meter",
+      "revision": "4",
+      "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-luna-pro",
+          "revision": "1",
+          "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-5.6-luna-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna-pro",
+              "revision": "1",
+              "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna-pro",
+              "revision": "1",
+              "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna-pro",
+              "revision": "1",
+              "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-5.6-luna-pro#evidence",
+                "revision": "1",
+                "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-5.6-luna-pro",
+              "revision": "1",
+              "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-luna-pro#representation",
+      "revision": "1",
+      "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-luna-pro#meter",
+      "revision": "1",
+      "digest": "a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6.2-astra",
+          "revision": "2",
+          "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6.2-astra",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-astra",
+              "revision": "2",
+              "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-astra#evidence",
+                "revision": "2",
+                "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-astra",
+              "revision": "2",
+              "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-astra#evidence",
+                "revision": "2",
+                "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-astra",
+              "revision": "2",
+              "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-astra#evidence",
+                "revision": "2",
+                "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-astra",
+              "revision": "2",
+              "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.2-astra#representation",
+      "revision": "2",
+      "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.2-astra#meter",
+      "revision": "2",
+      "digest": "797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6.2-sol",
+          "revision": "2",
+          "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6.2-sol",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-sol",
+              "revision": "2",
+              "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-sol#evidence",
+                "revision": "2",
+                "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-sol",
+              "revision": "2",
+              "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-sol#evidence",
+                "revision": "2",
+                "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-sol",
+              "revision": "2",
+              "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "openai/gpt-6.2-sol#evidence",
+                "revision": "2",
+                "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "openai/gpt-6.2-sol",
+              "revision": "2",
+              "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.2-sol#representation",
+      "revision": "2",
+      "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6.2-sol#meter",
+      "revision": "2",
+      "digest": "e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-fable-5.2",
+          "revision": "1",
+          "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-fable-5.2",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.2",
+              "revision": "1",
+              "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-fable-5.2#evidence",
+                "revision": "1",
+                "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.2",
+              "revision": "1",
+              "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.2",
+              "revision": "1",
+              "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-fable-5.2#evidence",
+                "revision": "1",
+                "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.2",
+              "revision": "1",
+              "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-fable-5.2#representation",
+      "revision": "1",
+      "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-fable-5.2#meter",
+      "revision": "1",
+      "digest": "b514fa004b2752c4d947b990b296c7c5e0458e18ce8d0f4611b091ebd48d14b8"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-fable-5.1",
+          "revision": "3",
+          "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-fable-5.1",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.1",
+              "revision": "3",
+              "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-fable-5.1#evidence",
+                "revision": "3",
+                "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.1",
+              "revision": "3",
+              "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.1",
+              "revision": "3",
+              "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-fable-5.1#evidence",
+                "revision": "3",
+                "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-fable-5.1",
+              "revision": "3",
+              "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-fable-5.1#representation",
+      "revision": "3",
+      "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-fable-5.1#meter",
+      "revision": "3",
+      "digest": "5602ac3118e0c8f0427396db3e4a6af35fbf7f74f15b3c56a55a3af87eca253f"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5.5",
+          "revision": "3",
+          "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-opus-5.5",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5.5",
+              "revision": "3",
+              "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-opus-5.5#evidence",
+                "revision": "3",
+                "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5.5",
+              "revision": "3",
+              "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5.5",
+              "revision": "3",
+              "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-opus-5.5#evidence",
+                "revision": "3",
+                "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5.5",
+              "revision": "3",
+              "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5.5#representation",
+      "revision": "3",
+      "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5.5#meter",
+      "revision": "3",
+      "digest": "0e24882e4305bd962f79e68bf70dab9b69013fd58dd71fc9e433eddb7a79333e"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-opus-5",
+          "revision": "3",
+          "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-opus-5",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5",
+              "revision": "3",
+              "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-opus-5#evidence",
+                "revision": "3",
+                "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5",
+              "revision": "3",
+              "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5",
+              "revision": "3",
+              "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-opus-5#evidence",
+                "revision": "3",
+                "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-opus-5",
+              "revision": "3",
+              "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5#representation",
+      "revision": "3",
+      "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-opus-5#meter",
+      "revision": "3",
+      "digest": "9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5.5",
+          "revision": "2",
+          "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-sonnet-5.5",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5.5",
+              "revision": "2",
+              "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-sonnet-5.5#evidence",
+                "revision": "2",
+                "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5.5",
+              "revision": "2",
+              "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5.5",
+              "revision": "2",
+              "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-sonnet-5.5#evidence",
+                "revision": "2",
+                "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5.5",
+              "revision": "2",
+              "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5.5#representation",
+      "revision": "2",
+      "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5.5#meter",
+      "revision": "2",
+      "digest": "eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "3",
+          "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-sonnet-5",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5",
+              "revision": "3",
+              "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-sonnet-5#evidence",
+                "revision": "3",
+                "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5",
+              "revision": "3",
+              "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5",
+              "revision": "3",
+              "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-sonnet-5#evidence",
+                "revision": "3",
+                "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-sonnet-5",
+              "revision": "3",
+              "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5#representation",
+      "revision": "3",
+      "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5#meter",
+      "revision": "3",
+      "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-haiku-5.5",
+          "revision": "3",
+          "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-haiku-5.5",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "fileTypes": [
+      "application/pdf"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-haiku-5.5",
+              "revision": "3",
+              "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-haiku-5.5#evidence",
+                "revision": "3",
+                "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "872000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-haiku-5.5",
+              "revision": "3",
+              "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-haiku-5.5",
+              "revision": "3",
+              "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-anthropic",
+                "name": "anthropic/claude-haiku-5.5#evidence",
+                "revision": "3",
+                "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-haiku-5.5",
+              "revision": "3",
+              "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      {
+        "metric": "file-bytes",
+        "provided": "33554432",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-anthropic",
+              "name": "anthropic/claude-haiku-5.5",
+              "revision": "3",
+              "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-haiku-5.5#representation",
+      "revision": "3",
+      "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-haiku-5.5#meter",
+      "revision": "3",
+      "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-qwen",
+          "name": "qwen/qwen3.8-omni-flash",
+          "revision": "1",
+          "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+        },
+        "provider": "openrouter",
+        "model": "qwen/qwen3.8-omni-flash",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "voice"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-qwen",
+              "name": "qwen/qwen3.8-omni-flash",
+              "revision": "1",
+              "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-qwen",
+                "name": "qwen/qwen3.8-omni-flash#evidence",
+                "revision": "1",
+                "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "983616",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-qwen",
+              "name": "qwen/qwen3.8-omni-flash",
+              "revision": "1",
+              "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "983616",
+              "source": {
+                "owner": "@omne-harness/pi-ai-qwen",
+                "name": "qwen/qwen3.8-omni-flash#evidence",
+                "revision": "1",
+                "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-qwen",
+              "name": "qwen/qwen3.8-omni-flash",
+              "revision": "1",
+              "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-qwen",
+                "name": "qwen/qwen3.8-omni-flash#evidence",
+                "revision": "1",
+                "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "voice-bytes",
+        "provided": "10485760",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-qwen",
+              "name": "qwen/qwen3.8-omni-flash",
+              "revision": "1",
+              "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      },
+      {
+        "metric": "voice-duration-ms",
+        "provided": "300000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-qwen",
+              "name": "qwen/qwen3.8-omni-flash",
+              "revision": "1",
+              "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-qwen",
+      "name": "qwen/qwen3.8-omni-flash#representation",
+      "revision": "1",
+      "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-qwen",
+      "name": "qwen/qwen3.8-omni-flash#meter",
+      "revision": "1",
+      "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k3.1-pro",
+          "revision": "2",
+          "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+        },
+        "provider": "openrouter",
+        "model": "moonshotai/kimi-k3.1-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3.1-pro",
+              "revision": "2",
+              "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k3.1-pro#evidence",
+                "revision": "2",
+                "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "943718",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3.1-pro",
+              "revision": "2",
+              "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "943718",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k3.1-pro#evidence",
+                "revision": "2",
+                "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3.1-pro",
+              "revision": "2",
+              "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k3.1-pro#representation",
+      "revision": "2",
+      "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k3.1-pro#meter",
+      "revision": "2",
+      "digest": "b585cf0314b3d5c2fd1006650f7458785983fc3055fe752ace3669bfd9aeb91b"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k3",
+          "revision": "2",
+          "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+        },
+        "provider": "openrouter",
+        "model": "moonshotai/kimi-k3",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3",
+              "revision": "2",
+              "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k3#evidence",
+                "revision": "2",
+                "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "943718",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3",
+              "revision": "2",
+              "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "943718",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k3#evidence",
+                "revision": "2",
+                "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k3",
+              "revision": "2",
+              "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k3#representation",
+      "revision": "2",
+      "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k3#meter",
+      "revision": "2",
+      "digest": "c256207626ece2bddbc503a79dd3bc175688193019082310592982d218cd1f05"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k2.7-code",
+          "revision": "1",
+          "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+        },
+        "provider": "openrouter",
+        "model": "moonshotai/kimi-k2.7-code",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "262144",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k2.7-code",
+              "revision": "1",
+              "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "262144",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k2.7-code#evidence",
+                "revision": "1",
+                "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "235929",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k2.7-code",
+              "revision": "1",
+              "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "235929",
+              "source": {
+                "owner": "@omne-harness/pi-ai-kimi",
+                "name": "moonshotai/kimi-k2.7-code#evidence",
+                "revision": "1",
+                "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-kimi",
+              "name": "moonshotai/kimi-k2.7-code",
+              "revision": "1",
+              "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {},
+    "representation": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k2.7-code#representation",
+      "revision": "1",
+      "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k2.7-code#meter",
+      "revision": "1",
+      "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4.1-flash-1017",
+          "revision": "1",
+          "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash-1017",
+              "revision": "1",
+              "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4.1-flash-1017#evidence",
+                "revision": "1",
+                "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash-1017",
+              "revision": "1",
+              "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4.1-flash-1017#evidence",
+                "revision": "1",
+                "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash-1017",
+              "revision": "1",
+              "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4.1-flash-1017#representation",
+      "revision": "1",
+      "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4.1-flash-1017#meter",
+      "revision": "1",
+      "digest": "8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4.1-flash",
+          "revision": "1",
+          "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4.1-flash",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash",
+              "revision": "1",
+              "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4.1-flash#evidence",
+                "revision": "1",
+                "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash",
+              "revision": "1",
+              "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4.1-flash#evidence",
+                "revision": "1",
+                "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4.1-flash",
+              "revision": "1",
+              "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4.1-flash#representation",
+      "revision": "1",
+      "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4.1-flash#meter",
+      "revision": "1",
+      "digest": "48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-flash-vision-exp",
+          "revision": "1",
+          "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash-vision-exp",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash-vision-exp",
+              "revision": "1",
+              "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash-vision-exp#evidence",
+                "revision": "1",
+                "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "262144",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash-vision-exp",
+              "revision": "1",
+              "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "262144",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash-vision-exp#evidence",
+                "revision": "1",
+                "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash-vision-exp",
+              "revision": "1",
+              "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash-vision-exp#representation",
+      "revision": "1",
+      "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash-vision-exp#meter",
+      "revision": "1",
+      "digest": "96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-pro-0813",
+          "revision": "1",
+          "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-pro-0813",
+              "revision": "1",
+              "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-pro-0813#evidence",
+                "revision": "1",
+                "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-pro-0813",
+              "revision": "1",
+              "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-pro-0813#evidence",
+                "revision": "1",
+                "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-pro-0813#representation",
+      "revision": "1",
+      "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-pro-0813#meter",
+      "revision": "1",
+      "digest": "ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-flash-0731",
+          "revision": "1",
+          "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash-0731",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash-0731",
+              "revision": "1",
+              "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash-0731#evidence",
+                "revision": "1",
+                "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash-0731",
+              "revision": "1",
+              "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash-0731#evidence",
+                "revision": "1",
+                "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash-0731#representation",
+      "revision": "1",
+      "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash-0731#meter",
+      "revision": "1",
+      "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-pro",
+          "revision": "1",
+          "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-pro",
+              "revision": "1",
+              "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-pro#evidence",
+                "revision": "1",
+                "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-pro",
+              "revision": "1",
+              "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-pro#evidence",
+                "revision": "1",
+                "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-pro#representation",
+      "revision": "1",
+      "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-pro#meter",
+      "revision": "1",
+      "digest": "05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-flash",
+          "revision": "1",
+          "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash",
+              "revision": "1",
+              "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash#evidence",
+                "revision": "1",
+                "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "393216",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v4-flash",
+              "revision": "1",
+              "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "393216",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v4-flash#evidence",
+                "revision": "1",
+                "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash#representation",
+      "revision": "1",
+      "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash#meter",
+      "revision": "1",
+      "digest": "2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v3.2",
+          "revision": "1",
+          "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v3.2",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "163840",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v3.2",
+              "revision": "1",
+              "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "163840",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v3.2#evidence",
+                "revision": "1",
+                "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "147456",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v3.2",
+              "revision": "1",
+              "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "147456",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v3.2#evidence",
+                "revision": "1",
+                "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {},
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v3.2#representation",
+      "revision": "1",
+      "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v3.2#meter",
+      "revision": "1",
+      "digest": "1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v3.2-exp",
+          "revision": "2",
+          "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v3.2-exp",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "163840",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v3.2-exp",
+              "revision": "2",
+              "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "163840",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v3.2-exp#evidence",
+                "revision": "2",
+                "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "147456",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-deepseek",
+              "name": "deepseek/deepseek-v3.2-exp",
+              "revision": "2",
+              "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "147456",
+              "source": {
+                "owner": "@omne-harness/pi-ai-deepseek",
+                "name": "deepseek/deepseek-v3.2-exp#evidence",
+                "revision": "2",
+                "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {},
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v3.2-exp#representation",
+      "revision": "2",
+      "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v3.2-exp#meter",
+      "revision": "2",
+      "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.1",
+          "revision": "1",
+          "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.1",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "202752",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.1",
+              "revision": "1",
+              "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "202752",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.1#evidence",
+                "revision": "1",
+                "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.1",
+              "revision": "1",
+              "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.1#evidence",
+                "revision": "1",
+                "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {},
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.1#representation",
+      "revision": "1",
+      "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.1#meter",
+      "revision": "1",
+      "digest": "44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.2",
+          "revision": "1",
+          "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.2",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.2",
+              "revision": "1",
+              "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.2#evidence",
+                "revision": "1",
+                "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.2",
+              "revision": "1",
+              "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.2#evidence",
+                "revision": "1",
+                "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.2#representation",
+      "revision": "1",
+      "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.2#meter",
+      "revision": "1",
+      "digest": "b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3",
+          "revision": "1",
+          "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3",
+              "revision": "1",
+              "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3#evidence",
+                "revision": "1",
+                "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3",
+              "revision": "1",
+              "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3#evidence",
+                "revision": "1",
+                "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3#representation",
+      "revision": "1",
+      "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3#meter",
+      "revision": "1",
+      "digest": "75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-flash",
+          "revision": "1",
+          "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flash",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flash",
+              "revision": "1",
+              "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flash#evidence",
+                "revision": "1",
+                "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flash",
+              "revision": "1",
+              "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flash#evidence",
+                "revision": "1",
+                "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flash",
+              "revision": "1",
+              "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flash#representation",
+      "revision": "1",
+      "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flash#meter",
+      "revision": "1",
+      "digest": "5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-flashx",
+          "revision": "1",
+          "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flashx",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx",
+              "revision": "1",
+              "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flashx#evidence",
+                "revision": "1",
+                "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx",
+              "revision": "1",
+              "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flashx#evidence",
+                "revision": "1",
+                "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx",
+              "revision": "1",
+              "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flashx#representation",
+      "revision": "1",
+      "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flashx#meter",
+      "revision": "1",
+      "digest": "3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-flashx-legal",
+          "revision": "1",
+          "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-flashx-legal",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1048576",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx-legal",
+              "revision": "1",
+              "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1048576",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flashx-legal#evidence",
+                "revision": "1",
+                "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx-legal",
+              "revision": "1",
+              "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-flashx-legal#evidence",
+                "revision": "1",
+                "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-flashx-legal",
+              "revision": "1",
+              "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {},
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flashx-legal#representation",
+      "revision": "1",
+      "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-flashx-legal#meter",
+      "revision": "1",
+      "digest": "1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-glm",
+          "name": "z-ai/glm-5.3-prime",
+          "revision": "1",
+          "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+        },
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3-prime",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1000000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-prime",
+              "revision": "1",
+              "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1000000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-prime#evidence",
+                "revision": "1",
+                "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+              }
+            }
+          }
+        ]
+      },
+      "input": null,
+      "output": {
+        "provided": "131072",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-glm",
+              "name": "z-ai/glm-5.3-prime",
+              "revision": "1",
+              "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "131072",
+              "source": {
+                "owner": "@omne-harness/pi-ai-glm",
+                "name": "z-ai/glm-5.3-prime#evidence",
+                "revision": "1",
+                "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "high",
+      "high": "max"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-prime#representation",
+      "revision": "1",
+      "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-glm",
+      "name": "z-ai/glm-5.3-prime#meter",
+      "revision": "1",
+      "digest": "383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+]

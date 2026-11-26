@@ -1,7 +1,7 @@
 export type TerminalFrame =
   | Readonly<{ kind: 'ready' }>
   | Readonly<{ kind: 'opened'; cwd: string }>
-  | Readonly<{ kind: 'started'; leg: string }>
+  | Readonly<{ kind: 'started'; leg: string; cwd?: string }>
   | Readonly<{ kind: 'between'; leg: string; bytes: Uint8Array }>
   | Readonly<{ kind: 'begun'; leg: string; discarded: number }>
   | Readonly<{ kind: 'data'; leg: string; bytes: Uint8Array }>
@@ -30,7 +30,10 @@ function decode(
     return typeof cwd === 'string' && cwd.startsWith('/') ? { kind, cwd } : undefined
   const leg: unknown = Reflect.get(value, 'leg')
   if (typeof leg !== 'string' || leg === '') return undefined
-  if (kind === 'started') return { kind, leg }
+  if (kind === 'started') {
+    if (cwd === undefined) return { kind, leg }
+    return typeof cwd === 'string' && cwd.startsWith('/') ? { kind, leg, cwd } : undefined
+  }
   if (kind === 'begun') {
     const discarded: unknown = Reflect.get(value, 'discarded')
     return typeof discarded === 'number' && Number.isSafeInteger(discarded) && discarded >= 0

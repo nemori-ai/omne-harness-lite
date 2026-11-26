@@ -1,3 +1,4 @@
+import { win32 } from 'node:path'
 import { spawn } from 'node:child_process'
 import { windowsBridgeExecutable } from './compile.ts'
 
@@ -6,7 +7,7 @@ const now = () =>
 
 export type BridgeFrame =
   | { readonly t: 'ready'; readonly anchor: number | undefined }
-  | { readonly t: 'started' }
+  | { readonly t: 'started'; readonly observed?: string }
   | { readonly t: 'fault'; readonly stopped?: boolean }
   | { readonly t: 'data'; readonly s: 'stdout' | 'stderr'; readonly b: string }
   | {
@@ -36,6 +37,12 @@ function dataFrame({ s, b }: Fields, maxChunkBytes: number): BridgeFrame | undef
     Buffer.byteLength(b, 'base64') <= maxChunkBytes
     ? { t: 'data', s, b }
     : undefined
+}
+
+export function directoryObservation(value: unknown): { observed?: string } {
+  return typeof value === 'string' && win32.isAbsolute(value) && !value.includes('\0')
+    ? { observed: value }
+    : {}
 }
 
 const count = (value: unknown): value is number =>
@@ -69,7 +76,7 @@ function parseFrame(text: string, maxChunkBytes: number): BridgeFrame | undefine
     case 'ready':
       return { t: 'ready', anchor: count(fields['anchor']) ? fields['anchor'] : undefined }
     case 'started':
-      return { t: 'started' }
+      return { t: 'started', ...directoryObservation(fields['observed']) }
     case 'fault':
       return { t: 'fault', stopped: fields['stopped'] === true }
     case 'data':

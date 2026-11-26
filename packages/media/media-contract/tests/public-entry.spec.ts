@@ -23,6 +23,7 @@ it('exports the pure functions of the contract', async () => {
     'engineAccepts',
     'isDefinitionName',
     'isEngineName',
+    'isInconvertibleReason',
     'isMediaKey',
     'modalityOf',
     'representationHolder',

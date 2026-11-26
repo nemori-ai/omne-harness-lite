@@ -54,6 +54,7 @@ test('candidate exhaustion preserves only a sealed time prefix', async () => {
   expect(preview.candidates.map(candidate => candidate.adjustedLocal)).toEqual([
     '2026-04-01T09:00:00',
     '2026-04-02T09:00:00',
+    '2026-04-03T09:00:00',
   ])
 })
 
@@ -240,24 +241,48 @@ test('position times consume the same candidate budget as civil sources', async 
   })
 })
 
-test('unlimited future lookahead avoids ancient history while finite eligibility retains its semantic cost', async () => {
+test('future lookahead avoids ancient history, with or without an eligible limit', async () => {
   const { service, enumerations } = harness()
   const rule = definition(daily('1900-01-01T00:00:00', null))
-  value(
-    await service.preview(
-      context,
-      input(rule, { after: instant('2026-04-01T00:00:00.000Z'), count: 1 }),
-    ),
-  )
+  const after = instant('2026-04-01T00:00:00.000Z')
+  value(await service.preview(context, input(rule, { after, count: 1 })))
   expect(enumerations[0]?.[0].after).toBe('2026-04-01T00:00:00')
   enumerations.length = 0
-  value(
+  const limited = { ...rule, limits: { ...rule.limits, eligibleLimit: 50000 } }
+  const preview = value(
+    await service.preview(context, input(limited, { after, count: 1, eligibleConsumed: 46111 })),
+  )
+  expect(enumerations[0]?.[0].after).toBe('2026-04-01T00:00:00')
+  expect(preview.candidates[0]).toMatchObject({
+    scheduledAt: '2026-04-01T09:00:00.000Z',
+    eligibleOrdinal: 46112,
+  })
+})
+
+test('slots between the counted point and the reference take ordinals but are not offered', async () => {
+  const { service, enumerations } = harness()
+  const rule = definition(daily('2026-04-01T00:00:00', null), {
+    limits: { eligibleLimit: 5, jobLimit: null, excludeDates: [] },
+  })
+  const seeded = { eligibleConsumed: 1, eligibleFrom: instant('2026-04-02T09:00:00.000Z') }
+  const within = value(
     await service.preview(
       context,
-      input({ ...rule, limits: { ...rule.limits, eligibleLimit: 2 } }, { count: 1 }),
+      input(rule, { ...seeded, after: instant('2026-04-03T12:00:00.000Z') }),
     ),
   )
-  expect(enumerations[0]?.[0].after).toBe('1900-01-01T00:00:00')
+  expect(enumerations[0]?.[0].after).toBe('2026-04-02T09:00:00')
+  expect(within.candidates.map(item => [item.adjustedLocal, item.eligibleOrdinal])).toEqual([
+    ['2026-04-04T09:00:00', 4],
+    ['2026-04-05T09:00:00', 5],
+  ])
+  const past = value(
+    await service.preview(
+      context,
+      input(rule, { ...seeded, after: instant('2026-04-20T00:00:00.000Z') }),
+    ),
+  )
+  expect(past).toMatchObject({ complete: true, candidates: [] })
 })
 
 test.each(['eligibleLimit', 'jobLimit'] as const)(

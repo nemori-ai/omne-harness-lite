@@ -21,7 +21,7 @@ import {
   invoke,
   loopAssembly,
   shown,
-  stoppedAt,
+  haltedAt,
   type LoopAssembly,
 } from './loop-support.ts'
 
@@ -245,13 +245,13 @@ describe('a failure in the wait is not progress and not a result', () => {
     expect(ok(await assembly.dependencies.clock.now())).toBe('1970-01-01T00:00:00Z')
   })
 
-  it('a denied read of the wait stops the run where it waits: no end, no check time, the slot held', async () => {
+  it('a denied read of the wait stops the run where it waits: no end, no check time, the slot given back', async () => {
     const assembly = await loopAssembly(
       [execution()],
       recording([], async () => fail({ kind: 'denied', action: 'load' })),
     )
     ok(await invoke(assembly))
-    const state = await stoppedAt(assembly, 'M6')
+    const state = await haltedAt(assembly, 'M6')
     expect(state.kind).toBe('waiting')
     expect(assembly.controls.clock.pending()).toEqual([])
     assembly.release.open()

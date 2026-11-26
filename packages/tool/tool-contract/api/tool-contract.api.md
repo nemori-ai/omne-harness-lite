@@ -112,6 +112,7 @@
 - `ToolDeliveryId` · `identity.d.ts`
 - `ToolDeliveryKey` · `result-delivery.d.ts`
 - `ToolDeliveryRejection` · `result-delivery.d.ts`
+- `ToolDirectoryVisit` · `results.d.ts`
 - `ToolEnvironmentDeclaration` · `definitions.d.ts`
 - `ToolExecutionRef` · `execution.d.ts`
 - `ToolFailure` · `results.d.ts`
@@ -189,6 +190,7 @@
 - `commandCallSchema` · `command-call.d.ts`
 - `commandGateOf` · `gates.d.ts`
 - `commandMenu` · `command-call.d.ts`
+- `declaredReturn` · `return-description.d.ts`
 - `decodeCommandCallText` · `command-call.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
@@ -196,19 +198,16 @@
 - `encodeResidentKey` · `resident-key.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
 - `encodeToolOperationRef` · `reference.d.ts`
-- `isProgramExecutor` · `program-signature.d.ts`
 - `isReadOnlyCall` · `read-only.d.ts`
 - `judgeToolDelivery` · `result-delivery.d.ts`
 - `offeredDefinition` · `conditions.d.ts`
 - `pinnedFiles` · `call-directory.d.ts`
-- `programCatalogue` · `program-signature.d.ts`
 - `programToolsOf` · `program.d.ts`
 - `projectResidentReferences` · `resident-key.d.ts`
 - `readToolOperationRef` · `reference.d.ts`
 - `residentToolFacts` · `resident-key.d.ts`
 - `resolveToolInvocationRef` · `reference.d.ts`
 - `resolveToolOperationRef` · `reference.d.ts`
-- `returnSummary` · `return-description.d.ts`
 - `selectCommandText` · `command-call.d.ts`
 - `toolAssetBody` · `asset-body.d.ts`
 - `toolBodyContract` · `contract.d.ts`
@@ -256,7 +255,6 @@
 - `OUTPUT_BODY_KEY` · `body-reads.d.ts`
 - `OutputCodec` · `authoring.d.ts`
 - `PREVIEW_MAX_CHARS` · `call-label.d.ts`
-- `PROGRAM_CATALOGUE_BYTES` · `program-signature.d.ts`
 - `PROGRAM_FAILURE` · `program-signature.d.ts`
 - `PROGRAM_RUN_CAPABILITY` · `program-signature.d.ts`
 - `ParameterCodec` · `authoring.d.ts`
@@ -513,6 +511,7 @@
 - `refreshAvailability` · `dynamics.d.ts`
 - `renderToolResult` · `result-rendering.d.ts`
 - `returnGuide` · `return-description.d.ts`
+- `returnSummary` · `return-description.d.ts`
 - `sameBindingKey` · `dynamics.d.ts`
 - `sameShape` · `dynamics.d.ts`
 - `sameSourceLayer` · `dynamics.d.ts`
@@ -2029,6 +2028,7 @@ export type ToolCallDirectory = Readonly<{
         id: WorkspaceId;
         instance: string;
     }> | null;
+    generation?: string;
     files?: FilesScope;
 }>;
 export type ToolCallFields = Readonly<{
@@ -2635,7 +2635,7 @@ export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, 
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
 export { pinnedFiles } from './call-directory.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolAvailabilityReference, ToolBodyDeclaration, ToolCallFields, ToolCommandBackground, ToolCommandDeclaration, ToolCallConditions, ToolCommandRelease, ToolCommandReleaseDetail, ToolDefinition, ToolCallDirectory, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramAccess, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
-export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
+export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolDirectoryVisit, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
 export type { ToolExecutionRef } from './execution.ts';
@@ -2663,11 +2663,10 @@ export { toolsCapabilityOf } from './tools-capability.ts';
 export { programToolsOf } from './program.ts';
 export type { ProgramCallAnswer, ProgramCallEffect, ProgramCallFailure, ProgramCallFailureKind, ProgramTools, } from './program.ts';
 export type { ProgramFunction } from './program-signature.ts';
-export { isProgramExecutor, programCatalogue } from './program-signature.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
 export type { ToolActionResolution, ToolActionTarget, ToolCallAction, ToolForwardIntent, } from './forwarding.ts';
 export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
-export { returnSummary } from './return-description.ts';
+export { declaredReturn } from './return-description.ts';
 export { offeredDefinition, unmetConditions } from './conditions.ts';
 ```
 
@@ -3346,9 +3345,6 @@ export declare function schemaType(schema: JsonValue): string;
 export declare function programSignature(definition: ToolDefinition): string;
 export declare function functionsSignature(functions: readonly ProgramFunction[]): string;
 export declare const PROGRAM_RUN_CAPABILITY = "program.run";
-export declare const PROGRAM_CATALOGUE_BYTES = 6144;
-export declare function isProgramExecutor(definition: ToolDefinition): boolean;
-export declare function programCatalogue(definitions: readonly ToolDefinition[], maxBytes?: number): string;
 export declare function programCallRefusal(definition: ToolDefinition, command: string | null, given: readonly string[]): string | null;
 ```
 
@@ -3480,7 +3476,7 @@ export type ProgramCallAnswer = Readonly<{
     failure: ProgramCallFailure;
 }>;
 export interface ProgramTools {
-    functions(): Reply<readonly ProgramFunction[]>;
+    functions(names: readonly string[]): Reply<readonly ProgramFunction[]>;
     call(input: At & Readonly<{
         entry: string;
         arguments: JsonValue;
@@ -3567,8 +3563,8 @@ export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts
 export { attachToolsCapability } from './tools-capability.ts';
 export { isProgramCall, markProgramCall } from './program-call.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
-export { returnGuide } from './return-description.ts';
-export { PROGRAM_FAILURE, functionsSignature, isProgramName, programCallRefusal, programFunctions, PROGRAM_CATALOGUE_BYTES, PROGRAM_RUN_CAPABILITY, programSignature, schemaType, } from './program-signature.ts';
+export { returnGuide, returnSummary } from './return-description.ts';
+export { PROGRAM_FAILURE, functionsSignature, isProgramName, programCallRefusal, programFunctions, PROGRAM_RUN_CAPABILITY, programSignature, schemaType, } from './program-signature.ts';
 export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';
@@ -4445,8 +4441,15 @@ import type { ForegroundReturn } from './operations.ts';
 import type { ControlRecord, PhysicalExecution, QueuePosition, ToolTiming } from './records.ts';
 export type Attachment = ContentReference;
 export type ToolMessageContentBlock = TextContentBlock | ReferenceContentBlock;
+export type ToolDirectoryVisit = Readonly<{
+    workspace: string;
+    instance: string;
+    generation: string;
+    directories: readonly string[];
+}>;
 export type ToolRenderedResult<B extends ContentBlock> = Readonly<{
     content: readonly B[];
+    directoryVisit?: ToolDirectoryVisit;
     data: ToolResultData;
     original: Readonly<{
         kind: 'none';
@@ -4706,8 +4709,10 @@ export type ToolCallContact = Readonly<{
 
 ```ts
 import type { ToolReturnDeclaration } from './definitions.ts';
+export declare function declaredReturn(returns: ToolReturnDeclaration): string;
 export declare function returnSummary(returns: ToolReturnDeclaration): string;
 export declare function returnGuide(returns: ToolReturnDeclaration): string;
+export declare function declaredReturnGuide(returns: ToolReturnDeclaration): string;
 ```
 
 ## 声明文件 `script-tool-effect.d.ts`
@@ -5775,7 +5780,9 @@ import type { ToolCatalog, ToolCatalogSearchEntry, ToolInspection, ToolUsage } f
 import type { ToolAvailability } from './definitions.ts';
 import type { ToolSourceWithheld } from './entry-source.ts';
 import type { ToolInvocationRef } from './reference.ts';
-export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'>;
+export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'> & Readonly<{
+    programmable?: true;
+}>;
 export type SearchPage = Readonly<{
     entries: readonly ToolCatalogSearchEntry[];
     withheld?: readonly ToolSourceWithheld[];

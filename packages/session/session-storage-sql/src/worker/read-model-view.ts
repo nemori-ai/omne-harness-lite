@@ -59,6 +59,7 @@ export default handler('session.model-view', (raw, port) => {
       entry: text(row['entry']),
       bytes: Number(row['bytes']),
       prefixDigest: text(row['prefix_digest']),
+      ...(row['provenance'] == null ? {} : { provenance: JSON.parse(text(row['provenance'])) }),
       message: JSON.parse(viewMessageText(port, scope.tenant, text(row['message']))),
     })),
     next: lastSeq < upper ? String(lastSeq) : null,

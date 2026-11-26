@@ -42,8 +42,7 @@ const GUIDE = [
   'settings reads the settings of a held extension and configure writes one. Give configure an id of your own. The user is asked before a setting is written, unless the user chose otherwise.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
-const RETURNS =
-  ' Returns string (@omne-harness/assets-tools/text@1). Model body: text. Program data: none.'
+const RETURNS = ' Returns string (@omne-harness/assets-tools/text@1). Model body: text.'
 
 describe('the OmneExtensions declaration', () => {
   it('is one wrapped declaration whose purpose, menu and rules are the designed text', () => {

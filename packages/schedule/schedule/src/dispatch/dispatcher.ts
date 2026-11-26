@@ -159,6 +159,12 @@ export function createDispatcher(ports: DispatcherPorts) {
     round,
     cancel,
     startDirect,
+    /** A round soon, after the one in flight: management changed what is pending. A hint, like the timers. */
+    wake(): void {
+      if (stopping) return
+      const settled = inflight?.catch(() => undefined) ?? Promise.resolve()
+      void settled.then(round).catch(error => ports.report?.(error))
+    },
     start(): void {
       void round()
         .catch(error => ports.report?.(error))

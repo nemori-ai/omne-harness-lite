@@ -604,7 +604,13 @@ describe('Jobs: list, read, cancel, start', () => {
         count: 2,
         selected: 0,
       },
-      { kind: 'direct', rowRef: 'direct:1', originalScheduledAt: at, job: summary, run },
+      {
+        kind: 'direct',
+        rowRef: 'direct:1',
+        originalScheduledAt: at,
+        job: summary,
+        run: { ...run, reason: 'interrupted' },
+      },
     ]
     const w = world({ executions: ok({ items: rows, nextCursor: 'c-2' }) })
     const body = { tenant: tenantId, schedule: null, cursor: null, limit: 500 }
@@ -613,7 +619,11 @@ describe('Jobs: list, read, cancel, start', () => {
       body: {
         items: [
           { kind: 'lapse', row: 'lapse:1', count: 2, through: at },
-          { kind: 'direct', row: 'direct:1', job: { job: JOB, state: 'running' } },
+          {
+            kind: 'direct',
+            row: 'direct:1',
+            job: { job: JOB, state: 'running', reason: 'interrupted' },
+          },
         ],
         next: 'c-2',
       },

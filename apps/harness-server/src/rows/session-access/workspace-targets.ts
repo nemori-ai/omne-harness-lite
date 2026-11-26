@@ -12,8 +12,8 @@ import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/c
 export function targetOf(verification: Verification): WorkspaceTargetCheck {
   switch (verification.kind) {
     case 'attachable': {
-      const { directory, attachment, evidence } = verification
-      return { kind: 'attachable', directory, attachment, basis: evidence }
+      const { evidence, ...target } = verification
+      return { ...target, basis: evidence }
     }
     case 'not-permitted':
     case 'instance-unavailable':

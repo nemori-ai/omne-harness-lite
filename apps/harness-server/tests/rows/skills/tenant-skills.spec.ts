@@ -19,7 +19,7 @@ function keyOf(tenant: TenantId): string {
   return encoded.value
 }
 
-function setOf(label: string): TenantSkills {
+function setOf(label: string, warmed: string[] = []): TenantSkills {
   return {
     catalog: {
       summaries: async () => ({ ok: [] }),
@@ -33,11 +33,15 @@ function setOf(label: string): TenantSkills {
       summaries: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
       search: async () => ({ ok: [] }),
     },
+    async warm() {
+      warmed.push(label)
+    },
   }
 }
 
 function world() {
   const opened: string[] = []
+  const warmed: string[] = []
   let answer: 'set' | 'none' | 'throw' = 'set'
   const gates: (() => void)[] = []
   let gated = false
@@ -47,13 +51,14 @@ function world() {
       opened.push(tenantRef)
       if (answer === 'throw') throw new Error('store down')
       if (answer === 'none') return undefined
-      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta')
+      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta', warmed)
     },
   })
   return {
     host,
     routed: routedSkills(host),
     opened,
+    warmed,
     answer: (value: typeof answer) => {
       answer = value
     },
@@ -78,6 +83,15 @@ describe('one Skill service set per tenant, over the local assets of the tenant'
     expect(await first).toBe(await second)
     expect(await w.host.get(alpha)).toBe(await first)
     expect(w.opened).toEqual([keyOf(alpha)])
+  })
+
+  it('reads ahead in a set as it opens, and in every open set when the registry changed', async () => {
+    const w = world()
+    await w.host.get(alpha)
+    await w.host.get(beta)
+    expect(w.warmed).toEqual(['alpha', 'beta'])
+    await w.host.warm()
+    expect([...w.warmed].sort()).toEqual(['alpha', 'alpha', 'beta', 'beta'])
   })
 
   it('routes each call to the set of the tenant in its access', async () => {

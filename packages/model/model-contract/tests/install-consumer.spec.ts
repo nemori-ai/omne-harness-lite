@@ -1,17 +1,16 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import type { Report } from './install/consumer.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const workDirectories = [join(workspaceRoot, 'tmp/install-closure/model-contract-spec')]
-afterAll(() => {
-  for (const directory of workDirectories) rmSync(directory, { recursive: true, force: true })
-})
+removeAfterAll(() => workDirectories)
 
 const closureMembers = [
   '@omne-harness/model-contract',

@@ -1,4 +1,5 @@
 import type { TenantId } from '@omne-harness/legal-identity'
+import type { InconvertibleReason } from './values.ts'
 
 /** Where the bytes of a medium go when an engine converts it. */
 export type EngineEgress =
@@ -32,7 +33,7 @@ export type EngineInput<P = unknown> = Readonly<{
 export type DerivedMedium = Readonly<{ mediaType: string; bytes: Uint8Array }>
 export type EngineOutput =
   | Readonly<{ kind: 'converted'; text: string; derived: readonly DerivedMedium[] }>
-  | Readonly<{ kind: 'inconvertible' }>
+  | Readonly<{ kind: 'inconvertible'; reason?: InconvertibleReason }>
   | Readonly<{ kind: 'failed'; reason: 'unavailable' | 'error' | 'outcome-unknown' }>
 
 export interface ConverterEngine<P = unknown> {

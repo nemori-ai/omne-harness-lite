@@ -24,6 +24,9 @@ calendar.lookup.ask | 查的按钮 | 按填的日期去查 | calendar.lookup | t
 calendar.page | 日历页 | 用哪份日历，查某一天 | shell.workspace.page | tokens style | 一直在 | calendar-ui
 calendar.shipped | 供应的日历 | 部署给出的日历清单 | calendar.page | tokens style | 一直在 | calendar-ui
 calendar.shipped.item | 一份日历 | 清单里的一份日历 | calendar.shipped | tokens style | 清单里有日历时 | calendar-ui
+canvas.paper | 纸 | 画布上有边的一张纸，大小与网格由服务端给；能平移、缩放，纸上摆着东西 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.status | 状态栏 | 纸下沿的一条窄栏：查找、磁吸开关、远近的读数，与看着的那一样是什么、谁摆的、什么时候 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.view | 画布 | 反面上的画布：纸面、它上面的提示，与下沿的状态栏 | shell.app | tokens style | 登录之后 | canvas-ui
 human-intervention.page | 待你决定页 | 等你回答或放行的卡 | shell.workspace.page | tokens style | 一直在 | human-intervention-ui
 human-intervention.page.group | 一段会话的卡 | 同一段会话的卡放在一组 | human-intervention.page | tokens style | 有卡时 | human-intervention-ui
 human-intervention.paper | 一张纸 | 一组卡的一张纸，一次摆一张 | – | tokens style | 有卡时 | human-intervention-ui
@@ -48,6 +51,8 @@ mcp.endpoint.permission | 调用权限 | 这个接入点的动作要不要先问
 mcp.endpoint.status | 状态 | 这个接入点连上没有，不能用时为什么 | mcp.endpoint | tokens style | 有接入点时 | mcp-ui
 mcp.page | MCP 页 | 资产页里 MCP 这一类的页面 | assets.panel | tokens style | 选中 MCP 页签且读到时 | mcp-ui
 media.file | 消息里的文件 | 消息里的语音、PDF 等的一行 | session.transcript | tokens style | 消息里有图以外的附件时 | media-ui
+media.intake | 拖到纸上的文件 | 拖到纸上的文件各传到了哪一步 | canvas.view | tokens style | 有文件拖到纸上时 | media-ui
+media.object | 纸上的媒体 | 纸上的一张图、一个文件或一段语音 | canvas.view | tokens style | 纸上摆着媒体时 | media-ui
 media.picture | 消息里的图 | 消息里的一张缩略图 | session.transcript | tokens style | 消息里有图时 | media-ui
 media.read | 模型读的 | 模型读的是原件还是转写 | session.transcript | tokens style | 知道模型读的是哪一份时 | media-ui
 media.tray | 附件区 | 输入区里放附件的地方 | session.composer | tokens style | 打开一段会话时 | media-ui
@@ -95,6 +100,8 @@ session.header.workspace | 工作区选择 | 换这段会话的工作区 | sessi
 session.list | 会话列表 | 侧栏里的会话 | shell.sidebar | tokens style | 一直在 | session-ui
 session.list.item | 会话的一行 | 列表里的一段会话 | session.list | tokens style render | 有会话时 | session-ui
 session.list.new | 新建会话 | 开一段新的会话 | session.list | tokens style | 一直在 | session-ui
+session.paper.item | 纸上的会话 | 摆在画布上的一段会话 | canvas.paper | tokens style | 会话摆在纸上时 | session-ui
+session.paper.pick | 挑一段会话 | 画布的查找里能挑的会话 | canvas.view | tokens style | 在画布上查找时 | session-ui
 session.queue | 排队的话 | 说了还没被处理的话 | – | tokens style | 有排队的输入时 | session-ui
 session.search | 搜索页 | 在以前的会话里找 | shell.workspace.page | tokens style | 一直在 | session-ui
 session.search.hit | 搜到的一条 | 搜到的一段记录 | session.search | tokens style | 搜到东西时 | session-ui

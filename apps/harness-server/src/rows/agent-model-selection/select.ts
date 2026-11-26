@@ -70,7 +70,6 @@ function fromProfiles(failure: ProfilesFailure): Failure {
   }
 }
 
-// A model the tenant turned off does not come back on its own: the Run ends rather than waits.
 // The session's choice first, then the tenant's default for the model; with neither the profile's own stays.
 function effortOf(
   chosen: ReasoningEffort | undefined,
@@ -81,13 +80,9 @@ function effortOf(
   return { kind: 'reasoning-effort', value: preferred, scale: 'unified', basis: 'preference' }
 }
 
-function absentFailure(
-  route: string,
-  reason: Extract<ProfileResolution, { kind: 'absent' }>['reason'],
-): Failure {
-  return reason === 'excluded'
-    ? { kind: 'invalid', field: 'model', reason: 'not-enabled' }
-    : unavailable('modelProfiles', `route "${route}" has no profile (${reason})`)
+// A model turned off, withdrawn or unknown does not come back on its own: the Run ends, not waits.
+function absentFailure(reason: Extract<ProfileResolution, { kind: 'absent' }>['reason']): Failure {
+  return { kind: 'invalid', field: 'model', reason: reason === 'excluded' ? 'not-enabled' : reason }
 }
 
 export async function selectModel(
@@ -122,7 +117,7 @@ export async function selectModel(
   if ('failure' in resolved) return fail(fromProfiles(resolved.failure))
 
   const resolution = resolved.ok
-  if (resolution.kind === 'absent') return fail(absentFailure(route, resolution.reason))
+  if (resolution.kind === 'absent') return fail(absentFailure(resolution.reason))
   if (resolution.profile.identity.route !== route)
     return fail(
       unavailable('modelProfiles', `the answer for route "${route}" is for another route`),

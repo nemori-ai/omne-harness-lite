@@ -11,13 +11,19 @@ export {
   isSafeReason,
   isSkillName,
   MANIFEST_PATH,
+  SKILL_NAME_LIMIT,
   toPackagePath,
 } from './names.ts'
 export { PAGE_LIMIT } from './page-limit.ts'
 export { DECLARATION_LIMITS } from './parse/declaration.ts'
 export { bodyOffsetOf } from './parse/manifest.ts'
 export { parseSkillPackage, type ParseFailure, type ParseInput } from './parse/package.ts'
-export { DESCRIPTION_LIMIT, isSkillDescription } from './parse/shape.ts'
+export {
+  DESCRIPTION_LIMIT,
+  isSkillDescription,
+  SPECIFICATION_DESCRIPTION_LIMIT,
+} from './parse/shape.ts'
+export { INSPECT_REJECTIONS } from './failures.ts'
 export { projectAssetBody } from './project.ts'
 export type {
   ByteRange,

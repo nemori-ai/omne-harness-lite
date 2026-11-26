@@ -130,6 +130,24 @@ function scripted() {
           command: inspect[2],
         }),
       ]
+    if (said.includes('start: files a program calls'))
+      return [
+        toolsCall('files', 'search', {
+          query: 'read files',
+          after: null,
+          limit: 10,
+          programmable: true,
+        }),
+      ]
+    if (said.includes('start: callable'))
+      return [
+        toolsCall('callable', 'search', {
+          query: 'mcp',
+          after: null,
+          limit: 10,
+          programmable: true,
+        }),
+      ]
     if (said.includes('start: search'))
       return [toolsCall('search', 'search', { query: 'mcp', after: null, limit: 10 })]
     return []
@@ -220,6 +238,7 @@ type Found = Readonly<{
     availability?: string
     resident?: boolean
     commands?: readonly Readonly<{ name: string; summary?: string }>[]
+    program?: string
   }>[]
   withheld?: readonly Readonly<{ name: string; reason: string }>[]
 }>
@@ -578,7 +597,7 @@ it(
   'MC-26 AS-28 a program calls the actions of an endpoint only once program calls are on; the agent turns them on through OmneExtensions after a person allows it, and cannot write a gate or a credential that way',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
-    const { script } = scripted()
+    const { bodies, script } = scripted()
     const peer = await peerWith(COUNT, ECHO)
     const exit = await onReleaseTree(options(script), tree =>
       journey(tree, LIMIT_MS, async at => {
@@ -667,9 +686,16 @@ it(
         expect(counted).toContain('"length":4')
         expect(peer.calls).toEqual([{ action: 'count', text: 'four' }])
 
+        at('a search for what a program can call finds the endpoint, with its functions')
+        await sendInput(tree, session, 'start: callable')
+        const callable = mcpOf(await searched(tree, session, 10))
+        expect(callable.map(entry => entry.name)).toEqual(['mcp__shop'])
+        expect(callable[0]?.program).toContain('declare const mcp__shop')
+        expect(callable[0]?.program).toContain('count(')
+
         at('an action without an output schema gives the program its content items')
         await sendInput(tree, session, 'start: code plain')
-        const plain = await lastResult(tree, session, 10)
+        const plain = await lastResult(tree, session, 11)
         expect(plain).toContain('"type":"text"')
         expect(plain).toContain('echo answered plain')
         expect(plain).not.toContain('refused')
@@ -677,8 +703,30 @@ it(
         at('the holder turns program calls off again')
         await configured(w, 'shop', 'program-calls', false, 'shop-closed')
         await sendInput(tree, session, 'start: code count')
-        expect(await lastResult(tree, session, 11)).toContain('"kind":null')
+        expect(await lastResult(tree, session, 12)).toContain('"kind":null')
         expect(peer.calls).toHaveLength(2)
+        await sendInput(tree, session, 'start: callable')
+        expect(mcpOf(await searched(tree, session, 13))).toEqual([])
+
+        at(
+          'TL-75 what a program can call is told by Tools alone: resident tools too, and no declaration',
+        )
+        await sendInput(tree, session, 'start: files a program calls')
+        const files = (await searched(tree, session, 14)).tools.find(
+          entry => entry.name === 'Files',
+        )
+        expect(files).toMatchObject({ resident: true })
+        expect(files?.program).toContain('declare const Files')
+        const declared = (
+          JSON.parse(bodies.at(-1) ?? '{}') as {
+            tools?: { function: { name: string; description: string } }[]
+          }
+        ).tools
+        expect(declared?.map(tool => tool.function.name)).toContain('Code')
+        for (const tool of declared ?? []) {
+          expect(tool.function.description, tool.function.name).not.toContain('declare const')
+          expect(tool.function.description, tool.function.name).not.toContain('Program data')
+        }
       }),
     )
     expect(exit).toBe(0)

@@ -17,7 +17,7 @@ linkWorkspacePackages: false
 catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
   # 升级先发新版本，再开只改这两行的 PR，见 omne-card 技能的 references/toolchain-upgrade.md。
-  '@omne-harness/repo-toolchain': 0.0.20
+  '@omne-harness/repo-toolchain': 0.0.21
   '@omne-harness/repo-config': 0.0.8
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
@@ -47,10 +47,12 @@ catalog:
   vitest: 4.1.11
   oxfmt: 0.73.0
   oxlint: 1.88.0
-  dependency-cruiser: 18.6.0
+  dependency-cruiser: 18.9.0
   knip: 6.41.0
   turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
+  # 生成式测试：只作测试依赖。守「对一类输入都成立」的性质（全化表、任意操作序列），失败可按种子重放。
+  fast-check: 4.10.2
   zod: 4.6.5
   # 官方 MCP TypeScript SDK：mcp-host-local 只复用它的常量与帧的写法（client），测试用它的真实服务端夹具（server）；
   # node 把服务端挂到 node:http，只作测试依赖。哪些部分不复用及理由见 mcp-host-local 的 SPEC。

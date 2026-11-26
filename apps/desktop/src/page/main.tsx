@@ -8,9 +8,11 @@ import { assembly, pageFloor } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { keepBootTokens } from './shell/boot-tokens.ts'
+import { storedFacePreference } from './shell/face.ts'
 import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { storedFloatPlaces } from './shell/float-place.ts'
+import { hostFigure } from './shell/desk/device.ts'
 import { Shell } from './shell/shell.tsx'
 import { storedSizePreference } from './shell/size.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
@@ -37,6 +39,7 @@ async function main(): Promise<void> {
     notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
     knowsToken: tokenOf(document),
     tokens: tokensOf(document),
+    faces: storedFacePreference(() => window.localStorage),
   })
   const tree = await startClientTree({
     transport: watched.transport,
@@ -59,6 +62,7 @@ async function main(): Promise<void> {
   const missing = missingAtForwarding(assembly.protocols, bridge.forwardingProtocols()).map(
     key => `${key.name}/v${key.major}`,
   )
+  const figureDevice = hostFigure()
   createRoot(element).render(
     <StrictMode>
       <Shell
@@ -68,6 +72,7 @@ async function main(): Promise<void> {
         theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
         size={size}
         floats={storedFloatPlaces(() => window.localStorage)}
+        figureDevice={figureDevice}
         missingAtForwarding={missing}
       />
     </StrictMode>,

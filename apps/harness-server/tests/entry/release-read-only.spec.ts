@@ -28,6 +28,7 @@ const READ_ONLY: Readonly<Record<string, readonly string[]>> = {
   OmneExtensions: ['help', 'categories', 'list', 'show', 'impact', 'result', 'settings'],
   Screen: ['help', 'screens', 'capture'],
   Code: ['help'],
+  Canvas: ['help', 'look', 'away', 'kinds'],
 }
 
 describe('the read-only commands of the release', () => {

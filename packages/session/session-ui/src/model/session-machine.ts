@@ -99,7 +99,13 @@ export type Open = Readonly<{
 }>
 
 /** Words on their way to a session, with the ids they are known by from before they are handed over. */
-export type Words = Readonly<{ text: string; acceptId: string; inputId: string; messageId: string }>
+export type Words = Readonly<{
+  text: string
+  acceptId: string
+  inputId: string
+  messageId: string
+  attachments?: readonly UserAttachment[]
+}>
 
 /** Whom words are said to: a session made for them, or one there is. */
 export type SayTo =
@@ -202,9 +208,12 @@ export function reconnectDelay(attempt: number): number {
 
 const same = (state: State): Step => ({ state, effects: [] })
 
-function pending(words: Words, attachments: readonly UserAttachment[] = []): PendingInput {
-  return { ...words, attachments, status: 'sending', notice: null }
+function pending(words: Words): PendingInput {
+  return { ...words, attachments: words.attachments ?? [], status: 'sending', notice: null }
 }
+
+const isEmpty = (text: string, attachments: readonly UserAttachment[] = []): boolean =>
+  text.trim().length === 0 && attachments.length === 0
 
 function sending(session: string, input: PendingInput, seen?: SenderSeen, how?: SendHow): Effect {
   const { acceptId, inputId, text, attachments } = input
@@ -362,7 +371,7 @@ export function sayBlocked(state: State, to: SayTo): boolean {
 }
 
 function onSay(state: State, to: SayTo, words: Words): Step {
-  if (words.text.trim().length === 0 || sayBlocked(state, to)) return same(state)
+  if (isEmpty(words.text, words.attachments) || sayBlocked(state, to)) return same(state)
   if (to.kind === 'new')
     return creating(state, to.createCallId, words, {
       kind: 'create-session',
@@ -424,11 +433,9 @@ function onCreateConfirmed(
 }
 
 function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
-  const attachments = event.attachments ?? []
-  const empty = event.text.trim().length === 0 && attachments.length === 0
-  if (state.kind !== 'open' || empty) return same(state)
-  const { acceptId, inputId, messageId, text } = event
-  const input = pending({ text, acceptId, inputId, messageId }, attachments)
+  if (state.kind !== 'open' || isEmpty(event.text, event.attachments)) return same(state)
+  const { acceptId, inputId, messageId, text, attachments = [] } = event
+  const input = pending({ text, acceptId, inputId, messageId, attachments })
   return {
     state: { ...state, inputs: [...state.inputs, input] },
     effects: [sending(state.session, input, event.seen, event.how)],

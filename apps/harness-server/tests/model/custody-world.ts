@@ -263,7 +263,6 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         providerConfig(base.storageRoot, {
           maxCommandsPerCommit: 256,
           maxJsonDepth: 256,
-          maxJsonMembers: 1048576,
         }),
       ),
       declared(policy.plugin),
@@ -578,6 +577,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']

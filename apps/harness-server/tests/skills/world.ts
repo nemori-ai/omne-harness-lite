@@ -52,7 +52,8 @@ const LIMITS = {
   maxNumberLength: 32,
 }
 
-function counted(storage: SqlStorage): { storage: SqlStorage; reads(): number } {
+/** The storage with a count of the reads and queries sent to it. */
+export function countedStorage(storage: SqlStorage): { storage: SqlStorage; reads(): number } {
   let reads = 0
   return {
     storage: {
@@ -99,7 +100,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     domain,
     packageRoot,
   })
-  const counter = counted(made.storage)
+  const counter = countedStorage(made.storage)
   const registry = await heldRegistry([skillCategoryPlugin])
   const tenantAssets = new TenantAssetsHost({
     domains: { lookup: async () => ({ kind: 'ready', domain }) },
@@ -121,7 +122,15 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE, sourcesOf(tenantRef), NO_OFFICIAL)
+        : tenantSkills(
+            assets,
+            who,
+            SEARCH_RANKING,
+            NO_WORKSPACE,
+            sourcesOf(tenantRef),
+            NO_OFFICIAL,
+            category => registry.held.namesOf(tenantRef, category),
+          )
     },
   })
 
@@ -138,6 +147,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      missingTools: async () => new Set(),
     },
   )
   const settings = readJsonText(JSON.stringify({ resultMaxBytes: 65536 }), LIMITS)

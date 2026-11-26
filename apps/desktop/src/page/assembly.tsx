@@ -10,6 +10,13 @@ import {
 } from '@omne-harness/assets-ui/cordis'
 import '@omne-harness/calendar-ui/calendar-ui.css'
 import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
+import '@omne-harness/canvas-ui/canvas-ui.css'
+import {
+  canvasElement,
+  canvasIntake,
+  canvasPicker,
+  createCanvasUiModule,
+} from '@omne-harness/canvas-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
   createHumanInterventionUiModule,
@@ -19,7 +26,7 @@ import { accountPreferencesKey, identityUiModule } from '@omne-harness/identity-
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
-import { createMediaUiModule } from '@omne-harness/media-ui/cordis'
+import { createMediaUiModule, mediaPictureIntakeKey } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
 import '@omne-harness/model-ui/model-ui.css'
 import {
@@ -62,6 +69,7 @@ import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { pluginFilePath } from '../shared/plugin-path.ts'
+import { storedCanvasPreferences } from './canvas-preferences.ts'
 import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 import { LOOK_KEY, storedTenantTexts } from './shell/tenant-text.ts'
@@ -91,7 +99,10 @@ export const assembly: Assembly = {
       modelChoices: modelChoicesKey,
       workspaceChoices: workspaceChoicesKey,
       blockReads: sessionReadsSourceKey,
+      canvasElement,
+      canvasPicker,
       composerAssistant: slashCommandComposerKey,
+      pictureIntake: mediaPictureIntakeKey,
     }),
     createSlashCommandUiModule({
       composer: createComposer,
@@ -125,8 +136,11 @@ export const assembly: Assembly = {
       drafts: sessionComposerIntakeKey,
       holding: assetsHolding,
       assets: assetGovernanceKey,
+      canvasElement,
+      canvasIntake,
     }),
     sessionReadsUiModule,
+    createCanvasUiModule({ preferences: storedCanvasPreferences(() => window.localStorage) }),
     createPluginUiModule({
       floor: pageFloor,
       looks: storedTenantTexts(() => window.localStorage, LOOK_KEY),
