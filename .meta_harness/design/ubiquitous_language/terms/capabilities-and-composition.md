@@ -410,7 +410,7 @@
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片) ·
   [转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**不是[拓展件](#ul-loop-extension--拓展件--loop-extension)**——它不挂在任何 Loop 拓展点上，Agent 只看到已经带着表示的消息
@@ -437,7 +437,7 @@
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[媒体：转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **别混**：**不是[转换引擎](#ul-converter-engine--转换引擎--converter-engine)**——定义是数据，引擎是做事的部件；定义生效而它指名的引擎此刻不在时，这种媒体的转换答不可用，不当成没有转换件
 - **注意 ①**：发行版自带语音与 PDF 两份
 - **注意 ②**：内容要送出本机时，界面在转换之前说明去向；是否要组织或租户先许可，产品未裁，见[媒体：按租户许可内容外传](../../product/media/design.md#按租户许可内容外传)
@@ -943,8 +943,8 @@
 > **它是数据，不是[资产](#ul-asset--资产--asset)**：「用哪个模型」是某份
 > [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)的一项[设置](#ul-setting--设置--setting)，
 > **那项设置记的是一个路由名，名字背后必须是一条档案**——档案自己独立存在、读得出来。
-> **一条档案是哪一条，看它所在的范围（出厂默认、某个组织或某个租户）加它的路由名**：
-> 同一个范围里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；
+> **一条档案是哪一条，看它所在的范围（出厂默认、某个组织或某个租户）、它的[模型类型](#ul-model-kind--模型类型--model-kind)加它的路由名**：
+> 同一个范围、同一种模型类型里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；
 > **路由名一旦定下不可改**，改了就是另一条档案。
 > **同名的几条按层覆盖**：一个会话用到这个名字时，在它所在的范围链上取最具体一格的那一条（租户 > 组织 > 官方），
 > 先滤掉已撤回的与这个范围不允许的，模态对不上的与缺凭据的不滤；**用哪一条由层序定，不由引用它的人挑**。
@@ -961,8 +961,8 @@
 > **It is data, not an asset**: "which model" is a
 > setting on an agent definition, and **that setting records a routing name behind which
 > there must be one profile**, which exists in its own right and can be read back. **Which profile it is
-> follows from its scope (factory default, one organization or one tenant) plus its
-> routing name**: within one scope a routing name maps to exactly one profile (listed or
+> follows from its scope (factory default, one organization or one tenant), its model kind and its
+> routing name**: within one scope and one model kind a routing name maps to exactly one profile (listed or
 > withdrawn), while different scopes may each hold one under the same name; **the routing
 > name never changes** — change it and it is a different profile. **Same-named profiles override
 > by layer**: when a session uses the name, the most specific slot on its scope chain wins
@@ -975,7 +975,8 @@
   [上游限制与档案提供的上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
   [档案的身份：所在范围加路由名](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
   [PF-013 flows §3.1 一条模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 7）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换) ·
+  [档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -992,6 +993,26 @@
   「用哪个模型」那项设置记的是路由名，不是某一层的某一行；它落到哪一行每次用到时按层序现算——同一个名字在两个成员的会话里可以落到不同层的两行
 - **注意 ④**：**「已下架」说的是一个名字**——链上同名的每一条都撤回了才说；最具体那一条撤回而链上另有同名在册的，调用照发、用那一条，不是替用户改选
 - **注意 ⑤**：**组织的锁锁的是名字**——锁得住名字锁不住实现：成员在自己那层建一条同名的，供应商与参数就是他的了；组织建了与官方同名的自建档案，没配自己凭据的成员这个名字就用不了
+
+### UL-model-kind · 模型类型 · Model Kind
+
+> **中**：**一条[模型档案](#ul-model-profile--模型档案--model-profile)按调用的方式属于的那一类，取 `llm`、`decisions`、`live` 三者之一。**
+> `llm` 是一问一答的生成，回复一段一段到达。`decisions` 是对一份材料答一组固定题型的题，一次交回全部答案。
+> `live` 是一通持续的实时会话，进行中双方都在送内容。
+> **它说的是怎样调用，不是收发什么**：一条档案收发哪些[模态](record-and-context.md#ul-modality--模态--modality)另外写明，两者互不决定。
+> 同一个上游型号在一家[模型供应商](#ul-model-provider--模型供应商--model-provider)下可以有两条模型类型不同的档案。
+>
+> **EN**: **The class that a model profile belongs to by the way it is called, one of `llm`, `decisions`
+> and `live`.** An `llm` call is one request, and its reply arrives in parts. A `decisions` call puts a fixed
+> set of typed questions to one material and returns all answers at one time. A `live` call is one
+> continuous real-time session, and both sides send content while it runs. **The kind states how the model
+> is called, not what it takes and gives**: a profile states its modalities separately, and neither decides
+> the other. One upstream model can have two profiles of different kinds under the same model provider.
+
+- **形态**：属性（[模型档案](#ul-model-profile--模型档案--model-profile)身份的一部分）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
+- **别混**：**不是[模态](record-and-context.md#ul-modality--模态--modality)**——模态说进出的是文字、图片还是语音；一个 `llm` 型号可以输出图片，它仍是 `llm`
+- **别混 ②**：**不是型号的家族或厂商**——同一个型号经两种接口提供时属于两类
 
 ### UL-official-model-profile · 官方档案 · Official Model Profile
 
@@ -1012,7 +1033,7 @@
 - **出处**：[PF-013 §4 官方档案 / 自建档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
   [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
   [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17） ·
-  [模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 7）
+  [模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
 - **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
 
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
@@ -1075,7 +1096,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
-  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 7）
+  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
   模型供应商是一份资产，档案不是资产、只引用它；[模型凭据](#ul-model-credential--模型凭据--model-credential)按模型供应商与层配置，不挂在档案或这一项上
@@ -1117,7 +1138,7 @@
 > asset tells one provider apart from another. An official provider counts as held by every legitimate tenant.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 7） ·
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8） ·
   [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 11）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
@@ -1145,7 +1166,7 @@
 > usable and when it was set, but never the secret value.
 
 - **形态**：属性
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 7） ·
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8） ·
   [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有
@@ -1158,32 +1179,36 @@
 ### UL-provider-model-catalog · 供应商模型目录 · Provider Model Catalog
 
 > **中**：**一家[模型供应商](#ul-model-provider--模型供应商--model-provider)正文里列出的、这家适配的全部型号。**
-> 每一项说这家怎样称呼这个型号、它收发哪些[模态](record-and-context.md#ul-modality--模态--modality)、输入窗口多大、能选哪几档[推理强度](#ul-reasoning-effort--推理强度--reasoning-effort)、发行时缺省开不开。
-> 每一项对应一条同名的[官方档案](#ul-official-model-profile--官方档案--official-model-profile)。
+> 每一项先说它属于哪种[模型类型](#ul-model-kind--模型类型--model-kind)，再说这家怎样称呼这个型号、它收发哪些[模态](record-and-context.md#ul-modality--模态--modality)、发行时缺省开不开，
+> 以及这一类给人看的事实：`llm` 的是输入窗口多大、能选哪几档[推理强度](#ul-reasoning-effort--推理强度--reasoning-effort)。
+> 一项由模型类型加称呼识别，对应一条同模型类型、同名的[官方档案](#ul-official-model-profile--官方档案--official-model-profile)。
 >
 > **EN**: **The list of all models that a model provider adapts, as its body states it.** Each entry
-> states the name the provider gives the model, the modalities it takes and gives, its input window, the
-> reasoning efforts a user can choose, and whether the release enables it by default. Each entry matches
-> one official model profile with the same routing name.
+> states its model kind, the name the provider gives the model, the modalities it takes and gives, whether
+> the release enables it by default, and the facts of its kind that a person reads: for `llm`, the input
+> window and the reasoning efforts a user can choose. The model kind and the name identify an entry. Each
+> entry matches one official model profile with the same model kind and the same routing name.
 
 - **形态**：属性（挂在模型供应商的正文上）
-- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 7）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
 - **别混**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)**——那是档案指向供应商；目录是供应商列出它的型号
 - **别混 ②**：**不是设置的「目录」**——资产设置里按目标列出设置项的那份也叫目录，跨 topic 引用写全名
 
 ### UL-model-enablement · 模型启用 · Model Enablement
 
-> **中**：**租户对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)里一个型号定的开或关。**
-> 它是这家供应商声明的一项普通[设置](#ul-setting--设置--setting)在租户层的值；没有配过的型号按目录里的发行缺省。
-> 关着的型号对应的官方档案，在这个租户的同名求值里算被配置排除。
+> **中**：**租户对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)里一项定的开或关。**
+> 一项是一种[模型类型](#ul-model-kind--模型类型--model-kind)下的一个型号；同一个型号属于两类时，两项各自开关。
+> 它是这家供应商声明的一项普通[设置](#ul-setting--设置--setting)在租户层的值；没有配过的项按目录里的发行缺省。
+> 关着的那一项对应的官方档案，在这个租户的同名求值里算被配置排除。
 >
-> **EN**: **The on or off that a tenant sets for one model in the provider model catalog of a model
-> provider.** It is the tenant-layer value of an ordinary setting that the provider declares. A model
-> without a value uses the release default in the catalog. When a model is off, its official profile counts
-> as excluded by configuration in the same-name resolution for that tenant.
+> **EN**: **The on or off that a tenant sets for one entry in the provider model catalog of a model
+> provider.** An entry is one model under one model kind. When a model has two kinds, the tenant sets each
+> entry separately. The value is the tenant-layer value of an ordinary setting that the provider declares.
+> An entry without a value uses the release default in the catalog. When an entry is off, its official
+> profile counts as excluded by configuration in the same-name resolution for that tenant.
 
 - **形态**：属性（挂在租户对这家供应商的持有上）
-- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 7）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
 - **别混**：**不是资产的启禁**——资产的启禁作用于整份资产，官方资产不能禁用；模型启用作用于目录里的一个型号
 - **别混 ②**：**不是[模型切换](#ul-model-switch--模型切换--model-switch)**——切换是会话换选中模型；启用决定一个型号能不能被选
 
@@ -1197,7 +1222,7 @@
 > turns a level into its own request parameter belongs to the adapter of that provider.
 
 - **形态**：属性（[模型请求参数](#ul-model-request-parameters--模型请求参数--model-request-parameters)里的一项）
-- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 7）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
 - **弃用**：~~「推理档位」~~
 
 ### UL-default-reasoning-effort · 缺省推理强度 · Default Reasoning Effort
@@ -1212,7 +1237,7 @@
 > ordinary setting that the provider declares.
 
 - **形态**：属性（挂在租户对这家供应商的持有上）
-- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换)（rev 7）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换)（rev 8）
 - **别混**：**不是供应商自己的默认**——两者都没有时，请求不带推理强度，由供应商按它的默认处理
 
 ### UL-model-request-parameters · 模型请求参数 · Model Request Parameters
