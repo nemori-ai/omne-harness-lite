@@ -1,13 +1,28 @@
 // @vitest-environment happy-dom
 import { act, cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SayItem, SayOutcome, SayPicture, SayTo } from '@omne-harness/shell-contract'
+import type { ObserveSessionFrame } from '@omne-harness/session-protocol'
+import type { SayItem, SayOutcome, SayPicture, SayReply, SayTo } from '@omne-harness/shell-contract'
 import { SessionDriver } from '../src/model/session-driver.ts'
 import type { PictureIntake, PicturesTaken } from '../src/model/pictures.ts'
 import type { Event } from '../src/model/session-machine.ts'
 import type { CompanionDrawing } from '../src/parts.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
-import { listed, listPage, page, userEntry } from './fixtures/frames.ts'
+import type { WireEntry } from '../src/model/content.ts'
+import {
+  assistantEntry,
+  deltaTree,
+  listed,
+  listPage,
+  messageEntry,
+  page,
+  plainEntry,
+  snapshotTree,
+  stateFrame,
+  toolCallBlock,
+  toolResultEntry,
+  userEntry,
+} from './fixtures/frames.ts'
 import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -233,7 +248,7 @@ describe('说一句话', () => {
     const send = await fake.next('send-input')
     expect(send.body).toMatchObject({ session: 'ses_a' })
     send.answer({ outcome: 'succeeded', body: {} })
-    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a' })
+    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a', said: expect.any(String) })
     expect(item.current(TENANT)).toBe('ses_a')
     expect(sends(fake)).toHaveLength(1)
   })
@@ -247,7 +262,7 @@ describe('说一句话', () => {
       body: { session: 'ses_n', recovered: false },
     })
     ;(await fake.next('send-input')).answer({ outcome: 'succeeded', body: {} })
-    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_n' })
+    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_n', said: expect.any(String) })
   })
 
   it('被拒：答没发出与原因', async () => {
@@ -438,7 +453,11 @@ describe('带图说一句话：点乘图乘说给谁', () => {
     return send.body
   }
 
-  const sentTo = (whom: Whom) => ({ kind: 'sent', key: whom.to.kind === 'new' ? 'ses_n' : 'ses_a' })
+  const sentTo = (whom: Whom) => ({
+    kind: 'sent',
+    key: whom.to.kind === 'new' ? 'ses_n' : 'ses_a',
+    said: expect.any(String),
+  })
   const outbound = (fake: FakeClient) =>
     fake.calls.filter(
       call => call.operation === 'send-input' || call.operation === 'create-session',
@@ -523,7 +542,7 @@ describe('带图说一句话：点乘图乘说给谁', () => {
     const answer = made.item.say(TENANT, OPEN_ONE.to, '', [PNG])
     await made.answer({ kind: 'taken', attachments: [refOf('k1')] })
     expect(kindsOf(await delivered(made, OPEN_ONE))).toEqual(['image'])
-    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a' })
+    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a', said: expect.any(String) })
   })
 
   it('收法答没成却没给原因，或收法抛出：答没发出并带一句说得清的原因', async () => {
@@ -556,5 +575,484 @@ describe('带图说一句话：点乘图乘说给谁', () => {
       reason: TENANT_CHANGED,
     })
     expect(made.calls).toEqual([])
+  })
+})
+
+/** The id the words went out with, as the send carried them. */
+const messageIdIn = (body: unknown) => {
+  type Tree = { entries: { key: string; value: { value?: string } }[] }
+  const { message } = body as { message: Tree }
+  return message.entries.find(each => each.key === 'id')?.value.value
+}
+
+describe('受理的结局带这句话的消息标识', () => {
+  it('说给打开着的会话：said 就是发出的这句话的消息标识，不是会话标识', async () => {
+    const fake = createFakeClient()
+    const { item } = await mounted(fake)
+    await listedAs(fake, listed('ses_a', '甲'))
+    await opened(fake, item, 'ses_a')
+    const answer = item.say(TENANT, { kind: 'target', key: 'ses_a' }, '在吗')
+    const send = await fake.next('send-input')
+    send.answer({ outcome: 'succeeded', body: {} })
+    const said = messageIdIn(send.body)
+    expect(said).toMatch(/\S/u)
+    await expect(answer).resolves.toEqual({ kind: 'sent', key: 'ses_a', said })
+  })
+
+  it('说给新会话：said 是随建会话发出的这句话的消息标识', async () => {
+    const fake = createFakeClient()
+    const { item } = await mounted(fake)
+    const answer = item.say(TENANT, { kind: 'new' }, '你好')
+    ;(await fake.next('create-session')).answer({
+      outcome: 'succeeded',
+      body: { session: 'ses_n', recovered: false },
+    })
+    const send = await fake.next('send-input')
+    send.answer({ outcome: 'succeeded', body: {} })
+    await expect(answer).resolves.toEqual({
+      kind: 'sent',
+      key: 'ses_n',
+      said: messageIdIn(send.body),
+    })
+  })
+})
+
+const runStarted = (id: string, run: string) => plainEntry(id, id, 'run.started', { run })
+const runEnded = (id: string, run: string, outcome?: string) =>
+  plainEntry(id, id, 'run.terminal', {
+    terminal: outcome === undefined ? { run } : { run, outcome },
+  })
+const coming = (text: string): SayReply => ({ text, state: 'coming' })
+
+/** Words said to ses_a and taken, the history still unread; the case moves the session on from there. */
+async function spoken() {
+  const fake = createFakeClient()
+  const made = await mounted(fake)
+  await listedAs(fake, listed('ses_a', '甲'), listed('ses_b', '乙'))
+  const answer = made.item.say(TENANT, { kind: 'target', key: 'ses_a' }, '在吗')
+  const send = await fake.next('send-input')
+  send.answer({ outcome: 'succeeded', body: {} })
+  const fate = await answer
+  const said = fate.kind === 'sent' ? fate.said : undefined
+  if (said === undefined) throw new Error('the words were not taken with their message id')
+  const heard: SayReply[] = []
+  return {
+    ...made,
+    fake,
+    said,
+    input: (send.body as { inputId: string }).inputId,
+    heard,
+    reads: () => fake.calls.filter(call => call.operation === 'read-input-fate').length,
+    words: (id: string) => userEntry(id, id, '在吗', said),
+    follow: (scope = TENANT, which = said) =>
+      made.item.reply?.(scope, which, reply => heard.push(reply)) ?? (() => undefined),
+    log: async (...entries: WireEntry[]) => {
+      const upper = entries.at(-1)?.revision ?? '0'
+      ;(await fake.next('read-history')).answer({
+        outcome: 'succeeded',
+        body: page(entries, upper),
+      })
+      await settle()
+    },
+    frame: async (frame: ObserveSessionFrame) => {
+      act(() => fake.observations.at(-1)!.push(frame))
+      await settle()
+    },
+  }
+}
+
+type Spoken = Awaited<ReturnType<typeof spoken>>
+
+/** The session reaches a revision and the history read it starts answers with these entries. */
+async function reach(made: Spoken, run: string | null, ...entries: WireEntry[]) {
+  await made.frame(stateFrame(run, entries.at(-1)!.revision))
+  await made.log(...entries)
+}
+
+const fateIs = (fate: Readonly<Record<string, unknown>>) => ({
+  outcome: 'succeeded',
+  body: { fate },
+})
+
+const snapshot = (list: Parameters<typeof snapshotTree>[2]): ObserveSessionFrame => ({
+  kind: 'snapshot',
+  projection: 'model-output-v1',
+  value: snapshotTree('c1', '2', list),
+})
+
+describe('回的话：一轮在跑', () => {
+  it('字一块块到：每次给到此刻为止的整段文字与 coming；调的那一刻不叫', async () => {
+    const made = await spoken()
+    made.follow()
+    await made.log(made.words('1'))
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'))
+    expect(made.heard).toEqual([])
+    await made.frame(snapshot([['0', '你']]))
+    await made.frame({
+      kind: 'delta',
+      projection: 'model-output-v1',
+      value: deltaTree({ cursor: 'c1', revision: '2' }, 'c2', '2', [['0', '你好']]),
+    })
+    expect(made.heard).toEqual([coming('你'), coming('你好')])
+    expect(made.reads()).toBe(0)
+  })
+
+  it('两条回复之间空一行；思考、工具调用与工具结果不在文字里；这句话之前的回复不算', async () => {
+    const made = await spoken()
+    made.follow()
+    const earlier = [
+      runStarted('1', 'run_0'),
+      userEntry('2', '2', '早'),
+      assistantEntry('3', '3', '早上好'),
+      runEnded('4', 'run_0', 'completed'),
+    ]
+    const thought = { kind: 'thinking', id: 'th', text: '想一想' }
+    await made.log(...earlier, made.words('5'))
+    await reach(
+      made,
+      'run_1',
+      ...earlier,
+      made.words('5'),
+      runStarted('6', 'run_1'),
+      messageEntry('7', '7', 'assistant', [
+        thought,
+        { kind: 'text', id: 'a', text: '先看' },
+        { kind: 'text', id: 'b', text: '一下' },
+        toolCallBlock('k1', 'read', {}),
+      ]),
+      toolResultEntry('8', '8', 'k1', '文件内容'),
+      assistantEntry('9', '9', '看完了'),
+    )
+    expect(made.heard).toEqual([coming('先看一下\n\n看完了')])
+  })
+
+  it('只有思考与工具调用在流：文字与状态都没变，不叫', async () => {
+    const made = await spoken()
+    made.follow()
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'))
+    await made.frame(
+      snapshot([
+        { index: '0', block: { kind: 'thinking', text: '想' } },
+        { index: '1', block: toolCallBlock('k1', 'read', {}) },
+      ]),
+    )
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'), runStarted('3', 'run_1'))
+    expect(made.heard).toEqual([])
+  })
+
+  for (const [took, heard] of [
+    ['run_1', [{ text: '这一句的答', state: 'ended' }]],
+    ['run_2', [{ text: '下一轮的话', state: 'coming' }]],
+  ] as const)
+    it(`这句话到时上一轮还在跑，读到 ${took} 取走了它：跟的是取走它的那一轮`, async () => {
+      const made = await spoken()
+      made.follow()
+      await made.log(
+        runStarted('1', 'run_1'),
+        userEntry('2', '2', '先前'),
+        assistantEntry('3', '3', '先前的答'),
+        made.words('4'),
+        assistantEntry('5', '5', '这一句的答'),
+        runEnded('6', 'run_1', 'completed'),
+        runStarted('7', 'run_2'),
+        assistantEntry('8', '8', '下一轮的话'),
+      )
+      expect(made.heard).toEqual([])
+      ;(await made.fake.next('read-input-fate')).answer(fateIs({ kind: 'taken', run: took }))
+      await settle()
+      expect(made.heard).toEqual(heard)
+    })
+})
+
+describe('回的话：一轮收场', () => {
+  const ENDINGS: readonly [outcome: string | undefined, state: SayReply['state']][] = [
+    ['completed', 'ended'],
+    ['failed', 'ended'],
+    ['cancelled', 'ended'],
+    ['odd', 'unknown'],
+    [undefined, 'unknown'],
+  ]
+  for (const [outcome, state] of ENDINGS)
+    it(`终结写着 ${String(outcome)}：给一次 ${state}，说出的字留着；之后状态再变不叫`, async () => {
+      const made = await spoken()
+      made.follow()
+      const said = [made.words('1'), runStarted('2', 'run_1'), assistantEntry('3', '3', '好')]
+      await reach(made, 'run_1', ...said)
+      await reach(made, null, ...said, runEnded('4', 'run_1', outcome))
+      expect(made.heard).toEqual([coming('好'), { text: '好', state }])
+      await reach(made, 'run_2', ...said, runEnded('4', 'run_1', outcome), runStarted('5', 'run_2'))
+      await made.frame(snapshot([['0', '又一句']]))
+      act(() => made.item.show(TENANT, 'ses_b'))
+      await settle()
+      expect(made.heard).toHaveLength(2)
+      expect(made.reads()).toBe(0)
+    })
+
+  it('开始那一行读不出是哪一轮：unknown', async () => {
+    const made = await spoken()
+    made.follow()
+    await reach(made, 'run_1', made.words('1'), plainEntry('2', '2', 'run.started', {}))
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+
+  it('不在跑了、历史读到了那里，却没有这一轮的终结：unknown', async () => {
+    const made = await spoken()
+    made.follow()
+    const said = [made.words('1'), runStarted('2', 'run_1'), assistantEntry('3', '3', '好')]
+    await reach(made, 'run_1', ...said)
+    await reach(made, null, ...said, userEntry('4', '4', '别的'))
+    expect(made.heard).toEqual([coming('好'), { text: '好', state: 'unknown' }])
+  })
+
+  it('调的时候那一轮已经收场：立刻给一次终态', async () => {
+    const made = await spoken()
+    await made.log(
+      made.words('1'),
+      runStarted('2', 'run_1'),
+      assistantEntry('3', '3', '好'),
+      runEnded('4', 'run_1', 'completed'),
+    )
+    made.follow()
+    expect(made.heard).toEqual([{ text: '好', state: 'ended' }])
+  })
+})
+
+describe('回的话：读不到了', () => {
+  it('打开着的会话换成了别的：给一次 unknown，字留着，之后不叫', async () => {
+    const made = await spoken()
+    made.follow()
+    const said = [made.words('1'), runStarted('2', 'run_1')]
+    await reach(made, 'run_1', ...said)
+    await made.frame(snapshot([['0', '你']]))
+    act(() => made.item.show(TENANT, 'ses_b'))
+    await settle()
+    expect(made.heard).toEqual([coming('你'), { text: '你', state: 'unknown' }])
+    act(() => made.item.show(TENANT, 'ses_a'))
+    await made.log(...said, assistantEntry('3', '3', '你好'))
+    expect(made.heard).toHaveLength(2)
+  })
+
+  it('会话不可用：给一次 unknown', async () => {
+    const made = await spoken()
+    made.follow()
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'))
+    act(() => made.fake.observations.at(-1)!.end({ kind: 'ended', reason: 'denied' }))
+    await settle()
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+
+  it('这条消息在打开着的会话里找不到：立刻给 unknown', async () => {
+    const made = await spoken()
+    await made.log(made.words('1'))
+    made.follow(TENANT, 'msg_elsewhere')
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+
+  it('没有打开着的会话：立刻给 unknown', async () => {
+    const { item } = await mounted(createFakeClient())
+    const heard: SayReply[] = []
+    item.reply?.(TENANT, 'msg_x', reply => heard.push(reply))
+    expect(heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+
+  it('scope 不是这个模块当前的租户：直接给 unknown，之后不叫', async () => {
+    const made = await spoken()
+    made.follow(OTHER)
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'))
+    await made.frame(snapshot([['0', '你']]))
+    expect(made.heard).toHaveLength(1)
+  })
+
+  it('跟着的时候外壳的租户换了：给一次 unknown', async () => {
+    const made = await spoken()
+    made.follow()
+    act(() => made.rerender(OTHER))
+    expect(made.item.current(OTHER)).toBeUndefined()
+    await settle()
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+
+  it('跟着的时候这一项撤下：给一次 unknown', async () => {
+    const made = await spoken()
+    made.follow()
+    await made.withdraw()
+    await settle()
+    expect(made.heard).toEqual([{ text: '', state: 'unknown' }])
+  })
+})
+
+describe('回的话：停止', () => {
+  it('调了停止的函数之后不叫；调两次不出错', async () => {
+    const made = await spoken()
+    const stop = made.follow()
+    await reach(made, 'run_1', made.words('1'), runStarted('2', 'run_1'))
+    stop()
+    await made.frame(snapshot([['0', '你']]))
+    expect(made.heard).toEqual([])
+    expect(() => stop()).not.toThrow()
+  })
+})
+
+/** A run is going when the words are written, has said something, and ends: the item asks once who took them. */
+async function unclearUntilEnd(made: Spoken) {
+  made.follow()
+  const before = [runStarted('1', 'run_1'), made.words('2')]
+  await reach(made, 'run_1', ...before)
+  const said = [...before, assistantEntry('3', '3', '上一轮的话')]
+  await reach(made, 'run_1', ...said)
+  const ended = [...said, runEnded('4', 'run_1', 'completed')]
+  await reach(made, null, ...ended)
+  const read = await made.fake.next('read-input-fate')
+  return { read, ended }
+}
+
+describe('回的话：写下时有一轮在跑，那一轮收场时读一次这条输入的去向', () => {
+  it('读的是这条输入、这个会话、这个租户；在途时仍是 coming', async () => {
+    const made = await spoken()
+    const { read } = await unclearUntilEnd(made)
+    expect(read.body).toMatchObject({ session: 'ses_a', inputId: made.input })
+    expect(JSON.stringify(read.body)).toContain('acc_00000000000000000000000001')
+    expect(made.heard).toEqual([coming('上一轮的话')])
+  })
+
+  it('这一轮取走了它：给 ended，文字不变，只读一次', async () => {
+    const made = await spoken()
+    const { read } = await unclearUntilEnd(made)
+    read.answer(fateIs({ kind: 'answered', run: 'run_1', terminal: 'completed' }))
+    await settle()
+    expect(made.heard).toEqual([coming('上一轮的话'), { text: '上一轮的话', state: 'ended' }])
+    expect(made.reads()).toBe(1)
+  })
+
+  it('下一轮取走了它：不给 ended，文字换成下一轮说的；下一轮收场给 ended；全程只读一次', async () => {
+    const made = await spoken()
+    const { read, ended } = await unclearUntilEnd(made)
+    const next = [...ended, runStarted('5', 'run_2')]
+    await reach(made, 'run_2', ...next)
+    read.answer(fateIs({ kind: 'taken', run: 'run_2' }))
+    await settle()
+    expect(made.heard).toEqual([coming('上一轮的话'), coming('')])
+    const answered = [...next, assistantEntry('6', '6', '下一轮的答')]
+    await reach(made, 'run_2', ...answered)
+    await reach(made, null, ...answered, runEnded('7', 'run_2', 'completed'))
+    expect(made.heard.slice(2)).toEqual([
+      coming('下一轮的答'),
+      { text: '下一轮的答', state: 'ended' },
+    ])
+    expect(made.reads()).toBe(1)
+  })
+
+  it('还没有哪一轮取走它：保持 coming，之后开始的那一轮说的话进来，它收场给 ended', async () => {
+    const made = await spoken()
+    const { read, ended } = await unclearUntilEnd(made)
+    read.answer(fateIs({ kind: 'pending', returnedFrom: null }))
+    await settle()
+    expect(made.heard).toEqual([coming('上一轮的话'), coming('')])
+    const next = [...ended, runStarted('5', 'run_2'), assistantEntry('6', '6', '下一轮的答')]
+    await reach(made, 'run_2', ...next)
+    await reach(made, null, ...next, runEnded('7', 'run_2', 'completed'))
+    expect(made.heard.slice(2)).toEqual([
+      coming('下一轮的答'),
+      { text: '下一轮的答', state: 'ended' },
+    ])
+    expect(made.reads()).toBe(1)
+  })
+
+  const UNREADABLE: readonly [name: string, answer: unknown][] = [
+    ['被拒', { outcome: 'denied' }],
+    ['依据不可用', { outcome: 'unavailable' }],
+    ['答不知道', { outcome: 'unknown' }],
+    [
+      '没有哪一轮会取走它（已了结、没有轮）',
+      fateIs({ kind: 'settled', by: 'cancelled', run: null }),
+    ],
+  ]
+  for (const [name, answer] of UNREADABLE)
+    it(`读不到：${name}，给 unknown，文字留着，不重读`, async () => {
+      const made = await spoken()
+      const { read, ended } = await unclearUntilEnd(made)
+      read.answer(answer)
+      await settle()
+      expect(made.heard).toEqual([coming('上一轮的话'), { text: '上一轮的话', state: 'unknown' }])
+      await reach(made, 'run_2', ...ended, runStarted('5', 'run_2'))
+      await reach(
+        made,
+        null,
+        ...ended,
+        runStarted('5', 'run_2'),
+        runEnded('6', 'run_2', 'completed'),
+      )
+      expect(made.heard).toHaveLength(2)
+      expect(made.reads()).toBe(1)
+    })
+
+  it('读不到：取不到（调用没有发出），给 unknown，文字留着', async () => {
+    const made = await spoken()
+    let tried = 0
+    const client = made.fake.client as unknown as Record<string, unknown>
+    client['read-input-fate'] = () => {
+      tried += 1
+      throw new Error('the connection is gone')
+    }
+    made.follow()
+    const said = [runStarted('1', 'run_1'), made.words('2'), assistantEntry('3', '3', '上一轮的话')]
+    await reach(made, 'run_1', ...said)
+    await reach(made, null, ...said, runEnded('4', 'run_1', 'completed'))
+    expect(made.heard).toEqual([coming('上一轮的话'), { text: '上一轮的话', state: 'unknown' }])
+    expect(tried).toBe(1)
+  })
+
+  it('这条消息不是经这一项说的（表里没有它的输入标识）：那一轮收场时给 unknown，不读', async () => {
+    const made = await spoken()
+    const said = [runStarted('1', 'run_1'), userEntry('2', '2', '打的字', 'msg_typed')]
+    await reach(made, 'run_1', ...said)
+    made.follow(TENANT, 'msg_typed')
+    await reach(made, 'run_1', ...said, assistantEntry('3', '3', '答'))
+    await reach(
+      made,
+      null,
+      ...said,
+      assistantEntry('3', '3', '答'),
+      runEnded('4', 'run_1', 'completed'),
+    )
+    expect(made.heard).toEqual([coming('答'), { text: '答', state: 'unknown' }])
+    expect(made.reads()).toBe(0)
+  })
+})
+
+describe('回的话：读在途时收掉，答复到了不叫', () => {
+  const TAKEN_BY_IT = fateIs({ kind: 'answered', run: 'run_1', terminal: 'completed' })
+
+  it('停止', async () => {
+    const made = await spoken()
+    const stop = made.follow()
+    const said = [runStarted('1', 'run_1'), made.words('2'), assistantEntry('3', '3', '话')]
+    await reach(made, 'run_1', ...said)
+    await reach(made, null, ...said, runEnded('4', 'run_1', 'completed'))
+    const read = await made.fake.next('read-input-fate')
+    stop()
+    read.answer(TAKEN_BY_IT)
+    await settle()
+    expect(made.heard).toEqual([coming('话')])
+  })
+
+  it('换租户', async () => {
+    const made = await spoken()
+    const { read } = await unclearUntilEnd(made)
+    act(() => made.rerender(OTHER))
+    expect(made.item.current(OTHER)).toBeUndefined()
+    read.answer(TAKEN_BY_IT)
+    await settle()
+    expect(made.heard).toEqual([coming('上一轮的话'), { text: '上一轮的话', state: 'unknown' }])
+  })
+
+  it('撤下', async () => {
+    const made = await spoken()
+    const { read } = await unclearUntilEnd(made)
+    await made.withdraw()
+    read.answer(TAKEN_BY_IT)
+    await settle()
+    expect(made.heard).toEqual([coming('上一轮的话'), { text: '上一轮的话', state: 'unknown' }])
   })
 })

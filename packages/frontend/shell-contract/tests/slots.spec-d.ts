@@ -32,6 +32,8 @@ import type {
   SayItem,
   SayOutcome,
   SayPicture,
+  SayReply,
+  SayReplyState,
   SayTarget,
   SayTo,
   ScopedProps,
@@ -119,7 +121,7 @@ test('each slot takes its own item', () => {
   >()
 })
 
-test('the item of the place words said to the figure go draws nothing, and from revision 2 may know pictures', () => {
+test('the item of the place words said to the figure go draws nothing, from revision 2 may know pictures, and from revision 3 may follow what is said back', () => {
   expectTypeOf<SayItem>().toEqualTypeOf<
     Readonly<{
       id: string
@@ -134,15 +136,22 @@ test('the item of the place words said to the figure go draws nothing, and from 
         pictures?: readonly SayPicture[],
       ) => Promise<SayOutcome>
       show: (scope: string | undefined, key: string) => void
+      reply?: (
+        scope: string | undefined,
+        said: string,
+        listener: (reply: SayReply) => void,
+      ) => () => void
     }>
   >()
+  expectTypeOf<SayReply>().toEqualTypeOf<Readonly<{ text: string; state: SayReplyState }>>()
+  expectTypeOf<SayReplyState>().toEqualTypeOf<'coming' | 'ended' | 'unknown'>()
   expectTypeOf<SayPicture>().toEqualTypeOf<Readonly<{ name: string; bytes: Uint8Array }>>()
   expectTypeOf<SayTarget>().toEqualTypeOf<Readonly<{ key: string; label: string }>>()
   expectTypeOf<SayTo>().toEqualTypeOf<
     Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
   >()
   expectTypeOf<SayOutcome>().toEqualTypeOf<
-    | Readonly<{ kind: 'sent'; key: string }>
+    | Readonly<{ kind: 'sent'; key: string; said?: string }>
     | Readonly<{ kind: 'failed'; reason: string }>
     | Readonly<{ kind: 'unknown' }>
   >()
@@ -175,6 +184,40 @@ test('the item of the place words said to the figure go draws nothing, and from 
   })
   // @ts-expect-error an outcome is one of three
   shell.contribute('say', { ...item, say: async () => ({ kind: 'sending' as const }) })
+  shell.contribute('say', {
+    ...item,
+    say: async () => ({ kind: 'sent' as const, key: 'c1', said: 'm1' }),
+    reply: (_scope, said, listener) => {
+      expectTypeOf(said).toEqualTypeOf<string>()
+      listener({ text: '好的', state: 'coming' })
+      listener({ text: '好的，记下了', state: 'ended' })
+      listener({ text: '', state: 'unknown' })
+      return () => undefined
+    },
+  })
+  shell.contribute('say', {
+    ...item,
+    // @ts-expect-error the mark of what was said is text
+    say: async () => ({ kind: 'sent' as const, key: 'c1', said: 1 }),
+  })
+  shell.contribute('say', {
+    ...item,
+    reply: (_scope, _said, listener) => {
+      // @ts-expect-error a reply is coming, ended or unknown
+      listener({ text: '好的', state: 'done' })
+      return () => undefined
+    },
+  })
+  shell.contribute('say', {
+    ...item,
+    reply: (_scope, _said, listener) => {
+      // @ts-expect-error the listener is given the whole text, not a piece
+      listener({ delta: '好', state: 'coming' })
+      return () => undefined
+    },
+  })
+  // @ts-expect-error reply gives back the function that stops it
+  shell.contribute('say', { ...item, reply: () => undefined })
   // @ts-expect-error the item draws nothing
   shell.contribute('say', { id: 'session', render: () => null })
 })

@@ -3,13 +3,14 @@ import type {
   ItemOf,
   SayItem,
   SayOutcome,
+  SayPhrase,
   ShellSlots,
   SlotConflict,
   SlotName,
 } from '@omne-harness/shell-contract'
 import type { NoteTo } from '../src/page/desk/scene.ts'
 import { createShellNote, type Gift, type NoteDesk } from '../src/page/shell/say-note.ts'
-import { SCOPE, held, sayItem, sayPlace } from './support/desk-stay.ts'
+import { SCOPE, held, phraseFeed, replies, sayItem, sayPlace } from './support/desk-stay.ts'
 
 const S1: NoteTo = { kind: 'target', key: 's-1' }
 const NEW: NoteTo = { kind: 'new' }
@@ -37,12 +38,20 @@ function deskSide(closed: () => void = () => undefined) {
 }
 
 /** One shell's note over a say slot holding one item; `element` is where a floating item opens it. */
-function noted(given: Parameters<typeof sayItem>[1] = {}, slots?: ShellSlots) {
+function noted(
+  given: Parameters<typeof sayItem>[1] = {},
+  slots?: ShellSlots,
+  phrases = phraseFeed(),
+) {
   const place = sayPlace()
   const one = sayItem('session-ui#1', given)
   place.put(one.item)
   let scope: string | undefined = SCOPE
-  const note = createShellNote({ slots: slots ?? place.slots, scope: () => scope })
+  const note = createShellNote({
+    slots: slots ?? place.slots,
+    scope: () => scope,
+    phrases: phrases.feed,
+  })
   const desk = deskSide(() => note.deskClosed())
   const undesk = note.desk(desk.port)
   const element = { id: 'pet-button' } as unknown as Element
@@ -52,6 +61,7 @@ function noted(given: Parameters<typeof sayItem>[1] = {}, slots?: ShellSlots) {
   return {
     place,
     one,
+    phrases,
     note,
     desk,
     undesk,
@@ -767,5 +777,380 @@ describe('说话笺的状态：发送的边', () => {
     const [first] = t.view().pictures
     t.note.send('半句', S1, [first!.id])
     expect(t.one.said).toEqual([[SCOPE, S1, '半句', [ONE]]])
+  })
+})
+
+const SAID: SayOutcome = { kind: 'sent', key: 's-1', said: 'm-1' }
+
+/** Open in the window over an item that says back: each accepted line answers with its own `said`. */
+function replying(given: Parameters<typeof sayItem>[1] = {}) {
+  const heard = replies()
+  let count = 0
+  const t = noted({
+    reply: heard.reply,
+    say: () => Promise.resolve({ kind: 'sent', key: 's-1', said: `m-${(count += 1)}` }),
+    ...given,
+  })
+  t.open()
+  const accepted = async (words = '在吗') => {
+    t.note.send(words, S1, [])
+    await flushed()
+  }
+  return { ...t, heard, accepted, reply: () => t.drawn().reply }
+}
+
+describe('回的话：表里「回的话」一列', () => {
+  it('受理了：调 reply 一次，带状态所属的租户与 said；第一次给之前是还在说、文字是空的', async () => {
+    const t = replying()
+    await t.accepted()
+    expect(t.heard.calls.map(({ scope, said }) => [scope, said])).toEqual([[SCOPE, 'm-1']])
+    expect(t.reply()).toEqual({ text: '', state: 'coming' })
+  })
+
+  it('每次给的整段文字与状态记进状态，并通知', async () => {
+    const t = replying()
+    await t.accepted()
+    const told = t.told()
+    t.heard.calls[0]!.give({ text: '我看', state: 'coming' })
+    expect(t.reply()).toEqual({ text: '我看', state: 'coming' })
+    t.heard.calls[0]!.give({ text: '我看过了。', state: 'ended' })
+    expect(t.reply()).toEqual({ text: '我看过了。', state: 'ended' })
+    expect(t.told()).toBe(told + 2)
+  })
+
+  it('开始发：丢掉上一句的回的话', async () => {
+    const outcomes = [Promise.resolve(SAID), held<SayOutcome>().promise]
+    const t = replying({ say: () => outcomes.shift()! })
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: '上一句的回话', state: 'ended' })
+    t.note.send('下一句', S1, [])
+    expect(t.reply()).toBeUndefined()
+  })
+
+  it('确定没发出与不知道：没有回的话', async () => {
+    for (const outcome of [{ kind: 'failed', reason: '不行' }, { kind: 'unknown' }] as const) {
+      const t = replying({ say: () => Promise.resolve(outcome) })
+      await t.accepted()
+      expect(t.reply()).toBeUndefined()
+      expect(t.heard.calls).toEqual([])
+    }
+  })
+
+  it('人改了字、读窗口的答复到了、人去掉一张图、收起：回的话不变，还在跟', async () => {
+    const t = replying()
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: '一半', state: 'coming' })
+    t.note.write('又写了', S1)
+    t.note.give(SEEN)
+    t.note.unpicture(t.view().pictures[0]!.id)
+    t.note.close()
+    t.openOnDesk()
+    t.closeOnDesk()
+    expect(t.reply()).toEqual({ text: '一半', state: 'coming' })
+    t.heard.calls[0]!.give({ text: '一半又一半', state: 'coming' })
+    expect(t.reply()).toEqual({ text: '一半又一半', state: 'coming' })
+    expect(t.heard.calls[0]!.stops).toBe(0)
+  })
+
+  it('说话位的那一项撤下：停止跟，已有的字留着，状态记不知道；之后它再给的不算', async () => {
+    const t = replying()
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: '一半', state: 'coming' })
+    t.place.take(t.one.item)
+    expect(t.heard.calls[0]!.stops).toBe(1)
+    expect(t.reply()).toEqual({ text: '一半', state: 'unknown' })
+    t.heard.calls[0]!.give({ text: '一半又一半', state: 'coming' })
+    expect(t.reply()).toEqual({ text: '一半', state: 'unknown' })
+  })
+
+  it('租户换了：停止跟，回的话随整份丢掉', async () => {
+    const t = replying()
+    await t.accepted()
+    t.setScope('tenant-b')
+    expect(t.heard.calls[0]!.stops).toBe(1)
+    expect(t.reply()).toBeUndefined()
+    t.heard.calls[0]!.give({ text: '迟到的', state: 'coming' })
+    expect(t.reply()).toBeUndefined()
+  })
+})
+
+describe('回的话：只跟着最后受理的那一句', () => {
+  it('第二句受理：第一句的停止的函数被调，第一句迟到的一次叫不进状态', async () => {
+    const t = replying()
+    await t.accepted('第一句')
+    await t.accepted('第二句')
+    expect(t.heard.calls.map(call => [call.said, call.stops])).toEqual([
+      ['m-1', 1],
+      ['m-2', 0],
+    ])
+    t.heard.calls[0]!.give({ text: '第一句的回话', state: 'coming' })
+    expect(t.reply()).toEqual({ text: '', state: 'coming' })
+    t.heard.calls[1]!.give({ text: '第二句的回话', state: 'coming' })
+    expect(t.reply()).toEqual({ text: '第二句的回话', state: 'coming' })
+  })
+
+  it('说完了或不知道之后：调停止的函数，之后再给的不算', async () => {
+    for (const state of ['ended', 'unknown'] as const) {
+      const t = replying()
+      await t.accepted()
+      t.heard.calls[0]!.give({ text: '完', state })
+      expect(t.heard.calls[0]!.stops).toBe(1)
+      t.heard.calls[0]!.give({ text: '完了又说', state: 'coming' })
+      expect(t.reply()).toEqual({ text: '完', state })
+    }
+  })
+
+  it('那一轮已经收场：reply 返回之前同步给一次说完了，写进状态；拿到的停止的函数随后调一次', async () => {
+    let stops = 0
+    const t = replying({
+      reply: (_scope, _said, give) => {
+        give({ text: '早就说完了', state: 'ended' })
+        return () => void (stops += 1)
+      },
+    })
+    await t.accepted()
+    expect(t.reply()).toEqual({ text: '早就说完了', state: 'ended' })
+    expect(stops).toBe(1)
+  })
+
+  it('加按 ⇧ 的直接发送受理了也开始跟', async () => {
+    const heard = replies()
+    const t = noted({ pictures: () => true, reply: heard.reply, say: () => Promise.resolve(SAID) })
+    t.openOnDesk({ pictures: [ONE], send: true })
+    await flushed()
+    expect(heard.calls.map(call => call.said)).toEqual(['m-1'])
+    expect(t.drawn().reply).toEqual({ text: '', state: 'coming' })
+  })
+})
+
+describe('回的话：只写受理了的三种时候', () => {
+  it('结局里没有 said：不调 reply，状态里没有回的话', async () => {
+    const t = replying({ say: () => Promise.resolve({ kind: 'sent', key: 's-1' }) })
+    await t.accepted()
+    expect(t.heard.calls).toEqual([])
+    expect(t.drawn()).toMatchObject({ fate: { kind: 'accepted' } })
+    expect(t.reply()).toBeUndefined()
+  })
+
+  it('那一项没有 reply：状态里没有回的话', async () => {
+    const t = noted({ say: () => Promise.resolve(SAID) })
+    t.open()
+    t.note.send('在吗', S1, [])
+    await flushed()
+    expect(t.drawn()).toMatchObject({ fate: { kind: 'accepted' } })
+    expect(t.drawn().reply).toBeUndefined()
+  })
+
+  it('reply 抛出：状态里没有回的话', async () => {
+    const t = replying({
+      reply: () => {
+        throw new Error('no turn')
+      },
+    })
+    await t.accepted()
+    expect(t.drawn()).toMatchObject({ fate: { kind: 'accepted' } })
+    expect(t.reply()).toBeUndefined()
+  })
+})
+
+describe('回的话：只留前 4000 个字符', () => {
+  it('4001 个字符：留前 4000 个，记后面还有', async () => {
+    const t = replying()
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: `${'字'.repeat(4000)}尾`, state: 'coming' })
+    expect(t.reply()).toEqual({ text: '字'.repeat(4000), state: 'coming', more: true })
+  })
+
+  it('恰好 4000 个：全留着，没有后面还有', async () => {
+    const t = replying()
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: '字'.repeat(4000), state: 'ended' })
+    expect(t.reply()).toEqual({ text: '字'.repeat(4000), state: 'ended' })
+  })
+})
+
+const FOUR: readonly SayPhrase[] = [
+  { key: 'shell.expand', label: '展开讲讲', words: '展开讲讲' },
+  { key: 'notes.translate', label: '翻成英文', words: '把图里的字翻成英文' },
+]
+
+/** Open in the window with a picture, over an item that knows pictures, and the shell's phrases at hand. */
+function phrased(given: Parameters<typeof sayItem>[1] = {}, first = FOUR) {
+  const feed = phraseFeed(first)
+  const t = noted({ pictures: () => true, ...given }, undefined, feed)
+  t.open()
+  t.note.give({ pictures: [ONE, TWO], send: false })
+  return t
+}
+
+describe('现成的话：在状态里', () => {
+  it('开的时候读外壳的 phrases()；一幕里每句只有键与按钮上的字', () => {
+    const t = phrased()
+    expect(t.drawn().phrases).toEqual([
+      { key: 'shell.expand', label: '展开讲讲' },
+      { key: 'notes.translate', label: '翻成英文' },
+    ])
+  })
+
+  it('开着时 phrases() 变了：重读并通知；收着时变了不读', () => {
+    const t = phrased()
+    const told = t.told()
+    t.phrases.set([FOUR[1]!])
+    expect(t.drawn().phrases).toEqual([{ key: 'notes.translate', label: '翻成英文' }])
+    expect(t.told()).toBeGreaterThan(told)
+    t.note.close()
+    const asked = t.phrases.asked()
+    t.phrases.set(FOUR)
+    expect(t.phrases.asked()).toBe(asked)
+  })
+
+  it('笺里没有图，或说话位此刻不认识图：一幕里不带现成的话', () => {
+    const bare = noted({ pictures: () => true })
+    bare.open()
+    expect(bare.drawn().phrases).toBeUndefined()
+    const blind = phrased({ pictures: () => false })
+    expect(blind.drawn().phrases).toBeUndefined()
+  })
+
+  it('dispose 之后不再听 phrases()', () => {
+    const t = phrased()
+    t.note.dispose()
+    expect(t.phrases.watching()).toBe(0)
+  })
+})
+
+describe('现成的话：按一句', () => {
+  it('调一次 say：话是那一句的 words，图是此刻的全部，说给谁是此刻选的', () => {
+    const t = phrased({ current: () => 's-1' })
+    t.note.phrase('notes.translate')
+    expect(t.one.said).toEqual([[SCOPE, S1, '把图里的字翻成英文', [ONE, TWO]]])
+  })
+
+  it('人写了字：字另起一行接在后面；没发出的字不换成拼好的那一段', () => {
+    const pending = held<SayOutcome>()
+    const t = phrased({ say: () => pending.promise })
+    t.note.write('第二段', NEW)
+    t.note.phrase('notes.translate')
+    expect(t.one.said).toEqual([[SCOPE, NEW, '把图里的字翻成英文\n第二段', [ONE, TWO]]])
+    expect(t.drawn()).toMatchObject({ words: '第二段', fate: { kind: 'sending' } })
+  })
+
+  it('受理了：清字，edit 加一，图拿走', async () => {
+    const t = phrased()
+    t.note.write('第二段', NEW)
+    t.note.phrase('shell.expand')
+    await flushed()
+    expect(t.drawn()).toMatchObject({ words: '', edit: 1, fate: { kind: 'accepted' } })
+    expect(t.names()).toEqual([])
+  })
+
+  it('没发出：人的字不变，edit 不变，图留着', async () => {
+    const t = phrased({ say: () => Promise.resolve({ kind: 'failed', reason: '不行' }) })
+    t.note.write('第二段', NEW)
+    t.note.phrase('shell.expand')
+    await flushed()
+    expect(t.drawn()).toMatchObject({ words: '第二段', edit: 0, fate: { kind: 'failed' } })
+    expect(t.names()).toEqual([ONE.name, TWO.name])
+  })
+
+  it('正在发时不理：再按一句或按发送都不再调 say', () => {
+    const pending = held<SayOutcome>()
+    const t = phrased({ say: () => pending.promise })
+    t.note.phrase('shell.expand')
+    t.note.phrase('notes.translate')
+    t.note.send('再发', S1, [])
+    expect(t.one.said).toHaveLength(1)
+  })
+
+  it('键不在此刻的几句里：不发；笺里没了图时也不发', () => {
+    const t = phrased()
+    t.note.phrase('shell.todo')
+    expect(t.one.said).toEqual([])
+    t.note.give({ pictures: [], send: false })
+    t.note.phrase('shell.expand')
+    expect(t.one.said).toEqual([])
+  })
+
+  it('受理了也开始跟回的话', async () => {
+    const heard = replies()
+    const t = phrased({ reply: heard.reply, say: () => Promise.resolve(SAID) })
+    t.note.phrase('shell.expand')
+    await flushed()
+    expect(heard.calls.map(call => call.said)).toEqual(['m-1'])
+  })
+})
+
+describe('回的话与现成的话：边上的几格', () => {
+  it('发出去到受理之间那一项换成了另一项：不跟回的话，新旧两项的 reply 都不调', async () => {
+    const pending = held<SayOutcome>()
+    const first = replies()
+    const one = sayItem('session-ui#1', { reply: first.reply, say: () => pending.promise })
+    const place = swappable(one.item)
+    const t = noted({}, place.slots)
+    t.open()
+    t.note.send('在吗', S1, [])
+    const second = replies()
+    place.swap(sayItem('session-ui#2', { reply: second.reply }).item)
+    pending.settle(SAID)
+    await flushed()
+    expect([first.calls, second.calls]).toEqual([[], []])
+    expect(t.drawn().fate).toEqual({ kind: 'accepted' })
+    expect('reply' in t.drawn()).toBe(false)
+  })
+
+  it('没有回的话时一幕的笺里没有 reply 这个键；没有现成的话时也没有 phrases 这个键', () => {
+    const t = noted()
+    t.open()
+    expect(Object.keys(t.drawn())).not.toContain('reply')
+    expect(Object.keys(t.drawn())).not.toContain('phrases')
+  })
+
+  it('那一项撤下而此刻没在跟（上一句已经说完了）：回的话不变', async () => {
+    const t = replying()
+    await t.accepted()
+    t.heard.calls[0]!.give({ text: '说完了', state: 'ended' })
+    t.place.take(t.one.item)
+    expect(t.reply()).toEqual({ text: '说完了', state: 'ended' })
+  })
+
+  it('位置叫了订阅而在跟的那一项还在：不停，回的话不变', async () => {
+    const heard = replies()
+    const one = sayItem('session-ui#1', { reply: heard.reply, say: () => Promise.resolve(SAID) })
+    const place = swappable(one.item)
+    const t = noted({}, place.slots)
+    t.open()
+    t.note.send('在吗', S1, [])
+    await flushed()
+    place.swap(one.item)
+    expect(heard.calls[0]!.stops).toBe(0)
+    expect(t.drawn().reply).toEqual({ text: '', state: 'coming' })
+  })
+
+  it('在跟而还没收到过一次回的话时那一项撤下：空文字加不知道', async () => {
+    const t = replying()
+    await t.accepted()
+    t.place.take(t.one.item)
+    expect(t.reply()).toEqual({ text: '', state: 'unknown' })
+  })
+
+  it('外壳实例没了：在跟的那一句的停止的函数被调', async () => {
+    const t = replying()
+    await t.accepted()
+    t.note.dispose()
+    expect(t.heard.calls[0]!.stops).toBe(1)
+  })
+
+  it('人只打了空白：发出去的就是那一句现成的话，后面不接空白', () => {
+    const t = phrased()
+    t.note.write('  \n ', NEW)
+    t.note.phrase('shell.expand')
+    expect(t.one.said).toEqual([[SCOPE, NEW, '展开讲讲', [ONE, TWO]]])
+  })
+
+  it('现成的话叫了订阅而答的还是同一份：不通知', () => {
+    const t = phrased()
+    const told = t.told()
+    t.phrases.set(FOUR)
+    expect(t.told()).toBe(told)
   })
 })

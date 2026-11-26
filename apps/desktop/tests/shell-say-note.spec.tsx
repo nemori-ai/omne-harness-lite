@@ -1,17 +1,33 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { Fiber, Plugin } from '@deepseek-ai/cordis'
+import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { useRef } from 'react'
-import type { FloatProps } from '@omne-harness/shell-contract'
+import { tenantScope, type FloatProps, type ShellLogin } from '@omne-harness/shell-contract'
 import type { FaceFlip, FlipState } from '@omne-harness/ui-kit'
 import type { Face } from '../src/page/shell/state.ts'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { createShellNote, type ShellNote } from '../src/page/shell/say-note.ts'
-import { useNoteView, useShutOnTurn, WindowNote } from '../src/page/shell/say-note-view.tsx'
+import {
+  useNoteView,
+  useShellNote,
+  useShutOnTurn,
+  WindowNote,
+} from '../src/page/shell/say-note-view.tsx'
+import { piecePoint } from '../src/page/shell/redraw.ts'
+import { shellPlugin } from '../src/page/shell/service.ts'
+import { createShellState } from '../src/page/shell/state.ts'
 import { fakeGate, placeholder } from './support/fake-modules.tsx'
-import { sayItem, sayPlace } from './support/desk-stay.ts'
+import { phraseFeed, replies, sayItem, sayPlace } from './support/desk-stay.ts'
 import { setup, settle } from './support/shell-setup.tsx'
+
+const SIGNED_IN: ShellLogin = {
+  state: () => 'signed-in',
+  subscribe: () => () => undefined,
+  login: async () => 'signed-in',
+  logout: async () => 'signed-out',
+}
 
 const seen: { id: string; props: FloatProps }[] = []
 
@@ -331,7 +347,11 @@ function drawnOver(given: Parameters<typeof sayItem>[1] = {}, settings?: () => v
   const place = sayPlace()
   const one = sayItem('session-ui#1', given)
   place.put(one.item)
-  const note = createShellNote({ slots: place.slots, scope: () => 'tenant-a' })
+  const note = createShellNote({
+    slots: place.slots,
+    scope: () => 'tenant-a',
+    phrases: phraseFeed().feed,
+  })
   const button = document.body.appendChild(document.createElement('button'))
   act(() => note.toggle('pet', button))
   render(<Layer note={note} {...(settings === undefined ? {} : { settings })} />)
@@ -377,7 +397,11 @@ describe('窗口里的笺：状态里有图', () => {
     const place = sayPlace()
     const one = sayItem('session-ui#1', { pictures: () => true })
     place.put(one.item)
-    const note = createShellNote({ slots: place.slots, scope: () => 'tenant-a' })
+    const note = createShellNote({
+      slots: place.slots,
+      scope: () => 'tenant-a',
+      phrases: phraseFeed().feed,
+    })
     const button = document.body.appendChild(document.createElement('button'))
     act(() => note.toggle('pet', button))
     act(() => note.give({ pictures: [ONE, TWO], send: false }))
@@ -438,7 +462,11 @@ describe('窗口里的笺：翻面开始就收', () => {
   function opened() {
     const place = sayPlace()
     place.put(sayItem('session-ui#1').item)
-    const note = createShellNote({ slots: place.slots, scope: () => 'tenant-a' })
+    const note = createShellNote({
+      slots: place.slots,
+      scope: () => 'tenant-a',
+      phrases: phraseFeed().feed,
+    })
     note.toggle('pet', document.body.appendChild(document.createElement('button')))
     return note
   }
@@ -467,5 +495,117 @@ describe('窗口里的笺：翻面开始就收', () => {
     expect(note.view().window).not.toBeNull()
     view.rerender(<Turning note={note} flip={flip} face="back" />)
     expect(note.view().window).toBeNull()
+  })
+})
+
+describe('窗口里的笺：回的话与现成的话', () => {
+  const ONE = { name: '窗口 09.05.07.png', bytes: new Uint8Array([1]) }
+
+  /** The window's note over an item that knows pictures and says back, a picture in it. */
+  function answering() {
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:picture')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const heard = replies()
+    const place = sayPlace()
+    const one = sayItem('session-ui#1', {
+      pictures: () => true,
+      reply: heard.reply,
+      say: () => Promise.resolve({ kind: 'sent', key: 's-1', said: 'm-1' }),
+    })
+    place.put(one.item)
+    const note = createShellNote({
+      slots: place.slots,
+      scope: () => 'tenant-a',
+      phrases: phraseFeed().feed,
+    })
+    const button = document.body.appendChild(document.createElement('button'))
+    act(() => note.toggle('pet', button))
+    act(() => note.give({ pictures: [ONE], send: false }))
+    render(<Layer note={note} />)
+    return { note, one, heard }
+  }
+  const buttons = () =>
+    [...document.querySelectorAll('.omne-say-phrases button')].map(button => button.textContent)
+
+  it('受理之后回的话写在笺里，每次给的整段直接读状态', async () => {
+    const t = answering()
+    act(() => void fireEvent.change(field(), { target: { value: '看看' } }))
+    act(() => void fireEvent.keyDown(field(), { key: 'Enter' }))
+    await act(settle)
+    act(() => t.heard.calls[0]!.give({ text: '我看', state: 'coming' }))
+    expect(document.querySelector('.omne-say-reply-text')?.textContent).toBe('我看')
+    act(() => t.heard.calls[0]!.give({ text: '我看过了。', state: 'ended' }))
+    expect(document.querySelector('.omne-say-reply-text')?.textContent).toBe('我看过了。')
+  })
+
+  it('笺旁有现成的话；按一句交给状态，调一次 say，带图', () => {
+    const t = answering()
+    expect(buttons()).toEqual(['展开讲讲', '记成待办', '收藏下来'])
+    act(() => void fireEvent.click(screen.getByRole('button', { name: '记成待办' })))
+    expect(t.one.said).toEqual([['tenant-a', { kind: 'new' }, '记成待办', [ONE]]])
+  })
+
+  it('外壳的现成的话经外壳服务交给笺：没人放时是自带的三句，放了一句就跟着变', async () => {
+    const heard = { note: null as ShellNote | null }
+    function Probe(props: { readonly state: Parameters<typeof useShellNote>[0] }) {
+      heard.note = useShellNote(props.state)
+      return null
+    }
+    const t = await written([], sayItem('session-ui#1', { pictures: () => true }))
+    render(<Probe state={t.state} />)
+    const note = heard.note!
+    act(() => note.toggle('probe', document.body.appendChild(document.createElement('button'))))
+    act(() => note.give({ pictures: [ONE], send: false }))
+    const keys = () => note.view().note.phrases?.map(phrase => phrase.key)
+    expect(keys()).toEqual(['shell.expand', 'shell.todo', 'shell.keep'])
+    const brand = await t.module('brand')
+    await act(async () => {
+      brand.shell.putPhrase('notes.translate', { label: '翻成英文', words: '把图里的字翻成英文' })
+      await settle()
+    })
+    expect(keys()).toEqual(['shell.expand', 'shell.todo', 'shell.keep', 'notes.translate'])
+  })
+
+  it('外壳服务卸下：状态上的现成的话答空的表，叫一次订阅的人', async () => {
+    const state = createShellState(SIGNED_IN)
+    const root = new Context()
+    await root.plugin(DynamisService)
+    const shell = root.plugin(shellPlugin(state))
+    await shell
+    expect(state.phrases.phrases().map(phrase => phrase.key)).toEqual([
+      'shell.expand',
+      'shell.todo',
+      'shell.keep',
+    ])
+    let heard = 0
+    state.phrases.watch(() => void (heard += 1))
+    await shell.dispose()
+    expect(state.phrases.phrases()).toEqual([])
+    expect(heard).toBe(1)
+  })
+
+  it('放了件键 note 的画法：窗口里的笺里面是那份画法画的，字取自状态；撤掉回到自带的', async () => {
+    const t = await written()
+    const brand = await t.module('brand')
+    let take: (() => unknown) | undefined
+    await act(async () => {
+      take = piecePoint.put(
+        brand.shell,
+        'note',
+        ({ subject }) => (
+          <b className="skin-note">{(subject as { note: { text: string } }).note.text}</b>
+        ),
+        tenantScope('tenant-a'),
+      )
+      await settle()
+    })
+    expect(document.querySelector('.skin-note')?.textContent).toBe('半句话')
+    expect(document.querySelector('.omne-say-field')).toBeNull()
+    await act(async () => {
+      await take?.()
+      await settle()
+    })
+    expect(document.querySelector('.skin-note')).toBeNull()
+    expect(field().value).toBe('半句话')
   })
 })

@@ -890,3 +890,137 @@ describe('桌面层的页面：换上时页面做的事', () => {
     document.adoptedStyleSheets = []
   })
 })
+
+describe('桌面层的页面：回的话与现成的话', () => {
+  const rest = { mode: 'rest', at: { x: 1200, y: 300 } } as const
+  const PHRASES = [
+    { key: 'shell.expand', label: '展开讲讲' },
+    { key: 'shell.todo', label: '记成待办' },
+  ]
+  const note = (more: Partial<NonNullable<Scene['note']>> = {}): Scene['note'] => ({
+    targets: [{ key: 's-1', label: '周报' }],
+    to: { kind: 'new' },
+    fate: null,
+    pictures: [{ id: '1', name: '窗口 09.05.07.png' }],
+    phrases: PHRASES,
+    words: '',
+    edit: 0,
+    ...more,
+  })
+  const pictured = (
+    page: ReturnType<typeof desk>,
+    more: Partial<NonNullable<Scene['note']>> = {},
+  ) => {
+    page.send({ kind: 'picture', id: '1', bytes: new Uint8Array([1]) })
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note(more) }) })
+  }
+  const inputs = (page: ReturnType<typeof desk>) =>
+    page.posted.filter(message => message.kind === 'input')
+  const buttons = () =>
+    [...document.querySelectorAll('.omne-say-phrases button')].map(button => button.textContent)
+
+  beforeEach(() => {
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:picture')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('受理之后画一幕里的回的话；说完了与后面还有照写', () => {
+    const page = desk()
+    const reply = { text: '我看过了：\n两处要改。', state: 'ended', more: true } as const
+    pictured(page, { fate: { kind: 'accepted' }, reply })
+    expect(document.querySelector('.omne-say-reply-text')?.textContent).toBe(reply.text)
+    expect(document.querySelector('.omne-say-reply')?.textContent).toContain('后面的在对话页')
+  })
+
+  it('一幕带现成的话：笺旁每句一个按钮；按一句先补发没发出的字，再报 phrase 带键', () => {
+    const page = desk()
+    pictured(page)
+    expect(buttons()).toEqual(['展开讲讲', '记成待办'])
+    fireEvent.change(document.querySelector('.omne-say-field')!, { target: { value: '半句' } })
+    fireEvent.click(document.querySelectorAll('.omne-say-phrases button')[1]!)
+    expect(inputs(page)).toEqual([
+      { kind: 'input', lease: 10, input: 'unsent', words: '半句', edit: 0 },
+      { kind: 'input', lease: 10, input: 'phrase', key: 'shell.todo' },
+    ])
+  })
+
+  it('一幕不带现成的话：不画那一列', () => {
+    const page = desk()
+    const bare: { phrases?: unknown } = { ...note() }
+    delete bare.phrases
+    page.send({ kind: 'picture', id: '1', bytes: new Uint8Array([1]) })
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: bare as Scene['note'] }) })
+    expect(document.querySelector('.omne-say-bubble')).not.toBeNull()
+    expect(document.querySelector('.omne-say-phrases')).toBeNull()
+  })
+
+  it('有现成的话时报给主进程的可点区域包住那一列', () => {
+    const boxes: Readonly<Record<string, Rect>> = {
+      'omne-say-bubble': { x: 222, y: 311, width: 360, height: 120 },
+      'omne-say-phrases': { x: 600, y: 311, width: 96, height: 140 },
+    }
+    const measured = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const name = Object.keys(boxes).find(each => this.classList.contains(each))
+      const { x, y, width, height } =
+        name === undefined ? { x: 0, y: 0, width: 0, height: 0 } : boxes[name]!
+      return {
+        x,
+        y,
+        width,
+        height,
+        left: x,
+        top: y,
+        right: x + width,
+        bottom: y + height,
+      } as DOMRect
+    }
+    try {
+      const page = desk()
+      pictured(page)
+      page.frame()
+      expect(page.hot.at(-1)?.[1].at(-1)).toEqual({ x: 1222, y: 311, width: 474, height: 140 })
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = measured
+    }
+  })
+
+  it('投影里列着 shell.piece 的 note 的画法：笺里面是那份画法画的，字取自一幕，按一句报给外壳；没列时是自带的', async () => {
+    const NOTE = {
+      point: 'shell.piece',
+      key: 'note',
+      source: { module: '/bridge/plugins/sea/1/look.js', export: 'note' },
+    }
+    type Inside = { note: { text: string }; act: { phrase(key: string): void } }
+    const drawsNote =
+      ({ React: given }: { React: typeof React }) =>
+      ({ subject }: { subject: Inside }) =>
+        given.createElement(
+          'button',
+          { className: 'skin-note', onClick: () => subject.act.phrase('shell.todo') },
+          subject.note.text,
+        )
+    const page = desk({ load: async () => ({ note: drawsNote }) })
+    page.look({ ...WORN, version: 2, drawings: [NOTE] })
+    await page.settle()
+    const look = { issuer: ISSUER, version: 2 }
+    page.send({ kind: 'picture', id: '1', bytes: new Uint8Array([1]) })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 1, rest, { look, note: note({ words: '写了一半' }) }),
+    })
+    expect(document.querySelector('.skin-note')?.textContent).toBe('写了一半')
+    expect(document.querySelector('.omne-say-field')).toBeNull()
+    fireEvent.click(document.querySelector('.skin-note')!)
+    expect(inputs(page).at(-1)).toEqual({
+      kind: 'input',
+      lease: 10,
+      input: 'phrase',
+      key: 'shell.todo',
+    })
+    page.look({ ...WORN, version: 3 })
+    expect(document.querySelector('.skin-note')).toBeNull()
+    expect(document.querySelector('.omne-say-field')).not.toBeNull()
+  })
+})
