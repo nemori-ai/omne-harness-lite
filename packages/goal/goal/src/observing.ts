@@ -5,6 +5,7 @@ import {
   impliedRecord,
   observe,
   pausedNote,
+  sessionOfKey,
   type Check,
   type CheckAnswer,
   type GoalCaller,
@@ -13,7 +14,7 @@ import {
   type ObservedAt,
 } from '@omne-harness/goal-contract'
 import type { GoalsDependencies } from './goals.ts'
-import { createJudging } from './judging.ts'
+import { createJudging, lastWrite } from './judging.ts'
 import type { Driven } from './sessions-port.ts'
 import { createWriting, done, UNAVAILABLE, type Answer } from './writing.ts'
 
@@ -21,10 +22,11 @@ import { createWriting, done, UNAVAILABLE, type Answer } from './writing.ts'
 const OBSERVATIONS = 3
 const PASS: CheckAnswer = { kind: 'pass' }
 
-const atOf = ({ state }: GoalRecord): ObservedAt => ({
+const atOf = ({ state }: GoalRecord, written: string): ObservedAt => ({
   generation: state.generation,
   revision: state.revision,
   rounds: state.rounds,
+  written,
 })
 
 function answered(record: GoalRecord): CheckAnswer {
@@ -46,7 +48,11 @@ export function createObserving(deps: GoalsDependencies): GoalChecking {
   ): Promise<Answer<CheckAnswer> | 'again'> {
     const found = await judge(caller, record)
     if (found === null) return UNAVAILABLE
-    const step = observe(record, { call, at: atOf(record), ...found })
+    const made = await deps.history.calls(caller.tenant, sessionOfKey(record.session), record.since)
+    if (made.kind === 'unavailable') return UNAVAILABLE
+    const { decided, findings } = found
+    const at = atOf(record, found.written)
+    const step = observe(record, { call, at, written: lastWrite(made.value), decided, findings })
     if (step.kind === 'pass') return done(PASS)
     if (step.kind === 'reobserve') return 'again'
     const written = await commit(caller.tenant, record.version, step.record)

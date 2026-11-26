@@ -147,7 +147,7 @@ export async function replay(
     )
     const answers = replies.map(vote => vote.map((reply): JudgeReply => reply?.answers ?? null))
     const findings = readJudge(material, config, packed, answers)
-    const progress = { rounds: material.rounds, stalled: 0, gap: null }
+    const progress = { rounds: material.rounds, stalled: 0, gap: null, examinations: 0 }
     return {
       case: entry,
       asked: packed.requests.flatMap(request => Object.keys(request.questions)),

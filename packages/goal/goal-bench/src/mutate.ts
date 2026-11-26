@@ -233,7 +233,8 @@ export function expectedOf(
     exits: pick('X', 'yes').map(([name]) => name),
     unattainable: truths[DEAD_END]?.truth === 'yes',
   } as unknown as Findings
-  const verdict = rule(material.body, { rounds: material.rounds, stalled: 0, gap: null }, findings)
+  const progress = { rounds: material.rounds, stalled: 0, gap: null, examinations: 0 }
+  const verdict = rule(material.body, progress, findings)
   return { entries: truths, target, row: verdict.row, success: succeeded(verdict) }
 }
 

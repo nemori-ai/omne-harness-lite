@@ -58,6 +58,8 @@ const gapRow = object({
   ref: { rule: nullable(text) },
   open: { rule: flag },
   short: { rule: nullable(words) },
+  verification: { rule: text, optional: true, since: 2 },
+  reader: { rule: text, optional: true, since: 2 },
 })
 const provenance = object({
   revision: { rule: number },

@@ -874,13 +874,13 @@ describe('the findings of one observation', () => {
       unattainable: false,
     })
     const input = material()
-    const progress = { rounds: input.rounds, stalled: 0, gap: null }
+    const progress = { rounds: input.rounds, stalled: 0, gap: null, examinations: 0 }
     expect(rule(input.body, progress, findings)).toEqual({ row: 1 })
     const short = judged([[{ ...CLEAN, A3: holds(0.6) }]])
     expect(short.criteria.A3).toBe('cannot-tell')
-    expect(rule(input.body, progress, short).row).toBe(9)
+    expect(rule(input.body, progress, short).row).toBe(10)
     expect(rule(input.body, progress, judged([[{ ...CLEAN, N1: chose('broken', 0.5) }]])).row).toBe(
-      9,
+      10,
     )
   })
   it('reports an exit the judge saw come about', () => {

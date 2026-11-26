@@ -1,6 +1,7 @@
 import type { AnswerOf, BodyOf, LoginIdentity } from '@omne-harness/access-cordis-contract'
 import {
   NO_PROGRESS,
+  NO_EXAMINATION,
   NO_READINGS,
   validateDraft,
   type GoalRecord,
@@ -120,6 +121,7 @@ export const RECORD: GoalRecord = {
   since: 'entry-4',
   wake: null,
   observed: null,
+  examination: NO_EXAMINATION,
 }
 export const ACTIVE: GoalRecord = {
   ...RECORD,

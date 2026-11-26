@@ -17,7 +17,8 @@
         "staleness": "marked",
         "activity": "lines",
         "flags": "keys",
-        "drafts": "later"
+        "drafts": "later",
+        "reply": "call"
       },
       "model": "openai/gpt-6-luna-decisions",
       "line": 0.9,
@@ -138,9 +139,9 @@
         "rate": 0.8
       },
       "rightRow": {
-        "errors": 181,
+        "errors": 175,
         "n": 212,
-        "rate": 0.8537735849056604
+        "rate": 0.8254716981132075
       },
       "unavailable": 0
     },
@@ -192,8 +193,8 @@
       "ece": 0.03820224719101275
     },
     "cost": {
-      "sent": 29,
-      "hits": 183,
+      "sent": 0,
+      "hits": 212,
       "requestsPerCase": 1,
       "inputP50": 2303,
       "inputP95": 3655,
@@ -1346,7 +1347,8 @@
         "staleness": "decided",
         "activity": "all",
         "flags": "guarded",
-        "drafts": "superseded"
+        "drafts": "superseded",
+        "reply": "call"
       },
       "model": "openai/gpt-6-luna-decisions",
       "line": 0.9,
@@ -1462,9 +1464,9 @@
         "rate": 0.13333333333333333
       },
       "rightRow": {
-        "errors": 202,
+        "errors": 196,
         "n": 212,
-        "rate": 0.9528301886792453
+        "rate": 0.9245283018867925
       },
       "unavailable": 0
     },

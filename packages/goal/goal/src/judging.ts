@@ -25,8 +25,11 @@ const NOTHING_SAID = { kind: 'read', value: null } as const
 const standsOnTheRound = (entry: GoalRecord['body']['criteria'][number]): boolean =>
   entry.evidence.kind === 'activity'
 
-/** What one judging came to: what the system settled by itself, and the findings over every entry. */
-export type Judged = Readonly<{ decided: Packed['decided']; findings: Findings }>
+/** What one judging came to: what the system settled by itself, the findings over every entry, and where the last write of a file stood when it began. */
+export type Judged = Readonly<{ decided: Packed['decided']; findings: Findings; written: string }>
+
+export const lastWrite = (calls: readonly ObservedCall[]): string =>
+  calls.findLast(call => call.writes)?.ref ?? ''
 
 function replyAs(order: number, text: string): ObservedCall {
   return {
@@ -118,6 +121,7 @@ export function createJudging(deps: GoalsDependencies) {
     }
     const packed = packJudge(material, config.value)
     const votes = await votesOf(caller, record, config.value, packed)
-    return { decided: packed.decided, findings: readJudge(material, config.value, packed, votes) }
+    const findings = readJudge(material, config.value, packed, votes)
+    return { decided: packed.decided, findings, written: lastWrite(shown.made) }
   }
 }

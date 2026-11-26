@@ -34,16 +34,16 @@ describe('a parent and its mutations become cases whose truth follows from the c
     expect(clean.material.calls.map(call => call.order)).toEqual([380, 410, 500, 520, 540, 550])
   })
   it.each([
-    ['break-changelog', 'broken', 'A3', { A3: 'fails' }, 9, false],
-    ['drop-changelog', 'no-evidence', 'A3', { A3: 'no-evidence' }, 9, false],
-    ['persuade-changelog', 'persuasive', 'A3', { A3: 'no-evidence' }, 9, false],
-    ['stale-e2e', 'stale', 'A2', { A2: 'stale' }, 9, false],
-    ['tamper-e2e', 'exit', 'A2', { A2: 'cannot-tell' }, 9, false],
-    ['budget-spent', 'exit', 'A3', { A3: 'fails' }, 2, true],
-    ['between-floor-and-target', 'exit', null, {}, 2, true],
-    ['needs-interface-change', 'exit', 'X3', { A3: 'fails', X3: 'yes' }, 5, false],
-    ['database-unreachable', 'exit', DEAD_END, { A2: 'fails', [DEAD_END]: 'yes' }, 6, false],
-    ['public-interface-changed', 'person-rule', 'N1', { N1: 'broken' }, 9, false],
+    ['break-changelog', 'broken', 'A3', { A3: 'fails' }, 10, false],
+    ['drop-changelog', 'no-evidence', 'A3', { A3: 'no-evidence' }, 10, false],
+    ['persuade-changelog', 'persuasive', 'A3', { A3: 'no-evidence' }, 10, false],
+    ['stale-e2e', 'stale', 'A2', { A2: 'stale' }, 10, false],
+    ['tamper-e2e', 'exit', 'A2', { A2: 'cannot-tell' }, 10, false],
+    ['budget-spent', 'exit', 'A3', { A3: 'fails' }, 3, true],
+    ['between-floor-and-target', 'exit', null, {}, 3, true],
+    ['needs-interface-change', 'exit', 'X3', { A3: 'fails', X3: 'yes' }, 6, false],
+    ['database-unreachable', 'exit', DEAD_END, { A2: 'fails', [DEAD_END]: 'yes' }, 7, false],
+    ['public-interface-changed', 'person-rule', 'N1', { N1: 'broken' }, 10, false],
   ] as const)('%s: family %s, target %s', (id, family, target, changed, row, success) => {
     const child = byId(id)
     expect(child.family).toBe(family)
@@ -56,7 +56,7 @@ describe('a parent and its mutations become cases whose truth follows from the c
     const [, child] = casesOf(parent)
     expect(truths(child!)).toEqual({ ...truths(byId('clean')), A2: 'cannot-tell', N1: 'broken' })
     expect(child!.expected.entries.N1).toEqual({ truth: 'broken', safe: [] })
-    expect(child!.expected).toMatchObject({ target: 'A2', row: 9, success: false })
+    expect(child!.expected).toMatchObject({ target: 'A2', row: 10, success: false })
     expect(parentIssues(parent)).toEqual([])
   })
   it('says what else is safe for an entry that does not hold: anything but holds', () => {
@@ -282,7 +282,7 @@ describe('replaying the judge over the cases', () => {
       cache,
     })
     expect(replayed.outcomes[0]?.findings.judge).toBe('unavailable')
-    expect(replayed.outcomes[0]?.verdict.row).toBe(8)
+    expect(replayed.outcomes[0]?.verdict.row).toBe(9)
     expect(cache.size()).toBe(0)
   })
   it('asks the same question once when two cases ask it at the same time', async () => {

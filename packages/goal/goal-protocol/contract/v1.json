@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:3e4e07988ba9e83aca5f94a54746f35ef5993acb76780ff99b11c9c33842f63f"
+    "1": "sha256:3e4e07988ba9e83aca5f94a54746f35ef5993acb76780ff99b11c9c33842f63f",
+    "2": "sha256:0d0ba6c0056352283db52cb4538f22190efc433ab821c5e08820cc8f25071462"
   },
   "major": 1,
   "name": "goal",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-goal": {
@@ -163,6 +164,13 @@
                                     "kind": "string"
                                   }
                                 },
+                                "reader": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 2
+                                },
                                 "reading": {
                                   "rule": {
                                     "kind": "string"
@@ -211,6 +219,13 @@
                                       }
                                     ]
                                   }
+                                },
+                                "verification": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 2
                                 }
                               },
                               "kind": "object"
@@ -556,6 +571,13 @@
                                 "kind": "string"
                               }
                             },
+                            "reader": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 2
+                            },
                             "reading": {
                               "rule": {
                                 "kind": "string"
@@ -604,6 +626,13 @@
                                   }
                                 ]
                               }
+                            },
+                            "verification": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 2
                             }
                           },
                           "kind": "object"
@@ -881,6 +910,13 @@
                                     "kind": "string"
                                   }
                                 },
+                                "reader": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 2
+                                },
                                 "reading": {
                                   "rule": {
                                     "kind": "string"
@@ -929,6 +965,13 @@
                                       }
                                     ]
                                   }
+                                },
+                                "verification": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 2
                                 }
                               },
                               "kind": "object"
@@ -1325,6 +1368,13 @@
                                 "kind": "string"
                               }
                             },
+                            "reader": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 2
+                            },
                             "reading": {
                               "rule": {
                                 "kind": "string"
@@ -1373,6 +1423,13 @@
                                   }
                                 ]
                               }
+                            },
+                            "verification": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 2
                             }
                           },
                           "kind": "object"

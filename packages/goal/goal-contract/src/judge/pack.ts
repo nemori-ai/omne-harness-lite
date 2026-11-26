@@ -1,5 +1,6 @@
 import type { Criterion, CriterionId, GoalBody } from '../body.ts'
 import { entryTexts } from '../render.ts'
+import { examined, verificationOf } from '../verification.ts'
 import type { CriterionReading } from '../verdict.ts'
 import type { JudgeConfig, JudgeMaterial, ObservedCall } from './material.ts'
 
@@ -385,7 +386,7 @@ function sorted(material: JudgeMaterial, config: JudgeConfig) {
   const decided: Partial<Record<CriterionId, CriterionReading>> = {}
   const asked: Asked[] = []
   for (const criterion of material.body.criteria) {
-    if (criterion.evidence.kind === 'metric') continue
+    if (criterion.evidence.kind === 'metric' || examined(verificationOf(criterion))) continue
     const found =
       settledOrDoubtedByExit(material, config, criterion) ?? byReading(material, config, criterion)
     if (typeof found === 'string') decided[criterion.id] = found

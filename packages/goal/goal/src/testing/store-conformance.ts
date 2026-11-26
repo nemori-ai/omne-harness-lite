@@ -1,5 +1,6 @@
 import {
   NO_PROGRESS,
+  NO_EXAMINATION,
   NO_READINGS,
   validateDraft,
   type GoalRecord,
@@ -58,6 +59,7 @@ export function conformanceGoal(change: Partial<GoalRecord> = {}, generation = 1
     since: '0',
     wake: null,
     observed: null,
+    examination: NO_EXAMINATION,
     ...change,
   }
 }

@@ -4,6 +4,9 @@ import {
   judgeCard,
   keptProgress,
   NO_GOAL,
+  cancelled,
+  keptExamination,
+  NO_EXAMINATION,
   NO_PROGRESS,
   NO_READINGS,
   renderBody,
@@ -75,6 +78,12 @@ function keptReadings(before: GoalBody, after: GoalBody, readings: Readings): Re
     return Object.fromEntries(Object.entries(readings[section]).filter(([id]) => kept.has(id)))
   }
   return { criteria: same('criteria'), metrics: same('metrics'), rules: same('rules') } as Readings
+}
+
+export function revisedExamination(before: GoalRecord, body: GoalBody) {
+  const was = new Map(before.body.criteria.map(entry => [entry.id, JSON.stringify(entry)]))
+  const same = body.criteria.filter(entry => was.get(entry.id) === JSON.stringify(entry))
+  return keptExamination(before.examination, new Set(same.map(entry => entry.id)))
 }
 
 function cardRefusal(entrance: Entrance, state: GoalState, attendance: Attendance) {
@@ -181,6 +190,7 @@ export function decideWrite(current: GoalRecord | null, input: WriteInput): Deci
       history,
       wake,
       observed: null,
+      examination: before === null ? NO_EXAMINATION : revisedExamination(before, body).examination,
     },
   }
 }
@@ -252,7 +262,14 @@ function commandedNothing(command: GoalCommand): Decided | null {
 function commanded(current: GoalRecord, state: GoalRecord['state'], wakes: boolean): GoalRecord {
   const version = current.version + 1
   const request = `resume/${String(current.state.generation)}/${String(version)}`
-  return { ...current, version, state, wake: wakes ? { kind: 'resume', request } : null }
+  const { examination } = state.status === 'settled' ? cancelled(current.examination) : current
+  return {
+    ...current,
+    version,
+    state,
+    examination,
+    wake: wakes ? { kind: 'resume', request } : null,
+  }
 }
 
 const NUMBERED = ['criteria', 'metrics', 'rules', 'exits', 'references'] as const

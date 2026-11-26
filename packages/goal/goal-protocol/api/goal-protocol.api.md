@@ -214,6 +214,20 @@ declare const gapRow: {
                 ];
             };
         };
+        readonly verification: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
+        readonly reader: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
     };
 };
 declare const provenance: {
@@ -486,6 +500,20 @@ declare const goal: {
                                 ];
                             };
                         };
+                        readonly verification: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 2;
+                        };
+                        readonly reader: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
+                            readonly since: 2;
+                        };
                     };
                 };
             };
@@ -677,10 +705,12 @@ export declare const goalProtocol: {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -734,10 +764,12 @@ export declare const goalProtocol: {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -811,10 +843,12 @@ export declare const goalProtocol: {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;
@@ -878,10 +912,12 @@ export declare const goalProtocol: {
                             readonly id: string;
                             readonly open: boolean;
                             readonly ought: string;
+                            readonly reader?: string;
                             readonly reading: string;
                             readonly ref: string | null;
                             readonly short: string | null;
                             readonly source: "agent" | "judge" | "system" | null;
+                            readonly verification?: string;
                         }[];
                         readonly history: readonly {
                             readonly at: string;

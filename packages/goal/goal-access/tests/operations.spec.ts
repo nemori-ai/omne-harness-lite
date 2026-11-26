@@ -96,6 +96,8 @@ describe('read-goal', () => {
       ref: 'call-9',
       open: true,
       short: null,
+      verification: 'judge',
+      reader: 'judge',
     })
     expect(goal.gap).toContainEqual({
       id: '预算',
@@ -105,6 +107,7 @@ describe('read-goal', () => {
       ref: null,
       open: false,
       short: '剩 13',
+      reader: 'system',
     })
     expect(Object.keys(goal).sort()).toEqual(
       ['body', 'gap', 'history', 'progress', 'rendered', 'state'].sort(),

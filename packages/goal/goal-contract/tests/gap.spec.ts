@@ -30,13 +30,14 @@ const READ: Readings = {
 }
 
 describe('the readings kept with a goal', () => {
-  it('a criterion is read as one of five things and a rule as one of three', () => {
+  it('a criterion is read as one of six things and a rule as one of three', () => {
     expect(CriterionReadingSchema.options).toEqual([
       'holds',
       'fails',
       'no-evidence',
       'stale',
       'cannot-tell',
+      'gathering',
     ])
     expect(RuleReadingSchema.options).toEqual(['kept', 'broken', 'unclear'])
   })

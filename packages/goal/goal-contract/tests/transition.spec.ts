@@ -42,9 +42,18 @@ const STATES: Readonly<Record<GoalStatus, GoalState>> = {
   paused: paused(),
   settled,
 }
-const at = { generation: 1, revision: 1, rounds: 3 }
-const observe = (verdict: Verdict, seen = at): GoalEvent => ({ kind: 'observe', at: seen, verdict })
-const CONTINUE: Verdict = { row: 9, stalled: 0, gap: GAP }
+const at = { generation: 1, revision: 1, rounds: 3, written: 'call-9' }
+const observe = (verdict: Verdict, seen = at, written = 'call-9'): GoalEvent => ({
+  kind: 'observe',
+  at: seen,
+  written,
+  verdict,
+})
+const CONTINUE: Verdict = { row: 10, stalled: 0, gap: GAP }
+const arrived = (
+  verdict: Verdict = { row: 1 },
+  how: Partial<Extract<GoalEvent, { kind: 'evidence' }>> = {},
+): GoalEvent => ({ kind: 'evidence', current: true, running: false, verdict, ...how })
 const set: GoalEvent = { kind: 'set', attendance: 'attended' }
 const X3 = 'X3' as const
 
@@ -64,6 +73,7 @@ describe('the transition table, cell by cell', () => {
     cancel: { kind: 'cancel' },
     'settle-by-exit': { kind: 'settle-by-exit', exit: X3, counts: 'failure' },
     observe: observe(CONTINUE),
+    evidence: arrived(),
     abort: { kind: 'abort' },
   }
   const TABLE: Readonly<Record<GoalStatus, Readonly<Record<string, Cell>>>> = {
@@ -75,6 +85,7 @@ describe('the transition table, cell by cell', () => {
       cancel: 'unchanged',
       'settle-by-exit': 'no-live-goal',
       observe: 'unchanged',
+      evidence: 'unchanged',
       abort: 'unchanged',
     },
     active: {
@@ -85,6 +96,7 @@ describe('the transition table, cell by cell', () => {
       cancel: 'settled',
       'settle-by-exit': 'not-its-cause',
       observe: 'active',
+      evidence: 'settled',
       abort: 'settled',
     },
     paused: {
@@ -95,6 +107,7 @@ describe('the transition table, cell by cell', () => {
       cancel: 'settled',
       'settle-by-exit': 'not-its-cause',
       observe: 'unchanged',
+      evidence: 'unchanged',
       abort: 'settled',
     },
     settled: {
@@ -105,6 +118,7 @@ describe('the transition table, cell by cell', () => {
       cancel: 'unchanged',
       'settle-by-exit': 'no-live-goal',
       observe: 'unchanged',
+      evidence: 'unchanged',
       abort: 'unchanged',
     },
   }
@@ -123,7 +137,7 @@ describe('the transition table, cell by cell', () => {
   it.each(cells)('%s on %s: %s', (status, event, expected) => {
     expect(cell(sentTo(status, event), EVENTS[event]!)).toBe(expected)
   })
-  it('has all thirty-two cells', () => expect(cells).toHaveLength(32))
+  it('has all thirty-six cells', () => expect(cells).toHaveLength(36))
 })
 
 describe('what each cell does', () => {
@@ -229,6 +243,7 @@ describe('an observation of an active goal', () => {
     ['another goal', { ...at, generation: 2 }],
     ['an earlier revision', { ...at, revision: 0 }],
     ['an earlier round', { ...at, rounds: 2 }],
+    ['an earlier write of a file', { ...at, written: 'call-4' }],
   ])('begun on %s changes nothing and is not let through: it is observed again', (_name, seen) => {
     for (const verdict of [{ row: 1 } as const, CONTINUE])
       expect(transition(active(), observe(verdict, seen))).toEqual({
@@ -246,7 +261,20 @@ describe('an observation of an active goal', () => {
     expect(countsAs({ kind: 'achieved' })).toBe('success')
   })
 
-  it.each([2, 3, 4] as const)('row %i settles by that exit, counted as the exit says', row => {
+  it('row 2 leaves the goal as it is, counts no round and lets the round end; it hands a batch over when there is one to hand', () => {
+    expect(transition(active(), observe({ row: 2, hand: ['A2', 'A3'] }))).toEqual({
+      kind: 'changed',
+      next: active(),
+      effects: ['pass', 'hand'],
+    })
+    expect(transition(active(), observe({ row: 2, hand: [] }))).toEqual({
+      kind: 'changed',
+      next: active(),
+      effects: ['pass'],
+    })
+  })
+
+  it.each([3, 4, 5] as const)('row %i settles by that exit, counted as the exit says', row => {
     for (const counts of ['success', 'failure'] as const) {
       const result = transition(active(), observe({ row, exit: X3, counts }))
       expect(result).toMatchObject({
@@ -259,21 +287,24 @@ describe('an observation of an active goal', () => {
 
   const HANDED: readonly (readonly [Verdict, object, object])[] = [
     [
-      { row: 5, exit: X3, counts: 'failure' },
+      { row: 6, exit: X3, counts: 'failure' },
       { by: 'verdict', row: 5, exit: X3 },
       { kind: 'exit', exit: X3, counts: 'failure' },
     ],
-    [{ row: 6 }, { by: 'verdict', row: 6, exit: null }, { kind: 'unattainable' }],
-    [{ row: 7, stalled: 3, gap: GAP }, { by: 'verdict', row: 7, exit: null }, { kind: 'stalled' }],
-    [{ row: 8 }, { by: 'verdict', row: 8, exit: null }, { kind: 'judge-unavailable' }],
+    [{ row: 7 }, { by: 'verdict', row: 6, exit: null }, { kind: 'unattainable' }],
+    [{ row: 8, stalled: 3, gap: GAP }, { by: 'verdict', row: 7, exit: null }, { kind: 'stalled' }],
+    [{ row: 9 }, { by: 'verdict', row: 8, exit: null }, { kind: 'judge-unavailable' }],
   ]
-  it.each(HANDED)('row %j pauses where a person is, and tells the person', (verdict, pause) => {
-    expect(transition(active(), observe(verdict))).toMatchObject({
-      kind: 'changed',
-      next: { status: 'paused', pause, rounds: 3 },
-      effects: ['pass', 'tell-person'],
-    })
-  })
+  it.each(HANDED)(
+    'row %j pauses where a person is, keeps its cause by the number kept goals know, and tells the person',
+    (verdict, pause) => {
+      expect(transition(active(), observe(verdict))).toMatchObject({
+        kind: 'changed',
+        next: { status: 'paused', pause, rounds: 3 },
+        effects: ['pass', 'tell-person'],
+      })
+    },
+  )
   it.each(HANDED)(
     'row %j settles where nobody is: a goal is never paused there',
     (verdict, _pause, outcome) => {
@@ -292,8 +323,8 @@ describe('an observation of an active goal', () => {
     },
   )
 
-  it('row 9 counts one more round, keeps what the observation saw, vetoes the end and continues', () => {
-    expect(transition(active(), observe({ row: 9, stalled: 2, gap: GAP }))).toEqual({
+  it('row 10 counts one more round, keeps what the observation saw, vetoes the end and continues', () => {
+    expect(transition(active(), observe({ row: 10, stalled: 2, gap: GAP }))).toEqual({
       kind: 'changed',
       next: active({ rounds: 4, stalled: 2, gap: GAP }),
       effects: ['veto', 'continue'],
@@ -303,5 +334,65 @@ describe('an observation of an active goal', () => {
   it('where there is no active goal the round is let through and nothing is judged', () => {
     for (const state of [NO_GOAL, paused(), settled])
       expect(answerOf(state, observe({ row: 1 }))).toEqual(['pass'])
+  })
+})
+
+describe('the readings of a batch arriving', () => {
+  const run = (state: GoalState, event: GoalEvent) => transition(state, event)
+  const DROPPED = { kind: 'unchanged', effects: [] }
+  const RECORDED = { kind: 'unchanged', effects: ['record'] }
+
+  it('are dropped where there is no goal or it is settled, whatever they are', () => {
+    for (const state of [NO_GOAL, settled]) expect(run(state, arrived())).toEqual(DROPPED)
+  })
+
+  it('of a batch that is not the awaited one are dropped, in progress or paused', () => {
+    for (const state of [active(), paused()])
+      expect(run(state, arrived({ row: 1 }, { current: false }))).toEqual(DROPPED)
+  })
+
+  it('are kept and not judged while the goal is paused; it stays paused', () => {
+    expect(run(paused(), arrived({ row: 1 }))).toEqual(RECORDED)
+  })
+
+  it('are kept and left to the observation of the round, while a round is going', () => {
+    expect(run(active(), arrived({ row: 1 }, { running: true }))).toEqual(RECORDED)
+  })
+
+  it('with no round going the verdict table is applied at once: achieved settles, with nobody to let go', () => {
+    expect(run(active(), arrived({ row: 1 }))).toEqual({
+      kind: 'changed',
+      next: { ...settled, outcome: { kind: 'achieved' } },
+      effects: ['record'],
+    })
+  })
+
+  it('with no round going, what is still short counts a round and sends the agent on', () => {
+    expect(run(active(), arrived({ row: 10, stalled: 1, gap: GAP }))).toEqual({
+      kind: 'changed',
+      next: active({ rounds: 4, stalled: 1, gap: GAP }),
+      effects: ['record', 'continue'],
+    })
+  })
+
+  it('with no round going, the other rows do what they do to an observation, without the letting go', () => {
+    expect(run(active(), arrived({ row: 4, exit: X3, counts: 'failure' }))).toMatchObject({
+      next: { status: 'settled', outcome: { kind: 'exit', exit: X3 } },
+      effects: ['record'],
+    })
+    expect(run(active(), arrived({ row: 8, stalled: 3, gap: GAP }))).toMatchObject({
+      next: { status: 'paused', pause: { by: 'verdict', row: 7 } },
+      effects: ['record', 'tell-person'],
+    })
+    const alone = active({ attendance: 'unattended' })
+    expect(run(alone, arrived({ row: 8, stalled: 3, gap: GAP }))).toMatchObject({
+      next: { status: 'settled', outcome: { kind: 'stalled' } },
+      effects: ['record'],
+    })
+    expect(run(active(), arrived({ row: 2, hand: [] }))).toEqual({
+      kind: 'changed',
+      next: active(),
+      effects: ['record'],
+    })
   })
 })

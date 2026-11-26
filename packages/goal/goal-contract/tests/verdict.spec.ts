@@ -39,8 +39,8 @@ const DONE: Findings = {
 }
 const found = (change: Partial<Findings>): Findings => ({ ...DONE, ...change })
 const OPEN = found({ criteria: { A2: 'holds', A3: 'no-evidence' }, metrics: { M1: 940 } })
-const start = { rounds: 3, stalled: 0, gap: null }
-const spent = { rounds: 30, stalled: 0, gap: null }
+const start = { rounds: 3, stalled: 0, gap: null, examinations: 0 }
+const spent = { rounds: 30, stalled: 0, gap: null, examinations: 0 }
 const row = (findings: Findings, progress = start, of: GoalBody = body(FULL)) =>
   rule(of, progress, findings).row
 
@@ -78,50 +78,185 @@ describe('row 1: achieved', () => {
   })
 })
 
-describe('rows 2 and 3: the budget is reached', () => {
+describe('rows 3 and 4: the budget is reached', () => {
   /** Open, and short of what good enough stands on: M1 is past its floor. */
   const SHORT = found({ criteria: { A2: 'holds', A3: 'no-evidence' }, metrics: { M1: 1300 } })
-  it('row 3 at the limit, not one round before it', () => {
-    expect(rule(body(FULL), spent, SHORT)).toEqual({ row: 3, exit: 'X1', counts: 'failure' })
-    expect(row(SHORT, { ...spent, rounds: 29 })).toBe(9)
-    expect(row(SHORT, { ...spent, rounds: 31 })).toBe(3)
+  it('row 4 at the limit, not one round before it', () => {
+    expect(rule(body(FULL), spent, SHORT)).toEqual({ row: 4, exit: 'X1', counts: 'failure' })
+    expect(row(SHORT, { ...spent, rounds: 29 })).toBe(10)
+    expect(row(SHORT, { ...spent, rounds: 31 })).toBe(4)
   })
-  it('row 2 when what a good-enough exit stands on all holds: the floor of M1 and A2', () => {
+  it('row 3 when what a good-enough exit stands on all holds: the floor of M1 and A2', () => {
     const enough = found({ criteria: { A2: 'holds', A3: 'fails' }, metrics: { M1: 1200 } })
-    expect(rule(body(FULL), spent, enough)).toEqual({ row: 2, exit: 'X2', counts: 'success' })
+    expect(rule(body(FULL), spent, enough)).toEqual({ row: 3, exit: 'X2', counts: 'success' })
   })
-  it('row 3 when one of them does not: the metric short of its floor, or the criterion not held', () => {
-    expect(row(found({ criteria: { A2: 'holds' }, metrics: { M1: 1201 } }), spent)).toBe(3)
-    expect(row(found({ criteria: { A2: 'fails' }, metrics: { M1: 1000 } }), spent)).toBe(3)
-    expect(row(found({ criteria: { A2: 'holds' }, metrics: {} }), spent)).toBe(3)
+  it('row 4 when one of them does not: the metric short of its floor, or the criterion not held', () => {
+    expect(row(found({ criteria: { A2: 'holds' }, metrics: { M1: 1201 } }), spent)).toBe(4)
+    expect(row(found({ criteria: { A2: 'fails' }, metrics: { M1: 1000 } }), spent)).toBe(4)
+    expect(row(found({ criteria: { A2: 'holds' }, metrics: {} }), spent)).toBe(4)
   })
   it('good enough is never reached before the budget', () => {
     const enough = found({ criteria: { A2: 'holds', A3: 'fails' }, metrics: { M1: 1100 } })
-    expect(row(enough, start)).toBe(9)
+    expect(row(enough, start)).toBe(10)
   })
   it('the budget comes before every exit the judge saw, a dead end and a judge that did not answer', () => {
     const all = found({ ...SHORT, exits: ['X3', 'X4'], unattainable: true, judge: 'unavailable' })
-    expect(row(all, spent)).toBe(3)
+    expect(row(all, spent)).toBe(4)
   })
 })
 
-describe('a budget that also counts examinations', () => {
-  const counted: GoalDraft = {
-    ...HOME,
+describe('row 2: only what waits is open', () => {
+  const WAITS: GoalDraft = {
+    purpose: '做一个能玩的贪吃蛇',
+    criteria: [
+      {
+        statement: '单元测试全过',
+        evidence: { kind: 'command', command: 'node --test' },
+        pass: { kind: 'exit-zero' },
+      },
+      { statement: '验收脚本通过', evidence: { kind: 'rerun', command: 'node accept.js' } },
+      { statement: '方向键能控制蛇', evidence: { kind: 'examination', method: '用 node 走一局' } },
+      { statement: '我看过了', evidence: { kind: 'person' } },
+    ],
+    rules: [{ statement: '不引第三方库。' }],
     exits: [
       {
-        ...HOME.exits![0]!,
+        statement: '预算用尽',
+        kind: 'budget',
         limits: [
           { amount: 30, unit: 'rounds' },
           { amount: 3, unit: 'examinations' },
         ],
+        deliver: '做到哪算哪',
+        counts: 'failure',
       },
-      ...HOME.exits!.slice(1),
+      {
+        statement: '预算用尽时测试是过的',
+        kind: 'good-enough',
+        by: [{ kind: 'criterion', id: 'A1' }],
+        deliver: '现在的样子',
+        counts: 'success',
+      },
     ],
   }
-  it('is reached by its rounds only: the count of examinations is no count of rounds', () => {
-    expect(row(found({ criteria: { A2: 'fails' } }), start, body(counted))).toBe(9)
-    expect(row(found({ criteria: { A2: 'fails' } }), spent, body(counted))).toBe(3)
+  const waits = body(WAITS)
+  const READ: Findings = {
+    judge: 'answered',
+    criteria: { A1: 'holds', A2: 'holds', A3: 'holds', A4: 'holds' },
+    metrics: {},
+    rules: { N1: 'kept' },
+    exits: [],
+    unattainable: false,
+  }
+  const read = (criteria: Findings['criteria'], pending: Findings['pending'] = []): Findings => ({
+    ...READ,
+    criteria: { ...READ.criteria, ...criteria },
+    pending,
+  })
+  const at = (change: Partial<typeof start>) => ({ ...start, ...change })
+  const ruled = (findings: Findings, progress = start) => rule(waits, progress, findings)
+
+  it('hands over the run again and the examination nothing was read of, once everything read on the spot stands', () => {
+    expect(ruled(read({ A2: 'no-evidence', A3: 'no-evidence' }))).toEqual({
+      row: 2,
+      hand: ['A2', 'A3'],
+    })
+    expect(ruled(read({ A3: 'stale' }))).toEqual({ row: 2, hand: ['A3'] })
+    expect(ruled(read({ A2: undefined, A3: 'stale' }))).toEqual({ row: 2, hand: ['A2', 'A3'] })
+  })
+
+  it('waits and hands nothing over while the batch is out', () => {
+    const out = read({ A2: 'gathering', A3: 'gathering' }, ['A2', 'A3'])
+    expect(ruled(out)).toEqual({ row: 2, hand: [] })
+    const unknown = read({ A2: 'cannot-tell', A3: 'cannot-tell' }, ['A2', 'A3'])
+    expect(ruled(unknown)).toEqual({ row: 2, hand: [] })
+  })
+
+  it('waits for the person without handing anything over: the agent asks the person itself', () => {
+    expect(ruled(read({ A4: 'no-evidence' }))).toEqual({ row: 2, hand: [] })
+    expect(ruled(read({ A4: 'stale', A3: 'no-evidence' }))).toEqual({ row: 2, hand: ['A3'] })
+  })
+
+  it.each([
+    ['a criterion read on the spot does not hold', read({ A1: 'fails', A3: 'no-evidence' })],
+    ['a rule is broken', { ...read({ A3: 'no-evidence' }), rules: { N1: 'broken' } } as Findings],
+    ['the examiner found it not done', read({ A3: 'fails' })],
+    ['the examination could not tell, and that batch is back', read({ A3: 'cannot-tell' })],
+    ['the judge could not tell what the person said', read({ A4: 'cannot-tell' })],
+  ])('is not this row when %s: the round goes on', (_name, findings) => {
+    expect(ruled(findings).row).toBe(10)
+  })
+
+  it('comes after achieved and before the budget of rounds', () => {
+    expect(ruled(READ, at({ rounds: 30 }))).toEqual({ row: 1 })
+    const out = read({ A3: 'gathering' }, ['A3'])
+    expect(ruled(out, at({ rounds: 30 }))).toEqual({ row: 2, hand: [] })
+    expect(ruled(read({ A3: 'no-evidence' }), at({ rounds: 30 }))).toEqual({ row: 2, hand: ['A3'] })
+    expect(ruled(read({ A3: 'fails' }), at({ rounds: 30 }))).toEqual({
+      row: 3,
+      exit: 'X2',
+      counts: 'success',
+    })
+  })
+
+  it('the budget is reached when a batch is to be handed over and the examinations are used up', () => {
+    const used = at({ examinations: 3 })
+    expect(ruled(read({ A3: 'stale' }), at({ examinations: 2 }))).toEqual({ row: 2, hand: ['A3'] })
+    expect(ruled(read({ A3: 'stale' }), used)).toEqual({ row: 3, exit: 'X2', counts: 'success' })
+    expect(ruled(read({ A1: 'fails', A3: 'stale' }), used).row).toBe(10)
+    expect(ruled(read({ A3: 'gathering' }, ['A3']), used)).toEqual({ row: 2, hand: [] })
+    expect(ruled(read({ A4: 'no-evidence' }), used)).toEqual({ row: 2, hand: [] })
+  })
+
+  it('a metric short of its target keeps it from waiting; one at its target does not', () => {
+    const measured = body({
+      ...WAITS,
+      metrics: [
+        {
+          statement: '一局的帧时间，毫秒',
+          measure: { command: 'node bench.js', path: '.ms' },
+          direction: 'lower',
+          target: 16,
+        },
+      ],
+    })
+    const open = read({ A3: 'no-evidence' })
+    expect(rule(measured, start, { ...open, metrics: { M1: 12 } })).toEqual({
+      row: 2,
+      hand: ['A3'],
+    })
+    expect(rule(measured, start, { ...open, metrics: { M1: 20 } }).row).toBe(10)
+    expect(rule(measured, start, open).row).toBe(10)
+  })
+
+  it('a budget that names no examinations allows none, and a goal without a budget has nothing to bound them', () => {
+    const [budget, enough] = waits.exits
+    const rounds = { ...budget!, limits: [{ amount: 30, unit: 'rounds' } as const] }
+    const unnamed = { ...waits, exits: [rounds, enough!] }
+    expect(rule(unnamed, start, read({ A3: 'no-evidence' }))).toEqual({
+      row: 3,
+      exit: 'X2',
+      counts: 'success',
+    })
+    expect(rule(unnamed, start, read({ A3: 'gathering' }, ['A3']))).toEqual({ row: 2, hand: [] })
+    const unbounded = { ...waits, exits: [enough!] }
+    expect(rule(unbounded, start, read({ A3: 'no-evidence' })).row).toBe(10)
+    expect(rule(unbounded, start, read({ A4: 'no-evidence' }))).toEqual({ row: 2, hand: [] })
+    expect(rule(unbounded, at({ rounds: 99 }), read({ A1: 'fails' })).row).toBe(10)
+  })
+
+  it('a budget that counts examinations is reached by its rounds as before', () => {
+    expect(ruled(read({ A1: 'fails' }), at({ examinations: 3 })).row).toBe(10)
+    expect(ruled(read({ A4: 'cannot-tell' }), at({ rounds: 30 }))).toEqual({
+      row: 3,
+      exit: 'X2',
+      counts: 'success',
+    })
+    expect(ruled(read({ A1: 'no-evidence' }), at({ rounds: 30 }))).toEqual({
+      row: 4,
+      exit: 'X1',
+      counts: 'failure',
+    })
   })
 })
 
@@ -161,76 +296,76 @@ describe('a goal of two metrics, its budget written after another exit and with 
   const read = (M1: number, M2: number): Findings => found({ criteria: {}, metrics: { M1, M2 } })
   it('is achieved only when every metric is at its target, not when one of them is', () => {
     expect(rule(two(), start, read(800, 500))).toEqual({ row: 1 })
-    expect(rule(two(), start, read(900, 400)).row).toBe(9)
+    expect(rule(two(), start, read(900, 400)).row).toBe(10)
   })
   it('a criterion holds by the metric it names, not by the first one', () => {
     expect(rule(two(), start, read(700, 600))).toMatchObject({
-      row: 9,
+      row: 10,
       gap: { open: 2, remaining: { M2: 100 } },
     })
   })
   it('the budget is found wherever it stands, and is reached at the first of its limits', () => {
-    expect(rule(two(), { ...start, rounds: 9 }, read(900, 800)).row).toBe(9)
+    expect(rule(two(), { ...start, rounds: 9 }, read(900, 800)).row).toBe(10)
     expect(rule(two(), { ...start, rounds: 10 }, read(900, 800))).toEqual({
-      row: 3,
+      row: 4,
       exit: 'X2',
       counts: 'failure',
     })
   })
   it('good enough stands on the floor of the metric it names', () => {
     expect(rule(two(), { ...start, rounds: 10 }, read(5000, 650))).toEqual({
-      row: 2,
+      row: 3,
       exit: 'X3',
       counts: 'success',
     })
   })
 })
 
-describe('rows 4 to 6: what the judge saw', () => {
-  it('row 4: a condition exit came about', () => {
+describe('rows 5 to 7: what the judge saw', () => {
+  it('row 5: a condition exit came about', () => {
     expect(rule(body(FULL), start, found({ ...OPEN, exits: ['X4'] }))).toEqual({
-      row: 4,
+      row: 5,
       exit: 'X4',
       counts: 'failure',
     })
   })
-  it('row 5: an exit for the person to decide came about', () => {
+  it('row 6: an exit for the person to decide came about', () => {
     expect(rule(body(FULL), start, found({ ...OPEN, exits: ['X3'] }))).toEqual({
-      row: 5,
+      row: 6,
       exit: 'X3',
       counts: 'failure',
     })
   })
   it('a condition comes before the person, and both before a dead end', () => {
-    expect(row(found({ ...OPEN, exits: ['X3', 'X4'], unattainable: true }))).toBe(4)
-    expect(row(found({ ...OPEN, exits: ['X3'], unattainable: true }))).toBe(5)
+    expect(row(found({ ...OPEN, exits: ['X3', 'X4'], unattainable: true }))).toBe(5)
+    expect(row(found({ ...OPEN, exits: ['X3'], unattainable: true }))).toBe(6)
   })
   it('an exit of another kind named by mistake is not a way out: a budget or good-enough exit is never seen', () => {
-    expect(row(found({ ...OPEN, exits: ['X1', 'X2'] }))).toBe(9)
+    expect(row(found({ ...OPEN, exits: ['X1', 'X2'] }))).toBe(10)
   })
-  it('row 6: an undeclared dead end', () => {
-    expect(rule(body(FULL), start, found({ ...OPEN, unattainable: true }))).toEqual({ row: 6 })
+  it('row 7: an undeclared dead end', () => {
+    expect(rule(body(FULL), start, found({ ...OPEN, unattainable: true }))).toEqual({ row: 7 })
   })
 })
 
-describe('rows 7 to 9: no way out yet', () => {
-  it('row 9 carries the gap this observation saw, and a stall count of zero when it came closer', () => {
+describe('rows 8 to 10: no way out yet', () => {
+  it('row 10 carries the gap this observation saw, and a stall count of zero when it came closer', () => {
     expect(rule(body(FULL), start, OPEN)).toEqual({
-      row: 9,
+      row: 10,
       stalled: 0,
       gap: { open: 3, remaining: { M1: 140 } },
     })
   })
-  it('row 7 at the third observation in a row that did not come closer', () => {
+  it('row 8 at the third observation in a row that did not come closer', () => {
     const gap = gapOf(body(FULL), OPEN)
     expect(STALL_LIMIT).toBe(3)
-    expect(rule(body(FULL), { rounds: 5, stalled: 1, gap }, OPEN)).toEqual({
-      row: 9,
+    expect(rule(body(FULL), { rounds: 5, stalled: 1, gap, examinations: 0 }, OPEN)).toEqual({
+      row: 10,
       stalled: 2,
       gap,
     })
-    expect(rule(body(FULL), { rounds: 6, stalled: 2, gap }, OPEN)).toEqual({
-      row: 7,
+    expect(rule(body(FULL), { rounds: 6, stalled: 2, gap, examinations: 0 }, OPEN)).toEqual({
+      row: 8,
       stalled: 3,
       gap,
     })
@@ -238,15 +373,19 @@ describe('rows 7 to 9: no way out yet', () => {
   it('coming closer clears the stall count', () => {
     const before = gapOf(body(FULL), OPEN)
     const nearer = found({ ...OPEN, metrics: { M1: 900 } })
-    expect(rule(body(FULL), { rounds: 6, stalled: 2, gap: before }, nearer)).toMatchObject({
-      row: 9,
+    expect(
+      rule(body(FULL), { rounds: 6, stalled: 2, gap: before, examinations: 0 }, nearer),
+    ).toMatchObject({
+      row: 10,
       stalled: 0,
     })
   })
-  it('row 8: the judge did not answer; that observation saw no gap, so it is not a stall', () => {
+  it('row 9: the judge did not answer; that observation saw no gap, so it is not a stall', () => {
     const silent: Findings = { ...OPEN, judge: 'unavailable', criteria: {}, rules: {} }
     const gap = gapOf(body(FULL), OPEN)
-    expect(rule(body(FULL), { rounds: 6, stalled: 2, gap }, silent)).toEqual({ row: 8 })
+    expect(rule(body(FULL), { rounds: 6, stalled: 2, gap, examinations: 0 }, silent)).toEqual({
+      row: 9,
+    })
   })
   it('a goal the system can read alone is achieved even when the judge did not answer', () => {
     const measured = body({
