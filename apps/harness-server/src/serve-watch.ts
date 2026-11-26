@@ -10,7 +10,6 @@ export type ServeWatch = Readonly<{
   registry: RowSupervision
   root: Context
   loaded: readonly LoadedRow[]
-  /** `consumer>provider` for every edge the live tree has and no manifest declares. */
   undeclared: readonly string[]
   stop: AbortSignal
   dependencyDeadlineMs: number
@@ -21,7 +20,6 @@ export type ServeWatch = Readonly<{
   control?: Readonly<{ stateRoot: string }> & Pick<SwapInput, 'rows' | 'trust' | 'applied' | 'wrap'>
 }>
 
-/** Why the process leaves by itself: the code it leaves with, the row that was the cause. */
 export type Leaving = Readonly<{ code: 0 | 3 | 4; reason: string; row: string }>
 
 function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: () => void } {
@@ -78,7 +76,6 @@ export async function serveUntilStop(input: ServeWatch): Promise<Leaving | undef
   )
   const control = await controlOf(input, {
     swapped: (row, fiber) => {
-      // The loaded row is what the shutdown disposes and what the order is read from.
       Object.assign(row, { fiber })
       unwatch.replace(row.id, fiber)
     },
