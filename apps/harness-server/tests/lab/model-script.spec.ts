@@ -123,7 +123,9 @@ describe('a model script of the lab assembly', () => {
   it('answers nothing to a judging no rule fits: the judge is then unavailable, not wrong', () => {
     const bare = parseModelScript(JSON.stringify({ steps: [] }))
     const body = JSON.stringify({ model: 'm', state: {}, questions: { A1: { type: 'noul' } } })
-    expect(JSON.parse(scriptedAnswer(bare, asked(body)).body)).toMatchObject({ answers: {} })
+    expect(
+      (JSON.parse(scriptedAnswer(bare, asked(body)).body) as { answers: unknown }).answers,
+    ).toEqual({})
   })
 
   it.each([
