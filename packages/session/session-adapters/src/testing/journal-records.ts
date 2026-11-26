@@ -110,13 +110,16 @@ function producedOf(result: ProducerCall): ResultResponsibility['result'] {
   }
 }
 
+const takenBody = (taken: EventView['taken']): AgentEventBody | null =>
+  taken === undefined ? null : { kind: 'input-taken', batch: taken }
+
 function bodyOf(
   { fact, taken }: Pick<EventView, 'fact' | 'taken'>,
   blobs: BlobStore,
 ): AgentEventBody | null {
   switch (fact.kind) {
     case 'step.begun':
-      return taken === undefined ? null : { kind: 'input-taken', batch: taken }
+      return takenBody(taken)
     case 'result.received':
       return { kind: 'entry', entry: blob(blobs, fact.custody) }
     case 'fence.started':

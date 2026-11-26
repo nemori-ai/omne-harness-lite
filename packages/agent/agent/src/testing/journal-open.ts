@@ -20,16 +20,21 @@ export function openRefusal(
 ): Failure | undefined {
   const ids = initialInputs(originals).map(value => value.id)
   if (new Set(ids).size !== ids.length) return invalid('originals', 'an input appears twice')
-  for (const { entry, outcome } of originals) {
-    if (entry.kind !== 'invoke') return invalid('originals.entry', 'not an invoke')
-    const origin = outcome.origin
-    if (
-      origin?.kind === 'invoke' &&
-      (!sameValue(origin.scope, runtime.scope) || !sameValue(origin.definition, runtime.definition))
-    )
-      return invalid('runtime', 'not the scope and definition of the invoke origin')
-  }
+  if (originals.some(({ entry }) => entry.kind !== 'invoke'))
+    return invalid('originals.entry', 'not an invoke')
+  if (originals.some(({ outcome }) => foreignOrigin(outcome.origin, runtime)))
+    return invalid('runtime', 'not the scope and definition of the invoke origin')
   return undefined
+}
+
+function foreignOrigin(
+  origin: OriginalInputAcceptance['outcome']['origin'],
+  runtime: Pick<InvokeRuntimeContext, 'scope' | 'definition'>,
+): boolean {
+  return (
+    origin?.kind === 'invoke' &&
+    (!sameValue(origin.scope, runtime.scope) || !sameValue(origin.definition, runtime.definition))
+  )
 }
 
 export const openedHandoffs = (originals: Originals, operation: AgentOperationId) =>

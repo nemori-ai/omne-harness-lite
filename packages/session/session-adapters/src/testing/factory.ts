@@ -73,7 +73,7 @@ import {
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence, operationText } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
-import { cancelBatchRow, sessionCaller } from './factory-values.ts'
+import { admittedBy, cancelBatchRow, recordAdmissions, sessionCaller } from './factory-values.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
@@ -321,25 +321,17 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const attempt = grantAttempt(cell.state(), input.execution, grant)
             const run = root.sources.runs.get(input.execution)
             if (!run) throw new Error('admission without original run')
-            for (const one of admitted) {
-              const id = String(one.id) as SessionInputId
-              const directory = root.agent.admissions.get(id) ?? []
-              root.agent.admissions.set(id, [
-                ...directory,
-                {
-                  ordinal: String(directory.length),
-                  run: run.run,
-                  execution: input.execution,
-                  runStarted: run.source,
-                  operation: input.operation,
-                  accepted: receipt.evidence,
-                  attempt: attempt.attempt,
-                  attemptStarted: attempt.started,
-                  attachment: attachment.executionAttachment,
-                  grant,
-                },
-              ])
-            }
+            recordAdmissions(root.agent.admissions, admitted, {
+              run: run.run,
+              execution: input.execution,
+              runStarted: run.source,
+              operation: input.operation,
+              accepted: receipt.evidence,
+              attempt: attempt.attempt,
+              attemptStarted: attempt.started,
+              attachment: attachment.executionAttachment,
+              grant,
+            })
           }
         } catch (error) {
           if (error instanceof HistoryFailure)
@@ -526,27 +518,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       const value = input as OpenInput<P> | AttachInput<P>
       if (!grantHoldsFor(cell.state(), input.execution, grantOf(value), method))
         return denied(method)
-      if (method === 'open') {
-        for (const initial of initialOf(value as OpenInput<P>)) {
-          const admitted = state.inputs.get(String(initial.id) as SessionInputId)
-          if (
-            !admitted ||
-            canonical(admitted.origin) !== canonical(initial.source) ||
-            canonical(admitted.message) !== canonical(initial.content)
-          )
-            return denied(method)
-        }
-      }
+      if (method === 'open' && !initialOf(value as OpenInput<P>).every(admittedBy(state.inputs)))
+        return denied(method)
     }
     if (method === 'submit') {
       const value = input as Parameters<AgentJournal<P>['submit']>[0]
-      const admitted = state.inputs.get(String(value.value.id) as SessionInputId)
-      if (
-        !admitted ||
-        canonical(admitted.origin) !== canonical(value.value.source) ||
-        canonical(admitted.message) !== canonical(value.value.content)
-      )
-        return denied(method)
+      if (!admittedBy(state.inputs)(value.value)) return denied(method)
       if (
         state.snapshot.run.kind !== 'active' ||
         state.snapshot.run.execution.execution !== input.execution
