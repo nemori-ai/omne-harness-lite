@@ -1,6 +1,7 @@
 import { fail, type Outcome, succeed } from '@omne-harness/operation-result'
 import {
   type Asker,
+  type Candidate,
   type CommandEntry,
   type EntrySource,
   type Naming,
@@ -11,11 +12,24 @@ import {
 export const SESSION_COMMANDS = 'session-commands'
 
 const SESSION = Object.freeze({ name: 'session', major: 1 })
-const PERMISSION_MODES = ['never', 'auto_permission', 'bypass-permissions'] as const
+
+/** A model the session could be pointed at, as its owner lists it for the asker now. */
+export type ModelChoice = Readonly<{ name: string; unavailable?: string; note?: string }>
 
 export type SessionCommandPorts<P> = Readonly<{
   permissionRevision(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<string, 'unavailable'>>
+  models(
+    asker: Asker<P>,
+    signal: AbortSignal,
+  ): Promise<Outcome<readonly ModelChoice[], 'unavailable'>>
+  selectedModel(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<string, 'unavailable'>>
 }>
+
+const MODES: readonly Candidate[] = Object.freeze([
+  { value: 'never', title: '需要询问时拒绝' },
+  { value: 'auto_permission', title: '需要询问时问人' },
+  { value: 'bypass-permissions', title: '跳过询问；明确禁止的仍然不能做' },
+])
 
 const ENTRIES: readonly CommandEntry[] = Object.freeze([
   {
@@ -24,7 +38,7 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     kind: 'system',
     title: '换这段会话用的模型',
     hint: '<模型名>',
-    params: [{ name: '模型名' }],
+    params: [{ name: '模型名', candidates: true }],
     whileRunning: 'now',
     takesEffect: 'next-request',
   },
@@ -34,7 +48,7 @@ const ENTRIES: readonly CommandEntry[] = Object.freeze([
     kind: 'system',
     title: '改这段会话的权限处理模式',
     hint: '<never | auto_permission | bypass-permissions>',
-    params: [{ name: '模式' }],
+    params: [{ name: '模式', candidates: true }],
     whileRunning: 'now',
     takesEffect: 'now',
   },
@@ -78,8 +92,9 @@ function takers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Take<
       return operation(asker, 'select-model', { controlId: controlOf(naming), model })
     },
     async permission({ asker, naming, signal }) {
-      const mode = PERMISSION_MODES.find(each => each === naming.args.trim())
-      if (mode === undefined) return invalid(`name one mode: ${PERMISSION_MODES.join(', ')}`)
+      const mode = MODES.find(each => each.value === naming.args.trim())?.value
+      if (mode === undefined)
+        return invalid(`name one mode: ${MODES.map(each => each.value).join(', ')}`)
       const revision = await ports.permissionRevision(asker, signal)
       if (!('ok' in revision)) return revision
       return operation(asker, 'change-permission-mode', { mode, expectedRevision: revision.ok })
@@ -91,9 +106,38 @@ function takers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Take<
   }
 }
 
+type Offer<P> = (
+  asker: Asker<P>,
+  signal: AbortSignal,
+) => Promise<Outcome<readonly Candidate[], 'unavailable'>>
+
+/** The models the asker can point the session at now; the one in use is marked when it can be read. */
+function offers<P>(ports: SessionCommandPorts<P>): Readonly<Record<string, Offer<P>>> {
+  return {
+    async model(asker, signal) {
+      const [models, selected] = await Promise.all([
+        ports.models(asker, signal),
+        ports.selectedModel(asker, signal),
+      ])
+      if (!('ok' in models)) return models
+      const current = 'ok' in selected ? selected.ok : undefined
+      return succeed(
+        models.ok.map(({ name, unavailable, note }) => ({
+          value: name,
+          ...(note === undefined ? {} : { title: note }),
+          ...(name === current ? { current: true as const } : {}),
+          ...(unavailable === undefined ? {} : { unavailable }),
+        })),
+      )
+    },
+    permission: async () => succeed(MODES),
+  }
+}
+
 /** The commands the session brings: each reads its arguments into the fields of the session operation it names. */
 export function createSessionCommandSource<P>(ports: SessionCommandPorts<P>): EntrySource<P> {
   const take = takers(ports)
+  const offer = offers(ports)
   return {
     name: SESSION_COMMANDS,
     space: RESERVED_SPACE,
@@ -101,6 +145,10 @@ export function createSessionCommandSource<P>(ports: SessionCommandPorts<P>): En
     async take(asker, naming, signal) {
       const taker = Object.hasOwn(take, naming.name) ? take[naming.name] : undefined
       return taker === undefined ? fail('not-listed') : taker({ asker, naming, signal })
+    },
+    async candidates(asker, name, param, signal) {
+      const offered = Object.hasOwn(offer, name) && param === 0 ? offer[name] : undefined
+      return offered === undefined ? fail('not-listed') : offered(asker, signal)
     },
   }
 }

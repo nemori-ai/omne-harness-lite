@@ -147,3 +147,48 @@ describe('what the composer shows and sends', () => {
     expect(literal('你好 /x')).toBe('你好 /x')
   })
 })
+
+describe('the arguments still to write, in grey after the caret (光标所在的表)', () => {
+  const WITH_ARGS = {
+    entries: [
+      ...CATALOG.entries.filter(entry => entry.name !== 'commit'),
+      {
+        space: 'prompt',
+        name: 'commit',
+        kind: 'prompt',
+        title: '写提交说明',
+        hint: '<scope> <message>',
+        params: [{ name: 'scope' }, { name: 'message' }],
+      },
+      {
+        space: 'prompt',
+        name: 'note',
+        kind: 'prompt',
+        title: '记一笔',
+        params: [{ name: 'text' }, { name: 'tag', optional: true }],
+      },
+    ],
+    missing: [],
+  } as const
+  const ghost = (text: string, caret = text.length) => assistOf(at(text, caret, WITH_ARGS)).ghost
+
+  it('names the arguments not written yet, moving on as each is written, and nothing once all are', () => {
+    expect(ghost('/commit ')).toBe('<scope> <message>')
+    expect(ghost('/commit core')).toBe(' <message>')
+    expect(ghost('/commit core ')).toBe('<message>')
+    expect(ghost('/commit core "fix it"')).toBe('')
+    expect(ghost('/commit core "fix it" ')).toBe('')
+    expect(ghost('/note ')).toBe('<text> [tag]')
+  })
+
+  it('says nothing away from the end, at a command without arguments, inside a sentence, or while composing', () => {
+    expect(ghost('/commit core x', 9)).toBe('')
+    expect(ghost('/archive ')).toBe('')
+    expect(ghost('看 /commit ')).toBe('')
+    expect(assistOf(composing(at('/commit ', 8, WITH_ARGS), true)).ghost).toBe('')
+  })
+
+  it('leaves the grey to the name while the menu of names is open', () => {
+    expect(assistOf(at('/comm', 5, WITH_ARGS)).ghost).toBe('it')
+  })
+})

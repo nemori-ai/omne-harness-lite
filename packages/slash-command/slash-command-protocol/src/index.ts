@@ -47,6 +47,18 @@ const catalog = object({
   missing: { rule: array(text, 64) },
 })
 const target = object({ tenant: { rule: tenant }, session: { rule: session } })
+const candidate = object({
+  value: { rule: text },
+  title: { rule: text, optional: true },
+  current: { rule: literal(true), optional: true },
+  unavailable: { rule: text, optional: true },
+})
+const asked = object({
+  tenant: { rule: tenant },
+  session: { rule: session },
+  command: { rule: text },
+  param: { rule: { kind: 'count' } },
+})
 
 export const slashCommandProtocol = defineProtocol({
   name: 'slash-command',
@@ -58,6 +70,19 @@ export const slashCommandProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(target),
       outcomes: { succeeded: ruleCodec(catalog), invalid: empty, limited },
+    },
+    'read-candidates': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(asked),
+      outcomes: {
+        succeeded: ruleCodec(object({ candidates: { rule: array(candidate, 512) } })),
+        'not-found': empty,
+        invalid: empty,
+        limited,
+      },
+      since: 3,
     },
   },
   observations: {
@@ -73,3 +98,4 @@ export const slashCommandProtocol = defineProtocol({
 export type SlashCommandProtocol = typeof slashCommandProtocol
 export type SlashCommandCatalog = RuleValue<typeof catalog>
 export type SlashCommandEntry = RuleValue<typeof entry>
+export type SlashCommandCandidate = RuleValue<typeof candidate>
