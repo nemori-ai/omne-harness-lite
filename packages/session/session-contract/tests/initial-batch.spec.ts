@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/session-contract'
 import { evidence, operationId, refused, succeeded } from '@omne-harness/session-contract/testing'
 import { decodeEntry, type SessionEntry } from '../src/entries.ts'
+import { reduce } from '../src/reduce.ts'
 import { scene } from './scene.ts'
 
 type Scene = ReturnType<typeof scene>
@@ -95,6 +96,31 @@ describe('the batch a Run starts from', () => {
     expect(written(s, 'run.started')).toEqual([
       expect.objectContaining({ run: run.run, initial: ['a', 'b', 'c'] }),
     ])
+  })
+
+  it('a log whose Run starts from an input that is not pending, or from one held back, is not taken', async () => {
+    const s = scene()
+    await s.create()
+    await s.accept('a')
+    await s.accept('b')
+    const before = await s.read()
+    const { revision } = (await s.start()).receipt
+    const entries = s.port.controls
+      .entriesOf(s.base.tenant, s.base.session)
+      .filter(row => row.revision === revision)
+    const replayed = (snapshot: WorkSnapshot) => reduce(snapshot, { revision, entries })
+    expect(replayed(before)).toMatchObject({ kind: 'reduced' })
+    expect(replayed({ ...before, pending: ids(['a']) })).toMatchObject({
+      kind: 'quarantined',
+      diagnostic: expect.stringContaining('an initial input of the Run is not pending'),
+    })
+    const held = ids(['b', 'ghost']).map(input => ({ input, run: null }))
+    expect(replayed({ ...before, deferredInputs: held })).toMatchObject({
+      kind: 'quarantined',
+      diagnostic: expect.stringContaining(
+        'an initial input of the Run is held back until a Run ends',
+      ),
+    })
   })
 })
 

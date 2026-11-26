@@ -37,9 +37,7 @@ function laterScopeRefusal(
   previous: WorkSnapshot | null,
   decoded: readonly SessionEntry[],
 ): string | null {
-  const born = decoded.filter(
-    entry => 'initialization' in entry && entry.initialization !== undefined,
-  )
+  const born = decoded.filter(entry => 'initialization' in entry)
   const unarchived = decoded.find(entry => entry.kind === 'session.unarchived')
   if (unarchived === undefined || previous === null)
     return born.length > 0 ? 'initialization success facts have no corresponding result' : null
