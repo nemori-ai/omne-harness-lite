@@ -5,6 +5,7 @@ import type {
   AgentInstanceRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -63,7 +64,12 @@ export type SessionOperationElements =
   | Readonly<{ kind: 'freeze'; session: SessionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact'; fact: ProducerFact }>
 export type DriveOperationElements =
-  | Readonly<{ kind: 'invoke'; execution: string; first: InputId; started: DurableEvidence }>
+  | Readonly<{
+      kind: 'invoke'
+      execution: string
+      initial: InitialBatch
+      started: DurableEvidence
+    }>
   | Readonly<{ kind: 'submit'; execution: string; input: InputId }>
   | Readonly<{ kind: 'resume'; execution: string; grant: DurableEvidence }>
   | Readonly<{ kind: 'detach'; execution: string; advance: AdvanceRef }>

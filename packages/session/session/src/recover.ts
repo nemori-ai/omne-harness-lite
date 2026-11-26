@@ -7,7 +7,6 @@ import {
   type DriveFailure,
   type DurableEvidence,
   type ExecutionStatus,
-  type InputId,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -16,7 +15,7 @@ import {
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
 import { messageOf } from './failures.ts'
-import type { KnownHandovers } from './known-handovers.ts'
+import { handedRun, type KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import { sessionKey, type Scheduling, type SessionRef } from './scheduling.ts'
 import { sessionSlotReference } from './slot-reference.ts'
@@ -26,17 +25,6 @@ export type Recovery = Readonly<{
 }>
 
 type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
-
-export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
-  const { run } = snapshot
-  if (run.kind !== 'active') return null
-  return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
-}
-
-function checkedRun(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
-  const { run } = snapshot
-  return run.kind === 'active' && known.has(run.first) ? run : acceptedRun(snapshot)
-}
 
 export function handsBack(status: ExecutionStatus): boolean {
   if (status.state === 'suspended') return true
@@ -156,7 +144,7 @@ export function createRecovery<P>(
     if ('failure' in principal) return
     const snapshot = await coordinator.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
-    const run = checkedRun(snapshot.ok, known.of(ref, snapshot.ok))
+    const run = handedRun(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
     const { advance } = run
     if (advance === null) return

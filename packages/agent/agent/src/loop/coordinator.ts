@@ -1,6 +1,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
-  AcceptedInput,
+  InitialInputs,
   Action,
   CardRoundId,
   Passage,
@@ -94,6 +94,7 @@ import {
 import { successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import { acceptanceOf, nextInitialHandoff, nonEmpty, rejectedInput } from './initial-admission.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { judgeBatch } from './batch-judging.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
@@ -208,7 +209,7 @@ export type ExecutionEntry<P> = Readonly<{
   access: Access<P>
   execution: AgentExecutionId
   operation: AgentOperationId
-  initial: AcceptedInput
+  initial: InitialInputs
   grant: DurableEvidence | null
   idle(): void
   ended?(
@@ -448,7 +449,7 @@ function coordinate<P>(
   let pendingHandoff: PendingHandoff | null = null
   let outcome: HandoffOutcome | null = null
   let unpreparedHandoff: PendingHandoff | null = null
-  let acceptance: OriginalInputAcceptance | null = null
+  const acceptances: OriginalInputAcceptance[] = []
   let iteration: Iteration | null = null
   let pendingCommit: Readonly<{
     operation: AgentOperationId
@@ -1040,31 +1041,19 @@ function coordinate<P>(
 
   const admitMessage = {
     async U0() {
-      if (outcome === null) {
-        const { operation, initial } = required(invoked, 'invoke')
-        const inputEntry = { kind: 'invoke' as const, operation, execution, initial }
-        candidate = {
-          kind: 'external-input',
-          request: {
-            kind: 'input',
-            reference: { kind: 'input', execution, entry: operation, input: initial.id },
-            entry: inputEntry,
-            source: { kind: 'external-input', input: initial.id },
-          },
-          runtime: runtimeContext(),
-          returnTo: 'U0',
-        }
-        return step('candidate', null)
+      const { operation, initial } = required(invoked, 'invoke')
+      if (outcome !== null) {
+        if (candidate?.kind !== 'external-input') return fail(defect('U0 without its candidate'))
+        acceptances.push(acceptanceOf(candidate.request, outcome))
+        outcome = null
+        candidate = null
       }
-      if (candidate?.kind !== 'external-input') return fail(defect('U0 without its candidate'))
-      acceptance = {
-        entry: candidate.request.entry,
-        handoff: candidate.request.reference,
-        outcome,
-      }
-      outcome = null
-      candidate = null
-      return step('admitted', null)
+      const next = nextInitialHandoff(execution, operation, initial, acceptances.length)
+      if ('failure' in next) return next
+      if (next.ok === null) return step('admitted', null)
+      const runtime = runtimeContext()
+      candidate = { kind: 'external-input', request: next.ok, runtime, returnTo: 'U0' }
+      return step('candidate', null)
     },
     async Q1() {
       const subject = required(candidate, 'candidate')
@@ -1132,7 +1121,7 @@ function coordinate<P>(
       const fixed = required(outcome, 'outcome')
       if (fixed.decision.kind !== 'rejected') return fail(defect('Q5 without a rejected outcome'))
       if (subject.kind === 'external-input')
-        return fail({ kind: 'invalid', field: 'value', reason: fixed.decision.reason })
+        return fail(rejectedInput(subject.request, fixed.decision))
       const request = required(pendingHandoff, 'pending handoff')
       return step('disposed', replyApplication(request, fixed, subject.source))
     },
@@ -1332,7 +1321,7 @@ function coordinate<P>(
           ...access,
           execution,
           operation: required(invoked, 'invoke').operation,
-          original: required(acceptance, 'acceptance'),
+          originals: required(nonEmpty(acceptances), 'acceptance'),
           runtime: runtimeContext(),
           checkpoint: initial.ok,
         }

@@ -13,7 +13,6 @@ import {
   operationId,
   evidence,
   inputId,
-  ordinaryInput,
   succeeded,
   refused,
 } from '@omne-harness/session-contract/testing'
@@ -533,7 +532,7 @@ describe('Session governance beyond the first path', () => {
               handover: evidence(`deliver/${input}`),
             },
             value: {
-              deliveries: [{ input: input as never, message: ordinaryInput(input).message }],
+              inputs: [input as never],
               source: evidence(`step/${input}`),
               admission: evidence(`step/${input}`),
             },

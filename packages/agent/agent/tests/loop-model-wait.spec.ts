@@ -300,7 +300,7 @@ describe('invoke again while the run waits for the Model', () => {
           ...otherTenant,
           execution: execution(),
           operation: operation('invoke-exec-1'),
-          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          initial: [acceptedInput('input-exec-1', 'hello exec-1')],
           grant: null,
         }),
       ),

@@ -34,7 +34,7 @@ const entry = () => ({
   access: alice,
   execution: execution(),
   operation: operation('invoke-exec-1'),
-  initial: acceptedInput('input-exec-1', 'hello exec-1'),
+  initial: [acceptedInput('input-exec-1', 'hello exec-1')] as const,
   grant: null,
 })
 
@@ -220,7 +220,7 @@ it('S1 J-AG02: public invoke processes the actual complete reply and ends once',
       watermark: initial.inputWatermark,
     }),
   )
-  expect(accepted.messages).toEqual([entry().initial.content])
+  expect(accepted.messages).toEqual([entry().initial[0].content])
   assembly.release.open()
   const events = await eventsOf(handle)
   const saved = await snapshot(assembly.controls.journal.port)

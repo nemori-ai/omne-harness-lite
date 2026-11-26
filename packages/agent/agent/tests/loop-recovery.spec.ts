@@ -61,7 +61,7 @@ function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Prin
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
     idle() {},
     ...change,
@@ -1042,7 +1042,7 @@ describe('the Access of the admission calls', () => {
         access,
         execution: execution(id),
         operation: operation(`invoke-${id}`),
-        initial: acceptedInput(`input-${id}`, `hello ${id}`),
+        initial: [acceptedInput(`input-${id}`, `hello ${id}`)],
       })
       ok(await entry.accept())
       ok(await entry.runExecution())

@@ -8,6 +8,7 @@ import type {
   AdvanceRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   ResidentKey,
   RunId,
@@ -62,7 +63,7 @@ export type DriveFailure =
         | 'unsupported'
         | 'conflict'
     }>
-  | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
+  | Readonly<{ kind: 'invalid'; input: InputId; reason: string; rejection: DurableEvidence }>
   | Readonly<{
       kind: 'refused'
       failure: 'invalid' | 'unsupported'
@@ -94,7 +95,7 @@ export type ExecutionStatus = Readonly<{
 export interface AgentDrivePort {
   invoke(
     input: DriveTarget &
-      Readonly<{ first: InputId; source: DurableEvidence; grant: DurableEvidence }>,
+      Readonly<{ initial: InitialBatch; source: DurableEvidence; grant: DurableEvidence }>,
   ): DriveReply<DriveReceipt>
   submit(
     input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>,

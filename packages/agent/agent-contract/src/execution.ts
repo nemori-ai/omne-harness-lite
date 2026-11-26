@@ -84,6 +84,8 @@ export type AcceptedInput = Readonly<{
   source: DurableEvidence | null
   priority: 'ordinary' | 'urgent'
 }>
+/** The inputs an execution starts from, in the order they were accepted: at least one. */
+export type InitialInputs = readonly [AcceptedInput, ...AcceptedInput[]]
 export type TerminalObservation = Readonly<{
   terminal: DurableEvidence
   passage: PassageId
@@ -237,7 +239,7 @@ export interface AgentRuntime<P> {
   readonly instance: AgentInstanceId
   invoke(
     input: ExecutionMutation<P> &
-      Readonly<{ initial: AcceptedInput; grant: DurableEvidence | null }>,
+      Readonly<{ initial: InitialInputs; grant: DurableEvidence | null }>,
   ): Reply<AgentExecutionHandle<P>>
   resume(
     input: ExecutionMutation<P> &

@@ -84,7 +84,10 @@ describe('every frozen terminal release gate', () => {
       ).toMatchObject({ kind: 'quarantined' })
       const partial = original.entries.map(row =>
         row.kind === 'intake.released'
-          ? { ...row, ...encodeEntry({ kind: 'intake.released', inputs: [run.first] }, row.origin) }
+          ? {
+              ...row,
+              ...encodeEntry({ kind: 'intake.released', inputs: [run.initial[0]] }, row.origin),
+            }
           : row,
       )
       expect(reduce(snapshot, { ...original, entries: partial })).toMatchObject({

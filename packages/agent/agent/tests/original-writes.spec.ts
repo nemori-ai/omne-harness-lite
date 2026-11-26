@@ -73,7 +73,7 @@ describe('original Journal writes after a lost response', () => {
       access: alice,
       execution: execution(),
       operation: operation('proof-open'),
-      initial: acceptedInput('proof-input'),
+      initial: [acceptedInput('proof-input')],
       grant: null,
       idle() {},
     })
@@ -406,7 +406,7 @@ describe('independent control write recovery', () => {
         access: alice,
         execution: execution(),
         operation: operation('original-open'),
-        initial: acceptedInput('input-exec-1'),
+        initial: [acceptedInput('input-exec-1')],
         grant: null,
         idle() {},
       })
@@ -480,7 +480,7 @@ describe('independent control write recovery', () => {
       access: alice,
       execution: execution(),
       operation: operation('another-open'),
-      initial: acceptedInput('another-input'),
+      initial: [acceptedInput('another-input')],
       grant: null,
       idle() {},
     })

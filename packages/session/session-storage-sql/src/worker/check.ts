@@ -11,7 +11,15 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
-import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
+import {
+  canonicalText,
+  decodeValue,
+  encodeValue,
+  isCount,
+  plainOf,
+  sha256,
+  valueDigest,
+} from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readState } from './state-rows.ts'
 import { big, definite, oneRow, packed, rowsOf, text, type Row } from './support.ts'
@@ -139,7 +147,21 @@ function sourceHolds(
   session: string,
   check: Extract<SessionCheck, { kind: 'open' | 'submit' }>,
 ): boolean | 'too-many' {
-  const value = check.kind === 'open' ? check.initial : check.value
+  if (check.kind === 'submit') return sourceOf(port, tenant, session, check, check.value)
+  for (const value of check.initial) {
+    const holds = sourceOf(port, tenant, session, check, value)
+    if (holds !== true) return holds
+  }
+  return true
+}
+
+function sourceOf(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  check: Extract<SessionCheck, { kind: 'open' | 'submit' }>,
+  value: SessionAdmittedInput,
+): boolean | 'too-many' {
   const source = value.origin
   const revision = (source as Partial<DurableEvidence> | null)?.revision
   if (!isCount(revision)) return false
@@ -147,7 +169,8 @@ function sourceHolds(
   const records = (row: Planted) =>
     check.kind === 'open'
       ? String(row.data['execution']) === check.execution &&
-        String(row.data['first']) === value.input
+        Array.isArray(row.data['initial']) &&
+        row.data['initial'].includes(value.input)
       : String(row.data['input']) === value.input
   const rows = rowsOf(
     port,
@@ -174,8 +197,10 @@ function admittedMessage(
     [tenant, session, value.input],
   )
   if (row === undefined) return false
-  const admitted = decodeValue(JSON.parse(text(row['value'])) as JsonValue) as SessionAdmittedInput
-  return same(admitted.message, value.message)
+  const admitted = decodeValue(JSON.parse(text(row['value'])) as JsonValue) as Readonly<{
+    message: unknown
+  }>
+  return valueDigest(admitted.message) === value.messageDigest
 }
 
 function terminalRevision(

@@ -56,7 +56,7 @@ it.each(['known', 'applied', 'dropped'] as const)(
     const coordinator = createExecutionCoordinator({
       ...resumeEntry(ports, { jointCommits: ['processed'], toolConcurrency: 1 }),
       operation: operation('invoke-exec-1'),
-      initial: acceptedInput('input-exec-1', 'hello'),
+      initial: [acceptedInput('input-exec-1', 'hello')],
       grant: null,
     })
     const call = ok(decodeToolCallId('tcall_processing'))

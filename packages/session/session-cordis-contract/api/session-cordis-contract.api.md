@@ -105,6 +105,7 @@
 - `IdleObservation` · 包 `@omne-harness/session-contract`
 - `IngressFamily` · 包 `@omne-harness/session-contract`
 - `InitialAdoption` · 包 `@omne-harness/session-contract`
+- `InitialBatch` · 包 `@omne-harness/session-contract`
 - `InitializationAdoption` · 包 `@omne-harness/session-contract`
 - `InitializationConsequence` · 包 `@omne-harness/session-contract`
 - `InitializationFactReference` · 包 `@omne-harness/session-contract`
@@ -380,6 +381,7 @@
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideCompactionCommit` · 包 `@omne-harness/session-contract`
 - `decideControlConsequences` · 包 `@omne-harness/session-contract`
+- `deliveryReads` · 包 `@omne-harness/session-contract`
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`
 - `deriveIngressOperation` · 包 `@omne-harness/session-contract`
 - `deriveSessionOperation` · 包 `@omne-harness/session-contract`

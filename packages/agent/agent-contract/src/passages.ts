@@ -411,7 +411,12 @@ export type HandoffLookup =
       execution: AgentExecutionId
       handoff: Extract<HandoffReference, { kind: 'execution' }>
     }>
-  | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+  | Readonly<{
+      kind: 'input-entry'
+      execution: AgentExecutionId
+      operation: AgentOperationId
+      input: InputId
+    }>
 export interface MessageHandoff<P> {
   prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>
   lookup(input: Access<P> & HandoffLookup): Reply<HandoffResolution>

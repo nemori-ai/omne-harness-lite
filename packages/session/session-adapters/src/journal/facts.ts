@@ -154,7 +154,6 @@ export type FactBody =
       schema: Adoption
       instance: AgentInstanceId
       scope: DurableEvidence
-      original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
       coordination: 'standalone' | 'coordinated'
     }>
   | Readonly<{
@@ -177,7 +176,7 @@ export type FactBody =
       priority: 'ordinary' | 'urgent'
       watermark: DurableEvidence
     }>
-  | Readonly<{ kind: 'step.begun'; step: StepId; batch: InputBatch }>
+  | Readonly<{ kind: 'step.begun'; step: StepId; batch: Pick<InputBatch, 'id' | 'watermark'> }>
   | Readonly<{
       kind: 'request.adopted'
       step: StepId

@@ -181,7 +181,7 @@ describe('fact 2: idempotence by original operation', () => {
             operation: operation('open-exec-1'),
             instance: instance(),
             grant: null,
-            initial: acceptedInput('input-other'),
+            initial: [acceptedInput('input-other')],
             checkpoint: checkpoint(),
           }),
         ),
@@ -1055,7 +1055,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
         operation: operation(`open-${name}`),
         instance: instance(),
         grant: null,
-        initial: acceptedInput('input-1'),
+        initial: [acceptedInput('input-1')],
         checkpoint: checkpoint(),
         ...overrides,
       }),
@@ -1086,7 +1086,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     expect(
       failure(
         await openWith(journal.port, {
-          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+          initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
         }),
       ),
     ).toEqual({ kind: 'unsupported' })
@@ -1134,7 +1134,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     const journal = coordinated()
     expect(journal.port.capabilities.coordination).toBe('coordinated')
     const sourced = { ...acceptedInput('input-1'), source: evidence('source') }
-    expect(failure(await openWith(journal.port, { initial: sourced }))).toEqual({
+    expect(failure(await openWith(journal.port, { initial: [sourced] }))).toEqual({
       kind: 'denied',
       action: 'open',
     })
@@ -1144,17 +1144,19 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     })
     const refusing = coordinated({ grant: () => false })
     expect(
-      failure(await openWith(refusing.port, { grant: evidence('grant'), initial: sourced })),
+      failure(await openWith(refusing.port, { grant: evidence('grant'), initial: [sourced] })),
     ).toEqual({ kind: 'denied', action: 'open' })
     const unsourced = coordinated({ source: () => false })
     expect(
-      failure(await openWith(unsourced.port, { grant: evidence('grant'), initial: sourced })),
+      failure(await openWith(unsourced.port, { grant: evidence('grant'), initial: [sourced] })),
     ).toEqual({ kind: 'denied', action: 'open' })
     journal.respond('open', 'conflict')
     expect(
-      failure(await openWith(journal.port, { grant: evidence('grant'), initial: sourced })),
+      failure(await openWith(journal.port, { grant: evidence('grant'), initial: [sourced] })),
     ).toEqual({ kind: 'denied', action: 'open' })
-    const opened = ok(await openWith(journal.port, { grant: evidence('grant'), initial: sourced }))
+    const opened = ok(
+      await openWith(journal.port, { grant: evidence('grant'), initial: [sourced] }),
+    )
     expect(opened.receipt.state).toBe('applied')
     const attach = {
       ...access,
@@ -1174,7 +1176,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     const opened = ok(
       await openWith(journal.port, {
         grant: evidence('grant'),
-        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
       }),
     )
     const submit = withLineage({
@@ -1213,7 +1215,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     ok(
       await openWith(journal.port, {
         grant: evidence('grant'),
-        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
       }),
     )
     ok(await finish(journal.port, await attachmentOf(journal.port)))
@@ -1239,7 +1241,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     ok(
       await openWith(journal.port, {
         grant: evidence('grant'),
-        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
       }),
     )
     const opened = await attachmentOf(journal.port)
@@ -1295,7 +1297,7 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     ok(
       await openWith(journal.port, {
         grant: evidence('grant'),
-        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
       }),
     )
     const opened = await attachmentOf(journal.port)
@@ -2039,7 +2041,7 @@ describe('fact 14: denied', () => {
       execution: execution(),
       operation: operation('open'),
       instance: instance(),
-      initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
       checkpoint: checkpoint(),
     }
     expect(failure(await strict.open(openInput({ ...input, grant: null })))).toEqual({
@@ -2066,7 +2068,7 @@ describe('fact 14: denied', () => {
           operation: operation('open'),
           instance: instance(),
           grant: evidence('good'),
-          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+          initial: [{ ...acceptedInput('input-1'), source: evidence('source') }],
           checkpoint: checkpoint(),
         }),
       ),
@@ -2163,7 +2165,7 @@ describe('fact 14: denied', () => {
       ...access,
       execution: execution('exec-pending'),
       operation: operation('open-pending'),
-      initial: acceptedInput('input-1'),
+      initial: [acceptedInput('input-1')],
     })
     failure(await journal.port.open(pendingOpen))
     const query = { execution: pendingOpen.execution, operation: pendingOpen.operation }
@@ -2210,7 +2212,7 @@ describe('fact 14: denied', () => {
       operation: operation('open'),
       instance: instance(),
       grant: null,
-      initial: acceptedInput('input-1'),
+      initial: [acceptedInput('input-1')],
       checkpoint: checkpoint(),
     }
     expect(

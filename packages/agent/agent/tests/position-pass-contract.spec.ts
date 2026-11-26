@@ -61,7 +61,7 @@ async function driven(p: ReturnType<typeof parts>) {
   const first = createExecutionCoordinator({
     ...entry,
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
   })
   ok(await first.accept())

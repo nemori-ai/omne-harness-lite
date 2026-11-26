@@ -36,7 +36,7 @@ function fixture() {
             operation: operation(`open-${execution}`),
             instance: instance(),
             grant: null,
-            initial: acceptedInput('initial'),
+            initial: [acceptedInput('initial')],
             checkpoint: checkpoint(),
           }),
         ),

@@ -19,14 +19,14 @@ describe('S1 after a failed Run', () => {
     expect(starts).toHaveLength(1)
   })
 
-  it('10. a new input starts the next Run with the returned input first, then the new one', async () => {
+  it('10. a new input starts the next Run with the returned input and the new one as one batch', async () => {
     const { h, starts, handed } = await failedAfterTaking(open)
     for (let step = 0; step < 5; step++) await turn()
     handed.length = 0
     await h.accept('input-2')
     await vi.waitFor(async () => expect((await read(h)).handed).toEqual(['input-1', 'input-2']))
     const after = await read(h)
-    expect(after.run).toMatchObject({ kind: 'active', first: 'input-1' })
+    expect(after.run).toMatchObject({ kind: 'active', initial: ['input-1', 'input-2'] })
     expect(starts).toHaveLength(2)
     expect(handed).toEqual(['input-1', 'input-2'])
   })

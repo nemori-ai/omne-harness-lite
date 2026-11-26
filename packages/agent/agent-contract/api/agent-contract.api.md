@@ -197,6 +197,7 @@
 - `HandoffRetirement` · `journal.d.ts`
 - `INSTRUCTION_LIMITS` · `definition.d.ts`
 - `IdentityFailure` · `identity.d.ts`
+- `InitialInputs` · `execution.d.ts`
 - `InputBatch` · `evaluation.d.ts`
 - `InputBatchId` · `identity.d.ts`
 - `InputEntry` · `passages.d.ts`
@@ -930,6 +931,10 @@ export type Failure = Readonly<{
     kind: 'invalid';
     field: string;
     reason: string;
+    rejected?: Readonly<{
+        input: InputId;
+        evidence: DurableEvidence;
+    }>;
 }> | Readonly<{
     kind: 'unavailable';
     owner: string;
@@ -1370,6 +1375,10 @@ export type AcceptedInput = Readonly<{
     source: DurableEvidence | null;
     priority: 'ordinary' | 'urgent';
 }>;
+export type InitialInputs = readonly [
+    AcceptedInput,
+    ...AcceptedInput[]
+];
 export type TerminalObservation = Readonly<{
     terminal: DurableEvidence;
     passage: PassageId;
@@ -1554,7 +1563,7 @@ export interface AgentExecutionHandle<P> {
 export interface AgentRuntime<P> {
     readonly instance: AgentInstanceId;
     invoke(input: ExecutionMutation<P> & Readonly<{
-        initial: AcceptedInput;
+        initial: InitialInputs;
         grant: DurableEvidence | null;
     }>): Reply<AgentExecutionHandle<P>>;
     resume(input: ExecutionMutation<P> & Readonly<{
@@ -2817,7 +2826,10 @@ export type HandoffCustody = Readonly<{
 }>;
 export interface AgentJournalAttachment<P> {
     open(input: ExecutionMutation<P> & Readonly<{
-        original: OriginalInputAcceptance;
+        originals: readonly [
+            OriginalInputAcceptance,
+            ...OriginalInputAcceptance[]
+        ];
         runtime: InvokeRuntimeContext;
         checkpoint: AgentCheckpoint;
     }>): Reply<Readonly<{
@@ -3549,6 +3561,7 @@ export type HandoffLookup = Readonly<{
     kind: 'input-entry';
     execution: AgentExecutionId;
     operation: AgentOperationId;
+    input: InputId;
 }>;
 export interface MessageHandoff<P> {
     prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>;

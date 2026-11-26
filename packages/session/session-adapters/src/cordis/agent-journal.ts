@@ -24,7 +24,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
   mutationAccessRequest,
-  type InputId,
   type SessionAccessCheck,
   type SessionCommand,
   type SessionFailure,
@@ -77,6 +76,7 @@ import {
   type ChoicesRead,
   type Unread,
 } from './adopted-in.ts'
+import { admittedInput, openedInputs } from './admitted-inputs.ts'
 import { adoptionRows } from './adoption-rows.ts'
 import {
   participationAccessFailure,
@@ -370,7 +370,6 @@ function jointState<P>(
   const root = cell.state()
   const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
   return {
-    accepted: execution?.inputs.filter(() => true),
     snapshot: book.scratch?.snapshot,
     resultOf(caller) {
       if (execution === undefined) return fail({ kind: 'denied', action: method })
@@ -674,20 +673,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     switch (method) {
       case 'open': {
         const value = input as OpenInput<P>
-        const entry = value.original.entry
-        const initial = entry.kind === 'invoke' ? entry.initial : entry.value
-        if (value.runtime.grant === null || initial.source === null)
+        const initial = openedInputs(value.originals)
+        if (value.runtime.grant === null || initial === null)
           return { kind: 'denied', action: 'open' }
-        scratch.checks.push({
-          ...scope,
-          kind: 'open',
-          grant: value.runtime.grant,
-          initial: {
-            input: String(initial.id) as InputId,
-            origin: initial.source,
-            message: initial.content,
-          },
-        })
+        scratch.checks.push({ ...scope, kind: 'open', grant: value.runtime.grant, initial })
         return undefined
       }
       case 'attach': {
@@ -697,17 +686,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       }
       case 'submit': {
-        const value = (input as Parameters<AgentJournal<P>['submit']>[0]).value
-        if (value.source === null) return { kind: 'denied', action: 'submit' }
-        scratch.checks.push({
-          ...scope,
-          kind: 'submit',
-          value: {
-            input: String(value.id) as InputId,
-            origin: value.source,
-            message: value.content,
-          },
-        })
+        const value = admittedInput((input as Parameters<AgentJournal<P>['submit']>[0]).value)
+        if (value === null) return { kind: 'denied', action: 'submit' }
+        scratch.checks.push({ ...scope, kind: 'submit', value })
         return undefined
       }
       case 'tryFinish': {
@@ -1041,30 +1022,28 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
     if (accepted === undefined) return []
     const check = scratch.checks[0]
-    const input =
+    const inputs =
       check?.kind === 'open'
-        ? check.initial.input
+        ? check.initial.map(value => value.input)
         : check?.kind === 'submit'
-          ? check.value.input
-          : null
+          ? [check.value.input]
+          : []
     const attachment = own.attachments.at(-1)
-    if (input === null || attachment === undefined) return []
+    if (attachment === undefined) return []
     const original = attemptOfGrant(
       scratch.snapshot?.historyIndex?.attempts,
       own.id,
       attachment.grant,
     )
-    return [
-      {
-        input,
-        execution: own.id,
-        operation: written.operation ?? '',
-        accepted,
-        grant: check?.kind === 'open' ? check.grant : accepted,
-        attachment: attachment.authority.executionAttachment,
-        ...(original === undefined ? {} : { attempt: original.attempt }),
-      },
-    ]
+    return inputs.map(input => ({
+      input,
+      execution: own.id,
+      operation: written.operation ?? '',
+      accepted,
+      grant: check?.kind === 'open' ? check.grant : accepted,
+      attachment: attachment.authority.executionAttachment,
+      ...(original === undefined ? {} : { attempt: original.attempt }),
+    }))
   }
 
   async function storeBlobsFirst(

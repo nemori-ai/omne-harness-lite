@@ -261,7 +261,7 @@ describe('after a retry', () => {
     succeeded(await retry(s, 'retry', run), 'retry')
     expect(judgeRunStart(await s.read(), 'interactive')).toEqual({
       kind: 'eligible',
-      first: 'first',
+      initial: ['first'],
     })
   })
 

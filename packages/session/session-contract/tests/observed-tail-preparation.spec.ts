@@ -25,7 +25,7 @@ import { open } from './scene.ts'
 async function observedTail() {
   const s = await open()
   const { run } = await s.active()
-  const handover = async (input: typeof run.first) =>
+  const handover = async (input: (typeof run.initial)[0]) =>
     succeeded(
       await s.commit({
         kind: 'receive',
@@ -42,7 +42,7 @@ async function observedTail() {
       }),
       'handover',
     )
-  await handover(run.first)
+  await handover(run.initial[0])
   const observation = (sequence: string, consequences: readonly SessionLogConsequence[]) =>
     ({
       ...s.base,
@@ -62,7 +62,7 @@ async function observedTail() {
           batch: {
             id: 'original-batch' as never,
             watermark: evidence('original-watermark'),
-            ordered: [run.first],
+            ordered: [run.initial[0]],
           },
         },
       ]),

@@ -8,6 +8,7 @@ export type {
   ConsumptionId,
   DurableEvidence,
   EntryId,
+  InitialBatch,
   InputId,
   Mutation,
   ResidentKey,
@@ -361,6 +362,7 @@ export {
   wakingInputs,
   heldBack,
 } from './intake.ts'
+export { deliveryReads } from './decide-delivery.ts'
 export {
   archiveCollapse,
   backgroundCalls,

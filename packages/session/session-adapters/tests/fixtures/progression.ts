@@ -160,7 +160,7 @@ export async function start(s: Scene, name = 'second') {
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution)),
     admitted = ok(
-      await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
+      await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.initial[0] }),
     )
   const initial = {
     id: ok(decodeInputId(admitted.input)),

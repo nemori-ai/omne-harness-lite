@@ -46,7 +46,7 @@ function finishRun(h: Harness, started: StartedRun, name = 'finish') {
     expected: started.receipt.revision,
     bounded: {
       kind: 'admission-rejected',
-      input: started.first,
+      input: started.initial[0],
       rejection: started.receipt.source,
     },
   })

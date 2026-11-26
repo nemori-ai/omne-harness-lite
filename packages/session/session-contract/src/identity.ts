@@ -8,6 +8,8 @@ export type SessionId = SessionIdentity<'SessionId'>
 export type RunId = SessionIdentity<'RunId'>
 export type AttemptId = SessionIdentity<'AttemptId'>
 export type InputId = SessionIdentity<'SessionInputId'>
+/** The inputs a Run starts from, in the order they were accepted: at least one. */
+export type InitialBatch = readonly [InputId, ...InputId[]]
 export type BatchId = SessionIdentity<'SessionBatchId'>
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>
 export type TodoItemId = SessionIdentity<'TodoItemId'>

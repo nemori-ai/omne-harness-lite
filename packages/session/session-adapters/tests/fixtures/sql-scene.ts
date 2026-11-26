@@ -14,6 +14,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { judgeMessage } from '@omne-harness/message'
 import { fail } from '@omne-harness/operation-result'
 import type {
+  RoutedInput,
   SessionAccess,
   SessionAccessDecision,
   SessionAccessRequest,
@@ -312,6 +313,8 @@ export type SqlSceneOptions = Readonly<{
   instance?: 'slot'
   /** The session of the scene is forked from the whole view of another session made first. */
   forked?: true
+  /** More inputs that wait when the Run starts: with the first one they are the batch it opens with. */
+  waiting?: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
 }>
 
 export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = {}) {
@@ -470,6 +473,22 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
       ],
     }),
   )
+  for (const waiting of options.waiting ?? [])
+    ok(
+      await port.commit({
+        access,
+        command: {
+          kind: 'accept',
+          input: {
+            tenant: access.tenant,
+            session: access.session,
+            operation: operationId(`accept-${waiting.input}`),
+            value: waiting,
+          },
+        },
+        guards: [guard('evidence-bridge', 'ordinary-intake', waiting)],
+      }),
+    )
   const started = ok(
     await port.commit({
       access,
@@ -496,13 +515,18 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const snapshot = ok(await port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('not active')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await port.readInput({ ...access, input: snapshot.run.first }))
-  const initial: AcceptedInput = {
-    id: ok(decodeInputId(admitted.input)),
-    content: admitted.message,
-    source: started.receipt.source,
-    priority: 'ordinary',
+  const initials: AcceptedInput[] = []
+  for (const input of snapshot.run.initial) {
+    const admitted = ok(await port.readInput({ ...access, input }))
+    initials.push({
+      id: ok(decodeInputId(admitted.input)),
+      content: admitted.message,
+      source: started.receipt.source,
+      priority: 'ordinary',
+    })
   }
+  const [initial] = initials
+  if (initial === undefined) throw new Error('a Run without an initial input')
   const opening = checkpoint()
   const input = openInput({
     access,
@@ -510,7 +534,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     operation: operation('open'),
     instance: instance(),
     grant: started.receipt.source,
-    initial,
+    initial: initials,
     checkpoint: opening,
   })
   const sessionAccess: SessionAccess<string> = access
@@ -721,7 +745,7 @@ export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const next = ok(await s.port.readWork(s.sessionAccess))
   if (next.run.kind !== 'active') throw new Error('the next Run is not active')
   const execution = ok(decodeAgentExecutionId(next.run.execution.execution))
-  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.first }))
+  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.initial[0] }))
   const initial = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,

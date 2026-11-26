@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { inputsToDeliver, type InputId } from '@omne-harness/session-contract'
+import {
+  decide,
+  deliveryReads,
+  inputsToDeliver,
+  type InputId,
+} from '@omne-harness/session-contract'
 import {
   evidence,
   operationId,
@@ -36,10 +41,7 @@ async function deliver(s: Scene, name: string, inputs: readonly string[], joint 
         operation: `agent-deliver-${name}`,
       },
       value: {
-        deliveries: inputs.map(input => ({
-          input: input as InputId,
-          message: ordinaryInput(input).message,
-        })),
+        inputs: inputs as readonly InputId[],
         source: evidence(`agent/step/${name}`),
         admission: evidence(`agent/step/${name}`),
       },
@@ -114,62 +116,59 @@ describe('an input enters the model view when a step takes it', () => {
     expect(view.map(row => row.message.role)).toEqual(['user', 'assistant', 'user'])
   })
 
-  it('refuses a delivery of an input the Run cannot take, of another joint, or of a reply', async () => {
+  it('refuses a delivery of an input the Run cannot take, or of another joint', async () => {
     const s = await open()
-    expect(refused(await deliver(s, 'unknown', ['nobody']), 'unknown').kind).toBe('invalid')
-    expect(refused(await deliver(s, 'none', []), 'none').kind).toBe('invalid')
-    expect(refused(await deliver(s, 'twice', ['first', 'first']), 'twice').kind).toBe('invalid')
+    const named = (reason: string) => ({ kind: 'invalid', field: 'value.inputs', reason })
+    const twice = named('empty, or an input named twice')
+    expect(refused(await deliver(s, 'unknown', ['nobody']), 'unknown')).toMatchObject(
+      named('not an input this Run can take'),
+    )
+    expect(refused(await deliver(s, 'none', []), 'none')).toMatchObject(twice)
+    expect(refused(await deliver(s, 'twice', ['first', 'first']), 'twice')).toMatchObject(twice)
     expect(refused(await deliver(s, 'joint', ['first'], 'message'), 'joint').kind).toBe('invalid')
-    const { run } = await s.active()
-    const wrong = await s.commit({
-      kind: 'recordMessage',
-      input: {
-        ...s.base,
-        operation: operationId('deliver-reply'),
-        participation: participation(run.execution.execution, 'delivered'),
-        value: {
-          deliveries: [
-            {
-              input: 'first' as InputId,
-              message: { ...ordinaryInput('first').message, role: 'assistant' } as never,
-            },
-          ],
-          source: evidence('agent/step/wrong'),
-          admission: evidence('agent/step/wrong'),
-        },
-      },
-    })
-    expect(refused(wrong, 'reply').kind).toBe('invalid')
     expect(await rows(s)).toEqual([])
   })
 
-  it('refuses the whole batch when one of its inputs is unknown or one message is not an input', async () => {
+  it('refuses the whole batch when one of its inputs is unknown', async () => {
     const s = await open()
     await s.accept('second')
     expect(refused(await deliver(s, 'mixed', ['first', 'nobody']), 'mixed')).toMatchObject({
       kind: 'invalid',
-      field: 'value.deliveries',
+      field: 'value.inputs',
+      reason: 'not an input this Run can take',
     })
-    const { run } = await s.active()
-    const reply = { ...ordinaryInput('second').message, role: 'assistant' }
-    const mixed = await s.commit({
-      kind: 'recordMessage',
+    expect(await rows(s)).toEqual([])
+  })
+
+  it('reads the message Session admitted for each input it names, and refuses an input without one', async () => {
+    const s = await open()
+    const { run, snapshot } = await s.active()
+    const command = {
+      kind: 'recordMessage' as const,
       input: {
         ...s.base,
-        operation: operationId('deliver-mixed-roles'),
+        operation: operationId('deliver-read'),
         participation: participation(run.execution.execution, 'delivered'),
         value: {
-          deliveries: [
-            { input: 'first' as InputId, message: ordinaryInput('first').message },
-            { input: 'second' as InputId, message: reply as never },
-          ],
-          source: evidence('agent/step/mixed'),
-          admission: evidence('agent/step/mixed'),
+          inputs: ['first' as InputId],
+          source: evidence('agent/step/read'),
+          admission: evidence('agent/step/read'),
         },
       },
+    }
+    const message = ordinaryInput('first').message
+    expect(deliveryReads(command, () => message)).toEqual({
+      delivered: [{ input: 'first', message }],
     })
-    expect(refused(mixed, 'mixed roles').kind).toBe('invalid')
-    expect(await rows(s)).toEqual([])
+    expect(deliveryReads(command, () => undefined)).toEqual({ delivered: [] })
+    expect(decide(snapshot, command, [], null, { compaction: null })).toMatchObject({
+      kind: 'rejected',
+      failure: {
+        kind: 'invalid',
+        field: 'value.inputs',
+        reason: 'an input without the message Session admitted',
+      },
+    })
   })
 
   it('refuses a delivery that is not from the execution of the active Run', async () => {
@@ -181,7 +180,7 @@ describe('an input enters the model view when a step takes it', () => {
         operation: operationId('deliver-other-execution'),
         participation: participation('another-execution', 'delivered'),
         value: {
-          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          inputs: ['first' as InputId],
           source: evidence('agent/step/other'),
           admission: evidence('agent/step/other'),
         },
@@ -200,7 +199,7 @@ describe('an input enters the model view when a step takes it', () => {
         operation: operationId('deliver-after-archive'),
         participation: participation(run.execution.execution, 'delivered'),
         value: {
-          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          inputs: ['first' as InputId],
           source: evidence('agent/step/late'),
           admission: evidence('agent/step/late'),
         },
@@ -210,27 +209,10 @@ describe('an input enters the model view when a step takes it', () => {
     expect(await rows(s)).toEqual([])
   })
 
-  it('delivers a reminder as it delivers the message of a person, and records who wrote it', async () => {
+  it('delivers the message Session admitted for the input, and records who wrote the delivery', async () => {
     const s = await open()
-    const { run } = await s.active()
-    const reminder = { ...ordinaryInput('first').message, role: 'system_reminder' }
-    succeeded(
-      await s.commit({
-        kind: 'recordMessage',
-        input: {
-          ...s.base,
-          operation: operationId('deliver-reminder'),
-          participation: participation(run.execution.execution, 'delivered'),
-          value: {
-            deliveries: [{ input: 'first' as InputId, message: reminder as never }],
-            source: evidence('agent/step/reminder'),
-            admission: evidence('agent/step/reminder'),
-          },
-        },
-      }),
-      'deliver a reminder',
-    )
-    expect((await rows(s)).map(row => row.message.role)).toEqual(['system_reminder'])
+    succeeded(await deliver(s, 'one', ['first']), 'deliver')
+    expect((await rows(s)).map(row => row.message)).toEqual([ordinaryInput('first').message])
     const written = s.port.controls
       .entriesOf(s.access.tenant, s.access.session)
       .find(entry => entry.kind === 'message.delivered')
