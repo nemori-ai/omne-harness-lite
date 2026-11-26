@@ -261,6 +261,43 @@ describe('a person reloads a session', () => {
     expect((await read(h)).definition.adopted).toEqual(before.definition.adopted)
   })
 
+  it('reads and judges again when the session moved under the read, and adopts then', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    const newer = { ...pinned, digest: 'sha256:newer' }
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: { kind: 'adopt' as const, candidate: newer },
+    })
+    const moved = expectedRevision(await read(h), 'reload')
+    let refused = 0
+    h.view.onCommit((input, next) => {
+      if (input.command.kind !== 'reload' || refused > 0) return next()
+      refused += 1
+      return Promise.resolve({ failure: { kind: 'changed', revision: moved } })
+    })
+    expect(succeeded(await reload(h), 'reload').kind).toBe('adopted')
+    expect(refused).toBe(1)
+    expect((await read(h)).definition.adopted).toEqual(newer)
+  })
+
+  it('commits new resident material under the same definition', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    const residentAdoption = { residents: [], keys: [] }
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: { kind: 'adopt' as const, candidate: pinned, residentAdoption },
+    })
+    const reloads: unknown[] = []
+    h.view.onCommit((input, next) => {
+      if (input.command.kind === 'reload') reloads.push(input.command.input)
+      return next()
+    })
+    expect(succeeded(await reload(h), 'reload').kind).toBe('adopted')
+    expect(reloads).toMatchObject([{ candidate: pinned, residentAdoption }])
+  })
+
   it('freezes the session with the verdict the resident material carries, and says so', async () => {
     const h = await service()
     await h.create()

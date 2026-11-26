@@ -87,6 +87,22 @@ describe('ranking across tiers', () => {
   })
 })
 
+describe('ranking within a tier', () => {
+  it('counts a word after - or / as a start, and keeps the owner order on ties', () => {
+    const words: readonly Candidate[] = [{ value: 'xsolx' }, { value: 'a-sol' }, { value: 'b/sol' }]
+    expect(values(rankCandidates(words, 'sol'))).toEqual(['a-sol', 'b/sol', 'xsolx'])
+    const owner = ['ab5', 'ab3', 'ab1', 'ab4', 'ab2']
+    expect(
+      values(
+        rankCandidates(
+          owner.map(value => ({ value })),
+          'ab',
+        ),
+      ),
+    ).toEqual(owner)
+  })
+})
+
 describe('why an argument cannot go as written', () => {
   const offered = { command: 'omne-official:model', param: 0, candidates: MODELS }
   const block = (text: string, held: Parameters<typeof argumentBlock>[2] = offered) =>
