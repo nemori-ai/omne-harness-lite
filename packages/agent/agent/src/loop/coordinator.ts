@@ -683,6 +683,17 @@ function coordinate<P>(
     return succeed<LoopNode>('W0')
   }
 
+  async function withdrawnTo(failure: Failure): Promise<Outcome<LoopNode, Failure> | null> {
+    const latest = await load()
+    if ('failure' in latest) return null
+    takeLatestPosition(latest.ok)
+    if (latest.ok.state.kind === 'ended') return succeed('F4')
+    if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+    if (authority === null) return fail(failure)
+    const revoked = revocationWait(failure, advancementOf(latest.ok), AGENT_OWNER)
+    return revoked === null ? null : waitForFault('E2', revoked)
+  }
+
   async function failedNode(at: LoopNode, failure: Failure): Promise<Outcome<LoopNode, Failure>> {
     if (pendingCommit !== null)
       return nodeFailureCategory(failure) === null
@@ -691,15 +702,8 @@ function coordinate<P>(
     if (failure.kind === 'unavailable' && answeredByPort(failure) && authority !== null)
       return waitOnUnavailable(at, failure)
     if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
-      const latest = await load()
-      if ('ok' in latest) {
-        takeLatestPosition(latest.ok)
-        if (latest.ok.state.kind === 'ended') return succeed('F4')
-        if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
-        if (authority === null) return fail(failure)
-        const revoked = revocationWait(failure, advancementOf(latest.ok), AGENT_OWNER)
-        if (revoked !== null) return waitForFault('E2', revoked)
-      }
+      const withdrawn = await withdrawnTo(failure)
+      if (withdrawn !== null) return withdrawn
     }
     if (fault !== null) return fail(failure)
     const category = nodeFailureCategory(failure)
