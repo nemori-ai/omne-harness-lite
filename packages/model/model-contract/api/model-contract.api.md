@@ -1341,9 +1341,9 @@ export type ModelDispatchFactsPage = Readonly<{
 }>;
 export interface ModelDispatchFacts<P> {
     list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>;
-    ofCall(input: Access<P> & Readonly<{
+    readonly ofCall?: (input: Access<P> & Readonly<{
         call: ModelCallId;
-    }>): Reply<readonly ModelDispatchFact[]>;
+    }>) => Reply<readonly ModelDispatchFact[]>;
 }
 ```
 

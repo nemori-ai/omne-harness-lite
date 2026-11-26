@@ -51,9 +51,9 @@ export function qualifyingDiagnostics(
 }
 
 export function qualifyingDispatchFacts(
-  reader: ModelDispatchFacts<unknown>,
+  reader: Required<ModelDispatchFacts<unknown>>,
   qualify: Qualify,
-): ModelDispatchFacts<unknown> {
+): Required<ModelDispatchFacts<unknown>> {
   return {
     list: qualifying(input => reader.list(input), qualify, 'read-account', 'read-account'),
     ofCall: qualifying(input => reader.ofCall(input), qualify, 'read-account', 'read-account'),

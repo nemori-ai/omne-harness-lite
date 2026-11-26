@@ -361,7 +361,7 @@ async function list<P>(
   }
 }
 
-type OfCallInput<P> = Parameters<ModelDispatchFacts<P>['ofCall']>[0]
+type OfCallInput<P> = Parameters<NonNullable<ModelDispatchFacts<P>['ofCall']>>[0]
 
 async function ofCall<P>(
   options: SqlModelDispatchFactsOptions<P>,
@@ -392,7 +392,7 @@ async function ofCall<P>(
 
 export function createSqlModelDispatchFacts<P>(
   options: SqlModelDispatchFactsOptions<P>,
-): ModelDispatchFacts<P> {
+): Required<ModelDispatchFacts<P>> {
   const key = options.cursorKey ?? randomBytes(32)
   return { list: input => list(options, key, input), ofCall: input => ofCall(options, input) }
 }

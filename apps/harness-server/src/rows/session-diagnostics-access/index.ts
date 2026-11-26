@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
+import type { ModelDispatchFacts } from '@omne-harness/model-contract'
 import {
   modelDiagnosticsKey,
   modelDispatchFactsKey,
@@ -81,7 +82,8 @@ function modelRequests(ctx: Context): ModelRequestReader<Principal> {
 function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
   const calls = () => present(ctx.get(modelRuntimeKey), 'modelRuntime').calls
   const attempts = () => present(ctx.get(modelDiagnosticsKey), 'modelDiagnostics')
-  const facts = () => present(ctx.get(modelDispatchFactsKey), 'modelDispatchFacts')
+  const facts = (): ModelDispatchFacts<Principal> =>
+    present(ctx.get(modelDispatchFactsKey), 'modelDispatchFacts')
   const tools = () => present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime')
   return {
     modelCalls: {
@@ -89,7 +91,7 @@ function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
       dispatches: input => calls().dispatches(input),
     },
     modelDiagnostics: { list: input => attempts().list(input) },
-    modelFacts: { ofCall: input => facts().ofCall(input) },
+    modelFacts: { ofCall: input => present(facts().ofCall, 'modelDispatchFacts.ofCall')(input) },
     modelRequests: modelRequests(ctx),
     toolQueries: {
       current: input => tools().instances.current(input),

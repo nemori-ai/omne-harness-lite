@@ -389,7 +389,6 @@ export abstract class ModelDispatchFactsService<P>
   }
 
   abstract readonly list: ModelDispatchFacts<P>['list']
-  abstract readonly ofCall: ModelDispatchFacts<P>['ofCall']
 }
 export const modelDispatchFactsKey = ModelDispatchFactsService.provide
 

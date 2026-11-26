@@ -22,7 +22,7 @@ import type { SessionDiagnosticUnknown } from '../view-types.ts'
 
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
-export type ModelFactReader<P> = Pick<ModelDispatchFacts<P>, 'ofCall'>
+export type ModelFactReader<P> = Required<Pick<ModelDispatchFacts<P>, 'ofCall'>>
 export type ToolCallReader<P> = Pick<ToolStreamReferences<P>, 'current'> &
   Pick<ToolInvocationQueries<P, never>, 'account' | 'readDiagnostics'>
 export type CallAccount = Extract<
