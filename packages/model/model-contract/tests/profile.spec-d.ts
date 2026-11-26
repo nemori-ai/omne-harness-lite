@@ -63,8 +63,9 @@ import {
   tool,
 } from './values.ts'
 
-const identity: ProfileIdentity = { scope: { kind: 'tenant', tenant }, route: 'fast' }
+const identity: ProfileIdentity = { kind: 'llm', scope: { kind: 'tenant', tenant }, route: 'fast' }
 const definition: ModelProfileDefinition = {
+  kind: 'llm',
   suppliers: [profileSupplier],
   fallback: false,
   input: ['text'],

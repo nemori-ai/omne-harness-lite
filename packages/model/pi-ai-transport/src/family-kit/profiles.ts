@@ -58,6 +58,7 @@ function profileOf<R extends GatewayRecord>(
       upstream: [{ supplier, limit: { kind: 'unknown' } }],
     })
   return {
+    kind: 'llm',
     suppliers: [
       {
         adoption: supplier,

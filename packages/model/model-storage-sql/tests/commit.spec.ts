@@ -254,6 +254,7 @@ const SUPPLIER = {
   credential: { layer: 'official' as const },
 }
 const REQUEST: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [SUPPLIER],
   fallback: false,

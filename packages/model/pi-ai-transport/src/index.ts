@@ -27,7 +27,7 @@ export type {
   PiTransportLimits,
   RouteAccounting,
 } from './config.ts'
-export { isEngineEndpoint, isProviderEndpoint } from './config.ts'
+export { isEngineEndpoint, isProviderEndpoint, PROTOCOLS } from './config.ts'
 export {
   RECORD_FACTS,
   type FactSource,

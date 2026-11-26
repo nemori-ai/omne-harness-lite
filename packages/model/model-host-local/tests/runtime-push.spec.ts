@@ -86,6 +86,7 @@ const CONFIGURATION: ModelConfiguration = {
 }
 
 const request: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

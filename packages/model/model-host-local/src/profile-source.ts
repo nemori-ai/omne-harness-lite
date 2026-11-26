@@ -71,7 +71,7 @@ function profileOf(definition: ModelProfileDefinition, updatedAt: string): Model
   if ('failure' in revision)
     throw new RangeError(`the supplier adoption revision of ${route} is not a revision`)
   return Object.freeze({
-    identity: Object.freeze({ scope: FACTORY, route }),
+    identity: Object.freeze({ scope: FACTORY, kind: definition.kind, route }),
     adoption: officialProfileAdoption(definition),
     revision: revision.ok,
     updatedAt,

@@ -393,6 +393,7 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   const record = closed(
     value,
     [
+      'kind',
       'profile',
       'suppliers',
       'fallback',
@@ -411,6 +412,8 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
     ['replay', 'contextWindow'],
   )
   if ('failure' in record) return record
+  const kind = record.ok.kind
+  if (kind !== 'llm' && kind !== 'decisions') return rejected(`${field}/kind`, 'value')
   const window = contextWindowOf(record.ok, field)
   if ('failure' in window) return window
   const routing = requestRouting(record.ok, field)
@@ -421,7 +424,14 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in provenance) return provenance
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
-  return succeed({ ...routing.ok, ...window.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+  return succeed({
+    kind,
+    ...routing.ok,
+    ...window.ok,
+    ...content.ok,
+    ...replay.ok,
+    ...provenance.ok,
+  })
 }
 function contextWindowOf(
   input: Record<string, unknown>,

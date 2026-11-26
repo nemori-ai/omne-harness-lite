@@ -139,6 +139,7 @@ function fixture(
         ? fail({ kind: 'invalid', field: '/source/digest', reason: 'adoption' })
         : succeed({
             ...given.assembled,
+            kind: 'llm',
             profile: given.profile.adoption,
             suppliers: [{ ...supplier, credential: { layer: 'official' } }],
             fallback: false,

@@ -117,12 +117,13 @@ const context: ContextLimits = {
   compactionTriggerPercent: '80',
 }
 const profile: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'test' },
+  identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption,
   revision,
   updatedAt: '2026-10-23T00:00:00Z',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [profileSupplier],
     fallback: false,
     input: ['text'],

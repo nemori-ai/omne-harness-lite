@@ -52,12 +52,13 @@ export function sampleCompactionInput(): CompactionInput {
         credential: 'available',
         shadowed: [],
         profile: {
-          identity: { scope: { kind: 'factory' }, route: 'test' },
+          identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
           adoption: sampleCompactionAdoption,
           revision: ok(decodeRevision('1')),
           updatedAt: '2026-11-16',
           availability: 'active',
           definition: {
+            kind: 'llm',
             suppliers: [
               {
                 adoption: sampleCompactionAdoption,

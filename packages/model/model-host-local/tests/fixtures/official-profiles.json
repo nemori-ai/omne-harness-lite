@@ -1,5 +1,6 @@
 [
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -139,6 +140,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -277,6 +279,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -416,6 +419,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -554,6 +558,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -693,6 +698,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -831,6 +837,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -970,6 +977,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1109,6 +1117,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1247,6 +1256,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1385,6 +1395,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1524,6 +1535,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1662,6 +1674,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1821,6 +1834,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1959,6 +1973,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2098,6 +2113,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2237,6 +2253,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2369,6 +2386,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2501,6 +2519,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2633,6 +2652,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2765,6 +2785,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2897,6 +2918,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3029,6 +3051,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3181,6 +3204,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3336,6 +3360,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3452,6 +3477,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3568,6 +3594,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3680,6 +3707,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3796,6 +3824,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3912,6 +3941,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4028,6 +4058,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4125,6 +4156,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4222,6 +4254,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4318,6 +4351,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4414,6 +4448,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4507,6 +4542,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4600,6 +4636,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4693,6 +4730,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4789,6 +4827,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4886,6 +4925,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5002,6 +5042,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5118,6 +5159,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5230,6 +5272,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {

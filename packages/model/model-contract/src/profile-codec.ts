@@ -8,6 +8,7 @@ import {
   type ProfileScope,
 } from './profile.ts'
 import { REASONING_EFFORTS, type Parameter, type ToolDeclaration } from './root.ts'
+import { MODEL_KINDS } from './model-kind.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { InputTree, freezeTree, rejected } from './input-tree.ts'
 import { adoption, parameter, tool } from './request-shape.ts'
@@ -76,13 +77,14 @@ const metric = z.enum(LIMIT_METRICS)
 const parameters = z.array(checked(value => parameter(value, '')))
 const tools = z.array(checked(value => tool(value, '')))
 const profile = z.strictObject({
-  identity: z.strictObject({ scope, route: text }),
+  identity: z.strictObject({ scope, kind: z.enum(MODEL_KINDS), route: text }),
   adoption: adopted,
   revision: checked(decodeRevision),
   updatedAt: text,
   availability: z.enum(['active', 'withdrawn']),
   definition: z
     .strictObject({
+      kind: z.literal('llm'),
       suppliers: z.tuple([supplier]).rest(supplier),
       fallback: z.boolean(),
       input: z.tuple([modality]).rest(modality),

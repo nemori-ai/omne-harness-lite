@@ -26,7 +26,7 @@ it.each(GLM_RECORDS)(
     const revision = decodeRevision(record.revision)
     if (!definition || !('ok' in revision)) throw Error('missing current profile')
     const profile: ModelProfile = {
-      identity: { scope: { kind: 'factory' }, route: record.name },
+      identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
       adoption: saved.profile,
       revision: revision.ok,
       updatedAt: '2026-11-23T00:00:00Z',

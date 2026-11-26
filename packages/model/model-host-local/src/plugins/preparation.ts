@@ -99,6 +99,7 @@ function requestOf(
   const declarations = declarationsOf(profile.definition.suppliers)
   if (!('ok' in declarations)) return declarations
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: profile.adoption,
     contextWindow: {
       tokens: profile.definition.context.window.provided,

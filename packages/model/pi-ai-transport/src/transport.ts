@@ -14,6 +14,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   checkConfig,
+  PROTOCOLS,
   routeFor,
   type CheckedConfig,
   type CheckedRoute,
@@ -70,6 +71,11 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     if (phase.kind !== 'open') {
       await acquired.ok.release()
       return { failure: TRANSPORT_CLOSED }
+    }
+    if (PROTOCOLS[acquired.ok.endpoint].kind !== request.kind) {
+      await acquired.ok.release()
+      const adapter = acquired.ok.adoption
+      return { failure: { kind: 'unsupported', field: 'request.kind', adapter } }
     }
     const route = routeFor(provider, acquired.ok.endpoint)
     if (route === undefined) {

@@ -408,6 +408,7 @@ export function declarationOf(record: AnyRecord): ReplayDeclaration {
 
 export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): FixedModelRequest {
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: adoption('profile'),
     suppliers: [supplierOf(record)],
     fallback: false,
@@ -449,12 +450,13 @@ export function profileOf(
   const supplier = supplierOf(record)
   const limit = { provided: options.outputLimit ?? '8192', upstream: [] }
   return {
-    identity: { scope: { kind: 'factory' }, route: 'test' },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
     adoption: adoption('profile'),
     revision: revision.ok,
     updatedAt: '2026-10-22T00:00:00Z',
     availability: 'active',
     definition: {
+      kind: 'llm',
       suppliers: [
         {
           adoption: supplier.adoption,

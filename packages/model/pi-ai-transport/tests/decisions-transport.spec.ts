@@ -51,6 +51,7 @@ function requestOf(asked: DecisionAsk = ask): FixedModelRequest {
   const tag = `${SUPPLIER.provider}/${SUPPLIER.model}`
   return {
     ...REQUEST,
+    kind: 'decisions',
     suppliers: [SUPPLIER],
     messages: [message],
     declarations: [{ produces: tag, accepts: [tag], foreignThinking: 'omit' }],
@@ -212,6 +213,12 @@ describe('a decision dispatch through the transport', () => {
     expect(ended(broken.facts)).toMatchObject({
       termination: { kind: 'failed', fault: { diagnostic: 'frame-invalid-json' } },
     })
+  })
+
+  it('a request of another kind than the interface of its record is refused before anything is sent', async () => {
+    const { prepared, sends } = await run(replied({}), { request: { ...requestOf(), kind: 'llm' } })
+    expect(prepared).toMatchObject({ failure: { kind: 'unsupported', field: 'request.kind' } })
+    expect(sends).toBe(0)
   })
 
   it('a transport without a limit for decisions sends none', async () => {

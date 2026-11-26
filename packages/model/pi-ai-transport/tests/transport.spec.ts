@@ -238,6 +238,18 @@ describe('constructing the transport', () => {
     ['an error body limit of zero', { limits: { ...LIMITS, maxErrorBodyBytes: 0 } }],
     ['a fractional event limit', { limits: { ...LIMITS, maxEventBytes: 1.5 } }],
     ['a JSON depth of zero', { limits: { ...LIMITS, json: { ...LIMITS.json, maxDepth: 0 } } }],
+    [
+      'an end marker on an interface that answers with one whole document',
+      {
+        routes: {
+          r: {
+            endpoints: { decisions: { url: ROUTE_URL, endMarker: END_MARKER } },
+            accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+      },
+    ],
   ] satisfies readonly (readonly [string, Partial<PiTransportConfig>])[])(
     'refuses %s synchronously with a RangeError',
     (_name, overrides) => {
@@ -257,6 +269,33 @@ describe('constructing the transport', () => {
         },
       }),
     ).not.toThrow()
+  })
+
+  it('accepts an interface that answers with one whole document when it has no end marker', () => {
+    expect(() =>
+      build({
+        routes: {
+          r: {
+            endpoints: { decisions: { url: ROUTE_URL, endMarker: null } },
+            accounting: { place: 'p', costUnit: 'c' },
+            auth: null,
+          },
+        },
+      }),
+    ).not.toThrow()
+  })
+
+  it('names the interface that an end marker was refused on', () => {
+    const routes = {
+      r: {
+        endpoints: { decisions: { url: ROUTE_URL, endMarker: END_MARKER } },
+        accounting: { place: 'p', costUnit: 'c' },
+        auth: null,
+      },
+    }
+    expect(() => createPiTransport(configWith({ routes }))).toThrow(
+      'the decisions endpoint accepts one whole response',
+    )
   })
 
   it('refuses network resources that the network resources factory did not make', () => {
@@ -388,6 +427,17 @@ describe('prepare', () => {
     const outcome = await transport.prepare(REQUEST, SUPPLIER, { resent: [] })
     expect(outcome).toEqual({
       failure: { kind: 'unsupported', field: 'route.endpoint', adapter: expect.anything() },
+    })
+    expect([probe.acquired, probe.released]).toEqual([1, 1])
+  })
+
+  it('answers unsupported for a request of another model kind than the interface of the binding, and releases the binding', async () => {
+    const { transport, probe } = build()
+    const outcome = await transport.prepare({ ...REQUEST, kind: 'decisions' }, SUPPLIER, {
+      resent: [],
+    })
+    expect(outcome).toEqual({
+      failure: { kind: 'unsupported', field: 'request.kind', adapter: expect.anything() },
     })
     expect([probe.acquired, probe.released]).toEqual([1, 1])
   })

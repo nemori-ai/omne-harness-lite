@@ -122,6 +122,7 @@ function requestOf(supplier: Supplier): FixedModelRequest {
   )
   if (!('ok' in declaration)) throw new Error('test declaration refused')
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: adoption('profile'),
     suppliers: [supplier],
     fallback: false,

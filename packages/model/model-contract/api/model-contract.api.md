@@ -49,12 +49,16 @@
 - `GrowingContentKind` · `call-surface.d.ts`
 - `Handoff` · `result.d.ts`
 - `Identity` · `root.d.ts`
+- `KIND_TRAITS` · `model-kind.d.ts`
+- `KindTraits` · `model-kind.d.ts`
 - `LIMIT_METRICS` · `profile.d.ts`
 - `LimitMetric` · `profile.d.ts`
 - `LiveRoute` · `call-surface.d.ts`
+- `LlmProfile` · `profile.d.ts`
 - `Lookup` · `result.d.ts`
 - `MODEL_IDENTITY_MAX_LENGTH` · `identity-values.d.ts`
 - `MODEL_IDENTITY_PREFIXES` · `identity-values.d.ts`
+- `MODEL_KINDS` · `model-kind.d.ts`
 - `MODEL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
 - `MaterializationReceipt` · `provider-protocol.d.ts`
 - `MaterializedMedium` · `provider-protocol.d.ts`
@@ -93,6 +97,7 @@
 - `ModelInstanceId` · `root.d.ts`
 - `ModelInvocationParts` · `reference.d.ts`
 - `ModelInvocationRef` · `reference.d.ts`
+- `ModelKind` · `model-kind.d.ts`
 - `ModelLimit` · `profile.d.ts`
 - `ModelModality` · `profile.d.ts`
 - `ModelOperationId` · `root.d.ts`
@@ -126,6 +131,7 @@
 - `Parameter` · `root.d.ts`
 - `ParameterAdoption` · `profile.d.ts`
 - `PreparationLineage` · `profile-source.d.ts`
+- `ProfileCommon` · `profile.d.ts`
 - `ProfileIdentity` · `profile.d.ts`
 - `ProfileReplay` · `profile.d.ts`
 - `ProfileResolution` · `profile.d.ts`
@@ -141,6 +147,7 @@
 - `ReplayDeclaration` · `profile.d.ts`
 - `Reply` · `result.d.ts`
 - `RequestBudget` · `profile.d.ts`
+- `RequestKind` · `root.d.ts`
 - `ResultPage` · `call-surface.d.ts`
 - `ResultPart` · `call-surface.d.ts`
 - `ResultTrim` · `call-surface.d.ts`
@@ -188,6 +195,7 @@
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
 - `faultProblem` · `fault-shape.d.ts`
+- `isModelKind` · `model-kind.d.ts`
 - `isNativeFileType` · `profile.d.ts`
 - `isReasoningEffort` · `root.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
@@ -1429,8 +1437,10 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ReasoningEffort, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ReasoningEffort, RequestKind, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts';
+export { KIND_TRAITS, MODEL_KINDS, isModelKind } from './model-kind.ts';
+export type { KindTraits, ModelKind } from './model-kind.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
 export { faultProblem } from './fault-shape.ts';
@@ -1451,7 +1461,7 @@ export type * from './decision-call.ts';
 export { DECISION_REPRESENTATION, decisionAnswersBlock, decisionAnswersOf, decisionAskMessage, decisionAskOf, } from './decision-call.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
-export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, LlmProfile, ParameterAdoption, ProfileCommon, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
 export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, profileCovers, supportedReasoningEfforts, } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
@@ -1527,6 +1537,36 @@ import type { ModelInvocationRef, ModelOperationRef } from './reference.ts';
 export declare function mintIdentity<K extends ModelIdentityKey>(text: string): Identity<K>;
 export declare function mintInvocationReference(text: string): ModelInvocationRef;
 export declare function mintOperationReference(text: string): ModelOperationRef;
+```
+
+## 声明文件 `model-kind.d.ts`
+
+```ts
+export declare const MODEL_KINDS: readonly [
+    'llm',
+    'decisions',
+    'live'
+];
+export type ModelKind = (typeof MODEL_KINDS)[number];
+export declare function isModelKind(value: unknown): value is ModelKind;
+export type KindTraits = Readonly<{
+    input: boolean;
+    usage: 'token' | 'second';
+}>;
+export declare const KIND_TRAITS: {
+    readonly llm: {
+        readonly input: false;
+        readonly usage: 'token';
+    };
+    readonly decisions: {
+        readonly input: false;
+        readonly usage: 'token';
+    };
+    readonly live: {
+        readonly input: true;
+        readonly usage: 'second';
+    };
+};
 ```
 
 ## 声明文件 `model-output-v1-blocks.d.ts`
@@ -1801,6 +1841,7 @@ import type { ContentBlock, ContentReference } from '@omne-harness/content-block
 import type { Message, MessageId } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Access, Adoption, FixedModelRequest, ModelOperationId, Parameter, ReasoningEffort, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { ModelKind } from './model-kind.ts';
 import type { DurableEvidence, Reply } from './result.ts';
 import type { CommitQuery, TransportFailure } from './provider-protocol.ts';
 import type { ModelCountingBasis } from './tokenizer.ts';
@@ -1816,6 +1857,7 @@ export type ProfileScope = Readonly<{
 }>;
 export type ProfileIdentity = Readonly<{
     scope: ProfileScope;
+    kind: ModelKind;
     route: string;
 }>;
 export declare const LIMIT_METRICS: readonly [
@@ -1878,7 +1920,7 @@ export type ProfileSupplier = Omit<Supplier, 'credential'> & Readonly<{
 }>;
 export type ReasoningEffortMapping = Readonly<Partial<Record<ReasoningEffort, ReasoningEffort | 'max'>>>;
 export declare function supportedReasoningEfforts(definition: Pick<ModelProfileDefinition, 'reasoningEfforts'>): readonly ReasoningEffort[];
-export type ModelProfileDefinition = Readonly<{
+export type ProfileCommon = Readonly<{
     suppliers: readonly [
         ProfileSupplier,
         ...ProfileSupplier[]
@@ -1888,19 +1930,23 @@ export type ModelProfileDefinition = Readonly<{
         ModelModality,
         ...ModelModality[]
     ];
-    fileTypes?: readonly string[];
     output: readonly [
         ModelModality,
         ...ModelModality[]
     ];
+    retryPolicy: Adoption;
+}>;
+export type LlmProfile = Readonly<{
+    kind: 'llm';
+    fileTypes?: readonly string[];
     context: ContextLimits;
     limits: readonly ModelLimit[];
     parameters: readonly Parameter[];
     reasoningEfforts?: ReasoningEffortMapping;
     representation: Adoption;
     meter: Adoption;
-    retryPolicy: Adoption;
 }>;
+export type ModelProfileDefinition = ProfileCommon & LlmProfile;
 export type ModelProfile = Readonly<{
     identity: ProfileIdentity;
     adoption: Adoption;
@@ -3064,6 +3110,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import type { Message } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { ModelInvocationRef } from './reference.ts';
+import type { ModelKind } from './model-kind.ts';
 import type { ParameterAdoption, ReplayDeclaration } from './profile.ts';
 declare const identity: unique symbol;
 export type Identity<K extends string> = string & {
@@ -3165,7 +3212,9 @@ export type ContextWindow = Readonly<{
     tokens: string;
     compactionTriggerPercent: string;
 }>;
+export type RequestKind = Extract<ModelKind, 'llm' | 'decisions'>;
 export type FixedModelRequest = Readonly<{
+    kind: RequestKind;
     profile: Adoption;
     contextWindow?: ContextWindow;
     suppliers: readonly [

@@ -26,11 +26,14 @@ export function createDecisionPreparation<P>(
       if (known === undefined) return invalid('model', 'not-a-decision-model')
       const asked = decisionAskMessage(message, ask)
       if (asked === null) return invalid('message', 'identity')
-      const official = { identity: { scope: { kind: 'factory' as const }, route: model } }
+      const official = {
+        identity: { scope: { kind: 'factory' as const }, kind: 'decisions' as const, route: model },
+      }
       const supplier = options.supplierOf({ principal, tenant, profile: official, supplier: known })
       if (!('ok' in supplier)) return supplier
       const produces = `${known.provider}/${known.model}`
       const judged = judgeFixedModelRequest({
+        kind: 'decisions',
         profile: known.adoption,
         suppliers: [supplier.ok],
         fallback: false,

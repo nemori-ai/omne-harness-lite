@@ -62,6 +62,7 @@ const UPDATED_AT = '2026-11-01T00:00:00Z'
 
 function definitionOf(route: string): ModelProfileDefinition {
   return {
+    kind: 'llm',
     suppliers: [
       {
         adoption: adoptionOf(route),
@@ -110,8 +111,8 @@ function profilesOfRoute(profile: ModelProfile): Adoption {
   return profile.adoption
 }
 
-const DEFINITION_DIGEST = '936a8c89f93b6f943bf7e7b55af590a5c9e16d7f46c74e16c91c84de6c71a40b'
-const SNAPSHOT_DIGEST = '3252c6c3908c2223dfa1add8afcfd61948e63b5183d6027de4919d8547837795'
+const DEFINITION_DIGEST = '2160ea858ba33e5ed479cd1933b34fabfa4c74adb23ce7c57b727dd593b102a6'
+const SNAPSHOT_DIGEST = 'f571de4c9f2af816d34f7ee0a1a432827454693aba5c22e40cd20e9eec736045'
 
 it('turns each definition into a factory profile whose route is the first supplier model', async () => {
   const snapshot = await snapshotOf(['alpha/route', 'beta/route'])
@@ -120,7 +121,7 @@ it('turns each definition into a factory profile whose route is the first suppli
   for (const [index, route] of ['alpha/route', 'beta/route'].entries()) {
     const candidate = snapshot.candidates[index]
     if (candidate === undefined) throw new Error('missing candidate')
-    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, route })
+    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, kind: 'llm', route })
     expect(candidate.profile.availability).toBe('active')
     expect(candidate.profile.updatedAt).toBe(UPDATED_AT)
     expect(candidate.excluded).toBe(false)

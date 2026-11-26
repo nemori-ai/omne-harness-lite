@@ -218,6 +218,7 @@ const owner: ModelConsumerOwnerDeclaration = {
   evidence: adoption,
 }
 const request: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption,
   suppliers: [
     {

@@ -152,6 +152,7 @@ const OWNER: ModelConsumerOwnerDeclaration = {
 }
 const CONSUMER = { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' }
 const REQUEST: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

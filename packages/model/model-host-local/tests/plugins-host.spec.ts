@@ -95,6 +95,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
 const PRINCIPAL = Object.freeze({ subject: 'trusted' })
 const principals = new WeakSet<object>([PRINCIPAL])
 const request: FixedModelRequest = {
+  kind: 'llm',
   profile: { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) },
   suppliers: [
     {

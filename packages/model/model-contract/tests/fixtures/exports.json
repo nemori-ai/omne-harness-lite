@@ -240,6 +240,36 @@
               "name": "decodeProviderName",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "KIND_TRAITS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MODEL_KINDS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isModelKind",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "KindTraits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestKind",
+              "kind": "type",
+              "pending": false
             }
           ]
         },
@@ -895,6 +925,16 @@
             {
               "name": "replaySourceCall",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "LlmProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileCommon",
+              "kind": "type",
               "pending": false
             }
           ]

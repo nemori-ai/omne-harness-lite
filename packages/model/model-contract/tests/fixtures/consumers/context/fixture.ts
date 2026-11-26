@@ -150,6 +150,7 @@ async function toolsStayNeutralDeclarations(): Promise<void> {
 const SENT_FIELDS = [
   'declarations',
   'fallback',
+  'kind',
   'messages',
   'parameterAdoptions',
   'parameters',

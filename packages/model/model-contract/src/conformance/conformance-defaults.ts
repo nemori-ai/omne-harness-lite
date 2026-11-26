@@ -17,6 +17,7 @@ export const DEFAULT_SUPPLIER: Supplier = {
 }
 
 export const DEFAULT_REQUEST: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption('profile'),
   suppliers: [DEFAULT_SUPPLIER],
   fallback: false,

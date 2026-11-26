@@ -29,7 +29,7 @@ export function officialProfile(
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')
   return {
-    identity: { scope: { kind: 'factory' }, route: input.model },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: input.model },
     adoption: PROFILE,
     revision: revision.ok,
     updatedAt: '2026-10-23T00:00:00Z',

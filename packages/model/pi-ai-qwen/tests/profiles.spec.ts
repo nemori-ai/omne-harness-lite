@@ -23,6 +23,7 @@ describe('officialQwenProfiles', () => {
     const unknown = [{ supplier, limit: { kind: 'unknown' } }]
     expect(PROFILES).toEqual([
       {
+        kind: 'llm',
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: RECORD.name, replay: {} }],
         fallback: false,
         input: ['text', 'voice'],

@@ -16,6 +16,7 @@ import type {
   ToolDeclaration,
 } from './root.ts'
 import { REASONING_EFFORTS } from './root.ts'
+import type { ModelKind } from './model-kind.ts'
 import type { DurableEvidence, Reply } from './result.ts'
 import type { CommitQuery, TransportFailure } from './provider-protocol.ts'
 import type { ModelCountingBasis } from './tokenizer.ts'
@@ -25,7 +26,7 @@ export type ProfileScope =
   | Readonly<{ kind: 'factory' }>
   | Readonly<{ kind: 'organization'; organization: OrganizationId }>
   | Readonly<{ kind: 'tenant'; tenant: TenantId }>
-export type ProfileIdentity = Readonly<{ scope: ProfileScope; route: string }>
+export type ProfileIdentity = Readonly<{ scope: ProfileScope; kind: ModelKind; route: string }>
 export const LIMIT_METRICS = [
   'image-bytes',
   'image-count',
@@ -72,20 +73,24 @@ export function supportedReasoningEfforts(
 ): readonly ReasoningEffort[] {
   return REASONING_EFFORTS.filter(level => definition.reasoningEfforts?.[level] !== undefined)
 }
-export type ModelProfileDefinition = Readonly<{
+export type ProfileCommon = Readonly<{
   suppliers: readonly [ProfileSupplier, ...ProfileSupplier[]]
   fallback: boolean
   input: readonly [ModelModality, ...ModelModality[]]
-  fileTypes?: readonly string[]
   output: readonly [ModelModality, ...ModelModality[]]
+  retryPolicy: Adoption
+}>
+export type LlmProfile = Readonly<{
+  kind: 'llm'
+  fileTypes?: readonly string[]
   context: ContextLimits
   limits: readonly ModelLimit[]
   parameters: readonly Parameter[]
   reasoningEfforts?: ReasoningEffortMapping
   representation: Adoption
   meter: Adoption
-  retryPolicy: Adoption
 }>
+export type ModelProfileDefinition = ProfileCommon & LlmProfile
 export type ModelProfile = Readonly<{
   identity: ProfileIdentity
   adoption: Adoption

@@ -33,6 +33,7 @@ it('reports unavailable when text is sent from a file reference whose words are 
     digest: 'words',
   }
   const request = judgeFixedModelRequest({
+    kind: 'llm',
     profile: source,
     retryPolicy: source,
     source,

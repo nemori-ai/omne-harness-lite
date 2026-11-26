@@ -21,12 +21,15 @@ export type {
   ProviderName,
   ReadId,
   ReasoningEffort,
+  RequestKind,
   ResultVersion,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
+export { KIND_TRAITS, MODEL_KINDS, isModelKind } from './model-kind.ts'
+export type { KindTraits, ModelKind } from './model-kind.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
 export { faultProblem } from './fault-shape.ts'
@@ -86,7 +89,9 @@ export type {
   ModelModality,
   ModelProfile,
   ModelProfileDefinition,
+  LlmProfile,
   ParameterAdoption,
+  ProfileCommon,
   ProfileIdentity,
   ProfileReplay,
   ProfileResolution,

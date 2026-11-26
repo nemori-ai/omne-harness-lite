@@ -185,6 +185,7 @@ export function requestJson(record: OpenAiRecord, parts: RequestParts = {}): unk
   const supplier = supplierOf(record)
   const parameters = parts.parameters ?? []
   return {
+    kind: 'llm',
     profile: PROFILE,
     suppliers: [supplier],
     fallback: false,
@@ -239,7 +240,7 @@ export function officialProfile(record: OpenAiRecord): ModelProfile {
   }).find(item => item.suppliers[0].model === record.route.model)
   if (definition === undefined) throw new Error(`no official profile of ${record.name}`)
   return {
-    identity: { scope: { kind: 'factory' }, route: record.name },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
     adoption: PROFILE,
     revision: revision.ok,
     updatedAt: '2026-10-22T00:00:00Z',

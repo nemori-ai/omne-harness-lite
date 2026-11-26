@@ -84,6 +84,7 @@ const supplier: Supplier = {
 }
 
 export const request: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption('profile'),
   suppliers: [supplier],
   fallback: false,

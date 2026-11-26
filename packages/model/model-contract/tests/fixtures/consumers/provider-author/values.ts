@@ -43,6 +43,7 @@ export const basis: ModelCountingBasis = {
 }
 
 export const request: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption('profile'),
   suppliers: [supplier],
   fallback: false,
@@ -69,6 +70,7 @@ export function operationOf(name: string): ModelOperationId {
 const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
 
 export const definition: ModelProfileDefinition = {
+  kind: 'llm',
   suppliers: [{ adoption: supplier.adoption, provider: supplier.provider, model: supplier.model }],
   fallback: false,
   input: ['text', 'image'],
@@ -86,4 +88,8 @@ export const definition: ModelProfileDefinition = {
   retryPolicy: adoption('retry'),
 }
 
-export const identity: ProfileIdentity = { scope: { kind: 'factory' }, route: 'author-model' }
+export const identity: ProfileIdentity = {
+  scope: { kind: 'factory' },
+  kind: 'llm',
+  route: 'author-model',
+}

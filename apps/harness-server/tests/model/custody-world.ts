@@ -127,6 +127,7 @@ const CONFIGURATION: ModelConfiguration = {
   readIdleMs: 1000,
 }
 const request: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

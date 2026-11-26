@@ -113,6 +113,7 @@ export const budget: RequestBudget = {
   kind: 'complete',
 }
 export const request: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption,
   suppliers: [supplier],
   fallback: false,

@@ -51,6 +51,7 @@ export function createAcceptanceAssembly(script: {
   }
   const provider = decoded(decodeProviderName('acceptance.invalid'))
   const request: FixedModelRequest = {
+    kind: 'llm',
     profile: adoption,
     suppliers: [
       {

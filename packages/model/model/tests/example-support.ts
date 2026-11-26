@@ -47,6 +47,7 @@ export function createExampleAssembly(script: {
   }
   const provider = decoded(decodeProviderName('example.invalid'))
   const request: FixedModelRequest = {
+    kind: 'llm',
     profile: adoption,
     suppliers: [{ adoption, provider, model: 'script', credential: { layer: 'official' } }],
     retryPolicy: adoption,

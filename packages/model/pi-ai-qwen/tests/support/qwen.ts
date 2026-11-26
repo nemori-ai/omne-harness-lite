@@ -176,6 +176,7 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
   )
   if (!('ok' in declared)) throw new Error(`declaration of ${record.name}`)
   return {
+    kind: 'llm',
     profile: PROFILE,
     suppliers: [supplier],
     fallback: false,
@@ -231,7 +232,7 @@ export function officialProfile(record: QwenRecord = RECORD): ModelProfile {
   }).find(item => item.suppliers[0].model === record.route.model)
   if (definition === undefined) throw new Error(`no official profile of ${record.name}`)
   return {
-    identity: { scope: { kind: 'factory' }, route: record.name },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
     adoption: PROFILE,
     revision: revision.ok,
     updatedAt: '2026-11-21T00:00:00Z',

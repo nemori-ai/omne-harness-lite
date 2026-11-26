@@ -84,6 +84,7 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(Object.keys(request).sort()).toEqual([
       'declarations',
       'fallback',
+      'kind',
       'messages',
       'parameterAdoptions',
       'parameters',

@@ -193,6 +193,7 @@ function formRequest(
 ): FixedModelRequest {
   const { profile, assembled } = input
   return Object.freeze({
+    kind: 'llm',
     profile: profile.adoption,
     suppliers: plan.suppliers,
     fallback: profile.definition.fallback,

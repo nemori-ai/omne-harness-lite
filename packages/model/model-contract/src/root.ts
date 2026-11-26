@@ -4,6 +4,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ModelInvocationRef } from './reference.ts'
+import type { ModelKind } from './model-kind.ts'
 import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
 declare const identity: unique symbol
@@ -86,7 +87,9 @@ export type Supplier = Readonly<{
 }>
 /** The context window of the profile a request was prepared on, as the profile said then. */
 export type ContextWindow = Readonly<{ tokens: string; compactionTriggerPercent: string }>
+export type RequestKind = Extract<ModelKind, 'llm' | 'decisions'>
 export type FixedModelRequest = Readonly<{
+  kind: RequestKind
   profile: Adoption
   contextWindow?: ContextWindow
   suppliers: readonly [Supplier, ...Supplier[]]

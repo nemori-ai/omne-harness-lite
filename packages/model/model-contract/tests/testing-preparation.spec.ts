@@ -123,12 +123,13 @@ function profileOf(
 ): ModelProfile {
   const upstream = [{ supplier: adoption('first'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: over.scope ?? { kind: 'factory' }, route: 'default' },
+    identity: { kind: 'llm', scope: over.scope ?? { kind: 'factory' }, route: 'default' },
     adoption: adoption('profile'),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
+      kind: 'llm',
       suppliers: over.suppliers ?? [first, second],
       fallback: true,
       input: ['text', 'image'],

@@ -18,7 +18,7 @@ async function inputOf() {
   const revision = decodeRevision(definition.suppliers[0].adoption.revision)
   if (!('ok' in revision)) throw new Error('profile revision invalid')
   const profile: ModelProfile = {
-    identity: { scope: { kind: 'factory' }, route: 'moonshotai/kimi-k3' },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'moonshotai/kimi-k3' },
     adoption: officialProfileAdoption(definition),
     revision: revision.ok,
     updatedAt: '2026-11-23T00:00:00Z',

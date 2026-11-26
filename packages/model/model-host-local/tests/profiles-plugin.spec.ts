@@ -101,7 +101,7 @@ it('resolves every official route of the installed families to the profile defin
     )
     if (resolved.kind !== 'resolved') throw new Error(`route ${route} is ${resolved.kind}`)
     expect(resolved.profile.definition).toEqual(official[index])
-    expect(resolved.profile.identity).toEqual({ scope: { kind: 'factory' }, route })
+    expect(resolved.profile.identity).toEqual({ scope: { kind: 'factory' }, kind: 'llm', route })
   }
 })
 

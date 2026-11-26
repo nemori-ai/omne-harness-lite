@@ -83,6 +83,7 @@ function requestOf(record: (typeof ANTHROPIC_RECORDS)[number]): Readonly<{
     { kind: 'reasoning-effort', value: 'high' },
   ]
   const plain = {
+    kind: 'llm',
     profile: TEST_ADOPTION('profile'),
     suppliers: [supplier],
     fallback: false,

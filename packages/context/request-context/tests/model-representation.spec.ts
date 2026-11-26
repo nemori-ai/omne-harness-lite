@@ -34,7 +34,7 @@ function officialProfile(): ModelProfile {
   const revision = decodeRevision('1')
   if (definition === undefined || 'failure' in revision) throw new Error('fixture')
   return {
-    identity: { scope: { kind: 'factory' }, route: RECORD },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: RECORD },
     adoption: hex('profile'),
     revision: revision.ok,
     updatedAt: '2026-11-04T00:00:00Z',

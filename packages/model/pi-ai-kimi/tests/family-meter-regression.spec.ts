@@ -53,7 +53,7 @@ function profile(request: FixedModelRequest): ModelProfile {
   }).find(x => x.suppliers[0].model === request.suppliers[0].model)
   if (!definition) throw Error('profile')
   return {
-    identity: { scope: { kind: 'factory' }, route: request.suppliers[0].model },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: request.suppliers[0].model },
     adoption: request.profile,
     revision: revision.ok,
     updatedAt: '2026-11-23T00:00:00Z',

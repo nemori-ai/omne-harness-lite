@@ -27,12 +27,13 @@ const resolution: ProfileResolution = {
   shadowed: [],
   source: { owner: 'test', record: 'profiles/1', revision: '1', digest: 'source' },
   profile: {
-    identity: { scope: { kind: 'tenant', tenant: tenant.value }, route: 'default' },
+    identity: { kind: 'llm', scope: { kind: 'tenant', tenant: tenant.value }, route: 'default' },
     adoption: adopted,
     revision: ok(decodeRevision('1')),
     updatedAt: '2026-11-16',
     availability: 'active',
     definition: {
+      kind: 'llm',
       suppliers: [{ adoption: adopted, provider: ok(decodeProviderName('test')), model: 'test' }],
       fallback: false,
       input: ['text'],

@@ -76,6 +76,7 @@ describe('officialProfilesOf', () => {
     const supplier = recordAdoption(OWNER, record)
     const evidence = { ...supplier, name: 'model-a#evidence' }
     expect(profile).toEqual({
+      kind: 'llm',
       suppliers: [{ adoption: supplier, provider: 'gateway', model: 'lab/model-a', replay: {} }],
       fallback: false,
       input: ['text', 'image'],
@@ -113,7 +114,7 @@ describe('officialProfilesOf', () => {
       profile: { ...PROFILE, context: { ...PROFILE.context, ...context } },
     })
     const [profile] = officialProfilesOf(OWNER, [record], INPUT, EFFORTS)
-    expect(Object.keys(profile ?? {}).slice(2, 5)).toEqual(['input', 'fileTypes', 'output'])
+    expect(Object.keys(profile ?? {}).slice(3, 6)).toEqual(['input', 'fileTypes', 'output'])
     expect(profile?.fileTypes).toEqual(['application/pdf'])
     expect(profile?.context.input).toEqual(profile?.context.window)
     const supplier = recordAdoption(OWNER, record)

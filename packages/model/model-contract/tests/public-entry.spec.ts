@@ -21,7 +21,10 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
   const root = (await import('@omne-harness/model-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual(
     [
+      'KIND_TRAITS',
       'MODEL_IDENTITY_MAX_LENGTH',
+      'MODEL_KINDS',
+      'isModelKind',
       'MODEL_IDENTITY_PREFIXES',
       'DECISION_REPRESENTATION',
       'MODEL_REFERENCE_MAX_LENGTH',

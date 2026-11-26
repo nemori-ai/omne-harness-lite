@@ -70,6 +70,7 @@ const REFERENCE = must(
 )
 const ADOPTION = { owner: 'o', name: 'lost-contact', revision: '1', digest: '0'.repeat(64) }
 const REQUEST: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

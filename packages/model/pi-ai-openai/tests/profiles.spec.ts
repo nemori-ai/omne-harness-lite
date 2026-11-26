@@ -39,6 +39,7 @@ describe('officialOpenAiProfiles', () => {
         { supplier, limit: { kind: 'finite', amount, source: evidence } },
       ]
       expect(PROFILES[index]).toEqual({
+        kind: 'llm',
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],

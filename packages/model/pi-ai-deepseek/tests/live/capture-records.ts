@@ -33,6 +33,7 @@ function requestFor(record: DeepSeekRecord) {
   if ('failure' in replay) throw Error(JSON.stringify(replay.failure))
   const output = { kind: 'max-output-tokens', value: '1024' }
   const input = {
+    kind: 'llm',
     profile: source,
     retryPolicy: source,
     source,

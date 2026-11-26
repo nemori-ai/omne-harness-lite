@@ -22,6 +22,7 @@ const limit = (provided: string, finite?: string) => ({
 const metric = (name: string, provided = '1024') => ({ metric: name, ...limit(provided) }) as never
 
 const GOOD: ModelProfileDefinition = {
+  kind: 'llm',
   suppliers: [supplier],
   fallback: false,
   input: ['text', 'image', 'voice'],

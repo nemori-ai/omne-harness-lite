@@ -55,7 +55,11 @@ export function copyProfile(profile: ModelProfile): ModelProfile {
   const { identity, ...rest } = profile
   return Object.freeze({
     ...frozenCopy(rest),
-    identity: Object.freeze({ scope: copyScope(identity.scope), route: identity.route }),
+    identity: Object.freeze({
+      scope: copyScope(identity.scope),
+      kind: identity.kind,
+      route: identity.route,
+    }),
   })
 }
 

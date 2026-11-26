@@ -60,12 +60,13 @@ const SUPPLIER = {
   credential: { layer: 'official' as const },
 }
 const PROFILE: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'test' },
+  identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption: ADOPTION,
   revision: unbox(decodeRevision('1')),
   updatedAt: '2026-10-23T00:00:00Z',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [{ adoption: ADOPTION, provider: providerName('test.invalid'), model: 'test' }],
     fallback: false,
     input: ['text'],
@@ -93,6 +94,7 @@ const user = (id: string, text = 'hello') => ({
 })
 function requestWith(messages: readonly unknown[]): FixedModelRequest {
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: ADOPTION,
     contextWindow: {
       tokens: PROFILE.definition.context.window.provided,
@@ -432,7 +434,11 @@ it('refuses a profile that cannot serve the input before it takes a lease', asyn
   })
   const foreign = {
     ...PROFILE,
-    identity: { scope: { kind: 'tenant' as const, tenant: { ...TENANT } }, route: 'x' },
+    identity: {
+      scope: { kind: 'tenant' as const, tenant: { ...TENANT } },
+      kind: 'llm' as const,
+      route: 'x',
+    },
   }
   expect(await ctx.modelRequestPreparation.prepare({ ...base, profile: foreign })).toMatchObject({
     failure: { kind: 'denied' },

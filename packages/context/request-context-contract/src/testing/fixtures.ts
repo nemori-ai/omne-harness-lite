@@ -88,12 +88,13 @@ export function fixtureTenant(account = '0'): TenantId {
   return tenant.value
 }
 export const profile: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'route' },
+  identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'route' },
   adoption,
   revision: must(decodeRevision('1')),
   updatedAt: '2026-10-22',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [{ adoption, provider: must(decodeProviderName('route')), model: 'model' }],
     fallback: false,
     input: ['text'],

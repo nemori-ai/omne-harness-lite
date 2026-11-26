@@ -25,6 +25,7 @@ export const adoption = (name: string): Adoption => ({
   digest: `digest-${name}`,
 })
 export const request: FixedModelRequest = {
+  kind: 'llm',
   profile: adoption('profile'),
   suppliers: [
     {

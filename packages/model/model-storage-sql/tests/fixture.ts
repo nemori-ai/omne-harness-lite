@@ -94,6 +94,7 @@ export const REQUEST: FixedModelRequest = (() => {
     ],
   })
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: ADOPTION,
     suppliers: [
       {

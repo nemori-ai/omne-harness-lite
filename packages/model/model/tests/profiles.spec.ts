@@ -68,12 +68,13 @@ function profileOf(
   const scope = over.scope ?? factory
   const route = over.route ?? 'alpha'
   return {
-    identity: { scope, route },
+    identity: { kind: 'llm', scope, route },
     adoption: adoption(`profile-${route}-${scopeName(scope)}`),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
+      kind: 'llm',
       suppliers: [{ adoption: adoption('supplier'), provider: OPENROUTER, model: route }],
       fallback: false,
       input: over.input ?? ['text', 'image'],

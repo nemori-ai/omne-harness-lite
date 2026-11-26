@@ -1,4 +1,5 @@
 import type { JsonLimits } from '@omne-harness/json-text'
+import type { ModelKind } from '@omne-harness/model-contract'
 import type { ConnectRetryDiagnostic } from './diagnostics.ts'
 import type { PiFamilyContributions } from './family.ts'
 import { isPlainHttpsUrl } from './http.ts'
@@ -15,8 +16,20 @@ export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
 
 export type ProviderEndpoint = EngineEndpoint | 'decisions'
 
+export type Framing = 'events' | 'whole'
+
+/** Every interface a provider can offer, with the kind of model it serves and its framing. */
+export const PROTOCOLS = {
+  'chat-completions': { kind: 'llm', framing: 'events' },
+  messages: { kind: 'llm', framing: 'events' },
+  responses: { kind: 'llm', framing: 'events' },
+  decisions: { kind: 'decisions', framing: 'whole' },
+} as const satisfies Readonly<
+  Record<ProviderEndpoint, Readonly<{ kind: ModelKind; framing: Framing }>>
+>
+
 export function isProviderEndpoint(name: string): name is ProviderEndpoint {
-  return name === 'decisions' || isEngineEndpoint(name)
+  return Object.hasOwn(PROTOCOLS, name)
 }
 
 export type PiRouteEndpoint = Readonly<{ url: string; endMarker: string | null }>
@@ -61,7 +74,7 @@ export type PiTransportConfig = Readonly<{
 export type CheckedRoute = Readonly<{
   url: URL
   endMarker: string | null
-  framing: 'events' | 'whole'
+  framing: Framing
   accounting: RouteAccounting
   auth: PiRouteAuth
 }>
@@ -87,7 +100,7 @@ export function routeFor(
   const found = route.endpoints.get(endpoint)
   if (found === undefined) return undefined
   const { url, endMarker } = found
-  const framing = endpoint === 'decisions' ? 'whole' : 'events'
+  const { framing } = PROTOCOLS[endpoint]
   return { url, endMarker, framing, accounting: route.accounting, auth: route.auth }
 }
 
@@ -161,8 +174,8 @@ function checkRoutes(
       if (!isProviderEndpoint(name))
         throw new RangeError(`a route names an unknown endpoint: ${name}`)
       if (endpoint !== undefined) {
-        if (name === 'decisions' && endpoint.endMarker !== null)
-          throw new RangeError('the decisions endpoint accepts one JSON response')
+        if (PROTOCOLS[name].framing === 'whole' && endpoint.endMarker !== null)
+          throw new RangeError(`the ${name} endpoint accepts one whole response`)
         endpoints.set(name, checkEndpoint(endpoint))
       }
     }

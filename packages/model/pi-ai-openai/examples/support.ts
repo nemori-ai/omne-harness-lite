@@ -66,7 +66,7 @@ export function profileOf(
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('the profile revision does not decode')
   return {
-    identity: { scope: { kind: 'factory' }, route: model },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: model },
     adoption: exampleAdoption(`profile ${model}`),
     revision: revision.ok,
     updatedAt: '2026-10-22T00:00:00Z',
@@ -113,6 +113,7 @@ export async function fixRequest(
 ): Promise<FixedModelRequest> {
   const supplier = supplierOf(profile)
   const base = {
+    kind: 'llm',
     profile: profile.adoption,
     suppliers: [supplier],
     fallback: false,

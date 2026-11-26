@@ -60,6 +60,7 @@ const CONFIG = {
   },
 }
 const REQUEST: FixedModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

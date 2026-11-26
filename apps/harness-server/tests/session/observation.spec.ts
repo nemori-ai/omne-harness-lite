@@ -212,6 +212,7 @@ describe('session observation on the release tree', () => {
       const access = await loginAccess(tree)
       const adoption = { owner: 'o', name: 'observer-admit', revision: '1', digest: '0'.repeat(64) }
       const request: FixedModelRequest = {
+        kind: 'llm',
         profile: adoption,
         suppliers: [
           {

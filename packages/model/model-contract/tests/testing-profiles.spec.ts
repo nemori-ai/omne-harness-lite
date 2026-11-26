@@ -83,12 +83,17 @@ function profileOf(
 ): ModelProfile {
   const upstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: over.scope ?? { kind: 'factory' }, route: over.route ?? 'default' },
+    identity: {
+      kind: 'llm',
+      scope: over.scope ?? { kind: 'factory' },
+      route: over.route ?? 'default',
+    },
     adoption: adoption(`profile-${over.route ?? 'default'}`),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
+      kind: 'llm',
       suppliers: [{ adoption: adoption('supplier'), provider: PROVIDER, model: 'model' }],
       fallback: false,
       input: over.input ?? ['text', 'image'],

@@ -203,12 +203,13 @@ const must = <T>(outcome: Outcome<T, unknown>): T => {
 export function profileOf(route: string): ModelProfile {
   const upstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: { kind: 'factory' }, route },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route },
     adoption: adoption(`profile-${route}`),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: 'active',
     definition: {
+      kind: 'llm',
       suppliers: [
         {
           adoption: adoption('supplier'),
