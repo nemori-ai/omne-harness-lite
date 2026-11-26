@@ -1,4 +1,4 @@
-import type { ExitId } from './body.ts'
+import type { CriterionId, ExitId } from './body.ts'
 import type { CardBase, CardRefusal, GoalRecord } from './record.ts'
 import type { Refusal } from './transition.ts'
 import type { BodyIssue } from './validate.ts'
@@ -89,6 +89,10 @@ export type Taken = Readonly<{ taken: 'counted' | 'stale' | 'repeat' }>
 
 export interface GoalChecking {
   observe(caller: GoalCaller, check: Check): Promise<Outcome<CheckAnswer, GoalRefusal>>
+  reran(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; request: string; results: unknown }>,
+  ): Promise<Outcome<Readonly<{ examine: readonly CriterionId[] }>, GoalRefusal>>
   compacted(caller: GoalCaller, session: string): Promise<Outcome<string | null, GoalRefusal>>
 }
 

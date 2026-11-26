@@ -16,6 +16,7 @@ export type GoalAction =
   | 'observe'
   | 'brief'
   | 'submit'
+  | 'rerun'
   | 'set'
   | 'revise'
   | 'pause'
@@ -70,6 +71,7 @@ export type BatchToHand = Readonly<{
 }>
 export type HandAnswer =
   | Readonly<{ kind: 'handed'; examiner: string }>
+  | Readonly<{ kind: 'taking' }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'refused' }>
 

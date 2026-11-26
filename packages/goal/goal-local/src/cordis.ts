@@ -36,10 +36,12 @@ class LocalGoals extends GoalsService {
 
 class LocalChecking extends GoalCheckingService {
   readonly observe: GoalChecking['observe']
+  readonly reran: GoalChecking['reran']
   readonly compacted: GoalChecking['compacted']
   constructor(ctx: Context, face: GoalChecking) {
     super(ctx)
     this.observe = face.observe
+    this.reran = face.reran
     this.compacted = face.compacted
   }
 }

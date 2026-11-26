@@ -179,6 +179,11 @@ export const RanSchema = z.strictObject({
 export type Ran = z.infer<typeof RanSchema>
 
 type Kept = NonNullable<Batch['ran'][CriterionId]>
+export function ranOf(results: unknown): readonly Ran[] | null {
+  const parsed = z.array(RanSchema).safeParse(results)
+  return parsed.success ? parsed.data : null
+}
+
 const ranReading = ({ exit, note }: Pick<Ran, 'exit' | 'note'>): Kept => ({
   value: exit === null ? 'cannot-tell' : exit === 0 ? 'holds' : 'fails',
   note,

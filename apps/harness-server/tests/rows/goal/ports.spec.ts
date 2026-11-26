@@ -93,6 +93,22 @@ describe('who may ask what of the goal of a session on the release', () => {
       expect(await decide(verified, action)).toBe('denied')
   })
 
+  it('the system principal of goals hands in what the program ran again, and does nothing else; nobody else hands it in', async () => {
+    const system = { kind: 'system', component: 'goal' }
+    expect(await decide(system, 'rerun')).toBe('permitted')
+    for (const action of [...OF_THE_AGENT, ...OF_THE_OWNER, 'observe', 'brief', 'submit'] as const)
+      expect(await decide(system, action as GoalAction)).toBe('denied')
+    const others = [work(A), { kind: 'system', component: 'schedule' }, 'rejected'] as const
+    for (const other of others) expect(await decide(other as never, 'rerun')).toBe('denied')
+  })
+
+  it('the work of a session may ask for the brief and hand in readings: whether it examines for a goal is the record of that goal', async () => {
+    for (const action of ['brief', 'submit'] as const) {
+      expect(await decide(work(A), action)).toBe('permitted')
+      expect(await decide(work(A, 'session-2'), action)).toBe('denied')
+    }
+  })
+
   it('schedule, as the creator of the sessions of its Jobs, reads, sets, cancels and aborts their goals, and does nothing else', async () => {
     const schedule = { kind: 'system', component: 'schedule' }
     for (const action of ['read', 'set', 'cancel', 'abort'] as const)

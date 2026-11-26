@@ -35,7 +35,9 @@ function answered(record: GoalRecord): CheckAnswer {
   return answer === 'continue' ? { kind: 'continue' } : PASS
 }
 
-export function createObserving(deps: GoalsDependencies): GoalChecking {
+export function createObserving(
+  deps: GoalsDependencies,
+): Pick<GoalChecking, 'observe' | 'compacted'> {
   const { store } = deps
   const { permitted, deliver, commit } = createWriting(deps)
   const judge = createJudging(deps)

@@ -92,6 +92,7 @@ export function createWriting(deps: GoalsDependencies) {
       .then(() => deps.examining.hand(tenant, toHand(record, batch, brief)))
       .catch(unknown)
     if (answer.kind === 'refused') return untaken(tenant, record, batch)
+    if (answer.kind === 'taking') return
     if (answer.kind === 'unknown') deps.hints.wake(tenant)
     const taken = delivered(record.examination, batch.key, answer.kind)
     const to = answer.kind === 'handed' ? answer.examiner : examiner

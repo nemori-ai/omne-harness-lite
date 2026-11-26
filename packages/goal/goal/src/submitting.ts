@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto'
 import {
   batchOfRequest,
+  ranOf,
+  reran,
   sessionOfKey,
   SubmissionSchema,
   submissionText,
   submit,
+  type CriterionId,
   type GoalCaller,
+  type GoalChecking,
   type GoalRecord,
   type GoalRefusal,
   type Goals,
@@ -35,6 +39,12 @@ type Refused = Exclude<Outcome<never, GoalRefusal>, { kind: 'done' }>
 type Named = NonNullable<ReturnType<typeof batchOfRequest>>
 type HandedIn = Named & Readonly<{ batch: string; readings: readonly Submitted[] }>
 const DENIED = refused({ kind: 'denied' })
+const NO_LIVE = refused({ kind: 'state', reason: 'no-live-goal' })
+const UNRUN = {
+  entry: null,
+  field: 'results',
+  problem: 'give the name of the batch and one {criterion, exit, note} for each command run again',
+} as const
 
 /** What was handed in, when it has the shape of a submission and names a batch. */
 function handedIn(submission: unknown): HandedIn | null {
@@ -55,22 +65,20 @@ function decided(step: SubmitStep, current: GoalRecord) {
 export function createSubmitting(
   deps: GoalsDependencies,
   { permitted, settle, briefOf }: Writing,
-): Pick<Goals, 'brief' | 'submit'> {
+): Pick<Goals, 'brief' | 'submit'> & Pick<GoalChecking, 'reran'> {
   const { store } = deps
 
   /** What a submission is judged on besides the goal: which cited calls are of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
   async function seenFor(tenant: string, examiner: string, found: GoalRecord, handed: HandedIn) {
-    const session = sessionOfKey(found.session)
     const refs = handed.readings.flatMap(reading => reading.refs)
-    const [real, made, running] = await Promise.all([
+    const [real, standing] = await Promise.all([
       ask(() => deps.examining.cited(tenant, examiner, handed.batch, refs)),
-      ask(() => deps.history.calls(tenant, session, found.since)),
-      ask(() => deps.sessions.running(tenant, session)),
+      standingOf(tenant, found),
     ])
-    if (real.kind !== 'read' || made.kind !== 'read' || running.kind !== 'read') return null
+    if (real.kind !== 'read' || standing === null) return null
     const text = submissionText(handed.readings)
     const digest = `sha256:${createHash('sha256').update(text).digest('hex')}`
-    return { digest, real: real.value, written: lastWrite(made.value), running: running.value }
+    return { digest, real: real.value, ...standing }
   }
 
   /** The goal this session examines for, once the authority let the call through; or the answer that ends the call. */
@@ -82,7 +90,41 @@ export function createSubmitting(
     return found.value ?? DENIED
   }
 
+  /** Where the last write stands and whether a round is going in the session of a goal. Null: not readable now. */
+  async function standingOf(tenant: string, record: GoalRecord) {
+    const session = sessionOfKey(record.session)
+    const [made, running] = await Promise.all([
+      ask(() => deps.history.calls(tenant, session, record.since)),
+      ask(() => deps.sessions.running(tenant, session)),
+    ])
+    if (made.kind !== 'read' || running.kind !== 'read') return null
+    return { written: lastWrite(made.value), running: running.value }
+  }
+
   return {
+    async reran(caller, { session, request, results }) {
+      const stop = await permitted(caller, session, 'rerun')
+      if (stop !== null) return stop
+      const named = batchOfRequest(request)
+      const ran = ranOf(results)
+      if (named === null || ran === null) return refused({ kind: 'invalid', issues: [UNRUN] })
+      const { tenant } = caller
+      const found = await store.latest(tenant, session)
+      if (found.kind === 'unavailable') return UNAVAILABLE
+      if (found.value === null) return NO_LIVE
+      const standing = await standingOf(tenant, found.value)
+      if (standing === null) return UNAVAILABLE
+      const left: CriterionId[] = []
+      const settled = await settle(tenant, session, async current => {
+        if (current === null) return NO_LIVE
+        const step = reran(current, { ...named, results: ran, ...standing })
+        if (step.kind === 'dropped') return { kind: 'unchanged', record: current }
+        left.push(...step.examine)
+        return { kind: 'next', record: step.record }
+      })
+      return settled.kind === 'done' ? done({ examine: left }) : (settled as Refused)
+    },
+
     async brief(caller, { examiner }) {
       const found = await examinedFor(caller, examiner, 'brief')
       if ('kind' in found) return found

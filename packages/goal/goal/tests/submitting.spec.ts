@@ -314,6 +314,74 @@ describe('the readings of a batch handed in with submit', () => {
   })
 })
 
+describe('the exit codes of the commands run again, handed in by the program', () => {
+  const SYSTEM = { tenant: TENANT, subject: 'goal-system' }
+  const ran = (exit: number | null) => [{ criterion: 'A1', exit, note: `exit ${String(exit)}` }]
+  const hand = (
+    w: Awaited<ReturnType<typeof handedOver>>,
+    results: unknown = ran(0),
+    request = BATCH,
+  ) => w.goals.reran(SYSTEM, { session: SESSION, request, results })
+
+  it('with every command passing and an examination left, the batch stays out and the answer names what is left to examine', async () => {
+    const w = await handedOver()
+    expect(value(await hand(w))).toEqual({ examine: ['A2'] })
+    expect(w.record().examination.batch).toMatchObject({
+      ran: { A1: { value: 'holds', note: 'exit 0' } },
+    })
+    expect(w.authority.asked.at(-1)).toMatchObject({ session: SESSION, action: 'rerun' })
+    expect(value(await w.submit([one('A2')]))).toEqual({ taken: 'counted' })
+    expect(w.record().state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+  })
+
+  it('with a command that did not pass, the batch is back at once: the agent is sent on and nothing is left to examine', async () => {
+    const w = await handedOver()
+    expect(value(await hand(w, ran(1)))).toEqual({ examine: [] })
+    expect(w.record().examination.batch).toBeNull()
+    expect(w.record().readings.criteria.A1).toMatchObject({
+      value: 'fails',
+      source: 'system',
+      note: 'exit 1',
+    })
+    expect(w.sessions.woken.map(wake => wake.kind)).toEqual(['continue'])
+    expect(w.sessions.woken[0]?.open).toContain('exit 1')
+  })
+
+  it('of a batch that is no longer out changes nothing and leaves nothing to examine', async () => {
+    const w = await handedOver()
+    const before = w.record()
+    expect(value(await hand(w, ran(0), 'examine/1/1/call-0'))).toEqual({ examine: [] })
+    expect(w.record()).toEqual(before)
+  })
+
+  it('is refused to a caller the authority does not let hand in, when its shape is wrong, and when the session has no goal', async () => {
+    const w = await handedOver()
+    const before = w.record()
+    expect(await hand(w, 'not results')).toMatchObject({ reason: { kind: 'invalid' } })
+    expect(await hand(w, ran(0), 'no-batch')).toMatchObject({ reason: { kind: 'invalid' } })
+    w.authority.answer(action => (action === 'rerun' ? 'denied' : 'permitted'))
+    expect(await hand(w)).toEqual({ kind: 'refused', reason: { kind: 'denied' } })
+    w.authority.answer('permitted')
+    expect(
+      await w.goals.reran(SYSTEM, { session: 'no-such', request: BATCH, results: ran(0) }),
+    ).toEqual({
+      kind: 'refused',
+      reason: { kind: 'state', reason: 'no-live-goal' },
+    })
+    expect(w.record()).toEqual(before)
+  })
+
+  it('has no basis while the history or the session of the goal cannot be read', async () => {
+    const w = await handedOver()
+    for (const port of [w.history, w.sessions, w.store]) {
+      port.readable(false)
+      expect(await hand(w)).toEqual({ kind: 'basis-unavailable' })
+      port.readable(true)
+    }
+    expect(w.record().examination.batch?.ran).toEqual({})
+  })
+})
+
 describe('who may ask what of a goal that is examined', () => {
   it('the examining session reads the brief of the batch that is out; no other session does', async () => {
     const w = await handedOver()
