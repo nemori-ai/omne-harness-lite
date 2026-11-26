@@ -4,7 +4,7 @@ import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { adopt, ask, declare, type Binding, type Scope } from '@omne-harness/dynamis'
+import { adopt, ask, declare, lockOver, type Binding, type Scope } from '@omne-harness/dynamis'
 import {
   GUEST_FORMS_POINT,
   PORTS_POINT,
@@ -46,6 +46,13 @@ export const pluginServerRowConfig = z.strictObject({ floorDirectory: z.string()
 
 const assetsOf = (ctx: Context) => ctx.get(tenantAssetsKey) as TenantAssetsService | undefined
 const registryOf = (ctx: Context) => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
+const lockedBy = (
+  registry: ReturnType<typeof registryOf>,
+  point: string,
+  key: string,
+  scope: Scope,
+): string | undefined =>
+  registry === undefined ? undefined : lockOver(registry, point, key, scope)?.fiber
 
 function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   const registry = registryOf(ctx)
@@ -186,6 +193,8 @@ export const pluginServerRow = defineRow({
           return loadHeldFile((await assetsOf(ctx)?.open(tenant))?.packages, held, file)
         },
         put: entries => putAs(bare, fiberOf(wanted.name, wanted.version), entries),
+        lockedBy: (point, key) =>
+          lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
       })(wanted)
     }
     const side = createServerSide({ floor, install })

@@ -2,6 +2,7 @@ import {
   exactlyOne,
   listed,
   mostSpecific,
+  unlocked,
   visible,
   type Answer,
   type Filtered,
@@ -94,6 +95,7 @@ export type Effect = Readonly<{
     | 'point-ambiguous'
     | 'unread'
     | 'breach'
+    | 'locked'
     | 'conflict'
     | 'retiring'
   detail: string
@@ -232,6 +234,19 @@ function reading(registry: Registry, point: string, asker: Scope): readonly Plac
   )
 }
 
+/** The instance whose locked entry of this key, at a scope shallower than `scope`, would put an entry placed at `scope` out. */
+export function lockOver(
+  registry: Registry,
+  point: string,
+  key: string,
+  scope: Scope,
+): Instance | undefined {
+  const locks = reading(registry, point, scope).filter(
+    placed => placed.key === key && placed.lock === true && placed.scope.length < scope.length,
+  )
+  return locks.sort((left, right) => left.scope.length - right.scope.length)[0]?.instance
+}
+
 const unreadSource = (registry: Registry, point: string, asker: Scope): string | undefined =>
   registry.unread.find(unread => unread.point === point && visible(unread.scope, asker))?.source
 
@@ -280,7 +295,13 @@ export function candidates<I = unknown>(
     if (detail === null) entries.push(placed)
     else filtered.push({ entry: placed, reason: 'breach', detail })
   }
-  return { kind: 'read', contract: declared.contract, entries, filtered }
+  const free = unlocked(entries)
+  return {
+    kind: 'read',
+    contract: declared.contract,
+    entries: free.entries,
+    filtered: [...filtered, ...free.out],
+  }
 }
 
 export function ask<I = unknown>(
@@ -328,7 +349,8 @@ function effectOf(registry: Registry, mine: Placed): Effect {
   if (read.kind !== 'read')
     return { entry: mine, state: UNAVAILABLE_STATE[read.reason], detail: read.detail }
   const out = read.filtered.find(filtered => filtered.entry === mine)
-  if (out !== undefined) return { entry: mine, state: 'breach', detail: out.detail }
+  if (out !== undefined)
+    return { entry: mine, state: out.reason === 'locked' ? 'locked' : 'breach', detail: out.detail }
   const rivals = rivalsOf(read.contract, read.entries, mine)
   if (rivals.length > 0) return { entry: mine, state: 'conflict', detail: rivals.join(', ') }
   return { entry: mine, state: 'effective', detail: '' }

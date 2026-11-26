@@ -100,6 +100,7 @@ export function entryOf(
     rank: 0,
     digest: `${key}@${instance.fiber}#${instance.generation}`,
     item: protocolItem(contribution),
+    lock: true,
   }
 }
 
