@@ -54,6 +54,7 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
+import { reportUnstored, unstoredText } from './unstored-blocks.ts'
 import {
   commitJournal,
   refusalFailure,
@@ -1076,15 +1077,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         commands: [executionRecordBlobFacts({ tenant: book.tenant, execution, blobs: chunk })],
         generations,
       })
+      const stored = { execution, storageOperation: operation, bytes: chunkBytes }
       chunk = []
       chunkBytes = 0
       if (outcome.kind === 'committed') return null
+      reportUnstored(options.report, book, stored, outcome)
       if (outcome.kind === 'refused') return refusalFailure(outcome)
-      return unavailable(
-        outcome.kind === 'unavailable' || outcome.kind === 'unknown'
-          ? `the content blocks were not stored: ${outcome.diagnostic}`
-          : 'the content blocks were not stored: rolled back',
-      )
+      return unavailable(`the content blocks were not stored: ${unstoredText(outcome)}`)
     }
     for (const blob of largest) {
       const bytes = sizeOf(blob)

@@ -802,6 +802,28 @@ describe('the publication report (SPEC 发布观测)', () => {
     ])
   })
 
+  it('content blocks the storage refuses to store are reported too, in the words of the storage', async () => {
+    const { s, open } = await opened('report-refused-blocks')
+    const base = await messageRequest(s, open.authority)
+    const message = assistantMessage('x'.repeat(300_000))
+    const reports: JournalPublicationReport[] = []
+    const said = 'command_limit: maxCommandBytes 1238542 > 1048576 (participant execution-record)'
+    const refused = await reporting(s, reports, [], refusing('command_limit', said)).commit({
+      ...base,
+      events: [{ kind: 'message', message, source: evidence('message-admission') }],
+      caller: { ...base.caller, message } as typeof base.caller,
+    })
+    expect(refused).toEqual({ failure: { kind: 'invalid', field: 'storage', reason: said } })
+    expect(reports).toMatchObject([
+      {
+        method: 'blobs',
+        outcome: 'unavailable',
+        diagnostic: `storage rejected the commit: ${said}`,
+      },
+    ])
+    expect(reports[0]?.blobBytes).toBeGreaterThan(300_000)
+  })
+
   it('a refused publication and an unknown one each report once, with the diagnostic of the answer', async () => {
     const { s, open } = await opened('report-refused')
     const request = await messageRequest(s, open.authority)
