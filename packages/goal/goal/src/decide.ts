@@ -113,6 +113,12 @@ function provenanceOf(
   }
 }
 
+/** Whom a goal stands for: a live goal for whoever set it; a new one for its creator, as a goal nobody in the session attends, or else for the person of the session. */
+function standsFor(current: GoalRecord | null, setter: Attendance): Attendance {
+  const live = current !== null && current.state.status !== 'settled'
+  return live ? current.state.attendance : setter
+}
+
 type Stood = Readonly<{
   state: SetGoalState
   body: GoalBody
@@ -121,8 +127,10 @@ type Stood = Readonly<{
 
 /** The state and the body this write comes to, or why it does not stand: the card, then the state, then the body. */
 function stand(current: GoalRecord | null, input: WriteInput): Stood | Decided {
-  const { entrance, proposal, attendance } = input
+  const { entrance, proposal } = input
   const state = current?.state ?? NO_GOAL
+  const byCreator = entrance.via === 'direct' && entrance.draftedBy === 'creator'
+  const attendance = standsFor(current, byCreator ? 'unattended' : input.attendance)
   const stop = cardRefusal(entrance, state, attendance)
   if (stop !== null) return stop
   const byCard = entrance.via === 'card'
@@ -183,14 +191,14 @@ const carried = (before: GoalRecord, body: GoalBody): Kept => ({
 
 type Described = Readonly<{ proposed: Proposed }> | Readonly<{ refusal: GoalRefusal }>
 
-/** What a confirmation card of this proposal would show and stand on, or why there is nothing to show. */
 export function describeProposal(
   current: GoalRecord | null,
   proposal: Proposal,
   attendance: Attendance,
 ): Described {
-  if (attendance === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
-  const checked = proposedBody(current, proposal, attendance)
+  const owner = standsFor(current, attendance)
+  if (owner === 'unattended') return { refusal: { kind: 'state', reason: 'nobody-attends' } }
+  const checked = proposedBody(current, proposal, owner)
   if (checked.kind === 'no-live-goal') return { refusal: { kind: 'state', reason: 'no-live-goal' } }
   if (checked.kind === 'invalid') return { refusal: { kind: 'invalid', issues: checked.issues } }
   const { body } = checked
