@@ -56,7 +56,6 @@ export function scheduleCodePointTextSchema(maximum: number) {
     .refine(value => Array.from(value).length <= maximum, 'Code point limit exceeded')
 }
 export const ScheduleLabelSchema = scheduleCodePointTextSchema(200)
-export const ScheduleInstructionSchema = scheduleUtf8TextSchema(65_536)
 export const ScheduleReasonSchema = scheduleCodePointTextSchema(1_024)
 export const ScheduleOperationKeySchema = scheduleUtf8TextSchema(128)
 
@@ -90,6 +89,18 @@ export const ScheduleJsonValueSchema = z.custom<z.infer<ReturnType<typeof z.json
   value => isJsonData(value),
   'Expected plain JSON data with finite safe numbers',
 )
+const INSTRUCTION_MAX_BYTES = 65_536
+/** What agent work is to achieve: the data of a goal body. This contract reads its purpose; the executor of the work reads the rest. */
+export const ScheduleInstructionSchema = z
+  .intersection(
+    z.object({ purpose: z.string().min(1) }),
+    z.record(z.string(), ScheduleJsonValueSchema),
+  )
+  .refine(
+    value => Buffer.byteLength(JSON.stringify(value), 'utf8') <= INSTRUCTION_MAX_BYTES,
+    'UTF-8 byte limit exceeded',
+  )
+export type ScheduleInstruction = z.infer<typeof ScheduleInstructionSchema>
 export type ScheduleJsonValue = z.infer<typeof ScheduleJsonValueSchema>
 export type ScheduleId = z.infer<typeof ScheduleIdSchema>
 export type ScheduleOperationRef = z.infer<typeof ScheduleOperationRefSchema>

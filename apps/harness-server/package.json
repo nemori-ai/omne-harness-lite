@@ -171,6 +171,7 @@
     "@omne-harness/schedule-cordis-contract": "workspace:*",
     "@omne-harness/schedule-local": "workspace:*",
     "@omne-harness/schedule-protocol": "workspace:*",
+    "@omne-harness/schedule-session": "workspace:*",
     "@omne-harness/schedule-tools": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",

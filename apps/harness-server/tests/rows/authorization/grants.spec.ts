@@ -62,6 +62,7 @@ describe('the release grant table', () => {
       'agent-host',
       'dispatch',
       'goal',
+      'schedule',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
       'toolResidencyPrincipal',
@@ -77,6 +78,10 @@ describe('the release grant table', () => {
 
   it('gives goals the one purpose of sending a session an input, and nothing else', () => {
     expect(MAINTENANCE_GRANTS.goal.purposes).toEqual(['session-input'])
+  })
+
+  it('gives schedule the one purpose of creating the session of a Job, and nothing else', () => {
+    expect(MAINTENANCE_GRANTS.schedule.purposes).toEqual(['session-create'])
   })
 
   it('gives dispatch the three purposes of a part of another domain, and nothing else', () => {

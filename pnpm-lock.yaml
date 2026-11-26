@@ -1087,6 +1087,9 @@ importers:
       '@omne-harness/schedule-protocol':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-protocol
+      '@omne-harness/schedule-session':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-session
       '@omne-harness/schedule-tools':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-tools
@@ -6515,6 +6518,28 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/schedule/schedule-session:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../../goal/goal-contract
+      '@omne-harness/schedule-contract':
+        specifier: workspace:*
+        version: link:../schedule-contract
+    devDependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../../goal/goal
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

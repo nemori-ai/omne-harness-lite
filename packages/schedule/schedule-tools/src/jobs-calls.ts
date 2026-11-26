@@ -1,10 +1,13 @@
-import type {
-  ScheduleExecutionRow,
-  ScheduleJobDetail,
-  ScheduleJobSummary,
+import {
+  completeAgentWork,
+  ScheduleWorkSchema,
+  type ScheduleExecutionRow,
+  type ScheduleJobDetail,
+  type ScheduleJobSummary,
 } from '@omne-harness/schedule-contract'
 import type { BoundJobs, JobsFaces } from './port.ts'
 import type { JobsArguments } from './jobs-protocol.ts'
+import { unreadLine, whereOf } from './protocol.ts'
 import { refusalLine } from './text.ts'
 
 type Of<K extends JobsArguments['command']> = Extract<JobsArguments, { command: K }>
@@ -54,6 +57,23 @@ function detailOf(detail: ScheduleJobDetail) {
   }
 }
 
+const OF_THIS_SESSION = 20
+
+/** One Job by its id; without an id, the Jobs the session of this call carries out or carried out. */
+async function show(job: string | undefined, { jobs, context }: JobsFaces): Promise<string> {
+  if (job !== undefined) {
+    const found = await jobs.get(context, { jobId: job as never })
+    return found.kind === 'error' ? refusalLine(found.error) : done('show', detailOf(found.value))
+  }
+  const session = context.originatingSessionRef
+  if (session === null)
+    return 'invalid reason=show without job reads the Jobs of the session of the call, and this call is in none code=invalid_input'
+  const found = await jobs.ofExecution(context, { executionRef: session, limit: OF_THIS_SESSION })
+  return found.kind === 'error'
+    ? refusalLine(found.error)
+    : done('show', { session, jobs: found.value.map(detailOf) })
+}
+
 /** One call is one read or one write; an unknown write is said to be unknown, never success. */
 export async function runJobs(
   args: Exclude<JobsArguments, Of<'help'>>,
@@ -72,10 +92,7 @@ export async function runJobs(
     if (page.kind === 'error') return refusalLine(page.error)
     return done('list', { items: page.value.items.map(rowOf), next: page.value.nextCursor })
   }
-  if (args.command === 'show') {
-    const found = await faces.jobs.get(context, { jobId: args.params.job })
-    return found.kind === 'error' ? refusalLine(found.error) : done('show', detailOf(found.value))
-  }
+  if (args.command === 'show') return show(args.params.job, faces)
   if (args.command === 'cancel') {
     const answer = await faces.jobs.cancel(context, {
       jobId: args.params.job,
@@ -87,8 +104,16 @@ export async function runJobs(
       return `unknown reason=the cancel may or may not have happened; call show with this job to read its stop state job=${args.params.job}`
     return done('cancel', { changed: outcome === 'committed', ...detailOf(detail) })
   }
+  const completed = completeAgentWork(args.params.work, await faces.defaults())
+  if (completed.kind !== 'completed') return unreadLine(completed)
+  const work = ScheduleWorkSchema.safeParse(completed.work)
+  if (!work.success)
+    return unreadLine({
+      kind: 'refused',
+      reason: `the work does not form a Job: ${whereOf(work.error)}`,
+    })
   const answer = await faces.jobs.start(context, {
-    work: { kind: 'program', programRef: args.params.program, input: args.params.input ?? {} },
+    work: work.data,
     operationKey: bound.operationKey('start'),
   })
   if (answer.kind === 'error') return refusalLine(answer.error)

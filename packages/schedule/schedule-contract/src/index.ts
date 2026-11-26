@@ -1,6 +1,7 @@
 export * from './values.ts'
 export * from './recurrence.ts'
 export * from './work.ts'
+export * from './complete.ts'
 export * from './definition.ts'
 export * from './commands.ts'
 export * from './operation.ts'

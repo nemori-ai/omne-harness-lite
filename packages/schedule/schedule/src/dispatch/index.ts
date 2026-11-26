@@ -31,4 +31,4 @@ export {
   type StopState,
 } from './job.ts'
 export { coordinateJob, type CoordinationPorts } from './coordinate.ts'
-export { carriersOf, needText, workPathOf } from './carriers.ts'
+export { carriersOf, needText, workAcceptance, workPathOf } from './carriers.ts'

@@ -1,0 +1,37 @@
+{
+  "name": "@omne-harness/schedule-session",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Schedule adapter that knows Session and Goal: the executors that carry out agent work in a session of its own or in a session named, by the goal the Job brings",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/goal-contract": "workspace:*",
+    "@omne-harness/schedule-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/goal": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

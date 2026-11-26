@@ -56,6 +56,7 @@ export type SessionsArguments =
       cursor: string | null
       backward: boolean
       inherited: boolean
+      after: string | null
     }>
   | Readonly<{ kind: 'search'; input: SessionsSearchInput }>
 
@@ -77,12 +78,22 @@ const PARSERS = {
     limit,
   }),
   show: z.strictObject({ session }),
-  read: z.strictObject({
-    session,
-    cursor,
-    backward: z.boolean().optional(),
-    inherited: z.boolean().optional(),
-  }),
+  read: z
+    .strictObject({
+      session,
+      cursor,
+      backward: z.boolean().optional(),
+      inherited: z.boolean().optional(),
+      after: z.string().min(1).max(256).optional(),
+    })
+    .refine(
+      ({ after, cursor: next, backward, inherited }) =>
+        after === undefined || (next === undefined && backward !== true && inherited !== true),
+      {
+        message:
+          'after starts a reading at a position: give it without cursor, backward and inherited',
+      },
+    ),
   search: z
     .strictObject({
       text: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(8)]).optional(),
@@ -133,6 +144,7 @@ const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => Sessi
     cursor: params.cursor ?? null,
     backward: params.backward ?? false,
     inherited: params.inherited ?? false,
+    after: params.after ?? null,
   }),
   search: params => ({
     kind: 'search',
@@ -226,11 +238,14 @@ export const sessionsCommands: readonly Command[] = [
       cursor: text,
       backward: { type: 'boolean' },
       inherited: { type: 'boolean' },
+      after: text,
     },
     required: ['session'],
     descriptions: {
       session: SESSION,
       cursor: CURSOR,
+      after:
+        'A position of this session, as an item of a page or the since of a Job names it: reading starts with what was recorded after it. Not with cursor, backward or inherited.',
       backward:
         'true starts at the newest message and goes back; false or omitted starts at the first.',
       inherited:

@@ -24,7 +24,10 @@ export type ScheduleLocalOptions = Readonly<{
   sql: ScheduleManagementSqlOptions
   worker: Parameters<typeof createScheduleCalculationWorker>[0]
   prediction: Omit<SchedulePredictionDependencies, 'calculator'>
-  management: Omit<ScheduleManagementDependencies, 'store' | 'persistence' | 'definitions'>
+  management: Omit<
+    ScheduleManagementDependencies,
+    'store' | 'persistence' | 'definitions' | 'executor'
+  >
   query: Omit<
     ScheduleQueryDependencies,
     'store' | 'prediction' | 'clock' | 'monotonicClock' | 'history'
@@ -57,6 +60,7 @@ export async function createScheduleLocalApplication(
       ...options.management,
       ...backend,
       definitions: prediction.definitions,
+      ...(options.dispatch === undefined ? {} : { executor: options.dispatch.executor }),
     })
     const { queries } = createScheduleQueryApplication({
       ...options.query,
@@ -84,6 +88,7 @@ export async function createScheduleLocalApplication(
             queries,
             authorizer: options.query.authorizer,
             dispatcher,
+            executor: options.dispatch.executor,
           })
     const managed = dispatcher === undefined ? commands : waking(commands, dispatcher.wake)
     return {
@@ -150,6 +155,8 @@ function bindLifetime(
             start: (context, input) => lifetime.run(() => jobs.start(context, input), failed),
             queryStart: (context, input) =>
               lifetime.run(() => jobs.queryStart(context, input), failed),
+            ofExecution: (context, input) =>
+              lifetime.run(() => jobs.ofExecution(context, input), failed),
           },
         }),
     close: () => lifetime.close(dispose),

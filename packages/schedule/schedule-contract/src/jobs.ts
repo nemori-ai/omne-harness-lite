@@ -20,13 +20,32 @@ export const ScheduleJobDetailSchema = z.strictObject({
   definitionRevision: z.int().nonnegative(),
   reason: ref.nullable(),
   executionWhere: z
-    .strictObject({ kind: z.literal('program'), programRef: ref, executionRef: ref })
+    .discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('program'), programRef: ref, executionRef: ref }),
+      z.strictObject({
+        kind: z.literal('session'),
+        sessionRef: ref,
+        account: z
+          .strictObject({
+            adopted: z.strictObject({ name: ref, version: ref }).nullable(),
+            outcome: ref.nullable(),
+            deliverables: z.array(z.string()).readonly(),
+            since: ref.nullable(),
+            run: ref.nullable(),
+          })
+          .nullable(),
+      }),
+    ])
     .nullable(),
   events: z.array(
     z.strictObject({ seq: z.int().positive(), kind: ref, at: ScheduleInstantSchema }),
   ),
 })
 export const ScheduleJobRequestSchema = z.strictObject({ jobId: ScheduleJobIdSchema })
+export const ScheduleJobsOfExecutionRequestSchema = z.strictObject({
+  executionRef: ref,
+  limit: z.int().min(1).max(50),
+})
 export const ScheduleJobCancelRequestSchema = z.strictObject({
   jobId: ScheduleJobIdSchema,
   operationKey: ref,
@@ -37,6 +56,7 @@ export const ScheduleJobStartRequestSchema = z.strictObject({
 })
 export type ScheduleJobDetail = z.infer<typeof ScheduleJobDetailSchema>
 export type ScheduleJobRequest = z.infer<typeof ScheduleJobRequestSchema>
+export type ScheduleJobsOfExecutionRequest = z.infer<typeof ScheduleJobsOfExecutionRequestSchema>
 export type ScheduleJobCancelRequest = z.infer<typeof ScheduleJobCancelRequestSchema>
 export type ScheduleJobStartRequest = z.infer<typeof ScheduleJobStartRequestSchema>
 export type ScheduleJobWrite = Readonly<{
@@ -51,6 +71,11 @@ export interface ScheduleJobs {
     ctx: ScheduleCallContext,
     input: ScheduleJobRequest,
   ): Promise<ScheduleQueryResult<ScheduleJobDetail>>
+  /** The Jobs whose execution is this one (the session they run or ran in), newest first; only those the caller may see. */
+  ofExecution(
+    ctx: ScheduleCallContext,
+    input: ScheduleJobsOfExecutionRequest,
+  ): Promise<ScheduleQueryResult<readonly ScheduleJobDetail[]>>
   cancel(
     ctx: ScheduleCallContext,
     input: ScheduleJobCancelRequest,

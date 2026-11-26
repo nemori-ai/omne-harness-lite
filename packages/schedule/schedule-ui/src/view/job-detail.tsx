@@ -7,6 +7,7 @@ import {
   FactList,
   FactRow,
   IconButton,
+  OpenIcon,
   InlineConfirm,
   InlineNotice,
   ReadingDocument,
@@ -15,7 +16,15 @@ import {
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, useState, type JSX } from 'react'
-import { jobWord, ORIGIN_WORDS, requirementText, stepText, type JobDetail } from '../model/jobs.ts'
+import {
+  carriedText,
+  jobWord,
+  ORIGIN_WORDS,
+  requirementText,
+  stepText,
+  type JobDetail,
+} from '../model/jobs.ts'
+import { beganAt, deliveredOf, sessionOf } from '../model/job-session.ts'
 import { readOnce, useReading } from '../model/reading.ts'
 import { localText } from '../model/words.ts'
 import { scheduleJob, scheduleJobCancel } from '../parts.ts'
@@ -34,6 +43,8 @@ export type JobDetailProps = Readonly<{
   backLabel: string
   onBack: () => void
   round: number
+  /** Opens the session a Job is carried out in, at the run its work began in; absent: sessions cannot be opened from here. */
+  onOpenSession?: (session: string, run?: string) => void
 }>
 
 const titleOf = (local: string | null) =>
@@ -63,7 +74,7 @@ export function JobDetailView(props: JobDetailProps): JSX.Element {
       </ReadingToolbar>
       <ReadingDocument>
         <Drawn reading={detail} reread={reread} refused={() => '看不到这份作业。'}>
-          {value => <Job detail={value} />}
+          {value => <Job detail={value} onOpenSession={props.onOpenSession} />}
         </Drawn>
       </ReadingDocument>
     </>
@@ -121,8 +132,25 @@ function Cancel({
   )
 }
 
-function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
+type JobProps = Readonly<{
+  detail: JobDetail
+  onOpenSession: JobDetailProps['onOpenSession'] | undefined
+}>
+
+function Job({ detail, onOpenSession }: JobProps): JSX.Element {
   const word = jobWord(detail)
+  const place = sessionOf(detail.where)
+  const began = beganAt(detail.events)
+  const delivered = deliveredOf(detail.where)
+  const open = place !== null && onOpenSession !== undefined && (
+    <IconButton
+      label="打开会话"
+      className="schedule-open-session"
+      onClick={() => onOpenSession(place.session, place.run)}
+    >
+      <OpenIcon aria-hidden="true" />
+    </IconButton>
+  )
   const basis =
     detail.calendar === null
       ? `安排的修订 ${detail.revision}`
@@ -140,9 +168,8 @@ function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
         <FactRow term="依据">{basis}</FactRow>
         <FactRow term="要求">{`${requirementText(detail.work)}（受理时冻结）`}</FactRow>
         <FactRow term="承接">
-          {detail.where === null
-            ? '还没有承接'
-            : `程序 ${detail.where.program}（执行 ${detail.where.execution}）`}
+          {carriedText(detail.where)}
+          {open}
         </FactRow>
       </FactList>
       <Section id="schedule-job-steps" title="经过">
@@ -150,12 +177,28 @@ function Job({ detail }: Readonly<{ detail: JobDetail }>): JSX.Element {
           {detail.events.map(event => (
             <li key={event.seq}>
               <Ago at={encodeInstant(event.at)} /> {stepText(event.kind)}
+              {event.seq === began && open}
             </li>
           ))}
         </ol>
       </Section>
       <Section id="schedule-job-results" title="成果">
-        <p className="schedule-note">这份作业没有要交的成果。</p>
+        {delivered === null ? (
+          <p className="schedule-note">这份作业没有要交的成果。</p>
+        ) : delivered === 'unread' ? (
+          <p className="schedule-note">交付物此刻读不到。</p>
+        ) : delivered.length === 0 ? (
+          <p className="schedule-note">还没有交付物。</p>
+        ) : (
+          <>
+            <p className="schedule-note">交付物留在作业会话里：</p>
+            <ul className="schedule-steps" aria-label="交付物">
+              {delivered.map(name => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </Section>
     </>
   )

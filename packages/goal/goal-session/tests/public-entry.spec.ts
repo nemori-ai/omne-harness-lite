@@ -6,6 +6,7 @@ it('the public entry exports the sources, the reminder texts and the adapter', a
     'CITED_PAGE_LIMIT',
     'GOAL_SOURCES',
     'HISTORY_PAGE_LIMIT',
+    'NO_ENTRY',
     'answeredCalls',
     'continueText',
     'createGoalCalls',
