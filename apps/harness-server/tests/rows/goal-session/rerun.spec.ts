@@ -45,6 +45,24 @@ describe('a command run again in a clean copy of the working directory', () => {
     ])
   })
 
+  it('says the last line a command printed, not the first, and gives the command none of the server environment but where programs are found', async () => {
+    const where = workspace({})
+    const name = 'OMNE_RERUN_SPEC_SECRET'
+    process.env[name] = 'kept-from-the-command'
+    try {
+      const said = await run(where, [
+        `printf 'first\\nlast\\n'; exit 3`,
+        `echo "secret=\${${name}:-absent} ci=$CI"`,
+      ])
+      expect(said).toEqual([
+        { criterion: 'A1', exit: 3, note: 'exit 3: last' },
+        { criterion: 'A2', exit: 0, note: 'exit 0: secret=absent ci=1' },
+      ])
+    } finally {
+      delete process.env[name]
+    }
+  })
+
   it('writes nothing in the working directory: what the command writes lands in the copy, which is gone afterwards', async () => {
     const where = workspace({ 'accept.js': ACCEPT, 'snake.js': RIGHT })
     const before = readdirSync(where).sort()
