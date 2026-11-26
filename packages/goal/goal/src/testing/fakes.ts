@@ -117,6 +117,8 @@ export type FakeExamining = GoalExamining &
     closed: string[]
   }>
 
+const NO_CALL = { tool: 'Shell', path: null, exit: 0, output: '', writes: false } as const
+
 export function fakeExamining(): FakeExamining {
   const handed: BatchToHand[] = []
   const asked: string[] = []
@@ -157,10 +159,11 @@ export function fakeExamining(): FakeExamining {
       const examiner = batch.examiner ?? `examiner-of-${batch.session}`
       return answer === 'unknown' ? { kind: 'unknown' } : { kind: 'handed', examiner }
     },
-    async cited(_tenant, examiner, request, refs) {
+    async calls(_tenant, examiner, request) {
       if (!canRead) return { kind: 'unavailable' }
       const made = rounds.get(`${examiner}|${request}`) ?? []
-      return { kind: 'read', value: refs.filter(ref => made.includes(ref)) }
+      const value = made.map((ref, order) => ({ ...NO_CALL, ref, order, command: `play ${ref}` }))
+      return { kind: 'read', value }
     },
   }
 }

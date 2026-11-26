@@ -72,7 +72,7 @@ export const goalSummaries: Readonly<Record<GoalCommandName, string>> = {
   brief:
     'Only in a session that examines for a goal: read the brief of the batch you are to examine.',
   submit:
-    'Only in a session that examines for a goal: hand in one reading for each criterion of the batch, with the call ids of your own tool calls that show it and what you saw. It changes nothing of the goal itself.',
+    'Only in a session that examines for a goal: hand in one reading for each criterion of the batch, with the call ids of your own tool calls of this examination that show it and what you saw. A reading that holds or fails cites at least one. When a reference does not stand, nothing is taken and the answer lists the ids you can cite: hand in again. It changes nothing of the goal itself.',
 }
 
 /** The contract's values are immutable, which zod writes as `readOnly`: in a schema that means "do not send". */

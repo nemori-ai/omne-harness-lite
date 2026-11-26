@@ -60,22 +60,27 @@ export function submissionIssues(
   ]
 }
 
-export const UNCITED = 'it cites a call that is not of this examination'
+/** A reading that does not stand on what it cites. `refs`: the ones that name no call of the examination; none of them when it holds or fails and cites nothing. */
+export type Uncited = Readonly<{ criterion: CriterionId; refs: readonly string[] }>
 
-/** The readings as the goal keeps them. One that cites a call which is not of the examination cannot be told. */
-export function handedOf(
+export function uncitedOf(
   readings: readonly Submitted[],
   real: readonly string[],
-): Readonly<Partial<Record<CriterionId, Handed>>> {
+): readonly Uncited[] {
   const known = new Set(real)
-  const kept = readings.map(({ criterion, value, refs, note }) => {
-    const cited = refs.every(ref => known.has(ref))
-    const reading: Handed = cited
-      ? { value, note, refs }
-      : { value: 'cannot-tell', note: UNCITED, refs: [] }
-    return [criterion, reading] as const
+  return readings.flatMap(({ criterion, value, refs }) => {
+    const missing = refs.filter(ref => !known.has(ref))
+    const bare = refs.length === 0 && value !== 'cannot-tell'
+    return missing.length > 0 || bare ? [{ criterion, refs: missing }] : []
   })
-  return Object.fromEntries(kept)
+}
+
+export function handedOf(
+  readings: readonly Submitted[],
+): Readonly<Partial<Record<CriterionId, Handed>>> {
+  return Object.fromEntries(
+    readings.map(({ criterion, value, refs, note }) => [criterion, { value, note, refs }] as const),
+  )
 }
 
 export function submissionText(readings: readonly Submitted[]): string {
@@ -127,6 +132,7 @@ export function renderBrief(body: GoalBody, batch: Batch, facts: BriefFacts): st
 export type SubmitStep =
   | Readonly<{ kind: 'refused'; reason: 'differs' }>
   | Readonly<{ kind: 'refused'; reason: 'invalid'; issues: readonly BodyIssue[] }>
+  | Readonly<{ kind: 'refused'; reason: 'uncited'; uncited: readonly Uncited[] }>
   | Readonly<{ kind: 'kept'; taken: 'repeat' | 'stale' }>
   | Readonly<{
       kind: 'next'
@@ -134,6 +140,18 @@ export type SubmitStep =
       record: GoalRecord
       told: Extract<EvidenceStep, { kind: 'next' }>['told']
     }>
+
+function refusalOf(
+  batch: Batch,
+  readings: readonly Submitted[],
+  real: readonly string[],
+): Extract<SubmitStep, { kind: 'refused' }> | null {
+  const rest = batch.criteria.filter(id => batch.ran[id] === undefined)
+  const issues = submissionIssues({ ...batch, criteria: rest }, readings)
+  if (issues.length > 0) return { kind: 'refused', reason: 'invalid', issues }
+  const uncited = uncitedOf(readings, real)
+  return uncited.length > 0 ? { kind: 'refused', reason: 'uncited', uncited } : null
+}
 
 /** The readings of a batch handed in by the examining side of this goal, row by row of the table in the specification. It writes readings; the state follows from the verdict table. */
 export function submit(
@@ -155,10 +173,9 @@ export function submit(
   if (before === 'differs') return { kind: 'refused', reason: 'differs' }
   const { batch } = record.examination
   if (batch === null || !sameKey(batch.key, key)) return { kind: 'kept', taken: 'stale' }
-  const rest = batch.criteria.filter(id => batch.ran[id] === undefined)
-  const issues = submissionIssues({ ...batch, criteria: rest }, input.readings)
-  if (issues.length > 0) return { kind: 'refused', reason: 'invalid', issues }
-  const answers = handedOf(input.readings, input.real)
+  const refusal = refusalOf(batch, input.readings, input.real)
+  if (refusal !== null) return refusal
+  const answers = handedOf(input.readings)
   const step = evidence(record, { key, written, running, answers, digest })
   if (step.kind === 'dropped') return { kind: 'kept', taken: 'stale' }
   const current = sameKey(key, { revision: record.state.revision, written })

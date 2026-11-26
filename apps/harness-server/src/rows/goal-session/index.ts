@@ -48,6 +48,7 @@ export const goalSessionRow = defineRow({
     }
     const examinerPorts = { system, workPrincipals, examiner }
     const examinerCalls = examinerCallsOf(ctx, examinerPorts, sessionCalls.reminderWith)
+    const history = createGoalHistory(sessionCalls, describeCall)
     const examining = createExamining({
       rerun: { runner: shellRunner, timeoutMs: RERUN_TIMEOUT_MS },
       system,
@@ -63,12 +64,12 @@ export const goalSessionRow = defineRow({
             const set = await settingsOf(tenant)
             return set === null ? null : set.minutes * 60_000
           },
+          history,
         },
       ),
     })
     const sessions = createGoalSessions(sessionCalls)
     const calls = createGoalCalls(sessionCalls)
-    const history = createGoalHistory(sessionCalls, describeCall)
     ctx.inject([sessionInputSourcesKey], child => {
       for (const source of goalInputSources(GOAL_COMPONENT))
         child[sessionInputSourcesKey].register(source)

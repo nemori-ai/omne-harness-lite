@@ -11,12 +11,14 @@ import {
   type GoalChecking,
   type GoalRecord,
   type GoalRefusal,
+  type ObservedCall,
   type Goals,
   type Outcome,
   type SubmitStep,
   type Submitted,
   type Taken,
 } from '@omne-harness/goal-contract'
+import { uncitedReadings } from './citing.ts'
 import type { GoalsDependencies } from './goals.ts'
 import type { PortRead } from './ports.ts'
 import { done, refused, UNAVAILABLE, type createWriting } from './writing.ts'
@@ -54,12 +56,12 @@ function handedIn(submission: unknown): HandedIn | null {
   return parsed.success && named !== null ? { ...named, ...parsed.data } : null
 }
 
-function decided(step: SubmitStep, current: GoalRecord) {
+function decided(step: SubmitStep, current: GoalRecord, made: readonly ObservedCall[]) {
   if (step.kind === 'kept') return { kind: 'unchanged', record: current } as const
   if (step.kind === 'next') return { kind: 'next', record: step.record } as const
-  return refused(
-    step.reason === 'differs' ? { kind: 'differs' } : { kind: 'invalid', issues: step.issues },
-  )
+  if (step.reason === 'differs') return refused({ kind: 'differs' })
+  const issues = step.reason === 'uncited' ? uncitedReadings(step.uncited, made) : step.issues
+  return refused({ kind: 'invalid', issues })
 }
 
 /** What the session that examines for a goal asks of it: the brief of the batch that is out, and to hand in its readings. The goal is found by that session; no other session reaches it this way. */
@@ -69,17 +71,16 @@ export function createSubmitting(
 ): Pick<Goals, 'brief' | 'submit' | 'examines'> & Pick<GoalChecking, 'reran'> {
   const { store } = deps
 
-  /** What a submission is judged on besides the goal: which cited calls are of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
+  /** What a submission is judged on besides the goal: the calls of the examination, where the last write stands, whether a round is going, and the digest of what was handed in. Null: one of them cannot be read. */
   async function seenFor(tenant: string, examiner: string, found: GoalRecord, handed: HandedIn) {
-    const refs = handed.readings.flatMap(reading => reading.refs)
-    const [real, standing] = await Promise.all([
-      ask(() => deps.examining.cited(tenant, examiner, handed.batch, refs)),
+    const [made, standing] = await Promise.all([
+      ask(() => deps.examining.calls(tenant, examiner, handed.batch)),
       standingOf(tenant, found),
     ])
-    if (real.kind !== 'read' || standing === null) return null
+    if (made.kind !== 'read' || standing === null) return null
     const text = submissionText(handed.readings)
     const digest = `sha256:${createHash('sha256').update(text).digest('hex')}`
-    return { digest, real: real.value, ...standing }
+    return { digest, made: made.value, real: made.value.map(call => call.ref), ...standing }
   }
 
   /** The goal this session examines for, once the authority let the call through; or the answer that ends the call. */
@@ -142,7 +143,7 @@ export function createSubmitting(
         if (current?.examination.examiner !== examiner) return DENIED
         const step = submit(current, { ...handed, ...seen })
         if (step.kind !== 'refused') out.push({ taken: step.taken })
-        return decided(step, current)
+        return decided(step, current, seen.made)
       })
       const taken = out.at(-1)
       return settled.kind === 'done' && taken !== undefined ? done(taken) : (settled as Refused)

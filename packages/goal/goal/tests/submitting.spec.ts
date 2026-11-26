@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DecisionAsk } from '@omne-harness/goal'
 import {
-  UNCITED,
   type GoalDraft,
   type JudgeAnswer,
   type JudgeReply,
@@ -268,15 +267,46 @@ describe('the readings of a batch handed in with submit', () => {
     expect(w.record()).toEqual(before)
   })
 
-  it('row 6: a reading that cites a call which is not of this examination is taken as cannot tell, and the agent is sent on', async () => {
+  it('row 6: a reading that cites a call which is not of this examination, or holds on none, is handed back whole with the calls of the examination that can be cited; the goal is as it was, and the readings handed in again with a call of it are taken', async () => {
     const w = await handedOver()
-    expect(value(await w.submit([one('A1'), one('A2', { refs: ['call-1'] })]))).toEqual({
-      taken: 'counted',
+    const before = w.record()
+    const loose = [one('A1', { refs: ['call-1'] }), one('A2', { refs: [] })]
+    expect(await w.submit(loose)).toEqual({
+      kind: 'refused',
+      reason: {
+        kind: 'invalid',
+        issues: [
+          { entry: 'A1', field: 'refs', problem: 'no tool call of this examination: call-1' },
+          {
+            entry: 'A2',
+            field: 'refs',
+            problem:
+              'a reading that holds or fails cites at least one tool call of this examination',
+          },
+          {
+            entry: null,
+            field: 'refs',
+            problem: 'Those you can cite: x-1 Shell `play x-1`; x-2 Shell `play x-2`',
+          },
+        ],
+      },
     })
-    expect(w.record().examination.read.A2).toMatchObject({ value: 'cannot-tell', note: UNCITED })
-    expect(w.record().state).toMatchObject({ status: 'active', rounds: 1 })
-    expect(w.sessions.woken.map(wake => [wake.kind, wake.session])).toEqual([['continue', SESSION]])
-    expect(w.sessions.woken[0]?.open).toContain(UNCITED)
+    expect(w.record()).toEqual(before)
+    expect(w.sessions.woken).toEqual([])
+    expect(value(await w.submit())).toEqual({ taken: 'counted' })
+  })
+
+  it('row 6: handed in before any call was made, the examiner is told to examine first', async () => {
+    const w = await handedOver()
+    w.examining.made(EXAMINER, BATCH, [])
+    const answer = await w.submit()
+    expect(answer).toMatchObject({ kind: 'refused', reason: { kind: 'invalid' } })
+    if (answer.kind !== 'refused' || answer.reason.kind !== 'invalid') throw new Error('refused')
+    expect(answer.reason.issues.at(-1)).toEqual({
+      entry: null,
+      field: 'refs',
+      problem: 'you made no tool call in this examination yet: examine first, then hand in',
+    })
   })
 
   it('row 7: all right, with no round going: the goal is achieved at once and its session is told nothing to do', async () => {
@@ -382,7 +412,7 @@ describe('the readings of a batch handed in with submit', () => {
 
   it('has no basis when the port that knows the calls of the examination throws', async () => {
     const w = await handedOver()
-    Object.assign(w.examining, { cited: () => Promise.reject(new Error('down')) })
+    Object.assign(w.examining, { calls: () => Promise.reject(new Error('down')) })
     expect(await w.submit()).toEqual({ kind: 'basis-unavailable' })
   })
 

@@ -70,8 +70,9 @@ function examiners() {
     if (limit.ms instanceof Error) throw limit.ms
     return limit.ms
   }
+  const { history } = w
   const open = () =>
-    createSessionExamining({ ...w.calls, ...own }, { now: () => clock.now, wait, limitMs })
+    createSessionExamining({ ...w.calls, ...own }, { now: () => clock.now, wait, limitMs, history })
   return { ...w, made, own: state, clock, open, examining: open(), waited, works, limit }
 }
 
@@ -392,34 +393,72 @@ describe('what became of the round an examining session gave a batch', () => {
   })
 })
 
-describe('the calls an examining session cites', () => {
-  const EXAMINER = 'e'.repeat(64)
-  const cited = (w: ReturnType<typeof examiners>, refs = ['x-1', 'x-9']) =>
-    w.examining.cited(TENANT, EXAMINER, BATCH, refs)
+const asking = (callId: string, script: string) => ({
+  kind: 'message.assistant',
+  payload: {
+    message: {
+      role: 'assistant',
+      blocks: [
+        {
+          kind: 'tool_call',
+          callId,
+          name: 'Shell',
+          arguments: {
+            kind: 'object',
+            entries: [
+              { key: 'command', value: { kind: 'string', value: 'execute' } },
+              { key: 'script', value: { kind: 'string', value: script } },
+            ],
+          },
+        },
+      ],
+    },
+  },
+})
 
-  it('are of its examination when they were answered after the brief of that batch came in', async () => {
+describe('the calls an examining session can cite', () => {
+  const EXAMINER = 'e'.repeat(64)
+  const callsOf = (w: ReturnType<typeof examiners>) => w.examining.calls(TENANT, EXAMINER, BATCH)
+
+  it('are the ones it made after the brief of that batch came in, each by what it ran', async () => {
     const w = examiners()
-    w.state.pages = [page([result('x-1'), result('x-2')], null)]
-    expect(await cited(w)).toEqual({ kind: 'read', value: ['x-1'] })
+    w.state.pages = [page([asking('x-1', 'node play.js'), result('x-1')], null)]
+    expect(await callsOf(w)).toEqual({
+      kind: 'read',
+      value: [
+        {
+          ref: 'x-1',
+          order: 0,
+          tool: 'Shell',
+          command: 'node play.js',
+          path: null,
+          exit: 0,
+          output: 'shown: ok',
+          writes: false,
+        },
+      ],
+    })
     expect(w.made).toEqual([
       ['reminderWith', { tenant: LEGAL_TENANT, session: EXAMINER, line: `Batch: ${BATCH}` }],
     ])
     expect(w.asked).toEqual([{ after: '17', cursor: null }])
-    expect(w.read).toEqual([{ tenant: LEGAL_TENANT, session: EXAMINER }])
   })
 
   it('are none when the session never took that brief, and cannot be told while its history cannot be read', async () => {
     const w = examiners()
     w.own.reminder = { kind: 'read', value: null }
-    expect(await cited(w)).toEqual({ kind: 'read', value: [] })
+    expect(await callsOf(w)).toEqual({ kind: 'read', value: [] })
     expect(w.asked).toEqual([])
     w.own.reminder = { kind: 'unavailable' }
-    expect(await cited(w)).toEqual({ kind: 'unavailable' })
+    expect(await callsOf(w)).toEqual({ kind: 'unavailable' })
     w.own.reminder = new Error('down')
-    expect(await cited(w)).toEqual({ kind: 'unavailable' })
-    expect(await w.examining.cited('no-tenant', EXAMINER, BATCH, ['x-1'])).toEqual({
+    expect(await callsOf(w)).toEqual({ kind: 'unavailable' })
+    expect(await w.examining.calls('no-tenant', EXAMINER, BATCH)).toEqual({
       kind: 'read',
       value: [],
     })
+    const down = examiners()
+    Object.assign(down.history, { calls: () => Promise.reject(new Error('down')) })
+    expect(await down.open().calls(TENANT, EXAMINER, BATCH)).toEqual({ kind: 'unavailable' })
   })
 })

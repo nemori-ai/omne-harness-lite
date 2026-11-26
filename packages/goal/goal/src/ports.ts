@@ -81,12 +81,11 @@ export type HandAnswer =
 
 export interface GoalExamining {
   hand(tenant: string, batch: BatchToHand): Promise<HandAnswer>
-  cited(
+  calls(
     tenant: string,
     examiner: string,
     request: string,
-    refs: readonly string[],
-  ): Promise<PortRead<readonly string[]>>
+  ): Promise<PortRead<readonly ObservedCall[]>>
   ended(tenant: string, batch: BatchOut): Promise<'going' | 'ended' | 'unknown'>
   cancel(tenant: string, batch: BatchOut): Promise<void>
   close(tenant: string, goal: Readonly<{ session: string; examiner: string }>): Promise<void>

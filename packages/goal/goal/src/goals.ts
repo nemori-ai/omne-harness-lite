@@ -1,13 +1,12 @@
 import {
   applyTrack,
   citedRefs,
-  excerptOf,
   type GoalCaller,
   type GoalChecking,
   type GoalReconciling,
   type Goals,
-  type ObservedCall,
 } from '@omne-harness/goal-contract'
+import { uncited } from './citing.ts'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
 import { createChoosing } from './choosing.ts'
 import { createObserving } from './observing.ts'
@@ -49,27 +48,6 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
   Promise.resolve()
     .then(read)
     .catch(() => ({ kind: 'unavailable' }) as const)
-
-const CITABLE_SHOWN = 12
-const COMMAND_SHOWN = 60
-
-function citable(call: ObservedCall): string {
-  const { ref, tool, command, path } = call
-  if (command !== null)
-    return `${ref} ${tool} \`${excerptOf(command.trim().replace(/\s+/gu, ' '), COMMAND_SHOWN, 'head')}\``
-  return path === null ? `${ref} ${tool}` : `${ref} ${tool} ${path}`
-}
-
-/** Why references do not stand, and the latest calls of the session that would: the agent sees no call id anywhere else. */
-function uncited(refs: readonly string[], made: readonly ObservedCall[]) {
-  const missing = `no tool call of this session since the goal was set: ${refs.join(', ')}`
-  const latest = made.toSorted((a, b) => a.order - b.order).slice(-CITABLE_SHOWN)
-  const problem =
-    latest.length === 0
-      ? missing
-      : `${missing}. Those you can cite: ${latest.map(citable).join('; ')}`
-  return { entry: null, field: 'refs', problem }
-}
 
 export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps

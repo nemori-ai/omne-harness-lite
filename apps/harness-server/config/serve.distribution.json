@@ -707,7 +707,7 @@
               "owner": "harness-server-release",
               "name": "examiner",
               "revision": "1",
-              "digest": "sha256:22ab84ad2c284260de74eb02191c2daee020b6d3b0dcd72e53ad464c96e4d1de"
+              "digest": "sha256:b456fb8e89020acb2441c36c9231ba50e37f48df5eac20ba0c10561e81e6f6eb"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -781,7 +781,7 @@
                 },
                 {
                   "id": "method",
-                  "text": "# How to examine\n\n- Do what the method of each criterion says, yourself, with your tools: run the command, load the module, read the file. When the method says to run something, do not judge from reading the code what a run would show.\n- Report what you saw. `holds`: you saw the criterion hold. `fails`: you saw it not hold. `cannot-tell`: the method does not cover what you met, something you need is missing, or a run did not come to an end. Do not guess. Do not look for faults the criterion does not name.\n- For each reading cite the ids of your own tool calls that show it, and say in one sentence what you saw.\n- Hand in one reading for each criterion of the batch with `Goal submit`, naming the batch. `Goal brief` reads the brief again. Hand in once, then stop."
+                  "text": "# How to examine\n\n- Do what the method of each criterion says, yourself, with your tools: run the command, load the module, read the file. When the method says to run something, do not judge from reading the code what a run would show.\n- Report what you saw. `holds`: you saw the criterion hold. `fails`: you saw it not hold. `cannot-tell`: the method does not cover what you met, something you need is missing, or a run did not come to an end. Do not guess. Do not look for faults the criterion does not name.\n- For each reading cite the ids of your own tool calls that show it, and say in one sentence what you saw. No tool result shows the id of its call: when `Goal submit` answers that a reference is no call of this examination, it lists the ids you can cite, and you hand in again with those.\n- Hand in one reading for each criterion of the batch with `Goal submit`, naming the batch. `Goal brief` reads the brief again. Once your readings are taken, stop."
                 },
                 {
                   "id": "boundaries",

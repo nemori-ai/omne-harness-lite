@@ -251,7 +251,7 @@ describe('the ports the contributing rows mount', () => {
     expect(await lateExamining(empty).ended('t', nobody)).toBe('unknown')
     await lateExamining(empty).cancel('t', nobody)
     await lateExamining(empty).close('t', { session: 's', examiner: 'x' })
-    expect(await lateExamining(empty).cited('t', 'x', 'examine/1/1/', ['x-1'])).toEqual({
+    expect(await lateExamining(empty).calls('t', 'x', 'examine/1/1/')).toEqual({
       kind: 'unavailable',
     })
   })
@@ -271,7 +271,7 @@ describe('the ports the contributing rows mount', () => {
     const examining = lateExamining(mounted)
     mounted.examining = {
       hand: async () => ({ kind: 'handed', examiner: 'x' }),
-      cited: async (_t, _x, _r, refs) => ({ kind: 'read', value: refs }),
+      calls: async () => ({ kind: 'read', value: [] }),
       ended: async () => 'ended',
       cancel: async () => undefined,
       close: async () => undefined,

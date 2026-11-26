@@ -207,39 +207,44 @@ describe('a criterion examined by a session of its own, on the release tree', ()
   )
 
   it(
-    'a reading that cites a call which is not of this examination cannot be told: the agent is sent on and reads why',
+    'readings that cite a call which is not of this examination are handed back with the ids that can be cited; handed in again with one of those they are taken, and the goal is achieved on one examination',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const { script } = scripted({
-        worker: body => {
-          if (body.includes(README.id)) return []
-          if (body.includes('a call that is not of this examination')) return [README]
-          return body.includes(FIRST_RIGHT.id) || !body.includes('A goal was set')
-            ? []
-            : [FIRST_RIGHT]
-        },
-        examiner: (body, batch) =>
-          examinerCalls(
-            body,
+      const submit = (id: string, batch: string, refs: string[]) => ({
+        id,
+        tool: 'Goal',
+        arguments: JSON.stringify({
+          command: 'submit',
+          params: {
             batch,
-            batch.endsWith(README.id)
-              ? { value: 'holds', note: '蛇头转向了' }
-              : { value: 'holds', refs: [FIRST_RIGHT.id], note: '看了它的代码' },
-          ),
+            readings: [{ criterion: 'A1', value: 'holds', refs, note: '蛇头转向了' }],
+          },
+        }),
+      })
+      const { script, seen } = scripted({
+        worker: body =>
+          body.includes(FIRST_RIGHT.id) || !body.includes('A goal was set') ? [] : [FIRST_RIGHT],
+        examiner: (body, batch) => {
+          const [play] = examinerCalls(body, batch, { value: 'holds', note: '' })
+          if (play?.tool === 'Shell') return [play]
+          if (!body.includes('x-loose')) return [submit('x-loose', batch, [FIRST_RIGHT.id])]
+          return body.includes('x-again')
+            ? []
+            : [submit('x-again', batch, [`x-play-${batch.replace(/[^A-Za-z0-9]/gu, '-')}`])]
+        },
       })
       await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const session = await settledSession(tree, 'hello')
         await setGoal(tree, session)
-        const first = await pollUntil(
-          'the first readings to be back',
-          () => recordOf(tree, session),
-          record => record.examination.read.A1 !== undefined,
-        )
-        expect(first.examination.read.A1).toMatchObject({ value: 'cannot-tell' })
-        expect(first.examination.read.A1?.note).toContain('a call that is not of this examination')
         const done = await settled(tree, session)
         expect(done.state).toMatchObject({ outcome: { kind: 'achieved' } })
-        expect(done.examination.used).toBe(2)
+        expect(done.examination.used).toBe(1)
+        const play = `x-play-examine-1-1-${FIRST_RIGHT.id}`
+        expect(done.readings.criteria.A1).toMatchObject({ value: 'holds', source: 'examiner' })
+        expect(done.examination.read.A1?.refs).toEqual([play])
+        const told = seen.examiner.find(body => body.includes('x-loose') && body.includes('refs'))
+        expect(told).toContain(`no tool call of this examination: ${FIRST_RIGHT.id}`)
+        expect(told).toContain(`Those you can cite: ${play} Shell`)
       })
     },
   )

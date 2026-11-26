@@ -328,9 +328,10 @@ describe('brief and submit, in the session that examines for a goal', () => {
       expected: set.version,
       next: { ...set, examination },
     })
+    made.examining.made(EXAMINER, BATCH, ['x-1'])
     return made
   }
-  const reading = { criterion: 'A1', value: 'holds', refs: [], note: '退出码 0' }
+  const reading = { criterion: 'A1', value: 'holds', refs: ['x-1'], note: '退出码 0' }
 
   it('brief reads the batch that is out: its name, each criterion with its command or method', async () => {
     const made = await examining()
@@ -354,6 +355,21 @@ describe('brief and submit, in the session that examines for a goal', () => {
     expect(await made.run({ command: 'submit', params: other })).toMatchObject({
       failure: { kind: 'conflict', reason: expect.stringMatching(/^differs: /u) },
     })
+  })
+
+  it('submit hands the readings back when one stands on no call of the examination, with the ids that can be cited', async () => {
+    const made = await examining()
+    const loose = { batch: BATCH, readings: [{ ...reading, refs: ['proc-7'] }] } as never
+    expect(await made.run({ command: 'submit', params: loose })).toEqual({
+      failure: {
+        kind: 'invalid',
+        reason:
+          'invalid: A1.refs: no tool call of this examination: proc-7; body.refs: Those you can cite: x-1 Shell `play x-1`. Fix these and send it again.',
+      },
+    })
+    expect(made.record()?.examination.read).toEqual({})
+    const handed = { batch: BATCH, readings: [reading] } as never
+    expect(ok(await made.run({ command: 'submit', params: handed }))).toContain('handed in')
   })
 
   it('a batch that is no longer waited for is taken as out of date, and the answer says where to read the current one', async () => {

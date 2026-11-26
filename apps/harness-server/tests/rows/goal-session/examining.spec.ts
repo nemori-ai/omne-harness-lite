@@ -25,9 +25,9 @@ function world(left: readonly string[] = []) {
       asked.push(['hand', ...input])
       return { kind: 'handed', examiner: 'examiner-1' }
     },
-    async cited(...input) {
-      asked.push(['cited', ...input])
-      return { kind: 'read', value: ['x-1'] }
+    async calls(...input) {
+      asked.push(['calls', ...input])
+      return { kind: 'read', value: [] }
     },
     async ended(...input) {
       asked.push(['ended', ...input])
@@ -124,18 +124,18 @@ describe('the examining side of goals on the release', () => {
     await w.examining.idle()
   })
 
-  it('asks the session that examines about the calls it cites, whether its round is over, to stop, and to let go', async () => {
+  it('asks the session that examines for the calls of its round, whether its round is over, to stop, and to let go', async () => {
     const w = world()
     const out = { session: 's-1', examiner: 'examiner-1', request: 'examine/1/1/call-1' }
-    expect(await w.examining.cited('t-1', 'examiner-1', out.request, ['x-1'])).toEqual({
+    expect(await w.examining.calls('t-1', 'examiner-1', out.request)).toEqual({
       kind: 'read',
-      value: ['x-1'],
+      value: [],
     })
     expect(await w.examining.ended('t-1', out)).toBe('going')
     await w.examining.cancel('t-1', out)
     await w.examining.close('t-1', { session: 's-1', examiner: 'examiner-1' })
     expect(w.asked).toEqual([
-      ['cited', 't-1', 'examiner-1', out.request, ['x-1']],
+      ['calls', 't-1', 'examiner-1', out.request],
       ['ended', 't-1', out],
       ['cancel', 't-1', out],
       ['close', 't-1', { session: 's-1', examiner: 'examiner-1' }],

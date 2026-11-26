@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { BatchOut, GoalExamining, HandAnswer } from '@omne-harness/goal'
+import type { BatchOut, GoalExamining, GoalHistory, HandAnswer } from '@omne-harness/goal'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   sourceRequestIdentities,
@@ -8,7 +8,6 @@ import {
   type SessionOperationId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { createGoalCalls } from './calls.ts'
 import { reminderInput } from './inputs.ts'
 import type { ExaminerCalls, SessionCalls } from './ports.ts'
 import { GOAL_SOURCES } from './sources.ts'
@@ -47,6 +46,8 @@ export type ExaminerOptions = Readonly<{
   now(): number
   wait(ms: number): Promise<void>
   limitMs(tenant: string): Promise<number | null>
+  /** The tool calls of a session from a moment of its history on: the calls an examination can cite are read through it. */
+  history: Pick<GoalHistory, 'calls'>
   reuseMs?: number
 }>
 export type SessionExamining = GoalExamining & Readonly<{ idle(): Promise<void> }>
@@ -153,7 +154,7 @@ export function createSessionExamining(
       return { kind: 'handed', examiner: batch.examiner }
     },
 
-    async cited(tenant, examiner, request, refs) {
+    async calls(tenant, examiner, request) {
       const legal = legalOf(tenant)
       if (legal === undefined) return { kind: 'read', value: [] }
       const at = { tenant: legal, session: examiner as SessionId }
@@ -162,7 +163,7 @@ export function createSessionExamining(
         .catch(() => UNAVAILABLE)
       if (brief.kind !== 'read') return UNAVAILABLE
       if (brief.value === null) return { kind: 'read', value: [] }
-      return createGoalCalls(calls).cited(tenant, examiner, refs, brief.value)
+      return options.history.calls(tenant, examiner, brief.value).catch(() => UNAVAILABLE)
     },
 
     async ended(tenant, batch) {

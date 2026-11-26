@@ -19,7 +19,7 @@ import {
   SubmissionSchema,
   submissionText,
   submit,
-  UNCITED,
+  uncitedOf,
   validateDraft,
   writtenSince,
   type Batch,
@@ -116,19 +116,26 @@ describe('what the examining side hands in', () => {
     expect(found.every(issue => issue.field === 'readings')).toBe(true)
   })
 
-  it('a reading that cites a call which is not of this examination cannot be told, and says why', () => {
-    const read = handedOf(
-      [one(A1, { refs: ['x-1', 'x-2'] }), one(A2, { refs: ['other-7'] })],
-      ['x-1', 'x-2'],
-    )
-    expect(read).toEqual({
+  it('keeps each reading as it was handed in', () => {
+    expect(handedOf([one(A1, { refs: ['x-1', 'x-2'] }), one(A2, { value: 'fails' })])).toEqual({
       A1: { value: 'holds', note: '脚本退出码 0', refs: ['x-1', 'x-2'] },
-      A2: { value: 'cannot-tell', note: UNCITED, refs: [] },
+      A2: { value: 'fails', note: '脚本退出码 0', refs: ['x-1'] },
     })
-    expect(UNCITED).toBe('it cites a call that is not of this examination')
-    expect(handedOf([one(A1, { refs: [] })], [])).toEqual({
-      A1: { value: 'holds', note: '脚本退出码 0', refs: [] },
-    })
+  })
+
+  it('a reading does not stand on a call that is not of this examination, nor a holding or failing one on no call at all; one that cannot be told may cite nothing', () => {
+    const readings = [
+      one(A1, { refs: ['x-1', 'other-7', 'other-8'] }),
+      one(A2, { refs: [] }),
+      one(A3, { value: 'fails', refs: [] }),
+    ]
+    expect(uncitedOf(readings, ['x-1', 'x-2'])).toEqual([
+      { criterion: A1, refs: ['other-7', 'other-8'] },
+      { criterion: A2, refs: [] },
+      { criterion: A3, refs: [] },
+    ])
+    expect(uncitedOf([one(A1), one(A2, { value: 'cannot-tell', refs: [] })], ['x-1'])).toEqual([])
+    expect(uncitedOf([one(A1)], [])).toEqual([{ criterion: A1, refs: ['x-1'] }])
   })
 
   it('is the same text for the same readings, whatever order they came in', () => {
@@ -303,12 +310,21 @@ describe('readings handed in to a goal', () => {
     })
   })
 
-  it('one reading cites a call that is not of the examination: taken, that one cannot be told, and the agent is sent on', () => {
-    const step = hand(recordOf(), { readings: [one(A1), one(A2, { refs: ['other-7'] })] })
-    if (step.kind !== 'next') throw new Error(step.kind)
-    expect([step.taken, step.told]).toEqual(['counted', 'continue'])
-    expect(step.record.examination.read[A2]).toMatchObject({ value: 'cannot-tell', note: UNCITED })
-    expect(step.record.state).toMatchObject({ status: 'active', rounds: 4 })
+  it('one reading cites a call that is not of the examination, or holds on none: refused whole, naming each; nothing of the goal changes, so it can be handed in again', () => {
+    const loose = [one(A1), one(A2, { refs: ['other-7'] })]
+    expect(hand(recordOf(), { readings: loose })).toEqual({
+      kind: 'refused',
+      reason: 'uncited',
+      uncited: [{ criterion: A2, refs: ['other-7'] }],
+    })
+    expect(hand(recordOf(), { readings: [one(A1), one(A2, { refs: [] })] })).toEqual({
+      kind: 'refused',
+      reason: 'uncited',
+      uncited: [{ criterion: A2, refs: [] }],
+    })
+    expect(hand(recordOf(), { readings: [one(A1, { refs: ['other-7'] })] })).toMatchObject({
+      reason: 'invalid',
+    })
   })
 
   it('the batch is the one out but a file was written since: taken as out of date, and its readings do not count', () => {

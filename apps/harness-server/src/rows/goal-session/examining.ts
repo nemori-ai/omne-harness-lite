@@ -45,7 +45,7 @@ export function createExamining(
       going.set(key, done)
       return { kind: 'taking' }
     },
-    cited: ports.sessions.cited,
+    calls: ports.sessions.calls,
     ended: ports.sessions.ended,
     cancel: ports.sessions.cancel,
     close: ports.sessions.close,
