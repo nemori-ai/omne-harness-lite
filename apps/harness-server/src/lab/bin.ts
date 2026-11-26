@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
@@ -19,17 +20,21 @@ import { endProcess } from '../process-end.ts'
 import { claimLabRoot } from '../state-instance.ts'
 import { createLabClock, readSavedTime, saveTime } from './clock.ts'
 import { answer, parseDuration, readingOf } from './control.ts'
+import { startModelGateway, type ModelGateway } from './model-gateway/gateway.ts'
+import { parseModelScript, scriptedAnswer, withModelRoute } from './model-gateway/script.ts'
 import { LAB_PROGRAMS_ROW, labProgramsRow } from './programs.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
-  '       harness-server-lab serve [serve options] [--skip <duration>] [--speed <factor>]\n' +
+  '       harness-server-lab serve [serve options] [--skip <duration>] [--speed <factor>] [--model-script <file>]\n' +
+  '--model-script: the model is a script read from the file at each request, not a provider.\n' +
   'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor>'
 
 const LAB_OPTIONS = {
   ...SERVE_OPTIONS,
   skip: { type: 'string' },
   speed: { type: 'string' },
+  'model-script': { type: 'string' },
 } as const
 
 const PROTOCOL = 'simulated-clock'
@@ -51,6 +56,26 @@ function claimed(dir: string): boolean {
   if (claim.kind === 'claimed') return true
   process.stderr.write(`lab: ${claim.reason}\n`)
   return false
+}
+
+/** A gateway that answers every model request by the script in `file`, read anew each time so a journey can change it. */
+async function scriptedModel(file: string): Promise<ModelGateway> {
+  const read = () => parseModelScript(readFileSync(file, 'utf8'))
+  try {
+    read()
+  } catch (error) {
+    throw new UsageError(`--model-script ${file}: ${(error as Error).message}`)
+  }
+  const gateway = await startModelGateway(request => scriptedAnswer(read(), request))
+  gateway.trustInProcess()
+  return gateway
+}
+
+function routedTo(inputs: ServeInputs, gateway: ModelGateway | undefined): ServeInputs {
+  if (gateway === undefined) return inputs
+  const layer = inputs.operator as Parameters<typeof withModelRoute>[0] | undefined
+  if (layer === undefined) throw new UsageError('--model-script needs an operator layer')
+  return { ...inputs, operator: withModelRoute(layer, gateway.url) }
 }
 
 /** The release distribution and, after its rows, the rows only the lab assembly has. */
@@ -83,14 +108,18 @@ async function serve(argv: readonly string[]): Promise<number> {
     recordWriter({ kind: 'lab-time', ...reply })
   })
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
+  const script = values['model-script']
+  const gateway = script === undefined ? undefined : await scriptedModel(script)
   try {
-    const inputs = await serveInputs({ ...values, 'state-root': dir })
+    const { 'model-script': _script, ...given } = values
+    const inputs = routedTo(await serveInputs({ ...given, 'state-root': dir }), gateway)
     return await serveUntilStopped(withLabRows(inputs), values['stop-on-stdin-close'] === true, {
       time: { source: clock.source, protocol: PROTOCOL },
       instance: 'lab',
       extraPlugins: { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow },
     })
   } finally {
+    await gateway?.close()
     control.close()
     stopPersisting()
     persist()
