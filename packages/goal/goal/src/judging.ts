@@ -21,6 +21,8 @@ import type { GoalsDependencies } from './goals.ts'
 /** A request that got no whole answer is asked again as a new call, this many times at most. */
 export const DECISION_RETRIES = 2
 const NOTHING_SAID = { kind: 'read', value: null } as const
+const standsOnTheRound = (entry: GoalRecord['body']['criteria'][number]): boolean =>
+  entry.evidence.kind === 'activity'
 
 /** What one judging came to: what the system settled by itself, and the findings over every entry. */
 export type Judged = Readonly<{ decided: Packed['decided']; findings: Findings }>
@@ -84,7 +86,7 @@ export function createJudging(deps: GoalsDependencies) {
     return votes
   }
 
-  /** What the session shows a judging: the calls made since a moment and, for an implied goal, what the agent said last. Null: not readable. */
+  /** What the session shows a judging: the calls made since a moment and, when a criterion stands on what was done in the round, what the agent said last. Null: not readable. */
   async function shownOf(tenant: string, session: string, since: string, withReply: boolean) {
     const [made, said] = await Promise.all([
       deps.history.calls(tenant, session, since),
@@ -101,7 +103,7 @@ export function createJudging(deps: GoalsDependencies) {
     const { body, progress, state } = record
     const session = sessionOfKey(record.session)
     const [shown, config] = await Promise.all([
-      shownOf(tenant, session, record.since, isImpliedKey(record.session)),
+      shownOf(tenant, session, record.since, body.criteria.some(standsOnTheRound)),
       deps.judging.config(tenant, session),
     ])
     if (shown === null || config.kind === 'unavailable') return null

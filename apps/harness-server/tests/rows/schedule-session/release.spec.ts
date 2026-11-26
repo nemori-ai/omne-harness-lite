@@ -291,6 +291,77 @@ describe('agent work in a new session on the release tree', () => {
   )
 })
 
+const SAID_IN_THE_ROUND = {
+  purpose: '把 todo.md 里还没打勾的事项列给我',
+  criteria: [
+    {
+      statement: '答复里列出了还没打勾的事项',
+      evidence: { kind: 'activity' },
+      pass: { kind: 'shows', text: '没打勾的两项都在，已打勾的不在' },
+    },
+  ],
+  exits: ONE_ROUND.exits,
+}
+
+function saying(text: string): GatewayScript {
+  return ({ body }) => ({
+    status: 200,
+    contentType: 'text/event-stream',
+    body: sse([
+      {
+        model: (JSON.parse(body) as { model?: string }).model ?? 'm',
+        provider: 'OpenAI',
+        choices: [{ delta: { content: text } }],
+      },
+      { choices: [{ delta: {}, finish_reason: 'stop' }] },
+    ]),
+  })
+}
+
+describe('agent work whose goal stands on what is said in the round, on the release tree', () => {
+  it.each([
+    ['the right answer', '还没打勾的有两项：买牛奶、交水电费。', ['concluded', 'succeeded', null]],
+    ['a wrong answer', '还没打勾的只有一项：取快递。', ['concluded', 'failed', 'exit:X1']],
+  ])(
+    'the judge is shown the last reply of the round, and the Job ends by it: %s',
+    { tags: ['slow'], timeout: 300_000 },
+    async (_name, reply, ending) => {
+      const judged: AskedDecision[] = []
+      const right = (ask: AskedDecision) =>
+        ['买牛奶', '交水电费'].every(item => JSON.stringify(ask.state).includes(item))
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(
+            saying(reply),
+            ask => ({ criterion: right(ask) ? 'holds' : 'no-evidence' }),
+            judged,
+          ),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const file = fileOf(tree, 'said.json', everyMinute(SAID_IN_THE_ROUND))
+            const created = succeeded(
+              await tree.cli([
+                'schedule',
+                'create',
+                '--definition-file',
+                file,
+                '--create-id',
+                's-1',
+              ]),
+            )
+            const done = await concluded(tree, String(created['schedule']))
+            expect(done.map(job => [job['state'], job['outcome'], job['reason']])).toEqual([ending])
+            expect(JSON.stringify(judged.map(ask => ask.state))).toContain(reply)
+          },
+        ],
+      )
+    },
+  )
+})
+
 /** A model that takes a request and does not answer until released: the round it serves stays open. */
 function holding() {
   let seen = () => {}
