@@ -1,4 +1,4 @@
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   createAgentRuntime,
   createModelReceiverState,
@@ -65,6 +65,7 @@ export type { AgentHostStopInput, AgentHostStopResult, AgentHostUnsettled }
 export type AgentHostPlugin = DefinedPlugin<AgentHostConfig> &
   Readonly<{
     quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult>
+    startReceiving(): void
   }>
 
 function merged(answers: readonly AgentHostStopResult[]): AgentHostStopResult {
@@ -148,11 +149,64 @@ class LocalInstanceProvision extends AgentInstanceProvisionService<unknown> {
   }
 }
 
+/** A host that waits to receive keeps what begins its receptions until it is told to; one that does not wait begins at once. */
+function deferral<H>(defer: boolean) {
+  const waiting = new Map<H, (() => void)[]>()
+  return {
+    hold: (host: H): void => void (defer && waiting.set(host, [])),
+    drop: (host: H): void => void waiting.delete(host),
+    run(host: H, begin: () => void): void {
+      const held = waiting.get(host)
+      if (held === undefined) begin()
+      else held.push(begin)
+    },
+    release(): void {
+      const held = [...waiting.values()].flat()
+      waiting.clear()
+      for (const begin of held) begin()
+    },
+  }
+}
+
+function toolReceptionChild(
+  host: Readonly<{
+    open(): boolean
+    begin(start: () => void): void
+    start(child: Context): ToolReception
+    started(tool: ToolReception): void
+    stopped(tool: ToolReception): void
+  }>,
+): Plugin.Object {
+  return {
+    name: TOOL_RECEPTION_PLUGIN,
+    inject: [...TOOL_RECEPTION_INJECT],
+    apply(child: Context) {
+      if (!host.open()) return
+      let tool: ToolReception | undefined
+      let left = false
+      host.begin(() => {
+        if (left || !host.open()) return
+        tool = host.start(child)
+        host.started(tool)
+      })
+      child.effect(
+        () => () => {
+          left = true
+          tool?.stop()
+          if (tool !== undefined) host.stopped(tool)
+        },
+        'agent-host.tool-reception.stop',
+      )
+    },
+  }
+}
+
 export function createAgentHostPlugin(
   factory: RuntimeFactory,
-  options: Readonly<{ lostContact?: LostContact }> = {},
+  options: Readonly<{ lostContact?: LostContact; deferReception?: boolean }> = {},
 ): AgentHostPlugin {
   const live = new Set<Host>()
+  const deferred = deferral<Host>(options.deferReception === true)
   const receptions = new Map<Host, Reception>()
   const toolReceptions = new Map<Host, ToolReception>()
   const stopping = new WeakSet<Host>()
@@ -228,48 +282,42 @@ export function createAgentHostPlugin(
         host.retired(tenant, instance, generation, reason),
       )
       live.add(host)
+      deferred.hold(host)
       const settings = config.reception ?? RECEPTION_INITIAL
       const log = (level: 'error' | 'warn' | 'info', message: string) => {
         try {
           ctx.logger('agent-host')[level](message)
         } catch {}
       }
-      const reception = startReception({ ctx, state: stateOf(ctx), settings, log })
-      receptions.set(host, reception)
+      deferred.run(host, () => {
+        if (!live.has(host) || stopping.has(host)) return
+        receptions.set(host, startReception({ ctx, state: stateOf(ctx), settings, log }))
+      })
       ctx.effect(
         () => () => {
           live.delete(host)
+          deferred.drop(host)
+          receptions.get(host)?.stop()
           receptions.delete(host)
-          reception.stop()
           toolReceptions.get(host)?.stop()
           toolReceptions.delete(host)
           host.stop()
         },
         'agent-host.stop',
       )
-      ctx.plugin({
-        name: TOOL_RECEPTION_PLUGIN,
-        inject: [...TOOL_RECEPTION_INJECT],
-        apply(child: Context) {
+      ctx.plugin(
+        toolReceptionChild({
           // After an ordered stop the host takes no Tool result: the delivery stays owed.
-          if (!live.has(host) || stopping.has(host)) return
-          const tool = startToolReception({
-            parent: ctx,
-            child,
-            state: toolStateOf(ctx),
-            settings,
-            log,
-          })
-          toolReceptions.set(host, tool)
-          child.effect(
-            () => () => {
-              tool.stop()
-              if (toolReceptions.get(host) === tool) toolReceptions.delete(host)
-            },
-            'agent-host.tool-reception.stop',
-          )
-        },
-      })
+          open: () => live.has(host) && !stopping.has(host),
+          begin: start => deferred.run(host, start),
+          start: child =>
+            startToolReception({ parent: ctx, child, state: toolStateOf(ctx), settings, log }),
+          started: tool => void toolReceptions.set(host, tool),
+          stopped: tool => {
+            if (toolReceptions.get(host) === tool) toolReceptions.delete(host)
+          },
+        }),
+      )
       new LocalInstanceHost(ctx, host.instanceHost)
       new LocalPublicationAuthority(ctx, host)
       new LocalExecutionRecovery(ctx, host)
@@ -285,6 +333,7 @@ export function createAgentHostPlugin(
       for (const reception of toolReceptions.values()) reception.stop()
       return merged(await Promise.all([...live].map(host => host.quiesceAll(input))))
     },
+    startReceiving: deferred.release,
   })
 }
 
@@ -300,6 +349,8 @@ export type AgentHostLocalPluginInput = Readonly<{
   /** The trusted system extensions of the assembly. Without it an extension chain has no system members. */
   systemExtensions?: AgentDependencies<unknown, ContentBlock>['systemExtensions']
   lostContact?: LostContact
+  /** The host takes no result until `startReceiving`: a generation that stands by beside the one that serves. */
+  deferReception?: boolean
 }>
 
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
@@ -316,6 +367,9 @@ export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}
         options,
         measure === undefined ? extras : { ...extras, measure },
       ),
-    lostContact === undefined ? {} : { lostContact },
+    {
+      ...(lostContact === undefined ? {} : { lostContact }),
+      ...(input.deferReception === undefined ? {} : { deferReception: input.deferReception }),
+    },
   )
 }

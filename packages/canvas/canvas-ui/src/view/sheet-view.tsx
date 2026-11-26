@@ -24,7 +24,7 @@ import {
   type CanvasPreferences,
 } from '../model/preferences.ts'
 import { itemBox, pageLimits, paperSheet, pileBox, ZOOM_LIMITS } from '../model/sheet.ts'
-import { canvasPaper } from '../parts.ts'
+import { canvasHome, canvasPaper } from '../parts.ts'
 import type { AwayPage, Reading } from '../model/reading.ts'
 import type { CanvasHost } from './element.tsx'
 import { Finder } from './finder.tsx'
@@ -240,7 +240,7 @@ export function SheetView(props: SheetViewProps): JSX.Element {
           open={layers.open}
         />
         <PaperSpot at={{ x: sheet.width / 2, y: sheet.height / 2 }}>
-          <IconButton label="回到正面" onClick={() => props.home()}>
+          <IconButton label="回到正面" {...canvasHome.props} onClick={() => props.home()}>
             <FigureSeat name={SEAT} priority={1} className="canvas-seat" />
           </IconButton>
         </PaperSpot>

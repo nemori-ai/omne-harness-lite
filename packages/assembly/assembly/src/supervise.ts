@@ -13,6 +13,8 @@ export type SuperviseEvent =
   | Readonly<{ kind: 'settled' }>
   | Readonly<{ kind: 'waited' }>
   | Readonly<{ kind: 'stop' }>
+  /** What it starts is another version now: the count of falls is not of this one. */
+  | Readonly<{ kind: 'replaced' }>
 
 export type SuperviseAction =
   | Readonly<{ kind: 'start' }>
@@ -84,6 +86,7 @@ export function supervise(
         ? { state: { kind: 'stopped', code: event.code }, actions: [] }
         : still
     case 'held':
+      return event.kind === 'replaced' ? beginSupervision() : still
     case 'stopped':
       return still
   }

@@ -1,4 +1,4 @@
-import { FIGURE_CHANNEL, readUp, type Down, type Up } from '../../desk/scene.ts'
+import { FIGURE_CHANNEL, readUp, type Down, type LookDown, type Up } from '../../desk/scene.ts'
 
 type Channel = Pick<BroadcastChannel, 'postMessage' | 'close'> & {
   addEventListener(type: 'message', listener: (event: MessageEvent) => void): void
@@ -6,7 +6,7 @@ type Channel = Pick<BroadcastChannel, 'postMessage' | 'close'> & {
 }
 
 export type FigureLink = Readonly<{
-  send(message: Down): void
+  send(message: Down | LookDown): void
   listen(listener: (message: Up) => void): () => void
   close(): void
 }>

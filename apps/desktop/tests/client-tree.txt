@@ -314,9 +314,21 @@ system
           calendar-ui#1  [effective]
         calendar.shipped.item
           calendar-ui#1  [effective]
+        canvas.finder
+          canvas-ui#1  [effective]
+        canvas.home
+          canvas-ui#1  [effective]
+        canvas.item
+          canvas-ui#1  [effective]
+        canvas.mark
+          canvas-ui#1  [effective]
         canvas.paper
           canvas-ui#1  [effective]
+        canvas.pile
+          canvas-ui#1  [effective]
         canvas.status
+          canvas-ui#1  [effective]
+        canvas.turn
           canvas-ui#1  [effective]
         canvas.view
           canvas-ui#1  [effective]
@@ -500,6 +512,18 @@ system
           DesktopShell#1  [effective]
           shell.tokens  [keyed-one]
             DesktopShell#1  [effective]
+        shell.back
+          DesktopShell#1  [effective]
+        shell.figure
+          DesktopShell#1  [effective]
+        shell.figure.frame
+          DesktopShell#1  [effective]
+        shell.figure.label
+          DesktopShell#1  [effective]
+        shell.figure.note
+          DesktopShell#1  [effective]
+        shell.figure.told
+          DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
         shell.sidebar
@@ -517,6 +541,8 @@ system
         shell.sidebar.nav
           DesktopShell#1  [effective]
         shell.sidebar.nav.row
+          DesktopShell#1  [effective]
+        shell.sidebar.turn
           DesktopShell#1  [effective]
         shell.sidebar.utility
           DesktopShell#1  [effective]

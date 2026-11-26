@@ -121,10 +121,6 @@
         "count": 1,
         "longest": 155
       },
-      "apps/harness-server/src/run.ts": {
-        "count": 1,
-        "longest": 168
-      },
       "packages/access/server-entry/src/pipeline/pipeline.ts": {
         "count": 1,
         "longest": 171

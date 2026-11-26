@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react'
 
 import { cn } from '../lib/utils.ts'
 import { useReducedMotion } from '../motion/motion.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
+import { dataApart } from './data-apart.ts'
 import { InkCanvas, OWN_PAPER, REACH } from './ink-canvas.ts'
 import { MotesBody, type MotesDoing } from './motes.ts'
 import { FIGURE_SIZE } from './store.ts'
@@ -22,7 +24,8 @@ export function InkMotes({
   listening = false,
   carried = false,
   className,
-}: {
+  ...rest
+}: DataAttributes & {
   readonly doing?: InkMotesDoing
   readonly listening?: boolean
   readonly carried?: boolean
@@ -58,6 +61,7 @@ export function InkMotes({
   const inset = (size - side) / 2
   return (
     <span
+      {...dataApart(rest)[0]}
       className={cn('omne-figure-ink omne-motes', className)}
       style={{ width: size, height: size }}
       aria-hidden="true"

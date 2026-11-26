@@ -31,5 +31,6 @@ export const usageAccessRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
+  swap: 'implementation',
   plugin: { ...plugin, inject: [accessRegistryKey, principalIssuerKey] },
 })

@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import type { RowId } from './types.ts'
 
@@ -91,5 +92,9 @@ export function operatorSchema(allowlist: readonly string[]) {
         }),
       ]),
     ),
+    /** The version directories this deployment takes without a publisher's signature. */
+    versionDirectories: z
+      .array(z.string().refine(isAbsolute, 'expected an absolute path'))
+      .optional(),
   })
 }

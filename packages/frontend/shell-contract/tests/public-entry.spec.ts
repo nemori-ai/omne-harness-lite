@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the six shell points and of the actions, the key functions, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, and nothing else at run time', async () => {
+it('exports the toast store, the figure store, the assembly error, the slot table, the contracts of the six shell points and of the actions, the key functions, the attribute a floating item is dragged by, the two point declarations, the two needs and the point a protocol need refers to, the declaration of a part with its check and its reading, the projection of the changes, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
@@ -38,6 +38,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'normalChord',
     'partFault',
     'partsOn',
+    'projectionOn',
     'resolveKey',
     'serviceKey',
     'shellContracts',

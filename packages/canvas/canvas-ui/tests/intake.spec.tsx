@@ -87,6 +87,7 @@ describe('files dropped on the sheet go to the intake put on files', () => {
     const intake = taking()
     await put(world.root, 'media-ui', intake.render)
     await drop([PNG, PDF])
+    expect(spot()?.getAttribute('data-omne-part')).toBe('canvas.mark')
     expect(spot()!.querySelector('.taking')?.textContent).toBe('a.png,b.pdf')
     const at = near()
     expect(at).toEqual({ x: 840, y: 472 })

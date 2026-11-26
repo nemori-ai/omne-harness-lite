@@ -2,14 +2,16 @@ import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from '
 
 import { handPressure, type Point } from '../icons/brush.ts'
 import { useReducedMotion } from '../motion/motion.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
 import { brushTime, ms } from './body.ts'
 import { widthPx } from './brush-weight.ts'
 import { casual } from './casual.ts'
 import { inkNow } from './clock.ts'
+import { dataApart } from './data-apart.ts'
 import { FRAME, frameLines, frameWriteTime, inkPath, type FrameLines } from './observation.ts'
 import { type Box } from './travel.ts'
 
-export interface ObservationFrameProps {
+export interface ObservationFrameProps extends DataAttributes {
   readonly rect: Box | null
   readonly covered: readonly Box[]
   readonly figure: Box
@@ -117,7 +119,9 @@ function FrameInk({
   drying,
   reduced,
   onGone,
+  data,
 }: {
+  readonly data: DataAttributes
   readonly id: number
   readonly rect: Box
   readonly centre: Point
@@ -179,6 +183,7 @@ function FrameInk({
   }
   return (
     <svg
+      {...data}
       ref={svg}
       className="omne-observation-frame"
       aria-hidden="true"
@@ -239,10 +244,12 @@ export function ObservationFrame({
   figure,
   closed = false,
   reduced: told,
+  ...rest
 }: ObservationFrameProps): React.JSX.Element {
   const system = useReducedMotion()
   const reduced = told ?? system
   const [held, gone] = useHeld(rect, figure)
+  const [data] = dataApart(rest)
   return (
     <>
       {held.map(frame => (
@@ -256,6 +263,7 @@ export function ObservationFrame({
           drying={frame.drying}
           reduced={reduced}
           onGone={gone}
+          data={data}
         />
       ))}
     </>

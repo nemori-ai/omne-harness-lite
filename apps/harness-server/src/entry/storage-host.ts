@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
+import { createCloseProtocol, LeaseId, type CloseProtocol } from '@omne-harness/assembly'
 import type {
-  CloseLeaseHandle,
   CloseLeasePort,
   SqlMaterialCatalog,
   StorageCloseResult,
@@ -13,7 +13,7 @@ import type {
   StorageHost,
 } from '@omne-harness/sql-contract'
 import { StorageHostService, storageHostKey } from '@omne-harness/sql-contract/cordis'
-import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../lifecycle.ts'
+import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../row.ts'
 import { productionStorageCatalog } from '../rows/storage/production-catalog.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { AssemblyLifecycle, EntryObjectModule, RowId, StopResult } from '../types.ts'
@@ -55,9 +55,13 @@ export function catalogProblems(catalog: SqlMaterialCatalog): string[] {
 
 type AdapterState = {
   readonly controls: StorageControl[]
-  readonly leases: Set<CloseLeaseHandle>
-  admitting: boolean
+  /** The leases of the storage workers. Closing it stops admission; the workers release as they exit. */
+  readonly leases: CloseProtocol
 }
+
+/** The leases are not waited for here: a control's close is what makes its workers exit and release. */
+const NO_DRAIN_MS = 0
+const neverDelays = { delay: () => new Promise<void>(() => {}) }
 
 type CloseSummary = Readonly<{ failed: number; writer: number; reader: number }>
 
@@ -80,7 +84,7 @@ function summarize(results: readonly PromiseSettledResult<StorageCloseResult>[])
 }
 
 async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promise<StopResult> {
-  state.admitting = false
+  void state.leases.close()
   const pending = state.controls.map(control => control.close({ initiator: 'assembly' }))
   const timer = monotonicClock.after(deadlineMonotonicMs - monotonicClock.now())
   const raced = await Promise.race([
@@ -113,18 +117,23 @@ export class StorageHostAdapter extends StorageHostService {
   constructor(ctx: Context, materials: SqlMaterialCatalog) {
     super(ctx)
     this.materials = materials
-    const state: AdapterState = { controls: [], leases: new Set(), admitting: true }
+    const leases = createCloseProtocol({
+      steps: [],
+      drainTimeoutMs: NO_DRAIN_MS,
+      clock: neverDelays,
+    })
+    const state: AdapterState = { controls: [], leases }
     this.state = state
     this.closeLeases = {
-      admit(name: string): CloseLeaseHandle {
-        if (!state.admitting)
+      admit(name) {
+        try {
+          return leases.admit(name)
+        } catch {
           throw new Error(`storage close lease refused: the assembly stopped admission (${name})`)
-        const handle: CloseLeaseHandle = Object.freeze({ name })
-        state.leases.add(handle)
-        return handle
+        }
       },
-      release(handle: CloseLeaseHandle): void {
-        state.leases.delete(handle)
+      release(handle) {
+        if (handle instanceof LeaseId) leases.release(handle)
       },
     }
     this.attachControl = function attachControl(this: StorageHostAdapter, control: StorageControl) {
