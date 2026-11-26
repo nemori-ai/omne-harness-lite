@@ -61,6 +61,12 @@ export type WatchedRow = Readonly<{ id: string; fiber: Fiber; swap: SwapWay }>
 
 export type SupervisedExit = RowExit & Readonly<{ row: string }>
 
+export type RowWatch = Readonly<{
+  stop(): void
+  /** The row has a new generation: its fiber is the one watched from here on, the old one is not. */
+  replace(row: string, fiber: Fiber): void
+}>
+
 export type WatchOptions = Readonly<{
   dependencyDeadlineMs: number
   startDeadlineMs: number
@@ -196,7 +202,7 @@ export class RowSupervisor<H extends SupervisedHandle, Report = unknown> {
     return this.#shutdown
   }
 
-  watch(root: Context, rows: readonly WatchedRow[], options: WatchOptions): () => void {
+  watch(root: Context, rows: readonly WatchedRow[], options: WatchOptions): RowWatch {
     const watched = new Map(rows.map(row => [fiberItself(row.fiber), row]))
     const timers = new Map<string, SupervisionTimer>()
     let exited = false
@@ -237,9 +243,17 @@ export class RowSupervisor<H extends SupervisedHandle, Report = unknown> {
       if (event === 'returning' && this.#standings.get(row.id) === 'serving') on(row, 'left')
       on(row, event)
     })
-    return () => {
-      unwatch()
-      for (const row of timers.keys()) disarm(row)
+    return {
+      stop: () => {
+        unwatch()
+        for (const row of timers.keys()) disarm(row)
+      },
+      replace: (id, fiber) => {
+        const row = [...watched.values()].find(each => each.id === id)
+        if (row === undefined) return
+        for (const [old, each] of watched) if (each === row) watched.delete(old)
+        watched.set(fiberItself(fiber), row)
+      },
     }
   }
 

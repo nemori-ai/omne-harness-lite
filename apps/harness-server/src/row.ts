@@ -6,6 +6,7 @@ import {
   type Context,
   type Plugin,
 } from '@deepseek-ai/cordis'
+import type { SwapWay } from '@omne-harness/assembly'
 import type { RowSupervision } from './shutdown.ts'
 import type {
   AssemblyLifecycle,
@@ -51,6 +52,10 @@ type Common = Readonly<{
   row: string
   implementation: DeclaredImplementation
   manifest: Omit<RowManifest, 'phase'>
+  /** How this row is swapped while the process serves; a row that says nothing takes a new process. */
+  swap?: SwapWay
+  /** For each service key the row provides, the digest of its contract. */
+  contracts?: Readonly<Record<ServiceName, string>>
 }>
 
 export type RowDefinition = Common &
@@ -72,6 +77,9 @@ export type RowDeclaration = Readonly<{
   implementation: DeclaredImplementation
   manifest: RowManifest
   lifecycle: RowLifecycle
+  /** Absent: the row takes a new process. */
+  swap?: SwapWay
+  contracts?: Readonly<Record<ServiceName, string>>
 }>
 
 const declarations = new WeakMap<object, RowDeclaration>()
@@ -159,7 +167,14 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
       apply: (ctx: Context, config: unknown) => runWrapped(plugin, ctx, config),
     }
   }
-  declarations.set(wrapper, { row, implementation: definition.implementation, manifest, lifecycle })
+  declarations.set(wrapper, {
+    row,
+    implementation: definition.implementation,
+    manifest,
+    lifecycle,
+    ...(definition.swap === undefined ? {} : { swap: definition.swap }),
+    ...(definition.contracts === undefined ? {} : { contracts: definition.contracts }),
+  })
   return wrapper
 }
 

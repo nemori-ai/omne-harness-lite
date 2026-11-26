@@ -186,7 +186,17 @@ async function watched(swap: 'restart' | 'rerun', apply?: () => unknown, both = 
       moved: (row, standing) => void moves.push(`${row}:${standing}`),
     },
   )
-  return { clock, root, supervisor, store, user, exits, moves, unwatch }
+  return {
+    clock,
+    root,
+    supervisor,
+    store,
+    user,
+    exits,
+    moves,
+    unwatch: unwatch.stop,
+    watch: unwatch,
+  }
 }
 
 describe('运行中一行没了', () => {
@@ -236,6 +246,19 @@ describe('运行中一行没了', () => {
     await settle()
     expect(moves).toEqual(['user:waiting'])
     expect(exits).toEqual([{ code: 0, reason: 'row-returned', row: 'user' }])
+  })
+
+  it('一行换了一代：从此看新的 fiber；旧的 fiber 卸载不算这一行没了', async () => {
+    const { root, user, exits, moves, watch, supervisor } = await watched('restart')
+    const next: Fiber = await root.plugin(consumer('user', 'store'))
+    watch.replace('user', next)
+    await user.dispose()
+    await settle()
+    expect([moves, exits]).toEqual([[], []])
+    await next.dispose()
+    await settle()
+    expect(moves).toEqual(['user:waiting'])
+    expect(supervisor.standings().get('user')).toBe('waiting')
   })
 
   it('重跑的行 apply 抛错：以 3 退出并点名', async () => {

@@ -403,6 +403,7 @@ export type RunServeOptions = Readonly<{
   drainDeadlineMs?: number
   rootDisposalDeadlineMs?: number
   dependencyDeadlineMs?: number
+  publisherKeys?: readonly string[]
   stateRoot: string
   stop: AbortSignal
   write: (record: S0Record) => void
@@ -589,6 +590,8 @@ function rowSpecOf(
       row: declaration.row,
       via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
     },
+    ...(declaration.swap === undefined ? {} : { swap: declaration.swap }),
+    ...(declaration.contracts === undefined ? {} : { contracts: declaration.contracts }),
   }
 }
 
@@ -937,24 +940,58 @@ async function runServeWithHostFiles(
     return result(await settleStartFailure(started, { write, stderr, root, shutdown, options }))
 
   loaded = started.rows
-  const order = orderNow()
+  const serving = { registry, root, rows, loaded, order: orderNow(), named: tree.named ?? [] }
+  const io = { write, options, probes, shutdown }
+  const served = await serveAndClose(serving, io, { started, barrierCalls, implementations })
+  accepting = served.accepting
+  return result(served.exitCode)
+}
+
+async function serveAndClose(
+  tree: Readonly<{
+    registry: RowSupervision
+    root: Context
+    rows: readonly RowSpec[]
+    loaded: readonly LoadedRow[]
+    order: ReturnType<typeof rowOrder>
+    named: readonly string[]
+  }>,
+  io: Readonly<{
+    write: RunServeOptions['write']
+    options: RunServeOptions
+    probes: Probes
+    shutdown: () => ReturnType<typeof runShutdown>
+  }>,
+  start: Readonly<{
+    started: Started
+    barrierCalls: number
+    implementations: Record<Implementation, number>
+  }>,
+): Promise<Pick<ServeResult, 'accepting' | 'exitCode'>> {
+  const { registry, root, rows, loaded, order } = tree
+  const { write, options, probes } = io
   const startCode = await startAndReport({
     registry,
     order: startOrderOf(order, rows),
-    started,
-    barrierCalls,
-    enabledRows: tree.rows.length,
-    implementations,
+    ...start,
+    enabledRows: rows.length,
     probes,
     write,
     options,
   })
-  accepting = startCode === 0
-  const watch = { registry, root, loaded, undeclared: order.undeclared, write }
+  const accepting = startCode === 0
+  const control = {
+    stateRoot: options.stateRoot,
+    rows,
+    trust: { publisherKeys: options.publisherKeys ?? [], named: tree.named },
+    applied: probes.applied,
+    wrap: (id: RowId, plugin: Plugin.Object) => declaredRowPlugin(id, plugin, probes),
+  }
+  const watch = { registry, root, loaded, undeclared: order.undeclared, write, control }
   const left = accepting ? await serveUntilStop({ ...watch, ...watchOf(options) }) : undefined
-  const report = await shutdown()
+  const report = await io.shutdown()
   write({ kind: 'shutdown-result', ...report })
-  return result(
-    left === undefined || left.code === 0 ? finalExitCode(startCode, report.overall) : left.code,
-  )
+  const exitCode =
+    left === undefined || left.code === 0 ? finalExitCode(startCode, report.overall) : left.code
+  return { accepting, exitCode }
 }

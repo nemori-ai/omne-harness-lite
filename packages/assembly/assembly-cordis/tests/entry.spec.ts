@@ -181,8 +181,16 @@ describe('入口：依赖方注入的对象不换，实现在背后换（AS-13�
     await settle()
     const changes: string[][] = []
     ctx.on('dynamis-cordis/changed', () => void changes.push([greeter().version(), ...ids()]))
-    const swapped = await swapRow(ctx, { old, next: row('v2'), entries: [entry] })
+    const told: string[] = []
+    const swapped = await swapRow(ctx, {
+      old,
+      next: row('v2'),
+      entries: [entry],
+      // Told in the step itself: the new generation serves and the old one has not begun to unload.
+      swapped: () => void told.push(`${greeter().version()} old:${String(old.state)}`),
+    })
     if (swapped.kind !== 'swapped') throw new Error(swapped.detail)
+    expect(told).toEqual(['v2 old:2'])
     await swapped.drained
     expect([greeter().version(), ids()]).toEqual(['v2', ['v2']])
     // Whoever is told of the change finds the entry on the new generation already.

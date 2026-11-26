@@ -22,6 +22,8 @@ export type SwapInput = Readonly<{
   entries: readonly SwappedEntry[]
   /** The row's own word that the generation stood up. Not given: `apply` returned. */
   ready?: () => boolean | Promise<boolean>
+  /** Called in the step that swaps, before the old generation begins to unload. */
+  swapped?: (fiber: Fiber) => void
 }>
 
 const messageOf = (error: unknown): string =>
@@ -52,5 +54,6 @@ export async function swapRow(ctx: Context, input: SwapInput): Promise<Swapped> 
   }
   const rolled = dynamis === undefined ? promote() : dynamis.rollout(next, promote)
   if (rolled?.kind === 'refused') return await refused('seats', rolled.detail)
+  input.swapped?.(next)
   return { kind: 'swapped', fiber: next, drained: input.old.dispose() }
 }

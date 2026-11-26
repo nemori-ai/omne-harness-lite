@@ -30,6 +30,8 @@ export type RowSpec = Readonly<{
   plugin: Plugin
   implementation?: Implementation
   declared?: Readonly<{ row: RowId; via: ServiceName | null }>
+  swap?: 'implementation' | 'rerun' | 'restart'
+  contracts?: Readonly<Record<ServiceName, string>>
 }>
 
 export type EntryObject = Readonly<{

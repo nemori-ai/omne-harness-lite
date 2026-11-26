@@ -28,6 +28,7 @@ export {
   type SupervisionClock,
   type SupervisionRefusal,
   type SupervisionTimer,
+  type RowWatch,
   type WatchedRow,
   type WatchOptions,
   type WithdrawnEntry,

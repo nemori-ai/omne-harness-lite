@@ -15,6 +15,7 @@ import {
   stderrWriter,
 } from './local/serve-command.ts'
 import { SUPERVISE_USAGE, superviseCommand } from './local/supervise-command.ts'
+import { SWAP_USAGE, swapCommand } from './local/swap-command.ts'
 import { runS0 } from './run.ts'
 import { endProcess } from './process-end.ts'
 
@@ -104,9 +105,21 @@ async function mainSupervise(argv: readonly string[]): Promise<number> {
   }
 }
 
+async function mainSwap(argv: readonly string[]): Promise<number> {
+  const line = (stream: NodeJS.WriteStream) => (text: string) => void stream.write(`${text}\n`)
+  try {
+    return await swapCommand(argv, line(process.stdout), line(process.stderr))
+  } catch (error) {
+    if (!isUsageError(error)) throw error
+    process.stderr.write(`swap: ${(error as Error).message}\n${SWAP_USAGE}\n`)
+    return 2
+  }
+}
+
 async function main(argv: readonly string[]): Promise<number> {
   // The supervisor is named first: the rest of the line belongs to the `serve` it starts.
   if (argv[0] === 'supervise') return mainSupervise(argv.slice(1))
+  if (argv[0] === 'swap') return mainSwap(argv.slice(1))
   const subcommand = selectedSubcommand(argv)
   if (subcommand === 'setup') {
     try {

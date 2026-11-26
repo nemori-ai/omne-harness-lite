@@ -283,7 +283,12 @@ describe('serve: the release tree of doubles', () => {
   )
 
   it('a provider is asked to stop after the rows that need it, whatever phase each declares; the entry row is first', async () => {
-    const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
+    const run = await serveOnce({
+      distribution: release,
+      operator: await releaseOperator(),
+      readinessTimeoutMs: 15_000,
+      shutdownDeadlineMs: 5000,
+    })
     expect(run.result.exitCode).toBe(0)
     const stops = run
       .of('shutdown-step')
