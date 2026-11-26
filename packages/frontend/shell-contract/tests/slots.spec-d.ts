@@ -22,6 +22,7 @@ import type {
   FigureReport,
   FloatCorner,
   FloatItem,
+  FloatNote,
   FloatProps,
   GateItem,
   GateProps,
@@ -66,7 +67,11 @@ test('each slot takes its own item', () => {
       grip: Readonly<{ 'data-omne-float-grip': '' }>
       corner: FloatCorner
       dragging: boolean
+      note: FloatNote
     }>
+  >()
+  expectTypeOf<FloatNote>().toEqualTypeOf<
+    Readonly<{ there: boolean; open: boolean; toggle(element: Element): void; close(): void }>
   >()
   expectTypeOf<FloatCorner>().toEqualTypeOf<Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>>()
   expectTypeOf<BackItem>().toEqualTypeOf<

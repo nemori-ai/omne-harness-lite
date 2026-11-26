@@ -77,7 +77,6 @@ import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 import { LOOK_KEY, storedTenantTexts } from './shell/tenant-text.ts'
 import { hostScreen } from './screen-source.ts'
-import { FIGURE_NOTE_PART, partOf } from './surface/parts.ts'
 
 export const USAGE_REFRESH_MS = 60_000
 
@@ -107,7 +106,6 @@ export const assembly: Assembly = {
       canvasPicker,
       composerAssistant: slashCommandComposerKey,
       pictureIntake: mediaPictureIntakeKey,
-      companionNote: partOf(FIGURE_NOTE_PART),
     }),
     createSlashCommandUiModule({
       composer: createComposer,

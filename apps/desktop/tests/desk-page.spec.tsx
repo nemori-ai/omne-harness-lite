@@ -258,6 +258,8 @@ describe('桌面层的页面：说话笺', () => {
     targets: [{ key: 's-1', label: '周报' }],
     to: { kind: 'new' },
     fate: null,
+    words: '',
+    edit: 0,
     ...more,
   })
   const bubble = () => document.querySelector<HTMLElement>('.omne-say-bubble')
@@ -323,35 +325,107 @@ describe('桌面层的页面：说话笺', () => {
     expect(inputs(page)).toEqual([{ kind: 'input', lease: 10, input: 'close', at: null }])
   })
 
-  it('受理了或不知道之后字清掉，确定没发出时字留着', () => {
+  it('字段跟着一幕的 edit：受理了外壳清字、edit 加一，字段跟着变空；没发出与不知道时 edit 不变，字留着', () => {
     const page = desk()
     const sending = { fate: { kind: 'sending' } } as const
     page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
     type('一')
-    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note(sending) }) })
     page.send({
       kind: 'scene',
-      scene: scene(10, 3, rest, { note: note({ fate: { kind: 'failed', reason: '不行' } }) }),
+      scene: scene(10, 2, rest, { note: note({ ...sending, words: '一' }) }),
+    })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 3, rest, {
+        note: note({ fate: { kind: 'failed', reason: '不行' }, words: '一' }),
+      }),
     })
     expect(field().value).toBe('一')
-    page.send({ kind: 'scene', scene: scene(10, 4, rest, { note: note(sending) }) })
     page.send({
       kind: 'scene',
-      scene: scene(10, 5, rest, { note: note({ fate: { kind: 'accepted' } }) }),
+      scene: scene(10, 4, rest, { note: note({ ...sending, words: '一' }) }),
+    })
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 5, rest, { note: note({ fate: { kind: 'accepted' }, edit: 1 }) }),
     })
     expect(field().value).toBe('')
     type('二')
+    page.send({ kind: 'scene', scene: scene(10, 6, rest, { note: note({ ...sending, edit: 1 }) }) })
     page.send({
       kind: 'scene',
-      scene: scene(10, 6, rest, { note: note({ fate: { kind: 'accepted' } }) }),
+      scene: scene(10, 7, rest, { note: note({ fate: { kind: 'unknown' }, edit: 1 }) }),
     })
     expect(field().value).toBe('二')
-    page.send({ kind: 'scene', scene: scene(10, 7, rest, { note: note(sending) }) })
+  })
+
+  it('笺从没有变成有：字段取一幕里的字与人选的说给谁', () => {
+    const page = desk()
+    const chosen = { kind: 'target', key: 's-1' } as const
     page.send({
       kind: 'scene',
-      scene: scene(10, 8, rest, { note: note({ fate: { kind: 'unknown' } }) }),
+      scene: scene(10, 1, rest, { note: note({ words: '窗口里写的', chosen }) }),
     })
-    expect(field().value).toBe('')
+    expect(field().value).toBe('窗口里写的')
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(inputs(page).at(-1)).toMatchObject({ input: 'send', words: '窗口里写的', to: chosen })
+    page.send({ kind: 'scene', scene: scene(10, 2, rest) })
+    page.send({ kind: 'scene', scene: scene(10, 3, rest, { note: note({ words: '又改过' }) }) })
+    expect(field().value).toBe('又改过')
+  })
+
+  it('edit 没变的重发一幕不改字段；edit 变了取一幕里的', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note({ words: '甲' }) }) })
+    type('甲乙')
+    page.send({ kind: 'scene', scene: scene(10, 2, rest, { note: note({ words: '甲' }) }) })
+    expect(field().value).toBe('甲乙')
+    page.send({
+      kind: 'scene',
+      scene: scene(10, 3, rest, { note: note({ words: '丙', edit: 1 }) }),
+    })
+    expect(field().value).toBe('丙')
+  })
+
+  it('一帧里改三次只发一条 unsent：带租约号、最后的字与说给谁、对着的 edit', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note({ edit: 3 }) }) })
+    type('一')
+    type('一二')
+    type('一二三')
+    expect(inputs(page)).toEqual([])
+    page.frame()
+    expect(inputs(page)).toEqual([
+      { kind: 'input', lease: 10, input: 'unsent', words: '一二三', edit: 3 },
+    ])
+    page.frame()
+    expect(inputs(page)).toHaveLength(1)
+  })
+
+  it('按收起或 Escape：先补发还没发的那一份，再发收起', () => {
+    const page = desk()
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note() }) })
+    type('半句')
+    fireEvent.click(document.querySelector('.omne-say-row button')!)
+    type('半句话')
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    page.frame()
+    expect(inputs(page)).toEqual([
+      { kind: 'input', lease: 10, input: 'unsent', words: '半句', edit: 0 },
+      { kind: 'input', lease: 10, input: 'close', at: null },
+      { kind: 'input', lease: 10, input: 'unsent', words: '半句话', edit: 0 },
+      { kind: 'input', lease: 10, input: 'close', at: null },
+    ])
+  })
+
+  it('正在发时字段只读：打字不改字段，也不发 unsent', () => {
+    const page = desk()
+    const sending = { fate: { kind: 'sending' }, words: '在吗' } as const
+    page.send({ kind: 'scene', scene: scene(10, 1, rest, { note: note(sending) }) })
+    type('在吗？？')
+    page.frame()
+    expect(field().value).toBe('在吗')
+    expect(inputs(page)).toEqual([])
   })
 
   it('hot 里有笺的矩形：笺开时、收时重报', () => {
@@ -464,6 +538,8 @@ describe('桌面层的页面：笺里的图', () => {
     to: { kind: 'new' },
     fate: null,
     pictures: PICTURES,
+    words: '',
+    edit: 0,
     ...more,
   })
   const bytes = (id: string) =>
@@ -735,7 +811,7 @@ describe('桌面层的页面：部位与换画口', () => {
     const page = desk()
     const label = [{ text: '应用外面' }]
     const frame = { rect: { x: 1100, y: 100, width: 400, height: 300 }, covered: [], closed: false }
-    const note = { targets: [], to: { kind: 'new' }, fate: null } as const
+    const note = { targets: [], to: { kind: 'new' }, fate: null, words: '', edit: 0 } as const
     page.send({ kind: 'scene', scene: scene(9, 1, hand, { label, frame, note }) })
     const named = (part: { props: Readonly<Record<string, string>> }) =>
       page.view.container.querySelectorAll(`[data-omne-part="${part.props['data-omne-part']}"]`)

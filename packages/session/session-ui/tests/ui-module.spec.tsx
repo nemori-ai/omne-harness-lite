@@ -118,7 +118,7 @@ it('还没有租户：两样都不发调用', async () => {
   expect(fake.calls).toEqual([])
 })
 
-it('M4 declares its 30 parts when the protocol is served', async () => {
+it('M4 declares its 29 parts when the protocol is served', async () => {
   const { root, shell } = await startShell()
   await serveProtocol(root, sessionProtocol, createFakeClient().client)
   await root.plugin(sessionUiModule)
@@ -132,7 +132,6 @@ it('M4 declares its 30 parts when the protocol is served', async () => {
     ['session.backdrop', null],
     ['session.companion', null],
     ['session.companion.figure', 'session.companion'],
-    ['session.companion.panel', 'session.companion'],
     ['session.composer', null],
     ['session.composer.input', 'session.composer'],
     ['session.composer.send', 'session.composer'],
