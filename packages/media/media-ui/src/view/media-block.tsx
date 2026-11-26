@@ -247,7 +247,7 @@ type RetrieveProps = Readonly<{
   client: MediaClient
   tenant: TenantId
   medium: Reference
-  name?: string
+  name: string | undefined
 }>
 
 function Retrieve({ client, tenant, medium, name }: RetrieveProps) {
@@ -304,12 +304,7 @@ function FileLine(
         〔{props.read.kind}〕{name === undefined ? '' : `${name} · `}
         {ref.mediaType} · {sizeText(ref.bytes)}
       </p>
-      <Retrieve
-        client={props.client}
-        tenant={props.tenant}
-        medium={ref}
-        {...(name === undefined ? {} : { name })}
-      />
+      <Retrieve client={props.client} tenant={props.tenant} medium={ref} name={name} />
     </div>
   )
 }
@@ -317,10 +312,7 @@ function FileLine(
 function FileBlock(props: MediaBlockProps) {
   const read = readBlock(props.content)
   const described = useDescription(props, typeof read === 'string' ? null : read.ref, true)
-  const note =
-    props.modelRead === 'transcript' && described !== null
-      ? unreadableOf(described.preprocess)
-      : null
+  const note = described === null ? null : unreadableOf(described.preprocess)
   return (
     <WithRead kind="file" modelRead={props.modelRead} note={note}>
       {typeof read === 'string' ? (

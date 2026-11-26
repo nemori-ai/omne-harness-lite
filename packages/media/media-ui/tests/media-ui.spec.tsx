@@ -745,7 +745,10 @@ describe('消息里一块非文字内容', () => {
     const retrieve = screen.getByRole('button', { name: '取回' })
     fireEvent.click(retrieve)
     fireEvent.click(retrieve)
+    expect(retrieve.getAttribute('aria-busy')).toBe('true')
     await settle()
+    expect(retrieve.getAttribute('aria-busy')).toBeNull()
+    expect(blobs[0]?.type).toBe('image/png')
     expect(links).toEqual([{ download: '季度报告.pdf', href: 'blob:made-1' }])
     expect(reads(media).map(body => body['offset'])).toEqual([0, 4, 8])
     expect(reads(media).every(body => !('target' in body))).toBe(true)
@@ -763,7 +766,9 @@ describe('消息里一块非文字内容', () => {
       <>
         {drawn(shell, file)}
         {drawn(shell, { ...file, ref: { ...ref, mediaType: 'audio/mpeg' } })}
-        {drawn(shell, { ...file, ref: { ...ref, mediaType: 'application/x-made-up' } })}
+        {['image/jpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'application/x-made-up'].map(
+          mediaType => drawn(shell, { ...file, ref: { ...ref, mediaType } }),
+        )}
       </>,
     )
     await settle()
@@ -772,7 +777,37 @@ describe('消息里一块非文字内容', () => {
       fireEvent.click(button)
       await settle()
     }
-    expect(links.map(link => link.download)).toEqual(['附件.pdf', '附件.mp3', '附件.x-made-up'])
+    expect(links.map(link => link.download)).toEqual([
+      '附件.pdf',
+      '附件.mp3',
+      '附件.jpg',
+      '附件.wav',
+      '附件.wav',
+      '附件.m4a',
+      '附件.x-made-up',
+    ])
+  })
+
+  it('再取一次时还回上一次的地址，块卸下时还回最后一次的；读到一半卸下的不交给宿主', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const links = handedOver()
+    const revoked: string[] = []
+    Object.assign(URL, { revokeObjectURL: (url: string) => void revoked.push(url) })
+    const { shell } = await mounted(media)
+    const view = render(<>{drawn(shell, file)}</>)
+    await settle()
+    for (let round = 0; round < 2; round += 1) {
+      fireEvent.click(screen.getByRole('button', { name: '取回' }))
+      await settle()
+    }
+    expect(links.map(link => link.href)).toEqual(['blob:made-1', 'blob:made-2'])
+    expect(revoked).toEqual(['blob:made-1'])
+    fireEvent.click(screen.getByRole('button', { name: '取回' }))
+    view.unmount()
+    await settle()
+    expect(links).toHaveLength(2)
+    expect(revoked).toEqual(['blob:made-1', 'blob:made-2'])
   })
 
   it('原件读不到时说取回失败，不交给宿主，可以再取', async () => {
