@@ -1,4 +1,3 @@
-// oxlint-disable unicorn/consistent-function-scoping -- each function here is serialized into theme-boot.js
 import type { OmneDesktopBridge, VisualBootstrap } from '../shared/desktop-bridge.ts'
 import {
   createVisualRecordKernel,

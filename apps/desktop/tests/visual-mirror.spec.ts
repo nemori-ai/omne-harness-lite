@@ -145,26 +145,3 @@ it('supersedes a pending write with the new maximum and reports durability indep
   expect(mirror.read()).toEqual({ record: latest, pending: false })
   expect(start().read()).toEqual(mirror.read())
 })
-
-it('does not write over a file it could not read at startup, and lets a newer record there win', () => {
-  const { file, fs, log, start } = fixture()
-  writeFileSync(file, newer)
-  const denied = () => {
-    throw Object.assign(new Error('denied'), { code: 'EACCES' })
-  }
-  fs.readFileSync.mockImplementation(denied)
-  const mirror = start()
-  expect(log.warn).toHaveBeenCalledOnce()
-  expect(fs.sleep).toHaveBeenCalledTimes(4)
-  expect(mirror.read()).toEqual({ record: null, pending: false })
-  expect(mirror.push(older)).toBe('failed')
-  expect(mirror.read()).toEqual({ record: older, pending: true })
-  expect(readFileSync(file, 'utf8')).toBe(newer)
-  fs.readFileSync.mockImplementation(path => readFileSync(path, 'utf8'))
-  mirror.retryPending()
-  expect(mirror.read()).toEqual({ record: newer, pending: false })
-  expect(mirror.theme()).toBe('dark')
-  expect(readFileSync(file, 'utf8')).toBe(newer)
-  expect(mirror.push(older)).toBe('ok')
-  expect(readFileSync(file, 'utf8')).toBe(newer)
-})

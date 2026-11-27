@@ -30,72 +30,35 @@ export function createVisualMirror(
 ) {
   const file = join(userData, 'visual.json')
   const temp = file + '.tmp'
-  const listeners = new Set<() => void>()
-  function load(): VisualRecord | undefined {
-    try {
-      return records.decode(withFileRetry(() => fs.readFileSync(file), fs)).record
-    } catch (err) {
-      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') return undefined
-      throw err
-    }
-  }
   let record: VisualRecord | undefined
-  let unread = false
   try {
-    record = load()
+    const stored = withFileRetry(() => fs.readFileSync(file), fs)
+    record = records.decode(stored).record
   } catch (err) {
-    unread = true
-    log.warn({ err }, 'visual mirror read failed')
+    if (!(err instanceof Error && 'code' in err && err.code === 'ENOENT')) {
+      log.warn({ err }, 'visual mirror read failed')
+    }
   }
   let raw = record ? records.encode(record) : null
   let pending = false
-  function replace(next: VisualRecord) {
-    const previousTheme = records.effective(record).theme
-    raw = records.encode(next)
-    record = next
-    if (records.effective(next).theme === previousTheme) return
-    for (const notify of listeners) {
-      try {
-        notify()
-      } catch (err) {
-        log.warn({ err }, 'applying native visual appearance failed')
-      }
-    }
-  }
-  // A file that could not be read is read again before anything is written over it; a newer record there wins.
-  function settleUnread(): boolean {
-    if (!unread) return true
-    let stored: VisualRecord | undefined
-    try {
-      stored = load()
-    } catch (err) {
-      log.warn({ err }, 'visual mirror read failed')
-      return false
-    }
-    unread = false
-    if (stored && records.behind(record, stored)) {
-      replace(stored)
-      pending = false
-    }
-    return true
-  }
+  const listeners = new Set<() => void>()
   function persist(value: string) {
     try {
       writeDurably(fs, temp, value)
       renameWithRetry(fs, temp, file)
       pending = false
-    } catch (err) {
+    } catch {
       pending = true
       try {
         fs.rmSync(temp, { force: true })
       } catch {
         // A subsequent attempt replaces the temporary file.
       }
-      log.warn({ err }, 'visual mirror write failed')
+      log.warn({}, 'visual mirror write failed')
     }
   }
   function retryPending() {
-    if (pending && raw !== null && settleUnread() && pending) persist(raw)
+    if (pending && raw !== null) persist(raw)
   }
   return {
     read: (): VisualMirrorSnapshot => ({ record: raw, pending }),
@@ -108,15 +71,25 @@ export function createVisualMirror(
         log.warn({}, 'invalid visual mirror record')
         return 'failed'
       }
-      const readable = settleUnread()
       const order = record ? records.compare(next, record) : 1
       if (order <= 0) {
         retryPending()
         return pending && order === 0 ? 'failed' : 'ok'
       }
-      if (readable) persist(records.encode(next))
-      else pending = true
-      replace(next)
+      const encoded = records.encode(next)
+      const previousTheme = records.effective(record).theme
+      persist(encoded)
+      raw = encoded
+      record = next
+      if (records.effective(next).theme !== previousTheme) {
+        for (const notify of listeners) {
+          try {
+            notify()
+          } catch {
+            log.warn({}, 'applying native visual appearance failed')
+          }
+        }
+      }
       return pending ? 'failed' : 'ok'
     },
     onThemeChange(listener: () => void) {
