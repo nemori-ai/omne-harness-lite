@@ -15,6 +15,8 @@ import type {
 import {
   createMemoryAuthorizationRecords,
   createMemoryGrantSecrets,
+  type MemoryAuthorizationRecords,
+  type MemoryGrantSecrets,
 } from '@omne-harness/mcp-contract/testing'
 import { createMcpAuthorization, type McpAuthorizationDeps } from '@omne-harness/mcp-authorization'
 
@@ -32,6 +34,7 @@ export function tenantOf(last: string): TenantId {
 export const keyOf = (last = 's', holding = 'holding-1'): GrantKey => ({
   tenant: tenantOf(last),
   holding: holding as EndpointHolding,
+  endpoint: 'desk',
 })
 
 export function serverMetadata(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -114,10 +117,13 @@ export const issued = (
 
 export const refused = (error = 'invalid_grant'): OAuthAnswer => ({ status: 400, json: { error } })
 
-export function world(overrides: Partial<McpAuthorizationDeps> = {}) {
+export function world(
+  overrides: Partial<McpAuthorizationDeps> &
+    Readonly<{ records?: MemoryAuthorizationRecords; secrets?: MemoryGrantSecrets }> = {},
+) {
   const server = scriptedServer()
-  const records = createMemoryAuthorizationRecords()
-  const secrets = createMemoryGrantSecrets()
+  const records = overrides.records ?? createMemoryAuthorizationRecords()
+  const secrets = overrides.secrets ?? createMemoryGrantSecrets()
   let clock = 1_800_000_000_000
   let counter = 0
   const deps: McpAuthorizationDeps = {

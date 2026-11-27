@@ -6,3 +6,4 @@ export {
   type McpSqlOptions,
   type TenantBinding,
 } from './store.ts'
+export { createSqlAuthorizationRecords } from './store-grants.ts'

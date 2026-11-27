@@ -27,7 +27,7 @@ describe('beginning a connection (C201)', () => {
       scope: 'read',
     })
     expect(params['state']?.length).toBeGreaterThanOrEqual(43)
-    const pending = await w.records.take(params['state'] ?? '')
+    const pending = await w.records.take(keyOf().tenant, params['state'] ?? '')
     if (!('ok' in pending) || pending.ok === 'absent') throw new Error('no pending')
     expect(challengeOf(pending.ok.verifier)).toBe(params['code_challenge'])
     expect(pending.ok.verifier.length).toBeGreaterThanOrEqual(43)
@@ -237,6 +237,34 @@ describe('the callback exchanges a code only for the pending authorization that 
       signal: never,
     })
     expect(other).toEqual({ failure: 'unavailable' })
+  })
+
+  it('a callback this process did not begin, after a restart, is found by looking through the tenants', async () => {
+    const before = world()
+    const { state } = await beginOn(before)
+    const tenants = [keyOf('t').tenant, keyOf().tenant]
+    const after = world({
+      records: before.records,
+      secrets: before.secrets,
+      tenants: async () => ({ ok: tenants }),
+    })
+    after.server.answer(issued('at-1', 'rt-1'))
+    expect(await after.authorization.callback({ state, code: 'c', iss: ISSUER }, never)).toBe(
+      'connected',
+    )
+    const lost = world({ records: before.records, secrets: before.secrets })
+    const again = await beginOn(before)
+    expect(
+      await lost.authorization.callback({ state: again.state, code: 'c', iss: ISSUER }, never),
+    ).toBe('not-connected')
+    const down = world({
+      records: before.records,
+      tenants: async () => ({ failure: 'unavailable' }),
+    })
+    const third = await beginOn(before)
+    expect(
+      await down.authorization.callback({ state: third.state, code: 'c', iss: ISSUER }, never),
+    ).toBe('unknown')
   })
 
   it('a storage that cannot take the state answers unknown and exchanges nothing', async () => {

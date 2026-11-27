@@ -125,6 +125,8 @@ describe('mcpEndpointBodyContract', () => {
       [
         'setting:placement-identity:target',
         'setting:placement-identity:credential',
+        'setting:placement-identity:client-id',
+        'setting:placement-identity:client-secret',
         'setting:preference:connect-timeout',
         'setting:preference:program-calls',
       ],
@@ -181,15 +183,21 @@ describe('mcpEndpointBodyContract', () => {
     ])
   })
 
-  it.each(['static', 'oauth'])('adds the credential, a secret, when the endpoint uses %s', auth => {
-    const settings = settingsOf({ ...http, auth })
-    expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
-      ['target', 'placement-identity', 'ordinary'],
-      ['credential', 'placement-identity', 'secret'],
-      ['connect-timeout', 'preference', 'ordinary'],
-      ['program-calls', 'preference', 'ordinary'],
-    ])
-  })
+  // C203 with C105: static and OAuth share the items, so changing between them keeps what was set.
+  it.each(['static', 'oauth'])(
+    'adds the credential and the client identifier and secret when the endpoint uses %s',
+    auth => {
+      const settings = settingsOf({ ...http, auth })
+      expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+        ['target', 'placement-identity', 'ordinary'],
+        ['credential', 'placement-identity', 'secret'],
+        ['client-id', 'placement-identity', 'ordinary'],
+        ['client-secret', 'placement-identity', 'secret'],
+        ['connect-timeout', 'preference', 'ordinary'],
+        ['program-calls', 'preference', 'ordinary'],
+      ])
+    },
+  )
 
   it('gives no connection item a default, and puts each of them in the connection group', () => {
     const items = settingsOf(http).items.filter(item => item.id !== 'program-calls')

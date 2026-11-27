@@ -24,9 +24,9 @@ describe('one grant, every state against every operation that reaches it (design
     const first = await beginOn(w)
     expect(await use(w)).toEqual({ failure: 'missing' })
     const second = await beginOn(w)
-    expect(await w.records.take(first.state)).toEqual({ ok: 'absent' })
+    expect(await w.records.take(keyOf().tenant, first.state)).toEqual({ ok: 'absent' })
     expect(await w.authorization.disconnect(keyOf())).toEqual({ ok: true })
-    expect(await w.records.take(second.state)).toEqual({ ok: 'absent' })
+    expect(await w.records.take(keyOf().tenant, second.state)).toEqual({ ok: 'absent' })
     expect(w.server.tokenRequests()).toEqual([])
   })
 
@@ -78,7 +78,7 @@ describe('secrets never leave (MC-34, C205)', () => {
   it('no answer, failure or stored fact carries a token, refresh material, code or verifier', async () => {
     const w = world()
     const { state, begun } = await beginOn(w)
-    const pending = await w.records.take(state)
+    const pending = await w.records.take(keyOf().tenant, state)
     if (!('ok' in pending) || pending.ok === 'absent') throw new Error('no pending')
     await w.records.begin(pending.ok)
     w.server.answer(issued('secret-access', 'secret-refresh'))

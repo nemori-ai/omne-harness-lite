@@ -5,7 +5,14 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
+import {
+  GRANT_MIGRATION,
+  HANDLER,
+  MIGRATION,
+  OWNED_TABLES,
+  PARTICIPANT,
+  PROTOCOL,
+} from './schema.ts'
 
 export type McpSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -24,6 +31,7 @@ function file(name: string) {
 export function mcpSqlMaterials(): McpSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
+  const grants = file('migration-grants')
   const reader = file('read')
   return {
     participants: [
@@ -32,7 +40,7 @@ export function mcpSqlMaterials(): McpSqlMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TABLES,
+        ownedTables: OWNED_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -42,6 +50,12 @@ export function mcpSqlMaterials(): McpSqlMaterials {
     ],
     migrations: [
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...GRANT_MIGRATION,
+        moduleUrl: grants.moduleUrl,
+        checksum: grants.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -50,8 +64,8 @@ export function mcpSqlMaterials(): McpSqlMaterials {
         moduleUrl: reader.moduleUrl,
         codeDigest: reader.digest,
         ordering: 'snapshot',
-        readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        readTables: OWNED_TABLES,
+        requiresMigrations: [MIGRATION, GRANT_MIGRATION],
         maxRowsRead: 1000,
         maxOutputBytes: 8 * 1024 * 1024,
       },

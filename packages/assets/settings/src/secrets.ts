@@ -26,20 +26,25 @@ export type SecretText = string & { readonly [SECRET_TEXT]: true }
 
 export const SECRET_TEXT_MAX_LENGTH = 4096
 
+/** The largest bound a trusted custodian may declare for its own purposes, such as OAuth tokens. */
+export const CUSTODIAN_SECRET_MAX_LENGTH = 65_536
+
 export type SecretTextRejection = 'empty' | 'control-character' | 'too-long'
 
 export type SecretTextParse =
   | Readonly<{ ok: true; value: SecretText }>
   | Readonly<{ ok: false; reason: SecretTextRejection }>
 
-export function parseSecretText(raw: string): SecretTextParse {
+export function parseSecretText(raw: string, maxLength = SECRET_TEXT_MAX_LENGTH): SecretTextParse {
+  if (!Number.isSafeInteger(maxLength) || maxLength < 1 || maxLength > CUSTODIAN_SECRET_MAX_LENGTH)
+    throw new RangeError('a secret text bound is a whole number from 1 to the custodian bound')
   const value = raw.trim()
   if (value === '') return { ok: false, reason: 'empty' }
   for (let index = 0; index < value.length; index++) {
     const code = value.charCodeAt(index)
     if (code < 0x20 || code === 0x7f) return { ok: false, reason: 'control-character' }
   }
-  if (value.length > SECRET_TEXT_MAX_LENGTH) return { ok: false, reason: 'too-long' }
+  if (value.length > maxLength) return { ok: false, reason: 'too-long' }
   return { ok: true, value: value as SecretText }
 }
 

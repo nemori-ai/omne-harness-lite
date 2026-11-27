@@ -12,6 +12,7 @@ import {
   type BeginRefusal,
   type Begun,
   type CallbackOutcome,
+  type Routes,
 } from './connect.ts'
 import type { McpAuthorizationDeps } from './deps.ts'
 import { acquire, disconnect, requireScopes, type Flights } from './use.ts'
@@ -54,9 +55,10 @@ export type McpAuthorization = Readonly<{
 /** The OAuth grants of MCP endpoints: discovery, registration, the callback, use and refresh. */
 export function createMcpAuthorization(deps: McpAuthorizationDeps): McpAuthorization {
   const flights: Flights = new Map()
+  const routes: Routes = new Map()
   return {
-    begin: input => begin(deps, input),
-    callback: (query, signal) => callback(deps, query, signal),
+    begin: input => begin(deps, routes, input),
+    callback: (query, signal) => callback(deps, routes, query, signal),
     acquire: (key, target, signal) => acquire(deps, flights, key, target, signal),
     requireScopes: (key, scopes) => requireScopes(deps, key, scopes),
     disconnect: key => disconnect(deps, key),

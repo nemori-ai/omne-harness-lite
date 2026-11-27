@@ -52,6 +52,34 @@ export type Begun = Readonly<{ url: string; expiresAt: number }>
 
 export type CallbackOutcome = 'connected' | 'not-connected' | 'unknown'
 
+/** Which tenant a state value of this process belongs to; after a restart the tenants are looked through. */
+export type Routes = Map<string, Readonly<{ key: GrantKey; expiresAt: number }>>
+
+function route(routes: Routes, pending: PendingAuthorization, now: number): void {
+  const same = JSON.stringify([pending.key.tenant, pending.key.holding, pending.key.endpoint])
+  for (const [state, { key, expiresAt }] of routes)
+    if (expiresAt <= now || JSON.stringify([key.tenant, key.holding, key.endpoint]) === same)
+      routes.delete(state)
+  routes.set(pending.state, { key: pending.key, expiresAt: pending.expiresAt })
+}
+
+async function takePending(
+  deps: Deps,
+  routes: Routes,
+  state: string,
+): Promise<Outcome<PendingAuthorization | 'absent', 'unavailable'>> {
+  const routed = routes.get(state)
+  routes.delete(state)
+  if (routed !== undefined) return deps.records.take(routed.key.tenant, state)
+  const tenants = deps.tenants === undefined ? succeed([]) : await deps.tenants()
+  if ('failure' in tenants) return tenants
+  for (const tenant of tenants.ok) {
+    const taken = await deps.records.take(tenant, state)
+    if ('failure' in taken || taken.ok !== 'absent') return taken
+  }
+  return succeed('absent')
+}
+
 async function firstObject(
   deps: Deps,
   urls: readonly string[],
@@ -129,7 +157,11 @@ async function wantedOf(
 }
 
 /** A new connection: discovery, a registration, then a pending authorization that voids the one before it. */
-export async function begin(deps: Deps, input: BeginInput): Promise<Outcome<Begun, BeginRefusal>> {
+export async function begin(
+  deps: Deps,
+  routes: Routes,
+  input: BeginInput,
+): Promise<Outcome<Begun, BeginRefusal>> {
   const challenge = authorizationChallengeOf(input.challenge)
   const candidates = metadataCandidatesOf(input.target, challenge)
   const resource = await firstObject(deps, candidates, input.signal)
@@ -161,6 +193,7 @@ export async function begin(deps: Deps, input: BeginInput): Promise<Outcome<Begu
   }
   const put = await deps.records.begin(pending)
   if ('failure' in put) return fail('unavailable')
+  route(routes, pending, deps.now())
   return succeed({ url: authorizationUrlOf(server.ok, pending), expiresAt })
 }
 
@@ -231,11 +264,12 @@ async function adopt(
 /** The pending authorization is taken away before anything is checked: a state value buys at most one exchange. */
 export async function callback(
   deps: Deps,
+  routes: Routes,
   query: CallbackQuery,
   signal: AbortSignal,
 ): Promise<CallbackOutcome> {
   if (query.state === undefined || query.state === '') return 'not-connected'
-  const taken = await deps.records.take(query.state)
+  const taken = await takePending(deps, routes, query.state)
   if ('failure' in taken) return 'unknown'
   if (taken.ok === 'absent') return 'not-connected'
   const pending = taken.ok

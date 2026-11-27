@@ -101,6 +101,7 @@ export {
   type SettingsSecretItemsDeps,
 } from './secret-items.ts'
 export {
+  CUSTODIAN_SECRET_MAX_LENGTH,
   SECRET_TEXT_MAX_LENGTH,
   parseSecretText,
   type SecretBindingKey,

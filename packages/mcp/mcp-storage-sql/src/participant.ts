@@ -2,6 +2,16 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { insertTask, loadCatalog, markOnce, saveCatalog, stepTask, type SqlPort } from './rows.ts'
 import {
+  dropGrant,
+  loadGrant,
+  putPending,
+  saveClient,
+  saveGrant,
+  takePending,
+  voidPending,
+  type GrantCells,
+} from './rows-grants.ts'
+import {
   PARTICIPANT,
   PROTOCOL,
   SCRIPTS,
@@ -18,6 +28,13 @@ type WriteCatalog = Readonly<{
 }>
 
 type Step = Readonly<{ state: string; round: number }>
+
+type WriteGrant = Readonly<{
+  cells: GrantCells
+  revision: number
+  row: JsonValue
+  expected: number | 'absent'
+}>
 
 /** The commands come from this member's own store, so their shape is not parsed again here. */
 const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
@@ -37,6 +54,32 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   },
   moveTask(port, input: Readonly<{ key: TaskRowCells; from: Step; to: Step }>) {
     return { ok: stepTask(port, input.key, input.from, input.to) }
+  },
+  beginPending(port, input: Readonly<{ cells: GrantCells; state: string; row: JsonValue }>) {
+    putPending(port, input.cells, input.state, input.row)
+    return { ok: 'begun' }
+  },
+  takePending(port, input: Readonly<{ tenant: string; state: string }>) {
+    return { ok: takePending(port, input.tenant, input.state) }
+  },
+  voidPending(port, input: Readonly<{ cells: GrantCells }>) {
+    voidPending(port, input.cells)
+    return { ok: 'void' }
+  },
+  // Written whole, only at the expected revision.
+  writeGrant(port, input: WriteGrant) {
+    const current = loadGrant(port, input.cells)?.revision ?? 'absent'
+    if (current !== input.expected) return { failure: 'conflict' }
+    saveGrant(port, input.cells, input.revision, input.row)
+    return { ok: 'written' }
+  },
+  removeGrant(port, input: Readonly<{ cells: GrantCells }>) {
+    dropGrant(port, input.cells)
+    return { ok: 'removed' }
+  },
+  register(port, input: Readonly<{ tenant: string; issuer: string; row: JsonValue }>) {
+    saveClient(port, input.tenant, input.issuer, input.row)
+    return { ok: 'registered' }
   },
 }
 

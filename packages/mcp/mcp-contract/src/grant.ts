@@ -2,7 +2,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type { EndpointHolding } from './brands.ts'
 
-export type GrantKey = Readonly<{ tenant: TenantId; holding: EndpointHolding }>
+export type GrantKey = Readonly<{ tenant: TenantId; holding: EndpointHolding; endpoint: string }>
 
 export type RegistrationWay = 'configured' | 'metadata-document' | 'dynamic'
 
@@ -49,8 +49,11 @@ export type PendingAuthorization = Readonly<{
 export interface AuthorizationRecords {
   /** Puts the pending authorization of its key; one that stood for the key is void from now on. */
   begin(pending: PendingAuthorization): Promise<Ack<'unavailable'>>
-  /** Takes away the pending authorization of a state value: each is taken at most once. */
-  take(state: string): Promise<Outcome<PendingAuthorization | 'absent', 'unavailable'>>
+  /** Takes away the pending authorization of a state value in a tenant: each is taken at most once. */
+  take(
+    tenant: TenantId,
+    state: string,
+  ): Promise<Outcome<PendingAuthorization | 'absent', 'unavailable'>>
   void(key: GrantKey): Promise<Ack<'unavailable'>>
   read(key: GrantKey): Promise<Outcome<GrantFacts | 'absent', 'unavailable'>>
   write(

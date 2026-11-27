@@ -12,7 +12,8 @@ import type {
 } from './grant.ts'
 import { conformanceCase, tenantText, type ConformanceCase } from './testing-case.ts'
 
-const keyText = (key: GrantKey): string => JSON.stringify([tenantText(key.tenant), key.holding])
+const keyText = (key: GrantKey): string =>
+  JSON.stringify([tenantText(key.tenant), key.holding, key.endpoint])
 
 export type MemoryAuthorizationRecords = AuthorizationRecords &
   Readonly<{
@@ -35,11 +36,13 @@ export function createMemoryAuthorizationRecords(): MemoryAuthorizationRecords {
       pending.set(next.state, next)
       return succeed(true)
     },
-    async take(state) {
+    async take(tenant, state) {
       if (blind) return down()
       const found = pending.get(state)
+      if (found === undefined || tenantText(found.key.tenant) !== tenantText(tenant))
+        return succeed('absent')
       pending.delete(state)
-      return succeed(found ?? 'absent')
+      return succeed(found)
     },
     async void(key) {
       if (blind) return down()
@@ -134,6 +137,7 @@ export type AuthorizationRecordsFixture = Readonly<{
 const grantKeyOf = (tenant: TenantId, holding = 'holding-1'): GrantKey => ({
   tenant,
   holding: holding as EndpointHolding,
+  endpoint: 'files',
 })
 
 export function samplePending(key: GrantKey, state: string): PendingAuthorization {
@@ -172,12 +176,13 @@ export function mcpAuthorizationRecordsConformance(): readonly ConformanceCase<A
   return [
     conformanceCase<F>(
       'authorization-records',
-      'a pending authorization is taken once, then it is absent',
-      async ({ records, tenant }) => {
+      'a pending authorization is taken once, in its own tenant only, then it is absent',
+      async ({ records, tenant, otherTenant }) => {
         const pending = samplePending(grantKeyOf(tenant), 's1')
         assert.deepEqual(await records.begin(pending), succeed(true))
-        assert.deepEqual(await records.take('s1'), succeed(pending))
-        assert.deepEqual(await records.take('s1'), succeed('absent'))
+        assert.deepEqual(await records.take(otherTenant, 's1'), succeed('absent'))
+        assert.deepEqual(await records.take(tenant, 's1'), succeed(pending))
+        assert.deepEqual(await records.take(tenant, 's1'), succeed('absent'))
       },
     ),
     conformanceCase<F>(
@@ -187,13 +192,13 @@ export function mcpAuthorizationRecordsConformance(): readonly ConformanceCase<A
         await records.begin(samplePending(grantKeyOf(tenant), 's1'))
         await records.begin(samplePending(grantKeyOf(otherTenant), 's2'))
         await records.begin(samplePending(grantKeyOf(tenant), 's3'))
-        assert.deepEqual(await records.take('s1'), succeed('absent'))
+        assert.deepEqual(await records.take(tenant, 's1'), succeed('absent'))
         assert.deepEqual(
-          await records.take('s2'),
+          await records.take(otherTenant, 's2'),
           succeed(samplePending(grantKeyOf(otherTenant), 's2')),
         )
         await records.void(grantKeyOf(tenant))
-        assert.deepEqual(await records.take('s3'), succeed('absent'))
+        assert.deepEqual(await records.take(tenant, 's3'), succeed('absent'))
       },
     ),
     conformanceCase<F>(
@@ -240,7 +245,7 @@ export function mcpAuthorizationRecordsConformance(): readonly ConformanceCase<A
         if (unavailable === undefined) return
         await unavailable()
         assert.deepEqual(await records.read(grantKeyOf(tenant)), fail('unavailable'))
-        assert.deepEqual(await records.take('s9'), fail('unavailable'))
+        assert.deepEqual(await records.take(tenant, 's9'), fail('unavailable'))
       },
     ),
   ]
