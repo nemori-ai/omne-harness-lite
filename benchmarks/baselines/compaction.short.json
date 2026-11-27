@@ -5,14 +5,11 @@
   "tier": "short",
   "workload": "wl-e4b21e89c3ac",
   "assembly": "asm-cf108f782f69",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
-    "commits of taking an input that compacts at compaction 1": 140,
-    "commits of taking an input that compacts at compaction 2": 164,
-    "commits of taking an input that compacts at compaction 4": 155.5,
-    "request bytes after taking an input that compacts at compaction 1": 683351,
-    "request bytes after taking an input that compacts at compaction 2": 586586,
-    "request bytes after taking an input that compacts at compaction 4": 595584.5
+    "request bytes after taking an input that compacts at compaction 1": 682513,
+    "request bytes after taking an input that compacts at compaction 2": 684051,
+    "request bytes after taking an input that compacts at compaction 4": 590285.5
   },
   "digests": [
     "06f630d452eeaab1",

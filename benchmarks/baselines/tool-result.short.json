@@ -5,7 +5,7 @@
   "tier": "short",
   "workload": "wl-c3f38c41e471",
   "assembly": "asm-7c54f1b44799",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
     "commits of a step at result KiB 1": 81,
     "commits of a step at result KiB 2": 81,
@@ -17,10 +17,10 @@
     "commits of a step by tenant-1/session-ordinary-basis at result KiB 8": 11,
     "commits of a step by tenant-1/tool at result KiB 8": 30,
     "commits of a step on an empty session": 82,
-    "request bytes after a step at result KiB 1": 90002.5,
-    "request bytes after a step at result KiB 2": 92711,
-    "request bytes after a step at result KiB 4": 97504.5,
-    "request bytes after a step at result KiB 8": 106467
+    "request bytes after a step at result KiB 1": 90702.5,
+    "request bytes after a step at result KiB 2": 93411,
+    "request bytes after a step at result KiB 4": 98204.5,
+    "request bytes after a step at result KiB 8": 107167
   },
   "digests": [
     "081454b31e828c8a",

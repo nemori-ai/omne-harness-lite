@@ -5,13 +5,13 @@
   "tier": "short",
   "workload": "wl-ee16657eab14",
   "assembly": "asm-7c54f1b44799",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
     "commits of opening an observation": 0,
-    "request bytes after opening an observation at rounds before 16": 76901,
-    "request bytes after opening an observation at rounds before 2": 62864,
-    "request bytes after opening an observation at rounds before 4": 64866,
-    "request bytes after opening an observation at rounds before 8": 68877
+    "request bytes after opening an observation at rounds before 16": 77601,
+    "request bytes after opening an observation at rounds before 2": 63564,
+    "request bytes after opening an observation at rounds before 4": 65566,
+    "request bytes after opening an observation at rounds before 8": 69577
   },
   "digests": [
     "06f630d452eeaab1",

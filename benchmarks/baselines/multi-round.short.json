@@ -5,23 +5,22 @@
   "tier": "short",
   "workload": "wl-b7714efe31a9",
   "assembly": "asm-7c54f1b44799",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
     "commits of a step at round 16": 81,
     "commits of a step at round 2": 81,
     "commits of a step at round 4": 81,
     "commits of a step at round 8": 81,
     "commits of a step by tenant-1/execution-record at round 16": 33,
-    "commits of a step by tenant-1/media.index at round 16": 0,
     "commits of a step by tenant-1/model at round 16": 11,
     "commits of a step by tenant-1/session at round 16": 11,
     "commits of a step by tenant-1/session-ordinary-basis at round 16": 11,
     "commits of a step by tenant-1/tool at round 16": 30,
     "commits of a step on an empty session": 82,
-    "request bytes after a step at round 16": 73390.5,
-    "request bytes after a step at round 2": 62864,
-    "request bytes after a step at round 4": 64365.5,
-    "request bytes after a step at round 8": 67372.5
+    "request bytes after a step at round 16": 74090.5,
+    "request bytes after a step at round 2": 63564,
+    "request bytes after a step at round 4": 65065.5,
+    "request bytes after a step at round 8": 68072.5
   },
   "digests": [
     "06f630d452eeaab1",

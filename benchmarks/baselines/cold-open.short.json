@@ -5,12 +5,12 @@
   "tier": "short",
   "workload": "wl-1420df67e4cd",
   "assembly": "asm-7c54f1b44799",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
-    "request bytes after taking the first input after a restart at rounds before the restart 16": 85652,
-    "request bytes after taking the first input after a restart at rounds before the restart 2": 65266,
-    "request bytes after taking the first input after a restart at rounds before the restart 4": 69389,
-    "request bytes after taking the first input after a restart at rounds before the restart 8": 75515
+    "request bytes after taking the first input after a restart at rounds before the restart 16": 86352,
+    "request bytes after taking the first input after a restart at rounds before the restart 2": 65966,
+    "request bytes after taking the first input after a restart at rounds before the restart 4": 70089,
+    "request bytes after taking the first input after a restart at rounds before the restart 8": 76215
   },
   "digests": [
     "06f630d452eeaab1",

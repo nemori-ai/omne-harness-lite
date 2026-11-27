@@ -5,16 +5,12 @@
   "tier": "short",
   "workload": "wl-8f6439ede1a8",
   "assembly": "asm-7c54f1b44799",
-  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
+  "commit": "45a84fd0cf398bc6cd5391c191dd48050722534b",
   "counts": {
-    "commits of taking an input at attached KiB 128": 30,
-    "commits of taking an input at attached KiB 256": 30,
-    "commits of taking an input at attached KiB 512": 31,
-    "commits of taking an input at attached KiB 64": 30,
-    "request bytes after taking an input at attached KiB 128": 65987.5,
-    "request bytes after taking an input at attached KiB 256": 65986.5,
-    "request bytes after taking an input at attached KiB 512": 65985.5,
-    "request bytes after taking an input at attached KiB 64": 65988.5
+    "request bytes after taking an input at attached KiB 128": 66687.5,
+    "request bytes after taking an input at attached KiB 256": 66686.5,
+    "request bytes after taking an input at attached KiB 512": 66685.5,
+    "request bytes after taking an input at attached KiB 64": 66688.5
   },
   "digests": [
     "06f630d452eeaab1",
