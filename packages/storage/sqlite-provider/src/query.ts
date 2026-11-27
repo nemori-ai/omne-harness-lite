@@ -13,6 +13,15 @@ const PROOFS = {
 } as const
 
 export function createQuery(core: Core): SqlStorage['query'] {
+  const answer = answerQuery(core)
+  return async (identity: SqlIdentity): Promise<QueryResultV2> => {
+    const result = await answer(identity)
+    core.readings.query(decodeIdentity(identity).identity?.transactionDomain ?? '', result.kind)
+    return result
+  }
+}
+
+function answerQuery(core: Core): SqlStorage['query'] {
   return async (identity: SqlIdentity): Promise<QueryResultV2> => {
     const unknown = (text: string): QueryResultV2 => ({
       kind: 'unknown',

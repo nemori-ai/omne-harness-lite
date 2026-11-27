@@ -45,6 +45,7 @@ function fakeControl(answer: () => Promise<StorageCloseResult>): FakeControl {
     assemblyReportSettled() {
       control.settled += 1
     },
+    readings: () => ({ reads: [], commits: [], participants: [], queries: [] }),
   }
   return control
 }

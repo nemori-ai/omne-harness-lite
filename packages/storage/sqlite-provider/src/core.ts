@@ -5,6 +5,7 @@ import type { SqliteStorageConfig } from './config.ts'
 import { Domains, type Lifecycle } from './domains.ts'
 import { clipDiagnostic, scopeKey } from './fields.ts'
 import { ReaderPool } from './reader-pool.ts'
+import { Readings } from './readings.ts'
 import { WriteBarrier } from './write-barrier.ts'
 
 export type Core = Readonly<{
@@ -18,6 +19,7 @@ export type Core = Readonly<{
   pending: PendingIndex
   inFlight: InFlight
   replyObservationMs: number
+  readings: Readings
   diagnostic(text: string): string
 }>
 
@@ -40,6 +42,7 @@ export function createCore(
     pending: new PendingIndex(),
     inFlight: new InFlight(),
     replyObservationMs: 2 * config.lockWaitMs,
+    readings: new Readings(),
     diagnostic: text => clipDiagnostic(text, config.maxDiagnosticBytes),
   }
 }

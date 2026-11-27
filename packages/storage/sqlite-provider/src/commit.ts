@@ -106,6 +106,19 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   }
 }
 
+const tally =
+  (core: Core, input: CommitRequestV2, identity: SqlIdentity | null) =>
+  (result: CommitResultV2, bytes: number): CommitResultV2 => {
+    const commands = (input as Partial<CommitRequestV2> | null)?.commands
+    core.readings.commit(
+      identity?.transactionDomain ?? '',
+      Array.isArray(commands) ? commands.map(command => String(command.participant)) : [],
+      bytes,
+      result,
+    )
+    return result
+  }
+
 export function createCommit(core: Core): SqlStorage['commit'] {
   return (input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2> => {
     const signal = options?.signal
@@ -121,9 +134,12 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         reason,
         diagnostic: core.diagnostic(measured === undefined ? reason : `${reason}: ${measured}`),
       }) as CommitResultV2
+    const counted = tally(core, input, decoded.identity)
     const judged = judge(core, input, signal)
     if (judged.kind === 'rejected')
-      return Promise.resolve(rejection(judged.reason, decoded.identity, judged.measured))
+      return Promise.resolve(
+        counted(rejection(judged.reason, decoded.identity, judged.measured), 0),
+      )
     const { identity, requestBytes, inputDigest } = judged
     const key = identityKey(identity)
     core.pending.add(key)
@@ -134,7 +150,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
       return Promise.resolve(rejection(WAIT_REFUSAL[acquired.kind], identity))
     }
     const acquired = core.admission.reserveWrite(identity.transactionDomain, requestBytes, signal)
-    return acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
+    const settled = acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
+    return settled.then(result => counted(result, requestBytes))
   }
 
   function admitted(grant: Granted, sent: Sent): Promise<CommitResultV2> {

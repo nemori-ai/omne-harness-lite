@@ -95,6 +95,7 @@ export async function createSqliteStorage(
       inFlight: core.inFlight,
       readers: core.readers,
       latch,
+      readings: core.readings,
     }),
   }
 }
