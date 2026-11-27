@@ -167,7 +167,7 @@ function loadFor(
       mark(new Set())
       wear.close()
       await loader.stop()
-      floor.settle(text)
+      if (listed) floor.settle(text)
     },
   }
 }
