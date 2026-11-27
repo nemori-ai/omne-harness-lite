@@ -51,8 +51,22 @@ function changeFrame(change: Mounting, scoped: { scoped?: number }): Availabilit
   const { revision } = change
   const conflicts = change.conflicts.map(keyValue)
   return change.change === 'mounted'
-    ? { kind: 'change', revision, added: [servedValue(change.protocol)], removed: [], conflicts, ...scoped }
-    : { kind: 'change', revision, added: [], removed: [keyValue(change.protocol)], conflicts, ...scoped }
+    ? {
+        kind: 'change',
+        revision,
+        added: [servedValue(change.protocol)],
+        removed: [],
+        conflicts,
+        ...scoped,
+      }
+    : {
+        kind: 'change',
+        revision,
+        added: [],
+        removed: [keyValue(change.protocol)],
+        conflicts,
+        ...scoped,
+      }
 }
 
 /** The revision of `access/v1` that added the points to the snapshot. */
@@ -201,7 +215,11 @@ function scopedOperation(
     if (tenant === undefined || tenantScope === undefined) return { outcome: 'basis-unavailable' }
     const protocols = registry.scoped(tenantScope(tenant))
     if (protocols === undefined) return { outcome: 'basis-unavailable' }
-    const told = protocols.map(({ name, major, contract }) => ({ name, major, contract: treeOf(contract) }))
+    const told = protocols.map(({ name, major, contract }) => ({
+      name,
+      major,
+      contract: treeOf(contract),
+    }))
     if (told.some(each => each.contract === undefined)) return { outcome: 'basis-unavailable' }
     return { outcome: 'succeeded', body: { protocols: told as never } }
   }

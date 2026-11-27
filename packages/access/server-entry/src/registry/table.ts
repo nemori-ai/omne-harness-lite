@@ -113,7 +113,9 @@ export function scopedSignature(registry: Registry): string {
   return registry.placed
     .filter(placed => placed.point === PROTOCOLS && placed.scope.length > 0)
     .map(placed =>
-      [placed.scope.join('/'), placed.key, placed.digest, standing(registry, placed.instance)].join('|'),
+      [placed.scope.join('/'), placed.key, placed.digest, standing(registry, placed.instance)].join(
+        '|',
+      ),
     )
     .sort()
     .join('\n')

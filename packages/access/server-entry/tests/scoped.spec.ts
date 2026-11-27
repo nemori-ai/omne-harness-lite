@@ -70,7 +70,7 @@ async function world() {
 }
 
 describe('the protocols of the tenant a caller acts for (AC-9)', () => {
-  it('two tenants each with a protocol: each reads only its own, with its contract as data; the deployment\'s are not in it', async () => {
+  it("two tenants each with a protocol: each reads only its own, with its contract as data; the deployment's are not in it", async () => {
     const t = await world()
     const acme = await t.scoped(PROOF, ACME)
     expect(acme.status).toBe(200)
@@ -90,10 +90,15 @@ describe('the protocols of the tenant a caller acts for (AC-9)', () => {
   })
 })
 
-describe('the count of the changes of the tenants\' protocols in the availability frames', () => {
+describe("the count of the changes of the tenants' protocols in the availability frames", () => {
   async function first(registry: ReturnType<typeof createSource>, revision: number) {
     const opened = await availabilitySource(registry, 4)(
-      { principal: undefined as never, messageId: 'm-1', revision, signal: new AbortController().signal },
+      {
+        principal: undefined as never,
+        messageId: 'm-1',
+        revision,
+        signal: new AbortController().signal,
+      },
       {},
     )
     if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
@@ -102,7 +107,7 @@ describe('the count of the changes of the tenants\' protocols in the availabilit
   }
   const createSource = () => createSourceRegistry()
 
-  it('a reader at revision 3 is told the count and is sent a snapshot when a tenant\'s protocol changes; a reader at revision 2 gets the frames it got before', async () => {
+  it("a reader at revision 3 is told the count and is sent a snapshot when a tenant's protocol changes; a reader at revision 2 gets the frames it got before", async () => {
     const registry = createSource()
     const three = await first(registry, 3)
     const two = await first(registry, 2)

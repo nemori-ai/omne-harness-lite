@@ -1,7 +1,4 @@
-import type {
-  AccessContribution,
-  OperationHandler,
-} from '@omne-harness/access-cordis-contract'
+import type { AccessContribution, OperationHandler } from '@omne-harness/access-cordis-contract'
 import {
   guestContract,
   type GuestContractData,

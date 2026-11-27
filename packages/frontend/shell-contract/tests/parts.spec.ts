@@ -301,8 +301,10 @@ it('a part a plugin declares as data, with what a part must say and no more, rea
     ['org', 'acc'],
   )
   const read = partsOn(shell.registry(), ['org', 'acc'])
-  expect(read.kind === 'read' && read.parts.find(part => part.name === 'late.title')).toMatchObject({
-    within: null,
-    when: null,
-  })
+  expect(read.kind === 'read' && read.parts.find(part => part.name === 'late.title')).toMatchObject(
+    {
+      within: null,
+      when: null,
+    },
+  )
 })
