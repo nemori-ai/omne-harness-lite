@@ -97,7 +97,7 @@ it.each(['older', 'newer'] as const)(
     expect(applied).toHaveLastReturnedWith(order === 'older' ? 'dark' : 'light')
   },
 )
-it('G10 derives missing choices from product defaults on construction and reset', () => {
+it('derives missing choices from product defaults on construction and reset', () => {
   const kernel = createVisualRecordKernel({ ...VISUAL_DEFAULTS, theme: 'light' })
   const effective = vi.spyOn(visualRecordKernel, 'effective').mockImplementation(kernel.effective)
   try {

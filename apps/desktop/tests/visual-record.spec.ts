@@ -15,38 +15,38 @@ function record(t: number, preferences: Partial<VisualPreferences> = {}, id = 'a
 // Input digits denote record time, '-' missing, '!' invalid and 'x' unavailable.
 // The last column lists the available replicas that need the winning record.
 it.each([
-  ['A1', '-', 0, ''],
-  ['A2', '!', 0, ''],
-  ['A3', '1', 1, ''],
-  ['A4', 'x', 0, ''],
-  ['B1', '-!', 0, ''],
-  ['B2', '1-', 1, '1'],
-  ['B3', '!1', 1, '0'],
-  ['B4', '12', 2, '0'],
-  ['B5', '21', 2, '1'],
-  ['B6', '11', 1, ''],
-  ['B7', '1x', 1, ''],
-  ['B8', 'x1', 1, ''],
-  ['C1', '---', 0, ''],
-  ['C2', '1--', 1, '12'],
-  ['C3', '-1-', 1, '02'],
-  ['C4', '--1', 1, '01'],
-  ['C5', '21-', 2, '12'],
-  ['C6', '12-', 2, '02'],
-  ['C7', '11-', 1, '2'],
-  ['C8', '2-1', 2, '12'],
-  ['C9', '1-2', 2, '01'],
-  ['C10', '1-1', 1, '1'],
-  ['C11', '-21', 2, '02'],
-  ['C12', '-12', 2, '01'],
-  ['C13', '-11', 1, '0'],
-  ['C14', '211', 2, '12'],
-  ['C15', '121', 2, '02'],
-  ['C16', '112', 2, '01'],
-  ['C17', '221', 2, '2'],
-  ['C18', '212', 2, '1'],
-  ['C19', '122', 2, '0'],
-  ['C20', '111', 1, ''],
+  ['-', '-', 0, ''],
+  ['!', '!', 0, ''],
+  ['1', '1', 1, ''],
+  ['x', 'x', 0, ''],
+  ['-!', '-!', 0, ''],
+  ['1-', '1-', 1, '1'],
+  ['!1', '!1', 1, '0'],
+  ['12', '12', 2, '0'],
+  ['21', '21', 2, '1'],
+  ['11', '11', 1, ''],
+  ['1x', '1x', 1, ''],
+  ['x1', 'x1', 1, ''],
+  ['---', '---', 0, ''],
+  ['1--', '1--', 1, '12'],
+  ['-1-', '-1-', 1, '02'],
+  ['--1', '--1', 1, '01'],
+  ['21-', '21-', 2, '12'],
+  ['12-', '12-', 2, '02'],
+  ['11-', '11-', 1, '2'],
+  ['2-1', '2-1', 2, '12'],
+  ['1-2', '1-2', 2, '01'],
+  ['1-1', '1-1', 1, '1'],
+  ['-21', '-21', 2, '02'],
+  ['-12', '-12', 2, '01'],
+  ['-11', '-11', 1, '0'],
+  ['211', '211', 2, '12'],
+  ['121', '121', 2, '02'],
+  ['112', '112', 2, '01'],
+  ['221', '221', 2, '2'],
+  ['212', '212', 2, '1'],
+  ['122', '122', 2, '0'],
+  ['111', '111', 1, ''],
 ] as const)(
   '%s selects the observable maximum and repairs only lagging sources',
   (_, inputs, time, repair) => {
@@ -75,18 +75,18 @@ it.each([
 // Inputs are ordered upstream to downstream, the mirror then local storage. The last column lists the
 // available replicas that differ from the start record.
 it.each([
-  ['A1', '-', 0, ''],
-  ['A2', '!', 0, ''],
-  ['A3', '1', 1, ''],
-  ['A4', 'x', 0, ''],
-  ['B1', '-!', 0, ''],
-  ['B2', '1-', 1, '1'],
-  ['B3', '!1', 1, '0'],
-  ['B4', '12', 1, '1'],
-  ['B5', '21', 2, '1'],
-  ['B6', '11', 1, ''],
-  ['B7', '1x', 1, ''],
-  ['B8', 'x1', 1, ''],
+  ['-', '-', 0, ''],
+  ['!', '!', 0, ''],
+  ['1', '1', 1, ''],
+  ['x', 'x', 0, ''],
+  ['-!', '-!', 0, ''],
+  ['1-', '1-', 1, '1'],
+  ['!1', '!1', 1, '0'],
+  ['12', '12', 1, '1'],
+  ['21', '21', 2, '1'],
+  ['11', '11', 1, ''],
+  ['1x', '1x', 1, ''],
+  ['x1', 'x1', 1, ''],
 ] as const)(
   '%s starts from the first valid upstream and repairs every different replica',
   (_, inputs, time, repair) => {
@@ -150,18 +150,16 @@ it('advances the maximum observed clock after rollback and generates a random id
   expect(kernel.nextStamp([], 400).id).not.toBe(kernel.nextStamp([], 400).id)
 })
 it.each([
-  ['G1', 'system', {}, 'system'],
-  ['G2', 'light', {}, 'light'],
-  ['G3', 'light', { theme: 'dark' }, 'dark'],
-  ['G4', 'light', { size: 'small' }, 'light'],
-  ['G5', 'light', { theme: 'light' }, 'light'],
-  ['G6', 'light', { size: 'large' }, 'light'],
-  ['G7', 'light', {}, 'light'],
-  ['G8', 'system', {}, 'system'],
-  ['G9', 'system', { theme: 'light' }, 'light'],
+  ['system', {}, 'system'],
+  ['light', {}, 'light'],
+  ['light', { theme: 'dark' }, 'dark'],
+  ['light', { size: 'small' }, 'light'],
+  ['light', { theme: 'light' }, 'light'],
+  ['light', { size: 'large' }, 'light'],
+  ['system', { theme: 'light' }, 'light'],
 ] as const)(
-  '%s fills only omitted fields from product defaults',
-  (_, theme, preferences, expected) => {
+  'with the default theme %s, %o fills only omitted fields from product defaults',
+  (theme, preferences, expected) => {
     const product = createVisualRecordKernel({ ...VISUAL_DEFAULTS, theme })
     const stored = product.decode(product.encode(record(1, preferences))).record
     expect(stored?.preferences).toEqual(preferences)
@@ -191,7 +189,7 @@ it.each([
     { theme: true },
     { unknown: 'system' },
   ].map(preferences => ({ ...record(1), preferences })),
-])('G11 rejects the whole malformed record %#', value => {
+])('rejects the whole malformed record %#', value => {
   expect(kernel.decode(JSON.stringify(value))).toEqual({ kind: 'invalid' })
 })
 it('distinguishes a missing value from an empty or corrupt payload', () => {

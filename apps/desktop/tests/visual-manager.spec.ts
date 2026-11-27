@@ -51,7 +51,7 @@ function raw(t: number, preferences: Partial<VisualPreferences> = {}, id = 'a') 
 function local() {
   return localStorage.getItem(key)
 }
-function tab(options: Parameters<typeof createVisualManager>[0] = {}) {
+function page(options: Parameters<typeof createVisualManager>[0] = {}) {
   const manager = createVisualManager({ host: window, warn: vi.fn(), ...options })
   releases.push(manager.connect())
   return manager
@@ -111,7 +111,7 @@ function sharedMirror(initial: string | null = null) {
 }
 
 it.each(['web', 'desktop'] as const)(
-  'E18 creates no records on %s connect, event, retry or restore, even for invalid sources',
+  'creates no records on %s connect, event, retry or restore, even for invalid sources',
   shell => {
     localStorage.setItem(key, '{}')
     const write = vi.spyOn(MemoryStorage.prototype, 'setItem')
@@ -125,7 +125,7 @@ it.each(['web', 'desktop'] as const)(
       releases.push(second.connect())
       return sampled
     })
-    const first = tab(options)
+    const first = page(options)
     signal()
     restore()
     first.actions.retry()
@@ -137,7 +137,7 @@ it.each(['web', 'desktop'] as const)(
 )
 
 it.each(['missing', 'invalid', 'divergent'])(
-  'E11/E18 interleave two connects with %s replicas',
+  'interleave two connects with %s replicas',
   scenario => {
     const divergent = scenario === 'divergent'
     const winner = raw(1, { size: 'large' })
@@ -154,7 +154,7 @@ it.each(['missing', 'invalid', 'divergent'])(
       releases.push(second.connect())
       return sampled
     })
-    const first = tab(options)
+    const first = page(options)
     expect(second.getStatus().initialized).toBe(true)
     expect(first.getSnapshot()).toEqual(second.getSnapshot())
     expect(first.getSnapshot().preferences).toEqual(divergent ? { size: 'large' } : {})
@@ -169,7 +169,7 @@ it.each(['missing', 'invalid', 'divergent'])(
 )
 
 it('resets individual size and theme choices and stamps even a repeated whole reset', () => {
-  const manager = tab()
+  const manager = page()
   manager.actions.setSize('large')
   manager.actions.setTheme('dark')
   manager.actions.resetTheme()
@@ -180,10 +180,10 @@ it('resets individual size and theme choices and stamps even a repeated whole re
   manager.actions.resetVisualPreferences()
   expect(records.decode(local()).record!.stamp.t).toBeGreaterThan(empty.stamp.t)
 })
-it('A2 preserves an invalid SPA record until the first user edit', () => {
+it('preserves an invalid local record until the first edit', () => {
   localStorage.setItem(key, '{}')
   const write = vi.spyOn(MemoryStorage.prototype, 'setItem')
-  const manager = tab()
+  const manager = page()
   expect(manager.getSnapshot().preferences).toEqual({})
   expect(local()).toBe('{}')
   expect(write).not.toHaveBeenCalled()
@@ -192,10 +192,10 @@ it('A2 preserves an invalid SPA record until the first user edit', () => {
   expect(records.decode(local()).record?.preferences).toEqual({ size: 'large' })
 })
 
-it('E1/E13 reads the latest observable record before committing without backfilling intermediate values', () => {
+it('reads the latest observable record before committing without backfilling intermediate values', () => {
   const native = sharedMirror()
-  const first = tab({ nativeSource: native.source })
-  const second = tab({ nativeSource: native.source })
+  const first = page({ nativeSource: native.source })
+  const second = page({ nativeSource: native.source })
   vi.spyOn(Date, 'now').mockReturnValue(500)
   first.actions.setSize('large')
   vi.mocked(Date.now).mockReturnValue(100)
@@ -212,7 +212,7 @@ it('E1/E13 reads the latest observable record before committing without backfill
   expect(first.getSnapshot()).toEqual(second.getSnapshot())
 })
 it('re-reads storage on events, repairs deletion from memory and skips equal targets', () => {
-  const manager = tab()
+  const manager = page()
   const value = raw(4, { size: 'large' })
   localStorage.setItem(key, value)
   const write = vi.spyOn(MemoryStorage.prototype, 'setItem')
@@ -225,10 +225,10 @@ it('re-reads storage on events, repairs deletion from memory and skips equal tar
   signal()
   expect(write).toHaveBeenCalledTimes(1)
 })
-it('E3 rechecks local immediately before repair and skips a newly updated target', () => {
+it('rechecks local immediately before repair and skips a newly updated target', () => {
   const newer = raw(2, { size: 'medium' })
   localStorage.setItem(key, raw(1, { size: 'large' }))
-  const manager = tab()
+  const manager = page()
   localStorage.setItem(key, newer)
   vi.spyOn(MemoryStorage.prototype, 'getItem').mockReturnValueOnce(null)
   const write = vi.spyOn(MemoryStorage.prototype, 'setItem')
@@ -239,9 +239,9 @@ it('E3 rechecks local immediately before repair and skips a newly updated target
   restore()
   expect(manager.getSnapshot().preferences).toEqual({ size: 'medium' })
 })
-it('E2 converges after two overlapping non-empty field edits based on the same snapshot', () => {
-  const a = tab()
-  const b = tab()
+it('converges after two overlapping non-empty field edits based on the same snapshot', () => {
+  const a = page()
+  const b = page()
   const now = vi.spyOn(Date, 'now').mockReturnValue(10)
   const writes = vi.spyOn(MemoryStorage.prototype, 'setItem')
   // B samples local, then A completes its commit before B's read returns the old snapshot.
@@ -269,10 +269,10 @@ it('E2 converges after two overlapping non-empty field edits based on the same s
 })
 
 it.each([true, false])(
-  'E14 simultaneous reset and field edit converge when winner remains observable: %s',
+  'simultaneous reset and field edit converge when winner remains observable: %s',
   survives => {
-    const b = tab()
-    const a = tab()
+    const b = page()
+    const a = page()
     vi.spyOn(Date, 'now').mockReturnValueOnce(10).mockReturnValue(20)
     const write = localStorage.setItem.bind(localStorage)
     // B has completed its read and stamp. Let A commit and optionally close before releasing B's write.
@@ -284,16 +284,16 @@ it.each([true, false])(
     b.actions.setSize('large')
     expect(records.decode(local()).record?.stamp.t).toBe(10)
     signal()
-    expect(tab().getSnapshot().preferences).toEqual(survives ? {} : { size: 'large' })
+    expect(page().getSnapshot().preferences).toEqual(survives ? {} : { size: 'large' })
     expect(records.decode(local()).record?.stamp.t).toBe(survives ? 20 : 10)
   },
 )
 it.each(['native', 'memory'])(
-  'E3/E4 repairs a stale backfill when the winner survives in %s',
+  'repairs a stale backfill when the winner survives in %s',
   survivor => {
     const native = sharedMirror()
     const options = { nativeSource: native.source }
-    const a = tab(options)
+    const a = page(options)
     const closeA = releases.at(-1)!
     a.actions.setSize('large')
     const old = local()!
@@ -303,7 +303,7 @@ it.each(['native', 'memory'])(
       a.actions.setTheme('dark')
       write(k, v)
     })
-    tab(options) // B resumes its pending repair after A commits.
+    page(options) // B resumes its pending repair after A commits.
     releases.pop()!()
     const current = native.mirror.record!
     expect(records.decode(current).record?.preferences).toEqual({ size: 'large', theme: 'dark' })
@@ -316,7 +316,7 @@ it.each(['native', 'memory'])(
     })!
     window.omneVisualBootstrap = { storageKey: key, record: observable }
     expect(records.encode(observable)).toBe(survivor === 'native' ? current : old)
-    const reopened = tab(options)
+    const reopened = page(options)
     expect(reopened.getSnapshot().preferences).toEqual(observable.preferences)
     if (survivor === 'memory') restore()
     expect(reopened.getSnapshot().preferences).toEqual({ size: 'large', theme: 'dark' })
@@ -324,12 +324,12 @@ it.each(['native', 'memory'])(
   },
 )
 
-it("E3 loses a closed SPA tab's commit if an interrupted backfill overwrites its last replica", () => {
+it("loses a closed window's commit if an interrupted backfill overwrites its last replica", () => {
   const old = raw(1, { size: 'large' })
   localStorage.setItem(key, old)
-  tab() // B keeps the old record in memory and handles the storage event first.
+  page() // B keeps the old record in memory and handles the storage event first.
   const closeB = releases.at(-1)!
-  const a = tab()
+  const a = page()
   const closeA = releases.at(-1)!
   localStorage.removeItem(key)
   let lastReplica: string | null = null
@@ -346,19 +346,19 @@ it("E3 loses a closed SPA tab's commit if an interrupted backfill overwrites its
   expect(winner.preferences).toEqual({ size: 'large', theme: 'dark' })
   expect(winner.stamp.t).toBeGreaterThan(1)
   expect(local()).toBe(old)
-  expect(tab().getSnapshot().preferences).toEqual({ size: 'large' })
+  expect(page().getSnapshot().preferences).toEqual({ size: 'large' })
   expect(local()).toBe(old)
 })
-it('E12/E15/E16 reconciles whole records on pageshow and only visible visibilitychange', () => {
+it('reconciles whole records on pageshow and only visible visibilitychange', () => {
   const a = raw(5, { size: 'large' })
   const b = raw(5, { theme: 'dark' })
   const native = sharedMirror(b)
-  const manager = tab({ nativeSource: native.source })
+  const manager = page({ nativeSource: native.source })
   localStorage.setItem(key, a)
   restore()
   expect(local()).toBe(b)
   expect(native.mirror.record).toBe(b)
-  const peer = tab({ nativeSource: native.source })
+  const peer = page({ nativeSource: native.source })
   peer.actions.resetVisualPreferences()
   const newest = local()
   native.mirror.record = b
@@ -378,7 +378,7 @@ it.each(['retry', 'pageshow'])(
   'recovers local quota failure on %s without producing a new stamp',
   trigger => {
     const warn = vi.fn()
-    const manager = tab({ warn })
+    const manager = page({ warn })
     const setter = vi.spyOn(MemoryStorage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota')
     })
@@ -401,9 +401,9 @@ it.each([
   ['access', 'retry'],
   ['read', 'pageshow'],
 ] as const)(
-  'E17 distinguishes local %s failure from a full quota and probes again on %s',
+  'distinguishes local %s failure from a full quota and probes again on %s',
   (boundary, trigger) => {
-    const manager = tab()
+    const manager = page()
     const fault =
       boundary === 'access'
         ? vi.spyOn(window, 'localStorage', 'get')
@@ -423,15 +423,15 @@ it.each([
   },
 )
 it.each([true, false])(
-  "E19 retains other tabs' fields with local blocked and native=%s",
+  "retains other windows' fields with local blocked and native=%s",
   withNative => {
     const native = sharedMirror()
     const options = withNative ? { nativeSource: native.source } : {}
     const fault = vi.spyOn(MemoryStorage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked')
     })
-    const a = tab(options)
-    const b = tab(options)
+    const a = page(options)
+    const b = page(options)
     a.actions.setSize('large')
     b.actions.setTheme('dark')
     expect(a.getSnapshot().preferences).toEqual({ size: 'large' })
@@ -449,9 +449,9 @@ it.each([true, false])(
   },
 )
 
-it('loses a Web-only edit on refresh when the local write fails', () => {
+it('loses an edit on refresh when the local write fails and there is no mirror', () => {
   localStorage.setItem(key, raw(1, { size: 'medium' }))
-  const manager = tab()
+  const manager = page()
   const localFault = vi.spyOn(MemoryStorage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('quota')
   })
@@ -460,21 +460,21 @@ it('loses a Web-only edit on refresh when the local write fails', () => {
   expect(manager.getStatus().storage).toEqual({ local: 'failed', native: 'absent' })
   releases.pop()!()
   localFault.mockRestore()
-  const refreshed = tab()
+  const refreshed = page()
   expect(refreshed.getSnapshot().preferences.size).toBe('medium')
   refreshed.actions.setSize('large')
   expect(refreshed.getStatus().storage).toEqual({ local: 'ok', native: 'absent' })
-  expect(tab().getSnapshot().preferences.size).toBe('large')
+  expect(page().getSnapshot().preferences.size).toBe('large')
 })
 
 it("discovers the actual native bridge at connect, independently of the loader's shell", () => {
-  expect(tab().getStatus().storage.native).toBe('absent')
+  expect(page().getStatus().storage.native).toBe('absent')
   window.omneDesktop = {} as NonNullable<Window['omneDesktop']>
-  const degraded = tab({ nativeSource: desktopVisualSource })
+  const degraded = page({ nativeSource: desktopVisualSource })
   degraded.actions.setSize('large')
   expect(degraded.getStatus().storage).toEqual({ local: 'ok', native: 'unavailable' })
   expect(records.decode(local()).record?.preferences).toEqual({ size: 'large' })
-  expect(tab().getStatus().storage.native).toBe('unavailable')
+  expect(page().getStatus().storage.native).toBe('unavailable')
   window.omneDesktop = {
     visual: {
       seed: null,
@@ -482,7 +482,7 @@ it("discovers the actual native bridge at connect, independently of the loader's
       push: async () => 'ok',
     },
   }
-  expect(tab({ nativeSource: desktopVisualSource }).getStatus().storage.native).toBe('ok')
+  expect(page({ nativeSource: desktopVisualSource }).getStatus().storage.native).toBe('ok')
 })
 function pushGate() {
   let resolve!: (value: 'ok' | 'failed') => void
@@ -508,7 +508,7 @@ it('ignores late native push results from superseded operations', async () => {
       mirror = value
       return second.promise
     })
-  const manager = tab({
+  const manager = page({
     nativeSource: nativeSource(() => ({ record: mirror, pending: false }), push),
   })
   try {
@@ -534,7 +534,7 @@ it('keeps a restored native confirmation when the original failed push replies l
     pending = true
     return reply.promise
   })
-  const manager = tab({ nativeSource: nativeSource(() => ({ record: mirror, pending }), push) })
+  const manager = page({ nativeSource: nativeSource(() => ({ record: mirror, pending }), push) })
   try {
     manager.actions.setSize('large')
     // Main retries the pending write before the original IPC reply reaches this window.
@@ -549,7 +549,7 @@ it('keeps a restored native confirmation when the original failed push replies l
     reply.resolve('failed')
   }
 })
-it('E11 interleaves two window connections before the first repairs its stale local copy', () => {
+it('interleaves two window connections before the first repairs its stale local copy', () => {
   const winner = raw(3, { theme: 'dark', size: 'large' })
   localStorage.setItem(key, raw(1))
   const push = vi.fn<() => Promise<'ok'>>()
@@ -574,7 +574,7 @@ it('E11 interleaves two window connections before the first repairs its stale lo
   expect(writeLocal).toHaveBeenCalledExactlyOnceWith(key, winner)
   expect(push).not.toHaveBeenCalled()
 })
-it("E20/E21 repairs stale backfills from a peer's pending native mirror and confirms it only on explicit retry", async () => {
+it("repairs stale backfills from a peer's pending native mirror and confirms it only on explicit retry", async () => {
   const value = raw(5, { size: 'large' })
   const stale = raw(2, { size: 'medium' })
   let mirror = stale
@@ -583,7 +583,7 @@ it("E20/E21 repairs stale backfills from a peer's pending native mirror and conf
     pending = false
     return 'ok' as const
   })
-  const peer = tab({ nativeSource: nativeSource(() => ({ record: mirror, pending }), push) })
+  const peer = page({ nativeSource: nativeSource(() => ({ record: mirror, pending }), push) })
   expect(local()).toBe(stale)
   // Another window advances N, then a stale backfill leaves the local copy behind.
   localStorage.setItem(key, value)
@@ -602,7 +602,7 @@ it("E20/E21 repairs stale backfills from a peer's pending native mirror and conf
   expect(push).toHaveBeenCalledExactlyOnceWith(value)
   expect(peer.getStatus().storage.native).toBe('ok')
 })
-it('E20/E21 repairs from the pending native mirror and confirms it only on explicit retry', async () => {
+it('repairs from the pending native mirror and confirms it only on explicit retry', async () => {
   const value = raw(5, { size: 'large' })
   localStorage.setItem(key, raw(3, { size: 'medium' }))
   let pending = true
@@ -610,7 +610,7 @@ it('E20/E21 repairs from the pending native mirror and confirms it only on expli
     pending = false
     return 'ok' as const
   })
-  const manager = tab({ nativeSource: nativeSource(() => ({ record: value, pending }), push) })
+  const manager = page({ nativeSource: nativeSource(() => ({ record: value, pending }), push) })
   expect(local()).toBe(value)
   signal()
   restore()
@@ -621,7 +621,7 @@ it('E20/E21 repairs from the pending native mirror and confirms it only on expli
   expect(push).toHaveBeenCalledExactlyOnceWith(value)
   expect(manager.getStatus().storage.native).toBe('ok')
 })
-it('re-probes native read and push transport failures without blocking the Web stores', async () => {
+it('re-probes native read and push transport failures without blocking local storage', async () => {
   const read = vi
     .fn<() => { record: null; pending: boolean }>(() => ({ record: null, pending: false }))
     .mockImplementationOnce(() => {
@@ -631,7 +631,7 @@ it('re-probes native read and push transport failures without blocking the Web s
     .fn<() => Promise<VisualPushResult>>()
     .mockRejectedValueOnce(new Error('ipc'))
     .mockResolvedValue('ok')
-  const manager = tab({ nativeSource: nativeSource(read, push) })
+  const manager = page({ nativeSource: nativeSource(read, push) })
   expect(manager.getStatus().storage.native).toBe('unavailable')
   manager.actions.setSize('large')
   expect(records.decode(local()).record?.preferences).toEqual({ size: 'large' })
@@ -644,10 +644,10 @@ it('re-probes native read and push transport failures without blocking the Web s
 })
 
 describe.each([
-  ['D1', false, false],
-  ['D2', true, false],
-  ['D4', false, true],
-  ['D6', true, true],
+  ['both saved', false, false],
+  ['local write failed', true, false],
+  ['mirror write failed', false, true],
+  ['both writes failed', true, true],
 ] as const)('%s', (_row, failLocal, failNative) => {
   it.each(['retry', 'refresh', 'cold restart'] as const)(
     'recovers the surviving record on %s',
@@ -677,7 +677,7 @@ describe.each([
         return { source: nativeSource(() => ({ record, pending }), push), push }
       }
       const mirror = openMirror()
-      const manager = tab({ nativeSource: mirror.source })
+      const manager = page({ nativeSource: mirror.source })
       const localFault = vi.spyOn(MemoryStorage.prototype, 'setItem')
       if (failLocal)
         localFault.mockImplementation(() => {
@@ -709,7 +709,7 @@ describe.each([
       const next = cold ? openMirror() : mirror
       next.push.mockClear()
       const localWrite = vi.spyOn(MemoryStorage.prototype, 'setItem')
-      const restored = restart === 'retry' ? manager : tab({ nativeSource: next.source })
+      const restored = restart === 'retry' ? manager : page({ nativeSource: next.source })
       if (restart === 'retry') restored.actions.retry()
       await Promise.resolve()
       expect(restored.getSnapshot().preferences).toEqual(
@@ -745,8 +745,8 @@ function desktopBridge(
 }
 
 it.each([
-  ['E8 cold restart', 'native', 'newer', 'native'],
-  ['cleared Web storage', 'native', null, 'native'],
+  ['cold restart', 'native', 'newer', 'native'],
+  ['cleared local storage', 'native', null, 'native'],
   ['missing mirror', null, 'newer', 'newer'],
   ['invalid mirror', 'invalid', 'newer', 'newer'],
   ['first launch', null, null, null],
@@ -769,7 +769,7 @@ it.each([
     const localWrite = vi.spyOn(MemoryStorage.prototype, 'setItem')
     prepaint()
     expect(window.omneVisualBootstrap?.record).toEqual(records.decode(winner).record)
-    const manager = tab({ nativeSource: desktopVisualSource })
+    const manager = page({ nativeSource: desktopVisualSource })
     expect(manager.getSnapshot().preferences).toEqual(
       records.decode(winner).record?.preferences ?? {},
     )
@@ -823,7 +823,7 @@ it('preserves a command before first connect and uses runtime ordering on reconn
 
 it('starts the native push before writing local storage', () => {
   const native = sharedMirror()
-  const manager = tab({ nativeSource: native.source })
+  const manager = page({ nativeSource: native.source })
   const write = vi.spyOn(MemoryStorage.prototype, 'setItem')
   manager.actions.setTheme('dark')
   expect(native.push).toHaveBeenCalledOnce()
@@ -837,7 +837,7 @@ it('keeps an equal pending native retry live across pageshow', async () => {
   localStorage.setItem(key, value)
   let pending = true
   const push = vi.fn<() => typeof reply.promise>(() => reply.promise)
-  const manager = tab({ nativeSource: nativeSource(() => ({ record: value, pending }), push) })
+  const manager = page({ nativeSource: nativeSource(() => ({ record: value, pending }), push) })
   try {
     manager.actions.retry()
     restore()
@@ -859,7 +859,7 @@ it.each([false, true])(
     const read = vi.fn<() => VisualMirrorSnapshot>(() => ({ record: local(), pending: false }))
     desktopBridge(read, () => reply.promise)
     const adapter: NativeVisualSource = { connect: host => desktopVisualSource.connect(host) }
-    const manager = tab({ nativeSource: adapter })
+    const manager = page({ nativeSource: adapter })
     const discovery = vi.spyOn(adapter, 'connect')
     try {
       manager.actions.setSize('large')
