@@ -23,6 +23,14 @@ function binding(producer: ProducerRef) {
   return { binding: { producer } }
 }
 
+const associated = (producer: ProducerRef) => ({ kind: 'associated', ...binding(producer) })
+
+// The model call the Run waits on, as the snapshot holds it while it is out.
+const MODEL_CALL = {
+  record: { consumption: 'consumption-model', registration: associated(MODEL) },
+  consumed: { id: 'consumption-model', ...binding(MODEL), results: [] },
+}
+
 function toolIntent(consumption: string, initiatingAttempt: string | null) {
   return {
     consumption,
@@ -54,13 +62,15 @@ function snapshot(over: Record<string, unknown> = {}): WorkSnapshot {
       { kind: 'input' },
       { kind: 'producer', ...binding({ ...MODEL }) },
     ],
-    consumptions: [binding(MODEL), binding(TOOL), binding({ ...TOOL })],
+    consumptions: [MODEL_CALL.consumed, binding(TOOL), binding({ ...TOOL })],
     callWaits: [OWN_WAIT, FOREIGN_WAIT, ASSOCIATED_WAIT],
     callRegistrations: [
       toolIntent(OWN_WAIT.consumption, ATTEMPT),
       toolIntent(FOREIGN_WAIT.consumption, null),
-      { consumption: ASSOCIATED_WAIT.consumption, registration: { kind: 'associated' } },
+      { consumption: ASSOCIATED_WAIT.consumption, registration: associated(TOOL) },
+      MODEL_CALL.record,
     ],
+    controls: [],
     ...over,
   } as unknown as WorkSnapshot
 }
@@ -88,6 +98,13 @@ const NOTHING_TO_RESTORE = {
   cancelsRun: null,
   cascade: [],
   scopeRelease: false,
+}
+
+function intentsOf(): readonly (readonly [string, (run: RunId) => ControlIntent])[] {
+  return [
+    ['cancel-run', run => control({ kind: 'cancel-run', run, urgency: 'force' })],
+    ['interrupt', interrupt],
+  ]
 }
 
 describe('the restore row: unarchive and retry-run touch no producer', () => {
@@ -196,6 +213,41 @@ describe('the Run row: the producers the Run waits on, the tool intents its atte
       cancelsRun: null,
     })
   })
+
+  it.each(intentsOf())(
+    '%s takes no producer from a snapshot that records no call',
+    (_name, intent) => {
+      const bare = snapshot({
+        consumptions: [],
+        callRegistrations: undefined,
+        callWaits: undefined,
+      })
+      expect(resolveControlScope(bare, intent(RUN))).toMatchObject({
+        kind: 'scope',
+        producers: [],
+        unassociatedWaiting: [],
+      })
+    },
+  )
+
+  // The Agent ends its wait with its next batch: until then the wait is there and the call is not.
+  it.each(intentsOf())('%s takes no producer whose call left the snapshot', (_name, intent) => {
+    const left = snapshot({
+      consumptions: [],
+      callRegistrations: [toolIntent(OWN_WAIT.consumption, ATTEMPT)],
+    })
+    expect(resolveControlScope(left, intent(RUN))).toMatchObject({ kind: 'scope', producers: [] })
+  })
+
+  it.each(intentsOf())(
+    '%s takes no producer whose call is held for a batch after its final delivery',
+    (_name, intent) => {
+      const lent = snapshot({
+        consumptions: [{ ...MODEL_CALL.consumed, delivered: evidence('delivery') }],
+      })
+      expect(resolveControlScope(lent, intent(RUN))).toMatchObject({ kind: 'scope', producers: [] })
+    },
+  )
 
   const intents: readonly (readonly [string, (run: RunId) => ControlIntent])[] = [
     ['cancel-run', run => control({ kind: 'cancel-run', run, urgency: 'graceful' })],

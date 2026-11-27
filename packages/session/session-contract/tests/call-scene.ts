@@ -205,6 +205,7 @@ async function callOn(
   return {
     ...s,
     run,
+    advance,
     binding,
     consumption,
     result,

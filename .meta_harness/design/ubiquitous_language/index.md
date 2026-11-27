@@ -349,6 +349,10 @@
 | [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
 | [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
+| [UL-mcp-event-type](terms/reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type) | MCP 事件类型 | MCP Event Type | 一个 MCP 接入点的对端声明的、它会发生的一类事件：类型名、说明、订阅参数与内容的形状；**不是连接件事件类型，也不是通知事件类型** |
+| [UL-mcp-event-subscription](terms/reach-and-availability.md#ul-mcp-event-subscription--mcp-事件订阅--mcp-event-subscription) | MCP 事件订阅 | MCP Event Subscription | 本系统向一个接入点的对端要一类事件的一条耐久记录，带着收到的位置；正本在本系统；**不是事件订阅，也不是通知订阅** |
+| [UL-mcp-skill](terms/reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill) | MCP 技能 | MCP Skill | 一个接入点的对端经连接提供的一个技能，随接入点来去；**不是资产**，名字带接入点的前缀 |
+| [UL-skill-entry-source](terms/reach-and-availability.md#ul-skill-entry-source--技能条目来源--skill-entry-source) | 技能条目来源 | Skill Entry Source | 另一个领域向 `Skills` 入口登记、按需交出不在资产里的技能的那个角色；MCP 是一个 |
 | [UL-command-entry](terms/reach-and-availability.md#ul-command-entry--入口项--command-entry) | 入口项 | Command Entry | 一个会话此刻能用名字点名的一项：引用型、提示词命令、系统命令；位置由种类定；**是视图**，现算不存 |
 | [UL-command-entry-source](terms/reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source) | 入口来源 | Command Entry Source | 向命令登记、按需交出入口项的角色；被点名时连参数收到，答内容、操作请求或参数不对；Skill、资产、各流程各是一个；一个来源一个名字空间 |
 
@@ -458,6 +462,7 @@
 | [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
 | [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
 | [UL-ui-part](terms/interaction-and-dispatch.md#ul-ui-part--界面部位--ui-part) | 界面部位 | UI Part | 界面上一种有名字、可以被指认的东西，由画它的界面模块声明；**同一种可以在屏幕上画好几处** |
+| [UL-interface-inspection](terms/interaction-and-dispatch.md#ul-interface-inspection--界面检视--interface-inspection) | 界面检视 | Interface Inspection | agent 向一个连着的客户端要点名的一页在点名的模式下的一张图；**没有效果，没有客户端时答不在** |
 | [UL-ui-developer-mode](terms/interaction-and-dispatch.md#ul-ui-developer-mode--界面开发模式--ui-developer-mode) | 界面开发模式 | UI Developer Mode | 图形交付面上的一个开关；开着时人可以选取界面部位，随消息交给 agent；**关着时与没有它相同** |
 | [UL-ui-selection](terms/interaction-and-dispatch.md#ul-ui-selection--界面选择--ui-selection) | 界面选择 | UI Selection | 一条输入里的一部分：人选中的一组界面部位的各一处，带序号；**受理之后不变，与人写的字分开** |
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别在左边的栏里切换；资产自己的设置在这里改 |

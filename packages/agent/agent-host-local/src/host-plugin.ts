@@ -36,6 +36,12 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { definePlugin, type DefinedPlugin } from '@omne-harness/kernel-basis/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
+import {
+  createHaltLedger,
+  DEFAULT_HALT_LIMIT,
+  HALT_LEDGER_EXECUTIONS,
+  haltBounded,
+} from './halt-ledger.ts'
 import { agentHostConfig, type AgentHostConfig } from './host-config.ts'
 import {
   createHost,
@@ -246,10 +252,14 @@ export function createAgentHostPlugin(
       'agentHostPrincipal',
     ],
     apply(ctx, config) {
+      const halts = createHaltLedger({
+        limit: config.haltLimit ?? DEFAULT_HALT_LIMIT,
+        capacity: HALT_LEDGER_EXECUTIONS,
+      })
       const host = createHost({
         ctx,
         config,
-        factory,
+        factory: haltBounded(factory, halts, message => ctx.logger('agent-host').warn(message)),
         statics: {
           journal: ctx.agentJournal,
           entries: ctx.agentJournalEntries,

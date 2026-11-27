@@ -43,6 +43,17 @@ const SCRIPT: ModelScript = parseModelScript(
 )
 
 describe('a model script of the lab assembly', () => {
+  it('names the provider the model of the request is served by: a model record refuses an answer of another provider', () => {
+    const haiku = JSON.stringify({
+      model: 'anthropic/claude-haiku-5.5',
+      messages: [{ role: 'user', content: '你好' }],
+    })
+    expect(frames(scriptedAnswer(SCRIPT, asked(haiku)).body)[0]).toMatchObject({
+      model: 'anthropic/claude-haiku-5.5',
+      provider: 'Anthropic',
+    })
+  })
+
   it('answers a request with the first step whose words are all in it and whose barred words are not', () => {
     const first = scriptedAnswer(SCRIPT, asked(chat('请整理待办')))
     expect(first).toMatchObject({ status: 200, contentType: 'text/event-stream' })

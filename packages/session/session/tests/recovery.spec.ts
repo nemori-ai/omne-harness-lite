@@ -286,6 +286,92 @@ describe('what a step of the recovery leaves when it fails', () => {
     expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
   })
 
+  it('a resume that the Agent refuses because the execution cannot go on closes the Run as failed, with the refusal as its cause', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const reason = 'halted 3 times at step-2, last at F3 on invalid'
+    agent.resume.mockImplementation(async () => ({
+      failure: { kind: 'refused', failure: 'invalid', field: 'execution', reason },
+    }))
+
+    await scan(h)
+    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('terminal'))
+    const closed = (await read(h)).run
+    if (closed.kind !== 'terminal') throw new Error('the Run is not closed')
+    expect(closed.terminal).toMatchObject({ run: run.run, outcome: 'failed' })
+    expect(closed.terminal.evidence.record).toBe(`drive refused: invalid execution ${reason}`)
+    expect(agent.resume).toHaveBeenCalledTimes(1)
+    expect(reported(h)).toEqual([])
+
+    await scan(h)
+    await settle()
+    expect(agent.detach).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['the principal', 'the work'] as const)(
+    'a refusal met while %s cannot be read closes nothing: the next scan is refused again and closes the Run',
+    async unread => {
+      const { h } = await acceptedRun()
+      const agent = handedOver(h)
+      let offline = true
+      agent.resume.mockImplementation(async () => {
+        if (offline && unread === 'the work')
+          h.checks.script({ kind: 'unavailable', diagnostic: 'the access check is offline' })
+        if (offline && unread === 'the principal')
+          h.bindings.controls.answerNext({ ok: { kind: 'not-bound' } })
+        offline = false
+        return {
+          failure: { kind: 'refused', failure: 'invalid', field: 'execution', reason: 'halted' },
+        }
+      })
+
+      await scan(h)
+      await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+      await settle()
+      expect((await read(h)).run.kind).toBe('active')
+      expect(reported(h)).toEqual([])
+
+      await scan(h)
+      await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('terminal'))
+      expect(agent.resume).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it.each<readonly [string, (run: ActiveRun) => WorkSnapshot['run']]>([
+    ['has ended', () => ({ kind: 'none' })],
+    ['is not the active one', run => ({ ...run, run: `${run.run}-next` as typeof run.run })],
+    ['holds no advance', run => ({ ...run, advance: null })],
+  ])('a refusal for a Run that by then %s closes nothing', async (_name, seen) => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const { transactions } = h.dependencies
+    const bind = transactions.bind.bind(transactions)
+    agent.resume.mockImplementation(async () => {
+      transactions.bind = checked => {
+        const view = bind(checked)
+        return {
+          ...view,
+          async readWork(input) {
+            transactions.bind = bind
+            const work = await view.readWork(input)
+            if ('failure' in work || work.ok.run.kind !== 'active') return work
+            return { ok: { ...work.ok, run: seen(work.ok.run) } }
+          },
+        }
+      }
+      return {
+        failure: { kind: 'refused', failure: 'invalid', field: 'execution', reason: 'halted' },
+      }
+    })
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+    await settle()
+    expect(transactions.bind).toBe(bind)
+    expect((await activeRun(h)).run).toBe(run.run)
+    expect(h.diagnostics()).toEqual([])
+  })
+
   it.each(['unavailable', 'busy', 'commit-unknown'] as const)(
     'a resume that answers %s is left to the next scan without a report',
     async kind => {

@@ -54,6 +54,7 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
+import { reportUnstored, unstoredText } from './unstored-blocks.ts'
 import {
   commitJournal,
   refusalFailure,
@@ -1076,15 +1077,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         commands: [executionRecordBlobFacts({ tenant: book.tenant, execution, blobs: chunk })],
         generations,
       })
+      const stored = { execution, storageOperation: operation, bytes: chunkBytes }
       chunk = []
       chunkBytes = 0
       if (outcome.kind === 'committed') return null
-      if (outcome.kind === 'refused') return refusalFailure(outcome.reason)
-      return unavailable(
-        outcome.kind === 'unavailable' || outcome.kind === 'unknown'
-          ? `the content blocks were not stored: ${outcome.diagnostic}`
-          : 'the content blocks were not stored: rolled back',
-      )
+      reportUnstored(options.report, book, stored, outcome)
+      if (outcome.kind === 'refused') return refusalFailure(outcome)
+      return unavailable(`the content blocks were not stored: ${unstoredText(outcome)}`)
     }
     for (const blob of largest) {
       const bytes = sizeOf(blob)
@@ -1397,7 +1396,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'unavailable':
         return { kind: 'answer', value: fail(unavailable(outcome.diagnostic)) }
       case 'refused':
-        return { kind: 'answer', value: fail(refusalFailure(outcome.reason)) }
+        return { kind: 'answer', value: fail(refusalFailure(outcome)) }
     }
   }
 

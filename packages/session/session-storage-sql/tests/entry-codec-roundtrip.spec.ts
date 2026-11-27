@@ -15,7 +15,7 @@ import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../src/codec.ts'
 import { readEntryText, writeEntryText } from '../src/entry-codec.ts'
-import { entryEvidence } from '../src/worker/history-index.ts'
+import { entryEvidence } from '../src/worker/history-rows.ts'
 import { app, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import { unpacked } from './fixtures/packed.ts'
 

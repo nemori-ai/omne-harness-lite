@@ -147,6 +147,19 @@ describe('configuration', () => {
       ).toThrow(`policy.${path}.1`)
     })
 
+  // A retry that follows its failure at once is no backoff: every wait of a sequence has a floor.
+  for (const path of ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'])
+    it(`${path}: a wait of zero is refused, wherever it stands in the sequence`, () => {
+      const { dependencies } = countedDependencies()
+      for (const [delays, at] of [
+        [[0], 0],
+        [[10, 0, 30], 1],
+      ] as const)
+        expect(() =>
+          createSessionInstance(dependencies, { policy: withField(path, delays) }),
+        ).toThrow(`policy.${path}.${String(at)}: zero`)
+    })
+
   it('prewarm cannot be switched on before the Agent host instance-creation entry exists', () => {
     const { dependencies } = countedDependencies()
     expect(() =>

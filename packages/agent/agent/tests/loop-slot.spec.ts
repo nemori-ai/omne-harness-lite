@@ -124,13 +124,18 @@ describe('E4 failure and authoritative stops', () => {
   it.each(['terminal', 'superseded'] as const)(
     'a stop (%s) leaves the execution at E4 and gives the slot back',
     async reason => {
-      const assembly = await loopAssembly([execution()])
+      const reports: unknown[] = []
+      const assembly = await loopAssembly([execution()], undefined, undefined, undefined, {
+        failed: ({ node, failure }) => reports.push({ node, failure }),
+      })
       adopt(assembly, {
         ...agentEvaluator,
         next: () => succeed({ kind: 'stop', reason }),
       })
       ok(await invoke(assembly))
       expect((await haltedAt(assembly, 'E4')).kind).not.toBe('ended')
+      await eventually(async () => reports.length > 0)
+      expect(reports).toEqual([{ node: 'E4', failure: { kind: 'stale-advance' } }])
     },
   )
 

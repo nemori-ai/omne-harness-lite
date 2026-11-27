@@ -11,7 +11,7 @@
 | 工作、装配与执行 | [会话与工作](sessions-and-work/README.md)、[装配交接](assembly-and-handoff/README.md)、[Agent推进](agent-progression/README.md)、[模型调用](model-invocation/README.md)、[工具执行](tool-execution/README.md)、[Context](runtime-context/README.md)、[HITL](human-intervention/README.md) |
 | 执行资源 | [执行环境](execution-environments/README.md) |
 | 业务服务 | [日历](calendars/README.md)、[日程与Job](schedules-and-jobs/README.md) |
-| 接在核心上的支撑能力 | [派发](agent-dispatch/README.md)、[目标](goals/README.md)、[通知](notifications/README.md)、[用量与花费](usage-and-cost/README.md)、[媒体](media/README.md)、[画布](canvas/README.md) |
+| 接在核心上的支撑能力 | [派发](agent-dispatch/README.md)、[目标](goals/README.md)、[通知](notifications/README.md)、[用量与花费](usage-and-cost/README.md)、[媒体](media/README.md)、[画布](canvas/README.md)、[界面检视](interface-inspection/README.md) |
 
 这些是初始责任入口，包含业务领域、通用能力与系统集成责任，不是固定DDD上下文或固定数量的包、服务、进程。新责任按知识与维护需要增加，不能为了维持现有清单，把新责任归入并不适合的共同资产治理或通用执行。
 

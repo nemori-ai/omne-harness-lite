@@ -3,7 +3,6 @@ import {
   uninterpretedCalls,
   type DurableEvidence,
   type ExecutionHistoryBoundary,
-  type HistoryEntry,
   type InputAdmissionBoundary,
   type InputAdmissionPage,
   type InputId,
@@ -24,14 +23,23 @@ import {
   type SessionUninterpretedCall,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import type { JsonValue } from '@omne-harness/sql-contract'
-import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
-import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
-import { readEntryText } from '../entry-codec.ts'
+import type { SqlCell } from '@omne-harness/sql-contract/worker'
+import { canonicalText, sha256 } from '../codec.ts'
+import {
+  boundedReader,
+  evidenceOf,
+  optionalText,
+  plant,
+  readable,
+  rowEvidence,
+  TooMany,
+  type Planted,
+  type Reader,
+  type Scope,
+} from './history-rows.ts'
 import { logRoot } from './log-root.ts'
 import { big, oneRow, packed, rowsOf, text, type Executor, type Row } from './support.ts'
 
-const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 100_000
 const PROGRESS_PAGE = 16
 
@@ -75,92 +83,11 @@ export type WorkIndexInput = Readonly<{
 
 export type SessionHistory = Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 
-type Planted = Readonly<{
-  id: string
-  revision: string
-  entry: HistoryEntry
-  data: Record<string, unknown>
-  grant?: DurableEvidence
-}>
 type Start = Readonly<{ run: RunId; started: DurableEvidence }>
-type Scope = Readonly<{ tenant: string; session: string }>
-
-class TooMany extends Error {}
 
 export class BelowKept extends Error {}
 
 export class LogGap extends Error {}
-
-type Reader = ((sql: string, params: readonly SqlValue[], page?: number) => Row[]) &
-  Readonly<{ charge(rows: number): void }>
-
-function boundedReader(port: Executor, limit: number): Reader {
-  let left = limit
-  const read = (sql: string, params: readonly SqlValue[], page?: number): Row[] => {
-    const cap = page === undefined || page > left ? left + 1 : page
-    const rows = rowsOf(port, sql, [...params, BigInt(cap)])
-    if (rows.length > left) throw new TooMany()
-    left -= rows.length
-    return rows
-  }
-  return Object.assign(read, {
-    charge(rows: number) {
-      if (rows > left) throw new TooMany()
-      left -= rows
-    },
-  })
-}
-
-const parsed = (cell: SqlCell | undefined): unknown =>
-  decodeValue(JSON.parse(text(cell)) as JsonValue)
-
-function readable(cell: SqlCell | undefined): unknown {
-  try {
-    return parsed(cell)
-  } catch {
-    return undefined
-  }
-}
-
-const optionalText = (cell: SqlCell | undefined): string | null =>
-  cell === null || cell === undefined || text(cell) === '' ? null : text(cell)
-
-function evidenceOf(value: unknown): DurableEvidence | null {
-  if (typeof value !== 'object' || value === null) return null
-  const { owner, record, revision, digest } = value as Record<string, unknown>
-  return [owner, record, revision, digest].every(part => typeof part === 'string' && part !== '')
-    ? ({ owner, record, revision, digest } as DurableEvidence)
-    : null
-}
-
-export function entryEvidence(
-  tenant: string,
-  session: string,
-  entry: HistoryEntry,
-): DurableEvidence {
-  return {
-    owner: OWNER,
-    record: `${tenant}/${session}/entry/${entry.id}`,
-    revision: entry.revision,
-    digest: `sha256:${sha256(canonicalText(entry))}`,
-  }
-}
-
-const rowEvidence = (scope: Scope, row: Planted): DurableEvidence =>
-  entryEvidence(scope.tenant, scope.session, row.entry)
-
-function plant(row: Row, grants?: ReadonlyMap<string, DurableEvidence>): Planted {
-  const id = text(row['position'])
-  const entry = readEntryText(packed(row['entry']), `sl_entry ${id}`)
-  const grant = grants?.get(id)
-  return {
-    id,
-    revision: text(row['revision']),
-    entry,
-    data: (plainOf(entry.payload) ?? {}) as Record<string, unknown>,
-    ...(grant === undefined ? {} : { grant }),
-  }
-}
 
 type AttemptRow = Readonly<{
   run: unknown
@@ -368,9 +295,15 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
 
 // Rows at or below the journal tail count as committed only because the session participant is grouping: 'singleton'; a groupable participant needs another cache design first.
 // Rows past the tail belong to the open transaction: fold them into a copy and never keep them.
-function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint): SessionRowsView {
+function sessionRows(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  upto?: bigint,
+  page?: number,
+): SessionRowsView {
   if (upto !== undefined) return sessionRowsThrough(read, port, scope, upto)
-  const { key, base, after } = loadBase(read, port, scope)
+  const { key, base, after } = loadBase(read, port, scope, undefined, page)
   if (after.added === 0n) {
     if (base === undefined) return viewOf(emptyIndex())
     keep(key, base)
@@ -388,7 +321,12 @@ function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint):
     throw error
   }
   if (committed) keep(key, index)
-  return viewOf(index)
+  return whole(after, viewOf(index))
+}
+
+function whole(after: RowsAfter, view: SessionRowsView): SessionRowsView {
+  if (after.more) throw new TooMany()
+  return view
 }
 
 function sessionRowsThrough(
@@ -410,14 +348,20 @@ function sessionRowsThrough(
 
 type Loaded = Readonly<{ key: string; base: SessionRowsIndex | undefined; after: RowsAfter }>
 
-function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Loaded {
+function loadBase(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  upto?: bigint,
+  page?: number,
+): Loaded {
   const key = JSON.stringify([scope.tenant, scope.session])
   const base = provenBase(port, scope, key)
   if (upto !== undefined && base !== undefined && base.through > upto)
     throw new BelowKept(`the kept index is past position ${String(upto)}`)
   const from = base?.through ?? 0n
   read.charge(base?.count ?? 0)
-  const after = rowsAfter(read, port, scope, from, upto)
+  const after = rowsAfter(read, port, scope, from, upto, page)
   if (base !== undefined && after.last - from !== after.added) {
     if (upto === undefined) kept.delete(key)
     throw new LogGap(
@@ -440,7 +384,47 @@ type RowsAfter = Readonly<{
   added: bigint
   last: bigint
   top: bigint
+  more: boolean
 }>
+
+type Paged = Readonly<{ rows: readonly Row[]; end: bigint | undefined; more: boolean }>
+
+const INDEXED_AFTER = `FROM sl_entry
+      WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?`
+
+function pagedRows(
+  port: Executor,
+  scope: Scope,
+  from: bigint,
+  upto: bigint | undefined,
+  page: number,
+): Paged {
+  const rows = rowsOf(
+    port,
+    `SELECT position, revision, entry ${INDEXED_AFTER} ORDER BY position LIMIT ?`,
+    [scope.tenant, scope.session, from, BigInt(page + 1)],
+  )
+  if (rows.length <= page) return { rows, end: upto, more: false }
+  const kept = rows.slice(0, page)
+  return { rows: kept, end: big(kept[page - 1]?.['position']), more: true }
+}
+
+function indexedRows(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  from: bigint,
+  upto: bigint | undefined,
+  page: number | undefined,
+): Paged {
+  if (page !== undefined) return pagedRows(port, scope, from, upto, page)
+  const bounded = upto === undefined ? '' : ' AND position <= ?'
+  const rows = read(
+    `SELECT position, revision, entry ${INDEXED_AFTER}${bounded} ORDER BY position LIMIT ?`,
+    [scope.tenant, scope.session, ...(upto === undefined ? [from] : [from, upto])],
+  )
+  return { rows, end: upto, more: false }
+}
 
 function grantsAfter(
   read: Reader,
@@ -470,15 +454,11 @@ function rowsAfter(
   scope: Scope,
   from: bigint,
   upto?: bigint,
+  page?: number,
 ): RowsAfter {
-  const bounded = upto === undefined ? '' : ' AND position <= ?'
-  const bounds = upto === undefined ? [from] : [from, upto]
-  const rows = read(
-    `SELECT position, revision, entry FROM sl_entry
-      WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?${bounded}
-      ORDER BY position LIMIT ?`,
-    [scope.tenant, scope.session, ...bounds],
-  )
+  const { rows, end, more } = indexedRows(read, port, scope, from, upto, page)
+  const bounded = end === undefined ? '' : ' AND position <= ?'
+  const bounds = end === undefined ? [from] : [from, end]
   const after = oneRow(
     port,
     `SELECT COUNT(*) AS n, MAX(position) AS last, MAX(revision) AS top FROM sl_entry
@@ -486,10 +466,10 @@ function rowsAfter(
     [scope.tenant, scope.session, ...bounds],
   )
   const added = after === undefined ? 0n : big(after['n'])
-  const grants = rows.length === 0 ? new Map() : grantsAfter(read, scope, from, upto)
+  const grants = rows.length === 0 ? new Map() : grantsAfter(read, scope, from, end)
   return added === 0n
-    ? { rows, grants, added, last: from, top: 0n }
-    : { rows, grants, added, last: big(after?.['last']), top: big(after?.['top']) }
+    ? { rows, grants, added, last: from, top: 0n, more }
+    : { rows, grants, added, last: big(after?.['last']), top: big(after?.['top']), more }
 }
 
 function journalTail(port: Executor, scope: Scope): bigint {
@@ -671,6 +651,35 @@ type Closure = {
   calls: SessionUninterpretedCall[]
 }
 
+function admittedBy(context: Context, inputs: readonly string[]): Closure {
+  const { read, scope, snapshot } = context
+  const admissions = new Map<string, Row[]>()
+  const active = snapshot.run.kind === 'active' ? snapshot.run.execution.execution : null
+  for (const input of inputs) {
+    const where = [scope.tenant, scope.session, input]
+    const rows =
+      active === null
+        ? []
+        : read(
+            `SELECT ordinal, execution, operation, accepted, grant_ref, attachment FROM er_admission_idx
+              WHERE tenant = ? AND session = ? AND input = ? AND execution = ? ORDER BY ordinal LIMIT ?`,
+            [...where, active],
+          )
+    admissions.set(
+      input,
+      rows.map(row => {
+        const [named] = read(
+          `SELECT attempt FROM er_admission_attempt_idx
+            WHERE tenant = ? AND session = ? AND input = ? AND ordinal = ? LIMIT ?`,
+          [...where, big(row['ordinal'])],
+        )
+        return { ...row, attempt: named === undefined ? null : text(named['attempt']) }
+      }),
+    )
+  }
+  return { admissions, executions: new Map(), batches: [], calls: [] }
+}
+
 function closeOver(context: Context, inputs: readonly string[]): Closure {
   const { read, scope } = context
   const closure: Closure = { admissions: new Map(), executions: new Map(), batches: [], calls: [] }
@@ -845,7 +854,12 @@ export function observedPrefix(
       }
 }
 
-export type HistoryReadOptions = Readonly<{ limit?: number; focus?: HistoryFocus; upto?: bigint }>
+export type HistoryReadOptions = Readonly<{
+  limit?: number
+  focus?: HistoryFocus
+  upto?: bigint
+  page?: number
+}>
 
 export function readHistory(
   port: Executor,
@@ -855,15 +869,16 @@ export function readHistory(
   scope: SessionInputScope,
   options: HistoryReadOptions = {},
 ): SessionHistory | 'too-many' {
-  const { limit = MAX_ROWS, focus = NO_FOCUS, upto } = options
+  const { limit = MAX_ROWS, focus = NO_FOCUS, upto, page } = options
   const where: Scope = { tenant, session }
-  const read = boundedReader(port, limit)
+  const read = boundedReader(port, page === undefined ? limit : Number.MAX_SAFE_INTEGER)
   try {
     const { routed, starts, attempts, attemptsByRun, controls } = sessionRows(
       read,
       port,
       where,
       upto,
+      page,
     )
     const common = logRoot(port, tenant, session, snapshot.revision, upto)
     const root: SessionLogRoot = {
@@ -872,10 +887,20 @@ export function readHistory(
       position: common.position,
       source: common.source,
     }
-    const closure = closeOver(
-      { read, scope: where, snapshot, starts, focus, ...(upto === undefined ? {} : { upto }) },
-      scope.inputs,
-    )
+    const closure =
+      page === undefined
+        ? closeOver(
+            {
+              read,
+              scope: where,
+              snapshot,
+              starts,
+              focus,
+              ...(upto === undefined ? {} : { upto }),
+            },
+            scope.inputs,
+          )
+        : admittedBy({ read, scope: where, snapshot, starts, focus }, scope.inputs)
     const unadmitted =
       read(
         'SELECT input FROM er_admission_idx WHERE tenant = ? AND session = ? LIMIT ?',
@@ -914,20 +939,15 @@ export function readHistory(
   }
 }
 
-const WORK_INDEX_ROWS = 1000
+const WORK_INDEX_PAGE = 500
 
 export function workIndexOf(
   port: Executor,
   tenant: string,
   session: string,
   snapshot: WorkIndexInput,
+  page = WORK_INDEX_PAGE,
 ): SessionHistory | 'too-many' {
-  return readHistory(
-    port,
-    tenant,
-    session,
-    snapshot,
-    { kind: 'pending', inputs: snapshot.pending },
-    { limit: WORK_INDEX_ROWS },
-  )
+  const scope: SessionInputScope = { kind: 'pending', inputs: snapshot.pending }
+  return readHistory(port, tenant, session, snapshot, scope, { page })
 }

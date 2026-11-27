@@ -20,19 +20,21 @@ import { openStage, type StageOptions } from './stage.ts'
 
 export const EXAMINE_USAGE = `  examine validate
       run the check of every criterion on every product, clean and with each break, and list the cases
-  examine run --name <experiment> [--examiner real|truthful|lenient] [--only <product or case>[,…]]
+  examine run --name <experiment> [--examiner real|truthful|lenient] [--model <model>]
+      [--only <product or case>[,…]]
       [--key-file <file>] [--credential-file <file>] [--lab <bin.js>] [--cli <bin.js>]
       [--parallel <n>] [--max-cost <usd>] [--work <dir>] [--port <first>] [--out <dir>]
       hand every case to an examiner on a lab server of its own; keeps
       experiments/<name>/{answers.jsonl,examination.json} and writes <out>/<name>/examination.md.
       A case kept without an error is not run again. truthful and lenient are scripted and cost
-      nothing: they prove the gauge (no error at all; every unmet criterion read as held)
+      nothing: they prove the gauge (no error at all; every unmet criterion read as held).
+      --model: the real examiner runs under this model, not the one the release sets
   examine report --name <experiment> [--out <dir>]
       write the page again from the kept answers; sends nothing
 `
 const EXPERIMENTS = join(DATA, '..', 'experiments')
 const REPO = resolve(DATA, '..', '..', '..', '..')
-const DEFINITION = 'examiner@openai/gpt-6.1-sol'
+const RELEASED = 'anthropic/claude-haiku-5.5'
 
 function validate(): number {
   const products = loadProducts()
@@ -63,12 +65,17 @@ const latest = (results: readonly CaseResult[]): readonly CaseResult[] => [
   ...new Map(results.map(result => [result.id, result])).values(),
 ]
 
-function write(name: string, examiner: ExaminerKind, out: string | undefined): ExamReport {
+type Told = Readonly<{ examiner: ExaminerKind; definition: string }>
+const toldOf = (examiner: ExaminerKind, model = RELEASED): Told => ({
+  examiner,
+  definition: examiner === 'real' ? `examiner@${model}` : 'scripted',
+})
+
+function write(name: string, told: Told, out: string | undefined): ExamReport {
   const results = latest(kept(name)).toSorted((a, b) => a.id.localeCompare(b.id))
   const report: ExamReport = {
     name,
-    examiner,
-    definition: examiner === 'real' ? DEFINITION : 'scripted',
+    ...told,
     products: new Set(results.map(result => result.product)).size,
     score: examScore(results),
   }
@@ -118,6 +125,7 @@ async function run(flags: Flags): Promise<number> {
     cli: resolve(flags['cli'] ?? join(REPO, 'apps/cli/dist/bin.js')),
     keyFile: resolve(flags['key-file'] ?? ''),
     credentialFile: resolve(flags['credential-file'] ?? ''),
+    ...(flags['model'] === undefined ? {} : { examinerModel: flags['model'] }),
   }
   if (flags['key-file'] === undefined || flags['credential-file'] === undefined) {
     console.error(
@@ -163,12 +171,12 @@ async function run(flags: Flags): Promise<number> {
   }
   const lanes = Math.max(1, Number(flags['parallel'] ?? '1'))
   await Promise.all(Array.from({ length: lanes }, (_, slot) => lane(slot)))
-  const report = write(name, kind, flags['out'])
+  const report = write(name, toldOf(kind, flags['model']), flags['out'])
   return report.score.failed.length === 0 ? 0 : 1
 }
 
 export async function examineMain(argv: readonly string[]): Promise<number> {
-  const names = ['name', 'examiner', 'only', 'key-file', 'credential-file', 'lab', 'cli']
+  const names = ['name', 'examiner', 'model', 'only', 'key-file', 'credential-file', 'lab', 'cli']
   const more = ['parallel', 'max-cost', 'work', 'port', 'out']
   const options = Object.fromEntries(
     [...names, ...more].map(key => [key, { type: 'string' as const }]),
@@ -180,7 +188,7 @@ export async function examineMain(argv: readonly string[]): Promise<number> {
   if (positionals[0] === 'report' && flags['name'] !== undefined) {
     const before = join(EXPERIMENTS, flags['name'], 'examination.json')
     const was = JSON.parse(readFileSync(before, 'utf8')) as ExamReport
-    write(flags['name'], was.examiner, flags['out'])
+    write(flags['name'], { examiner: was.examiner, definition: was.definition }, flags['out'])
     return 0
   }
   console.error(EXAMINE_USAGE)

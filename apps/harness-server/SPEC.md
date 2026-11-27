@@ -437,7 +437,13 @@
 - 租户设置面答一项设置的归属，由目标的种类推出：独立目标归它的提供者与定义；资产目标按这一层持有记录里的类别与名字，不查发行清单，不只认工具。
 - `plugin-server` 行把每个已登记的租户在持并启用的 plugin 装在服务端，规则归 [plugin 的规格](../../packages/plugin/SPEC.md#服务端的装载方)。它为 plugin 放的带副作用的条目一律带排空：先不接新的，在途的各有结局，然后才取走。这一行可见的受信名只有 `tenantDomainScannerPrincipal`，只用来列出已登记的租户；plugin 的 fiber 长在把它也隔离掉的上下文里。起来之后逐个跟上已登记的租户；登记表变了再列一次，跟上之后才登记的租户；一个租户的资产变了，重算它要装的。它声明 `plugin.ports` 与 `plugin.guest-forms` 两个点。
 - 一份 plugin 带着的定义（例如技能）放在那个类别的点上，项是这份 plugin 在持那一版的 `HeldItem` 加 `within`。`tenant-assets` 行的租户这一层列出时，在账本的那一页里按账本的次序并上点上这个租户范围里带 `within` 而账本没有的项，游标仍是名字。Skill 行的适配见到 `within`：正文用技能的正文契约在那个子目录上读出（这份 plugin 发布时已整份判过），读口只看得见那个子目录，本机目录的提示指到版本目录下的那个子目录。
-- 借给 plugin 的口与收 plugin 代码的点由各自的拥有者放：`plugin-notification` 行放口 `notifications`（发一条通知，进的是通知自己的发送入口，上下文的租户是持有这份 plugin 的租户，行事者是 owner）；`plugin-access` 行放 `access.protocols` 的客人写法（翻法归 plugin，做成那个点的一项用入口导出的 `protocolItem`）；`server-entry` 行把资产的 `scopeOfLayer` 作为「租户的范围」交给入口。
+- 借给 plugin 的口与专门的写法由各自的拥有者放，plugin 的行不替它们写：
+  - 口：`plugin-notification` 行放 `notifications`（发一条通知，进的是通知自己的发送入口，上下文的租户是持有这份 plugin 的租户，行事者是 owner）；`tool-web` 行放 `web`（Tool 的单机 Web 提供者，规则归 [Tool 的规格](../../packages/tool/SPEC.md#条目来源)）。每个口的条目带着方法的说明。
+  - 写法：`plugin-access` 行放 `access.protocols` 的（实现是入口导出的 `guestProtocol`）；`tool-entry-sources` 行放 `tool.entry-sources` 的（实现是 Tool 导出的 `guestEntrySource`）。
+  - `server-entry` 行把资产的 `scopeOfLayer` 作为「租户的范围」交给入口；入口照它答 `access/v1` 的 `scoped`。
+- 一个类别的点收数据成员时与收目录成员同一个做法：这一项是那个类别的 `HeldItem`，资产引用与版本是这份 plugin 在持的那一版，正文是成员的 `data`。
+- plugin 带来的工具条目照来源判：发行的动作规则有一条按来源写的允许（类别 `plugin`），类别关口表里 `plugin` 这一类有一道关口 `invoke`，缺省询问。去掉这两条，这样的工具全部答判不了。
+- `interface-access` 行装界面检视的接入插件与在途请求的账，`interface-tools` 的绑定在工具的发行清单里。存图的口接 Tool 的图像预算与产出，「现在连着哪些客户端」读这个租户开着请求观察的客户端。规则归[界面检视的规格](../../packages/interface/SPEC.md)。
 - 服务端的底存在运维者给的目录里（`floorDirectory`，本机档是状态目录下 `plugin-floor/`），一个租户一个文件，文件名是租户名的 UTF-8 十六进制。文件先写到旁边再改名替换，进程在任何时刻没了，留下的都是完整的一份。从第一次去装到这一次安定，文件记着「在装」；每一份都有了结局、服务又撑过两秒才算安定。有序的停止把「在装」改回去，不算倒下。被底停掉时诊断写明租户与停掉的几份。进程级的未接住异常处理器在退出前记下这一刻正在执行哪一份 plugin 的调用，也写进这个文件；拉起之后，底把它算作那一份的一次倒下。plugin 自己起的定时器里抛出的归不准，不写进任何一份的记录，照进程倒下处理。
 
 ### 派发
@@ -466,7 +472,8 @@
 - 它只在本机、由启动它的一方驱动。没有对客户端开放的控制。
 - 它可以接一个脚本化的模型网关，脚本从文件读，写明 agent 每一步答什么；发行的入口不导入它。`serve --model-script <文件>` 接上它：模型的每个请求不出本机，由脚本作答；不给这个选项时与发行一样找供应商。脚本可以写一组 `provider` 规则：合上其中一条的请求原样转给供应商（认证头与正文都不动），答复原样带回，这样一场运行里可以一方照脚本、一方用真实模型。脚本每个请求现读一遍，所以走到一半可以改它；启动时脚本不成立就拒绝启动，写明哪里不对。
 - 脚本是一份 JSON。`steps` 是 agent 的回答，`judgings` 是目标判定的回答，都按次序取第一条对得上的。对得上是指 `when.has` 列的字样全在请求里、`when.lacks` 列的都不在。一步或者说一句话（`say`），或者调几次工具（`call`：编号、工具名、参数）。一条判定写每条判据答什么（`criterion`），可以写守则答什么与退出出现的把握。没有一步对得上时回答里写明没对上；没有一条判定对得上时不答任何题，判定按不可用算。
-- 入口是 `harness-server-lab`，两个子命令：`setup` 先认领状态目录再做与发行相同的设置；`serve` 收发行 `serve` 的全部选项，另收 `--skip <时长>`（启动前先跳）、`--speed <系数>` 与 `--model-script <文件>`。控制命令写作 `read`、`skip <时长>`、`set <UTC 时刻>`、`speed <系数>`；答复是 `kind` 为 `lab-time` 的一行 JSON，与启动记录走同一条标准输出。
+- `serve --examiner-model <型号>` 让目标的每一次查验都用这个型号，不看租户的设置；别的照租户设的。发行的设置只列量过的组合，一个组合在列进去之前靠它来量。发行的入口没有这个选项。
+- 入口是 `harness-server-lab`，两个子命令：`setup` 先认领状态目录再做与发行相同的设置；`serve` 收发行 `serve` 的全部选项，另收 `--skip <时长>`（启动前先跳）、`--speed <系数>`、`--model-script <文件>` 与 `--examiner-model <型号>`。控制命令写作 `read`、`skip <时长>`、`set <UTC 时刻>`、`speed <系数>`；答复是 `kind` 为 `lab-time` 的一行 JSON，与启动记录走同一条标准输出。
 
 ### 其他各行
 

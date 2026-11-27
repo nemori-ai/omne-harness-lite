@@ -28,11 +28,18 @@ const LABELS: Readonly<Record<JudgeModel, string>> = {
 /** The pairs of Agent definition and model an examination may run as: only pairs that were measured are here. */
 export const EXAMINERS = Object.freeze([
   {
+    value: 'examiner@anthropic/claude-haiku-5.5',
+    definition: 'examiner',
+    model: 'anthropic/claude-haiku-5.5',
+    description:
+      '默认。发行带的查验用定义，只有读写文件、跑命令与交读数三个工具。评测台上量过一遍（8 份小成品，40 条没做到的判据、184 条做到的）：没做到的没有一条被认成成立，做到的没有一条不敢认；一批约 0.004 美元、半分钟以内。只量了一遍，条数少，分不出零与百分之几。',
+  },
+  {
     value: 'examiner@openai/gpt-6.1-sol',
     definition: 'examiner',
     model: 'openai/gpt-6.1-sol',
     description:
-      '默认。发行带的查验用定义，只有读写文件、跑命令与交读数三个工具。评测台上量过四遍（8 份小成品，每遍 40 条没做到的判据、184 条做到的）：没做到的没有一条被认成成立，做到的没有一条不敢认；一批约 0.02 美元、半分钟。活大的更贵：量到过一批 0.11 美元、两分半钟。',
+      '同一份定义配贵一档的型号。量过四遍，每遍同样一条没错；一批约 0.02 美元、半分钟，是默认那款的六倍。活大的更贵：量到过一批 0.11 美元、两分半钟。',
   },
 ] as const)
 export type Examiner = Readonly<{ definition: string; model: string }>

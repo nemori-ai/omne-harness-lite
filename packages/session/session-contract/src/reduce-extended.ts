@@ -7,12 +7,12 @@ import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
 import { requestControl, validateControlProgress } from './control-state.ts'
 import {
-  decimal,
   annotationTargets,
-  evidenceFields,
+  decimal,
   equalValue,
+  evidenceFields,
   invalidAt,
-  unavailableAt,
+  missingAt,
 } from './session-validation.ts'
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
 import {
@@ -257,7 +257,7 @@ function applyExtensionPassage(
           item.registration.kind === 'associated' &&
           equalValue(item.registration.binding, wait.binding),
       )
-      if (record === undefined) unavailableAt('waiting.registration')
+      if (record === undefined) missingAt('waiting.registration')
       return [{ consumption: record.consumption, position: wait.position }]
     })
     registeredWaiting(

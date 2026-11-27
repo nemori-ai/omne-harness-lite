@@ -158,7 +158,7 @@
 
 - 作用域是请求的显式字段，提供者不从 Context、isolate 标签或安装关系推断。
 - SQL 不判断资格，也不提供撤权排序。资格核验由参加者在每次提交尝试内做一次，撤权在下一次核验时生效；参加者在事务内读资格事实时，按依赖顺序先于依赖它的写参加者执行。
-- 另一作用域的请求得到与 `absent` 相同的结果，含诊断；唯一的例外是登记的 `domain_occupied`。诊断不超过 `maxDiagnosticBytes`，不含 SQL 文本、参数、业务正文或另一作用域的信息；调用方只按 `kind` 与 `reason` 分支。
+- 另一作用域的请求得到与 `absent` 相同的结果，含诊断；唯一的例外是登记的 `domain_occupied`。诊断不超过 `maxDiagnosticBytes`，不含 SQL 文本、参数、业务正文或另一作用域的信息；调用方只按 `kind` 与 `reason` 分支。 撞上大小类上限的拒绝，原因都是 `command_limit`，诊断写明撞的是四个里的哪一个（`maxJsonDepth`、`maxCommandsPerCommit`、`maxCommandBytes`、`maxRequestBytes`）、量到多少、上限多少；按单条命令量的两种再写明是哪个参与者的命令，例如 `command_limit: maxCommandBytes 2100000 > 1048576 (participant execution-record)`。
 - 结果都经返回值给出，Promise 不以 reject 报告结果。
 
 ### 事务域的打开与迁移

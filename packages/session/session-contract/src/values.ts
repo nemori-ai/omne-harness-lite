@@ -523,6 +523,7 @@ export type RunExecution = Readonly<{
   run: RunId
   execution: ExecutionRef
   terminal: RunTerminal | null
+  uninterpretable?: true
 }>
 export type ContextScopeBinding = Readonly<{
   generation: string

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { HistoryEntry, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  decideControlConsequences,
+  deriveDriveOperation,
+  type HistoryEntry,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import type { SessionCall } from '../src/call-settlement.ts'
 import { decodeEntry } from '../src/entries.ts'
@@ -167,6 +172,57 @@ describe('the final delivery of a call', () => {
     succeeded(await s.deliver('deliver'), 'deliver')
     expect(held(await s.read(), s.consumption)).toEqual(there)
   })
+})
+
+// The Agent takes its wait away with its next batch. Until then the call has left and the wait is still there.
+describe('a cancel of the Run between the final delivery of a call and the batch that ends its wait', () => {
+  it.each(['model', 'tool'] as const)(
+    'names no %s call that left: the control reconciles on the stop of the Agent alone',
+    async kind => {
+      const s = await callScene(false, kind)
+      succeeded(await s.deliver('deliver'), 'deliver')
+      const delivered = await s.read()
+      expect(held(delivered, s.consumption)).toEqual(gone)
+      expect(delivered.waiting).toMatchObject([{ kind: 'producer', binding: s.binding }])
+
+      const { progress } = await s.cancel()
+      expect(progress.pending).toEqual([])
+
+      const execution = s.run.execution.execution
+      const { attempt } = s.advance
+      const decided = decideControlConsequences({
+        snapshot: await s.read(),
+        execution,
+        run: s.run.run,
+        attempts: [
+          { run: s.run.run, attempt, execution, ordinal: '1', started: evidence('started') },
+        ],
+        origins: [{ operation: progress.operation, execution }],
+        evidence: {
+          through: '2',
+          records: [
+            {
+              operation: deriveDriveOperation({
+                kind: 'control',
+                execution,
+                control: progress.operation,
+              }),
+              command: 'cancel',
+              references: [],
+              invocation: null,
+              reached: ['intent-established', 'qualification-revoked', 'duty-released'],
+              accepted: '2',
+            },
+          ],
+          settled: [],
+          urgent: [],
+        },
+      })
+      expect(decided).toMatchObject({
+        ok: [{ kind: 'control', progress: { state: 'reconciled', pending: [] } }],
+      })
+    },
+  )
 })
 
 describe('a stop of a call that left the snapshot', () => {

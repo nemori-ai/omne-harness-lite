@@ -9,7 +9,7 @@ import {
   StoredEntryMalformed,
   writeEntryText,
 } from '../src/entry-codec.ts'
-import { entryEvidence } from '../src/worker/history-index.ts'
+import { entryEvidence } from '../src/worker/history-rows.ts'
 import { scenarioEntries, tree } from './fixtures/session-scenario.ts'
 
 const entries = scenarioEntries(30) as unknown as HistoryEntry[]

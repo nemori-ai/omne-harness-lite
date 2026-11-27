@@ -122,6 +122,23 @@ export function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean {
   return active && results.every(item => item.completion === null)
 }
 
+export function recordsOf(
+  snapshot: WorkSnapshot,
+  producer: ProducerRef,
+): readonly SessionCallRecord[] {
+  const named = digestOf(producer)
+  return (snapshot.callRegistrations ?? []).filter(
+    ({ registration }) =>
+      registration.kind === 'associated' && digestOf(registration.binding.producer) === named,
+  )
+}
+
+export function producerOut(snapshot: WorkSnapshot, producer: ProducerRef): boolean {
+  return recordsOf(snapshot, producer).some(record =>
+    callOpen(snapshot, callOf(snapshot, record.consumption) as SessionCall),
+  )
+}
+
 function put(draft: Draft, call: SessionCall): void {
   draft.callRegistrations = [...(draft.callRegistrations ?? []), call.record]
   if (call.consumed !== null) draft.consumptions = [...draft.consumptions, call.consumed]
