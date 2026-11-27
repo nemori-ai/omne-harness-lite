@@ -153,10 +153,20 @@ async function recorded(
   }
 }
 
+const UNRUN = 'the suite ran to its end'
+
 const measured = (setting: Setting, root: string, one: Chosen): Promise<Result> =>
-  recorded(setting, root, one, dataDirectory =>
-    one.suite.measure(one.tier, { root, dataDirectory }),
-  )
+  recorded(setting, root, one, async dataDirectory => {
+    try {
+      return await one.suite.measure(one.tier, { root, dataDirectory })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      return {
+        ...NOTHING,
+        gates: [{ name: UNRUN, from: 'the workload itself', state: 'blocked', detail }],
+      }
+    }
+  })
 
 async function env(setting: Setting, parsed: Parsed, io: Io): Promise<number> {
   const chosen =

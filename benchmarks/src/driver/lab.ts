@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { filled } from '../script.ts'
 import { ended, freePort, ran, until } from './process.ts'
 
 export type ReadCount = Readonly<{
@@ -34,6 +35,7 @@ export type StepLine = Readonly<{
   request: number
   requestBytes: number
   requestDigest: string
+  step: number | null
   storage: Readings
 }>
 
@@ -41,8 +43,11 @@ export type Lab = Readonly<{
   server: string
   steps: () => readonly StepLine[]
   readings: () => Promise<Readings>
+  entryKinds: () => Promise<readonly string[]>
   script: (script: object) => void
   processorMs: () => number | null
+  residentBytes: () => number | null
+  stateBytes: () => number
   stop: () => Promise<void>
 }>
 
@@ -64,6 +69,27 @@ async function portOf(directory: string, setUp: (port: number) => Promise<void>)
 
 const TICK_MS = 10
 
+function residentBytesOf(pid: number | undefined): number | null {
+  try {
+    const found = /^VmRSS:\s+(\d+) kB$/mu.exec(readFileSync(`/proc/${String(pid)}/status`, 'utf8'))
+    return found === null ? null : Number(found[1]) * 1024
+  } catch {
+    return null
+  }
+}
+
+function bytesUnder(directory: string): number {
+  let total = 0
+  for (const entry of readdirSync(directory, { withFileTypes: true, recursive: true }))
+    if (entry.isFile())
+      try {
+        total += statSync(join(entry.parentPath, entry.name)).size
+      } catch {
+        continue
+      }
+  return total
+}
+
 function processorMsOf(pid: number | undefined): number | null {
   try {
     const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
@@ -78,7 +104,13 @@ const labBin = (root: string): string =>
   join(root, 'apps', 'harness-server', 'dist', 'lab', 'bin.js')
 
 export async function startLab(
-  input: Readonly<{ root: string; directory: string; script: object }>,
+  input: Readonly<{
+    root: string
+    directory: string
+    script: object
+    files?: Readonly<Record<string, number>>
+    compactionTrigger?: string
+  }>,
 ): Promise<Lab> {
   const home = join(input.directory, 'server')
   const workspace = join(input.directory, 'workspace')
@@ -86,6 +118,8 @@ export async function startLab(
   mkdirSync(workspace, { recursive: true })
   if (!existsSync(join(workspace, 'notes.md')))
     writeFileSync(join(workspace, 'notes.md'), '- one note\n')
+  for (const [name, bytes] of Object.entries(input.files ?? {}))
+    if (!existsSync(join(workspace, name))) writeFileSync(join(workspace, name), filled(bytes))
   writeFileSync(scriptFile, JSON.stringify(input.script))
   const env: NodeJS.ProcessEnv = {
     PATH: process.env['PATH'] ?? '',
@@ -105,7 +139,16 @@ export async function startLab(
   })
   const child = spawn(
     process.execPath,
-    [labBin(input.root), 'serve', '--stop-on-stdin-close', '--model-script', scriptFile],
+    [
+      labBin(input.root),
+      'serve',
+      '--stop-on-stdin-close',
+      '--model-script',
+      scriptFile,
+      ...(input.compactionTrigger === undefined
+        ? []
+        : ['--compaction-trigger', input.compactionTrigger]),
+    ],
     { cwd: input.directory, env, stdio: ['pipe', 'pipe', 'pipe'] },
   )
   const lines: Line[] = []
@@ -151,8 +194,15 @@ export async function startLab(
       if (line['ok'] !== true) throw new Error(`the lab has no readings: ${String(line['error'])}`)
       return line['storage'] as Readings
     },
+    entryKinds: async () => {
+      child.stdin.write('entry-kinds\n')
+      const line = await until(() => alive(of('lab-entry-kinds')[0]), 'the entry kinds', STOP_MS)
+      return line['kinds'] as readonly string[]
+    },
     script: script => writeFileSync(scriptFile, JSON.stringify(script)),
     processorMs: () => processorMsOf(child.pid),
+    residentBytes: () => residentBytesOf(child.pid),
+    stateBytes: () => bytesUnder(home),
     stop: async () => {
       child.stdin.end()
       const timer = setTimeout(() => child.kill('SIGKILL'), STOP_MS)

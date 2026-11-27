@@ -307,6 +307,20 @@ describe('the command line', () => {
     ).toBe(true)
   })
 
+  it('reports a suite that could not run as blocked with what stopped it, and goes on to the next', async () => {
+    const broken: Suite = {
+      ...suiteOf('a', () => counts(10)),
+      measure: () => Promise.reject(new Error('the lab did not set up')),
+    }
+    expect(await perf(['run'], setting([broken, suiteOf('b', () => counts(10))]), io)).toBe(2)
+    const printed = lines.join('\n')
+    expect(printed).toContain('# a (short): blocked')
+    expect(printed).toContain(
+      '| the suite ran to its end | blocked | the workload itself | the lab did not set up |',
+    )
+    expect(printed).toContain('# b (short): pass')
+  })
+
   it('writes a baseline of the counts, and later runs are held against it item by item', async () => {
     const first = setting([suiteOf('a', () => counts(10))])
     expect(await perf(['run', 'a', '--tier', 'full', '--write-baseline'], first, io)).toBe(0)

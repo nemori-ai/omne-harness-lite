@@ -14,6 +14,7 @@ const step = (round: number, at: number, over: Partial<Step> = {}): Step => ({
   commits: 81,
   commitBytes: 1_000_000,
   requestBytes: 60_000 + 700 * (round * 100 + at),
+  otherRequests: 0,
   byHandler: { 'tenant-1/session.history': 30, 'system.identity/identity.standing': 360 },
   byParticipant: { 'tenant-1/session': 11, 'tenant-1/tool': 31 },
   ...over,
@@ -108,19 +109,22 @@ describe('the gates of an axis', () => {
 describe('what a trajectory comes to', () => {
   const trajectory: Trajectory = {
     steps: round(),
+    openings: [],
+    rounds: [],
     digests: ['a', 'b'],
     kinds: { 'message.user': 1 },
+    entryKinds: [],
     wallMs: 1234.5,
     processorMs: 2000,
     requests: 17,
   }
 
   it('gives every quantity at every rung, who committed and who read at the top rung, the floor and the times', () => {
-    const { readings, digests } = measuredOf(trajectory, AXIS)
+    const { readings } = measuredOf(trajectory, AXIS)
     const named = (name: string) => readings.find(reading => reading.name === name)
     expect(named('commits of a step at step 16')).toMatchObject({ kind: 'count', value: 81 })
     expect(named('reads of a step at step 2')).toMatchObject({ kind: 'clocked', value: 900 })
-    expect(named('request bytes at step 4')).toMatchObject({ kind: 'count' })
+    expect(named('request bytes after a step at step 4')).toMatchObject({ kind: 'count' })
     expect(named('commits of a step by tenant-1/tool at step 16')).toMatchObject({
       kind: 'count',
       value: 31,
@@ -132,7 +136,6 @@ describe('what a trajectory comes to', () => {
     expect(named('commits of a step on an empty session')).toMatchObject({ value: 81 })
     expect(named('wall time of the trajectory')).toMatchObject({ kind: 'time', value: 1235 })
     expect(named('processor time of the server')).toMatchObject({ kind: 'time', value: 2000 })
-    expect(digests).toEqual(['a', 'b'])
   })
 
   it('leaves out the processor time where it cannot be read', () => {
@@ -145,9 +148,21 @@ describe('the script of a trajectory', () => {
   const two: RoundShape = { steps: [[LIST], [LIST, LIST]] }
 
   it('finds every step by the calls before it, and ends a round after its last step', () => {
-    const { steps } = scriptOf([two, { steps: [] }]) as {
-      steps: { when: { has: string[]; lacks: string[] }; say?: string; call?: { id: string }[] }[]
-    }
+    const { script, places } = scriptOf([two, { steps: [] }], [{ when: {}, say: 'other' }])
+    const steps = script.steps as {
+      when: { has: string[]; lacks: string[] }
+      say?: string
+      call?: { id: string }[]
+    }[]
+    expect(places).toEqual([
+      null,
+      { round: 2, step: 'end' },
+      { round: 1, step: 'end' },
+      { round: 1, step: 2 },
+      { round: 1, step: 1 },
+    ])
+    expect(steps[0]).toEqual({ when: {}, say: 'other' })
+    steps.shift()
     expect(steps).toHaveLength(4)
     const fits = (rule: (typeof steps)[number], body: string) =>
       rule.when.has.every(word => body.includes(word)) &&
@@ -165,8 +180,14 @@ describe('the script of a trajectory', () => {
   })
 })
 
-const line = (request: number, reads: number, committed: number): StepLine => ({
+const line = (
+  request: number,
+  reads: number,
+  committed: number,
+  step: number | null,
+): StepLine => ({
   request,
+  step,
   requestBytes: 1000 * request,
   requestDigest: `sha256:${String(request)}`,
   storage: {
@@ -205,10 +226,19 @@ const line = (request: number, reads: number, committed: number): StepLine => ({
 
 describe('the steps of a trajectory', () => {
   const shapes: RoundShape[] = [{ steps: [[LIST], [LIST]] }, { steps: [[LIST]] }]
-  const lines = [line(1, 10, 1), line(2, 25, 3), line(3, 45, 6), line(4, 100, 20), line(5, 130, 24)]
+  const { places } = scriptOf(shapes)
+  const at = (round: number, step: number | 'end'): number =>
+    places.findIndex(place => place?.round === round && place.step === step)
+  const lines = [
+    line(1, 10, 1, at(1, 1)),
+    line(2, 25, 3, at(1, 2)),
+    line(3, 45, 6, at(1, 'end')),
+    line(4, 100, 20, at(2, 1)),
+    line(5, 130, 24, at(2, 'end')),
+  ]
 
   it('are what the storage gained between two requests of one round, never across the end of a round', () => {
-    expect(stepsOf(lines, shapes)).toEqual([
+    expect(stepsOf(lines, places)).toEqual([
       expect.objectContaining({
         round: 1,
         step: 1,
@@ -222,18 +252,31 @@ describe('the steps of a trajectory', () => {
     ])
   })
 
+  it('count a request the trajectory does not hold into the step it fell in, and open no step for it', () => {
+    const between = [
+      lines[0]!,
+      line(9, 12, 2, null),
+      line(9, 14, 2, places.length),
+      ...lines.slice(1),
+    ]
+    const [first, second] = stepsOf(between, places)
+    expect(first).toMatchObject({ round: 1, step: 1, reads: 45, commits: 2, otherRequests: 2 })
+    expect(second).toMatchObject({ round: 1, step: 2, otherRequests: 0 })
+    expect(stepsOf(between, places)).toHaveLength(3)
+  })
+
   it('name the domain of a tenant by the order it appears in, never by its identifiers', () => {
-    const [first] = stepsOf(lines, shapes)
+    const [first] = stepsOf(lines, places)
     expect(first?.byHandler).toEqual({
       'system.identity/identity.standing': 30,
       'tenant-1/session.history': 15,
     })
     expect(first?.byParticipant).toEqual({ 'tenant-1/session': 2 })
-    expect(JSON.stringify(stepsOf(lines, shapes))).not.toContain('org_a')
+    expect(JSON.stringify(stepsOf(lines, places))).not.toContain('org_a')
   })
 
-  it('refuse a lab that wrote fewer requests than the script holds', () => {
-    expect(() => stepsOf(lines.slice(0, 4), shapes)).toThrow('fewer requests')
+  it('leave out a step whose next request never came', () => {
+    expect(stepsOf(lines.slice(0, 4), places)).toHaveLength(2)
   })
 })
 
@@ -278,7 +321,15 @@ describe('what a run leaves at the edge of the measurement', () => {
 
 describe('the session suites', () => {
   it('are registered, each with a short and a full tier, a workload and the paths that move it', () => {
-    expect(SUITES.map(suite => suite.id)).toEqual(['multi-step', 'multi-round'])
+    expect(SUITES.map(suite => suite.id)).toEqual([
+      'multi-step',
+      'multi-round',
+      'cold-open',
+      'compaction',
+      'tool-result',
+      'background-calls',
+      'attachments',
+    ])
     for (const suite of SUITES) {
       expect(suite.tiers).toEqual(['short', 'full'])
       expect(suite.paths).toContain('packages/storage')
@@ -291,9 +342,23 @@ describe('the session suites', () => {
   })
 
   it('ask different questions: many steps of one round, many rounds of one step', () => {
-    const steps = MULTI_STEP.plan('short').workload as { rounds: unknown[][] }
-    const rounds = MULTI_ROUND.plan('short').workload as { rounds: unknown[][] }
-    expect([steps.rounds.length, steps.rounds[0]?.length]).toEqual([1, 32])
-    expect([rounds.rounds.length, rounds.rounds[0]?.length]).toEqual([16, 1])
+    type Workload = { rounds: { steps: unknown[] }[] }
+    const steps = MULTI_STEP.plan('short').workload as Workload
+    const rounds = MULTI_ROUND.plan('short').workload as Workload
+    expect([steps.rounds.length, steps.rounds[0]?.steps.length]).toEqual([1, 32])
+    expect([rounds.rounds.length, rounds.rounds[0]?.steps.length]).toEqual([16, 1])
+  })
+
+  it('put what sets a workload apart into its identity: the files, the restarts, the trigger of a compaction', () => {
+    const byId = (id: string) => SUITES.find(suite => suite.id === id)!.plan('short')
+    expect(byId('tool-result').workload).toMatchObject({
+      files: { 'sized-1k.txt': 1024, 'sized-8k.txt': 8192 },
+    })
+    expect(byId('cold-open').workload).toMatchObject({ restartBefore: [3, 5, 9, 17] })
+    expect(byId('compaction').assembly).toMatchObject({ compactionTrigger: '20' })
+    expect(byId('multi-step').assembly).toMatchObject({ compactionTrigger: 'release' })
+    expect(byId('attachments').workload).toMatchObject({
+      rounds: expect.arrayContaining([expect.objectContaining({ attachBytes: 65536 })]),
+    })
   })
 })

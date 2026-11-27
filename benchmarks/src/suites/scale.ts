@@ -12,70 +12,77 @@ import type { Step, Trajectory } from '../trajectory.ts'
 
 export const READ_ALLOWANCE = 0.02
 
-export type Rung = Readonly<{ scale: number; steps: readonly Step[] }>
+export type Span = Readonly<{
+  reads: number
+  commits: number
+  commitBytes: number
+  requestBytes: number
+  byHandler?: Readonly<Record<string, number>>
+  byParticipant?: Readonly<Record<string, number>>
+}>
 
-export const rungsOf = (
-  steps: readonly Step[],
+export type Rung<T extends Span = Step> = Readonly<{ scale: number; steps: readonly T[] }>
+
+export const rungsOf = <T extends Span>(
+  spans: readonly T[],
   scales: readonly number[],
-  placeOf: (step: Step) => number,
-): Rung[] =>
+  placeOf: (span: T) => number,
+): Rung<T>[] =>
   scales.map(scale => ({
     scale,
-    steps: steps.filter(step => placeOf(step) > scale / 2 && placeOf(step) <= scale),
+    steps: spans.filter(span => placeOf(span) > scale / 2 && placeOf(span) <= scale),
   }))
 
 type Quantity = Readonly<{
-  name: string
+  what: string
   kind: Reading['kind']
   unit: string
   allowance: number
-  of: (step: Step) => number
+  of: (span: Span) => number
 }>
 
 export const COMMITS: Quantity = {
-  name: 'commits of a step',
+  what: 'commits',
   kind: 'count',
   unit: 'commits',
   allowance: 0,
-  of: step => step.commits,
+  of: span => span.commits,
 }
 export const COMMIT_BYTES: Quantity = {
-  name: 'commit bytes of a step',
+  what: 'commit bytes',
   kind: 'count',
   unit: 'bytes',
   allowance: 0,
-  of: step => step.commitBytes,
+  of: span => span.commitBytes,
 }
 export const READS: Quantity = {
-  name: 'reads of a step',
+  what: 'reads',
   kind: 'clocked',
   unit: 'reads',
   allowance: READ_ALLOWANCE,
-  of: step => step.reads,
+  of: span => span.reads,
 }
 export const QUANTITIES = [COMMITS, COMMIT_BYTES, READS] as const
 
-const REQUEST_BYTES: Quantity = {
-  name: 'request bytes',
-  kind: 'count',
-  unit: 'bytes',
-  allowance: 0,
-  of: step => step.requestBytes,
-}
+export const clocked = (quantity: Quantity): Quantity => ({
+  ...quantity,
+  kind: 'clocked',
+  allowance: READ_ALLOWANCE,
+})
 
-const valueOf = (rung: Rung, of: (step: Step) => number): number =>
+const valueOf = <T extends Span>(rung: Rung<T>, of: (span: T) => number): number =>
   rung.steps.length === 0 ? Number.NaN : median(rung.steps.map(of))
 
-const points = (rungs: readonly Rung[], of: (step: Step) => number) =>
+const points = <T extends Span>(rungs: readonly Rung<T>[], of: (span: T) => number) =>
   rungs.map(rung => ({ scale: rung.scale, value: valueOf(rung, of) }))
 
 const shown = (value: number): string =>
   Number.isInteger(value) ? String(value) : value.toFixed(3)
 
-function detailOf(
+function detailOf<T extends Span>(
   verdict: ScaleVerdict,
-  rungs: readonly Rung[],
-  of: (step: Step) => number,
+  rungs: readonly Rung<T>[],
+  of: (span: T) => number,
 ): string {
   if (verdict.state === 'blocked') return verdict.reason
   const values = rungs.map(rung => shown(valueOf(rung, of))).join(', ')
@@ -83,80 +90,114 @@ function detailOf(
   return `values ${values}; ratios ${ratios}; allowance ${String(verdict.allowance)}; ${verdict.perDoubling.toFixed(1)} more for each doubling`
 }
 
-export type Axis = Readonly<{
+export type Axis<T extends Span = Step> = Readonly<{
   name: string
   from: string
   scales: readonly number[]
-  placeOf: (step: Step) => number
+  placeOf: (span: T) => number
   known: Readonly<Record<string, Acceptance>>
+  span?: string
+  gated?: readonly Quantity[]
+  read?: readonly Quantity[]
+  mustFail?: Readonly<{ what: string; of: (span: T) => number }>
 }>
 
-export function gatesOf(steps: readonly Step[], axis: Axis): Pick<Measured, 'gates' | 'controls'> {
-  const rungs = rungsOf(steps, axis.scales, axis.placeOf)
+const spanOf = (axis: Readonly<{ span?: string }>): string => axis.span ?? 'a step'
+
+export const nameOf = (quantity: Quantity, axis: Readonly<{ span?: string }>): string =>
+  `${quantity.what} of ${spanOf(axis)}`
+
+const GROWING = {
+  what: 'the bytes of the request, which grow with the history',
+  of: (span: Span) => span.requestBytes,
+}
+
+export function gatesOf<T extends Span>(
+  spans: readonly T[],
+  axis: Axis<T>,
+): Pick<Measured, 'gates' | 'controls'> {
+  const rungs = rungsOf(spans, axis.scales, axis.placeOf)
+  const failing = axis.mustFail ?? GROWING
   const gates: Gate[] = []
   const controls: Control[] = []
-  for (const quantity of QUANTITIES) {
+  for (const quantity of axis.gated ?? QUANTITIES) {
+    const name = nameOf(quantity, axis)
     const verdict = judgeScale(points(rungs, quantity.of), quantity.allowance)
-    const known = axis.known[quantity.name]
+    const known = axis.known[name]
     gates.push({
-      name: quantity.name,
+      name,
       from: axis.from,
       state: verdict.state,
       detail: detailOf(verdict, rungs, quantity.of),
       ...(known === undefined ? {} : { known }),
     })
-    const grows = judgeScale(points(rungs, REQUEST_BYTES.of), quantity.allowance)
+    const grows = judgeScale(points(rungs, failing.of), quantity.allowance)
     const still = judgeScale(
       points(rungs, () => 1),
       quantity.allowance,
     )
     controls.push(
       {
-        gate: quantity.name,
+        gate: name,
         expected: 'fail',
         state: grows.state,
-        detail: `the bytes of the request, which grow with the history: ${detailOf(grows, rungs, REQUEST_BYTES.of)}`,
+        detail: `${failing.what}: ${detailOf(grows, rungs, failing.of)}`,
       },
       {
-        gate: quantity.name,
+        gate: name,
         expected: 'pass',
         state: still.state,
-        detail: 'the model requests of a step, one at any scale',
+        detail: 'a count that is one at any scale',
       },
     )
   }
   return { gates, controls }
 }
 
-export function readingsOf(steps: readonly Step[], axis: Axis): Reading[] {
-  const rungs = rungsOf(steps, axis.scales, axis.placeOf)
-  const at = (rung: Rung): string => `at ${axis.name} ${String(rung.scale)}`
+const REQUEST_BYTES: Quantity = {
+  what: 'request bytes',
+  kind: 'count',
+  unit: 'bytes',
+  allowance: 0,
+  of: span => span.requestBytes,
+}
+
+export function readingsOf<T extends Span>(spans: readonly T[], axis: Axis<T>): Reading[] {
+  const rungs = rungsOf(spans, axis.scales, axis.placeOf)
+  const at = (rung: Rung<T>): string => `at ${axis.name} ${String(rung.scale)}`
   const readings: Reading[] = []
-  for (const quantity of [...QUANTITIES, REQUEST_BYTES])
+  for (const quantity of axis.read ?? QUANTITIES)
     for (const rung of rungs)
       readings.push({
-        name: `${quantity.name} ${at(rung)}`,
+        name: `${nameOf(quantity, axis)} ${at(rung)}`,
         kind: quantity.kind,
         unit: quantity.unit,
         value: valueOf(rung, quantity.of),
       })
+  for (const rung of rungs)
+    readings.push({
+      name: `request bytes after ${spanOf(axis)} ${at(rung)}`,
+      kind: 'count',
+      unit: 'bytes',
+      value: valueOf(rung, REQUEST_BYTES.of),
+    })
   const top = rungs.at(-1)
   if (top === undefined) return readings
-  const names = (pick: (step: Step) => Readonly<Record<string, number>>): string[] =>
-    [...new Set(top.steps.flatMap(step => Object.keys(pick(step))))].sort()
-  for (const participant of names(step => step.byParticipant))
+  const names = (pick: (span: T) => Readonly<Record<string, number>> | undefined): string[] =>
+    [...new Set(top.steps.flatMap(span => Object.keys(pick(span) ?? {})))].sort()
+  for (const participant of names(span => span.byParticipant))
     readings.push({
-      name: `commits of a step by ${participant} ${at(top)}`,
+      name: `commits of ${spanOf(axis)} by ${participant} ${at(top)}`,
       kind: 'count',
       unit: 'commits',
-      value: valueOf(top, step => step.byParticipant[participant] ?? 0),
+      value: valueOf(top, span => span.byParticipant?.[participant] ?? 0),
     })
-  for (const handler of names(step => step.byHandler))
+  for (const handler of names(span => span.byHandler))
     readings.push({
-      name: `reads of a step by ${handler} ${at(top)}`,
+      name: `reads of ${spanOf(axis)} by ${handler} ${at(top)}`,
       kind: 'clocked',
       unit: 'reads',
-      value: valueOf(top, step => step.byHandler[handler] ?? 0),
+      value: valueOf(top, span => span.byHandler?.[handler] ?? 0),
     })
   return readings
 }
@@ -165,7 +206,7 @@ export function floorOf(steps: readonly Step[]): Reading[] {
   const first = steps[0]
   if (first === undefined) return []
   return QUANTITIES.map(quantity => ({
-    name: `${quantity.name} on an empty session`,
+    name: `${quantity.what} of a step on an empty session`,
     kind: quantity.kind,
     unit: quantity.unit,
     value: quantity.of(first),

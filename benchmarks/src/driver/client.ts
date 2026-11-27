@@ -5,7 +5,7 @@ import { ran, until, type Ran } from './process.ts'
 export type Client = Readonly<{
   omne: (args: readonly string[], credential?: string) => Promise<Ran>
   session: (definition?: string) => Promise<string>
-  send: (session: string, text: string) => Promise<void>
+  send: (session: string, text: string, attach?: readonly string[]) => Promise<void>
   history: (session: string) => Promise<string>
   runsEnded: (session: string, count: number, limitMs: number) => Promise<string>
 }>
@@ -52,8 +52,15 @@ export function clientOf(
       if (body?.session === undefined) throw new Error(`no session was created: ${created.stdout}`)
       return body.session
     },
-    send: async (session, text) => {
-      await done(['send-input', '--session', session, '--text', text])
+    send: async (session, text, attach = []) => {
+      await done([
+        'send-input',
+        '--session',
+        session,
+        '--text',
+        text,
+        ...attach.flatMap(file => ['--attach', file]),
+      ])
     },
     history,
     runsEnded: (session, count, limitMs) =>
