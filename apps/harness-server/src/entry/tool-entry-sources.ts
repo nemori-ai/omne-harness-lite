@@ -23,7 +23,6 @@ export function entrySourceScope(access: Access<unknown>): Scope {
 }
 
 export type SourcedEntries = Readonly<{
-  /** Whether a source now in service for this asker owns this name. */
   owns(access: Access<unknown>, name: string): boolean
   /** The entry its source last listed to this asker under this name. */
   entry(access: Access<unknown>, name: string): ToolSourceEntry | undefined

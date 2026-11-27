@@ -74,7 +74,6 @@ export const DEFAULT_ENTRY_SOURCE_POLICY: LocalEntrySourcePolicy = Object.freeze
 })
 
 export type LocalEntrySourcesInput<P, B extends ContentBlock> = Readonly<{
-  /** The sources in service for the tenant of the one who asks. */
   sources(access: Access<P>): readonly ToolEntrySource<P, B>[]
   /** Marks one call of an entry under this prefix as in flight; the returned function ends the mark. */
   hold(prefix: string): () => void
