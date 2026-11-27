@@ -45,7 +45,13 @@ describe('tree：点、键、条目排成一棵树', () => {
   it('只有底：树上只有目录这个点', () => {
     const { root, problems } = tree(registryOf(), deployment)
     expect(render(root)).toBe(
-      ['system', '  server', '    dynamis', `      ${CATALOG}  [keyed-one]`, '  client'].join('\n'),
+      [
+        'system',
+        '  server',
+        '    dynamis',
+        `      ${CATALOG}  [keyed-one, closed: one-per-process]`,
+        '  client',
+      ].join('\n'),
     )
     expect(problems).toEqual([])
   })
@@ -69,7 +75,7 @@ describe('tree：点、键、条目排成一棵树', () => {
         '        tool',
         '          tool#1  [effective]',
         '    dynamis',
-        `      ${CATALOG}  [keyed-one]`,
+        `      ${CATALOG}  [keyed-one, closed: one-per-process]`,
         `        ${CATEGORIES}`,
         '          assets#1  [effective]',
         `        ${PAGE}`,

@@ -1,4 +1,5 @@
 export {
+  noMemberOf,
   PLUGIN_CATEGORY,
   PLUGIN_PACKAGE_LIMITS,
   pluginBodyContract,
@@ -42,6 +43,7 @@ export {
   type Needed,
   type ServerEntry,
   type ServerInstallPorts,
+  targetOf,
   type ServerPoint,
 } from './server-install.ts'
 export { createServerSide, type ServerSide, type ServerSidePorts } from './server-side.ts'

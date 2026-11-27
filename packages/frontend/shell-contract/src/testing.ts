@@ -6,6 +6,7 @@ import { LAYOUT_POINT, STYLE_POINT, TOKENS_POINT, type PartStyle } from './chang
 import { ShellService } from './cordis.ts'
 import type { Hosted, ScopeSource, ShellLogin } from './host.ts'
 import type { KeyRender } from './point.ts'
+import { GRANTS_ITSELF } from './closed.ts'
 import { PROTOCOLS_POINT } from './needs.ts'
 import type { ServiceKey } from './service-key.ts'
 import type { AttachedLayout } from './slots.ts'
@@ -101,6 +102,7 @@ const PROTOCOLS: Contract = {
   revision: 1,
   keys: 'private',
   conformance: null,
+  scopes: GRANTS_ITSELF,
   summary: 'The protocols a case serves to the modules on this tree.',
 }
 

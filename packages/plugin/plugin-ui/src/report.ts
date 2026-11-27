@@ -10,26 +10,38 @@ export type PluginReport = Readonly<{
   waiting?: readonly string[]
 }>
 
-type Tree = Readonly<{ points: readonly ReportedPoint[]; parts: Described['parts'] }>
+type Tree = Readonly<{
+  points: readonly ReportedPoint[]
+  parts: Described['parts']
+  handed?: readonly string[]
+}>
 export type Reported = Tree & Readonly<{ plugins: readonly PluginReport[] }>
 
 /** The tree as the protocol tells it: the rules of each point as plain data, its fields as a list in the order of their names. */
 export function describedOf({ points, parts }: Described): Tree {
   return {
     parts,
-    points: points.map(({ name, summary, contract, dataKeys }): ReportedPoint => {
+    points: points.map(({ name, summary, contract, dataKeys, form }): ReportedPoint => {
       const { arity, keyFrom, key, gives, item, resolve, binding, onError, version, revision } =
         contract
       const fields = Object.entries(item.fields)
         .map(([field, kind]) => ({ name: field, kind }))
         .sort((left, right) => (left.name < right.name ? -1 : 1))
       const rules = { arity, keyFrom, key, gives, resolve, binding, onError, version, revision }
+      const { scopes } = contract
       const told = {
         ...rules,
         item: { kind: item.kind, fields },
         example: contract.example ?? null,
+        ...(scopes !== undefined && scopes !== 'all' && { scopes }),
       }
-      return { name, summary, contract: told, ...(dataKeys === undefined ? {} : { dataKeys }) }
+      return {
+        name,
+        summary,
+        contract: told,
+        ...(dataKeys === undefined ? {} : { dataKeys }),
+        ...(form === undefined ? {} : { form }),
+      }
     }),
   }
 }
@@ -67,10 +79,17 @@ export function reportsOf(
     .sort((left, right) => (left.name < right.name ? -1 : 1))
 }
 
-/** The same report for a server before revision 3 of plugin/v1: a waiting plugin is told as failed, with the reason alone. */
-export function withoutWaiting(reported: Reported): Reported | undefined {
-  if (!reported.plugins.some(each => each.waiting !== undefined)) return undefined
-  return { ...reported, plugins: reported.plugins.map(({ waiting: _waiting, ...rest }) => rest) }
+/** The same report for a server before revision 3 of plugin/v1: a waiting plugin is told as failed with the reason alone, and nothing of revision 3 is said. */
+export function beforeRevisionThree({ handed: _handed, ...reported }: Reported): Reported {
+  return {
+    ...reported,
+    plugins: reported.plugins.map(({ waiting: _waiting, ...rest }) => rest),
+    points: reported.points.map(({ form: _form, contract, ...point }) => {
+      if (contract === undefined) return point
+      const { scopes: _scopes, ...rules } = contract
+      return { ...point, contract: rules }
+    }),
+  }
 }
 
 /** Tells what differs from what was last taken, one telling at a time; what changed meanwhile is told right after one that was taken. */

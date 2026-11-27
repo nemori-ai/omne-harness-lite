@@ -17,9 +17,15 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { lookScope, needProtocol, tenantScope, type KeyedPoint } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
-import { installOn, presentIn, type Code } from './install.ts'
+import { handedNames, installOn, presentIn, type Code } from './install.ts'
 import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
-import { createReporter, describedOf, reportsOf, withoutWaiting, type Reported } from './report.ts'
+import {
+  beforeRevisionThree,
+  createReporter,
+  describedOf,
+  reportsOf,
+  type Reported,
+} from './report.ts'
 import { SkinChoice } from './view/skin-choice.tsx'
 
 export type PluginUiOptions = Readonly<{
@@ -103,12 +109,13 @@ function loadFor(
     () => ({
       plugins: reportsOf(loader.states(), shell.changes().conflicts),
       ...describedOf(shell.described()),
+      handed: handedNames(code, shell),
     }),
     async reported => {
       const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
       const answer = await send(reported)
-      const older = answer.outcome === 'unavailable' ? withoutWaiting(reported) : undefined
-      return (older === undefined ? answer : await send(older)).outcome === 'succeeded'
+      if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+      return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
     },
   )
   let listed = false

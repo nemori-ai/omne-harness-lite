@@ -1,5 +1,5 @@
 import type { Contract } from '@omne-harness/dynamis'
-import type { ClientPoint, PointRules } from './port.ts'
+import type { Admission, ClientPoint, PointRules } from './port.ts'
 import { columns } from './text.ts'
 
 const ARITY: Readonly<Record<PointRules['arity'], string>> = {
@@ -38,13 +38,14 @@ export const rulesOf = (contract: Contract): PointRules => ({
   version: contract.version,
   revision: contract.revision,
   example: contract.example ?? null,
+  ...(contract.scopes !== undefined && contract.scopes !== 'all' && { scopes: contract.scopes }),
 })
 
-export const pointHead = (name: string, side: string, rules: PointRules): string =>
+const pointHead = (name: string, side: string, rules: PointRules): string =>
   `${name}   point, ${side}   v${rules.version}.${rules.revision}`
 
 /** The rules of a point, from its key to the member to copy. */
-export function rulesLines(rules: PointRules): string[] {
+function rulesLines(rules: PointRules): string[] {
   const keyed = rules.arity.startsWith('keyed')
   const fields = rules.item.fields.map(field => `${field.name} (${field.kind})`)
   return [
@@ -55,9 +56,60 @@ export function rulesLines(rules: PointRules): string[] {
     `a member gives: ${ITEM[rules.item.kind]}${fields.length === 0 ? '' : `. fields: ${fields.join(', ')}`}`,
     `the host gives it: ${rules.gives}`,
     `when it throws: ${rules.onError}`,
-    ...(rules.example === null
+  ]
+}
+
+export type Form = Readonly<{ gives: string; example: string }>
+
+/** The names one object holds, under the object: what the code of a plugin is called with. */
+function handedText(handed: readonly string[]): string {
+  const tops = handed.filter(name => !name.includes('.'))
+  return tops
+    .map(top => {
+      const inner = handed
+        .filter(name => name.startsWith(`${top}.`))
+        .map(name => name.slice(top.length + 1))
+      return inner.length === 0 ? top : `${top} (${inner.join(', ')})`
+    })
+    .join('; ')
+}
+
+/** Whether a plugin puts here and how a member is written: the loader's judgment, the form of the host, the rules' member. */
+function categoryExample(point: string, way: string, category: string): string {
+  const what = way === 'data' ? '"data":{}' : '"directory":"<name>"'
+  return [
+    `{"point":"${point}","key":"<name>",${what}}`,
+    `<name> is the name it is published under. What one ${category} holds: OmneExtensions help with name publish and category ${category}.`,
+  ].join('\n')
+}
+
+function admissionLines(
+  name: string,
+  admission: Admission | undefined,
+  rules: PointRules,
+  form: Form | undefined,
+  handed: readonly string[] | undefined,
+): string[] {
+  if (admission?.open === false) return [`plugins: closed. ${admission.reason}`]
+  const example =
+    form?.example ??
+    rules.example ??
+    (admission?.category === undefined
+      ? null
+      : categoryExample(name, admission.way, admission.category))
+  return [
+    ...(admission === undefined
       ? []
-      : ['a member, to copy:', ...rules.example.split('\n').map(line => `  ${line}`)]),
+      : [
+          `plugins: open. A member gives ${admission.way === 'directory' ? 'a directory' : admission.way}.`,
+        ]),
+    ...(form === undefined ? [] : [`your code gives back: ${form.gives}`]),
+    ...(admission?.way === 'code' && handed !== undefined && handed.length > 0
+      ? [`your code is called with one object: ${handedText(handed)}`]
+      : []),
+    ...(example === null
+      ? []
+      : ['a member, to copy:', ...example.split('\n').map(line => `  ${line}`)]),
   ]
 }
 
@@ -88,3 +140,19 @@ export const pointText = (
     ...(rules === undefined ? [] : [rules.key, rules.gives, rules.example ?? '']),
     ...keys.map(key => key.name),
   ].join(' ')
+
+/** One point as both trees print it: its head, what it is for, its rules, and whether and how a plugin puts there. */
+export function pointLines(
+  head: Readonly<{ name: string; side: string; summary: string }>,
+  rules: PointRules,
+  admission: Admission | undefined,
+  form: Form | undefined,
+  handed: readonly string[] | undefined,
+): string[] {
+  return [
+    pointHead(head.name, head.side, rules),
+    head.summary,
+    ...rulesLines(rules),
+    ...admissionLines(head.name, admission, rules, form, handed),
+  ]
+}

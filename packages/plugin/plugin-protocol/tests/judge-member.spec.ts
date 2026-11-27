@@ -63,6 +63,13 @@ const TABLE: readonly (readonly [string, Target, unknown, unknown, unknown])[] =
     wrong('directory', 'code'),
   ],
   [
+    '不收 Plugin 成员的类别的点',
+    { kind: 'category', takes: 'none', why: 'a plugin does not hold a skin' },
+    { kind: 'not', reason: { kind: 'refused', detail: 'a plugin does not hold a skin' } },
+    { kind: 'not', reason: { kind: 'refused', detail: 'a plugin does not hold a skin' } },
+    { kind: 'not', reason: { kind: 'refused', detail: 'a plugin does not hold a skin' } },
+  ],
+  [
     '一项交数据',
     { kind: 'point', rules: rules(), form: false },
     { kind: 'data' },

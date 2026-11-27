@@ -158,12 +158,7 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
   if (typeof made !== 'function') return `${path} exports no function named ${name}`
   return shell => {
     const files = code.files?.(listed.name, listed.version)
-    const handed = {
-      ...code.given,
-      shell: guestOf(shell),
-      ...(files !== undefined && { files: filesAt(files) }),
-    }
-    const given = called(name, () => made(Object.freeze(handed)))
+    const given = called(name, () => made(handedTo(code, shell, files)))
     const source =
       files === undefined ? undefined : { module: `${files}${path}`, export: name, files }
     const item =
@@ -178,6 +173,28 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
       true,
     )
   }
+}
+
+/** What the code of a plugin is called with: what the application gives, the shell a guest may use, and its files. */
+function handedTo(code: Code, shell: InstallShell, files: string | undefined): object {
+  return Object.freeze({
+    ...code.given,
+    shell: guestOf(shell),
+    ...(files !== undefined && { files: filesAt(files) }),
+  })
+}
+
+export function handedNames(code: Code | undefined, shell: InstallShell): readonly string[] {
+  if (code === undefined) return []
+  const handed = handedTo(code, shell, code.files === undefined ? undefined : '/')
+  return Object.entries(handed).flatMap(([name, value]) => [
+    name,
+    ...(typeof value === 'object' && value !== null
+      ? Object.keys(value)
+          .sort()
+          .map(inner => `${name}.${inner}`)
+      : []),
+  ])
 }
 
 function called(name: string, call: () => unknown): unknown {

@@ -10,6 +10,7 @@ import {
   type ModuleMember,
   type Outcome,
   type PackageFile,
+  type Target,
   type Wanted,
 } from '@omne-harness/plugin-protocol'
 
@@ -26,7 +27,8 @@ export type ServerEntry = Readonly<{
 /** What a point of the server tree is to a plugin: how a member of it is written and when, or that a category owns it. */
 export type ServerPoint =
   | Readonly<{ kind: 'point'; rules: PointRules }>
-  | Readonly<{ kind: 'category'; takes: 'data' | 'directory'; place(what: unknown): unknown }>
+  | (Readonly<{ kind: 'category'; category: string; place(what: unknown): unknown }> &
+      (Readonly<{ takes: 'data' | 'directory' }> | Readonly<{ takes: 'none'; why: string }>))
 
 export type GuestContext = Readonly<{
   key: string
@@ -81,6 +83,11 @@ function placed(place: (what: unknown) => unknown, what: unknown): Step {
   }
 }
 
+export const targetOf = (point: Extract<ServerPoint, { kind: 'category' }>): Target =>
+  point.takes === 'none'
+    ? { kind: 'category', takes: 'none', why: point.why }
+    : { kind: 'category', takes: point.takes }
+
 function stepOf(ports: ServerInstallPorts, member: Member, files: readonly PackageFile[]): Step {
   const point = ports.point(member.point)
   const form = point?.kind === 'point' ? ports.guestForm(member.point) : undefined
@@ -88,7 +95,7 @@ function stepOf(ports: ServerInstallPorts, member: Member, files: readonly Packa
     point === undefined
       ? { kind: 'absent' }
       : point.kind === 'category'
-        ? { kind: 'category', takes: point.takes }
+        ? targetOf(point)
         : { kind: 'point', rules: point.rules, form: form !== undefined },
     member,
   )

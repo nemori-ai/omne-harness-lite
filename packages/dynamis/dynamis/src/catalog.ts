@@ -83,6 +83,11 @@ export const catalogContract: Contract = Object.freeze({
   keys: 'private',
   conformance: null,
   summary: 'The catalog: one item declares one extension point and carries its contract.',
+  scopes: Object.freeze({
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The hosts read the declarations of the whole deployment: a point is declared by the code of its host.',
+  }),
 })
 
 export type PointStanding =

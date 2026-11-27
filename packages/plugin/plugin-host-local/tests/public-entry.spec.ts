@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 
-it('the root entry exports the two categories, each with its contract and its point, the loading on the server and its two points, and the skills it brings with the release', async () => {
+it('the root entry exports the two categories, each with its contract and its point, the loading on the server and its two points, the judgment of a category, and the skills it brings with the release', async () => {
   const root = (await import('@omne-harness/plugin-host-local')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'GUEST_FORMS_POINT',
@@ -16,6 +16,7 @@ it('the root entry exports the two categories, each with its contract and its po
     'guestFormsContract',
     'heldPlugins',
     'listedPlugins',
+    'noMemberOf',
     'pluginBodyContract',
     'pluginCategoryDisplay',
     'pluginEffect',
@@ -28,6 +29,7 @@ it('the root entry exports the two categories, each with its contract and its po
     'skinBodyContract',
     'skinCategoryDisplay',
     'skinSkinsPoint',
+    'targetOf',
   ])
 })
 

@@ -15,6 +15,7 @@ export type Target =
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'point'; rules: PointRules; form: boolean }>
   | Readonly<{ kind: 'category'; takes: 'data' | 'directory' }>
+  | Readonly<{ kind: 'category'; takes: 'none'; why: string }>
 
 export type Way = 'data' | 'directory' | 'code'
 
@@ -44,10 +45,11 @@ const wrong = (takes: Way, member: Member): Judgment =>
 export function judgeMember(target: Target, member: Member): Judgment {
   if (target.kind === 'absent')
     return not({ kind: 'absent', absent: { kind: 'point', name: member.point } })
-  if (target.kind === 'category')
-    return wayOf(member) === target.takes
-      ? { kind: 'held', way: target.takes }
-      : wrong(target.takes, member)
+  if (target.kind === 'category') {
+    if (target.takes === 'none') return not({ kind: 'refused', detail: target.why })
+    const { takes } = target
+    return wayOf(member) === takes ? { kind: 'held', way: takes } : wrong(takes, member)
+  }
   const { rules, form } = target
   if (rules.scopes !== undefined && rules.scopes !== 'all')
     return not({ kind: 'closed', why: rules.scopes.why, note: rules.scopes.note })

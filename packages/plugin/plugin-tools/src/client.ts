@@ -1,5 +1,5 @@
-import type { ClientPoint, ClientTree, Depth } from './port.ts'
-import { dataKeyLines, pointHead, pointText, rulesLines } from './rules.ts'
+import type { Admission, ClientPoint, ClientTree, Depth } from './port.ts'
+import { dataKeyLines, pointLines, pointText } from './rules.ts'
 import { columns, cut, insideText, moreLine } from './text.ts'
 
 type Part = ClientTree['parts'][number]
@@ -10,27 +10,14 @@ type Row = Readonly<{
   inside?: number
 }>
 
-/** What a member of each depth writes. The three point names and the forms are facts of the client shell: packages/frontend/SPEC.md, 外壳契约. */
-export const SHELL_MEMBERS: Readonly<
-  Record<Depth, Readonly<{ point: string; gives: string; member: (part: string) => string }>>
-> = {
-  tokens: {
-    point: 'shell.tokens',
-    gives: 'data',
-    member: part => `{"point":"shell.tokens","key":"${part}","data":{<token>:<value>}}`,
-  },
-  style: {
-    point: 'shell.part-style',
-    gives: 'data',
-    member: part =>
-      `{"point":"shell.part-style","key":"${part}","data":{"base":{<css property>:<value>},"hover":{…},"disabled":{…}}}`,
-  },
-  render: {
-    point: 'shell.part-render',
-    gives: 'code',
-    member: part => `{"point":"shell.part-render","key":"${part}","module":<file>,"export":<name>}`,
-  },
+/** The point a depth of a part is changed on: its keys come from another point and its one field is named for the depth. */
+function depthPoint(client: ClientTree, depth: Depth): ClientPoint | undefined {
+  return client.points.find(({ contract }) => {
+    const fields = contract?.item.fields ?? []
+    return contract?.keyFrom !== null && fields.length === 1 && fields[0]?.name === depth
+  })
 }
+
 const DEPTHS: readonly Depth[] = ['tokens', 'style', 'render']
 
 export const hostOf = (name: string): string =>
@@ -63,7 +50,17 @@ function hostRows(client: ClientTree): Row[] {
       ...client.points
         .filter(point => hostOf(point.name) === host)
         .sort(byName)
-        .map(point => ({ name: point.name, cells: ['point', point.summary], children: [] })),
+        .map(point => ({
+          name: point.name,
+          cells: [
+            'point',
+            point.summary,
+            ...(point.contract?.scopes === undefined
+              ? []
+              : [`[closed: ${point.contract.scopes.why}]`]),
+          ],
+          children: [],
+        })),
     ],
   }))
 }
@@ -134,7 +131,7 @@ function within(client: ClientTree, part: Part): string[] {
 
 /** The member the point of a depth gives to copy, keyed to this part, and the lines that follow it; none when its example has no key to set. */
 function copied(point: ClientPoint | undefined, part: string): string[] | undefined {
-  const [first, ...rest] = point?.contract?.example?.split('\n') ?? []
+  const [first, ...rest] = (point?.form?.example ?? point?.contract?.example)?.split('\n') ?? []
   if (first === undefined) return undefined
   try {
     const member: unknown = JSON.parse(first)
@@ -149,24 +146,26 @@ function copied(point: ClientPoint | undefined, part: string): string[] | undefi
 export function partLines(client: ClientTree, part: Part): string[] {
   const path = within(client, part)
   const open = DEPTHS.filter(depth => part.depths.includes(depth)).map(depth => {
-    const point = client.points.find(one => one.name === SHELL_MEMBERS[depth].point)
-    const [member = SHELL_MEMBERS[depth].member(part.name), ...rest] =
-      copied(point, part.name) ?? []
+    const point = depthPoint(client, depth)
+    const name = point?.name ?? ''
+    const fallback =
+      point === undefined
+        ? `none: no point on this client takes the depth ${depth} now`
+        : `{"point":"${name}","key":"${part.name}"}: OmneExtensionPoints show ${name} says what a member gives`
+    const [member = fallback, ...rest] = copied(point, part.name) ?? []
     const keys = depth === 'tokens' ? point?.dataKeys : undefined
     const names =
       keys === undefined
         ? []
         : [
-            `    names: OmneExtensionPoints show ${SHELL_MEMBERS[depth].point} lists the ${keys.length} token names and their values now.`,
+            `    names: OmneExtensionPoints show ${name} lists the ${keys.length} token names and their values now.`,
           ]
-    return { depth, member, after: [...rest.map(line => `    ${line}`), ...names] }
+    const kind = point?.contract?.item.kind
+    const gives = kind === undefined ? '—' : kind === 'data' ? 'data' : 'code'
+    return { depth, gives, member, after: [...rest.map(line => `    ${line}`), ...names] }
   })
   const rows = columns(
-    open.map(({ depth, member }) => [
-      `  ${depth}`,
-      SHELL_MEMBERS[depth].gives,
-      `member: ${member}`,
-    ]),
+    open.map(({ depth, gives, member }) => [`  ${depth}`, gives, `member: ${member}`]),
   )
   return [
     `${part.name}   part, client   ${part.label}`,
@@ -178,12 +177,15 @@ export function partLines(client: ClientTree, part: Part): string[] {
 }
 
 /** A client point: its rules in the form a server point has when it reports them; a client does not report what it holds. */
-export function clientPointLines(point: ClientPoint): string[] {
+export function clientPointLines(
+  point: ClientPoint,
+  handed?: readonly string[],
+  admission?: Admission,
+): string[] {
   if (point.contract === undefined) return [`${point.name}   point, client`, point.summary]
+  const head = { name: point.name, side: 'client', summary: point.summary }
   return [
-    pointHead(point.name, 'client', point.contract),
-    point.summary,
-    ...rulesLines(point.contract),
+    ...pointLines(head, point.contract, admission, point.form, handed),
     ...(point.dataKeys === undefined ? [] : dataKeyLines(point.dataKeys)),
   ]
 }

@@ -1,7 +1,7 @@
 system
   server
     dynamis
-      dynamis.points  [keyed-one]
+      dynamis.points  [keyed-one, closed: one-per-process]
         assets.category
           assets-ui#1  [effective]
         assets.category-page
@@ -132,7 +132,7 @@ system
           session-ui#1  [effective]
       canvas.app-render  [keyed-one]
     connection
-      connection.protocols  [keyed-one]
+      connection.protocols  [keyed-one, closed: grants-itself]
         assets/v1
           served:assets/v1#1  [effective]
         calendar/v1

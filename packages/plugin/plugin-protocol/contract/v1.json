@@ -2,7 +2,7 @@
   "digests": {
     "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166",
     "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e",
-    "3": "sha256:19f6b0fdddf704cce3d869855618d4b69300022bf7aff4c3e7803ae9e8062208"
+    "3": "sha256:2822e85a47c5cb1ab293949b38475980b37473627bfe8ea49369a7e10770241f"
   },
   "major": 1,
   "name": "plugin",
@@ -81,6 +81,16 @@
                         "rule": {
                           "kind": "text"
                         }
+                      },
+                      "handed": {
+                        "optional": true,
+                        "rule": {
+                          "item": {
+                            "kind": "text"
+                          },
+                          "kind": "array"
+                        },
+                        "since": 3
                       },
                       "parts": {
                         "rule": {
@@ -314,6 +324,33 @@
                                         "kind": "count"
                                       }
                                     },
+                                    "scopes": {
+                                      "optional": true,
+                                      "rule": {
+                                        "fields": {
+                                          "note": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "only": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "deployment"
+                                              ]
+                                            }
+                                          },
+                                          "why": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      "since": 3
+                                    },
                                     "version": {
                                       "rule": {
                                         "kind": "count"
@@ -353,6 +390,25 @@
                                   "kind": "array"
                                 },
                                 "since": 2
+                              },
+                              "form": {
+                                "optional": true,
+                                "rule": {
+                                  "fields": {
+                                    "example": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "gives": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                "since": 3
                               },
                               "name": {
                                 "rule": {
@@ -565,6 +621,16 @@
               "rule": {
                 "kind": "text"
               }
+            },
+            "handed": {
+              "optional": true,
+              "rule": {
+                "item": {
+                  "kind": "text"
+                },
+                "kind": "array"
+              },
+              "since": 3
             },
             "parts": {
               "rule": {
@@ -798,6 +864,33 @@
                               "kind": "count"
                             }
                           },
+                          "scopes": {
+                            "optional": true,
+                            "rule": {
+                              "fields": {
+                                "note": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "only": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "deployment"
+                                    ]
+                                  }
+                                },
+                                "why": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "since": 3
+                          },
                           "version": {
                             "rule": {
                               "kind": "count"
@@ -837,6 +930,25 @@
                         "kind": "array"
                       },
                       "since": 2
+                    },
+                    "form": {
+                      "optional": true,
+                      "rule": {
+                        "fields": {
+                          "example": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "gives": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      "since": 3
                     },
                     "name": {
                       "rule": {

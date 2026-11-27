@@ -142,6 +142,10 @@ export type Target = Readonly<{
 }> | Readonly<{
     kind: 'category';
     takes: 'data' | 'directory';
+}> | Readonly<{
+    kind: 'category';
+    takes: 'none';
+    why: string;
 }>;
 export type Way = 'data' | 'directory' | 'code';
 export type Reason = Readonly<{
@@ -471,6 +475,33 @@ declare const point: {
                             ];
                         };
                     };
+                    readonly scopes: {
+                        readonly rule: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly only: {
+                                    rule: {
+                                        readonly kind: 'literal';
+                                        readonly values: readonly [
+                                            "deployment"
+                                        ];
+                                    };
+                                };
+                                readonly why: {
+                                    rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly note: {
+                                    rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                            };
+                        };
+                        readonly optional: true;
+                        readonly since: 3;
+                    };
                 };
             };
             readonly optional: true;
@@ -505,6 +536,25 @@ declare const point: {
             };
             readonly optional: true;
             readonly since: 2;
+        };
+        readonly form: {
+            readonly rule: {
+                readonly kind: 'object';
+                readonly fields: {
+                    readonly gives: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                    readonly example: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                };
+            };
+            readonly optional: true;
+            readonly since: 3;
         };
     };
 };
@@ -579,6 +629,7 @@ export declare const pluginProtocol: {
             readonly limit: "input";
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly client: string;
+                readonly handed?: readonly string[];
                 readonly parts: readonly {
                     readonly depths: readonly ("render" | "style" | "tokens")[];
                     readonly label: string;
@@ -611,12 +662,21 @@ export declare const pluginProtocol: {
                         readonly onError: string;
                         readonly resolve: "conflict" | "most-specific";
                         readonly revision: number;
+                        readonly scopes?: {
+                            readonly note: string;
+                            readonly only: "deployment";
+                            readonly why: string;
+                        };
                         readonly version: number;
                     };
                     readonly dataKeys?: readonly {
                         readonly name: string;
                         readonly now: string | null;
                     }[];
+                    readonly form?: {
+                        readonly example: string;
+                        readonly gives: string;
+                    };
                     readonly name: string;
                     readonly summary: string;
                 }[];
@@ -628,6 +688,7 @@ export declare const pluginProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly clients: readonly {
                         readonly client: string;
+                        readonly handed?: readonly string[];
                         readonly parts: readonly {
                             readonly depths: readonly ("render" | "style" | "tokens")[];
                             readonly label: string;
@@ -660,12 +721,21 @@ export declare const pluginProtocol: {
                                 readonly onError: string;
                                 readonly resolve: "conflict" | "most-specific";
                                 readonly revision: number;
+                                readonly scopes?: {
+                                    readonly note: string;
+                                    readonly only: "deployment";
+                                    readonly why: string;
+                                };
                                 readonly version: number;
                             };
                             readonly dataKeys?: readonly {
                                 readonly name: string;
                                 readonly now: string | null;
                             }[];
+                            readonly form?: {
+                                readonly example: string;
+                                readonly gives: string;
+                            };
                             readonly name: string;
                             readonly summary: string;
                         }[];

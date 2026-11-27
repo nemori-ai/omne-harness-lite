@@ -25,6 +25,7 @@ const POINTS: Readonly<Record<string, ServerPoint>> = {
   'notes.pages': { kind: 'point', rules: rules('data', 'build') },
   'skill.skills': {
     kind: 'category',
+    category: 'skill',
     takes: 'directory',
     place: directory => ({ within: directory }),
   },
@@ -196,6 +197,7 @@ describe('the members a plugin writes for the server, put by the loader', () => 
         name === 'skill.skills'
           ? {
               kind: 'category',
+              category: 'skill',
               takes: 'directory',
               place: () => {
                 throw new Error('skill is not there now')

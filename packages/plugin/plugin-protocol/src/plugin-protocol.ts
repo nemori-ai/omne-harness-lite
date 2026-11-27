@@ -59,6 +59,15 @@ const contract = object({
   version: { rule: count },
   revision: { rule: count },
   example: { rule: oneOf(text, nothing) },
+  scopes: {
+    rule: object({
+      only: { rule: literal('deployment') },
+      why: { rule: text },
+      note: { rule: text },
+    }),
+    optional: true,
+    since: 3,
+  },
 })
 const dataKey = object({ name: { rule: text }, now: { rule: oneOf(text, nothing) } })
 const point = object({
@@ -66,11 +75,17 @@ const point = object({
   summary: { rule: text },
   contract: { rule: contract, optional: true, since: 2 },
   dataKeys: { rule: array(dataKey), optional: true, since: 2 },
+  form: {
+    rule: object({ gives: { rule: text }, example: { rule: text } }),
+    optional: true,
+    since: 3,
+  },
 })
 
 /** What a client says of itself: how each plugin stands, and the points and the parts its tree has now. */
 const reported = {
   plugins: { rule: array(report) },
+  handed: { rule: array(text), optional: true, since: 3 },
   points: { rule: array(point) },
   parts: {
     rule: array(

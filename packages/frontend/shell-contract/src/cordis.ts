@@ -252,8 +252,13 @@ export abstract class ShellService extends Service implements ShellSlots {
       points: declared
         .map(({ entry }) => {
           const dataKeys = this.dataKeysOf(entry.key)
+          const form = this.guestForm(entry.key)
           const told = { name: entry.key, summary: entry.item.summary, contract: entry.item }
-          return dataKeys === undefined ? told : { ...told, dataKeys }
+          return {
+            ...told,
+            ...(dataKeys !== undefined && { dataKeys }),
+            ...(form !== undefined && { form: { gives: form.gives, example: form.example } }),
+          }
         })
         .sort((left, right) => (left.name < right.name ? -1 : 1)),
       parts: (parts.kind === 'read' ? parts.parts : [])

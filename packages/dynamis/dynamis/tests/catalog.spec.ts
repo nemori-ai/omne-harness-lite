@@ -83,6 +83,11 @@ describe('standingOf：一个点的四种状态', () => {
       keys: 'private',
       conformance: null,
       summary: 'The catalog: one item declares one extension point and carries its contract.',
+      scopes: {
+        only: 'deployment',
+        why: 'one-per-process',
+        note: 'The hosts read the declarations of the whole deployment: a point is declared by the code of its host.',
+      },
     })
     expect(Object.isFrozen(catalogContract) && Object.isFrozen(catalogContract.item.fields)).toBe(
       true,

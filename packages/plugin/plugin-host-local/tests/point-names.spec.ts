@@ -26,13 +26,6 @@ const codeOf = (text: string): string =>
 const NAME = /['"`]([a-z][a-z0-9-]*)\.([a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*)['"`]/gu
 const FILE = /\.(js|json|md|ts|tsx|css|png|svg|jpg|webp|avif|html)$/u
 
-/** Still there until the tools and the help answer from the rules alone (card #1737, slice 05). */
-const KNOWN = new Set([
-  'plugin-tools/src/client.ts',
-  'plugin-host-local/src/category.ts',
-  'plugin-host-local/src/skin-category.ts',
-])
-
 it('PL-I26: the sources of plugin name no point of another domain; only the points of plugin itself', () => {
   const named = files.flatMap(path => {
     const where = relative(group, path)
@@ -59,5 +52,5 @@ it('PL-I26: the sources of plugin name no point of another domain; only the poin
   )
   expect(imported).toEqual([])
   expect(files.length).toBeGreaterThan(40)
-  expect(named.filter(line => !KNOWN.has(line.split(' ')[0] ?? ''))).toEqual([])
+  expect(named).toEqual([])
 })

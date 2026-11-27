@@ -60,6 +60,7 @@ export type ClientReport = Readonly<{
     depths: readonly ('tokens' | 'style' | 'render')[]
     within: string | null
   }>[]
+  handed?: readonly string[]
 }>
 
 export type ReportedClient = ClientReport & Readonly<{ client: string }>
