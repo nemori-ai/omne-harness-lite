@@ -286,6 +286,7 @@ describe('decode: events written for the case', () => {
         cause,
         diagnostic: 'in-band-error',
         upstreamStatus: null,
+        ...(code === 'rate_limit_exceeded' ? { throttled: true } : {}),
       })
     },
   )
@@ -297,6 +298,7 @@ describe('decode: events written for the case', () => {
       cause: 'upstream-unavailable',
       diagnostic: 'in-band-error',
       upstreamStatus: null,
+      throttled: true,
     })
   })
 

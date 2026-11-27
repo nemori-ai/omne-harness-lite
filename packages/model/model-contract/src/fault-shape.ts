@@ -61,6 +61,7 @@ export function faultProblem(value: unknown): string | null {
     'upstreamStatus',
     'replayCarried',
     'reported',
+    'throttled',
   ])
   if (fault === null) return 'fault'
   const cause = fault.get('cause')
@@ -69,6 +70,11 @@ export function faultProblem(value: unknown): string | null {
   const status = fault.get('upstreamStatus')
   if (status !== null && !(typeof status === 'string' && STATUS.test(status)))
     return 'upstream-status'
+  if (
+    fault.has('throttled') &&
+    !(cause === 'upstream-unavailable' && fault.get('throttled') === true)
+  )
+    return 'throttled'
   return marksProblem(cause, fault)
 }
 
