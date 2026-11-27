@@ -286,10 +286,18 @@ function SessionMore({
   readonly choices: (session: string) => ReactNode
 }) {
   const [said, say] = useState<string | null>(null)
-  const menu = useMemo<HeadingFold>(() => ({ place: 'menu', folded, say }), [folded])
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<'shut' | 'open' | 'model'>('shut')
+  const menu = useMemo<HeadingFold>(
+    () => ({
+      place: 'menu',
+      folded,
+      say,
+      ...(open === 'model' ? { opening: FOLD_RANK.model } : {}),
+    }),
+    [folded, open],
+  )
   const asked = useCallback(() => {
-    if (folded >= FOLD_RANK.model) setOpen(true)
+    if (folded >= FOLD_RANK.model) setOpen('model')
   }, [folded])
   useModelChoiceAsked(session, asked)
   return (
@@ -299,7 +307,7 @@ function SessionMore({
           {said}
         </span>
       )}
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={open !== 'shut'} onOpenChange={next => setOpen(next ? 'open' : 'shut')}>
         <DropdownMenuTrigger asChild>
           <IconButton label="更多" tooltipSide="bottom" {...sessionHeaderMore.props}>
             <MoreIcon aria-hidden="true" />

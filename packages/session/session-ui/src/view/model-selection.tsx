@@ -15,6 +15,7 @@ import {
   HeadingChoice,
   HeadingEntriesContext,
   useHeadingFolded,
+  useHeadingOpening,
   useHeadingRead,
 } from './heading-fold.tsx'
 import { useModelChoiceAsked } from '../model/model-choice-ask.ts'
@@ -124,8 +125,11 @@ export function ModelAction({ store, tenant, session }: Props) {
   const folded = useHeadingFolded(FOLD_RANK.model)
   const [open, setOpen] = useState(false)
   const opened = useCallback(() => {
-    if (inBar && !folded) setOpen(true)
-  }, [inBar, folded])
+    if (!inBar) return
+    void store.loadChoices({ tenant, session })
+    if (!folded) setOpen(true)
+  }, [store, tenant, session, inBar, folded])
+  const opening = useHeadingOpening(FOLD_RANK.model)
   useModelChoiceAsked(session, opened)
   useEffect(() => {
     if (inBar) say(null)
@@ -198,7 +202,7 @@ export function ModelAction({ store, tenant, session }: Props) {
       }
       menu={tell => (
         <>
-          <FoldedChoice {...modelChoice(tell)} />
+          <FoldedChoice {...modelChoice(tell)} opened={opening} />
           <FoldedChoice {...effortChoice(tell)} />
         </>
       )}

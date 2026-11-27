@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
-import { HOLD_MARKER, REPLY, expect, quit, test } from './desktop.ts'
+import { HOLD_MARKER, REPLY, UPSTREAM_FAILURES, expect, quit, test } from './desktop.ts'
 
 // The tests share one server: each signs up a name of its own.
 async function signUp(page: Page): Promise<void> {
@@ -160,4 +160,61 @@ test('一轮没收场时退出再打开：这个会话显示在跑、有停止�
   await expect(page.getByRole('button', { name: '发送' })).toBeVisible({ timeout: 30_000 })
   await expect(stop).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('stopped.png') })
+})
+
+const [THROTTLED, DOWN, REFUSED] = Object.keys(UPSTREAM_FAILURES) as [string, string, string]
+
+async function failedWith(page: Page, marker: string) {
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  await page.getByRole('textbox', { name: '输入消息' }).fill(`${marker} 你好`)
+  await page.getByRole('button', { name: '发送' }).click()
+  const block = page.getByRole('status', { name: '这一轮失败了' })
+  await expect(block).toContainText('模型调用没有成功，这一轮没有得到回复。', { timeout: 60_000 })
+  return block
+}
+
+test('上游限流：失败下面说清是限流并给「换模型」；换一个模型再按重试，这一轮完成', async ({
+  launchApp,
+}, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, THROTTLED)
+  await expect(block).toContainText(
+    '模型供应商在限流，请求没有得到回复。可以稍后按「重试」，或换一个模型再试。',
+  )
+  await expect(block.getByRole('button', { name: '去填' })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('throttled.png') })
+  await block.getByRole('button', { name: '换模型' }).click()
+  const other = page.locator(
+    ':is([role=option], [role=menuitemradio]):not([aria-disabled=true]):not([data-state=checked])',
+  )
+  await expect(other.first()).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: testInfo.outputPath('choosing.png') })
+  await other.first().click()
+  await block.getByRole('button', { name: '重试' }).click()
+  await expect(page.getByText(REPLY).first()).toBeVisible({ timeout: 60_000 })
+  await expect(block).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('retried.png') })
+})
+
+test('上游网关出错：说的是暂时不可用，不说限流，同样给「换模型」', async ({
+  launchApp,
+}, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, DOWN)
+  await expect(block).toContainText(
+    '模型供应商暂时不可用，请求没有得到回复。可以稍后按「重试」，或换一个模型再试。',
+  )
+  await expect(block).not.toContainText('限流')
+  await expect(block.getByRole('button', { name: '换模型' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('down.png') })
+})
+
+test('密钥被拒：失败下面说供应商没有收下填的密钥，给「去填」', async ({ launchApp }, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, REFUSED)
+  await expect(block).toContainText('模型供应商没有收下填的密钥。换一把之后按「重试」接着做。')
+  await expect(block.getByRole('button', { name: '去填' })).toBeVisible()
+  await expect(block.getByRole('button', { name: '换模型' })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('refused.png') })
 })

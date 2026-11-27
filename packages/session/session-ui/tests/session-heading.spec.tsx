@@ -6,6 +6,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page } from './fixtures/frames.ts'
 import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
+import { providedOn } from '@omne-harness/shell-contract/testing'
+import { sessionModelChoiceKey } from '../src/module.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -45,14 +47,18 @@ function heading(): HTMLElement {
 }
 
 async function openLong(fake: ReturnType<typeof createFakeClient>): Promise<Context> {
-  const { root } = await mountModule(fake.client, TENANT)
+  return (await mountLong(fake)).root
+}
+
+async function mountLong(fake: ReturnType<typeof createFakeClient>) {
+  const mounted = await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(listPage([listed(LONG, 'say hello')]))
   await settle()
   fireEvent.click(screen.getByRole('button', { name: /say hello/ }))
   await settle()
   ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
   await settle()
-  return root
+  return mounted
 }
 
 async function openMore(): Promise<HTMLElement> {
@@ -332,6 +338,44 @@ it('收进「更多」的型号选择，打开时按这段会话重读列表：�
   const stopped = within(choices).getByRole('menuitemradio', { name: /text\/only/u })
   expect(stopped.getAttribute('aria-disabled')).toBe('true')
   expect(stopped.textContent).toContain('读不了这段会话里的 1 块内容')
+})
+
+it('型号收进「更多」时别处要换型号：「更多」打开，直接展开这段会话的型号列表', async () => {
+  layOut(560)
+  const fake = createFakeClient()
+  const { root, shell } = await mountLong(fake)
+  const model = 'test/reasoner'
+  await act(async () => {
+    providerOf(root, TAKEN.modelChoices).attach({
+      list: async () => ({
+        kind: 'listed',
+        choices: [
+          { route: model, selectable: true, note: null },
+          { route: 'test/other', selectable: true, note: null },
+        ],
+      }),
+    })
+  })
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model, revision: '1' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '1' },
+  })
+  await settle()
+  expect(screen.queryByRole('menu')).toBeNull()
+  act(() => providedOn(shell, sessionModelChoiceKey)?.open('another-session'))
+  await settle()
+  expect(screen.queryByRole('menu')).toBeNull()
+  act(() => providedOn(shell, sessionModelChoiceKey)?.open(LONG))
+  const choices = await screen.findByRole('menu', { name: /^模型/ })
+  fireEvent.click(within(choices).getByRole('menuitemradio', { name: 'test/other' }))
+  expect((await fake.next('select-model')).body).toMatchObject({
+    session: LONG,
+    model: 'test/other',
+  })
 })
 
 it('收进「更多」的推理强度沿用型号能力，选择后读回会话档位', async () => {
