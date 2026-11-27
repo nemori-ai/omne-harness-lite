@@ -359,6 +359,35 @@ describe('final decisions after an observed-only tail', () => {
     }
   })
 
+  it('owes no observed tail to an execution Session closed as uninterpretable; without that mark it does', async () => {
+    const f = await observedTail()
+    const reads = { ...f.reads, prefixes: [] }
+    const marked = (mark: Partial<NonNullable<WorkSnapshot['executions']>[number]>): Fixture => ({
+      ...f,
+      snapshot: {
+        ...f.snapshot,
+        executions: (f.snapshot.executions ?? []).map(item =>
+          item.run === f.run.run ? { ...item, ...mark } : item,
+        ),
+      },
+    })
+    expect(cancel(marked({ uninterpretable: true }), reads).kind).toBe('entries')
+    const held = f.snapshot.executions ?? []
+    const earlier = {
+      ...held[0]!,
+      run: 'run-earlier' as typeof f.run.run,
+      uninterpretable: true as const,
+    }
+    const beside: Fixture = { ...f, snapshot: { ...f.snapshot, executions: [earlier, ...held] } }
+    expect(cancel(beside, reads)).toMatchObject({
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('committedConsequences'),
+      },
+    })
+  })
+
   it('does not treat an explicitly empty consequence list as observed even when the index agrees', async () => {
     const f = await observedTail()
     expect(cancel(f).kind).toBe('entries')

@@ -12,7 +12,7 @@ import {
 } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
-import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
+import type { RecoveryTask, RunExecution, RunTerminal, WorkSnapshot } from './values.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
 import {
   SESSION_INTERPRETER,
@@ -248,6 +248,14 @@ function applyAttemptReleased(
   return null
 }
 
+function closedBy(
+  entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
+): Pick<RunExecution, 'terminal' | 'uninterpretable'> {
+  return entry.bounded?.kind === 'uninterpretable'
+    ? { terminal: entry.terminal, uninterpretable: true }
+    : { terminal: entry.terminal }
+}
+
 function applyRunTerminal(
   draft: Draft,
   entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
@@ -257,8 +265,9 @@ function applyRunTerminal(
   if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
   if (hasUnansweredCalls(draft))
     return 'a terminal while a tool call of the Run has no tool message'
+  const closed = closedBy(entry)
   draft.executions = (draft.executions ?? []).map(item =>
-    item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+    item.run === entry.terminal.run ? { ...item, ...closed } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
   if (draft.deferredInputs !== undefined) {

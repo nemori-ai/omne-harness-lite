@@ -119,6 +119,7 @@ export interface MutationContext {
   readonly root: string
   readonly base: string
   readonly files: readonly string[]
+  readonly tests: readonly string[]
   readonly outDir: string
   readonly exec: Executor
   readonly stryker: StrykerOptions
@@ -146,6 +147,7 @@ export async function mutateMember(
       ...run,
     }),
     cwd: context.root,
+    ...namedTestsEnv(member.path, context.tests),
   })
   if (!existsSync(json) || (outcome.code !== 0 && outcome.code !== 1))
     return {
@@ -158,6 +160,18 @@ export async function mutateMember(
     json,
     result: JSON.parse(readFileSync(json, 'utf8')) as PqwMutation,
   }
+}
+
+export const TESTS_ENV = 'OMNE_MUTATION_TESTS'
+
+function namedTestsEnv(
+  member: string,
+  tests: readonly string[],
+): { readonly env?: Readonly<Record<string, string>> } {
+  const own = tests
+    .filter(test => test.startsWith(`${member}/`))
+    .map(test => test.slice(member.length + 1))
+  return own.length === 0 ? {} : { env: { [TESTS_ENV]: own.join(',') } }
 }
 
 export interface PlannedMember {

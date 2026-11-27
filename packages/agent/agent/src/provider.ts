@@ -44,6 +44,7 @@ import { createControlWriter, releaseForeground } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
   AgentRunEndedFailedReceiver,
+  AgentRunFailed,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
 } from './run-failure.ts'
@@ -70,6 +71,13 @@ function endedReason(failure: Failure): Extract<AgentObservation, { kind: 'ended
     default:
       return 'unavailable'
   }
+}
+
+type Halt = Pick<AgentRunFailed, 'step' | 'node' | 'failure'>
+
+function threw(error: unknown): Halt {
+  const diagnostic = `the drive threw: ${thrownText(error)}`
+  return { step: null, node: null, failure: { kind: 'unavailable', owner: OWNER, diagnostic } }
 }
 
 function thrownText(error: unknown): string {
@@ -372,7 +380,7 @@ export function createProvider<P, B extends ContentBlock>(
     execution => (driving === null ? undefined : ((driving.poked = true), hint(execution))),
   )
 
-  function failRun(execution: AgentExecutionId, node: string | null, failure: Failure): void {
+  function failRun(execution: AgentExecutionId, halted: Halt): void {
     if (slot.kind !== 'running' || slot.execution !== execution) return
     // The drive cannot go on and holds nothing more: the slot is given back, so the next execution
     // is taken and a later attachment may resume this one. The execution stays open in the Journal.
@@ -383,8 +391,7 @@ export function createProvider<P, B extends ContentBlock>(
         tenant: binding.tenant,
         instance,
         execution,
-        node,
-        failure,
+        ...halted,
       })
     } catch {}
   }
@@ -511,15 +518,9 @@ export function createProvider<P, B extends ContentBlock>(
       }
     }
     const stopped = (halted: Halted | null) => {
-      if (halted !== null) failRun(execution, halted.node, halted.failure)
+      if (halted !== null) failRun(execution, { ...halted, step: coordinator.step() })
     }
-    void drive().then(stopped, (error: unknown) =>
-      failRun(execution, null, {
-        kind: 'unavailable',
-        owner: OWNER,
-        diagnostic: `the drive threw: ${thrownText(error)}`,
-      }),
-    )
+    void drive().then(stopped, (error: unknown) => failRun(execution, threw(error)))
   }
 
   async function acceptOriginal(

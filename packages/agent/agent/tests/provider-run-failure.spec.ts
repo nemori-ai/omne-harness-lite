@@ -123,7 +123,7 @@ describe('a run that stops on a node failure', () => {
 
   // D-31: a drive that cannot go on gives the slot back. The execution stays open in the Journal
   // for a later attachment; the instance takes the next execution.
-  it('reports once with tenant, instance, execution, node and failure, and frees the slot', async () => {
+  it('reports once with tenant, instance, execution, step, node and failure, and frees the slot', async () => {
     const reports: AgentRunFailed[] = []
     const { assembly } = await stoppingAtF3(event => reports.push(event))
     const handle = ok(await invoke(assembly))
@@ -136,6 +136,7 @@ describe('a run that stops on a node failure', () => {
         tenant: tenantA,
         instance: instance(),
         execution: handle.execution,
+        step: 'step-0',
         node: 'F3',
         failure: JOURNAL_REFUSED,
       },

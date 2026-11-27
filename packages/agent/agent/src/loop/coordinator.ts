@@ -93,7 +93,13 @@ import {
 } from './admission-read.ts'
 import { successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
-import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import {
+  localFailure,
+  namedStop,
+  nodeFailureCategory,
+  revocationWait,
+  type NodeFailureCategory,
+} from './node-failure.ts'
 import { acceptanceOf, nextInitialHandoff, nonEmpty, rejectedInput } from './initial-admission.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { judgeBatch } from './batch-judging.ts'
@@ -257,6 +263,7 @@ export type ReplyAdmissionReadReport = Readonly<{
 export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
 export interface ExecutionDrive {
+  step(): StepId | null
   runExecution(): Promise<Outcome<void, Halted>>
   waitForWake(
     input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
@@ -669,23 +676,20 @@ function coordinate<P>(
     return succeed('W0')
   }
 
-  function waitForRevocationCause() {
-    finishWait = true
-    return waitFor(
-      'E2',
-      {
-        kind: 'unavailable',
-        owner: AGENT_OWNER,
-        diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
-      },
-      null,
-    )
-  }
-
   function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
     finishWait = true
     waitFor(at, failure, null)
     return succeed<LoopNode>('W0')
+  }
+
+  async function withdrawnTo(failure: Failure): Promise<Outcome<LoopNode, Failure> | null> {
+    const latest = await load()
+    if ('failure' in latest) return null
+    takeLatestPosition(latest.ok)
+    if (latest.ok.state.kind === 'ended') return succeed('F4')
+    if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+    const revoked = authority === null ? null : revocationWait(failure, advancementOf(latest.ok))
+    return revoked === null ? null : waitForFault('E2', revoked)
   }
 
   async function failedNode(at: LoopNode, failure: Failure): Promise<Outcome<LoopNode, Failure>> {
@@ -696,12 +700,8 @@ function coordinate<P>(
     if (failure.kind === 'unavailable' && answeredByPort(failure) && authority !== null)
       return waitOnUnavailable(at, failure)
     if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
-      const latest = await load()
-      if ('ok' in latest) {
-        takeLatestPosition(latest.ok)
-        if (latest.ok.state.kind === 'ended') return succeed('F4')
-        if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
-      }
+      const withdrawn = await withdrawnTo(failure)
+      if (withdrawn !== null) return withdrawn
     }
     if (fault !== null) return fail(failure)
     const category = nodeFailureCategory(failure)
@@ -926,7 +926,7 @@ function coordinate<P>(
           { kind: 'unavailable', owner: AGENT_OWNER, diagnostic: 'execution is suspended' },
           null,
         )
-      return fail({ kind: 'stale-advance' })
+      return fail(namedStop())
     }
     let next = evaluated.ok
     if (next.kind === 'take-inputs') {
@@ -1361,7 +1361,6 @@ function coordinate<P>(
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind === 'unavailable') return waitFor('E2', read.failure, readFacts)
-        if (read.failure.kind === 'stale-advance') return waitForRevocationCause()
         return read
       }
       facts = read.ok
@@ -3022,6 +3021,7 @@ function coordinate<P>(
   }
 
   return {
+    step: () => checkpoint?.step ?? null,
     async accept(confirmedOpen) {
       return exclusive('E0', async () => {
         const start = originalOpen === null ? 'U0' : 'E0'

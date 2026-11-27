@@ -18,6 +18,7 @@ import {
   evidenceFields,
   inconsistent,
   invalidAt,
+  missingAt,
   unavailableAt,
   unique,
 } from './session-validation.ts'
@@ -191,7 +192,7 @@ export function validateInterpretationEntry(
     )
   if (entry.kind === 'call.execution-fact') {
     const consumption = snapshot.consumptions.find(item => item.id === entry.consumption)
-    if (consumption === undefined) unavailableAt('producer.originalConsumption')
+    if (consumption === undefined) missingAt('producer.originalConsumption')
     validateBinding(snapshot, consumption.binding, run)
     if (
       entry.fact.kind !== 'execution' ||

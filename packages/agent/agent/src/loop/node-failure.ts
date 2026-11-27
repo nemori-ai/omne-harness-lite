@@ -1,4 +1,5 @@
 import type { Failure, FailureCandidate } from '@omne-harness/agent-contract'
+import { AGENT_OWNER } from './identities.ts'
 
 export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed' }>['category']
 
@@ -48,5 +49,26 @@ export function nodeFailureCategory(failure: Failure): NodeFailureCategory | nul
       return 'invariant'
     default:
       return null
+  }
+}
+
+const namedStops = new WeakSet<Failure>()
+
+export function namedStop(): Failure {
+  const stop: Failure = { kind: 'stale-advance' }
+  namedStops.add(stop)
+  return stop
+}
+
+export function revocationWait(
+  failure: Failure,
+  advancement: Readonly<{ kind: string }>,
+): Extract<Failure, { kind: 'unavailable' }> | null {
+  if (failure.kind !== 'stale-advance' || namedStops.has(failure)) return null
+  if (advancement.kind !== 'current') return null
+  return {
+    kind: 'unavailable',
+    owner: AGENT_OWNER,
+    diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
   }
 }

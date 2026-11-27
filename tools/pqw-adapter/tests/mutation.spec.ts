@@ -107,6 +107,7 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
     root: '/repo',
     base: 'b',
     files: ['tools/t/src/j.ts', 'tools/u/src/k.ts'],
+    tests: [],
     outDir: out,
     exec,
     stryker: { recheck: false, timeoutFactor: '6' },
@@ -155,6 +156,7 @@ const context = (exec: Executor) => ({
   root: '/repo',
   base: 'b',
   files: [],
+  tests: [],
   outDir: scratch(),
   exec,
   stryker: NO_STRYKER_OPTIONS,
@@ -459,4 +461,19 @@ it('lists a range with the member line first, then its entries, then the total',
     'b：列范围失败（起不来）',
     '范围合计 0 行，上限 10',
   ])
+})
+
+it('names the test files of a member to the mutation run, relative to the member; a member with none runs its whole fast tier', async () => {
+  const one = recorder(command => {
+    writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: true } })
+    return { code: 0 }
+  })
+  const named = {
+    ...context(one.exec),
+    tests: ['tools/t/tests/a.spec.ts', 'tools/u/tests/b.spec.ts', 'tools/t/tests/c.spec.ts'],
+  }
+  await mutateMember(changedMember('tools/t'), named, { planOnly: false })
+  await mutateMember(changedMember('tools/v'), named, { planOnly: false })
+  expect(one.calls[0]?.env).toEqual({ OMNE_MUTATION_TESTS: 'tests/a.spec.ts,tests/c.spec.ts' })
+  expect(one.calls[1]?.env).toBeUndefined()
 })

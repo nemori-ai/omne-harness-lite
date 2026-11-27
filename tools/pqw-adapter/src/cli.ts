@@ -14,13 +14,14 @@ import { gitRepo } from './repo.ts'
 
 const HELP = `用法：
   cli.ts metrics  --base <起点> [--scope <路径>...] [--full] [--out <目录>] [--workers N]
-  cli.ts mutation --base <起点> [--scope <路径>...] [--files <路径>...] [--plan-only] [--max-lines N] [--out <目录>]
+  cli.ts mutation --base <起点> [--scope <路径>...] [--files <路径>...] [--tests <用例文件>...] [--plan-only] [--max-lines N] [--out <目录>]
                   [--timeout-factor <数>] [--timeout <时长>] [--recheck] [--recheck-limit N]
   cli.ts risk     --base <起点>
 在仓库根运行。根脚本是 pnpm run closeout:metrics、closeout:mutation、risk。
   --base        基线提交。不是 HEAD 的祖先时改用它与 HEAD 的合并点。改动文件是合并点到工作树的全部改动，含未提交与未跟踪的文件。
   --scope       只量这些路径下的改动，可给几个。
   --files       mutation 只变异这些文件，可给几个。
+  --tests       mutation 只跑这些用例文件，可给几个；预检、初跑与每个变异体都只跑它们。没点到的成员照旧跑整个快层。
   --full        metrics 快慢两层测试都跑，缺省只跑快层。
   --workers     metrics 每个成员的 vitest 工作进程数，缺省为 CPU 数的一半。
   --plan-only   mutation 只列出各成员的变异范围，不构建、不跑。

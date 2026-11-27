@@ -308,7 +308,7 @@ export function createSqlCompactionInputs<P>(
           ? succeed(source)
           : fail(unavailable('publication is not yet established under the original operation'))
       }
-      if (result.kind === 'refused') return fail(refusalFailure(result.reason))
+      if (result.kind === 'refused') return fail(refusalFailure(result))
       return fail(
         unavailable(
           result.kind === 'rolled-back' ? 'input publication rolled back' : result.diagnostic,
