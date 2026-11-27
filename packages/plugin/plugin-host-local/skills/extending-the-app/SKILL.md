@@ -26,5 +26,6 @@ Each directory is a whole plugin. A test of the release publishes it as it is he
 | --- | --- |
 | `examples/weather-protocol/` | A server protocol `weather/v1` with one read operation, on `access.protocols`. |
 | `examples/send-button-look/` | A look on the client: the accent token of the app, and the style of the send button. |
+| `examples/notes-page/` | A page in the sidebar that shows notes its own server side keeps: a client page that needs `notes/v1`, and the server protocol `notes/v1`. The page asks again until the server side answers. |
 
 To start from one, copy its directory into the workspace, give it a new name in `plugin.json`, and change what it does.

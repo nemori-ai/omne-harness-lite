@@ -9,13 +9,6 @@ import { blockingOverlay } from '@omne-harness/ui-kit'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
-import {
-  faceActions,
-  frameActions,
-  regionActions,
-  sizeActions,
-} from '../src/page/shell/layout-actions.ts'
-import { paletteActions, paletteSwitch } from '../src/page/shell/palette.tsx'
 import { DesktopShell } from '../src/page/shell/service.ts'
 import { fakeGate } from './support/fake-modules.tsx'
 import { settle, setup } from './support/shell-setup.tsx'
@@ -296,14 +289,7 @@ function pressOf(chord: string): KeyboardEventInit {
 
 /** Every key of the action table the application puts together, in this platform's chords. */
 function keys(t: Awaited<ReturnType<typeof onTheBack>>['t']): readonly KeymapRow[] {
-  const actions = [
-    ...regionActions(),
-    ...sizeActions(t.size),
-    ...frameActions(),
-    ...faceActions(t.state.face, true),
-    ...paletteActions(paletteSwitch()),
-    ...t.state.slots.items('actions'),
-  ]
+  const actions = t.state.slots.items('actions')
   return keymapOf(actions, {}, MAC)
 }
 

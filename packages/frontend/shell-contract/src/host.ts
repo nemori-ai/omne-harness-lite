@@ -1,4 +1,4 @@
-import type { Contract } from '@omne-harness/dynamis'
+import type { Contract, Effect } from '@omne-harness/dynamis'
 export type LoginCredentials = Readonly<{ loginIdentifier: string; credential: string }>
 
 export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
@@ -21,7 +21,12 @@ export interface ScopeSource {
 }
 
 /** A scope a module opened under itself: `by` is the name its entries carry on the registry. */
-export type Hosted = Readonly<{ by: string; dispose(): Promise<void> }>
+export type Hosted = Readonly<{
+  by: string
+  dispose(): Promise<void>
+  /** How each item this scope put stands now: in effect, or why not. */
+  effects(): readonly Effect[]
+}>
 
 /** What did not come up: a module that threw while it started, or what a module holds back and says so. */
 export type Fallen = Readonly<{ name: string; why: 'threw' | 'held' }>

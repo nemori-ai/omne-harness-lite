@@ -2,29 +2,34 @@ import type { ActionItem } from '@omne-harness/shell-contract'
 import { rememberFocus } from '@omne-harness/ui-kit'
 import { bindActionKeys, type ActionKeys } from './dispatch.ts'
 import { faceActions, frameActions, regionActions, sizeActions } from './layout-actions.ts'
-import { paletteActions, type PaletteSwitch } from './palette.tsx'
-import type { SizeSwitch } from './sidebar.tsx'
+import { paletteActions } from './palette.tsx'
 import type { KeyTarget } from './size.ts'
 import type { ShellState } from './state.ts'
 
 const KEYS = { name: 'shell keys' }
 const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 
-/** The shell's own actions first, then what the modules put; a refusal or a failure is told. */
-export function shellKeys(state: ShellState, size: SizeSwitch, palette: PaletteSwitch) {
+/** The actions of the shell itself, put on shell.actions for the whole deployment and locked; turning the face only while there is one to turn to. */
+export function ownActions(state: ShellState): readonly ActionItem[] {
+  return [
+    ...regionActions(),
+    ...sizeActions(state.size),
+    ...frameActions(),
+    ...paletteActions(state.palette),
+  ]
+}
+
+export const turnActions = (state: ShellState): readonly ActionItem[] =>
+  faceActions(state.face, state.login.state() === 'signed-in')
+
+/** The actions on shell.actions, the shell's own among them; a refusal or a failure is told. */
+export function shellKeys(state: ShellState) {
   const tell = (id: string, title: string): void =>
     state.told.show(KEYS, { id, tone: 'attention', title })
   return {
     mac: MAC,
     changes: () => state.slots.items('keymap')[0]?.changes() ?? {},
-    actions: (): readonly ActionItem[] => [
-      ...regionActions(),
-      ...sizeActions(size),
-      ...frameActions(),
-      ...faceActions(state.face, state.login.state() === 'signed-in'),
-      ...paletteActions(palette),
-      ...state.slots.items('actions'),
-    ],
+    actions: (): readonly ActionItem[] => state.slots.items('actions'),
     refused: (action: ActionItem, reason: string) => tell(action.id, reason),
     failed: (action: ActionItem, error: unknown) => {
       console.error(error)

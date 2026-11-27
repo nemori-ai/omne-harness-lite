@@ -21,11 +21,13 @@ export function serverPointsOf(
   const declared = registry === undefined ? undefined : list<Contract>(registry, CATALOG, null, [])
   if (declared?.kind !== 'read') return []
   return declared.items.map(({ entry }): KnownPoint => {
-    const { name, item, binding } = entry.item
+    const { name, item, binding, scopes } = entry.item
     const category = categories?.atPoint(name)
     const made = category !== undefined && 'creation' in category ? category.creation : 'none'
     const takes = made === 'none' ? (item.kind === 'data' ? 'data' : 'code') : made
-    return { name, side: 'server', takes, when: binding === 'run' ? 'running' : 'build' }
+    const shut = made === 'none' && scopes !== undefined && scopes !== 'all'
+    const closed = shut ? { closed: { why: scopes.why, note: scopes.note } } : {}
+    return { name, side: 'server', takes, when: binding === 'run' ? 'running' : 'build', ...closed }
   })
 }
 

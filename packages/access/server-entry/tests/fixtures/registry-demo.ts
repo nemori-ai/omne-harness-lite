@@ -65,7 +65,7 @@ function settle(title: string) {
 
 const registry = createStandaloneRegistry()
 const subscription = registry.subscribe(change => {
-  if (change.change === 'points') return
+  if (change.change === 'points' || change.change === 'scoped') return
   const { name, major } = change.protocol
   say(`  subscriber: revision ${change.revision}, ${change.change} ${name}/v${major}`)
 })

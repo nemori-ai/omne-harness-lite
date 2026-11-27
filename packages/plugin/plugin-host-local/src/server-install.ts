@@ -144,7 +144,7 @@ async function madeBy(
     throw new Error(`${member.export} threw: ${reasonOf(error)}`)
   }
   if (form === undefined) {
-    const made = genericItem(rules, given)
+    const made = genericItem(rules, given, member)
     if ('kind' in made) throw new Error(reasonText(made))
     return made.item
   }

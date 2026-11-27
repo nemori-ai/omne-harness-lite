@@ -103,6 +103,21 @@ describe('a plugin whose part is declared later', () => {
     )
   })
 
+  it('loads by itself once another plugin of the tenant declares the part it waits for', async () => {
+    const t = await world()
+    const host = given('late', 'v1', {
+      point: 'shell.parts',
+      key: 'late.part',
+      data: { label: '后来的部位', summary: '一份 Plugin 后来声明的部位', depths: ['style'] },
+    })
+    t.source.set(ALICE, [given('tint', 'v1', style('late.part', 'red'))])
+    await vi.waitFor(() => expect(t.told('tint')?.waiting).toEqual(['late.part']))
+    t.source.set(ALICE, [given('tint', 'v1', style('late.part', 'red')), host])
+    await vi.waitFor(() => expect(t.told('late')).toMatchObject({ state: 'loaded', reason: null }))
+    await vi.waitFor(() => expect(t.told('tint')).toMatchObject({ state: 'loaded', reason: null }))
+    expect(t.styles()).toEqual(['late.part by plugin:tint@v1'])
+  })
+
   it('waits for every part it lacks, and loads only when all of them are declared', async () => {
     const t = await world()
     t.source.set(ALICE, [

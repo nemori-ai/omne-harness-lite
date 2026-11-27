@@ -19,7 +19,7 @@ const sha256 = (bytes: Uint8Array): Uint8Array => createHash('sha256').update(by
 
 it("the digest worked out with the caller's SHA-256 is the one the snapshot records, for every revision", () => {
   const { digests } = JSON.parse(readFileSync(file, 'utf8')) as { digests: Record<string, string> }
-  expect(Object.keys(digests)).toEqual(['1', '2'])
+  expect(Object.keys(digests)).toEqual(['1', '2', '3'])
   for (const [revision, recorded] of Object.entries(digests))
     expect(contractDigest(accessProtocol, Number(revision), sha256)).toBe(recorded)
 })

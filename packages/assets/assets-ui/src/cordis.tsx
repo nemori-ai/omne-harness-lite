@@ -41,29 +41,35 @@ export const assetsUiModule = defineUiModule({
     const categoryNames = createCategoryNames(client, server.get())
     const claims = holdingClaims(shell)
     provide(assetGovernanceKey, governancePort(governance, boundRow(shell)))
-    shell.contribute('pages', {
-      id: ASSETS_PAGE,
-      title: '资产',
-      order: ASSETS_PAGE_ORDER,
-      icon: 'resource',
-      render: ({ scope, subject }) =>
-        scope === undefined ? null : (
-          <ControlDrawContext.Provider value={shell}>
-            <AssetsPage
-              governance={governance}
-              tenant={scope}
-              {...(subject === undefined ? {} : { pointAt: subject })}
-              categoryNames={categoryNames}
-              categorySlot={category => assetsCategory.slot(shell, category, { category }, inOrder)}
-              holdingSlot={(category, name) =>
-                assetsHolding.slot(shell, category, { category, name }, inOrder)
-              }
-              claims={claims}
-              pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
-            />
-          </ControlDrawContext.Provider>
-        ),
-    })
+    shell.contribute(
+      'pages',
+      {
+        id: ASSETS_PAGE,
+        title: '资产',
+        order: ASSETS_PAGE_ORDER,
+        icon: 'resource',
+        render: ({ scope, subject }) =>
+          scope === undefined ? null : (
+            <ControlDrawContext.Provider value={shell}>
+              <AssetsPage
+                governance={governance}
+                tenant={scope}
+                {...(subject === undefined ? {} : { pointAt: subject })}
+                categoryNames={categoryNames}
+                categorySlot={category =>
+                  assetsCategory.slot(shell, category, { category }, inOrder)
+                }
+                holdingSlot={(category, name) =>
+                  assetsHolding.slot(shell, category, { category, name }, inOrder)
+                }
+                claims={claims}
+                pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
+              />
+            </ControlDrawContext.Provider>
+          ),
+      },
+      { lock: true },
+    )
     shell.contribute('pages', {
       id: 'settings',
       title: '设置',

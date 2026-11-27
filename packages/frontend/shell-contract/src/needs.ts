@@ -102,8 +102,7 @@ type Client = Record<string, (...args: unknown[]) => unknown> & {
   observe?: Record<string, (...args: unknown[]) => unknown>
 }
 
-/** A client that is always there: each call goes to the client pinned for this need at that moment, or answers unavailable. */
-export function pinnedClient(registry: () => Registry, reference: Reference): unknown {
+function pinnedClient(registry: () => Registry, reference: Reference): unknown {
   const pinned = (): Client | undefined => {
     const answer = resolve<{ client: Client }>(registry(), reference, [])
     return answer.kind === 'one' ? answer.entry.item.client : undefined
@@ -128,6 +127,10 @@ export function pinnedClient(registry: () => Registry, reference: Reference): un
     },
   )
 }
+
+/** A client that is always there: each call goes to the client pinned for this need at that moment, or answers unavailable. */
+export const protocolClientOf = (registry: () => Registry, need: ProtocolNeed): unknown =>
+  pinnedClient(registry, referenceOf(need))
 
 /** What is at the one spot of a point now. */
 export function pointReader<T>(

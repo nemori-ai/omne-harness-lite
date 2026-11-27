@@ -1,6 +1,8 @@
+import { createElement } from 'react'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { defineIcon, type Icon } from './glyph.ts'
 import { GLYPHS } from './glyphs.ts'
-import { DisclosureIcon } from './kit-only.ts'
+import { DisclosureIcon, UnknownIcon } from './kit-only.ts'
 
 export { type Icon } from './glyph.ts'
 export { MOTIONS } from './glyphs.ts'
@@ -45,7 +47,6 @@ export const DoneIcon = defineIcon('done', GLYPHS.done)
 export const FailedIcon = defineIcon('failed', GLYPHS.failed)
 export const CancelledIcon = defineIcon('cancelled', GLYPHS.cancelled)
 export const WarningIcon = defineIcon('warning', GLYPHS.warning)
-export const UnknownIcon = defineIcon('unknown', GLYPHS.unknown)
 export const ProgressIcon = defineIcon('progress', GLYPHS.progress)
 export const TimeIcon = defineIcon('time', GLYPHS.time)
 
@@ -131,4 +132,19 @@ export const ICONS: Readonly<Record<string, Icon>> = {
   turn: TurnIcon,
   lock: LockIcon,
   magnet: MagnetIcon,
+}
+
+type Named = Parameters<Icon>[0] & Readonly<{ name: string }>
+
+function Unnamed({ name, size = 24, className, ...props }: Named): React.JSX.Element {
+  return useRedrawn('icon', name, { name, size, className }, () =>
+    createElement(UnknownIcon, { size, className, ...props }),
+  )
+}
+
+export function NamedIcon({ name, ...props }: Named): React.JSX.Element {
+  const Known = ICONS[name]
+  return Known === undefined
+    ? createElement(Unnamed, { name, ...props })
+    : createElement(Known, props)
 }

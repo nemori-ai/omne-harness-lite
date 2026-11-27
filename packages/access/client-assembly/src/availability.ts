@@ -11,6 +11,8 @@ export type AvailabilityView = {
   readonly points: ReadonlyMap<string, ServerPoint>
   /** The protocols two instances of the server hold at once: none of them is served. */
   readonly conflicts: ReadonlySet<string>
+  /** How many times the protocols of tenants changed, where the server tells it. */
+  readonly scoped?: number
 }
 
 /** A point of the other tree. `keys` is there only for a point that makes its keys public. */
@@ -70,7 +72,8 @@ export function applyFrame(
     const open = new Map(entries(protocols))
     const conflicts = conflictsOf(frame.conflicts)
     const revisions = new Map(told(protocols))
-    return { kind: 'apply', view: { revision, open, revisions, points, conflicts } }
+    const view = { revision, open, revisions, points, conflicts }
+    return { kind: 'apply', view: withScoped(view, frame.scoped) }
   }
   if (view === undefined || frame.revision !== view.revision + 1) return { kind: 'resubscribe' }
   const open = new Map(view.open)
@@ -83,8 +86,12 @@ export function applyFrame(
   for (const [text, revision] of told(frame.added)) revisions.set(text, revision)
   const { points } = view
   const conflicts = conflictsOf(frame.conflicts)
-  return { kind: 'apply', view: { revision: frame.revision, open, revisions, points, conflicts } }
+  const next = { revision: frame.revision, open, revisions, points, conflicts }
+  return { kind: 'apply', view: withScoped(next, frame.scoped) }
 }
+
+const withScoped = (view: AvailabilityView, scoped: number | undefined): AvailabilityView =>
+  scoped === undefined ? view : { ...view, scoped }
 
 export type Backoff = { readonly delayMs: (attempt: number) => number }
 

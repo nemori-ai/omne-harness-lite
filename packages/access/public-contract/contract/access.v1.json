@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:96cfa660d2347e783461b862c08b838140af2bdbad1784d5f81aa0a028111277",
-    "2": "sha256:7550f0dfa63117374630f20bbab35a9e566f07328676a426e87163edeaa8736b"
+    "2": "sha256:7550f0dfa63117374630f20bbab35a9e566f07328676a426e87163edeaa8736b",
+    "3": "sha256:094fd01a2d9dc8c59d71e306aed995eb1aeb65c2ad5749a51e0ead25814b7197"
   },
   "major": 1,
   "name": "access",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "availability": {
@@ -124,6 +125,13 @@
                   "rule": {
                     "kind": "positive-integer"
                   }
+                },
+                "scoped": {
+                  "optional": true,
+                  "rule": {
+                    "kind": "count"
+                  },
+                  "since": 3
                 }
               },
               "kind": "object"
@@ -218,6 +226,13 @@
                   "rule": {
                     "kind": "positive-integer"
                   }
+                },
+                "scoped": {
+                  "optional": true,
+                  "rule": {
+                    "kind": "count"
+                  },
+                  "since": 3
                 }
               },
               "kind": "object"
@@ -231,6 +246,52 @@
         }
       }
     },
-    "operations": {}
+    "operations": {
+      "scoped": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "protocols": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "contract": {
+                        "rule": {
+                          "kind": "json"
+                        }
+                      },
+                      "major": {
+                        "rule": {
+                          "kind": "positive-integer"
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 3
+      }
+    }
   }
 }

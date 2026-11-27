@@ -11,13 +11,15 @@ import {
   type Outcome,
   type PointRules,
 } from '@omne-harness/plugin-protocol'
-import type {
-  Changes,
-  ClientGuestForm,
-  Described,
-  Hosted,
-  ScopeSource,
-  Toast,
+import {
+  needProtocol,
+  protocolClientOf,
+  type Changes,
+  type ClientGuestForm,
+  type Described,
+  type Hosted,
+  type ScopeSource,
+  type Toast,
 } from '@omne-harness/shell-contract'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
@@ -43,6 +45,7 @@ export type InstallShell = Readonly<{
   navigate(page: string, subject?: string): void
   toast(toast: Toast): void
   scope: Pick<ScopeSource, 'get' | 'subscribe'>
+  registry: Parameters<typeof protocolClientOf>[0]
 }>
 
 type Put = (shell: InstallShell) => void
@@ -68,6 +71,7 @@ type Pending = Readonly<{
   member: ModuleMember
   code: Code
   rules: PointRules
+  ports: object
   form?: ClientGuestForm
 }>
 
@@ -85,6 +89,7 @@ type Asked = Readonly<{
   scope: Scope
   code: Code | undefined
   files: string | undefined
+  ports: object
 }>
 
 const spotOf = ({ point, key, id, rank }: Member) => ({
@@ -98,7 +103,7 @@ const spotOf = ({ point, key, id, rank }: Member) => ({
 const SKIN_ONLY =
   'a skin puts only on a point that holds one item for a key, where the most specific counts'
 
-function stepOf({ shell, points, scope, code, files, skin }: Asked, member: Member): Step {
+function stepOf({ shell, points, scope, code, files, skin, ports }: Asked, member: Member): Step {
   if ('directory' in member) return refused('this side takes no directory')
   const rules = points.get(member.point)
   if (
@@ -124,7 +129,10 @@ function stepOf({ shell, points, scope, code, files, skin }: Asked, member: Memb
   if (judged.kind === 'code')
     return code === undefined || !('module' in member)
       ? refused('this application loads no code')
-      : { kind: 'code', pending: { member, code, rules, ...(form !== undefined && { form }) } }
+      : {
+          kind: 'code',
+          pending: { member, code, rules, ports, ...(form !== undefined && { form }) },
+        }
   const data = 'data' in member ? member.data : undefined
   try {
     const item =
@@ -147,7 +155,7 @@ const filesAt = (place: string): object =>
 
 /** Loads the file of a member of code and takes its export: how to put its drawing, or why it cannot be. */
 async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promise<Put | string> {
-  const { code, member, rules, form } = pending
+  const { code, member, rules, form, ports } = pending
   const { module: path, export: name } = member
   const loaded = await code
     .load(listed.name, listed.version, path)
@@ -158,12 +166,12 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
   if (typeof made !== 'function') return `${path} exports no function named ${name}`
   return shell => {
     const files = code.files?.(listed.name, listed.version)
-    const given = called(name, () => made(handedTo(code, shell, files)))
+    const given = called(name, () => made(handedTo(code, shell, files, ports)))
     const source =
       files === undefined ? undefined : { module: `${files}${path}`, export: name, files }
     const item =
       form === undefined
-        ? genericItem(rules, given)
+        ? genericItem(rules, given, member)
         : { item: form.form(given, { key: member.key }) }
     if ('kind' in item) throw new Error(reasonText(item))
     shell.putItem(
@@ -176,17 +184,36 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
 }
 
 /** What the code of a plugin is called with: what the application gives, the shell a guest may use, and its files. */
-function handedTo(code: Code, shell: InstallShell, files: string | undefined): object {
+function handedTo(
+  code: Code,
+  shell: InstallShell,
+  files: string | undefined,
+  ports: object,
+): object {
   return Object.freeze({
     ...code.given,
     shell: guestOf(shell),
+    ports,
     ...(files !== undefined && { files: filesAt(files) }),
   })
 }
 
+const PROTOCOL = /^([^/]+)\/v([1-9][0-9]*)$/u
+
+function portsOf(shell: InstallShell, needs: readonly string[]): object | string {
+  const ports: Record<string, unknown> = {}
+  for (const need of needs) {
+    const key = PROTOCOL.exec(need)
+    if (key === null) return `needs ${need}: this side lends only protocols, each <name>/v<major>`
+    const protocol = needProtocol({ name: key[1]!, major: Number(key[2]) })
+    ports[need] = protocolClientOf(() => shell.registry(), protocol)
+  }
+  return Object.freeze(ports)
+}
+
 export function handedNames(code: Code | undefined, shell: InstallShell): readonly string[] {
   if (code === undefined) return []
-  const handed = handedTo(code, shell, code.files === undefined ? undefined : '/')
+  const handed = handedTo(code, shell, code.files === undefined ? undefined : '/', {})
   return Object.entries(handed).flatMap(([name, value]) => [
     name,
     ...(typeof value === 'object' && value !== null
@@ -228,13 +255,14 @@ function stepsOf(
   shell: InstallShell,
   { name, version, members, kind }: Listed,
   scope: Scope,
+  ports: object,
   code?: Code,
 ): readonly Ready[] | Outcome {
   const points = new Map(
     shell.described().points.map(point => [point.name, point.contract] as const),
   )
   const files = code?.files?.(name, version)
-  const asked: Asked = { shell, points, scope, code, files, skin: kind === 'skin' }
+  const asked: Asked = { shell, points, scope, code, files, ports, skin: kind === 'skin' }
   const places = members.map(member => `${member.point}\n${member.key}`)
   const ready: Ready[] = []
   const faults: Labelled[] = []
@@ -281,14 +309,28 @@ function putAll(inside: InstallShell, ready: readonly Loaded[]): void {
   }
 }
 
+const spotText = (...parts: readonly string[]): string =>
+  parts.filter(part => part !== '').join(' ')
+
 function refusedOf(changes: Changes, by: string): Outcome | undefined {
   const mine = changes.refused.filter(each => each.by === by)
   if (mine.length === 0) return undefined
   return outcomeOf(
     mine.map(({ point, key, reason, absent }) => ({
-      label: `${point} ${key}`,
+      label: spotText(point, key),
       fault:
         absent === undefined ? { reason } : { reason, absent: { kind: 'reference', name: absent } },
+    })),
+  )
+}
+
+const lockedOf = (hosted: Hosted): Outcome | undefined => {
+  const locked = hosted.effects().filter(effect => effect.state === 'locked')
+  if (locked.length === 0) return undefined
+  return outcomeOf(
+    locked.map(({ entry, detail }) => ({
+      label: spotText(entry.point, entry.key, entry.id),
+      fault: { reason: `locked by ${detail}: the app keeps its own item here` },
     })),
   )
 }
@@ -301,7 +343,9 @@ export async function installOn(
   code?: Code,
 ): Promise<Outcome> {
   if (listed.fault !== undefined) return failed(listed.fault)
-  const steps = stepsOf(shell, listed, scope, code)
+  const ports = portsOf(shell, listed.needs ?? [])
+  if (typeof ports === 'string') return failed(ports)
+  const steps = stepsOf(shell, listed, scope, ports, code)
   if (!Array.isArray(steps)) return steps as Outcome
   const ready = await loadedOf(listed, steps, scope)
   if (typeof ready === 'string') return failed(ready)
@@ -309,7 +353,7 @@ export async function installOn(
     .host(fiberOf(listed.name, listed.version), inside => putAll(inside, ready))
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
-  const refusal = refusedOf(shell.changesFor(scope), hosted.by)
+  const refusal = refusedOf(shell.changesFor(scope), hosted.by) ?? lockedOf(hosted)
   if (refusal === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
   await hosted.dispose()
   return refusal
