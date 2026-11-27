@@ -171,7 +171,7 @@ MCP 不拥有：接入点是否已采用、采用怎样求值（资产与装配�
 
 ### 事件
 
-- 对端用协议修订 2026-07-28 或以后、并声明了事件扩展时，本组取它的 [MCP 事件类型](../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type)：名字、说明、订阅参数的形状、内容的形状、支持的送法。说明是对端的字，是不可信值。订阅参数里标了 `x-mcp-header` 而标注不合规范的事件类型不取，记一条警告。
+- 对端用的协议修订是按 `server/discover` 协商扩展的那一代、并声明了事件扩展时，本组取它的 [MCP 事件类型](../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type)：名字、说明、订阅参数的形状、内容的形状、支持的送法。说明是对端的字，是不可信值。订阅参数里标了 `x-mcp-header` 而标注不合规范的事件类型不取，记一条警告。
 - [MCP 事件订阅](../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-event-subscription--mcp-事件订阅--mcp-event-subscription)是 omne 向一个接入点要一类事件，身份是租户、持有、对端账号、事件类型名与规范化后的参数。它是正本，耐久：带送法、收到的位置、状态、最近一次的事由与一组订阅者的引用。本组不认识订阅者是谁。
 - 有了第一个订阅者才向对端订；最后一个订阅者走了就关流并删掉订阅。没有订阅者的事件类型，本组不向对端要。
 - 送法从对端列的与本组会的（拉、长连接推）里选：都有时用长连接推，只有拉就拉，只有回调的订不了并写明原因。本组不做回调那种送法。

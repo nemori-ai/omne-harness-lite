@@ -90,6 +90,15 @@ export {
 } from './envelope.ts'
 export { withheldTools } from './withheld.ts'
 export {
+  EVENTS_EXTENSION,
+  declaresEvents,
+  readEventType,
+  type EventCatalogRecord,
+  type EventDelivery,
+  type EventType,
+  type EventTypeRefusal,
+} from './events.ts'
+export {
   authorizationChallengeOf,
   authorizationDiscoveryOf,
   credentialRefusalOf,
@@ -173,6 +182,7 @@ export {
   getTaskResultRequest,
   legacyInitializeParamsOf,
   listActionsRequest,
+  listEventTypesRequest,
   notificationTextOf,
   peerRequestAnswerOf,
   requestMetaOf,
@@ -218,6 +228,7 @@ export type {
   ActionInvoker,
   CancelAnswer,
   CatalogView,
+  EventCatalogView,
   ConnectFailure,
   ConnectionState,
   Connections,

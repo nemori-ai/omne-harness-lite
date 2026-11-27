@@ -16,6 +16,7 @@ import type { CatalogView, EndpointStatusView, RefreshResult } from '@omne-harne
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
 import { beginOn, disconnectOn } from './connect.ts'
+import { eventTypesOn } from './events.ts'
 import { createEndpointObservation } from './observe-endpoints.ts'
 import type { McpAccessSettings, McpFaces, McpPrincipals } from './ports.ts'
 import {
@@ -257,6 +258,11 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
   const disconnect: Handlers['operations']['disconnect'] = (call, body) =>
     onEndpoint(call, body, ({ faces, access }, { ref }) => disconnectOn(faces.connect, access, ref))
 
+  const listEventTypes: Handlers['operations']['list-event-types'] = (call, body) =>
+    onEndpoint(call, body, ({ faces, access }, { ref }) =>
+      eventTypesOn(faces.discovery, access, ref),
+    )
+
   return {
     operations: {
       'list-endpoints': listEndpoints,
@@ -264,6 +270,7 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
       'refresh-endpoint': refreshEndpoint,
       'begin-connect': beginConnect,
       disconnect,
+      'list-event-types': listEventTypes,
     },
     observations: { 'observe-endpoints': createEndpointObservation(input) },
   }

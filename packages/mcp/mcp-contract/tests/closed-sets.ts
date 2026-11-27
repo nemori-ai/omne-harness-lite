@@ -110,6 +110,7 @@ export const ANSWER_MALFORMED_WHAT = [
   'error-missing',
   'error-shape',
   'tools-missing',
+  'events-missing',
   'cursor-invalid',
   'discover-shape',
 ] as const satisfies readonly AnswerMalformed['what'][]

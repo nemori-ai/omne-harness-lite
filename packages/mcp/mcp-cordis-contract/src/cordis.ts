@@ -5,6 +5,7 @@ import type {
   ActionInvoker,
   EndpointConnect,
   EndpointStatus,
+  EventCatalogRecord,
   TaskWatch,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -40,6 +41,9 @@ export abstract class ActionDiscoveryService<P> extends Service implements Actio
   abstract peer(
     ...args: Parameters<ActionDiscovery<P>['peer']>
   ): ReturnType<ActionDiscovery<P>['peer']>
+  abstract eventTypes(
+    ...args: Parameters<ActionDiscovery<P>['eventTypes']>
+  ): ReturnType<ActionDiscovery<P>['eventTypes']>
 }
 
 export const mcpActionDiscoveryKey = ActionDiscoveryService.provide
@@ -177,6 +181,20 @@ export abstract class CatalogStoreService extends Service implements CatalogStor
 
 export const mcpCatalogStoreKey = CatalogStoreService.provide
 
+export abstract class EventCatalogStoreService
+  extends Service
+  implements CatalogStore<EventCatalogRecord>
+{
+  static readonly provide = 'mcpEventCatalogStore'
+  constructor(ctx: Context) {
+    super(ctx, EventCatalogStoreService.provide)
+  }
+  abstract readonly read: CatalogStore<EventCatalogRecord>['read']
+  abstract readonly write: CatalogStore<EventCatalogRecord>['write']
+}
+
+export const mcpEventCatalogStoreKey = EventCatalogStoreService.provide
+
 /**
  * Where the bridge marks a checkpoint whose continuation it sends, as a service; the bridge takes it at each resume.
  *
@@ -303,6 +321,7 @@ declare module '@deepseek-ai/cordis' {
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
     mcpCatalogStore: CatalogStoreService
+    mcpEventCatalogStore: EventCatalogStoreService
     mcpContinuationRecords: ContinuationRecordsService
     mcpTaskRecords: TaskRecordsService
     mcpTaskWatch: TaskWatchService<unknown>

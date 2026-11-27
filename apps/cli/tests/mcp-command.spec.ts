@@ -303,3 +303,39 @@ describe('mcp connect and disconnect (C201, C206)', () => {
     expect(mcpCalls(service).at(-1)?.body).toEqual({ tenant: tenantText, name: 'desk' })
   })
 })
+
+describe('mcp events (C301)', () => {
+  const answering =
+    (events: unknown) =>
+    (seen: Seen): Answer | undefined =>
+      seen.operation === 'list-event-types' ? { outcome: 'succeeded', body: { events } } : undefined
+
+  it('lists the kinds of events an endpoint offers, with how each is delivered', async () => {
+    const service = await loggedIn(
+      answering({
+        kind: 'acquired',
+        types: [
+          {
+            name: 'incident.created',
+            description: 'An incident was opened.',
+            delivery: ['poll', 'push'],
+          },
+        ],
+      }),
+    )
+    const result = await cli(['mcp', 'events', 'desk'])
+    expect(result.code).toBe(0)
+    expect(result.stdout.split('\n')[0]).toMatch(/^EVENT\s+DELIVERY\s+DESCRIPTION$/u)
+    expect(result.stdout).toMatch(/incident\.created\s+poll,push\s+An incident was opened\./u)
+    expect(mcpCalls(service).at(-1)?.body).toEqual({ tenant: tenantText, name: 'desk' })
+  })
+
+  it('says when an endpoint offers no events, and when they were not taken yet: neither is an empty table', async () => {
+    await loggedIn(answering({ kind: 'not-declared' }))
+    expect((await cli(['mcp', 'events', 'desk'])).stdout).toBe('The endpoint offers no events.\n')
+    await loggedIn(answering({ kind: 'not-acquired' }))
+    expect((await cli(['mcp', 'events', 'desk'])).stdout).toBe(
+      'Events: not acquired (refresh the endpoint first)\n',
+    )
+  })
+})

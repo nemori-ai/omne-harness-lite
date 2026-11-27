@@ -86,7 +86,18 @@ const notBegun = ruleCodec(
 )
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`. */
+const eventType = object({
+  name: { rule: text },
+  description: { rule: anyText },
+  delivery: { rule: array(literal('poll', 'push', 'webhook')) },
+})
+
+const eventTypes = oneOf(
+  object({ kind: { rule: literal('acquired') }, types: { rule: array(eventType) } }),
+  object({ kind: { rule: literal('not-declared', 'not-acquired') } }),
+)
+
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`; revision 4 lists the event types of an endpoint. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,
@@ -145,6 +156,15 @@ export const mcpProtocol = defineProtocol({
         unsupported: notOAuth,
       },
       since: 3,
+    },
+    'list-event-types': {
+      ...read,
+      body: ruleCodec(object(ofEndpoint)),
+      outcomes: {
+        succeeded: ruleCodec(object({ events: { rule: eventTypes } })),
+        'not-visible': notVisible,
+      },
+      since: 4,
     },
   },
   observations: {

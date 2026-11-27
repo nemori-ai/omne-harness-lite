@@ -5,6 +5,7 @@ import type {
   ActionInvoker,
   EndpointConnect,
   EndpointStatus,
+  EventCatalogRecord,
   McpConfig,
   McpPorts,
   TaskWatch,
@@ -32,6 +33,7 @@ import {
   mcpCallbackReceiverKey,
   mcpGrantConnectorKey,
   mcpCatalogStoreKey,
+  mcpEventCatalogStoreKey,
   mcpTaskRecordsKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
@@ -208,6 +210,16 @@ function storeOf(ctx: Context): CatalogStore {
   }
 }
 
+function eventStoreOf(ctx: Context): CatalogStore<EventCatalogRecord> {
+  return {
+    read: key =>
+      ctx.get(mcpEventCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpEventCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
 function tasksOf(ctx: Context): TaskRecords {
   const unavailable = () => Promise.resolve(fail('unavailable' as const))
   return {
@@ -249,6 +261,9 @@ class HostActionDiscovery extends ActionDiscoveryService<unknown> {
   }
   peer(...args: Parameters<ActionDiscovery<unknown>['peer']>) {
     return this.discovery.peer(...args)
+  }
+  eventTypes(...args: Parameters<ActionDiscovery<unknown>['eventTypes']>) {
+    return this.discovery.eventTypes(...args)
   }
 }
 
@@ -349,6 +364,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
         store: storeOf(ctx),
+        eventStore: eventStoreOf(ctx),
         tasks: tasksOf(ctx),
         grants: grantsOf(ctx),
         callbacks: callbacksOf(ctx),

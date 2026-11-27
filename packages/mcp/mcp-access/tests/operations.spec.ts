@@ -690,3 +690,69 @@ const LIMITS = {
   maxStringLength: 100_000,
   maxNumberLength: 32,
 }
+
+describe('step 5: list-event-types (C301)', () => {
+  const type = {
+    name: 'incident.created',
+    description: { untrusted: 'An incident was opened.' },
+    delivery: ['poll', 'push'] as const,
+    inputSchema: { kind: 'object', entries: [] } as never,
+    payloadSchema: { kind: 'object', entries: [] } as never,
+  }
+  const freshness = { acquiredAt: '2026-11-27T22:00:00.000Z', changedNotified: false }
+
+  it('lists the types a peer offers with their delivery, says when it offers none, and when none were taken yet', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      events: succeed({ kind: 'acquired', revision: 1 as never, freshness, types: [type] }),
+    })
+    expect(await world.events(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: {
+        events: {
+          kind: 'acquired',
+          types: [
+            {
+              name: 'incident.created',
+              description: 'An incident was opened.',
+              delivery: ['poll', 'push'],
+            },
+          ],
+        },
+      },
+    })
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      events: succeed({ kind: 'not-declared', freshness }),
+    })
+    expect(await world.events(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: { events: { kind: 'not-declared' } },
+    })
+    world.define(alice, 'docs', { status: readyStatus(docs) })
+    expect(await world.events(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: { events: { kind: 'not-acquired' } },
+    })
+  })
+
+  it('an endpoint not for the asker is not visible; a read that fails or throws is unavailable', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      events: fail({ kind: 'not-available-to-you' }),
+    })
+    expect(await world.events(alice, 'docs')).toEqual({ outcome: 'not-visible', body: {} })
+    world.define(alice, 'docs', { status: readyStatus(docs), events: fail({ kind: 'unknown' }) })
+    expect(await world.events(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      events: () => {
+        throw new Error('face fault')
+      },
+    })
+    expect(await world.events(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+    expect(await world.events(alice, 'absent')).toEqual({ outcome: 'not-visible', body: {} })
+  })
+})

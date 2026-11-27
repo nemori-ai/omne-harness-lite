@@ -134,6 +134,7 @@ export function requestClassOf(method: RequestMethod, retried: boolean): Request
   if (method === 'server/discover') return retried ? 'discover-retry' : 'discover'
   // A long request is concluded as a call is: never sent again, with the same refusals.
   if (method === 'subscriptions/listen') return 'tools/call'
+  if (method === 'events/list') return 'tools/list'
   return method
 }
 

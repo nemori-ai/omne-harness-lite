@@ -22,6 +22,7 @@ import {
   legacyInitializeParamsOf,
   lineGoneAnswerOf,
   listActionsRequest,
+  listEventTypesRequest,
   mcpRequestHeadersOf,
   notSentFailureOf,
   notificationTextOf,
@@ -68,6 +69,7 @@ import type {
   ListenEnd,
   ListenEvent,
   ListenFilter,
+  EventListingPage,
   ListingPage,
   McpTransport,
   SentCall,
@@ -746,6 +748,10 @@ export class Session implements McpTransport {
 
   listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>> {
     return this.perform(listActionsRequest(cursor, this.view))
+  }
+
+  listEventTypes(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>> {
+    return this.perform(listEventTypesRequest(cursor))
   }
 
   async call(

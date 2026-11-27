@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { EventCatalogRecord } from '@omne-harness/mcp-contract'
 import {
   accountCodec,
   organizationCodec,
@@ -51,6 +52,7 @@ export type SqlWorld = Readonly<{
   continuations: ContinuationRecords
   tasks: TaskRecords
   grants: AuthorizationRecords
+  events: CatalogStore<EventCatalogRecord>
   holdings: HoldingRows
   /** From now on the tenants are not bound: every read and write meets no storage domain. */
   unbind(): void
@@ -123,6 +125,7 @@ export async function openSqlWorld(root = temporaryRoot()): Promise<SqlWorld> {
     continuations: createSqlContinuationRecords({ storage, bind }),
     tasks: createSqlTaskRecords({ storage, bind }),
     grants: createSqlAuthorizationRecords({ storage, bind }),
+    events: createSqlCatalogStore<EventCatalogRecord>({ storage, bind }, 'events'),
     holdings: createSqlHoldingRows({ storage, bind }),
     unbind() {
       bound = false

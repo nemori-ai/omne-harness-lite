@@ -9,6 +9,7 @@ import type {
   TaskReport,
   UnusableCause,
 } from './outcomes.ts'
+import type { EventListingPage } from './events.ts'
 import type { HttpCredentialHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -71,6 +72,8 @@ export interface McpTransport {
   readonly generation: Generation
   discover(): Promise<Outcome<PeerIdentity, TransportFailure>>
   listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>>
+  /** `events/list`, only to a peer that declared the events extension. */
+  listEventTypes?(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>>
   call(
     request: CallRequest,
     signal: AbortSignal,

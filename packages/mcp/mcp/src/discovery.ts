@@ -25,6 +25,7 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type { EventTypes } from './event-types.ts'
 import type { ChangeFeed } from './internal/changes.ts'
 import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
 import type { Following } from './internal/follow.ts'
@@ -48,6 +49,7 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   clock: McpClock
   changes: ChangeFeed
   following: Following
+  eventTypes: EventTypes<P>
 }>
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
@@ -107,6 +109,17 @@ const repeatOf = (request: RefreshRequest): RefreshRequest => ({
   ref: request.ref,
   ...(request.connectBound === undefined ? {} : { connectBound: request.connectBound }),
 })
+
+function basisCurrent(
+  record: ActionCatalogRecord,
+  connected: Ensured | undefined,
+): Extract<CatalogView, { kind: 'acquired' }>['basisCurrent'] {
+  if (connected === undefined) return 'no-connection'
+  const fits =
+    record.basis.protocolVersion === connected.peer.protocolVersion &&
+    sameJson(record.basis.capabilities, connected.peer.capabilities)
+  return fits ? 'matches' : 'differs'
+}
 
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): ActionDiscovery<P> {
   const { ports, config, table } = deps
@@ -170,6 +183,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     if ('failure' in write)
       return write.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
     deps.changes.changed(access.tenant)
+    await deps.eventTypes.publish(ensured, access)
     deps.following.follow(ensured, () => refresh(access, repeatOf(request)))
     return succeed({ kind: 'published', revision: merged.revision })
   }
@@ -248,17 +262,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return publish(access, request, ensured.ok)
   }
 
-  function basisCurrent(
-    record: ActionCatalogRecord,
-    connected: Ensured | undefined,
-  ): Extract<CatalogView, { kind: 'acquired' }>['basisCurrent'] {
-    if (connected === undefined) return 'no-connection'
-    const fits =
-      record.basis.protocolVersion === connected.peer.protocolVersion &&
-      sameJson(record.basis.capabilities, connected.peer.capabilities)
-    return fits ? 'matches' : 'differs'
-  }
-
   async function current(
     access: Access<P>,
     ref: EndpointRef,
@@ -301,5 +304,5 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return succeed({ peer: connected.peer, generation: connected.generation })
   }
 
-  return { refresh, current, peer }
+  return { refresh, current, peer, eventTypes: deps.eventTypes.view }
 }

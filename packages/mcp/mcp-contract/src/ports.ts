@@ -2,6 +2,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type {
+  CatalogRevision,
   AdoptionRevision,
   ConnectionTarget,
   CorrelationKey,
@@ -118,11 +119,13 @@ export interface TaskRecords {
   ): Promise<Outcome<readonly Readonly<{ key: TaskRowKey; row: TaskRow }>[], 'unavailable'>>
 }
 
-export interface CatalogStore {
-  read(key: CatalogKey): Promise<Outcome<ActionCatalogRecord | 'absent', 'unavailable'>>
+export interface CatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+> {
+  read(key: CatalogKey): Promise<Outcome<R | 'absent', 'unavailable'>>
   write(
     key: CatalogKey,
-    record: ActionCatalogRecord,
+    record: R,
     expected: ExpectedRevision,
   ): Promise<Ack<'unavailable' | 'revision-conflict'>>
 }

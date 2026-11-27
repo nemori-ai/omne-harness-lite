@@ -180,6 +180,35 @@ export declare const mcpProtocol: {
             }>;
             readonly since: 3;
         };
+        readonly 'list-event-types': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly events: {
+                        readonly kind: "acquired";
+                        readonly types: readonly {
+                            readonly delivery: readonly ("poll" | "push" | "webhook")[];
+                            readonly description: string;
+                            readonly name: string;
+                        }[];
+                    } | {
+                        readonly kind: "not-acquired" | "not-declared";
+                    };
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly name: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly since: 4;
+        };
     };
     readonly name: "mcp";
     readonly major: 1;

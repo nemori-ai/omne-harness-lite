@@ -1,10 +1,11 @@
+import { expectRoundTrip } from './fixtures/samples.ts'
 import { describe, expect, it } from 'vitest'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
 
 const { operations } = mcpProtocol
 
 describe('mcp/v1', () => {
-  it('is mcp major 1 with the five operations and the one observation', () => {
+  it('is mcp major 1 with the six operations and the one observation', () => {
     expect(mcpProtocol.name).toBe('mcp')
     expect(mcpProtocol.major).toBe(1)
     expect(Object.keys(operations)).toEqual([
@@ -13,6 +14,7 @@ describe('mcp/v1', () => {
       'refresh-endpoint',
       'begin-connect',
       'disconnect',
+      'list-event-types',
     ])
     expect(Object.keys(mcpProtocol.observations)).toEqual(['observe-endpoints'])
   })
@@ -27,6 +29,16 @@ describe('mcp/v1', () => {
         3,
       ])
     }
+  })
+
+  it('list-event-types came at revision 4, wants a login and only reads (C301)', () => {
+    const operation = operations['list-event-types']
+    expect([operation.identity, operation.effect, operation.since]).toEqual(['login', 'read', 4])
+    expectRoundTrip(operation.outcomes.succeeded, {
+      events: { kind: 'acquired', types: [{ name: 'a', description: '', delivery: ['push'] }] },
+    })
+    expectRoundTrip(operation.outcomes.succeeded, { events: { kind: 'not-declared' } })
+    expectRoundTrip(operation.outcomes.succeeded, { events: { kind: 'not-acquired' } })
   })
 
   it('observe-endpoints came at revision 2, wants a login and has no end of its own', () => {

@@ -1,3 +1,4 @@
+import { createEventTypes } from '../event-types.ts'
 import type { McpClock, McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'
 import { createConnections } from '../connections.ts'
 import { createDiscovery } from '../discovery.ts'
@@ -67,7 +68,7 @@ export function assemble<P, S>(
     table,
     services: {
       inspection: createInspection(),
-      discovery: createDiscovery(deps),
+      discovery: createDiscovery({ ...deps, eventTypes: createEventTypes(deps) }),
       invoker,
       ...(watch === undefined ? {} : { tasks: watch }),
       status: createStatus(deps),

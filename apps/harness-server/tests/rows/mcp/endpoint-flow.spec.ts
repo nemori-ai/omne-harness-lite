@@ -1178,3 +1178,78 @@ it(
     expect(exits).toEqual([0, 0])
   },
 )
+
+it(
+  'C301 a peer that offers events has its kinds of events listed with their delivery, in mcp/v1 and the command line; one that offers none is said so',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const incident = {
+      name: 'incident.created',
+      description: 'An incident was opened.',
+      delivery: ['poll', 'push'],
+      inputSchema: { type: 'object', properties: { service: { type: 'string' } } },
+      payloadSchema: { type: 'object' },
+    }
+    const deploy = {
+      ...incident,
+      name: 'deploy.done',
+      description: 'A deploy finished.',
+      delivery: ['webhook'],
+    }
+    const peer = await modernPeer([ECHO], { events: [incident, deploy] })
+    const plain = await modernPeer([ECHO])
+    peers.push(peer, plain)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        at('register one endpoint at each peer and fetch their actions')
+        for (const [name, target] of [
+          ['live', peer.target],
+          ['plain', plain.target],
+        ] as const) {
+          await registered(w, name)
+          await configured(w, name, 'target', target, `${name}-target`)
+          expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name })).toMatchObject({
+            outcome: 'succeeded',
+            body: { refreshed: 'published' },
+          })
+        }
+        at('list the kinds of events of each')
+        expect(await mcp['list-event-types']({ tenant: w.tenant, name: 'live' })).toEqual({
+          outcome: 'succeeded',
+          body: {
+            events: {
+              kind: 'acquired',
+              types: [
+                {
+                  name: 'incident.created',
+                  description: 'An incident was opened.',
+                  delivery: ['poll', 'push'],
+                },
+                { name: 'deploy.done', description: 'A deploy finished.', delivery: ['webhook'] },
+              ],
+            },
+          },
+        })
+        expect(await mcp['list-event-types']({ tenant: w.tenant, name: 'plain' })).toEqual({
+          outcome: 'succeeded',
+          body: { events: { kind: 'not-declared' } },
+        })
+        expect(plain.asked.get('events/list') ?? 0).toBe(0)
+        at('the command line prints them')
+        const printed = await tree.cli(['mcp', 'events', 'live'])
+        expect(printed.status).toBe(0)
+        expect(printed.stdout).toMatch(/incident\.created\s+poll,push\s+An incident was opened\./u)
+        expect((await tree.cli(['mcp', 'events', 'plain'])).stdout).toBe(
+          'The endpoint offers no events.\n',
+        )
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)

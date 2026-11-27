@@ -62,6 +62,7 @@ export const loginIdentity = (login: FixtureLogin): LoginIdentity =>
 type Status = Awaited<ReturnType<McpFaces['status']['inspect']>>
 type Current = Awaited<ReturnType<McpFaces['discovery']['current']>>
 type Refreshed = Awaited<ReturnType<McpFaces['discovery']['refresh']>>
+type Events = Awaited<ReturnType<McpFaces['discovery']['eventTypes']>>
 type Connect = NonNullable<McpFaces['connect']>
 type Begun = Awaited<ReturnType<Connect['begin']>>
 type Ended = Awaited<ReturnType<Connect['disconnect']>>
@@ -73,6 +74,7 @@ export type EndpointScript = {
   status?: Status | (() => Status)
   current?: Current | (() => Current)
   refresh?: Refreshed | (() => Refreshed)
+  events?: Events | (() => Events)
   begin?: Begun | (() => Begun)
   disconnect?: Ended | (() => Ended)
 }
@@ -252,6 +254,17 @@ export function createWorld(options: WorldOptions = {}) {
         })
         return run(scriptOf(access.tenant, request.ref.name)?.refresh, published)
       },
+      async eventTypes(access, endpoint) {
+        seen.push({
+          op: 'events',
+          principal: access.principal,
+          tenant: access.tenant,
+          name: endpoint.name,
+        })
+        return run(scriptOf(access.tenant, endpoint.name)?.events, {
+          ok: { kind: 'not-acquired' },
+        } as Events)
+      },
     },
     ...(options.connect === false
       ? {}
@@ -348,6 +361,8 @@ export function createWorld(options: WorldOptions = {}) {
       contribution.operations['begin-connect'](callOf(login), { tenant: target.tenant, name }),
     disconnect: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
       contribution.operations['disconnect'](callOf(login), { tenant: target.tenant, name }),
+    events: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['list-event-types'](callOf(login), { tenant: target.tenant, name }),
   }
 }
 

@@ -379,7 +379,7 @@
       },
       "packages/mcp/mcp/src/discovery.ts": {
         "count": 1,
-        "longest": 195
+        "longest": 185
       },
       "packages/mcp/mcp/src/internal/build.ts": {
         "count": 1,

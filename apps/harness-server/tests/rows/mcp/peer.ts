@@ -350,7 +350,32 @@ function serveTasks(server: McpServer, tasks: Map<string, PeerTask>): void {
   )
 }
 
-export async function modernPeer(initial: readonly PeerAction[]): Promise<ModernPeer> {
+/** A kind of event the modern peer offers, as `events/list` writes it. */
+export type PeerEventType = Readonly<{
+  name: string
+  description: string
+  delivery: readonly string[]
+  inputSchema: Readonly<Record<string, unknown>>
+  payloadSchema: Readonly<Record<string, unknown>>
+}>
+
+const EVENTS_EXTENSION = 'io.modelcontextprotocol/events'
+
+function serveEventTypes(server: McpServer, events: readonly PeerEventType[]): void {
+  server.server.setRequestHandler(
+    'events/list',
+    {
+      params: z.object({ cursor: z.string().optional() }).passthrough(),
+      result: z.object({ events: z.array(z.unknown()) }),
+    },
+    async () => ({ events: [...events] }),
+  )
+}
+
+export async function modernPeer(
+  initial: readonly PeerAction[],
+  options: Readonly<{ events?: readonly PeerEventType[] }> = {},
+): Promise<ModernPeer> {
   let offered = initial
   const asked = new Map<string, number>()
   const answers: unknown[] = []
@@ -358,9 +383,18 @@ export async function modernPeer(initial: readonly PeerAction[]): Promise<Modern
   const handler = createMcpHandler(() => {
     const server = new McpServer(
       { name: 'modern-peer', version: '1' },
-      { capabilities: { tools: { listChanged: true }, extensions: { [TASKS_EXTENSION]: {} } } },
+      {
+        capabilities: {
+          tools: { listChanged: true },
+          extensions: {
+            [TASKS_EXTENSION]: {},
+            ...(options.events === undefined ? {} : { [EVENTS_EXTENSION]: {} }),
+          },
+        },
+      },
     )
     serveTasks(server, tasks)
+    if (options.events !== undefined) serveEventTypes(server, options.events)
     for (const action of offered)
       server.registerTool(
         action.name,

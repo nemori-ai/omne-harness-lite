@@ -17,7 +17,7 @@ const JSON_SWITCH = '--json'
 const NO_WAIT_SWITCH = '--no-wait'
 const POLL_MS = 500
 
-type Action = 'list' | 'show' | 'refresh' | 'connect' | 'disconnect'
+type Action = 'list' | 'show' | 'refresh' | 'connect' | 'disconnect' | 'events'
 
 const WORDS: Readonly<Record<Action, number>> = {
   list: 0,
@@ -25,6 +25,7 @@ const WORDS: Readonly<Record<Action, number>> = {
   refresh: 1,
   connect: 1,
   disconnect: 1,
+  events: 1,
 }
 
 const isAction = (value: string | undefined): value is Action =>
@@ -115,6 +116,19 @@ const RENDER = {
   connect: (body: unknown) =>
     `Open this address in a browser and consent:\n${(body as { url: string }).url}\n`,
   disconnect: () => 'disconnected\n',
+  events: (body: unknown) => {
+    const { events } = body as {
+      events: { kind: string; types?: { name: string; description: string; delivery: string[] }[] }
+    }
+    if (events.kind === 'not-declared') return 'The endpoint offers no events.\n'
+    if (events.kind !== 'acquired') return 'Events: not acquired (refresh the endpoint first)\n'
+    const types = events.types ?? []
+    if (types.length === 0) return 'The endpoint offers events, but no type yet.\n'
+    return table([
+      ['EVENT', 'DELIVERY', 'DESCRIPTION'],
+      ...types.map(type => [type.name, type.delivery.join(','), type.description]),
+    ])
+  },
 }
 
 type Invocation = Readonly<{
@@ -218,13 +232,15 @@ function callOf(invocation: Invocation, tenant: TenantId, link: Link, messageId:
       return link.call(mcpProtocol, 'begin-connect', { tenant, name }, messageId)
     case 'disconnect':
       return link.call(mcpProtocol, 'disconnect', { tenant, name }, messageId)
+    case 'events':
+      return link.call(mcpProtocol, 'list-event-types', { tenant, name }, messageId)
   }
 }
 
 export const mcpCommand: CommandSpec = {
   name: 'mcp',
-  usage: 'list|show|refresh|connect|disconnect',
+  usage: 'list|show|refresh|connect|disconnect|events',
   summary:
-    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), fetch the actions of one again (refresh <name>), connect an OAuth endpoint in a browser and wait until it is connected (connect <name> [--no-wait]), or end that connection (disconnect <name>).',
+    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), fetch the actions of one again (refresh <name>), connect an OAuth endpoint in a browser and wait until it is connected (connect <name> [--no-wait]), end that connection (disconnect <name>), or list the kinds of events one offers (events <name>).',
   run: runMcp,
 }

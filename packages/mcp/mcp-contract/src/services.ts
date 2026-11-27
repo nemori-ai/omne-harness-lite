@@ -13,6 +13,7 @@ import type {
   TaskId,
 } from './brands.ts'
 import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
+import type { EventCatalogRecord, EventType } from './events.ts'
 import type { ListingDefect } from './listing.ts'
 import type { EndpointBodyRejection } from './endpoint.ts'
 import type { CallbackReceiver, ConnectRefusal, GrantConnector } from './grant.ts'
@@ -63,8 +64,19 @@ export type RefreshResult =
   | Readonly<{ kind: 'published'; revision: CatalogRevision }>
   | Readonly<{ kind: 'kept'; reason: KeptReason }>
 
+export type EventCatalogView =
+  | Readonly<{ kind: 'not-acquired' }>
+  | Readonly<{ kind: 'not-declared'; freshness: Freshness }>
+  | Readonly<{
+      kind: 'acquired'
+      revision: CatalogRevision
+      freshness: Freshness
+      types: readonly EventType[]
+    }>
+
 export interface ActionDiscovery<P> {
   current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, ReadFailure>>
+  eventTypes(access: Access<P>, ref: EndpointRef): Promise<Outcome<EventCatalogView, ReadFailure>>
   refresh(
     access: Access<P>,
     request: Readonly<{ ref: EndpointRef; connectBound?: Millis; signal?: AbortSignal }>,
@@ -221,6 +233,7 @@ export type McpPorts<P, S> = Readonly<{
   eligibility: UseEligibility<P>
   credentials: CredentialUse<P>
   store: CatalogStore
+  eventStore?: CatalogStore<EventCatalogRecord>
   tasks: TaskRecords
   transports: McpTransportFactory
   checkOutput: OutputValidator
