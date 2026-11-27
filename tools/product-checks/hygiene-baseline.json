@@ -639,7 +639,7 @@
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 436
+        "longest": 433
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,

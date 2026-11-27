@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import {
   isToolSourcePrefix,
+  isToolSourceSuspension,
   judgeToolSourceListing,
   type ToolSourceEntry,
 } from '@omne-harness/tool-contract/provider'
@@ -214,4 +215,24 @@ describe('the memory source stands as an entry source', () => {
       })
     })
   }
+})
+
+describe('a suspension is told from a result by its kind (C108)', () => {
+  const rendered = {
+    content: [],
+    data: { kind: 'none' as const },
+    original: { kind: 'none' as const },
+    attachments: [],
+  }
+  it.each([
+    [
+      'a suspension',
+      { kind: 'suspended', state: new Uint8Array(), wait: {}, closedResult: 'x' },
+      true,
+    ],
+    ['a result', rendered, false],
+    ['a result of another kind of thing', { ...rendered, kind: 'other' }, false],
+  ])('%s', (_label, answer, suspended) => {
+    expect(isToolSourceSuspension(answer as never)).toBe(suspended)
+  })
 })

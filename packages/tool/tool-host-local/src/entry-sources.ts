@@ -31,7 +31,16 @@ import {
   type ToolProgramContract,
   type ToolSourceEntry,
   type ToolSourceListing,
+  type ToolSegmentContext,
+  type ToolSourceAnswer,
+  type ToolSourceCall,
   type ToolSourceWithheld,
+  isToolSourceSuspension,
+  type AuthorSegment,
+  type CheckpointedToolExecutor,
+  type ToolAuthorExecutor,
+  type ToolPrimitiveFailure,
+  type ToolWaitContract,
 } from '@omne-harness/tool-contract/provider'
 import type { LocalToolBindingRegistry, ToolBindingPin, ToolListing } from './bindings.ts'
 
@@ -72,11 +81,20 @@ export type LocalEntrySourcesInput<P, B extends ContentBlock> = Readonly<{
   policy?: LocalEntrySourcePolicy
 }>
 
-type CallFacts<P> = Access<P> & Readonly<{ call: ToolCallId }>
-const callFacts = new WeakMap<ToolExecutionContext, CallFacts<unknown>>()
+type CallFacts<P> = Access<P> & Readonly<{ call: ToolCallId; program?: boolean }>
+const callFacts = new WeakMap<object, CallFacts<unknown>>()
 
-export function noteCallFacts<P>(context: ToolExecutionContext, facts: CallFacts<P>): void {
+export function noteCallFacts<P>(
+  context: ToolExecutionContext | ToolSegmentContext,
+  facts: CallFacts<P>,
+): void {
   callFacts.set(context, facts)
+}
+
+/** A segment of a call runs under its own context; the source behind it still learns whose call it runs. */
+export function carryCallFacts(from: ToolExecutionContext, to: ToolSegmentContext): void {
+  const facts = callFacts.get(from)
+  if (facts !== undefined) callFacts.set(to, { ...facts, program: isProgramCall(from) })
 }
 
 const SOURCE_ORDINAL = String(Number.MAX_SAFE_INTEGER)
@@ -171,6 +189,70 @@ function carrying<B extends ContentBlock>(
   }
 }
 
+type SourceCall<P> = Omit<ToolSourceCall<P>, 'arguments'>
+
+function callOf<P>(
+  context: ToolExecutionContext | ToolSegmentContext,
+  name: string,
+  declared: ToolCommandDeclaration | null,
+): SourceCall<P> {
+  const facts = callFacts.get(context) as CallFacts<P> | undefined
+  if (facts === undefined) throw new Error('the call of the source entry is not known')
+  return {
+    principal: facts.principal,
+    tenant: facts.tenant,
+    name,
+    command: declared?.name ?? null,
+    declared,
+    invocation: facts.call,
+    program: facts.program ?? isProgramCall(context as ToolExecutionContext),
+    signal: context.signal,
+  }
+}
+
+type Segment<B extends ContentBlock> = Outcome<
+  AuthorSegment<Uint8Array, ToolRenderedResult<B>>,
+  ToolPrimitiveFailure
+>
+
+const segmentOf = <B extends ContentBlock>(answer: ToolSourceAnswer<B>): Segment<B> =>
+  succeed(isToolSourceSuspension(answer) ? answer : { kind: 'completed', value: answer })
+
+const BREACH = 'the entry source suspended the call without declaring a checkpoint'
+
+type SourceAuthor<E, B extends ContentBlock> = Readonly<{
+  waits: readonly ToolWaitContract<unknown, 'ask'>[]
+  executor: ToolAuthorExecutor<JsonValue, ToolRenderedResult<B>, E>
+}>
+
+function executorOf<P, E, B extends ContentBlock>(
+  source: ToolEntrySource<P, B>,
+  name: string,
+  declared: ToolCommandDeclaration | null,
+): SourceAuthor<E, B> {
+  const { checkpoint, resume } = source
+  if (checkpoint !== undefined && resume !== undefined) {
+    const segments: CheckpointedToolExecutor<JsonValue, ToolRenderedResult<B>, E> = {
+      checkpoint: checkpoint.declaration,
+      initial: async (args, _environment, context) =>
+        segmentOf(await source.execute({ ...callOf<P>(context, name, declared), arguments: args })),
+      resume: async (input, _environment, context) =>
+        segmentOf(await resume.call(source, { ...callOf<P>(context, name, declared), ...input })),
+    }
+    return { waits: checkpoint.waits, executor: segments }
+  }
+  const executor = {
+    execute: (args: JsonValue, _environment: E, context: ToolExecutionContext) => {
+      const call = { ...callOf<P>(context, name, declared), arguments: args }
+      return source.execute(call).then(answer => {
+        if (isToolSourceSuspension(answer)) throw new Error(BREACH)
+        return answer
+      })
+    },
+  }
+  return { waits: [], executor }
+}
+
 function operationOf<P, E, B extends ContentBlock>(
   authoring: Authoring<B>,
   source: ToolEntrySource<P, B>,
@@ -182,13 +264,14 @@ function operationOf<P, E, B extends ContentBlock>(
   if (returns.kind !== 'structured') return fail('returns-not-structured')
   const { parameters } = authoring
   const codec = returns.program.kind === 'json' ? carrying(authoring.codec) : authoring.codec
+  const { waits, executor } = executorOf<P, E, B>(source, name, declared)
   const made = defineToolOperation<JsonValue, ToolRenderedResult<B>, E, B, Declared>({
     parameters: { kind: 'declared', value: contract },
     returns: returns as ToolReturnDeclaration & { kind: 'structured' },
     author: {
       kind: 'structured',
       parameters,
-      waits: [],
+      waits,
       codec,
       output: {
         adoption: codec.adoption,
@@ -198,23 +281,7 @@ function operationOf<P, E, B extends ContentBlock>(
         },
       },
       program: programOf(returns.program),
-      executor: {
-        execute: (args, _environment, context) => {
-          const facts = callFacts.get(context) as CallFacts<P> | undefined
-          if (facts === undefined) throw new Error('the call of the source entry is not known')
-          return source.execute({
-            principal: facts.principal,
-            tenant: facts.tenant,
-            name,
-            command: declared?.name ?? null,
-            declared,
-            arguments: args,
-            invocation: facts.call,
-            program: isProgramCall(context),
-            signal: context.signal,
-          })
-        },
-      },
+      executor,
     },
   })
   return 'failure' in made ? fail(`operation ${made.failure.field}`) : succeed(made.ok)
