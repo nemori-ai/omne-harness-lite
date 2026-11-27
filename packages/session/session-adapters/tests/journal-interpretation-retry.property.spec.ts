@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_JOURNAL_INTERPRETATION_RETRY,
   nextRetry,
+  remember,
   type JournalInterpretationRetry,
 } from '../src/cordis/journal-interpretation.ts'
 
@@ -45,5 +46,13 @@ describe('the waits between the calls of one interpretation that keeps failing',
     expect(waitsOf(DEFAULT_JOURNAL_INTERPRETATION_RETRY, 9)).toEqual([
       50, 100, 200, 400, 800, 1600, 3200, 5000, 5000,
     ])
+  })
+})
+
+describe('the executions already said to be uninterpretable', () => {
+  it('are kept up to the limit, and the one said first goes first', () => {
+    const said = new Set<string>()
+    for (const key of ['a', 'b', 'c']) remember(said, key, 2)
+    expect([...said]).toEqual(['b', 'c'])
   })
 })

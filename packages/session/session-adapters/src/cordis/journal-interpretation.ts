@@ -85,9 +85,9 @@ type Retry = Readonly<{ wait: number; calls: number }>
 
 const SAID_EXECUTIONS = 4096
 
-function remember(said: Set<string>, key: string): void {
+export function remember(said: Set<string>, key: string, limit = SAID_EXECUTIONS): void {
   said.add(key)
-  if (said.size <= SAID_EXECUTIONS) return
+  if (said.size <= limit) return
   for (const oldest of said) {
     said.delete(oldest)
     return

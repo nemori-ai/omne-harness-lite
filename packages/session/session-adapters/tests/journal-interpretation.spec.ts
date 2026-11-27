@@ -74,7 +74,9 @@ async function interpreted(
   }
   const sent: Sent[] = []
   const script: ((inner: CommitLog, input: Sent) => ReturnType<CommitLog>)[] = []
+  const shown = { work: null as ((snapshot: WorkSnapshot) => WorkSnapshot) | null }
   const c = await cordisScene(s, {
+    work: snapshot => shown.work?.(snapshot) ?? snapshot,
     ...(options.transactions === undefined ? {} : { transactions: options.transactions }),
     commitLog: inner => input => {
       sent.push(input)
@@ -98,7 +100,20 @@ async function interpreted(
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
-  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes, logged }
+  return {
+    s,
+    c,
+    sent,
+    script,
+    shown,
+    interpretation,
+    fiber,
+    mountPlugin,
+    target,
+    heads,
+    bytes,
+    logged,
+  }
 }
 
 const QUICK_RETRY = { initialMs: 1, multiplier: 2, maxMs: 4 } as const
@@ -599,6 +614,49 @@ describe('an event that Session can never take', () => {
     await settle()
     expect(await terminalOf(f.s)).toMatchObject({ outcome: 'cancelled' })
     expect(f.sent).toHaveLength(1)
+  })
+
+  it('the Run that another execution drives is left alone: only the Run of this execution is closed', async () => {
+    const f = await interpreted('ad02-uninterpretable-other')
+    f.script.push(async () => {
+      f.shown.work = snapshot =>
+        snapshot.run.kind !== 'active'
+          ? snapshot
+          : {
+              ...snapshot,
+              run: {
+                ...snapshot.run,
+                execution: {
+                  ...snapshot.run.execution,
+                  execution: `${f.s.execution}-later` as typeof f.s.execution,
+                },
+              },
+            }
+      return fail(gone)
+    })
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.logged.some(line => line.includes(gone.diagnostic))).toBe(true))
+    await settle()
+    expect((await work(f.s)).run.kind).toBe('active')
+    expect(f.sent).toHaveLength(1)
+  })
+
+  it('the close that meets a change comes again: the event is sent once more and the Run closes', async () => {
+    const f = await interpreted('ad02-uninterpretable-changed')
+    for (let n = 0; n < 4; n += 1) f.script.push(async () => fail(gone))
+    const { port } = f.s
+    let closes = 0
+    const commit = (async (request: Parameters<typeof port.commit>[0]) => {
+      if (request.command.kind !== 'finishRun') return port.commit(request)
+      closes += 1
+      return closes === 1 ? fail({ kind: 'changed', revision: '0' }) : port.commit(request)
+    }) as typeof port.commit
+    f.s.port = { ...port, commit }
+    await started(f.s, f.c.journal())
+    await vi.waitFor(async () => expect(await terminalOf(f.s)).not.toBeNull(), { timeout: 5000 })
+    expect(await terminalOf(f.s)).toMatchObject({ outcome: 'failed' })
+    expect(closes).toBe(2)
+    expect(f.sent).toHaveLength(2)
   })
 })
 

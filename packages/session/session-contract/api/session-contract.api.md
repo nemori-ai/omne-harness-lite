@@ -1000,6 +1000,8 @@ export type SettledCallLookup = (keys: SessionCallKeys) => readonly SessionCall[
 export declare function callKeysIn(value: unknown): SessionCallKeys;
 export declare function callOf(snapshot: WorkSnapshot, consumption: ConsumptionId): SessionCall | null;
 export declare function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean;
+export declare function recordsOf(snapshot: WorkSnapshot, producer: ProducerRef): readonly SessionCallRecord[];
+export declare function producerOut(snapshot: WorkSnapshot, producer: ProducerRef): boolean;
 export declare function lendCalls(snapshot: WorkSnapshot, lent: readonly SessionCall[]): WorkSnapshot;
 export type CallSettlement = Readonly<{
     settled: readonly SessionCall[];
@@ -3189,7 +3191,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
 import type { SessionHistoryReads } from './history-values.ts';
 import type { SessionCallWait } from './call-values.ts';
-import type { SessionCall, SessionLateCallFact } from './call-settlement.ts';
+import { type SessionCall, type SessionLateCallFact } from './call-settlement.ts';
 import type { SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionRunLookup } from './control-values.ts';
 import type { SessionEntriesChannel } from './interpretation-values.ts';
 export type AdvanceJudgment = Readonly<{
@@ -4215,8 +4217,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:495eea2d781868d85c5f4dc3d0985b88423ab5592f35e7c77ba42c1df7837dbc";
-export declare const SESSION_RELEASE_DIGEST = "sha256:495eea2d781868d85c5f4dc3d0985b88423ab5592f35e7c77ba42c1df7837dbc";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b3e7b4b95fb7f9215ad26a8cf985bae945c27f7cd14f925c871e28c863655a7f";
+export declare const SESSION_RELEASE_DIGEST = "sha256:b3e7b4b95fb7f9215ad26a8cf985bae945c27f7cd14f925c871e28c863655a7f";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4304,6 +4306,7 @@ export declare class SessionValidationFailure extends Error {
 }
 export declare function invalidAt(field: string, reason: string): never;
 export declare function unavailableAt(field: string): never;
+export declare function missingAt(field: string): never;
 export declare function inconsistent(field: string): never;
 export declare function nonempty(value: unknown, field: string): asserts value is string;
 export declare function decimal(value: unknown, field: string): bigint;

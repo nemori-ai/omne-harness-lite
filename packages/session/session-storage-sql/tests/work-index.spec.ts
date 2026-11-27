@@ -105,6 +105,8 @@ describe('the work index of a session with a long history', () => {
     if (answer === 'too-many') throw new Error('the read is over its page')
     expect(answer.index.executions).toEqual([])
     expect(answer.index.batches).toEqual([])
+    expect(answer.reads.uninterpreted).toEqual([])
+    expect(answer.reads.scope).toEqual({ kind: 'pending', inputs: work.pending })
     const agent = reads.filter(item => /FROM er_/u.test(item.sql))
     expect(
       agent.filter(item => !/FROM er_(admission(_attempt)?_idx|root)\s/u.test(item.sql)),
@@ -141,6 +143,16 @@ describe('the work index of a session with a long history', () => {
       index.inputs.find(item => item.input === 'input-pending')
     expect(admitted(paged.index)).toMatchObject({ count: '1' })
     expect(admitted(paged.index)).toEqual(admitted(whole.index))
+  })
+
+  it('is not held to the row budget of a whole read: it reads on where a whole read is over it', async () => {
+    const { a, work } = await sessionOf(4)
+    const { port } = counting(a)
+    const scope: SessionInputScope = { kind: 'pending', inputs: work.pending }
+    const read = async (options: { limit: number; page?: number }) =>
+      (await coldWorker()).readHistory(port, textOf(TENANT_A), SESSION, work, scope, options)
+    expect(await read({ limit: 3 })).toBe('too-many')
+    expect(await read({ limit: 3, page: 1000 })).not.toBe('too-many')
   })
 
   it('reads nothing of the Agent record for a session with no active Run', async () => {
