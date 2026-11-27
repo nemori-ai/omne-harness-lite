@@ -36,6 +36,13 @@ describe('faultProblem', () => {
     expect(faultProblem(replay)).toBeNull()
   })
 
+  it('takes throttled only as true, and only on an upstream that is unavailable', () => {
+    expect(faultProblem({ ...plain, throttled: true })).toBeNull()
+    expect(faultProblem({ ...plain, throttled: false })).toBe('throttled')
+    expect(faultProblem({ ...plain, cause: 'credential', throttled: true })).toBe('throttled')
+    expect(faultProblem({ ...plain, cause: 'stream-lost', throttled: true })).toBe('throttled')
+  })
+
   it('accepts every shape the contract describes', () => {
     for (const fault of [
       plain,

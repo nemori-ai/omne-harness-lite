@@ -1,29 +1,6 @@
-import type { SizeController, SizeKeyPlatform, SizeTier } from '@omne-harness/ui-kit'
+import type { SizeController, SizeKeyPlatform } from '@omne-harness/ui-kit'
 import { bindActionKeys } from './dispatch.ts'
 import { sizeActions } from './layout-actions.ts'
-import type { PreferenceStore } from './theme.ts'
-
-export const SIZE_KEY = 'omne.size'
-
-export function storedSizePreference(store: () => PreferenceStore): {
-  read(): string | null
-  write(tier: SizeTier): void
-} {
-  return {
-    read() {
-      try {
-        return store().getItem(SIZE_KEY)
-      } catch {
-        return null
-      }
-    },
-    write(tier) {
-      try {
-        store().setItem(SIZE_KEY, tier)
-      } catch {}
-    },
-  }
-}
 
 export interface KeyTarget {
   addEventListener(type: 'keydown', listener: (event: KeyboardEvent) => void): void

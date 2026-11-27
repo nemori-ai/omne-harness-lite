@@ -34,5 +34,7 @@ export function sayNote(
     fate: note.fate ?? undefined,
     pictures,
     told: note.told,
+    reply: note.reply,
+    phrases: note.phrases,
   }
 }

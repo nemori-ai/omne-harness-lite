@@ -17,6 +17,9 @@ import {
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
 
+const storageRefused = (said: string) =>
+  ({ kind: 'invalid', field: 'storage', reason: said, disclosed: said }) as const
+
 const CALL = 'journal-call-1'
 
 async function opened(name: string, options: SqlSceneOptions = {}) {
@@ -400,8 +403,8 @@ describe('unknown, tenancy and registration', () => {
   })
 
   it.each([
-    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
-    ['manifest_mismatch', { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' }],
+    ['command_limit', storageRefused('command_limit')],
+    ['manifest_mismatch', storageRefused('manifest_mismatch')],
     ['combination_unregistered', { kind: 'unsupported' }],
     ['participant_not_in_combination', { kind: 'unsupported' }],
   ] as const)(
@@ -795,7 +798,7 @@ describe('the publication report (SPEC 发布观测)', () => {
     const said = 'command_limit: maxCommandBytes 2100000 > 1048576 (participant execution-record)'
     const storage = refusing('command_limit', said)
     expect(await reporting(s, reports, [], storage).commit(request)).toEqual({
-      failure: { kind: 'invalid', field: 'storage', reason: said },
+      failure: storageRefused(said),
     })
     expect(reports).toEqual([
       expect.objectContaining({ diagnostic: `storage rejected the commit: ${said}` }),
@@ -813,7 +816,7 @@ describe('the publication report (SPEC 发布观测)', () => {
       events: [{ kind: 'message', message, source: evidence('message-admission') }],
       caller: { ...base.caller, message } as typeof base.caller,
     })
-    expect(refused).toEqual({ failure: { kind: 'invalid', field: 'storage', reason: said } })
+    expect(refused).toEqual({ failure: storageRefused(said) })
     expect(reports).toMatchObject([
       {
         method: 'blobs',
@@ -831,7 +834,7 @@ describe('the publication report (SPEC 发布观测)', () => {
     const sent: number[] = []
     const refused = await reporting(s, reports, sent, refusing('command_limit')).commit(request)
     expect(refused).toEqual({
-      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+      failure: storageRefused('command_limit'),
     })
     expect(reports).toEqual([
       expect.objectContaining({

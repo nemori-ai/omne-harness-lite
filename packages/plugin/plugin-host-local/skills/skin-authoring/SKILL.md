@@ -43,7 +43,8 @@ Use the layers the look needs. Each is a point.
 | `shell.part-style`  | a part that opens style                             | CSS of the part at rest and in each state                 |
 | `shell.part-render` | a part that opens render                            | a drawing of the part, usually around `builtIn()`         |
 | `shell.icon`        | an icon name                                        | a drawing of that icon, given `{ name, size, className }` |
-| `shell.piece`       | `loading`, `empty-state`, `inline-notice`, `figure` | a drawing of a shared piece, given what that piece shows  |
+| `shell.piece`       | `loading`, `empty-state`, `inline-notice`, `figure`, `note` | a drawing of a shared piece, given what that piece shows  |
+| `shell.say-phrase`  | a name of your own for the phrase                   | data `{ label, words, order? }`: a ready phrase beside the say note |
 
 Find names with `OmneExtensionPoints show <point>`: it lists the keys and says what a value or a drawing is given. A part takes only the layers it opens.
 

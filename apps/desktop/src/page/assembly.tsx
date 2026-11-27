@@ -3,6 +3,7 @@ import * as ui from '@omne-harness/ui-kit'
 import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
+  assetsCategory,
   assetsCategoryPage,
   assetsHolding,
   assetsPageTarget,
@@ -56,6 +57,7 @@ import {
   sessionDock,
   sessionReadsSourceKey,
   sessionReadsUiModule,
+  sessionModelChoiceKey,
   sessionRunFailure,
   sessionSide,
   sessionStatus,
@@ -125,6 +127,7 @@ export const assembly: Assembly = {
       providers: assetsPageTarget(PROVIDER_CATEGORY),
       holding: assetsHolding,
       assets: assetGovernanceKey,
+      modelChoice: sessionModelChoiceKey,
     }),
     workspaceUiModule,
     createUsageUiModule({
@@ -147,6 +150,7 @@ export const assembly: Assembly = {
     createCanvasUiModule({ preferences: storedCanvasPreferences(() => window.localStorage) }),
     createPluginUiModule({
       floor: pageFloor,
+      skinsAbove: assetsCategory,
       looks: storedTenantTexts(() => window.localStorage, LOOK_KEY),
       code: {
         given: { React, ui },

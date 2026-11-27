@@ -1,11 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
+  LAYOUT_POINT,
   RENDER_POINT,
   STYLE_POINT,
   TOKENS_POINT,
   definePart,
-  definePoint,
   defineRenderPoint,
   type Hosted,
 } from '@omne-harness/shell-contract'
@@ -80,25 +80,30 @@ describe('a scope a module opens under itself', () => {
   })
 })
 
-describe('whether a point takes a drawing', () => {
-  it('is so for the drawings of parts and for a point that picks a drawing by key, once it is declared', async () => {
+describe('what the shell hands the loader of plugins', () => {
+  it('gives a form for its three points whose item wraps what a member gives, and none for a drawing', async () => {
     const t = await world()
-    const card = defineRenderPoint({ name: 'notes.card', key: 'the kind', summary: 'A note.' })
-    expect(t.shell.takesDrawing(RENDER_POINT)).toBe(true)
-    expect(t.shell.takesDrawing('notes.card')).toBe(false)
-    card.declare(t.shell)
-    expect(t.shell.takesDrawing('notes.card')).toBe(true)
+    for (const point of [TOKENS_POINT, STYLE_POINT, LAYOUT_POINT])
+      expect(t.shell.guestForm(point)?.gives).toMatch(/^data: /u)
+    expect(t.shell.guestForm(RENDER_POINT)).toBeUndefined()
+    expect(t.shell.guestForm('notes.nowhere')).toBeUndefined()
   })
 
-  it('is not so for a point that takes data, a point that holds a list, or a name nobody declared', async () => {
+  it('makes the item of a point from the data, with the files of the plugin; refuses data of the wrong shape', async () => {
     const t = await world()
-    const text = { encode: (value: string) => value, decode: (value: string) => value }
-    definePoint({ name: 'notes.side', subject: text }).declare(t.shell)
-    expect(t.shell.takesDrawing(TOKENS_POINT)).toBe(false)
-    expect(t.shell.takesDrawing(STYLE_POINT)).toBe(false)
-    expect(t.shell.takesDrawing('notes.side')).toBe(false)
-    expect(t.shell.takesDrawing('shell.pages')).toBe(false)
-    expect(t.shell.takesDrawing('notes.nowhere')).toBe(false)
+    const tokens = t.shell.guestForm(TOKENS_POINT)
+    expect(tokens?.form({ '--omne-accent': 'teal' }, { key: 'shell.app', files: '/p/v/' })).toEqual(
+      {
+        tokens: { '--omne-accent': 'teal' },
+        files: '/p/v/',
+      },
+    )
+    expect(() => tokens?.form(['x'], { key: 'shell.app' })).toThrow(
+      'the data is not a record of names and values',
+    )
+    expect(t.shell.guestForm(LAYOUT_POINT)?.form(['b', 'a'], { key: 'shell.pages' })).toEqual({
+      order: ['b', 'a'],
+    })
   })
 })
 

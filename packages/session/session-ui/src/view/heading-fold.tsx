@@ -27,11 +27,11 @@ export type HeadingFold =
       folded: number
       register: (rank: FoldRank, element: HTMLElement | null) => void
     }>
-  | Readonly<{ place: 'menu'; folded: number; say: (text: string) => void }>
+  | Readonly<{ place: 'menu'; folded: number; say: (text: string) => void; opening?: FoldRank }>
 
 /** Short of room, the workspace folds into the `⋯` first, then permissions, then the model. */
 export const FOLD_RANK = { workspace: 1, mode: 2, model: 3 } as const
-type FoldRank = (typeof FOLD_RANK)[keyof typeof FOLD_RANK]
+export type FoldRank = (typeof FOLD_RANK)[keyof typeof FOLD_RANK]
 const ALL_FOLDED = Math.max(...Object.values(FOLD_RANK))
 
 export const HeadingFoldContext = createContext<HeadingFold>({
@@ -50,6 +50,15 @@ export const HeadingEntriesContext = createContext<readonly HistoryEntry[]>([])
 type HeadingReader = Readonly<{ load(tenant: string, session: string): Promise<void> }>
 
 /** The bar reads a heading item's value at each log position: the server answers, whoever changed it. */
+export function useHeadingOpening(rank: FoldRank): boolean {
+  const fold = useContext(HeadingFoldContext)
+  return fold.place === 'menu' && fold.opening === rank
+}
+
+export function useHeadingFolded(rank: FoldRank): boolean {
+  return useContext(HeadingFoldContext).folded >= rank
+}
+
 export function useHeadingRead(store: HeadingReader, tenant: string, session: string): boolean {
   const inBar = useHeadingPlace() === 'bar'
   const at = useContext(HeadingRevisionContext)
@@ -108,6 +117,7 @@ export function FoldedChoice({
   options,
   onPick,
   onOpen,
+  opened,
 }: {
   readonly label: string
   readonly value: string
@@ -115,6 +125,7 @@ export function FoldedChoice({
   readonly options: readonly FoldedOption[] | null
   readonly onPick: (value: string) => void
   readonly onOpen?: () => void
+  readonly opened?: boolean
 }) {
   const face = (
     <>
@@ -122,10 +133,26 @@ export function FoldedChoice({
       <span className="omne-session-folded-value">{shown}</span>
     </>
   )
+  const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (opened !== true) return undefined
+    const frame = requestAnimationFrame(() => {
+      trigger.current?.focus()
+      setOpen(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [opened])
   if (options === null) return <DropdownMenuItem disabled>{face}</DropdownMenuItem>
   return (
-    <DropdownMenuSub onOpenChange={open => open && onOpen?.()}>
-      <DropdownMenuSubTrigger>{face}</DropdownMenuSubTrigger>
+    <DropdownMenuSub
+      open={open}
+      onOpenChange={next => {
+        setOpen(next)
+        if (next) onOpen?.()
+      }}
+    >
+      <DropdownMenuSubTrigger ref={trigger}>{face}</DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         <DropdownMenuRadioGroup value={value} onValueChange={onPick}>
           {options.map(option => (

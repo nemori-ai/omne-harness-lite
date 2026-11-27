@@ -44,8 +44,8 @@ const PIECE: Readonly<Record<string, () => React.ReactNode>> = {
 }
 
 describe('the pieces of the kit that a redraw may stand in for', () => {
-  it('are these four, by name', () => {
-    expect(PIECES).toEqual(['empty-state', 'figure', 'inline-notice', 'loading'])
+  it('are these five, by name', () => {
+    expect(PIECES).toEqual(['empty-state', 'figure', 'inline-notice', 'loading', 'note'])
   })
 
   it.each(Object.keys(PIECE))(

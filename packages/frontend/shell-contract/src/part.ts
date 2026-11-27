@@ -5,6 +5,7 @@ import {
   type Registry,
   type Unavailable,
 } from '@omne-harness/dynamis'
+import { READ_FOR_ALL } from './closed.ts'
 import type { ReactNode } from 'react'
 
 export const PARTS_POINT = 'shell.parts'
@@ -72,6 +73,7 @@ export const partsContract: Contract = {
   item: { kind: 'data', fields: { label: 'string', summary: 'string', depths: 'array' } },
   resolve: 'conflict',
   binding: 'run',
+  scopes: READ_FOR_ALL,
   onError: 'a name declared two ways stands for no part, and nothing can be changed by it',
   version: 1,
   revision: 1,

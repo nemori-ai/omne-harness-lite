@@ -32,8 +32,8 @@ async function causeOf(
       run,
     })
     if (reading.kind !== 'cause' || reading.cause.kind === '') return null
-    const { kind, detail } = reading.cause
-    return { kind, detail: detail === '' ? null : detail }
+    const { kind, detail, fault } = reading.cause
+    return { kind, detail: detail === '' ? null : detail, fault }
   } catch {
     return null
   }

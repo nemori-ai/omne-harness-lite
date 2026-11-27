@@ -1,3 +1,10 @@
+/** What a waiting plugin lacks on one side: a port, a point, or a reference a point needs, by its name. */
+export type Absent = Readonly<{ kind: 'port' | 'point' | 'reference'; name: string }>
+
+/** What a waiting plugin lacks, in words: each one by its kind and its name. */
+export const lacksText = (lacks: readonly Absent[]): string =>
+  lacks.map(each => `${each.kind} ${each.name}`).join(', ')
+
 /** One plugin on one side. `over` is the older generation still live while the new one loads. */
 export type SideState =
   | Readonly<{ kind: 'unwanted' }>
@@ -9,7 +16,7 @@ export type SideState =
     }>
   | Readonly<{ kind: 'loaded'; version: string }>
   | Readonly<{ kind: 'failed'; version: string; reason: string }>
-  | Readonly<{ kind: 'waiting'; version: string; lacks: readonly string[] }>
+  | Readonly<{ kind: 'waiting'; version: string; lacks: readonly Absent[] }>
   | Readonly<{ kind: 'held'; version: string }>
 
 export type SideEvent =
@@ -18,7 +25,7 @@ export type SideEvent =
   | Readonly<{ kind: 'restarted' }>
   | Readonly<{ kind: 'done' }>
   | Readonly<{ kind: 'broke'; reason: string }>
-  | Readonly<{ kind: 'lacking'; lacks: readonly string[] }>
+  | Readonly<{ kind: 'lacking'; lacks: readonly Absent[] }>
   | Readonly<{ kind: 'appeared' }>
   | Readonly<{ kind: 'held' }>
 

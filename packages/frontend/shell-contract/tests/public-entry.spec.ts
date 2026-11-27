@@ -5,12 +5,16 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
+    'GRANTS_ITSELF',
     'LAYOUT_POINT',
+    'NO_TENANT',
     'PARTS_POINT',
     'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
+    'READ_FOR_ALL',
     'RENDER_POINT',
     'RESERVED_CHORDS',
+    'SPEAKS_AS_SYSTEM',
     'STYLE_POINT',
     'ShellAssemblyError',
     'TOKENS_POINT',
@@ -77,7 +81,7 @@ it('declares the six points of the shell itself as fixed when the application is
     keys: 'private',
     conformance: null,
   }
-  expect(shellContracts).toEqual([
+  expect(shellContracts.map(({ scopes: _scopes, ...rest }) => rest)).toEqual([
     {
       ...shared,
       name: 'shell.gate',
@@ -128,7 +132,7 @@ it('declares the six points of the shell itself as fixed when the application is
       ...shared,
       name: 'shell.say',
       arity: 'one',
-      revision: 2,
+      revision: 3,
       item: {
         kind: 'pure',
         fields: {
@@ -141,9 +145,18 @@ it('declares the six points of the shell itself as fixed when the application is
       },
       gives: 'nothing: the shell hands the tenant scope with each call',
       onError:
-        'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again',
+        'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again; with no said, no reply, or a reply that throws, the shell writes only that the words were taken',
+      conformance:
+        'from revision 2 the item may know pictures; from revision 3 a sent outcome may carry said, and reply(scope, said, listener) gives the listener the whole text the agent has said so far with coming, ended or unknown, and nothing after ended or unknown',
       summary:
-        'Where the words a person says to the figure go: the item draws nothing, and the shell asks it afresh each time. Fixed when the app is built: a plugin cannot add to it while the app runs.',
+        'Where the words a person says to the figure go, and what the agent says back: the item draws nothing, and the shell asks it afresh each time. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
+  ]) // Until the shell reads them for the tenant who asks, they are closed to plugins; the gate for good.
+  expect(shellContracts.map(contract => [contract.name, contract.scopes])).toEqual([
+    ['shell.gate', expect.objectContaining({ why: 'no-tenant' })],
+    ...['shell.pages', 'shell.sidebar', 'shell.float', 'shell.back', 'shell.say'].map(name => [
+      name,
+      expect.objectContaining({ why: 'one-per-process' }),
+    ]),
   ])
 })

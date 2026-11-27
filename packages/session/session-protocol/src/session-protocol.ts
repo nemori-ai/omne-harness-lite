@@ -221,7 +221,23 @@ const waiting = object({
         run: { rule: text },
         pending: { rule: { kind: 'count' } },
         cause: {
-          rule: nullable(object({ kind: { rule: text }, detail: { rule: nullable(text) } })),
+          rule: nullable(
+            object({
+              kind: { rule: text },
+              detail: { rule: nullable(text) },
+              fault: {
+                rule: nullable(
+                  object({
+                    cause: { rule: text },
+                    upstreamStatus: { rule: nullable(text) },
+                    throttled: { rule: boolean },
+                  }),
+                ),
+                optional: true,
+                since: 5,
+              },
+            }),
+          ),
         },
       }),
     ),

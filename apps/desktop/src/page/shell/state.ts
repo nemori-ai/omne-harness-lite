@@ -16,6 +16,7 @@ import {
 import type { TokenNow } from './changes-sheet.ts'
 import type { Face, FacePreference } from './face.ts'
 import type { Lack, LackSlot, PageLacks } from './lacks.ts'
+import { phraseRelay, type PhraseRelay } from './phrase-relay.ts'
 import { redrawRelay, type RedrawRelay } from './redraw.ts'
 
 export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
@@ -166,6 +167,7 @@ export type ShellState = {
   readonly slots: SlotRelay
   readonly lacks: LackRelay
   readonly redraw: RedrawRelay
+  readonly phrases: PhraseRelay
   readonly told: ToldBoard
   readonly figure: FigureStore
   /** The modules that put each page, by page id. A page on show has one: that module is in front. */
@@ -378,6 +380,7 @@ export function createShellState(
     slots,
     lacks: lackRelay(),
     redraw: redrawRelay(),
+    phrases: phraseRelay(),
     told,
     figure: createFigureStore(),
     pageOwners: new Map(),

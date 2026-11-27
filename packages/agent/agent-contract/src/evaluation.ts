@@ -61,6 +61,7 @@ export type FailureCandidate = Readonly<{
         node: string
         category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected'
         failureKind: Failure['kind']
+        diagnostic?: string
       }>
     | Readonly<{
         kind: 'cannot-fit'
@@ -112,8 +113,9 @@ export type Failure =
       field: string
       reason: string
       rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+      disclosed?: string
     }>
-  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
+  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string; disclosed?: string }>
   | Readonly<{
       kind:
         | 'stale-advance'

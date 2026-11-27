@@ -2,7 +2,7 @@ import { createContext, createElement, Fragment, useContext, type ReactNode } fr
 
 export type RedrawKind = 'icon' | 'piece'
 
-export const PIECES = ['empty-state', 'figure', 'inline-notice', 'loading'] as const
+export const PIECES = ['empty-state', 'figure', 'inline-notice', 'loading', 'note'] as const
 
 export type Piece = (typeof PIECES)[number]
 

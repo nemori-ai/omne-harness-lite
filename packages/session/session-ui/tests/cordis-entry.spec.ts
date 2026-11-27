@@ -21,6 +21,7 @@ it('Cordis 入口给出界面模块与读法的小模块、跳到对话页的对
     'sessionComposerIntakeKey',
     'sessionComposerKey',
     'sessionDock',
+    'sessionModelChoiceKey',
     'sessionParts',
     'sessionReadsSourceKey',
     'sessionReadsUiModule',

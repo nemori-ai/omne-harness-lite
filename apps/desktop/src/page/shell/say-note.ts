@@ -1,10 +1,23 @@
-import type { SayItem, SayOutcome, SayPicture, ShellSlots } from '@omne-harness/shell-contract'
-import type { NoteFate, NoteTarget, NoteTo, NoteTold, SceneNote } from '../desk/scene.ts'
+import type {
+  SayItem,
+  SayOutcome,
+  SayPhrase,
+  SayPicture,
+  SayReply,
+  ShellSlots,
+} from '@omne-harness/shell-contract'
+import type { NoteFate, NoteReply, NoteTarget, NoteTo, NoteTold, SceneNote } from '../desk/scene.ts'
 import type { LookPicture } from './desk/window-look.ts'
+
+export type PhraseFeed = Readonly<{
+  phrases(): readonly SayPhrase[]
+  watch(listener: () => void): () => void
+}>
 
 export type NoteDeps = Readonly<{
   slots: ShellSlots
   scope: () => string | undefined
+  phrases: PhraseFeed
 }>
 
 export type NotePicture = Readonly<{ id: string } & LookPicture>
@@ -42,6 +55,7 @@ export type ShellNote = Readonly<{
   give(gift: Gift): void
   unpicture(id: string): void
   send(words: string, to: NoteTo, kept: readonly string[]): void
+  phrase(key: string): void
   show(): boolean
   rescope(): void
   scene(): SceneNote
@@ -63,11 +77,17 @@ type Draft = {
   told: NoteTold | undefined
   sent: string | undefined
   read: Read | null
+  reply: NoteReply | undefined
 }
+
+type Saying = 'send' | 'phrase' | 'direct'
+type Replying = { readonly item: SayItem; stop: () => void; seen: NoteReply }
 
 const NEW: NoteTo = { kind: 'new' }
 const CANNOT: NoteTold = { kind: 'cannot-send-pictures' }
 const nothing = () => undefined
+const REPLY_KEPT = 4000
+const REPLY_STATES: readonly unknown[] = ['coming', 'ended', 'unknown']
 
 const blank = (): Draft => ({
   words: '',
@@ -77,7 +97,23 @@ const blank = (): Draft => ({
   told: undefined,
   sent: undefined,
   read: null,
+  reply: undefined,
 })
+
+function kept(given: SayReply): NoteReply {
+  const text = String(given.text)
+  const state = REPLY_STATES.includes(given.state) ? given.state : 'unknown'
+  const chars = Array.from(text)
+  if (chars.length <= REPLY_KEPT) return { text, state }
+  return { text: chars.slice(0, REPLY_KEPT).join(''), state, more: true }
+}
+
+const replied = (reply: NoteReply | undefined) => (reply === undefined ? {} : { reply })
+
+function phrased(phrases: readonly SayPhrase[]) {
+  const shown = phrases.map(({ key, label }) => ({ key, label }))
+  return shown.length > 0 ? { phrases: shown } : {}
+}
 
 function fateOf(outcome: SayOutcome | undefined): NoteFate {
   if (outcome?.kind === 'sent') return { kind: 'accepted' }
@@ -101,12 +137,16 @@ class Note implements ShellNote {
   private made = 0
   private seen: NoteView | null = null
   private unfollow: () => void = nothing
+  private replying: Replying | null = null
+  private phraseList: readonly SayPhrase[] = []
   private readonly unwatch: () => void
+  private readonly unphrase: () => void
   private readonly listeners = new Set<() => void>()
 
   public constructor(private readonly deps: NoteDeps) {
     this.tenant = deps.scope()
     this.unwatch = deps.slots.subscribe('say', () => this.slotChanged())
+    this.unphrase = deps.phrases.watch(() => this.phrasesChanged())
   }
 
   public subscribe(listener: () => void): () => void {
@@ -189,7 +229,16 @@ class Note implements ShellNote {
   }
 
   public send(words: string, to: NoteTo, kept: readonly string[]): void {
-    this.say(words, to, kept, false)
+    this.say(words, to, kept, 'send')
+  }
+
+  public phrase(key: string): void {
+    const found = this.shownPhrases().find(phrase => phrase.key === key)
+    if (found === undefined) return
+    const { draft } = this
+    const words = draft.words.trim() === '' ? found.words : `${found.words}\n${draft.words}`
+    const all = draft.pictures.map(picture => picture.id)
+    this.say(words, defaultTo(draft), all, 'phrase')
   }
 
   /** Opens what the last accepted words went to; false when nothing was accepted. */
@@ -208,6 +257,7 @@ class Note implements ShellNote {
     const next = this.deps.scope()
     if (next === this.tenant) return
     this.tenant = next
+    this.stopReply()
     this.draft = blank()
     this.edit += 1
     this.spot = null
@@ -230,6 +280,8 @@ class Note implements ShellNote {
       words: draft.words,
       ...(draft.chosen === undefined ? {} : { chosen: draft.chosen }),
       edit: this.edit,
+      ...replied(draft.reply),
+      ...phrased(this.shownPhrases()),
     }
   }
 
@@ -240,46 +292,112 @@ class Note implements ShellNote {
   public dispose(): void {
     this.unfollow()
     this.unfollow = nothing
+    this.stopReply()
+    this.unphrase()
     this.unwatch()
     this.listeners.clear()
   }
 
-  private say(words: string, to: NoteTo, kept: readonly string[], direct: boolean): void {
+  private say(words: string, to: NoteTo, kept: readonly string[], saying: Saying): void {
     const { draft } = this
     const item = this.item()
     if (draft.fate?.kind === 'sending' || !draft.read?.targets || !item) return
-    if (!direct) draft.words = words
+    if (saying === 'send') draft.words = words
     draft.fate = { kind: 'sending' }
+    this.stopReply()
+    draft.reply = undefined
     this.changed()
     const handed: SayPicture[] = draft.pictures
       .filter(picture => kept.includes(picture.id))
       .map(({ name, bytes }) => ({ name, bytes }))
     const said = sayOnce(item, this.tenant, to, words, handed)
     const there = draft.pictures.map(picture => picture.id)
-    void said.catch(() => undefined).then(outcome => this.settled(draft, outcome, direct, there))
+    const settle = (outcome: SayOutcome | undefined) =>
+      this.settled(draft, outcome, { saying, there, item })
+    void said.catch(() => undefined).then(settle)
   }
 
   private settled(
     draft: Draft,
     outcome: SayOutcome | undefined,
-    direct: boolean,
-    there: readonly string[],
+    sent: Readonly<{ saying: Saying; there: readonly string[]; item: SayItem }>,
   ): void {
     if (this.draft !== draft) return
     draft.fate = fateOf(outcome)
     if (outcome?.kind !== 'failed')
-      draft.pictures = draft.pictures.filter(picture => !there.includes(picture.id))
-    if (outcome?.kind === 'sent') this.accepted(draft, outcome.key, direct)
+      draft.pictures = draft.pictures.filter(picture => !sent.there.includes(picture.id))
+    if (outcome?.kind === 'sent') this.accepted(draft, outcome, sent.saying, sent.item)
     this.changed()
   }
 
   /** Words said at once carry no words of the person's: theirs stay, and the figure goes home. */
-  private accepted(draft: Draft, key: string, direct: boolean): void {
-    draft.sent = String(key)
-    if (direct) return this.side?.accepted()
-    draft.words = ''
-    draft.chosen = undefined
-    this.edit += 1
+  private accepted(
+    draft: Draft,
+    outcome: Extract<SayOutcome, { kind: 'sent' }>,
+    saying: Saying,
+    item: SayItem,
+  ): void {
+    draft.sent = String(outcome.key)
+    if (saying !== 'direct') {
+      draft.words = ''
+      draft.chosen = undefined
+      this.edit += 1
+    }
+    if (outcome.said !== undefined && this.item() === item)
+      this.followReply(draft, item, outcome.said)
+    if (saying === 'direct') this.side?.accepted()
+  }
+
+  private followReply(draft: Draft, item: SayItem, said: string): void {
+    if (item.reply === undefined) return
+    const replying: Replying = { item, stop: nothing, seen: { text: '', state: 'coming' } }
+    this.replying = replying
+    draft.reply = replying.seen
+    try {
+      replying.stop = item.reply(this.tenant, String(said), given => this.heard(replying, given))
+    } catch {
+      this.replying = null
+      draft.reply = undefined
+      return
+    }
+    if (this.replying !== replying) attempt(replying.stop)
+  }
+
+  private heard(replying: Replying, given: SayReply): void {
+    if (this.replying !== replying) return
+    replying.seen = kept(given)
+    this.draft.reply = replying.seen
+    if (replying.seen.state !== 'coming') this.stopReply()
+    this.changed()
+  }
+
+  private stopReply(): void {
+    const replying = this.replying
+    this.replying = null
+    if (replying !== null) attempt(replying.stop)
+  }
+
+  private replyLost(): void {
+    const { replying } = this
+    if (replying === null || this.item() === replying.item) return
+    this.stopReply()
+    this.draft.reply = { ...replying.seen, state: 'unknown' }
+  }
+
+  private shownPhrases(): readonly SayPhrase[] {
+    const { draft } = this
+    return draft.pictures.length > 0 && draft.read?.knows === true ? this.phraseList : []
+  }
+
+  private phrasesChanged(): void {
+    if (!this.isOpen()) return
+    const was = this.phraseList
+    this.readPhrases()
+    if (this.phraseList !== was) this.changed()
+  }
+
+  private readPhrases(): void {
+    this.phraseList = attempt(() => this.deps.phrases.phrases()) ?? []
   }
 
   private take(gift: Gift): void {
@@ -288,7 +406,7 @@ class Note implements ShellNote {
     draft.told = gift.told
     if (gift.send && draft.read?.knows === true && draft.pictures.length > 0) {
       const all = draft.pictures.map(picture => picture.id)
-      this.say('', defaultTo(draft), all, true)
+      this.say('', defaultTo(draft), all, 'direct')
     }
   }
 
@@ -304,6 +422,7 @@ class Note implements ShellNote {
   private opened(): void {
     this.follow()
     this.read()
+    this.readPhrases()
   }
 
   private shut(): void {
@@ -313,6 +432,7 @@ class Note implements ShellNote {
   }
 
   private slotChanged(): void {
+    this.replyLost()
     if (!this.present()) {
       this.spot = null
       if (this.side?.open() === true) this.side.close()

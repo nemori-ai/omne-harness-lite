@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import {
+  READ_FOR_ALL,
   defineKeyedPoint,
   definePoint,
   type AttachedEntry,
@@ -269,6 +270,7 @@ describe('defineKeyedPoint', () => {
       item: { kind: 'pure', fields: { render: 'function' } },
       resolve: 'conflict',
       binding: 'run',
+      scopes: READ_FOR_ALL,
       onError: 'only this item shows that it cannot be read',
       version: 1,
       revision: 1,

@@ -140,6 +140,12 @@ describe('assets/v1 asset operations on the release tree', () => {
             body: {
               items: [
                 {
+                  name: 'extending-the-app',
+                  holding: 'official/skill/extending-the-app',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
                   name: 'skill-authoring',
                   holding: 'official/skill/skill-authoring',
                   origin: 'official',
@@ -197,6 +203,12 @@ describe('assets/v1 asset operations on the release tree', () => {
             outcome: 'succeeded',
             body: {
               items: [
+                {
+                  name: 'extending-the-app',
+                  holding: 'official/skill/extending-the-app',
+                  origin: 'official',
+                  enabled: true,
+                },
                 {
                   name: 'skill-authoring',
                   holding: 'official/skill/skill-authoring',
@@ -300,7 +312,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         const listed = await omne('asset', 'list', 'skill')
         expect(listed.status).toBe(0)
         expect(listed.stdout).toMatch(
-          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nskill-authoring +yes +official +\S+ +skill-authoring\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
+          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nextending-the-app +yes +official +\S+ +extending-the-app\nskill-authoring +yes +official +\S+ +skill-authoring\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
         )
 
         const shown = await omne('asset', 'show', 'skill:review')
@@ -319,6 +331,12 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect((await omne('asset', 'list', 'skill', '--json')).result).toMatchObject({
           body: {
             items: [
+              {
+                name: 'extending-the-app',
+                holding: 'official/skill/extending-the-app',
+                origin: 'official',
+                enabled: true,
+              },
               {
                 name: 'skill-authoring',
                 holding: 'official/skill/skill-authoring',

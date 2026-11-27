@@ -210,7 +210,12 @@ describe('the three failures differ', () => {
       session: () => succeed(savedSelection(ROUTE)),
       profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'unknown-name' }) },
     })
-    expect(failure).toEqual({ kind: 'invalid', field: 'model', reason: 'unknown-name' })
+    expect(failure).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'unknown-name',
+      disclosed: 'model unknown-name',
+    })
   })
 
   test('a route whose profiles were all withdrawn: invalid, with its own reason', async () => {
@@ -218,7 +223,12 @@ describe('the three failures differ', () => {
       session: () => succeed(savedSelection(ROUTE)),
       profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'withdrawn' }) },
     })
-    expect(failure).toEqual({ kind: 'invalid', field: 'model', reason: 'withdrawn' })
+    expect(failure).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'withdrawn',
+      disclosed: 'model withdrawn',
+    })
   })
 
   test('the three results are pairwise different', async () => {
@@ -258,6 +268,7 @@ describe('no other model is chosen', () => {
       kind: 'invalid',
       field: 'model',
       reason: 'not-enabled',
+      disclosed: 'model not-enabled',
     })
     expect(value.asked).toEqual([ROUTE])
   })

@@ -279,7 +279,7 @@ describe('a member that is code', () => {
     [
       'its export gives something that is not a drawing',
       { 'send.js': { send: () => ({ render: 'later' }) } },
-      'member 1 (shell.part-render notes.send): send gave no drawing',
+      'shell.part-render notes.send: the item lacks render (function)',
     ],
   ] as const)('fails the whole plugin when %s', async (_name, files, reason) => {
     const other = { 'cards/todo.js': { todo: () => () => null } }
@@ -287,14 +287,22 @@ describe('a member that is code', () => {
   })
 
   it.each([
-    ['a point that is not declared', { ...sendCode, point: 'notes.nowhere' }],
     ['a point that takes data', { ...sendCode, point: TOKENS_POINT, key: 'shell.app' }],
   ] as const)('fails before any file is loaded when it names %s', async (_name, member) => {
     const t = await world({ 'send.js': { send: () => () => null } })
     const outcome = await t.install(brand(member))
     expect(outcome).toEqual({
       kind: 'failed',
-      reason: `member 1 (${member.point} ${member.key}): the point takes no drawing`,
+      reason: `member 1 (${member.point} ${member.key}): the point takes data; this member gives code`,
+    })
+    expect(t.loaded).toEqual([])
+  })
+
+  it('waits, before any file is loaded, when it names a point that is not declared', async () => {
+    const t = await world({ 'send.js': { send: () => () => null } })
+    expect(await t.install(brand({ ...sendCode, point: 'notes.nowhere' }))).toEqual({
+      kind: 'waiting',
+      lacks: [{ kind: 'point', name: 'notes.nowhere' }],
     })
     expect(t.loaded).toEqual([])
   })

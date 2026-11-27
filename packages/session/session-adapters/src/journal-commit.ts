@@ -28,11 +28,11 @@ const UNSUPPORTED: ReadonlySet<CommitRejectReason> = new Set([
 
 type Refused = Extract<JournalCommitResult, { kind: 'refused' }>
 
-// The reason the Agent reads is what the storage said: for a limit it names which one and by how much.
+// The reason the Agent reads is what the storage said: for a limit it names which one and by how much. The storage says identities and sizes only, so the line is disclosed.
 export const refusalFailure = ({ reason, said }: Pick<Refused, 'reason' | 'said'>): Failure =>
   UNSUPPORTED.has(reason)
     ? { kind: 'unsupported' }
-    : { kind: 'invalid', field: 'storage', reason: said }
+    : { kind: 'invalid', field: 'storage', reason: said, disclosed: said }
 
 export type JournalRecall = SqlIdentity['recall']
 

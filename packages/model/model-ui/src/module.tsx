@@ -13,7 +13,7 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { createModelChoices, type ModelChoices } from './choices.ts'
 import type { AssetPort } from './view/asset-body.ts'
 import { modelParts } from './parts.ts'
-import { CredentialRemedy } from './view/credential-remedy.tsx'
+import { RunFailureRemedy, type RunFault } from './view/run-failure-remedy.tsx'
 import { MODEL_REASONING_EFFORTS, MODEL_SWITCHES } from './view/models-table.ts'
 import { ModelsBlock } from './view/models-block.tsx'
 import { ProviderBlock } from './view/provider-block.tsx'
@@ -40,7 +40,14 @@ export type HoldingSink = Readonly<{
   ) => void
 }>
 
-type RunFailure = Readonly<{ session: string; cause: string; detail: string | null }>
+type RunFailure = Readonly<{
+  session: string
+  cause: string
+  detail: string | null
+  fault: RunFault | null
+}>
+
+type ModelChooser = Readonly<{ open(session: string): void }>
 
 /** What the assembly hands in: where a failed run is told, where the keys of providers are filled in, and the
  * place on the page of one provider with the port its body is read from. */
@@ -49,6 +56,7 @@ export type ModelUiOptions = Readonly<{
   providers?: Readonly<{ page: string; subject: string }>
   holding?: HoldingSink
   assets?: ServiceKey<AssetPort>
+  modelChoice?: ServiceKey<ModelChooser>
 }>
 
 type UiModule = ReturnType<typeof defineUiModule>
@@ -59,8 +67,9 @@ export function createModelUiModule(options: ModelUiOptions = {}): UiModule {
     needs: {
       model: needProtocol<ClientOf<ModelProtocol>>(modelProtocol),
       assets: needPoint(options.assets, { optional: true }),
+      modelChoice: needPoint(options.modelChoice, { optional: true }),
     },
-    apply(shell, { model, assets }, provide) {
+    apply(shell, { model, assets, modelChoice }, provide) {
       provide(modelChoicesKey, createModelChoices(model))
       const { providers } = options
       const fill =
@@ -70,16 +79,19 @@ export function createModelUiModule(options: ModelUiOptions = {}): UiModule {
       options.runFailure?.contribute(shell, {
         id: CREDENTIAL_REMEDY_ID,
         order: 0,
-        render: ({ scope, subject }) =>
-          scope === undefined ? null : (
-            <CredentialRemedy
+        render: ({ scope, subject }) => {
+          const chooser = modelChoice.get()
+          return scope === undefined ? null : (
+            <RunFailureRemedy
               port={assets.get()}
               tenant={scope}
               category={PROVIDER_CATEGORY}
-              detail={subject.detail}
+              fault={subject.fault}
               fill={fill}
+              choose={chooser === undefined ? undefined : () => chooser.open(subject.session)}
             />
-          ),
+          )
+        },
       })
       options.holding?.contribute(shell, PROVIDER_CATEGORY, {
         id: PROVIDER_BLOCK_ID,

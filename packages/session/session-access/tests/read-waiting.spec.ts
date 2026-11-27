@@ -37,7 +37,11 @@ const PENDING: Readonly<Record<Exclude<SessionState, 'not waiting'>, number>> = 
   'waiting with nothing pending': 0,
 }
 
-const CAUSE = { kind: 'no-reply', detail: 'upstream answered 503' }
+const CAUSE = {
+  kind: 'no-reply',
+  detail: 'http-429',
+  fault: { cause: 'upstream-unavailable', upstreamStatus: '429', throttled: true },
+}
 
 const SCRIPT: Readonly<Record<Exclude<CausePort, 'is absent'>, CauseScript>> = {
   'answers a cause': { kind: 'cause', cause: CAUSE },
@@ -127,11 +131,11 @@ describe('read-waiting asks for the cause', () => {
     const world = createWorld()
     const session = await created(world)
     world.session.controls.waitWith({ run: RUN, pending: 1, execution: 'execution-1' })
-    world.causes.answer({ kind: 'cause', cause: { kind: 'guard', detail: '' } })
+    world.causes.answer({ kind: 'cause', cause: { kind: 'guard', detail: '', fault: null } })
     expect(await readWaiting(world, session)).toMatchObject({
-      body: { waiting: { cause: { kind: 'guard', detail: null } } },
+      body: { waiting: { cause: { kind: 'guard', detail: null, fault: null } } },
     })
-    world.causes.answer({ kind: 'cause', cause: { kind: '', detail: 'x' } })
+    world.causes.answer({ kind: 'cause', cause: { kind: '', detail: 'x', fault: null } })
     expect(await readWaiting(world, session)).toMatchObject({ body: { waiting: { cause: null } } })
   })
 })

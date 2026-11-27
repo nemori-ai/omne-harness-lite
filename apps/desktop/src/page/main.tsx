@@ -15,10 +15,9 @@ import { shellPlugin } from './shell/service.ts'
 import { storedFloatPlaces } from './shell/float-place.ts'
 import { hostFigure } from './shell/desk/device.ts'
 import { Shell } from './shell/shell.tsx'
-import { storedSizePreference } from './shell/size.ts'
+import { createVisualManager, desktopVisualSource } from './shell/visual.ts'
 import { tellPageVersion } from './shell/page-version.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
-import { storedThemePreference } from './shell/theme.ts'
 import { markWindowChrome } from './shell/window-chrome.ts'
 import { startClientTree } from './tree.ts'
 import './styles.css'
@@ -34,7 +33,11 @@ async function main(): Promise<void> {
   const element = document.getElementById('root')
   if (element === null) return
   markWindowChrome(document.documentElement, navigator.userAgent)
-  const size = createSizeController(storedSizePreference(() => window.localStorage))
+  const visual = createVisualManager({ host: window, nativeSource: desktopVisualSource })
+  const size = createSizeController({
+    read: () => visual.getSnapshot().effective.size,
+    write: tier => visual.actions.setSize(tier),
+  })
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
   let gate: (text: string) => void = () => undefined
@@ -62,9 +65,18 @@ async function main(): Promise<void> {
     outcomes: pageFloor.outcomes,
   })
   for (const module of assembly.modules) await tree.install(module)
-  const preference = storedThemePreference(() => window.localStorage)
-  const theme = createThemeController({ ...preference, system: colorSchemeQuery() })
+  const theme = createThemeController({
+    read: () => visual.getSnapshot().effective.theme,
+    write: choice => visual.actions.setTheme(choice),
+    system: colorSchemeQuery(),
+  })
   theme.start()
+  visual.subscribe(() => {
+    const { effective } = visual.getSnapshot()
+    theme.adopt(effective.theme)
+    size.adopt(effective.size)
+  })
+  visual.connect()
   const missing = missingAtForwarding(assembly.protocols, bridge.forwardingProtocols()).map(
     key => `${key.name}/v${key.major}`,
   )
@@ -75,7 +87,11 @@ async function main(): Promise<void> {
         appName="omne"
         state={state}
         connectivity={watched}
-        theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
+        theme={{
+          current: () => visual.getSnapshot().effective.theme,
+          select: choice => theme.select(choice),
+          subscribe: visual.subscribe,
+        }}
         size={size}
         floats={storedFloatPlaces(() => window.localStorage)}
         figureDevice={figureDevice}

@@ -1,13 +1,22 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { type ComponentProps } from 'react'
+import { createRef, type ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { SayBubble } from '../src/index.ts'
+import {
+  RedrawProvider,
+  SayBubble,
+  type Redraw,
+  type SayControl,
+  type SayInside,
+} from '../src/index.ts'
 import { casual } from '../src/ink/casual.ts'
 import { inkClock } from '../src/ink/clock.ts'
-import { besideSpot, NOTE_GAP, NOTE_WIDTH, type SayNote } from '../src/ink/say.ts'
+import { besideSpot, NOTE_GAP, NOTE_WIDTH, REPLY_HEIGHT, type SayNote } from '../src/ink/say.ts'
 import { type Box } from '../src/ink/travel.ts'
 
+const STYLES = readFileSync(join(import.meta.dirname, '../src/ink/ink.css'), 'utf8')
 const FIGURE: Box = { x: 272, y: 172, width: 56, height: 56 }
 const BOUNDS: Box = { x: 0, y: 0, width: 1200, height: 800 }
 const TARGETS = [
@@ -486,5 +495,369 @@ describe('what it tells about the window (C5)', () => {
     frameClock()
     open({ ...NOTE, told: { kind: 'cannot-send-pictures' }, fate: { kind: 'accepted' } })
     expect(line().textContent).toBe('已发送')
+  })
+})
+
+const ACCEPTED: SayNote = { ...NOTE, fate: { kind: 'accepted' } }
+const reply = (): HTMLElement | null => screen.queryByRole('log')
+
+function cssRule(selector: string): string {
+  const start = STYLES.indexOf(`${selector} {`)
+  if (start < 0) throw new Error(`ink.css has no rule ${selector}`)
+  return STYLES.slice(start, STYLES.indexOf('}', start))
+}
+
+describe('what the agent says back (C3)', () => {
+  it('with none given, or none said yet, there is no reply: only 已发送', () => {
+    frameClock()
+    const { again } = open(ACCEPTED)
+    expect(reply()).toBeNull()
+    again({ ...ACCEPTED, reply: { text: '', state: 'coming' } })
+    expect(reply()).toBeNull()
+    expect(line().textContent).toBe('已发送')
+  })
+
+  it('ended with nothing said: there is no reply, only 已发送', () => {
+    frameClock()
+    open({ ...ACCEPTED, reply: { text: '', state: 'ended' } })
+    expect(reply()).toBeNull()
+    expect(line().textContent).toBe('已发送')
+  })
+
+  it('not known with nothing said: only the neutral line', () => {
+    frameClock()
+    open({ ...ACCEPTED, reply: { text: '', state: 'unknown' } })
+    expect(reply()?.textContent).toBe('不知道它后来怎样了，到对话页看一下')
+    expect(reply()?.querySelector('.omne-say-reply-text')).toBeNull()
+  })
+
+  it('before the line is accepted there is no reply', () => {
+    frameClock()
+    open({
+      ...NOTE,
+      text: '一句',
+      fate: { kind: 'sending' },
+      reply: { text: '旧的', state: 'ended' },
+    })
+    expect(reply()).toBeNull()
+  })
+
+  it('writes the words as they are: the lines kept, nothing read as Markdown or markup', () => {
+    frameClock()
+    const text = '**不是粗体**\n<b>不是标签</b>\n第三行'
+    open({ ...ACCEPTED, reply: { text, state: 'ended' } })
+    expect(reply()?.textContent).toBe(text)
+    expect(reply()?.querySelector('b, strong, em')).toBeNull()
+    expect(cssRule('.omne-say-reply')).toMatch(/white-space: pre-wrap/)
+  })
+
+  it('still coming: it is busy, and says nothing of its own', () => {
+    frameClock()
+    open({ ...ACCEPTED, reply: { text: '我先看', state: 'coming' } })
+    expect(reply()?.getAttribute('aria-busy')).toBe('true')
+    expect(reply()?.textContent).toBe('我先看')
+  })
+
+  it('ended: it is not busy, and says nothing of its own', () => {
+    frameClock()
+    open({ ...ACCEPTED, reply: { text: '看完了', state: 'ended' } })
+    expect(reply()?.getAttribute('aria-busy')).toBe('false')
+    expect(reply()?.textContent).toBe('看完了')
+  })
+
+  it('not known: the words so far stay, and a neutral line says it is not known', () => {
+    frameClock()
+    const { again } = open({ ...ACCEPTED, reply: { text: '先看了一半', state: 'coming' } })
+    again({ ...ACCEPTED, reply: { text: '先看了一半', state: 'unknown' } })
+    expect(reply()?.getAttribute('aria-busy')).toBe('false')
+    expect(reply()?.textContent).toBe('先看了一半不知道它后来怎样了，到对话页看一下')
+    again({ ...ACCEPTED, reply: { text: '', state: 'unknown' } })
+    expect(reply()?.textContent).toBe('不知道它后来怎样了，到对话页看一下')
+  })
+
+  it('when the caller says there is more, it ends with 后面的在对话页', () => {
+    frameClock()
+    const { again } = open({ ...ACCEPTED, reply: { text: '前面', state: 'ended', more: false } })
+    expect(reply()?.textContent).toBe('前面')
+    again({ ...ACCEPTED, reply: { text: '前面', state: 'ended', more: true } })
+    expect(reply()?.textContent).toBe('前面后面的在对话页')
+  })
+
+  it('is at most 240 high and scrolls in itself', () => {
+    frameClock()
+    open({ ...ACCEPTED, reply: { text: '一句', state: 'ended' } })
+    expect(reply()?.style.maxHeight).toBe(`${REPLY_HEIGHT}px`)
+    expect(cssRule('.omne-say-reply')).toMatch(/overflow-y: auto/)
+  })
+
+  it('stays at the end as the words grow; scrolled up, it stays where it was left', () => {
+    frameClock()
+    let tall = 100
+    vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (this: Element) {
+      return this.classList.contains('omne-say-reply') ? tall : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('omne-say-reply') ? Math.min(tall, REPLY_HEIGHT) : 0
+    })
+    const { again } = open({ ...ACCEPTED, reply: { text: '一', state: 'coming' } })
+    const said = (text: string, grown: number): void => {
+      tall = grown
+      again({ ...ACCEPTED, reply: { text, state: 'coming' } })
+    }
+    const box = reply()!
+    said('一二', 600)
+    expect(box.scrollTop).toBe(600)
+    box.scrollTop = 100
+    fireEvent.scroll(box)
+    said('一二三', 900)
+    expect(box.scrollTop).toBe(100)
+    box.scrollTop = 900 - REPLY_HEIGHT
+    fireEvent.scroll(box)
+    said('一二三四', 1200)
+    expect(box.scrollTop).toBe(1200)
+  })
+
+  it('its closing words can be told', () => {
+    frameClock()
+    open(
+      { ...ACCEPTED, reply: { text: '', state: 'unknown', more: true } },
+      { words: { replyUnknown: 'unknown', replyMore: 'more' } },
+    )
+    expect(reply()?.textContent).toBe('unknownmore')
+  })
+})
+
+describe('the ready lines beside it (C3)', () => {
+  const PICTURES = [{ name: '窗口', bytes: new Uint8Array([1, 2, 3]) }]
+  const PHRASES = ['一', '二', '三', '四', '五', '六'].map((label, n) => ({
+    key: `k${n + 1}`,
+    label: `第${label}句`,
+  }))
+  const WITH: SayNote = { ...NOTE, pictures: PICTURES, phrases: PHRASES }
+  const shown = (): string[] =>
+    [...document.querySelectorAll('.omne-say-phrases button')].map(button => button.textContent)
+
+  beforeEach(() => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:picture')
+    vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined)
+  })
+
+  it('with no pictures there are none', () => {
+    frameClock()
+    open({ ...NOTE, phrases: PHRASES })
+    expect(document.querySelector('.omne-say-phrases')).toBeNull()
+  })
+
+  it('with pictures and none given there are none', () => {
+    frameClock()
+    const { again } = open({ ...NOTE, pictures: PICTURES })
+    expect(document.querySelector('.omne-say-phrases')).toBeNull()
+    again({ ...NOTE, pictures: PICTURES, phrases: [] })
+    expect(document.querySelector('.omne-say-phrases')).toBeNull()
+  })
+
+  it('given six, it shows the first four, in order', () => {
+    frameClock()
+    open(WITH)
+    expect(shown()).toEqual(['第一句', '第二句', '第三句', '第四句'])
+  })
+
+  it('pressing one tells its key', () => {
+    frameClock()
+    const onPhrase = vi.fn()
+    open(WITH, { onPhrase })
+    act(() => screen.getByRole('button', { name: '第二句' }).click())
+    expect(onPhrase).toHaveBeenCalledExactlyOnceWith('k2')
+  })
+
+  it('they are not inside the frame of words: they stand beside it, away from the figure', () => {
+    frameClock()
+    open(WITH)
+    const column = document.querySelector<HTMLElement>('.omne-say-phrases')
+    expect(column?.dataset['side']).toBe('right')
+    expect(cssRule('.omne-say-phrases')).toMatch(/position: absolute/)
+  })
+
+  it('while the line is sent, they cannot be pressed and the words cannot be changed', () => {
+    frameClock()
+    const onPhrase = vi.fn()
+    const { again } = open(WITH, { onPhrase })
+    expect(field().readOnly).toBe(false)
+    again({ ...WITH, fate: { kind: 'sending' } }, { onPhrase })
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.omne-say-phrases button')]
+    expect(buttons.map(button => button.disabled)).toEqual([true, true, true, true])
+    act(() => buttons[0]?.click())
+    expect(onPhrase).not.toHaveBeenCalled()
+    expect(field().readOnly).toBe(true)
+  })
+
+  it('its reach holds the frame and the lines beside it', () => {
+    frameClock()
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains('omne-say-phrases')) return boxed(710, 150, 120, 200)
+      if (this.classList.contains('omne-say-bubble')) return boxed(322, 211, NOTE_WIDTH, height)
+      return boxed(0, 0, 0, 0)
+    })
+    const control = createRef<SayControl>()
+    const { again } = open(WITH, { control })
+    expect(control.current?.reach()).toEqual({ x: 322, y: 150, width: 508, height: 200 })
+    again(NOTE, { control })
+    expect(control.current?.reach()).toEqual({ x: 322, y: 211, width: NOTE_WIDTH, height })
+  })
+
+  it('has no reach while it is not open', () => {
+    frameClock()
+    const control = createRef<SayControl>()
+    open(null, { control })
+    expect(control.current?.reach()).toBeNull()
+  })
+})
+
+describe('the inside of the frame, drawn by a redraw (C3)', () => {
+  type Hands = Told & {
+    readonly onPhrase: Mock<(key: string) => void>
+    readonly onDropPicture: Mock<(index: number) => void>
+    readonly onSettings: Mock<() => void>
+  }
+
+  function drawn(
+    redraw: Redraw | null,
+    note: SayNote,
+  ): { readonly hands: Hands; readonly again: (note: SayNote) => void } {
+    const hands: Hands = {
+      ...told(),
+      onPhrase: vi.fn(),
+      onDropPicture: vi.fn(),
+      onSettings: vi.fn(),
+    }
+    const tree = (next: SayNote): React.JSX.Element => {
+      const bubble = <SayBubble note={next} figure={FIGURE} bounds={BOUNDS} reduced {...hands} />
+      return redraw === null ? bubble : <RedrawProvider value={redraw}>{bubble}</RedrawProvider>
+    }
+    const view = render(tree(note))
+    return { hands, again: next => view.rerender(tree(next)) }
+  }
+
+  const skin: Redraw = (_kind, key, subject, builtIn) => {
+    if (key !== 'note') return builtIn()
+    const { note, act: does } = subject as SayInside
+    return (
+      <textarea
+        aria-label="皮"
+        value={note.text}
+        onChange={event => does.write(event.target.value)}
+      />
+    )
+  }
+
+  const FRAME = ['omne-ink-bubble-paper', 'omne-ink-bubble-edge', 'omne-ink-bubble-wet']
+  const inside = (): string =>
+    [...(bubble()?.children ?? [])]
+      .filter(child => !FRAME.some(part => child.classList.contains(part)))
+      .map(child => child.outerHTML)
+      .join('')
+
+  it('with no redraw, or one that gives back its own drawing, the inside is the same', () => {
+    frameClock()
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:picture')
+    vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined)
+    const note: SayNote = {
+      ...ACCEPTED,
+      text: '在吗',
+      pictures: [{ name: '窗口', bytes: new Uint8Array([1]) }],
+      phrases: [{ key: 'k1', label: '看看这个' }],
+      reply: { text: '在', state: 'ended', more: true },
+    }
+    drawn(null, note)
+    const plain = inside()
+    expect(plain).toContain('看看这个')
+    cleanup()
+    drawn((_kind, _key, _subject, builtIn) => builtIn(), note)
+    expect(inside()).toBe(plain)
+  })
+
+  it('asks for the piece note, told the note and what it can do; the frame stays its own', () => {
+    frameClock()
+    const seen: unknown[] = []
+    const redraw: Redraw = (kind, key, subject) => {
+      seen.push({ kind, key })
+      if (key === 'note') {
+        const { note, act: does } = subject as SayInside
+        expect(Object.keys(note).sort()).toEqual(
+          ['fate', 'phrases', 'pictures', 'reply', 'target', 'targets', 'text', 'told'].sort(),
+        )
+        expect(Object.keys(does).sort()).toEqual(
+          ['choose', 'close', 'drop', 'open', 'phrase', 'send', 'settings', 'write'].sort(),
+        )
+        expect(note.text).toBe('在吗')
+      }
+      return <i data-redrawn={key} />
+    }
+    drawn(redraw, { ...NOTE, text: '在吗' })
+    expect(seen).toContainEqual({ kind: 'piece', key: 'note' })
+    expect(bubble()?.querySelector('[data-redrawn="note"]')).not.toBeNull()
+    expect(screen.queryByRole('textbox', { name: '说一句话' })).toBeNull()
+    expect(bubble()?.dataset['inkStrength']).toBe('light')
+  })
+
+  it('each thing it can do reaches the caller', () => {
+    frameClock()
+    let does: SayInside['act'] | undefined
+    const redraw: Redraw = (_kind, key, subject, builtIn) => {
+      if (key !== 'note') return builtIn()
+      does = (subject as SayInside).act
+      return <i />
+    }
+    const { hands } = drawn(redraw, { ...NOTE, text: '在吗' })
+    act(() => {
+      does?.write('在吗？')
+      does?.choose('s1')
+      does?.send()
+      does?.phrase('k1')
+      does?.drop(1)
+      does?.open()
+      does?.close()
+      does?.settings()
+    })
+    expect(hands.onText).toHaveBeenCalledExactlyOnceWith('在吗？')
+    expect(hands.onTarget).toHaveBeenCalledExactlyOnceWith('s1')
+    expect(hands.onSend).toHaveBeenCalledExactlyOnceWith({ text: '在吗', target: 'new' })
+    expect(hands.onPhrase).toHaveBeenCalledExactlyOnceWith('k1')
+    expect(hands.onDropPicture).toHaveBeenCalledExactlyOnceWith(1)
+    expect(hands.onOpen).toHaveBeenCalledTimes(1)
+    expect(hands.onClose).toHaveBeenCalledTimes(1)
+    expect(hands.onSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps no words of its own: the words drawn follow what the caller gives', () => {
+    frameClock()
+    const { hands, again } = drawn(skin, { ...NOTE, text: '一' })
+    const drawnField = screen.getByRole('textbox', { name: '皮' }) as HTMLTextAreaElement
+    act(() => {
+      fireEvent.change(drawnField, { target: { value: '一二' } })
+    })
+    expect(hands.onText).toHaveBeenCalledWith('一二')
+    again({ ...NOTE, text: '别的' })
+    expect(drawnField.value).toBe('别的')
+  })
+
+  it('the built-in field follows what the caller gives, too', () => {
+    frameClock()
+    const { again } = drawn(null, { ...NOTE, text: '一' })
+    again({ ...NOTE, text: '别的' })
+    expect(field().value).toBe('别的')
+  })
+
+  it('with a redraw, the frame still puts the focus in and closes on Escape', () => {
+    frameClock()
+    const { hands } = drawn(skin, { ...NOTE, text: '一' })
+    const drawnField = screen.getByRole('textbox', { name: '皮' })
+    expect(document.activeElement).toBe(drawnField)
+    key(drawnField, { key: 'Escape' })
+    expect(hands.onClose).toHaveBeenCalledTimes(1)
   })
 })

@@ -11,6 +11,7 @@ it('根入口的导出名固定（DY-14）', async () => {
     'bound',
     'candidates',
     'catalogContract',
+    'closedBy',
     'complete',
     'crash',
     'declare',

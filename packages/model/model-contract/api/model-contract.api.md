@@ -2902,6 +2902,7 @@ export type OverLimitMetric = (typeof OVER_LIMIT_METRICS)[number];
 export type ModelFault = Readonly<{
     diagnostic: string;
     upstreamStatus: string | null;
+    throttled?: true;
 }> & (Readonly<{
     cause: Exclude<ModelFaultCause, 'input-over-limit' | 'replay-rejected'>;
     replayCarried?: true;

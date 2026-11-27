@@ -37,6 +37,7 @@ export function fakeSource() {
   const opened: Readonly<Record<string, unknown>>[] = []
   const reports: Readonly<Record<string, unknown>>[] = []
   let delivering = true
+  let knowsWaiting = true
   const pushes = new Set<() => void>()
   const accountOf = (body: unknown): string => {
     try {
@@ -54,6 +55,9 @@ export function fakeSource() {
         : { outcome: 'succeeded', body: { plugins } }
     },
     'report-loaded': async (body: Readonly<Record<string, unknown>>) => {
+      // A server before revision 3 of plugin/v1: the client finds a field it does not know and does not send.
+      const told = body['plugins'] as readonly Readonly<Record<string, unknown>>[]
+      if (!knowsWaiting && told.some(each => 'waiting' in each)) return { outcome: 'unavailable' }
       reports.push(body)
       return delivering ? { outcome: 'succeeded', body: {} } : { outcome: 'unavailable' }
     },
@@ -91,6 +95,9 @@ export function fakeSource() {
     reports,
     deliver(next: boolean): void {
       delivering = next
+    },
+    knowWaiting(next: boolean): void {
+      knowsWaiting = next
     },
     set(tenant: string, plugins: readonly Given[] | 'unavailable'): void {
       lists.set(tenant, plugins)

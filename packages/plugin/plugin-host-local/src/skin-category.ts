@@ -10,7 +10,7 @@ export const skinCategoryDisplay: CategoryDisplay = Object.freeze({
   creation: '一个目录，根下有 plugin.json，清单里写 "kind":"skin"；只有 client 一侧的成员。',
   authoring: [
     'plugin.json, whole and minimal:',
-    '{"schema":1,"name":"sea","summary":"One sentence on how it looks.","kind":"skin","client":{"members":[{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"light-dark(#0a7a4a, #5fd3a4)"}}]}}',
+    '{"schema":1,"name":"sea","summary":"One sentence on how it looks.","kind":"skin","client":{"members":[{"point":"<point>","key":"<key>","data":{}}]}}',
     'A skin is a plugin with "kind":"skin" and members under client only. A member names a point and a key and gives data (a JSON value) or module with export (a .js file here and the name it exports).',
     'Layers, each a point; use those the look needs: shell.tokens on shell.app (colours, radii, fonts); shell.part-style (CSS of a part at rest and in each state); shell.part-render (draw a part, around builtIn); shell.icon (an icon, by name); shell.piece (loading, empty-state, inline-notice, figure).',
     'OmneExtensionPoints show <point> lists the keys a point takes and what a value or a drawing is given. A part takes only the layers it opens.',

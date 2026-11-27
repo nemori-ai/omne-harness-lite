@@ -125,7 +125,7 @@ describe('a plugin that needs a port no row lends yet, on the release tree', () 
           'the plugin to have an outcome',
           30_000,
         )
-        expect(stateOf()).toMatchObject({ kind: 'waiting', lacks: [`port ${PORT}`] })
+        expect(stateOf()).toMatchObject({ kind: 'waiting', lacks: [{ kind: 'port', name: PORT }] })
         expect((await post(tree, '/api/keeper/v1/keep', { word: 'a' })).status).toBe(404)
 
         // The lender comes: nobody touches the plugin.

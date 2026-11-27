@@ -1,6 +1,7 @@
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import {
   defineRenderPoint,
+  SPEAKS_AS_SYSTEM,
   type RenderDrawer,
   type RenderPointSink,
 } from '@omne-harness/shell-contract'
@@ -17,6 +18,7 @@ const point = defineRenderPoint<string>({
   summary:
     'How the typed value in the detail of a release card is drawn, by the domain that owns its kind.',
   key: 'the kind of the typed value, with its major version',
+  scopes: SPEAKS_AS_SYSTEM,
 })
 
 export const declareReleaseDetail = point.declare

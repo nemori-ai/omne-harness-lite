@@ -12,6 +12,7 @@ import {
 import { createPluginAccessPlugin } from '@omne-harness/plugin-access/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { guestProtocol } from '@omne-harness/plugin-access'
+import { PROTOCOL_EXAMPLE, PROTOCOL_GIVES } from './protocol-form.ts'
 import { GUEST_FORMS_POINT, type GuestForm } from '@omne-harness/plugin-host-local'
 import { PROTOCOLS, protocolItem } from '@omne-harness/server-entry/cordis'
 import { z } from 'zod'
@@ -81,7 +82,7 @@ export const pluginAccessRow = defineRow({
           scope: [],
           rank: 0,
           digest: `${PROTOCOLS}@plugin-access`,
-          item: { form: protocolGuestForm },
+          item: { form: protocolGuestForm, gives: PROTOCOL_GIVES, example: PROTOCOL_EXAMPLE },
         }
         ;(child.get(dynamisKey) as DynamisService).put([guestForm])
       })

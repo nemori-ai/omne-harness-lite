@@ -460,7 +460,10 @@ describe('the invoke and submit branches', () => {
   })
 
   it.each([
-    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
+    [
+      'command_limit',
+      { kind: 'invalid', field: 'storage', reason: 'command_limit', disclosed: 'command_limit' },
+    ],
     ['combination_unregistered', { kind: 'unsupported' }],
   ] as const)(
     'a preadmission write the storage refuses for the definite reason %s is a definite failure',
