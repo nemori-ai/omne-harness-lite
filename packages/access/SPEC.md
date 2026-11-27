@@ -223,7 +223,7 @@ HTTP 传输把两类失败认作没发出：连接建立之前就失败的（连
 一个租户可以有它自己的协议：它持有的 plugin 在服务端放到 `access.protocols` 上、作用域是这个租户的那几份。整个部署的协议经可用性的观察告诉每个客户端；租户的协议只告诉为这个租户行事的调用者。
 
 - **契约数据。** 这样一份协议的契约写成数据，形状归 `public-contract`：`{ name, major, operations }`，每个操作写 `effect`（`read` 或 `commit`）、`limit`（`small` 或 `input`）、`body` 与 `result` 两条规则。`guestContract(数据)` 把它做成一份协议契约：每个操作的身份都是行事租户，结果只有成功与管道替领域答的那几种，没有观察。数据不合格时它答第一处原因，不抛出。两端用这同一个函数，所以一份契约只写一次。
-- **专门的写法。** `access.protocols` 收 plugin 代码的写法归本组（`server-entry` 的 `guestProtocol`），由应用放到点 `plugin.guest-forms` 上（规矩见 [plugin 的规格](../plugin/SPEC.md#一个成员怎样判)）。plugin 交 `{ contract, handlers }`：`contract` 是上面的契约数据，键要等于「名字/v主版本」，每个操作恰有一个处理函数。处理函数拿到输入与这次调用的口，见不到主体；它答的不在结果里时，读答 `basis-unavailable`，提交答 `unknown`，抛出也是。入口把契约数据原样留在条目上。
+- **专门的写法。** `access.protocols` 收 plugin 代码的写法归本组（`server-entry` 的 `guestProtocol`；`guestItem` 把它做成点上的一项，一项留着契约数据），由应用放到点 `plugin.guest-forms` 上（规矩见 [plugin 的规格](../plugin/SPEC.md#一个成员怎样判)）。plugin 交 `{ contract, handlers }`：`contract` 是上面的契约数据，键要等于「名字/v主版本」，每个操作恰有一个处理函数。处理函数拿到输入与这次调用的口，见不到主体；它答的不在结果里时，读答 `basis-unavailable`，提交答 `unknown`，抛出也是。入口把契约数据原样留在条目上。
 - 这样的条目不带锁，作用域是持有它的租户。整个部署的协议带锁，所以租户放不出同键的一份。
 - **不收观察。** 一条观察占每登录的名额与帧的预算，这两样的上限还没有为租户的代码定；要变化的页面用读操作轮询。
 - **读。** `access/v1` 在契约修订号 3 加一个读操作 `scoped`：要行事租户，正文是空的，成功时答 `{ protocols }`，每份带名字、主版本与契约数据。它只列作用域比整个部署深、发问的租户看得见、此刻在服务的条目。登记表读不出时答 `basis-unavailable`，不答空表。

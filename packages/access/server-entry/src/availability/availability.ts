@@ -2,8 +2,12 @@ import { createHash } from 'node:crypto'
 import type {
   AccessContribution,
   FrameSource,
+  OperationHandler,
   ProtocolKey,
 } from '@omne-harness/access-cordis-contract'
+import type { Scope } from '@omne-harness/dynamis'
+import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
+import { tenantActedFor } from '../acting.ts'
 import {
   accessProtocol,
   type AccessProtocol,
@@ -43,30 +47,33 @@ const hashed = (text: string): string => `sha256:${createHash('sha256').update(t
 
 const pointValue = ({ rules, ...fact }: PointFact) => ({ ...fact, digest: hashed(rules) })
 
-function changeFrame(change: Mounting): AvailabilityFrame {
+function changeFrame(change: Mounting, scoped: { scoped?: number }): AvailabilityFrame {
   const { revision } = change
   const conflicts = change.conflicts.map(keyValue)
   return change.change === 'mounted'
-    ? { kind: 'change', revision, added: [servedValue(change.protocol)], removed: [], conflicts }
-    : { kind: 'change', revision, added: [], removed: [keyValue(change.protocol)], conflicts }
+    ? { kind: 'change', revision, added: [servedValue(change.protocol)], removed: [], conflicts, ...scoped }
+    : { kind: 'change', revision, added: [], removed: [keyValue(change.protocol)], conflicts, ...scoped }
 }
 
 /** The revision of `access/v1` that added the points to the snapshot. */
 const POINTS_SINCE = 2
+/** The revision that added the count of the changes of the tenants' protocols. */
+const SCOPED_SINCE = 3
 
 type Owed = {
   readonly known: Map<string, ServedProtocol>
   readonly queue: Mounting[]
   conflicts: readonly ProtocolKey[]
   declared: readonly PointFact[]
+  scoped: number
   snapshotDue: boolean
   revision: number
 }
 
 function owedAt(subscription: AvailabilitySubscription): Owed {
-  const { revision, conflicts, points: declared } = subscription
+  const { revision, conflicts, points: declared, scoped } = subscription
   const known = new Map(subscription.protocols.map(key => [keyText(key), key]))
-  return { known, queue: [], conflicts, declared, snapshotDue: true, revision }
+  return { known, queue: [], conflicts, declared, scoped, snapshotDue: true, revision }
 }
 
 function fold(owed: Owed, change: AvailabilityChange): void {
@@ -75,29 +82,38 @@ function fold(owed: Owed, change: AvailabilityChange): void {
     owed.declared = change.points
     return
   }
+  if (change.change === 'scoped') {
+    owed.scoped = change.scoped
+    return
+  }
   if (change.change === 'mounted') owed.known.set(keyText(change.protocol), change.protocol)
   else owed.known.delete(keyText(change.protocol))
   owed.conflicts = change.conflicts
 }
 
-function take(owed: Owed, change: AvailabilityChange, backlog: number, readsPoints: boolean) {
-  // A subscriber the points are not written to is sent nothing for them, and keeps its queue.
-  if (change.change === 'points' && !readsPoints) return false
+type Reads = Readonly<{ points: boolean; scoped: boolean }>
+
+function take(owed: Owed, change: AvailabilityChange, backlog: number, reads: Reads) {
+  // A subscriber a field is not written to is sent nothing for it, and keeps its queue.
+  if (change.change === 'points' && !reads.points) return false
+  if (change.change === 'scoped' && !reads.scoped) return false
   fold(owed, change)
   if (owed.snapshotDue) return false
-  if (change.change !== 'points') owed.queue.push(change)
-  // The points go in a snapshot only: when they change, what is queued is dropped for one.
-  if (change.change === 'points' || owed.queue.length > backlog) {
+  const resent = change.change === 'points' || change.change === 'scoped'
+  if (change.change === 'mounted' || change.change === 'unmounted') owed.queue.push(change)
+  // The points and the count go in a snapshot only: when they change, what is queued is dropped for one.
+  if (resent || owed.queue.length > backlog) {
     owed.queue.length = 0
     owed.snapshotDue = true
   }
   return true
 }
 
-function nextFrame(owed: Owed): AvailabilityFrame | undefined {
+function nextFrame(owed: Owed, reads: Reads): AvailabilityFrame | undefined {
+  const scoped = reads.scoped ? { scoped: owed.scoped } : {}
   if (!owed.snapshotDue) {
     const next = owed.queue.shift()
-    return next === undefined ? undefined : changeFrame(next)
+    return next === undefined ? undefined : changeFrame(next, scoped)
   }
   owed.snapshotDue = false
   return {
@@ -106,6 +122,7 @@ function nextFrame(owed: Owed): AvailabilityFrame | undefined {
     protocols: [...owed.known.values()].map(servedValue),
     conflicts: owed.conflicts.map(keyValue),
     points: owed.declared.map(pointValue),
+    ...scoped,
   }
 }
 
@@ -114,11 +131,11 @@ export function availabilitySource(
   backlog: number,
 ): FrameSource<Availability> {
   return async ({ signal, revision: writtenAt }) => {
-    const readsPoints = writtenAt >= POINTS_SINCE
+    const reads = { points: writtenAt >= POINTS_SINCE, scoped: writtenAt >= SCOPED_SINCE }
     let wake: (() => void) | undefined
     let owed: Owed | undefined
     const subscription = registry.subscribe(change => {
-      if (owed !== undefined && take(owed, change, backlog, readsPoints)) wake?.()
+      if (owed !== undefined && take(owed, change, backlog, reads)) wake?.()
     })
     const mine = (owed = owedAt(subscription))
     // The subscription began here, before any frame is taken, so it ends on the abort itself: the
@@ -140,7 +157,7 @@ export function availabilitySource(
       try {
         for (;;) {
           if (signal.aborted) return 'unavailable'
-          const frame = nextFrame(mine)
+          const frame = nextFrame(mine, reads)
           if (frame !== undefined) {
             yield frame
             continue
@@ -160,13 +177,47 @@ export function availabilitySource(
   }
 }
 
+type Scoped = AccessProtocol['operations']['scoped']
+
+const TREE: JsonLimits = {
+  maxBytes: Number.MAX_SAFE_INTEGER,
+  maxDepth: Number.MAX_SAFE_INTEGER,
+  maxItems: Number.MAX_SAFE_INTEGER,
+  maxMembers: Number.MAX_SAFE_INTEGER,
+  maxStringLength: Number.MAX_SAFE_INTEGER,
+  maxNumberLength: Number.MAX_SAFE_INTEGER,
+}
+
+/** The contract as the tree a JSON field of the protocol carries. */
+function treeOf(contract: unknown): JsonValue | undefined {
+  const read = readJsonText(JSON.stringify(contract), TREE)
+  return read.kind === 'ok' ? read.value : undefined
+}
+
+/** The protocols of the tenant the caller acts for: never another tenant's, never the deployment's. */
+function scopedOperation(
+  registry: RegistryForPipeline,
+  tenantScope: ((tenant: string) => Scope) | undefined,
+): OperationHandler<Scoped> {
+  return async call => {
+    const tenant = tenantActedFor(call.principal)
+    if (tenant === undefined || tenantScope === undefined) return { outcome: 'basis-unavailable' }
+    const protocols = registry.scoped(tenantScope(tenant))
+    if (protocols === undefined) return { outcome: 'basis-unavailable' }
+    const told = protocols.map(({ name, major, contract }) => ({ name, major, contract: treeOf(contract) }))
+    if (told.some(each => each.contract === undefined)) return { outcome: 'basis-unavailable' }
+    return { outcome: 'succeeded', body: { protocols: told as never } }
+  }
+}
+
 export function accessContribution(
   registry: RegistryForPipeline,
   backlog: number,
+  tenantScope?: (tenant: string) => Scope,
 ): AccessContribution<AccessProtocol> {
   return {
     protocol: accessProtocol,
-    operations: {},
+    operations: { scoped: scopedOperation(registry, tenantScope) },
     observations: { availability: availabilitySource(registry, backlog) },
   }
 }

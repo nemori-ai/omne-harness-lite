@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonLimits } from '@omne-harness/json-text'
-import { accessProtocol } from '@omne-harness/public-contract'
+import { accessProtocol, guestContract, guestContractData } from '@omne-harness/public-contract'
 
 const limits: JsonLimits = {
   maxBytes: 65_536,
@@ -12,9 +12,10 @@ const limits: JsonLimits = {
 }
 
 describe('access/v1', () => {
-  it('is named access, major 1, with no operation and only the availability observation', () => {
+  it('is named access, major 1, with one read for the acting tenant since revision 3 and only the availability observation', () => {
     expect([accessProtocol.name, accessProtocol.major]).toEqual(['access', 1])
-    expect(Object.keys(accessProtocol.operations)).toEqual([])
+    expect(Object.keys(accessProtocol.operations)).toEqual(['scoped'])
+    expect(accessProtocol.operations.scoped).toMatchObject({ identity: 'acting-tenant', effect: 'read', since: 3 })
     expect(Object.keys(accessProtocol.observations)).toEqual(['availability'])
   })
 
@@ -30,5 +31,37 @@ describe('access/v1', () => {
     expect(open.read({ kind: 'object', entries: [] }, limits)).toEqual({ ok: true, value: {} })
     expect(open.write([] as never, limits).ok).toBe(false)
     expect(open.read({ kind: 'array', items: [] }, limits).ok).toBe(false)
+  })
+})
+
+describe('a contract of a tenant written as data', () => {
+  const text = { kind: 'text' } as const
+  const data = {
+    name: 'weather',
+    major: 1,
+    operations: {
+      forecast: { effect: 'read', limit: 'small', body: { kind: 'object', fields: { city: { rule: text } } }, result: text },
+      save: { effect: 'commit', limit: 'input', body: { kind: 'json' }, result: { kind: 'count' } },
+    },
+  } as const
+
+  it('is made a contract whose every operation is for the acting tenant, and reads back to the same data', () => {
+    const made = guestContract(data)
+    if (!('ok' in made)) throw new Error(made.reason)
+    expect(Object.values(made.ok.contract.operations).map(operation => operation.identity)).toEqual([
+      'acting-tenant',
+      'acting-tenant',
+    ])
+    expect(made.ok.contract.observations).toEqual({})
+    expect(JSON.stringify(guestContractData(made.ok.contract))).toBe(JSON.stringify(data))
+  })
+
+  it.each([
+    ['not a record', 'x', 'a contract is { name, major, operations }'],
+    ['no major', { name: 'w', operations: {} }, 'a contract is { name, major, operations }'],
+    ['an effect that is neither', { ...data, operations: { a: { ...data.operations.forecast, effect: 'write' } } }, 'a: effect is read or commit'],
+    ['a limit that is neither', { ...data, operations: { a: { ...data.operations.forecast, limit: 'big' } } }, 'a: limit is small or input'],
+  ])('answers the first fault and does not throw: %s', (_name, given, reason) => {
+    expect(guestContract(given)).toEqual({ reason })
   })
 })

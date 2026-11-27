@@ -126,7 +126,7 @@ export function createServerEntry(input: {
       const access = input.access
       try {
         takeDownAccess = access?.registry.own(
-          accessContribution(access.registry, access.availabilityBacklog),
+          accessContribution(access.registry, access.availabilityBacklog, access.tenantScope),
         )
       } catch (error) {
         return Promise.reject(error)
