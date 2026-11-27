@@ -29,6 +29,14 @@ import {
 } from './model-gateway/script.ts'
 import { LAB_EXAMINER_ROW, labExaminerRow } from './examiner.ts'
 import { LAB_PROGRAMS_ROW, labProgramsRow } from './programs.ts'
+import {
+  LAB_READINGS_ROW,
+  labReadingsRow,
+  labVisibility,
+  stepLine,
+  storageLine,
+  type ReadingsSource,
+} from './readings.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
@@ -37,7 +45,7 @@ const USAGE =
   '--model-script: the model is a script read from the file at each request, not a provider;\n' +
   '    the requests its `provider` rules fit go to the provider as they came.\n' +
   '--examiner-model: every examination of a goal runs under this model, whatever the tenant set.\n' +
-  'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor>'
+  'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor> | readings'
 
 const LAB_OPTIONS = {
   ...SERVE_OPTIONS,
@@ -69,7 +77,7 @@ function claimed(dir: string): boolean {
 }
 
 /** A gateway that answers every model request by the script in `file`, read anew each time so a journey can change it; what the script leaves to the provider is passed on. */
-async function scriptedModel(file: string): Promise<ModelGateway> {
+async function scriptedModel(file: string, counted: ReadingsSource): Promise<ModelGateway> {
   const read = () => parseModelScript(readFileSync(file, 'utf8'))
   try {
     read()
@@ -77,7 +85,10 @@ async function scriptedModel(file: string): Promise<ModelGateway> {
     throw new UsageError(`--model-script ${file}: ${(error as Error).message}`)
   }
   const gateway = await startModelGateway(
-    request => scriptedAnswer(read(), request),
+    request => {
+      recordWriter(stepLine(request, counted))
+      return scriptedAnswer(read(), request)
+    },
     request => providerUrlOf(read(), request),
   )
   gateway.trustInProcess()
@@ -88,9 +99,9 @@ type LabModel = Readonly<{ route(inputs: ServeInputs): ServeInputs; close(): Pro
 const PROVIDERS: LabModel = { route: inputs => inputs, close: async () => {} }
 
 /** Where the model requests of this run go: to the providers, or to the script the option names. */
-async function labModel(script: string | undefined): Promise<LabModel> {
+async function labModel(script: string | undefined, counted: ReadingsSource): Promise<LabModel> {
   if (script === undefined) return PROVIDERS
-  const gateway = await scriptedModel(script)
+  const gateway = await scriptedModel(script, counted)
   return {
     route(inputs) {
       const layer = inputs.operator as Parameters<typeof withModelRoute>[0] | undefined
@@ -104,7 +115,8 @@ async function labModel(script: string | undefined): Promise<LabModel> {
 /** The release distribution and, after its rows, the rows only the lab assembly has. */
 function withLabRows(inputs: ServeInputs, examiner: string | undefined): ServeInputs {
   const distribution = inputs.distribution as { rows?: readonly unknown[] }
-  const lab = examiner === undefined ? [LAB_PROGRAMS_ROW] : [LAB_PROGRAMS_ROW, LAB_EXAMINER_ROW]
+  const always = [LAB_PROGRAMS_ROW, LAB_READINGS_ROW]
+  const lab = examiner === undefined ? always : [...always, LAB_EXAMINER_ROW]
   return {
     ...inputs,
     distribution: { ...distribution, rows: [...(distribution.rows ?? []), ...lab] },
@@ -125,22 +137,28 @@ async function serve(argv: readonly string[]): Promise<number> {
   persist()
   const stopPersisting = every(hostTime().source, 1000, persist, { background: true })
   const control = createInterface({ input: process.stdin, terminal: false })
+  const counted: ReadingsSource = { read: null }
   control.on('line', line => {
     if (line.trim() === '') return
+    if (line.trim() === 'readings') return void recordWriter(storageLine(counted))
     const reply = answer(clock, line)
     persist()
     recordWriter({ kind: 'lab-time', ...reply })
   })
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
   const { 'model-script': script, 'examiner-model': examiner, ...given } = values
-  const model = await labModel(script)
+  const model = await labModel(script, counted)
   try {
     const inputs = model.route(await serveInputs({ ...given, 'state-root': dir }))
     const stop = values['stop-on-stdin-close'] === true
-    const plugins = { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow }
+    const plugins = {
+      [LAB_PROGRAMS_ROW.plugin]: labProgramsRow,
+      [LAB_READINGS_ROW.plugin]: labReadingsRow(counted),
+    }
     return await serveUntilStopped(withLabRows(inputs, examiner), stop, {
       time: { source: clock.source, protocol: PROTOCOL },
       instance: 'lab',
+      visibility: labVisibility,
       extraPlugins:
         examiner === undefined
           ? plugins
