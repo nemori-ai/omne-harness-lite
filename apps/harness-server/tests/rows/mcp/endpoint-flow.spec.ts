@@ -773,3 +773,53 @@ it(
     expect(exit).toBe(0)
   },
 )
+
+it(
+  'C105 publishing a new body of an endpoint keeps the settings it had: the address, the gate and the credential',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(ECHO)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        at('register docs and set its three settings')
+        await registered(w, 'docs', 'static')
+        await configured(w, 'docs', 'target', peer.target, 'docs-target')
+        await configured(w, 'docs', 'invoke', 'auto', 'docs-auto')
+        expect(await keyed(w, ownerOf('docs'), 'credential', CREDENTIAL)).toMatchObject({
+          outcome: 'succeeded',
+        })
+        const before = {
+          target: (await described(w, 'docs', 'target')).effective,
+          invoke: (await described(w, 'docs', 'invoke')).effective,
+        }
+        expect(before.target).toMatchObject({
+          value: { kind: 'set', value: { kind: 'string', value: peer.target } },
+        })
+
+        at('publish a new body under the same name')
+        const replaced = await w.assets['create-asset']({
+          tenant: w.tenant,
+          operation: 'replace-docs',
+          category: 'mcp',
+          name: 'docs',
+          body: bodyOf('docs', 'oauth') as never,
+        })
+        expect(replaced, JSON.stringify(replaced)).toMatchObject({ outcome: 'succeeded' })
+
+        at('the three settings are as they were')
+        await settled(
+          tree,
+          'the gate of docs to be a permission again',
+          () => settingOf(w.assets, w.tenant, 'docs', 'invoke'),
+          value => value.outcome === 'succeeded' && value.body.item.kind === 'permission',
+        )
+        expect((await described(w, 'docs', 'target')).effective).toEqual(before.target)
+        expect((await described(w, 'docs', 'invoke')).effective).toEqual(before.invoke)
+        expect(await described(w, 'docs', 'credential')).toMatchObject({ own: 'available' })
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
