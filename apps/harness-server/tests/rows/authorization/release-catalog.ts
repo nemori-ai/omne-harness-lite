@@ -31,6 +31,13 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Jobs: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
   Canvas: { resultMaxBytes: 64 },
+  AppView: {
+    resultMaxBytes: 4096,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
   Goal: { resultMaxBytes: 4096 },

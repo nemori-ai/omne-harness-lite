@@ -3,6 +3,7 @@ export type {
   StartPermitRequirements,
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
+export { TOOL_PRODUCT_OWNER } from './author-environment.ts'
 export {
   createLocalReleaseDetails,
   type LocalReleaseDetailsInput,

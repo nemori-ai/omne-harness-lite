@@ -123,6 +123,7 @@
     "model-access",
     "usage-access",
     "canvas-access",
+    "interface-access",
     "plugin-access",
     "plugin-host",
     "plugin-notification",
@@ -681,6 +682,13 @@
     },
     {
       "row": "canvas-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "interface-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

@@ -149,6 +149,8 @@ system
           served:human-intervention/v1#1  [effective]
         identity/v1
           served:identity/v1#1  [effective]
+        interface/v1
+          served:interface/v1#1  [effective]
         mcp/v1
           served:mcp/v1#1  [effective]
         media/v1
