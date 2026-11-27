@@ -46,11 +46,13 @@ it('each skill it brings with the release is a package of its own: a SKILL.md th
   expect(manifest.files).toContain('skills')
 })
 
-it('the handbook says a page is drawn before its protocol may be there, and to ask again on unavailable', async () => {
+it('the handbook says a page is drawn before its protocol may be there, to ask again on unavailable, and to see it work before saying done', async () => {
   const { OFFICIAL_SKILLS } = await import('@omne-harness/plugin-host-local')
   const handbook = OFFICIAL_SKILLS.find(skill => skill.name === 'extending-the-app')
   const text = await readFile(join(handbook?.directory ?? '', 'SKILL.md'), 'utf8')
   expect(text).toContain(
     "Until then a call answers `{ outcome: 'unavailable' }`. Read that as not yet: ask again",
   )
+  expect(text).toContain('See it work before you say it is done.')
+  expect(text).toContain('make that thing happen first')
 })
