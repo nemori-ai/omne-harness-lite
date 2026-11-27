@@ -37,7 +37,7 @@ describe('the listing of the tenant layer, with what plugins placed for the tena
     for (let turn = 0; turn < 6; turn += 1) {
       const rest = ledger.filter(name => after === null || name > after)
       const ledgerPage = page(rest.slice(0, 2), rest.length > 2 ? (rest[1] ?? null) : null)
-      const listed = withPlaced(ledgerPage, placed, ask(after, 2))
+      const listed: AssetPage = withPlaced(ledgerPage, placed, ask(after, 2))
       seen.push(...names(listed))
       if (listed.next === null) break
       after = listed.next

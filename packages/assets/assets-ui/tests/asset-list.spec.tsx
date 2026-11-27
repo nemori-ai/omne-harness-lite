@@ -333,3 +333,40 @@ it('C14 递归：类别自己的页面经治理口拿到的列表与动作结果
   expect(page.getByText('已禁用。')).toBeTruthy()
   own.close()
 })
+
+it('L-from 一份 plugin 带来的一行写来自哪份 plugin；打开只能看，不去读它、没有启停与移除，钮回到那份 plugin', async () => {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  const described: string[] = []
+  serveAssetReads(
+    fake,
+    [skill('notes', { from: 'plugin:tidy', holding: 'brought:plugin:tidy/skill/notes' })],
+    row => {
+      described.push(row.name)
+      return undefined
+    },
+  )
+  const opened: string[] = []
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={namesOf({ skill: '技能', plugin: 'Plugin' })}
+      pointAt="skill"
+      open={(category, name) => opened.push(`${category}:${name}`)}
+    />,
+  )
+  await settle()
+  await settle()
+  const row = item('notes')
+  expect(row.getByRole('button').textContent).toContain('来自 Plugin「tidy」')
+  fireEvent.click(row.getByRole('button'))
+  await settle()
+  const page = screen.getByRole('region', { name: 'notes' })
+  expect(page.textContent).toContain('启用、禁用、移除与设置都在那一份里')
+  expect(within(page).queryByRole('switch')).toBeNull()
+  expect(within(page).queryByRole('button', { name: /禁用|启用|移除|更多/u })).toBeNull()
+  expect(described).toEqual([])
+  fireEvent.click(within(page).getByRole('button', { name: '去 Plugin「tidy」' }))
+  expect(opened).toEqual(['plugin:tidy'])
+})

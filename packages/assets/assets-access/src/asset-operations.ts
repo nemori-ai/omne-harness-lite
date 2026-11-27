@@ -332,19 +332,23 @@ async function effectOf(
         effect.impact.of({ tenant, capability, change }),
       ),
     )
-    const categoryAt = (point: string) => {
+    const listingAt = (point: string) => {
       const listing = categories.atPoint(point)
-      return listing === undefined || !('category' in listing) ? null : listing.category
+      return listing === undefined || 'unusable' in listing ? undefined : listing
     }
     return {
-      places: placed.places.map(({ point, key, side, standing, says }) => ({
-        point,
-        key,
-        side: side ?? null,
-        category: side === 'server' ? categoryAt(point) : null,
-        standing,
-        says,
-      })),
+      places: placed.places.map(({ point, key, side, standing, says }) => {
+        const listing = side === 'server' ? listingAt(point) : undefined
+        return {
+          point,
+          key,
+          side: side ?? null,
+          category: listing?.category ?? null,
+          categoryTitle: listing?.display.title ?? null,
+          standing,
+          says,
+        }
+      }),
       clients:
         placed.clients === null ? null : placed.clients.map(({ label, says }) => ({ label, says })),
       advice: placed.advice,

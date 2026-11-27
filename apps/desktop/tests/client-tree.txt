@@ -111,6 +111,7 @@ system
           plugin-ui.skins  [effective, plugin-ui#1]
       assets.category-page  [list, v1.2]
         mcp  [effective, mcp-ui#1]
+        plugin  [effective, plugin-ui.view#1]
       assets.governance  [one, closed: grants-itself]
         assets-ui#1  [effective]
       assets.holding  [keyed-list, v1.2]

@@ -14,7 +14,15 @@ import {
 } from '@omne-harness/plugin-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { lookScope, needProtocol, tenantScope, type KeyedPoint } from '@omne-harness/shell-contract'
+import {
+  lookScope,
+  needPoint,
+  needProtocol,
+  tenantScope,
+  type KeyedPoint,
+  type PointSink,
+  type ServiceKey,
+} from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
 import { handedNames, installOn, presentIn, type Code } from './install.ts'
@@ -27,6 +35,8 @@ import {
   type Reported,
 } from './report.ts'
 import { SkinChoice } from './view/skin-choice.tsx'
+import { PLUGIN_CATEGORY, PluginPage } from './view/plugin-page.tsx'
+import type { PluginGovernance } from './view/plugin-port.ts'
 
 export type PluginUiOptions = Readonly<{
   backoff?: Backoff
@@ -194,6 +204,41 @@ export function createPluginUiModule(options: PluginUiOptions = {}): Plugin.Obje
         unsubscribe()
         turn(undefined)
       }
+    },
+  })
+}
+
+export type PluginViewOptions = Readonly<{
+  page: PointSink<Readonly<{ asset?: string }>>
+  governance: ServiceKey<PluginGovernance>
+  target: (category: string, name?: string) => Readonly<{ page: string; subject: string }>
+}>
+
+export function createPluginViewModule({ page, governance, target }: PluginViewOptions) {
+  return defineUiModule({
+    name: 'plugin-ui.view',
+    needs: { governance: needPoint(governance) },
+    apply(shell, bound) {
+      const port = bound.governance.get()
+      if (port === undefined) return
+      const go = (category: string, name: string): void => {
+        const at = target(category, name)
+        shell.navigate(at.page, at.subject)
+      }
+      page.contribute(shell, {
+        id: PLUGIN_CATEGORY,
+        order: 0,
+        label: 'Plugin',
+        render: ({ scope, subject }) =>
+          scope === undefined
+            ? null
+            : createElement(PluginPage, {
+                governance: port,
+                tenant: scope,
+                pointAt: subject.asset,
+                go,
+              }),
+      })
     },
   })
 }

@@ -37,4 +37,67 @@
     font-size: var(--omne-text-caption);
     overflow-wrap: anywhere;
   }
+
+  .plugin-view-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .plugin-view-standing,
+  .plugin-view-hint,
+  .plugin-view-member-place {
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+
+  .plugin-view-section {
+    margin: var(--omne-space-block) 0 var(--omne-space-inline);
+    font-size: var(--omne-text-ui);
+  }
+
+  .plugin-view-group-title {
+    margin: var(--omne-space-inline) 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    font-weight: normal;
+  }
+
+  .plugin-view-members,
+  .plugin-view-taken-back {
+    display: grid;
+    gap: var(--omne-space-inline);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .plugin-view-member {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--omne-space-inline);
+  }
+
+  .plugin-view-member-trouble {
+    flex-basis: 100%;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+  }
+
+  .plugin-view-title {
+    margin: 0;
+    color: var(--omne-ink-primary);
+    font-family: var(--omne-font-reading);
+    font-size: var(--omne-text-title);
+    font-weight: var(--omne-weight-heading);
+    line-height: var(--omne-leading-title);
+  }
+
+  .plugin-view-description {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    line-height: var(--omne-leading-wrapped);
+  }
 }

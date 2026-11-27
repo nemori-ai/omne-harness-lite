@@ -102,7 +102,7 @@ const impactLine = object({
   mark: { rule: literal('+', '-', '~', '!') },
   of: { rule: nullable(text) },
   point: { rule: text },
-  key: { rule: text },
+  key: { rule: said },
   says: { rule: said },
 })
 /** Where a held one is placed and whether each place is in effect, and what disabling or removing it takes back. */
@@ -111,9 +111,10 @@ const assetEffect = object({
     rule: array(
       object({
         point: { rule: text },
-        key: { rule: text },
+        key: { rule: said },
         side: { rule: nullable(literal('client', 'server')) },
         category: { rule: nullable(text) },
+        categoryTitle: { rule: nullable(text) },
         standing: { rule: text },
         says: { rule: said },
       }),

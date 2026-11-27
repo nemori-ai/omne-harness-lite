@@ -1,7 +1,7 @@
 {
   "digests": {
     "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c",
-    "2": "sha256:85216c7b7feb228d4062b231ba48724be23c5a8e0729855418fced94e8b7e19d"
+    "2": "sha256:5974c652674fd0ac08ca31c093c17698e0b1ce00d31d2fb2e2eacd1a1705bc8b"
   },
   "major": 1,
   "name": "assets",
@@ -667,7 +667,7 @@
                               "fields": {
                                 "key": {
                                   "rule": {
-                                    "kind": "text"
+                                    "kind": "string"
                                   }
                                 },
                                 "mark": {
@@ -732,9 +732,22 @@
                                 ]
                               }
                             },
+                            "categoryTitle": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
                             "key": {
                               "rule": {
-                                "kind": "text"
+                                "kind": "string"
                               }
                             },
                             "point": {
@@ -784,7 +797,7 @@
                               "fields": {
                                 "key": {
                                   "rule": {
-                                    "kind": "text"
+                                    "kind": "string"
                                   }
                                 },
                                 "mark": {

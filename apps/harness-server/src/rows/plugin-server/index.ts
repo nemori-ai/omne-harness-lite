@@ -31,6 +31,7 @@ import {
   type PortItem,
   type ServerEntry,
   type ServerPoint,
+  PLUGIN_CATEGORY,
 } from '@omne-harness/plugin-host-local'
 import {
   bindPorts,
@@ -132,7 +133,7 @@ function heldIn(held: HeldRef | undefined, plugin: string): Placing {
       disabled: false,
       immutable: true,
       replaceLocked: false,
-      from: plugin,
+      from: `${PLUGIN_CATEGORY}:${plugin}`,
       ...where,
     }
   }

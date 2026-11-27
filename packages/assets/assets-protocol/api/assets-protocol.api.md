@@ -1908,6 +1908,7 @@ export declare const assetsProtocol: {
                         }[] | null;
                         readonly places: readonly {
                             readonly category: string | null;
+                            readonly categoryTitle: string | null;
                             readonly key: string;
                             readonly point: string;
                             readonly says: string;

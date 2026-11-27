@@ -15,7 +15,7 @@ export type AssetEntry = Readonly<{
   version: string
   selection: AssetVersionSelection['kind']
   enabled: boolean
-  /** The plugin that brought this definition; it has no holding of its own. */
+  /** What brought this definition, as `<category>:<name>`; it has no holding of its own. */
   from?: string
 }>
 

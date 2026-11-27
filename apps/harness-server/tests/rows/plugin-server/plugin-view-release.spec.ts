@@ -46,7 +46,7 @@ describe('what a plugin brought, in the assets, on the release tree', () => {
           items => items.some(item => item.name === 'notes'),
         )
         const notes = skills.find(item => item.name === 'notes')
-        expect(notes).toMatchObject({ category: 'skill', name: 'notes', from: 'tidy' })
+        expect(notes).toMatchObject({ category: 'skill', name: 'notes', from: 'plugin:tidy' })
 
         for (const answer of [
           await assets['set-asset-enabled']({
@@ -61,7 +61,7 @@ describe('what a plugin brought, in the assets, on the release tree', () => {
             holding: notes?.holding ?? '',
           }),
         ])
-          expect(answer).toMatchObject({ outcome: 'not-found', body: { broughtBy: 'tidy' } })
+          expect(answer).toMatchObject({ outcome: 'not-found', body: { broughtBy: 'plugin:tidy' } })
 
         const plugin = await assets['describe-asset']({ tenant, category: 'plugin', name: 'tidy' })
         if (plugin.outcome !== 'succeeded') throw new Error(JSON.stringify(plugin))
