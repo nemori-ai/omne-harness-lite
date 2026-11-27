@@ -315,19 +315,22 @@ function throttledIn(failure: JsonValue): boolean {
   return mark?.kind === 'boolean' && mark.value
 }
 
+function nodeFailureOf(failure: JsonValue): SessionRunCause {
+  const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
+  const node = textAt(failure, 'node')
+  const failureKind = textAt(failure, 'failureKind')
+  if (category === undefined || node === undefined || failureKind === undefined)
+    return unknown('unsupported')
+  const diagnostic = textAt(failure, 'diagnostic')
+  const said = diagnostic === undefined || diagnostic === '' ? {} : { diagnostic }
+  return { kind: 'node-failed', node, category, failureKind, ...said }
+}
+
 function failureOf(failure: JsonValue): SessionRunCause {
   const kind = textAt(failure, 'kind')
   switch (kind) {
-    case 'node-failed': {
-      const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
-      const node = textAt(failure, 'node')
-      const failureKind = textAt(failure, 'failureKind')
-      if (category === undefined || node === undefined || failureKind === undefined)
-        return unknown('unsupported')
-      const diagnostic = textAt(failure, 'diagnostic')
-      const said = diagnostic === undefined || diagnostic === '' ? {} : { diagnostic }
-      return { kind, node, category, failureKind, ...said }
-    }
+    case 'node-failed':
+      return nodeFailureOf(failure)
     case 'model-refused':
       return {
         kind,

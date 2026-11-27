@@ -53,6 +53,9 @@ function reportedProblem(value: unknown): string | null {
     : 'reported'
 }
 
+const throttledFits = (cause: string, fault: ReadonlyMap<string, unknown>): boolean =>
+  !fault.has('throttled') || (cause === 'upstream-unavailable' && fault.get('throttled') === true)
+
 /** Why a failure cause taken from outside is not one this contract describes; null when it is. */
 export function faultProblem(value: unknown): string | null {
   const fault = fields(value, [
@@ -70,12 +73,7 @@ export function faultProblem(value: unknown): string | null {
   const status = fault.get('upstreamStatus')
   if (status !== null && !(typeof status === 'string' && STATUS.test(status)))
     return 'upstream-status'
-  if (
-    fault.has('throttled') &&
-    !(cause === 'upstream-unavailable' && fault.get('throttled') === true)
-  )
-    return 'throttled'
-  return marksProblem(cause, fault)
+  return throttledFits(cause, fault) ? marksProblem(cause, fault) : 'throttled'
 }
 
 function marksProblem(cause: string, fault: ReadonlyMap<string, unknown>): string | null {

@@ -111,6 +111,19 @@ function routesOf(
 
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
+function useAskedOpen({ store, tenant, session }: Props, inBar: boolean) {
+  const folded = useHeadingFolded(FOLD_RANK.model)
+  const state = useState(false)
+  const [, setOpen] = state
+  const asked = useCallback(() => {
+    if (!inBar) return
+    void store.loadChoices({ tenant, session })
+    if (!folded) setOpen(true)
+  }, [store, tenant, session, inBar, folded, setOpen])
+  useModelChoiceAsked(session, asked)
+  return state
+}
+
 export function ModelAction({ store, tenant, session }: Props) {
   const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
@@ -122,15 +135,8 @@ export function ModelAction({ store, tenant, session }: Props) {
   const listing = useOffered(store, where, inBar)
   const entries = useContext(HeadingEntriesContext)
   const [said, say] = useState<string | null>(null)
-  const folded = useHeadingFolded(FOLD_RANK.model)
-  const [open, setOpen] = useState(false)
-  const opened = useCallback(() => {
-    if (!inBar) return
-    void store.loadChoices({ tenant, session })
-    if (!folded) setOpen(true)
-  }, [store, tenant, session, inBar, folded])
+  const [open, setOpen] = useAskedOpen({ store, tenant, session }, inBar)
   const opening = useHeadingOpening(FOLD_RANK.model)
-  useModelChoiceAsked(session, opened)
   useEffect(() => {
     if (inBar) say(null)
   }, [store, tenant, session, inBar])

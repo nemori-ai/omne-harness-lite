@@ -50,6 +50,8 @@ system
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
+        session.model-choice
+          session-ui#1  [effective]
         session.run-failure
           session-ui#1  [effective]
         session.side
@@ -205,6 +207,8 @@ system
       session.dock  [list]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
+      session.model-choice  [one]
+        session-ui#1  [effective]
       session.run-failure  [list]
         model-credential  [effective, model-ui#1]
       session.side  [list]
