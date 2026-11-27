@@ -46,7 +46,7 @@ export type ServerInstallPorts = Readonly<{
   load(file: PackageFile): Promise<unknown>
   /** Puts the entries as this plugin; the answer takes them back. It rejects when the registry refuses them. */
   put(entries: readonly ServerEntry[]): Promise<() => unknown>
-  lockedBy?(point: string, key: string): string | undefined
+  lockedBy?(point: string, key: string, id: string): string | undefined
   within?<T>(run: () => T): T
 }>
 
@@ -140,7 +140,7 @@ export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Pr
     const places = members.map(member => `${member.point}\n${member.key}`)
     const steps = members.map((member, index): Step => {
       const twice = places.indexOf(places[index] ?? '') !== index
-      const lock = ports.lockedBy?.(member.point, member.key)
+      const lock = ports.lockedBy?.(member.point, member.key, member.id ?? '')
       if (twice) return refused('another member of this plugin is at the same place')
       return lock === undefined ? stepOf(ports, member, files) : lockedStep(lock)
     })

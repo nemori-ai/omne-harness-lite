@@ -63,9 +63,10 @@ const lockedBy = (
   registry: ReturnType<typeof registryOf>,
   point: string,
   key: string,
+  id: string,
   scope: Scope,
 ): string | undefined =>
-  registry === undefined ? undefined : lockOver(registry, point, key, scope)?.fiber
+  registry === undefined ? undefined : lockOver(registry, point, key, id, scope)?.fiber
 
 function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   const registry = registryOf(ctx)
@@ -208,8 +209,8 @@ export const pluginServerRow = defineRow({
           return loadHeldFile((await assetsOf(ctx)?.open(tenant))?.packages, held, file)
         },
         put: entries => putAs(bare, fiberOf(wanted.name, wanted.version), entries),
-        lockedBy: (point, key) =>
-          lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
+        lockedBy: (point, key, id) =>
+          lockedBy(registryOf(ctx), point, key, id, scopeOfLayer('tenant', tenant)),
         within: run => attributed(fallMark(tenant, fiberOf(wanted.name, wanted.version)), run),
       })(wanted)
     }
