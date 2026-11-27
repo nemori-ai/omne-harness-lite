@@ -1,4 +1,9 @@
-import type { Failure, FailureCandidate } from '@omne-harness/agent-contract'
+import type {
+  DurableEvidence,
+  Failure,
+  FailureCandidate,
+  StepId,
+} from '@omne-harness/agent-contract'
 import { AGENT_OWNER } from './identities.ts'
 
 export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed' }>['category']
@@ -16,9 +21,19 @@ function snapshotFailure(failure: Failure): Failure {
     case 'denied':
       return { kind: failure.kind, action: failure.action }
     case 'invalid':
-      return { kind: failure.kind, field: failure.field, reason: failure.reason }
+      return {
+        kind: failure.kind,
+        field: failure.field,
+        reason: failure.reason,
+        ...disclosed(failure),
+      }
     case 'unavailable':
-      return { kind: failure.kind, owner: failure.owner, diagnostic: failure.diagnostic }
+      return {
+        kind: failure.kind,
+        owner: failure.owner,
+        diagnostic: failure.diagnostic,
+        ...disclosed(failure),
+      }
     case 'commit-unknown':
     case 'conflict':
       return { kind: failure.kind, operation: failure.operation }
@@ -70,5 +85,69 @@ export function revocationWait(
     kind: 'unavailable',
     owner: AGENT_OWNER,
     diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
+  }
+}
+
+const DIAGNOSTIC_LIMIT = 200
+
+type Disclosing = Extract<Failure, { kind: 'invalid' | 'unavailable' }>
+
+const disclosed = (failure: Disclosing): Pick<Disclosing, 'disclosed'> =>
+  failure.disclosed === undefined ? {} : { disclosed: failure.disclosed }
+
+export function failureDiagnostic(failure: Failure): string | null {
+  if (failure.kind !== 'invalid' && failure.kind !== 'unavailable') return null
+  if (failure.disclosed === undefined || failure.disclosed === '') return null
+  const line = [...failure.disclosed]
+    .map(char => (char < ' ' || char === '\u007f' ? ' ' : char))
+    .join('')
+  return line.slice(0, DIAGNOSTIC_LIMIT)
+}
+
+type NodeFailed = Extract<FailureCandidate, { kind: 'node-failed' }>
+
+export type NodeFault = Readonly<{
+  node: string
+  category: NodeFailureCategory
+  failureKind: Failure['kind']
+  diagnostic: string | null
+  step: StepId | null
+  history: DurableEvidence | null
+}>
+
+export function nodeFault(
+  at: Pick<NodeFault, 'node' | 'category' | 'step' | 'history'>,
+  failure: Failure,
+): NodeFault {
+  return { ...at, failureKind: failure.kind, diagnostic: failureDiagnostic(failure) }
+}
+
+export function savedNodeFault(failure: NodeFailed): NodeFault {
+  const { node, category, failureKind, step } = failure
+  return {
+    node,
+    category,
+    failureKind,
+    diagnostic: failure.diagnostic ?? null,
+    step,
+    history: null,
+  }
+}
+
+export function nodeFailed(
+  fault: NodeFault,
+  at: NodeFailed['at'],
+  source: DurableEvidence,
+): NodeFailed {
+  const { node, category, failureKind, diagnostic, step } = fault
+  return {
+    kind: 'node-failed',
+    node,
+    category,
+    failureKind,
+    ...(diagnostic === null ? {} : { diagnostic }),
+    step,
+    at,
+    source,
   }
 }
