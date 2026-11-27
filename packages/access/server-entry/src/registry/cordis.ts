@@ -62,4 +62,5 @@ export class AccessRegistryProvider extends AccessRegistryService implements Reg
   readonly enter: RegistryForPipeline['enter'] = (key, name, scope) =>
     this.desk.enter(key, name, scope)
   readonly subscribe: RegistryForPipeline['subscribe'] = listener => this.desk.subscribe(listener)
+  readonly scoped: RegistryForPipeline['scoped'] = asker => this.desk.scoped(asker)
 }

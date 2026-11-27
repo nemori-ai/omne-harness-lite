@@ -1,9 +1,14 @@
 import type { Principal } from '@omne-harness/access-cordis-contract'
-import { guestProtocol, type GuestProtocolMade } from '@omne-harness/plugin-access'
-import { bindPorts, type Port } from '@omne-harness/plugin-protocol'
+import { guestProtocol, type GuestHandler } from '@omne-harness/server-entry'
 import { describe, expect, it } from 'vitest'
 
 const TEXT = { kind: 'text' } as const
+
+type Port = Readonly<Record<string, (input: unknown) => Promise<unknown>>>
+type GuestProtocolMade = Readonly<{
+  contract: Readonly<{ name: string; major: number; operations: Readonly<Record<string, unknown>> }>
+  handlers: Readonly<Record<string, GuestHandler>>
+}>
 const made = (handlers: GuestProtocolMade['handlers']): GuestProtocolMade => ({
   contract: {
     name: 'tidy',
@@ -20,23 +25,21 @@ const made = (handlers: GuestProtocolMade['handlers']): GuestProtocolMade => ({
   handlers,
 })
 
-/** The ports of one call as the loader opens them: what reached the domain, and as whom. */
+/** The ports of one call as the loader opens them: what reached the domain, and as whom; closed once the call ends. */
 function world() {
   const reached: unknown[] = []
   const opened: unknown[] = []
   const bind = (principal: unknown) => {
     opened.push(principal)
-    return bindPorts<unknown>(
-      {
-        notifications: () => caller => ({
-          send: async input => {
-            reached.push([caller, input])
-            return { outcome: 'done', value: 'sent' }
-          },
-        }),
+    let open = true
+    const notifications: Port = {
+      send: async input => {
+        if (!open) return { outcome: 'closed' }
+        reached.push([principal, input])
+        return { outcome: 'done', value: 'sent' }
       },
-      principal,
-    )
+    }
+    return { ports: { notifications }, close: () => void (open = false) }
   }
   return { bind, reached, opened }
 }
@@ -47,7 +50,7 @@ const call = { principal: PRINCIPAL, messageId: 'm-1', signal: new AbortControll
 describe('a protocol written by the code of a plugin', () => {
   it('becomes a protocol whose every operation is for a caller acting for a tenant, with the rules the plugin wrote', () => {
     const w = world()
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({ greet: async () => ({ outcome: 'succeeded', body: 'hi' }) }),
       {
         key: 'tidy/v1',
@@ -68,11 +71,11 @@ describe('a protocol written by the code of a plugin', () => {
     const w = world()
     let kept: Port | undefined
     const seen: unknown[] = []
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({
         greet: async (...given) => {
           seen.push(given.length, Object.keys(given[1] as object))
-          kept = given[1].ports['notifications']
+          kept = given[1].ports['notifications'] as Port
           const sent = await kept?.['send']?.({ to: 'me' })
           return { outcome: 'succeeded', body: JSON.stringify(sent) }
         },
@@ -94,10 +97,10 @@ describe('a protocol written by the code of a plugin', () => {
   it('a handler that throws closes its ports too, and answers as an operation whose outcome is not known', async () => {
     const w = world()
     let kept: Port | undefined
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({
         greet: async (_input, { ports }) => {
-          kept = ports['notifications']
+          kept = ports['notifications'] as Port
           throw new Error('boom')
         },
       }),
@@ -119,7 +122,7 @@ describe('a protocol written by the code of a plugin', () => {
       },
       handlers: { look: async () => ({ outcome: 'teapot' }) as never },
     }
-    const contribution = guestProtocol(read, { key: 'tidy/v1', bind: w.bind })
+    const { contribution } = guestProtocol(read, { key: 'tidy/v1', bind: w.bind })
     expect(await contribution.operations['look']?.(call, 'x')).toEqual({
       outcome: 'basis-unavailable',
     })
@@ -162,7 +165,7 @@ describe('a protocol written by the code of a plugin', () => {
       major: 1,
       operations: made({}).contract.operations,
     }
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       { contract, handlers: { greet: async () => ({ outcome: 'denied' }) } },
       { key: 'tidy/v1', bind: world().bind },
     )
@@ -173,7 +176,7 @@ describe('a protocol written by the code of a plugin', () => {
   it.each(['denied', 'basis-unavailable', 'unknown'] as const)(
     'passes on %s as the handler answered it',
     async outcome => {
-      const contribution = guestProtocol(made({ greet: async () => ({ outcome }) }), {
+      const { contribution } = guestProtocol(made({ greet: async () => ({ outcome }) }), {
         key: 'tidy/v1',
         bind: world().bind,
       })
@@ -182,7 +185,7 @@ describe('a protocol written by the code of a plugin', () => {
   )
 
   it('an outcome other than succeeded carries no body, whatever the handler put beside it', async () => {
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({ greet: async () => ({ outcome: 'denied', body: 'secret' }) as never }),
       { key: 'tidy/v1', bind: world().bind },
     )
@@ -192,7 +195,7 @@ describe('a protocol written by the code of a plugin', () => {
   })
 
   it('succeeded without a body is not an answer the protocol can give: a commit answers unknown', async () => {
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({ greet: async () => ({ outcome: 'succeeded' }) as never }),
       { key: 'tidy/v1', bind: world().bind },
     )
@@ -202,7 +205,7 @@ describe('a protocol written by the code of a plugin', () => {
   })
 
   it('the protocol answers succeeded with the rule the plugin wrote for the result', () => {
-    const contribution = guestProtocol(made({ greet: async () => ({ outcome: 'denied' }) }), {
+    const { contribution } = guestProtocol(made({ greet: async () => ({ outcome: 'denied' }) }), {
       key: 'tidy/v1',
       bind: world().bind,
     })
@@ -268,7 +271,7 @@ describe('a handler runs inside the scope the loader names', () => {
     const w = world()
     let inside = false
     const seen: boolean[] = []
-    const contribution = guestProtocol(
+    const { contribution } = guestProtocol(
       made({
         greet: async () => (seen.push(inside), { outcome: 'succeeded', body: 'hi' }),
       }),

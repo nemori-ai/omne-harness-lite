@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { accessProtocol } from '@omne-harness/public-contract'
+import {
+  accessProtocol,
+  defineProtocol,
+  ruleCodec,
+  type ProtocolContract,
+} from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { STREAM_BACKLOG_BYTES, createForwarding, type Forwarding } from '../src/forwarding/app.ts'
 import { LOGIN_COOKIE, readCookieLogin } from '../src/forwarding/login-cookie.ts'
@@ -24,11 +29,15 @@ afterEach(() => {
   for (const forwarding of opened.splice(0)) forwarding.close()
 })
 
-function forwardingOver(server: FakeServer, lines: string[] = []): Forwarding {
+function forwardingOver(
+  server: FakeServer,
+  lines: string[] = [],
+  more: readonly ProtocolContract[] = [],
+): Forwarding {
   const forwarding = createForwarding({
     rules: createForwardingRules({
       connect: server.connect,
-      contracts: [accessProtocol, identityProtocol, sessionProtocol],
+      contracts: [accessProtocol, identityProtocol, sessionProtocol, ...more],
     }),
     readPageFile: async segments =>
       segments.join('/') === 'index.html' ? new TextEncoder().encode('<p>page</p>') : undefined,
@@ -87,10 +96,10 @@ function browser(forwarding: Forwarding) {
   }
 }
 
-function start() {
+function start(more: readonly ProtocolContract[] = []) {
   const server = fakeServer()
   const lines: string[] = []
-  const forwarding = forwardingOver(server, lines)
+  const forwarding = forwardingOver(server, lines, more)
   return { server, lines, forwarding, page: browser(forwarding) }
 }
 
@@ -334,8 +343,196 @@ describe('转发规则', () => {
       },
     ])
       expect(await page.json('/bridge/call', call)).toEqual({ kind: 'not-sent' })
-    expect(server.seen).toHaveLength(before)
+    const scoped = (item: { target: string }) => item.target === 'access/v1 scoped'
+    expect(server.seen.slice(before).filter(item => !scoped(item))).toEqual([])
     expect(page.seenByPage.join('')).not.toContain(PROOF_SENTINEL)
+  })
+})
+
+const empty = ruleCodec({ kind: 'object', fields: {} })
+const probe = defineProtocol({
+  name: 'probe',
+  major: 1,
+  operations: {
+    open: {
+      identity: 'none',
+      effect: 'read',
+      limit: 'small',
+      body: empty,
+      outcomes: { succeeded: empty },
+    },
+    mine: {
+      identity: 'acting-tenant',
+      effect: 'read',
+      limit: 'small',
+      body: empty,
+      outcomes: { succeeded: empty },
+    },
+    secret: {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: empty,
+      outcomes: { succeeded: empty },
+      carriesCredential: true,
+    },
+  },
+  observations: {},
+})
+
+const WEATHER = {
+  name: 'weather',
+  major: 1,
+  operations: {
+    look: {
+      effect: 'read',
+      limit: 'small',
+      body: { kind: 'object', fields: {} },
+      result: { kind: 'text' },
+    },
+  },
+}
+const call = (name: string, operation: string) => ({
+  protocol: { name, major: 1 },
+  operation,
+  messageId: `m-${name}-${operation}`,
+  body: {},
+})
+const tellsWeather = (server: FakeServer) =>
+  server.answer('access/v1 scoped', () =>
+    answered('succeeded', { protocols: [{ name: 'weather', major: 1, contract: WEATHER }] }),
+  )
+
+describe('清单之外的目标：这份登录的租户自己的协议（DT-64）', () => {
+  it('目标六种乘有没有登录：只有服务端的答复里有、请求又带着登录时，才带登录证明与行事租户转发', async () => {
+    const targets = {
+      '在清单里，不要身份': call('probe', 'open'),
+      '在清单里，要行事租户': call('probe', 'mine'),
+      '在清单里，标了携带凭据': call('probe', 'secret'),
+      '不在清单里，在答复里': call('weather', 'look'),
+      '不在清单里，不在答复里': call('notes', 'look'),
+      '不在清单里，读不出': call('weather', 'look'),
+    }
+    const outcomes: Record<string, unknown> = {}
+    for (const signedIn of [false, true])
+      for (const [row, request] of Object.entries(targets)) {
+        const { page, server } = start([probe])
+        if (row === '不在清单里，读不出')
+          server.answer('access/v1 scoped', () => answered('basis-unavailable'))
+        else tellsWeather(server)
+        if (signedIn) await page.login()
+        const report = (await page.json('/bridge/call', request)) as { kind: string }
+        const target = `${request.protocol.name}/v1 ${request.operation}`
+        const sent = server.seen.filter(item => item.target === target)
+        outcomes[`${row}，${signedIn ? '带着登录' : '没带登录'}`] =
+          report.kind === 'not-sent' ? '没发出' : sent.map(item => item.credentials)
+      }
+    const both = { proof: PROOF_SENTINEL, tenant: TENANT_TEXT }
+    expect(outcomes).toEqual({
+      '在清单里，不要身份，没带登录': [{}],
+      '在清单里，要行事租户，没带登录': [{}],
+      '在清单里，标了携带凭据，没带登录': '没发出',
+      '不在清单里，在答复里，没带登录': '没发出',
+      '不在清单里，不在答复里，没带登录': '没发出',
+      '不在清单里，读不出，没带登录': '没发出',
+      '在清单里，不要身份，带着登录': [{}],
+      '在清单里，要行事租户，带着登录': [both],
+      '在清单里，标了携带凭据，带着登录': '没发出',
+      '不在清单里，在答复里，带着登录': [both],
+      '不在清单里，不在答复里，带着登录': '没发出',
+      '不在清单里，读不出，带着登录': '没发出',
+    })
+  })
+
+  it('页面自称一份协议是它的不算数：正文与头里怎么说，服务端的答复里没有就不转发', async () => {
+    const { page, server } = start()
+    server.answer('access/v1 scoped', () => answered('succeeded', { protocols: [] }))
+    await page.login()
+    const claimed = {
+      ...call('weather', 'look'),
+      tenant: TENANT_TEXT,
+      scoped: true,
+      mine: ['weather'],
+    }
+    expect(await page.json('/bridge/call', claimed)).toEqual({ kind: 'not-sent' })
+    const response = await page.post('/bridge/call', claimed)
+    expect(await response.json()).toEqual({ kind: 'not-sent' })
+    expect(server.seen.filter(item => item.target === 'weather/v1 look')).toEqual([])
+  })
+
+  it('清单之外的观察答没发出，带着登录也一样，也不去读答复', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    await page.login()
+    const events = reading(await page.get('/bridge/events?page=p'))
+    const watch = {
+      protocol: { name: 'weather', major: 1 },
+      observation: 'watch',
+      messageId: 'w',
+      open: {},
+    }
+    expect((await attach(page, 'o-1', watch)).status).toBe(200)
+    expect(await events.next(1)).toEqual([
+      { id: 'o-1', event: { kind: 'end', end: { kind: 'not-sent' } } },
+    ])
+    expect(server.seen.filter(item => item.target !== 'identity/v1 issue-login')).toEqual([])
+    await events.cancel()
+  })
+
+  it('答复按登录证明记着；没有命中时至多重读一次；可用性里的 scoped 变了就不再记着', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    const frames: unknown[] = []
+    let wake = (): void => undefined
+    const push = (...more: unknown[]): void => {
+      frames.push(...more)
+      wake()
+    }
+    server.stream('access/v1 availability', async function* (request) {
+      for (;;) {
+        while (frames.length === 0) {
+          await new Promise<void>(resolve => {
+            wake = resolve
+            request.signal.addEventListener('abort', () => resolve())
+          })
+          if (request.signal.aborted) return { kind: 'aborted' }
+        }
+        yield value(frames.shift())
+      }
+    })
+    await page.login()
+    const reads = () => server.seen.filter(item => item.target === 'access/v1 scoped').length
+    await page.json('/bridge/call', call('weather', 'look'))
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    expect(await page.json('/bridge/call', call('notes', 'look'))).toEqual({ kind: 'not-sent' })
+    expect(reads()).toBe(2)
+    const events = reading(await page.get('/bridge/events?page=p'))
+    const snapshot = (scoped: number) => ({
+      kind: 'snapshot',
+      revision: 1,
+      protocols: [],
+      conflicts: [],
+      scoped,
+    })
+    expect((await attach(page, 'a-1', AVAILABILITY)).status).toBe(200)
+    push(snapshot(4), snapshot(4))
+    await events.next(2)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(3)
+    push(snapshot(5))
+    await events.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(4)
+    await events.cancel()
+    await settle()
+    const again = reading(await page.get('/bridge/events?page=q'))
+    expect((await attach(page, 'a-2', AVAILABILITY, 'q')).status).toBe(200)
+    push(snapshot(5))
+    await again.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(5)
+    await again.cancel()
   })
 })
 

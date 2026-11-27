@@ -5,10 +5,12 @@ import {
   ask,
   declare,
   list,
+  report,
   standingOf,
   type Adoption,
   type Contract,
   type Entry,
+  type Instance,
   type Reference,
   type Registry,
   type Scope,
@@ -49,7 +51,7 @@ import { GRANTS_ITSELF } from './closed.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
-  pinnedClient,
+  protocolClientOf,
   pointReader,
   referenceOf,
   referencesOf,
@@ -151,6 +153,8 @@ function checkedPart(declaration: PartDeclaration, host: string): Entry {
 }
 
 /** @owner packages/frontend/shell-contract */
+const hostedScopes = new WeakMap<object, Scope>()
+
 export abstract class ShellService extends Service implements ShellSlots {
   static readonly provide = 'shell'
   static readonly inject = ['dynamis']
@@ -194,8 +198,15 @@ export abstract class ShellService extends Service implements ShellSlots {
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
-  contribute<K extends SlotName>(slot: K, item: ItemOf<K>): () => unknown {
-    return this.put(slot, item.id, instance => [entryOf(slot, item, instance)])
+  contribute<K extends SlotName>(
+    slot: K,
+    item: ItemOf<K>,
+    options: Readonly<{ lock?: true }> = {},
+  ): () => unknown {
+    const scope = hostedScopes.get(this.ctx.fiber) ?? []
+    return this.put(slot, item.id, instance => [
+      entryOf(slot, item, instance, scope, options.lock === true),
+    ])
   }
 
   declare(contract: Contract): void {
@@ -254,7 +265,7 @@ export abstract class ShellService extends Service implements ShellSlots {
     const registry = this.registry()
     const catalog = list<Contract>(registry, CATALOG, null, [])
     const declared = catalog.kind === 'read' ? catalog.items : []
-    const parts = partsOn(registry)
+    const parts = partsOn(registry, lookScope(this.scope.get(), this.worn))
     return {
       points: declared
         .map(({ entry }) => {
@@ -304,13 +315,18 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis.put([phraseEntry(key, item, scope)])
   }
 
-  async host(name: string, apply: (shell: ShellService) => void): Promise<Hosted> {
-    let by = name
+  async host(
+    name: string,
+    apply: (shell: ShellService) => void,
+    scope: Scope = [],
+  ): Promise<Hosted> {
+    let placed: Instance = { fiber: name, generation: 0 }
     const fiber = this.ctx.plugin({
       name,
       inject: [ShellService.provide, 'dynamis'],
       apply: (ctx: Context) => {
-        ctx.dynamis.put(instance => ((by = instance.fiber), []))
+        hostedScopes.set(ctx.fiber, scope)
+        ctx.dynamis.put(instance => ((placed = instance), []))
         apply(ctx.shell)
       },
     })
@@ -320,7 +336,11 @@ export abstract class ShellService extends Service implements ShellSlots {
       await fiber.dispose()
       throw error
     }
-    return { by, dispose: () => fiber.dispose() }
+    return {
+      by: placed.fiber,
+      dispose: () => fiber.dispose(),
+      effects: () => report(this.registry(), placed),
+    }
   }
 
   changes(): Changes {
@@ -538,8 +558,9 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   private follow(registry: Registry): void {
     const order = this.changes().layouts['shell.pages']
+    const asker = lookScope(this.scope.get(), this.worn)
     const changed = SLOT_NAMES.filter(slot => {
-      const read = viewOf(registry, slot)
+      const read = viewOf(registry, slot, asker)
       const fresh = slot === 'pages' ? { ...read, items: laidOut(read.items, order) } : read
       if (sameView(this.views.get(slot) as SlotView, fresh)) return false
       this.views.set(slot, fresh)
@@ -764,7 +785,7 @@ function boundOf(shell: ShellService, registry: () => Registry, needs: Record<st
     const reference = referenceOf(need)
     bound[slot] =
       need.kind === 'protocol'
-        ? pinnedClient(registry, reference)
+        ? protocolClientOf(registry, need)
         : pointReader(registry, reference, listener => shell.watchAdoptions(listener))
   }
   return Object.freeze(bound)

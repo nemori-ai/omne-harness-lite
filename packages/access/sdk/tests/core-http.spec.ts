@@ -95,10 +95,11 @@ describe('observations over HTTP to a real entry', () => {
       revision: 2,
       protocols: [
         { name: 'notes', major: 1, revision: 1, digest },
-        { name: 'access', major: 1, revision: 2, digest },
+        { name: 'access', major: 1, revision: 3, digest },
       ],
       conflicts: [],
       points: [{ name: 'access.protocols', major: 1, revision: 1, digest }],
+      scoped: 0,
     } satisfies AvailabilityFrame)
     controller.abort()
     expect(await frames.next()).toEqual({ done: true, value: { kind: 'aborted' } })

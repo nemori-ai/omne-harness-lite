@@ -1,4 +1,12 @@
 export { createServerEntry } from './http.ts'
+export {
+  guestItem,
+  guestProtocol,
+  type GuestAnswer,
+  type GuestBound,
+  type GuestContext,
+  type GuestHandler,
+} from './guest-protocol.ts'
 export type { Listening, ServerEntry, ServerEntryAccess } from './http.ts'
 export type { JsonBudgets, ServerEntryConfig } from './config.ts'
 export { ServerEntryConfigError } from './config.ts'

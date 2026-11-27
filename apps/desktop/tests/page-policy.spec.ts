@@ -11,18 +11,24 @@ const directives = new Map(
 )
 
 describe('页面策略', () => {
-  it('图片只放行应用自己的地址、data: 与页面自己造的 blob: 地址', () => {
-    expect(directives.get('img-src')).toEqual(["'self'", 'data:', 'blob:'])
-  })
-
-  it('语音只放行页面自己造的 blob: 地址：按了「播放」读回原件交给播放器', () => {
-    expect(directives.get('media-src')).toEqual(['blob:'])
-  })
-
-  it('别的指令没有为图片放宽：脚本、样式、连接只有应用自己，缺省什么都不许', () => {
+  it('脚本只许同源：没有内联、没有 eval、没有外部来源', () => {
+    expect(directives.get('script-src')).toEqual(["'self'"])
     expect(directives.get('default-src')).toEqual(["'none'"])
-    for (const name of ['script-src', 'style-src', 'connect-src', 'font-src'])
-      expect(directives.get(name), name).toEqual(["'self'"])
+  })
+
+  it('网络、图片、媒体、字体、样式与内嵌页放到 https:，连接另有 wss:，没有明文 http:', () => {
+    expect(directives.get('connect-src')).toEqual(["'self'", 'https:', 'wss:'])
+    expect(directives.get('img-src')).toEqual(["'self'", 'https:', 'data:', 'blob:'])
+    expect(directives.get('media-src')).toEqual(["'self'", 'https:', 'blob:'])
+    expect(directives.get('font-src')).toEqual(["'self'", 'https:', 'data:'])
+    expect(directives.get('style-src')).toEqual(["'self'", "'unsafe-inline'", 'https:'])
+    expect(directives.get('frame-src')).toEqual(['https:'])
+    for (const [name, sources] of directives) expect(sources, name).not.toContain('http:')
+  })
+
+  it('不许插件对象、不许改 base、表单不提交、不被别人嵌入', () => {
+    for (const name of ['object-src', 'base-uri', 'form-action', 'frame-ancestors'])
+      expect(directives.get(name), name).toEqual(["'none'"])
     expect([...directives.keys()].toSorted()).toEqual([
       'base-uri',
       'connect-src',
@@ -30,8 +36,10 @@ describe('页面策略', () => {
       'font-src',
       'form-action',
       'frame-ancestors',
+      'frame-src',
       'img-src',
       'media-src',
+      'object-src',
       'script-src',
       'style-src',
     ])
