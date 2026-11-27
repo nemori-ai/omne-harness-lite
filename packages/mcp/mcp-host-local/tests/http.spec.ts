@@ -49,6 +49,7 @@ const SECRET = 'secret-token-7f3a'
 
 const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
+  maxLongRequests: 2,
   probeTimeoutMs: 300,
 } as const
 
@@ -113,6 +114,9 @@ const METHOD_NOT_FOUND: PeerReply = {
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
 const echo = { action: actionNameOf('echo'), args: jsonOf({ text: 'hi' }) }
 const DONE = { content: [{ type: 'text', text: 'done' }] }
+const CREDENTIAL_REJECTED = {
+  failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' },
+}
 
 function requestsOf(received: readonly PeerReceived[], method: string) {
   return received.flatMap(entry =>
@@ -137,26 +141,32 @@ afterEach(async () => {
 })
 
 describe('authorization (T4)', () => {
-  it("the SDK's bearer gate: a wrong token is authorization-required with the metadata it names; reportRejection once; the right token works", async () => {
+  it("the SDK's bearer gate: without a credential it is authorization-required with the metadata it names; a wrong token is credential-rejected, reported once, and the connection is not usable; the right token works", async () => {
     const server = await bearerServer(SECRET, ['files:read'])
-    const wrong = credential('not-the-token')
-    const refused = await open(materialOf(server.target, wrong))
-    const failed = await refused.call(echo, never)
+    const bare = await open(materialOf(server.target))
+    const asked = await bare.call(echo, never)
     expect(
-      'failure' in failed &&
-        failed.failure.kind === 'not-sent' &&
-        failed.failure.cause === 'authorization-required',
+      'failure' in asked &&
+        asked.failure.kind === 'not-sent' &&
+        asked.failure.cause === 'authorization-required',
     ).toBe(true)
     if (
-      'failure' in failed &&
-      failed.failure.kind === 'not-sent' &&
-      failed.failure.cause === 'authorization-required'
+      'failure' in asked &&
+      asked.failure.kind === 'not-sent' &&
+      asked.failure.cause === 'authorization-required'
     ) {
-      expect(failed.failure.discovery.resourceMetadataUrl).toBe(server.metadataUrl)
-      expect(failed.failure.discovery.metadata).toBe('fetched')
-      expect(failed.failure.discovery.issuers).toEqual(['https://issuer.test'])
-      expect(failed.failure.discovery.scopes).toEqual(['files:read'])
+      expect(asked.failure.discovery.resourceMetadataUrl).toBe(server.metadataUrl)
+      expect(asked.failure.discovery.metadata).toBe('fetched')
+      expect(asked.failure.discovery.issuers).toEqual(['https://issuer.test'])
+      expect(asked.failure.discovery.scopes).toEqual(['files:read'])
     }
+    await bare.close()
+
+    const wrong = credential('not-the-token')
+    const refused = await open(materialOf(server.target, wrong))
+    expect(await refused.call(echo, never)).toEqual(CREDENTIAL_REJECTED)
+    expect(wrong.rejections()).toBe(1)
+    expect(await refused.call(echo, never)).toEqual(CREDENTIAL_REJECTED)
     expect(wrong.rejections()).toBe(1)
     await refused.close()
 
@@ -170,7 +180,7 @@ describe('authorization (T4)', () => {
     await server.close()
   })
 
-  it('403 with insufficient_scope: authorization-required with the scope of the header; another 403: connection-unavailable without reportRejection', async () => {
+  it('403 with insufficient_scope: without a credential authorization-required with the scope of the header; with a static credential credential-rejected, reported once; another 403: connection-unavailable without reportRejection', async () => {
     const scoped = await scripted({
       listing: {
         '': {
@@ -180,8 +190,7 @@ describe('authorization (T4)', () => {
         },
       },
     })
-    const handle = credential()
-    const transport = await openOn(scoped, handle)
+    const transport = await openOn(scoped)
     const failed = await transport.listActions()
     expect(
       'failure' in failed &&
@@ -189,8 +198,12 @@ describe('authorization (T4)', () => {
         failed.failure.cause === 'authorization-required' &&
         failed.failure.discovery.scopes,
     ).toEqual(['files:write'])
-    expect(handle.rejections()).toBe(1)
     await transport.close()
+    const handle = credential()
+    const keyed = await openOn(scoped, handle)
+    expect(await keyed.listActions()).toEqual(CREDENTIAL_REJECTED)
+    expect(handle.rejections()).toBe(1)
+    await keyed.close()
     await scoped.close()
 
     const forbidden = await scripted({
@@ -218,7 +231,7 @@ describe('authorization (T4)', () => {
         },
       },
     }))
-    const transport = await openOn(rootOnly, credential())
+    const transport = await openOn(rootOnly)
     const failed = await transport.listActions()
     const fetched = (await rootOnly.received()).flatMap(entry =>
       entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
@@ -238,7 +251,7 @@ describe('authorization (T4)', () => {
         '': { kind: 'http', status: 401, headers: { 'www-authenticate': 'Bearer scope="x y"' } },
       },
     })
-    const bare = await openOn(none, credential())
+    const bare = await openOn(none)
     const unavailable = await bare.listActions()
     expect(
       'failure' in unavailable &&
@@ -272,7 +285,7 @@ describe('authorization (T4)', () => {
         [NAMED]: { resource: target, authorization_servers: ['https://named.test'] },
       },
     }))
-    const transport = await openOn(peer, credential())
+    const transport = await openOn(peer)
     const failed = await transport.listActions()
     const fetched = (await peer.received()).flatMap(entry =>
       entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
@@ -288,6 +301,25 @@ describe('authorization (T4)', () => {
       metadata: 'fetched',
       issuers: ['https://named.test'],
     })
+    await transport.close()
+    await peer.close()
+  })
+
+  it('two calls that carry the credential and are both answered 401: both credential-rejected, the handle hears it once, no metadata is fetched (V3, C101)', async () => {
+    const challenge = { 'www-authenticate': 'Bearer realm="mcp"' }
+    const peer = await scripted({
+      calls: { echo: { kind: 'http', status: 401, headers: challenge } },
+    })
+    const handle = credential()
+    const transport = await openOn(peer, handle)
+    const [first, second] = await Promise.all([
+      transport.call(echo, never),
+      transport.call(echo, never),
+    ])
+    const outcomes = [first, second].map(async sent => ('ok' in sent ? sent.ok.answer : sent))
+    expect(await Promise.all(outcomes)).toEqual([CREDENTIAL_REJECTED, CREDENTIAL_REJECTED])
+    expect(handle.rejections()).toBe(1)
+    expect((await peer.received()).some(entry => entry.kind === 'fetch')).toBe(false)
     await transport.close()
     await peer.close()
   })
@@ -331,10 +363,9 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
     await peer.close()
   })
 
-  it("401 whose metadata fetch hangs: the call's signal ends the discovery within the bound; authorization-required, metadata unavailable, reportRejection once", async () => {
+  it("401 whose metadata fetch hangs: the call's signal ends the discovery within the bound; authorization-required, metadata unavailable", async () => {
     const peer = await scripted({ calls: { echo: refused } }, { metadata: 'hangs' })
-    const handle = credential()
-    const transport = await openOn(peer, handle)
+    const transport = await openOn(peer)
     const controller = new AbortController()
     const call = transport.call(echo, controller.signal)
     setTimeout(() => controller.abort(), 50)
@@ -347,24 +378,19 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
         },
       },
     })
-    expect(handle.rejections()).toBe(1)
     await transport.close()
     await peer.close()
   })
 
-  it('401 whose metadata fetch hangs: close() ends the discovery within the bound with the same conclusion, reportRejection once before close() returned', async () => {
+  it('401 whose metadata fetch hangs: close() ends the discovery within the bound with the same conclusion', async () => {
     const peer = await scripted({ listing: { '': refused } }, { metadata: 'hangs' })
-    const handle = credential()
-    const transport = await openOn(peer, handle)
+    const transport = await openOn(peer)
     const listing = transport.listActions()
     for (let round = 0; round < 200; round += 1) {
       if ((await peer.received()).some(entry => entry.kind === 'fetch')) break
       await new Promise(resolve => setTimeout(resolve, 5))
     }
-    let rejectionsAtClose = -1
-    await transport.close().then(() => {
-      rejectionsAtClose = handle.rejections()
-    })
+    await transport.close()
     expect(await settledWithin(listing)).toMatchObject({
       settled: {
         failure: {
@@ -374,13 +400,12 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
         },
       },
     })
-    expect(rejectionsAtClose).toBe(1)
     await peer.close()
   })
 
   it('a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable', async () => {
     const peer = await scripted({ listing: { '': refused } }, { metadata: 'endless' })
-    const transport = await openOn(peer, credential())
+    const transport = await openOn(peer)
     expect(await settledWithin(transport.listActions(), 10_000)).toMatchObject({
       settled: {
         failure: {
@@ -762,7 +787,7 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     await crossOrigin.close()
   })
 
-  it('the fallback GET refused with 401: discover is authorization-required with the metadata the peer serves, reportRejection once', async () => {
+  it('the fallback GET refused with 401: without a credential discover is authorization-required with the metadata the peer serves; with one it is credential-rejected, reported once', async () => {
     const plain = (status: number, body: string): PeerReply => ({
       kind: 'http',
       status,
@@ -787,9 +812,8 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
         },
       },
     )
-    const handle = credential()
-    const transport = await openOn(peer, handle)
-    expect(await settledWithin(transport.discover())).toMatchObject({
+    const bare = await openOn(peer)
+    expect(await settledWithin(bare.discover())).toMatchObject({
       settled: {
         failure: {
           kind: 'not-sent',
@@ -798,6 +822,10 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
         },
       },
     })
+    await bare.close()
+    const handle = credential()
+    const transport = await openOn(peer, handle)
+    expect(await settledWithin(transport.discover())).toEqual({ settled: CREDENTIAL_REJECTED })
     expect(handle.rejections()).toBe(1)
     await transport.close()
     await peer.close()

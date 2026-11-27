@@ -36,6 +36,7 @@ export declare const mcpProtocol: {
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
                         };
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
+                        readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
                         readonly use: {
                             readonly kind: "usable";
@@ -79,6 +80,7 @@ export declare const mcpProtocol: {
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
                         };
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
+                        readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
                         readonly use: {
                             readonly kind: "usable";
@@ -126,7 +128,21 @@ export declare const mcpProtocol: {
     };
     readonly name: "mcp";
     readonly major: 1;
-    readonly observations: {};
+    readonly observations: {
+        readonly 'observe-endpoints': {
+            readonly identity: "login";
+            readonly open: import("@omne-harness/public-contract").Codec<{
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly about: "endpoints" | "events";
+                readonly kind: "changed";
+            }>;
+            readonly ends: readonly [
+            ];
+            readonly since: 2;
+        };
+    };
 };
 export type McpProtocol = typeof mcpProtocol;
 ```

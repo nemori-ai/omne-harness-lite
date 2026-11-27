@@ -4,11 +4,20 @@ import { mcpProtocol } from '@omne-harness/mcp-protocol'
 const { operations } = mcpProtocol
 
 describe('mcp/v1', () => {
-  it('is mcp major 1 with the three operations and no observation', () => {
+  it('is mcp major 1 with the three operations and the one observation', () => {
     expect(mcpProtocol.name).toBe('mcp')
     expect(mcpProtocol.major).toBe(1)
     expect(Object.keys(operations)).toEqual(['list-endpoints', 'read-endpoint', 'refresh-endpoint'])
-    expect(Object.keys(mcpProtocol.observations)).toEqual([])
+    expect(Object.keys(mcpProtocol.observations)).toEqual(['observe-endpoints'])
+  })
+
+  it('observe-endpoints came at revision 2, wants a login and has no end of its own', () => {
+    const observation = mcpProtocol.observations['observe-endpoints']
+    expect({
+      identity: observation.identity,
+      since: observation.since,
+      ends: observation.ends,
+    }).toEqual({ identity: 'login', since: 2, ends: [] })
   })
 
   it('the two reads are login reads and the refresh is a login commit, all of the small limit', () => {

@@ -32,6 +32,7 @@ import {
   USAGE_TABLES,
 } from './worker/schema.ts'
 import { PENDING_READ_LIMIT, USAGE_READ_LIMIT } from './worker/facts.ts'
+import { TOOL_WAIT_OPEN_FACT, TOOL_WAIT_OPEN_GUARD } from './wait-open.ts'
 
 export const TOOL_PARTICIPANT = PARTICIPANT
 
@@ -129,6 +130,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
   const pendingMigration = module('migration-pending')
   const definitionMigration = module('migration-definitions')
   const usageMigration = module('migration-usage')
+  const waitOpen = module('wait-open-guard')
   return {
     participants: [
       {
@@ -140,6 +142,18 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
+      {
+        participant: TOOL_WAIT_OPEN_GUARD,
+        protocol: '1',
+        moduleUrl: waitOpen.moduleUrl,
+        codeDigest: waitOpen.digest,
+        ownedTables: [],
+        readTables: ['tl_record'],
+        requiresFacts: [],
+        providesFacts: [TOOL_WAIT_OPEN_FACT],
         allowedFunctions: [],
         grouping: 'singleton',
       },

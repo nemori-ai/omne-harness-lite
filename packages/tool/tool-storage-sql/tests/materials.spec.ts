@@ -7,7 +7,12 @@ import {
   type ParticipantDescriptor,
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
-import { TOOL_PARTICIPANT, toolStorageMaterials } from '../src/index.ts'
+import {
+  TOOL_PARTICIPANT,
+  TOOL_WAIT_OPEN_FACT,
+  TOOL_WAIT_OPEN_GUARD,
+  toolStorageMaterials,
+} from '../src/index.ts'
 
 const materials = toolStorageMaterials()
 
@@ -40,8 +45,16 @@ const sha256 = (url: string) =>
     .digest('hex')
 
 describe('the materials of the Tool storage', () => {
-  it('describe one participant `tool` that owns only `tl_` tables', () => {
-    expect(materials.participants.map(item => item.participant)).toEqual([TOOL_PARTICIPANT])
+  it('describe the participant `tool` that owns only `tl_` tables, and the guard that reads its records and owns none', () => {
+    expect(materials.participants.map(item => item.participant)).toEqual([
+      TOOL_PARTICIPANT,
+      TOOL_WAIT_OPEN_GUARD,
+    ])
+    expect(materials.participants[1]).toMatchObject({
+      ownedTables: [],
+      readTables: ['tl_record'],
+      providesFacts: [TOOL_WAIT_OPEN_FACT],
+    })
     expect(TOOL_PARTICIPANT).toBe('tool')
     const [participant] = materials.participants
     expect(participant?.ownedTables.length).toBeGreaterThan(0)
@@ -54,7 +67,7 @@ describe('the materials of the Tool storage', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(modules.length).toBe(11)
+    expect(modules.length).toBe(12)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)

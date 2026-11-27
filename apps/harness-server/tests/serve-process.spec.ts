@@ -119,7 +119,7 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 125, 'contract-double': 0, 's0-double': 2 },
+      implementations: { real: 126, 'contract-double': 0, 's0-double': 2 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
@@ -259,14 +259,14 @@ describe('serve process', () => {
       formats: Record<string, number>
     }
     expect(written.writtenBy).toMatch(/^harness-server@\d+\.\d+\.\d+/)
-    expect(written.formats).toEqual({ 'state-directory': 1, 'session-composite': 26 })
+    expect(written.formats).toEqual({ 'state-directory': 1, 'session-composite': 27 })
 
     // A later build left this directory: one format this build does not know, one at a newer number.
     writeFileSync(
       stampPath,
       JSON.stringify({
         writtenBy: 'harness-server@9.9.9',
-        formats: { ...written.formats, 'session-composite': 27, 'page-bundles': 1 },
+        formats: { ...written.formats, 'session-composite': 28, 'page-bundles': 1 },
       }),
     )
     const digests = (): Record<string, string> =>

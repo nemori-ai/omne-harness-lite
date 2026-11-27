@@ -52,14 +52,26 @@ describe('http-call: one call with its signal, close(); every T8 refusal and exc
     ])
       expect(actions).toContain(`answer line.send:r1 ${answer}`)
     expect(actions).toContain('answer credential.authorize:handle fail')
-    expect(actions).toContain('answer fetchMetadata:first reject')
+    expect(actions).toContain('answer credential.reportRejection:handle reject')
   })
 })
 
 describe('http-bare: HTTP without a handle, one call, one listActions, close(); refusals with no handle to hear of them', () => {
+  const run = exploration(HTTP_BARE)
+
   it('V1–V6 hold, V3 above all', { timeout: EXPLORE_MS }, async () => {
-    expect(violations(await explore(HTTP_BARE))).toEqual([])
+    expect(violations(await run())).toEqual([])
   })
+
+  it(
+    'reaches the metadata fetch of a refusal and each of its answers',
+    { timeout: EXPLORE_MS },
+    async () => {
+      const actions = (await run()).actions
+      expect(actions).toContain('answer fetchMetadata:first reject')
+      expect(actions).toContain('answer fetchMetadata:first hang')
+    },
+  )
 })
 
 describe('http-peer: one call whose answer stream carries a peer ping, close(); the response is authorized', () => {

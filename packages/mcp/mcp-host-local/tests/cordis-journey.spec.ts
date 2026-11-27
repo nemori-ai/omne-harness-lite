@@ -12,6 +12,9 @@ import {
   actionNameOf,
   correlationKeyOf,
   createMemoryAdoptionView,
+  createMemoryCatalogStore,
+  createMemoryTaskRecords,
+  type MemoryTaskRecords,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   credentialBindingOf,
@@ -25,6 +28,8 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import {
   AdoptionViewService,
+  CatalogStoreService,
+  TaskRecordsService,
   CredentialUseService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
@@ -46,8 +51,10 @@ const principalKey = (principal: unknown) => String(principal)
 
 const CONFIG: McpPluginConfig = {
   maxListingPages: 5,
+  maxLongRequests: 2,
   maxActions: 100,
   instructionsByteLimit: 4096,
+  taskWatch: { pollFloorMs: 1000, backoffCapMs: 30_000 },
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },
 }
 
@@ -140,6 +147,25 @@ function credentialService(port: CredentialUse<unknown>) {
   }
 }
 
+// The tasks the plugin keeps, in memory.
+function tasksService(tasks: MemoryTaskRecords) {
+  return class extends TaskRecordsService {
+    readonly record = tasks.record
+    readonly read = tasks.read
+    readonly move = tasks.move
+    readonly following = tasks.following
+  }
+}
+
+// The catalogs the plugin keeps: a memory store, loaded with the other ports.
+function storeService() {
+  const store = createMemoryCatalogStore()
+  return class extends CatalogStoreService {
+    readonly read = store.read
+    readonly write = store.write
+  }
+}
+
 function recordingCredentials(inner: CredentialUse<unknown>) {
   const released: string[] = []
   const port: CredentialUse<unknown> = {
@@ -168,7 +194,7 @@ async function peerOf(script: PeerScript, onRequest?: (method: string) => void):
     script,
     {},
     ['2026-07-28'],
-    { clientInfo: CONFIG.clientInfo },
+    { clientInfo: CONFIG.clientInfo, maxLongRequests: CONFIG.maxLongRequests },
     onRequest === undefined ? {} : { beforeRecord: async method => onRequest(method) },
   )
   peers.push(peer)
@@ -229,9 +255,12 @@ const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials
 async function assembled(endpoint: Endpoint, absent?: PortName, loaded: Plugin = plugin) {
   const ctx = new Context()
   const provided = await ports(endpoint)
+  await load(ctx, storeService(), undefined)
+  const tasks = createMemoryTaskRecords()
+  await load(ctx, tasksService(tasks), undefined)
   for (const name of PORT_NAMES) if (name !== absent) await load(ctx, provided[name], undefined)
   const fiber = await load(ctx, loaded, CONFIG)
-  return { ctx, fiber, provided }
+  return { ctx, fiber, provided, tasks }
 }
 
 type ServiceKey =
@@ -261,16 +290,20 @@ async function availabilities(ctx: Context) {
   return view.ok.actions.map(action => [action.name, action.availability])
 }
 
-async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
+async function definitionOf(ctx: Context, tool: string) {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   const known = view.ok.actions.find(action => action.name === tool)
   if (known === undefined) throw new Error(`the catalog has no action ${tool}`)
+  return known.definitionDigest
+}
+
+async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
   return service(ctx, mcpActionInvokerKey).invoke(ALICE, {
     ref: FILES,
     action: actionNameOf(tool),
     args: jsonOf({}),
-    expectedDefinition: known.definitionDigest,
+    expectedDefinition: await definitionOf(ctx, tool),
     correlationKey: key,
     signal: new AbortController().signal,
   })
@@ -307,7 +340,7 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
   })
 
   it('answers each operation of the three services through the plugin', async () => {
-    const { ctx } = await assembled({ script: OPERATIONS })
+    const { ctx, tasks } = await assembled({ script: OPERATIONS })
     const discovery = service(ctx, mcpActionDiscoveryKey)
     const invoker = service(ctx, mcpActionInvokerKey)
     const status = service(ctx, mcpEndpointStatusKey)
@@ -322,14 +355,14 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
     const asked = await invoke(ctx, 'ask', CALL_1)
     if (asked.kind !== 'sent' || asked.outcome.kind !== 'inputRequired')
       throw new Error(`ask did not ask for input: ${JSON.stringify(asked)}`)
-    const { requestState, issuedAt } = asked.outcome
+    const { requestState } = asked.outcome
     const continued = await invoker.continueWithInput(ALICE, {
       ref: FILES,
       action: actionNameOf('ask'),
       args: jsonOf({}),
       ...(requestState === undefined ? {} : { requestState }),
       inputResponses: jsonOf({}),
-      issuedAt,
+      expectedDefinition: await definitionOf(ctx, 'ask'),
       correlationKey: correlationKeyOf('call-2'),
       signal: new AbortController().signal,
     })
@@ -346,6 +379,11 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
     expect(await invoker.taskResult(ALICE, task)).toMatchObject({
       ok: { kind: 'complete', content: [{ block: { kind: 'text', text: 'done' } }] },
     })
+    const listed = await tasks.following(ALICE.tenant)
+    const kept = 'ok' in listed ? listed.ok[0] : undefined
+    if (kept === undefined) throw new Error('the task row is not kept')
+    const asks = { state: 'awaiting', round: 1, arrival: { kind: 'input' } } as const
+    await tasks.move(kept.key, { state: 'following', round: 1 }, asks)
     expect(await invoker.provideTaskInput(ALICE, task, jsonOf({}))).toEqual({ ok: 'accepted' })
     expect(await invoker.cancelTask(ALICE, task)).toEqual({ ok: 'requested' })
 

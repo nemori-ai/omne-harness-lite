@@ -3,7 +3,7 @@ import type { PeerAnswer } from '@omne-harness/mcp-contract'
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { endpointRefOf, jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
 import { admit } from '../src/internal/gate.ts'
-import { loseIfLost, lostOf } from '../src/internal/lost.ts'
+import { connectionFailureOf, loseIfLost, lostOf } from '../src/internal/lost.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { alice } from './doubles/identities.ts'
 import { adoptHttp, world } from './doubles/world.ts'
@@ -31,6 +31,33 @@ describe('lostOf: what one answer of the transport means for a ready connection'
       expect(lostOf(answer)).toEqual({ reason, mark: 'connection-unavailable' })
     },
   )
+
+  it('rule 1b: a credential the peer rejected loses the connection for credential-rejected and marks the catalog with it (C101)', () => {
+    expect(
+      lostOf({
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'credential-rejected',
+      }),
+    ).toEqual({ reason: 'credential-rejected', mark: 'credential-rejected' })
+  })
+
+  it('a call refused for its credential tells the caller the credential was rejected (C101)', () => {
+    expect(
+      connectionFailureOf({
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'credential-rejected',
+      }),
+    ).toEqual({ kind: 'credential-unavailable', cause: 'rejected' })
+    expect(
+      connectionFailureOf({
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'stream-broken',
+      }),
+    ).toEqual({ kind: 'connection-unavailable' })
+  })
 
   it('rule 2: not-sent (authorization-required) loses the connection for it and marks the catalog with it', () => {
     expect(
@@ -69,6 +96,10 @@ describe('loseIfLost: the one place a request hands what lostOf found to the tab
     [
       { kind: 'not-sent', cause: 'authorization-required', discovery: DISCOVERY },
       'authorization-required',
+    ],
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' },
+      'credential-rejected',
     ],
   ])('%o loses the ready connection for %s', async (answer, reason) => {
     const { table, ensured, holding } = await readyTable()

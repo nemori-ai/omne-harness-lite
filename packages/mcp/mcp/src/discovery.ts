@@ -14,6 +14,7 @@ import {
   type ConnectionFailure,
   type EndpointRef,
   type Generation,
+  type ListingDefect,
   type McpClock,
   type McpConfig,
   type McpPorts,
@@ -24,7 +25,9 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type { ChangeFeed } from './internal/changes.ts'
 import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
+import type { Following } from './internal/follow.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { connectionFailureOf, loseOn, lostOf, type Lost } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
@@ -43,10 +46,16 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   config: McpConfig<P>
   table: ConnectionTable<P>
   clock: McpClock
+  changes: ChangeFeed
+  following: Following
 }>
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
 const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
+const incomplete = (defect: ListingDefect): RefreshResult => ({
+  kind: 'kept',
+  reason: { kind: 'listing-incomplete', defect },
+})
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
@@ -92,6 +101,12 @@ function lostPageOf(page: Outcome<ListingPage, TransportFailure>): readonly Lost
   const reason = failure.kind === 'not-sent' ? connectionFailureOf(failure) : CONNECTION_UNAVAILABLE
   return [{ lost, reason }]
 }
+
+/** A change is taken as the refresh it follows was asked for, within its bound; the caller's signal stays with the caller. */
+const repeatOf = (request: RefreshRequest): RefreshRequest => ({
+  ref: request.ref,
+  ...(request.connectBound === undefined ? {} : { connectBound: request.connectBound }),
+})
 
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): ActionDiscovery<P> {
   const { ports, config, table } = deps
@@ -154,6 +169,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     )
     if ('failure' in write)
       return write.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
+    deps.changes.changed(access.tenant)
+    deps.following.follow(ensured, () => refresh(access, repeatOf(request)))
     return succeed({ kind: 'published', revision: merged.revision })
   }
 
@@ -177,11 +194,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     })
     const pageFailed = 'failure' in listing && listing.failure === 'page-failed'
     table.settle(connection, generation, pageFailed ? 'page-failed' : 'listed')
-    if ('failure' in listing)
-      return succeed({
-        kind: 'kept',
-        reason: { kind: 'listing-incomplete', defect: listing.failure },
-      })
+    if ('failure' in listing) return succeed(incomplete(listing.failure))
     const merged = mergeListing(stateOf(stored), listing.ok)
     if ('failure' in merged) return succeed(SUPERSEDED)
     if (table.isShut()) return SHUT

@@ -176,3 +176,25 @@ describe('refresh-endpoint', () => {
     expectRoundTrip(operations['refresh-endpoint'].outcomes['not-visible'], {})
   })
 })
+
+describe('observe-endpoints', () => {
+  const { open, frame } = mcpProtocol.observations['observe-endpoints']
+
+  it('opens with a tenant and nothing else', () => {
+    expectRoundTrip(open, { tenant })
+    expect(readSample(open, {})).toEqual({ ok: false })
+    expect(readSample(open, { tenant, name: 'docs' })).toEqual({ ok: false })
+  })
+
+  it.each(['endpoints', 'events'])('a frame says the %s may have changed', about => {
+    expectRoundTrip(frame, { kind: 'changed', about })
+  })
+
+  it.each([
+    ['another subject', { kind: 'changed', about: 'skills' }],
+    ['no subject', { kind: 'changed' }],
+    ['another kind', { kind: 'ended', about: 'endpoints' }],
+  ])('refuses a frame with %s', (_label, sample) => {
+    expect(readSample(frame, sample)).toEqual({ ok: false })
+  })
+})

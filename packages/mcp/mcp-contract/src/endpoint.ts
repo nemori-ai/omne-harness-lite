@@ -1,4 +1,5 @@
 import {
+  digestBytes,
   isReadBody,
   readBodyText,
   readSnapshot,
@@ -111,7 +112,6 @@ type EndpointSettingItem = EndpointSettingDefinitions['items'][number]
 
 const CONNECTION_GROUP = 'connection'
 const USE_GROUP = 'use'
-const UNPINNED_VERSION = 'unpinned'
 const NO_DEFAULT = { kind: 'absent' as const }
 
 function settingItem(
@@ -182,11 +182,18 @@ const PROGRAM_CALLS_ITEM: EndpointSettingItem = {
   default: { kind: 'value', value: false },
 }
 
-function settingsOf(definition: EndpointDefinition, version: string): EndpointSettingDefinitions {
+// The version is the digest of the content: a new body that keeps the same settings keeps the values set.
+function settingsOf(definition: EndpointDefinition): EndpointSettingDefinitions {
+  const content = settingsContentOf(definition)
+  return { ...content, version: digestBytes(new TextEncoder().encode(JSON.stringify(content))) }
+}
+
+function settingsContentOf(
+  definition: EndpointDefinition,
+): Omit<EndpointSettingDefinitions, 'version'> {
   return {
     providerId: mcpEndpointGates.ownerId,
     definitionId: definition.name,
-    version,
     groups: [
       {
         id: CONNECTION_GROUP,
@@ -221,7 +228,7 @@ export function mcpEndpointBodyContract(): BodyContract {
       return { entries: declarationsOf(judgedDefinition(body, context)) }
     },
     settings(body, context) {
-      return settingsOf(judgedDefinition(body, context), context?.definition ?? UNPINNED_VERSION)
+      return settingsOf(judgedDefinition(body, context))
     },
     references(body, context) {
       judgedDefinition(body, context)

@@ -415,10 +415,14 @@
 - `ToolSegmentContext` · `checkpointed-author.d.ts`
 - `ToolShape` · `authoring.d.ts`
 - `ToolShapeParameters` · `authoring.d.ts`
+- `ToolSourceAnswer` · `entry-source.d.ts`
 - `ToolSourceBreach` · `entry-source.d.ts`
 - `ToolSourceCall` · `entry-source.d.ts`
+- `ToolSourceCheckpoint` · `entry-source.d.ts`
 - `ToolSourceEntry` · `entry-source.d.ts`
 - `ToolSourceListing` · `entry-source.d.ts`
+- `ToolSourceResume` · `entry-source.d.ts`
+- `ToolSourceSuspension` · `entry-source.d.ts`
 - `ToolSourceWithheld` · `entry-source.d.ts`
 - `ToolStartAcceptance` · `records.d.ts`
 - `ToolStartAuthority` · `records.d.ts`
@@ -482,6 +486,7 @@
 - `isProgramName` · `program-signature.d.ts`
 - `isProgramSettled` · `program.d.ts`
 - `isToolSourcePrefix` · `entry-source.d.ts`
+- `isToolSourceSuspension` · `entry-source.d.ts`
 - `judgeCommittedToolResult` · `result-policy.d.ts`
 - `judgeConsumerRef` · `judge-release.d.ts`
 - `judgeFixedToolRequest` · `judge-request.d.ts`
@@ -2172,6 +2177,8 @@ export declare function foldResident(resident: readonly ResidentTool[], admitted
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
 import { type Outcome } from '@omne-harness/operation-result';
+import type { ToolDecision, ToolWaitContract } from './author-context.ts';
+import type { AuthorWait, ToolCheckpointDeclaration } from './checkpointed-author.ts';
 import type { ToolCommandDeclaration, ToolDefinition } from './definitions.ts';
 import type { Access, Adoption } from './identity.ts';
 import type { Reply, ToolRenderedResult } from './results.ts';
@@ -2208,12 +2215,30 @@ export type ToolSourceCall<P> = Access<P> & Readonly<{
     program: boolean;
     signal: AbortSignal;
 }>;
+export type ToolSourceSuspension = Readonly<{
+    kind: 'suspended';
+    state: Uint8Array;
+    wait: AuthorWait;
+    closedResult: string;
+}>;
+export type ToolSourceAnswer<B extends ContentBlock> = ToolRenderedResult<B> | ToolSourceSuspension;
+export type ToolSourceResume<P> = Omit<ToolSourceCall<P>, 'arguments'> & Readonly<{
+    checkpoint: Uint8Array;
+    response: ToolDecision<unknown>;
+}>;
+export type ToolSourceCheckpoint = Readonly<{
+    declaration: ToolCheckpointDeclaration;
+    waits: readonly ToolWaitContract<unknown, 'ask'>[];
+}>;
 export type ToolEntrySource<P, B extends ContentBlock> = Readonly<{
     prefix: string;
     list(access: Access<P>): Reply<ToolSourceListing>;
     select(access: Access<P>, name: string): ToolSourceEntry | undefined;
-    execute(call: ToolSourceCall<P>): Promise<ToolRenderedResult<B>>;
+    execute(call: ToolSourceCall<P>): Promise<ToolSourceAnswer<B>>;
+    checkpoint?: ToolSourceCheckpoint;
+    resume?(call: ToolSourceResume<P>): Promise<ToolSourceAnswer<B>>;
 }>;
+export declare function isToolSourceSuspension<B extends ContentBlock>(answer: ToolSourceAnswer<B>): answer is ToolSourceSuspension;
 export type ToolSourceBreach = Readonly<{
     name: string;
     reason: string;
@@ -2555,6 +2580,7 @@ export interface ToolForwardSource<P> {
     }> | Readonly<{
         kind: 'unresolved';
     }>>;
+    presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void;
 }
 export interface ToolForwardRuntime<P> {
     invoke(input: ToolForwardParent<P> & Readonly<{
@@ -2562,6 +2588,7 @@ export interface ToolForwardRuntime<P> {
         target: ToolInvokeRequest;
     }>): Promise<ToolInvokeOutcome>;
     resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>;
+    presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void;
 }
 ```
 
@@ -3566,7 +3593,7 @@ export { isProgramCall, markProgramCall } from './program-call.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide, returnSummary } from './return-description.ts';
 export { PROGRAM_FAILURE, functionsSignature, isProgramName, programCallRefusal, programFunctions, PROGRAM_RUN_CAPABILITY, programSignature, schemaType, } from './program-signature.ts';
-export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
+export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, isToolSourceSuspension, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceAnswer, type ToolSourceBreach, type ToolSourceCall, type ToolSourceCheckpoint, type ToolSourceEntry, type ToolSourceListing, type ToolSourceResume, type ToolSourceSuspension, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';
 export { scriptToolImpact, scriptToolPlace, type ScriptToolLoad, type ScriptToolPublishFacts, } from './script-tool-effect.ts';
