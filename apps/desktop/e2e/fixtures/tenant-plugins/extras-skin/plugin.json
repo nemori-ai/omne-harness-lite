@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "extras-skin",
+  "summary": "Colours the panel desk-extras declares.",
+  "kind": "skin",
+  "client": {
+    "members": [
+      { "point": "shell.part-style", "key": "desk-extras.panel", "data": { "base": { "color": "rgb(185, 28, 28)" } } }
+    ]
+  }
+}

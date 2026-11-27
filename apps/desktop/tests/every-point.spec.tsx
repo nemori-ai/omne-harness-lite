@@ -80,15 +80,37 @@ function copied(name: string, example: string) {
 
 const nameOf = (point: string, as: string) => `${as}-${point.replaceAll('.', '-')}`
 
+/** C7: the points of the client tree closed to plugins, and why; any other closed point is a defect. */
+const CLOSED = {
+  'shell.gate': 'no-tenant',
+  'human-intervention.release-detail': 'speaks-as-system',
+  'connection.protocols': 'grants-itself',
+  'connection.server-points': 'grants-itself',
+  'plugin.ports': 'grants-itself',
+  'plugin.guest-forms': 'grants-itself',
+  'assets.governance': 'grants-itself',
+  'identity.account-preferences': 'grants-itself',
+  'media.picture-intake': 'grants-itself',
+  'model.choices': 'grants-itself',
+  'session.block-reads-source': 'grants-itself',
+  'session.composer': 'grants-itself',
+  'session.composer-intake': 'grants-itself',
+  'session.model-choice': 'grants-itself',
+  'slash-command.composer': 'grants-itself',
+  'workspace.choices': 'grants-itself',
+}
+
 it('PL-I27：桌面客户端树上的每个点，要么规矩写明关与理由、装载方照这个理由拒，要么照抄的成员装上并对这个租户生效', async () => {
   const { root, shell } = await signedIn()
   const scope = tenantScope(TENANT)
   const points = shell.described().points
   const lines: string[] = []
   const missing: string[] = []
+  const closed: Record<string, string> = {}
   for (const { name, contract, form } of points) {
     const { scopes } = contract
     if (scopes !== undefined && scopes !== 'all') {
+      closed[name] = scopes.why
       const probe = nameOf(name, 'probe')
       const refused = await installOn(
         shell,
@@ -128,6 +150,7 @@ it('PL-I27：桌面客户端树上的每个点，要么规矩写明关与理由�
   console.log(`client points:\n  ${lines.join('\n  ')}`)
   expect(missing, 'open points without a member to copy').toEqual([])
   expect(lines.length).toBe(points.length)
+  expect(closed).toEqual(CLOSED)
 })
 
 const LOOK = join(
