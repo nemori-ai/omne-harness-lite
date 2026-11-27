@@ -357,3 +357,98 @@ it.each(['execute', 'forwarding-read'] as const)(
     }
   },
 )
+
+// C102: an accepted target that settles within the attempt bound comes back as its result; one that does not stays pending.
+it.each([
+  ['settles after two looks', 2, 'completed'],
+  ['never settles', Number.POSITIVE_INFINITY, 'pending'],
+] as const)(
+  'execute waits within attemptMs for a target that %s (SPEC execute, C102)',
+  async (_label, running, kind) => {
+    const f = await forwardingFixture()
+    let looks = 0
+    let presented = 0
+    const provider = createLocalToolForwarding({
+      attemptMs: 60,
+      runtime: () => ({
+        queries: {
+          lookup: async () => {
+            looks += 1
+            const state = looks > running ? f.call.state : { ...f.call.state, phase: 'running' }
+            return succeed({ kind: 'found', state })
+          },
+        },
+      }),
+      catalog: () => undefined,
+      reader: () => ({
+        present: async () => 'presented',
+        read: async () => fail({ kind: 'unused' }),
+      }),
+      consumer: async () => fail({ kind: 'denied', action: 'unused' }),
+      prepareTarget: async () => succeed(f.target),
+      forwarding: () => ({
+        resume: async () => ({ kind: 'association-unknown' }),
+        invoke: async () => ({ kind: 'accepted', reference: f.reference, state: f.call.state }),
+        presented: () => {
+          presented += 1
+        },
+      }),
+    } as never)
+    const attached = provider.bind(f.parent, scope())
+    const capability = toolsCapabilityOf(attached.context)
+    if (capability === undefined) throw new Error('missing attachment')
+    const answer = await capability.execute(f.intent)
+    expect(answer.kind).toBe(kind)
+    if (kind === 'completed')
+      expect(answer).toMatchObject({ reference: f.reference, value: 'presented' })
+    else expect(answer).toMatchObject({ reference: f.reference, reason: 'waiting' })
+    expect(looks).toBeGreaterThan(kind === 'completed' ? 2 : 1)
+    // Only a result brought back lets the parent release its copy; a pending one keeps it for read_result.
+    expect(presented).toBe(kind === 'completed' ? 1 : 0)
+    await attached.finish('returned')
+    await provider.close()
+  },
+)
+
+it('a target that settles between the last look and the bound is still brought back: at the bound it gets one more look (C102)', async () => {
+  const f = await forwardingFixture()
+  let settled = false
+  let presented = 0
+  setTimeout(() => (settled = true), 26)
+  const provider = createLocalToolForwarding({
+    attemptMs: 30,
+    runtime: () => ({
+      queries: {
+        lookup: async () =>
+          succeed({
+            kind: 'found',
+            state: settled ? f.call.state : { ...f.call.state, phase: 'running' },
+          }),
+      },
+    }),
+    catalog: () => undefined,
+    reader: () => ({
+      present: async () => 'presented',
+      read: async () => fail({ kind: 'unused' }),
+    }),
+    consumer: async () => fail({ kind: 'denied', action: 'unused' }),
+    prepareTarget: async () => succeed(f.target),
+    forwarding: () => ({
+      resume: async () => ({ kind: 'association-unknown' }),
+      invoke: async () => ({ kind: 'accepted', reference: f.reference, state: f.call.state }),
+      presented: () => {
+        presented += 1
+      },
+    }),
+  } as never)
+  const attached = provider.bind(f.parent, scope())
+  const capability = toolsCapabilityOf(attached.context)
+  if (capability === undefined) throw new Error('missing attachment')
+  expect(await capability.execute(f.intent)).toMatchObject({
+    kind: 'completed',
+    value: 'presented',
+  })
+  expect(presented).toBe(1)
+  await attached.finish('returned')
+  await provider.close()
+})

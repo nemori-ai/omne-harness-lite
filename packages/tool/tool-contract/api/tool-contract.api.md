@@ -2555,6 +2555,7 @@ export interface ToolForwardSource<P> {
     }> | Readonly<{
         kind: 'unresolved';
     }>>;
+    presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void;
 }
 export interface ToolForwardRuntime<P> {
     invoke(input: ToolForwardParent<P> & Readonly<{
@@ -2562,6 +2563,7 @@ export interface ToolForwardRuntime<P> {
         target: ToolInvokeRequest;
     }>): Promise<ToolInvokeOutcome>;
     resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>;
+    presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void;
 }
 ```
 

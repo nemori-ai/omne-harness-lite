@@ -1,6 +1,11 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { writeJsonText } from '@omne-harness/json-text'
-import { programSignature, returnGuide, returnSummary } from '@omne-harness/tool-contract/provider'
+import {
+  commandSignature,
+  programSignature,
+  returnGuide,
+  returnSummary,
+} from '@omne-harness/tool-contract/provider'
 import type {
   SearchPage,
   ToolFailure,
@@ -49,6 +54,7 @@ export function presentSearch(
             ? entry.definition.commands.map(command => ({
                 name: command.name,
                 summary: command.summary,
+                signature: commandSignature(command.parameters),
                 returns: returnSummary(command.returns),
               }))
             : [],

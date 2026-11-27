@@ -247,7 +247,7 @@ export async function readIssued(
   return stored === null ? unavailable() : succeed({ read, stored })
 }
 
-export function createInvocationForwarding<P>(
+function forwardingOf<P>(
   input: LocalInvocationSourceInput<P>,
   directGuard: ToolSourceGuard<P>,
   identitiesOf: (
@@ -484,4 +484,25 @@ export function nextSourceRevision(revision: string) {
   const parsed = decodeToolRevision((BigInt(revision) + 1n).toString())
   if ('failure' in parsed) throw new Error('Invalid invocation source revision')
   return parsed.ok
+}
+
+// A parent releases what it received for its target only once it brought the result back; one that answered
+// pending keeps it for a later read. The marks live in this process: after a restart nothing is released.
+export function createInvocationForwarding<P>(
+  ...args: Parameters<typeof forwardingOf<P>>
+): ReturnType<typeof forwardingOf<P>> {
+  const forwards = forwardingOf(...args)
+  const presented = new Set<string>()
+  const keyOf = (parent: Readonly<{ tenant: unknown; call: ToolCallId }>) =>
+    JSON.stringify([parent.tenant, parent.call])
+  return {
+    ...forwards,
+    source: { ...forwards.source, presented: parent => void presented.add(keyOf(parent)) },
+    async releaseReceivedCopies(given) {
+      if (!presented.has(keyOf(given))) return 'released'
+      const released = await forwards.releaseReceivedCopies(given)
+      if (released === 'released') presented.delete(keyOf(given))
+      return released
+    },
+  }
 }
