@@ -69,6 +69,23 @@ describe('the release provider carries its model catalog (C1, C4)', () => {
     ])
   })
 
+  it('lists no kind and title twice in the catalog of any provider of the release (MD-52)', () => {
+    for (const provider of releaseProviders()) {
+      const rows = provider.body.models.map(entry => `${entry.kind} ${entry.title}`)
+      expect(new Set(rows).size, provider.body.name).toBe(rows.length)
+    }
+  })
+
+  it('holds no two official profiles with the same provider, kind and model (MD-52)', () => {
+    const triples = officialProfiles(INPUT).map(definition => {
+      const [supplier] = definition.suppliers
+      return `${supplier.provider} ${definition.kind} ${supplier.model}`
+    })
+    expect(new Set(triples).size).toBe(triples.length)
+    expect(triples).toContain('openai llm gpt-6-luna')
+    expect(triples).toContain('openai decisions gpt-6-luna')
+  })
+
   it('enables by default exactly the 25 chat models of the release, and every decisions model', () => {
     const enabled = releaseProvider('openrouter')
       ?.body.models.filter(entry => entry.enabled)
