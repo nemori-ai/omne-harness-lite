@@ -1,6 +1,7 @@
 import {
   genericItem,
   judgeMember,
+  MANIFEST_FILE,
   memberDigest,
   reasonText,
   type Absent,
@@ -27,7 +28,11 @@ export type ServerEntry = Readonly<{
 /** What a point of the server tree is to a plugin: how a member of it is written and when, or that a category owns it. */
 export type ServerPoint =
   | Readonly<{ kind: 'point'; rules: PointRules }>
-  | (Readonly<{ kind: 'category'; category: string; place(what: unknown): unknown }> &
+  | (Readonly<{
+      kind: 'category'
+      category: string
+      place(at: string): unknown
+    }> &
       (Readonly<{ takes: 'data' | 'directory' }> | Readonly<{ takes: 'none'; why: string }>))
 
 export type GuestContext = Readonly<{
@@ -76,9 +81,11 @@ type Step =
 
 const refused = (reason: string): Step => ({ kind: 'refused', reason })
 
-function placed(place: (what: unknown) => unknown, what: unknown): Step {
+const dataAt = (index: number): string => `${MANIFEST_FILE}#/server/members/${index}/data`
+
+function placed(place: (at: string) => unknown, at: string): Step {
   try {
-    return { kind: 'item', item: place(what) }
+    return { kind: 'item', item: place(at) }
   } catch (error) {
     return refused(reasonOf(error))
   }
@@ -89,7 +96,12 @@ export const targetOf = (point: Extract<ServerPoint, { kind: 'category' }>): Tar
     ? { kind: 'category', takes: 'none', why: point.why }
     : { kind: 'category', takes: point.takes }
 
-function stepOf(ports: ServerInstallPorts, member: Member, files: readonly PackageFile[]): Step {
+function stepOf(
+  ports: ServerInstallPorts,
+  member: Member,
+  index: number,
+  files: readonly PackageFile[],
+): Step {
   const point = ports.point(member.point)
   const form = point?.kind === 'point' ? ports.guestForm(member.point) : undefined
   const judged = judgeMember(
@@ -105,10 +117,7 @@ function stepOf(ports: ServerInstallPorts, member: Member, files: readonly Packa
       ? { kind: 'absent', absent: judged.reason.absent }
       : refused(reasonText(judged.reason))
   if (point?.kind === 'category')
-    return placed(
-      point.place,
-      'directory' in member ? member.directory : 'data' in member ? member.data : undefined,
-    )
+    return placed(point.place, 'directory' in member ? member.directory : dataAt(index))
   if (point === undefined || !('module' in member))
     return { kind: 'item', item: 'data' in member ? member.data : undefined }
   const file = files.find(each => each.path === member.module)
@@ -172,7 +181,7 @@ export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Pr
       const twice = places.indexOf(places[index] ?? '') !== index
       const lock = ports.lockedBy?.(member.point, member.key, member.id ?? '')
       if (twice) return refused('another member of this plugin is at the same place')
-      return lock === undefined ? stepOf(ports, member, files) : lockedStep(lock)
+      return lock === undefined ? stepOf(ports, member, index, files) : lockedStep(lock)
     })
     const labelOf = (index: number): string =>
       `member ${index + 1} (${members[index]?.point} ${members[index]?.key})`

@@ -29,6 +29,12 @@ const POINTS: Readonly<Record<string, ServerPoint>> = {
     takes: 'directory',
     place: directory => ({ within: directory }),
   },
+  'mcp.endpoints': {
+    kind: 'category',
+    category: 'mcp',
+    takes: 'data',
+    place: at => ({ valueAt: at }),
+  },
 }
 const FILES = [{ path: 'greet.js', digest: 'sha256:g' }]
 const LABEL: Member = { point: 'notes.labels', key: 'urgent', data: { colour: 'red' } }
@@ -188,6 +194,16 @@ describe('the members a plugin writes for the server, put by the loader', () => 
           item: { within: 'skills/notes' },
         },
       ],
+    ])
+  })
+
+  it('puts data on the point of a data category as the item it makes of where that data is in the manifest', async () => {
+    const w = world()
+    const shop: Member = { point: 'mcp.endpoints', key: 'shop', data: { name: 'shop' } }
+    expect((await w.install(wanted(LABEL, shop))).kind).toBe('installed')
+    expect(w.placed[0]?.map(entry => [entry.point, entry.item])).toEqual([
+      ['notes.labels', { colour: 'red' }],
+      ['mcp.endpoints', { valueAt: 'plugin.json#/server/members/1/data' }],
     ])
   })
 

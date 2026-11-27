@@ -43,7 +43,7 @@ export {
   type PackageRejection,
   type PackageSourceFailure,
 } from './package.ts'
-export { packageBody } from './package-body.ts'
+export { packageBody, packageValue } from './package-body.ts'
 export {
   declarationRejection,
   judgePackageContent,
