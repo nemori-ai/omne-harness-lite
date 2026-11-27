@@ -6,9 +6,9 @@ import {
   type LiveRecord,
 } from '@omne-harness/pi-ai-transport/family-kit'
 
-/** The live models OpenAI serves itself, on its live sessions interface. */
 export const OPENAI_LIVE_OWNER = '@omne-harness/pi-ai-openai/live'
 
+/** The live models OpenAI serves itself, on its live sessions interface. */
 export const OPENAI_LIVE_RECORDS: readonly LiveRecord[] = [
   {
     name: 'gpt-live-1.1',

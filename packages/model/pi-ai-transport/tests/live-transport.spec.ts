@@ -52,8 +52,9 @@ function world(route: Partial<PiRoute> = {}) {
   const sockets: { url: string; headers: Readonly<Record<string, string>>; sent: unknown[] }[] = []
   const emitters: ((type: string) => void)[] = []
   let secrets: ReadonlyMap<string, string> | undefined
+  const net = network(Buffer.from(''))
   const built = createPiTransport({
-    network: network(Buffer.from('')).handle,
+    network: net.handle,
     families: composeFamilies([
       defineLiveFamily({ owner: OWNER, endpoint: 'live-sessions', records: [RECORD] }),
     ]),
@@ -99,7 +100,12 @@ function world(route: Partial<PiRoute> = {}) {
   }
   const pending = <T>(promise: Promise<T>) =>
     Promise.race([promise.then(() => false), new Promise(resolve => setTimeout(resolve, 20, true))])
-  return { built, sockets, emitters, materialized, opened, pending }
+  async function prepared(request = requestOf()) {
+    const answer = await built.transport.prepare(request, SUPPLIER, { resent: [] })
+    if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+    return answer.ok
+  }
+  return { built, net, sockets, emitters, materialized, opened, prepared, pending }
 }
 
 describe('a live session through the transport', () => {
@@ -155,6 +161,37 @@ describe('a live session through the transport', () => {
     const again = w.opened(live)
     expect(w.sockets).toHaveLength(1)
     expect(again.input.send(undefined as never, undefined as never)).toBe('closed')
+    expect(again.input.media({ modality: 'voice', bytes: new Uint8Array([1]) })).toBe('dropped')
+    await w.built.close()
+  })
+
+  it('opens a route without auth with no authorization header, and still only inside the window', async () => {
+    const w = world({ auth: null })
+    const outside = await w.materialized()
+    const refused = outside.open(new AbortController().signal)
+    expect(w.sockets).toEqual([])
+    expect(await refused.facts[Symbol.asyncIterator]().next()).toEqual({
+      done: true,
+      value: undefined,
+    })
+    const inside = await w.materialized()
+    w.opened(inside, null)
+    expect(w.sockets).toEqual([{ url: URL_OF, headers: {}, sent: [] }])
+    await w.built.close()
+  })
+
+  it('answers unavailable without a seat: cancelled when asked to stop, network-closed when the network went', async () => {
+    const w = world()
+    const stopped = new AbortController()
+    stopped.abort()
+    const cancelled = await (await w.prepared()).materialize(stopped.signal)
+    const failure = { kind: 'unavailable', dependency: 'connection-capacity' }
+    expect(cancelled).toEqual({ failure: { ...failure, diagnostic: 'cancelled' } })
+    const later = await w.prepared()
+    await w.net.close()
+    expect(await later.materialize(new AbortController().signal)).toEqual({
+      failure: { ...failure, diagnostic: 'network-closed' },
+    })
     await w.built.close()
   })
 

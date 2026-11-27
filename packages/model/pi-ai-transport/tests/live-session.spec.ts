@@ -17,7 +17,7 @@ const text = (value: string): ContentBlock => {
 }
 const START = { type: 'session.start', event_id: 'start' }
 
-function world(options: Readonly<{ throws?: boolean }> = {}) {
+function world(options: Readonly<{ throws?: boolean; stopped?: boolean }> = {}) {
   const sent: unknown[] = []
   const listeners = new Map<string, ((event: { data?: unknown }) => void)[]>()
   const seen = { url: '', headers: {} as Readonly<Record<string, string>>, closes: 0, ends: 0 }
@@ -32,6 +32,7 @@ function world(options: Readonly<{ throws?: boolean }> = {}) {
   const emit = (type: string, data?: unknown) =>
     listeners.get(type)?.forEach(listener => listener({ data }))
   const stop = new AbortController()
+  if (options.stopped === true) stop.abort()
   const session = openLiveSession({
     url: new URL('wss://live.test.invalid/v1/live/sessions'),
     headers: { authorization: 'Bearer synthetic' },
@@ -143,7 +144,7 @@ describe('a live session over one socket', () => {
     const reader = world()
     reader.open()
     const pending = reader.facts.next()
-    await reader.facts.return?.()
+    expect(await reader.facts.return?.()).toEqual({ done: true, value: undefined })
     expect(await pending).toEqual({ done: true, value: undefined })
     expect(reader.seen.closes).toBe(1)
     reader.gone()
@@ -154,6 +155,29 @@ describe('a live session over one socket', () => {
     expect(stopped.seen.closes).toBe(1)
     expect(await drain(stopped.facts)).toEqual([])
     expect(stopped.seen.ends).toBe(1)
+  })
+
+  it('hands a message to a reader already waiting for it, and none that comes after the socket is gone', async () => {
+    const w = world()
+    w.open()
+    const waiting = w.facts.next()
+    w.say({ type: 'session.paused' })
+    expect(await waiting).toEqual({
+      done: false,
+      value: { kind: 'event', event: { t: 'asleep', on: true } },
+    })
+    w.gone()
+    w.say({ type: 'session.resumed' })
+    expect(await drain(w.facts)).toEqual([])
+  })
+
+  it('takes a call stopped before its session was made as gone at once, without starting it', async () => {
+    const w = world({ stopped: true })
+    expect(w.seen.closes).toBe(1)
+    expect(w.seen.ends).toBe(1)
+    w.open()
+    expect(w.sent).toEqual([])
+    expect(await drain(w.facts)).toEqual([])
   })
 
   it('takes a socket that cannot be made as a connection gone at once', async () => {

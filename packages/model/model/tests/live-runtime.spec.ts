@@ -228,6 +228,19 @@ describe('a live call holds the properties of its model', () => {
     expect(await f.settlement()).toEqual(settled)
   })
 
+  it('lets go of the session when its own terminal write is the one found superseded', async () => {
+    const stale = { failure: { kind: 'stale-instance', instance: instance('successor') } } as const
+    const f = liveFixture({ wrap: commands => ({ ...commands, settle: async () => stale }) })
+    await f.admitted()
+    const first = f.drive()
+    await f.open()
+    f.upstream.play({ kind: 'closed' })
+    expect(await first).toEqual(stale)
+    await eventually(() => !f.holds())
+    expect(f.upstream.seen.drops).toBe(1)
+    expect((await f.state()).phase).not.toBe('settled')
+  })
+
   it('takes a delivery that throws as an unknown answer, and delivers the same run once the wait is over', async () => {
     const f = liveFixture()
     let thrown = false

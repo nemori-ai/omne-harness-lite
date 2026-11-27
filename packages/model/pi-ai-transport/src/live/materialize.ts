@@ -12,10 +12,15 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { CheckedConfig, CheckedRoute } from '../config.ts'
 import { canonicalDigest } from '../canonical-json.ts'
 import type { PiLiveSend } from '../send.ts'
-import { openLiveSession, type LiveSocketFactory } from './session.ts'
+import { openLiveSession, type LiveSocket, type LiveSocketFactory } from './session.ts'
 
+// Node's own WebSocket takes the headers in its second argument; the DOM typing it carries does not say so.
+type NodeSocketConstructor = new (
+  url: URL,
+  init: Readonly<{ headers: Readonly<Record<string, string>> }>,
+) => LiveSocket
 const nodeSocket: LiveSocketFactory = (url, headers) =>
-  new WebSocket(url, { headers } as unknown as string[])
+  new (WebSocket as unknown as NodeSocketConstructor)(url, { headers })
 
 const gone = (): LiveSession => ({
   facts: {
@@ -24,8 +29,8 @@ const gone = (): LiveSession => ({
   input: { send: () => 'closed', media: () => 'dropped', close: () => {} },
 })
 
-// One connection seat per live session. It opens once, in the send boundary's synchronous window where the
-// credential is readable; the seat is freed when its socket is gone, or at close if it never opened.
+// One connection seat per live session, consumed by its one open in the send boundary's synchronous window where
+// the credential is readable; the seat is freed when its socket is gone, or at close if it never opened.
 export async function materializeLive(
   input: Readonly<{
     config: CheckedConfig
@@ -43,13 +48,10 @@ export async function materializeLive(
     representation: send.representation,
     payloadDigest: canonicalDigest(send.start),
   })
-  let opened = false
   return {
     ok: {
       receipt,
       open(openSignal) {
-        if (opened) return gone()
-        opened = true
         const seat = reservation.consume()
         if (!('ok' in seat)) return gone()
         const secrets = config.credential.read()
@@ -69,7 +71,7 @@ export async function materializeLive(
         })
       },
       async close() {
-        if (!opened) reservation.release()
+        reservation.release()
       },
     },
   }

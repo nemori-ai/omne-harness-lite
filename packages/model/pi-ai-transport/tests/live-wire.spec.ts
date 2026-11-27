@@ -124,6 +124,79 @@ describe('the messages of a live session read as facts', () => {
     ])
   })
 
+  const at = { start_ms: 0, end_ms: 40 }
+  it.each([
+    ['nothing', null, []],
+    ['a type that is not a name', { type: 7 }, []],
+    ['a type that only reads as a name', { type: ['session.paused'] }, []],
+    ['a taken command without its identity', { type: 'session.thinking.appended' }, []],
+    [
+      'a taken command with an identity of another form',
+      { type: 'session.thinking.appended', client_event_id: 'evt_1' },
+      [],
+    ],
+    [
+      'a transcript from the start of the audio',
+      { type: 'session.input_transcript.delta', ...at, delta: 'Hi' },
+      [
+        {
+          kind: 'event',
+          event: { t: 'transcript', who: 'caller', startMs: 0, endMs: 40, text: 'Hi' },
+        },
+      ],
+    ],
+    [
+      'a transcript before the audio began',
+      { type: 'session.input_transcript.delta', ...at, start_ms: -1, delta: 'Hi' },
+      [],
+    ],
+    [
+      'a transcript whose end is not a whole count',
+      { type: 'session.output_transcript.delta', ...at, end_ms: 40.5, delta: 'Hi' },
+      [],
+    ],
+    [
+      'a transcript whose start is text',
+      { type: 'session.output_transcript.delta', ...at, start_ms: '0', delta: 'Hi' },
+      [],
+    ],
+    ['a transcript without text', { type: 'session.output_transcript.delta', ...at, delta: 5 }, []],
+    [
+      'a delegation before the audio began',
+      { type: 'session.delegation.created', offset_ms: -1, delegation: { id: 'item_1' } },
+      [],
+    ],
+    [
+      'a delegation that is not a record',
+      { type: 'session.delegation.created', offset_ms: 0, delegation: 'item_1' },
+      [],
+    ],
+    [
+      'a delegation without its identity',
+      { type: 'session.delegation.created', offset_ms: 0, delegation: { id: 1 } },
+      [],
+    ],
+    ['an error that is not a record', { type: 'error', error: 'broken' }, []],
+    [
+      'an error without a message',
+      { type: 'error', error: { client_event_id: 'mop_evt_1', message: 5 } },
+      [],
+    ],
+    [
+      'an error whose code is not a name',
+      { type: 'error', error: { client_event_id: 'mop_evt_1', message: 'no', code: 5 } },
+      [{ kind: 'command', id: op('evt_1'), outcome: { rejected: { code: null, message: 'no' } } }],
+    ],
+    ['voice that is not text', { type: 'session.output_audio.delta', delta: 5 }, []],
+    [
+      'a start whose session is not a record',
+      { type: 'session.started', session: null },
+      [{ kind: 'opened', expiresAt: null }],
+    ],
+  ] as const)('reads %s as the facts it can stand for, and no more', (_case, message, facts) => {
+    expect(factsOf(message, ACCOUNTING)).toEqual(facts)
+  })
+
   it('takes a close without a usage as a close whose usage it does not know', () => {
     expect(factsOf({ type: 'session.closed', reason: 'expired' }, ACCOUNTING)).toEqual([
       { kind: 'closed' },
@@ -153,11 +226,13 @@ describe('what a live session sends', () => {
         },
       },
     })
-    expect(
-      startMessage({ model: 'm', instructions: '', voice: null, audio: 'pcm16' }),
-    ).toMatchObject({
-      ok: { session: { audio: { format: { type: 'audio/pcm', rate: 24000 } } } },
+    const silent = startMessage({ model: 'm', instructions: '', voice: null, audio: 'pcm16' })
+    expect('ok' in silent && silent.ok.session).toMatchObject({
+      audio: { format: { type: 'audio/pcm', rate: 24000 } },
     })
+    expect('ok' in silent && (silent.ok.session as { audio: object }).audio).not.toHaveProperty(
+      'output',
+    )
     expect(startMessage({ model: 'm', instructions: '', voice: null, audio: 'opus' })).toEqual({
       failure: 'request.media.audio',
     })
@@ -173,6 +248,14 @@ describe('what a live session sends', () => {
     expect(commandMessage(say('context', String(evt2?.content), about), op('evt_2'))).toEqual(evt2)
     expect(commandMessage(say('speak', String(evt3?.content), about), op('evt_3'))).toEqual(evt3)
     expect(commandMessage(say('directive', String(evt4?.content), null), op('evt_4'))).toEqual(evt4)
+  })
+
+  it('says a command of several texts as the texts in order, nothing between them', () => {
+    const said = commandMessage(
+      { type: 'say', use: 'speak', about: null, content: [text('Booked'), text(' at two.')] },
+      op('two'),
+    )
+    expect(said).toMatchObject({ content: 'Booked at two.' })
   })
 
   it('sends no command whose content is not all text', () => {

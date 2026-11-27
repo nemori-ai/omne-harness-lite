@@ -242,6 +242,7 @@ function world(
     lookup?: ResultPushOptions['lookup']
     /** Whether this process still holds the live body of a call. */
     holdsLiveBody?: (call: ModelCallId) => boolean
+    scanIntervalMs?: number
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -534,7 +535,10 @@ function world(
       await ctx.plugin(Commands)
     },
     load(): Fiber {
-      return ctx.plugin(Plugin, { ...SETTINGS })
+      return ctx.plugin(Plugin, {
+        ...SETTINGS,
+        scanIntervalMs: input.scanIntervalMs ?? SETTINGS.scanIntervalMs,
+      })
     },
     register(receiver: ModelResultReceiver<unknown>, owner = CONSUMER): Fiber {
       return ctx.plugin({
@@ -897,9 +901,14 @@ it('keeps the acknowledgement when the cleanup fails, and a successor finishes t
   expect(scripted.pushes).toHaveLength(1)
 })
 
-it('holds the result while this process holds the live body of the call, and pushes it once the body is gone', async () => {
+it('holds the result while this process holds the live body of the call, and pushes it as soon as the body is gone', async () => {
   let held = true
-  const w = world({ holdsLiveBody: () => held })
+  // Neither a scan nor a pause ends within the test: only the exit of the body can wake the push.
+  const w = world({
+    holdsLiveBody: () => held,
+    scanIntervalMs: 600_000,
+    limits: { ...LIMITS, delaysMs: [600_000] },
+  })
   await w.services()
   await w.load()
   const scripted = scriptedReceiver()
