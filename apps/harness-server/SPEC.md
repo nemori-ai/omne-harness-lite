@@ -438,7 +438,7 @@
 - `plugin-server` 行把每个已登记的租户在持并启用的 plugin 装在服务端，规则归 [plugin 的规格](../../packages/plugin/SPEC.md#服务端的装载方)。它为 plugin 放的带副作用的条目一律带排空：先不接新的，在途的各有结局，然后才取走。这一行可见的受信名只有 `tenantDomainScannerPrincipal`，只用来列出已登记的租户；plugin 的 fiber 长在把它也隔离掉的上下文里。起来之后逐个跟上已登记的租户；登记表变了再列一次，跟上之后才登记的租户；一个租户的资产变了，重算它要装的。它声明 `plugin.ports` 与 `plugin.guest-forms` 两个点。
 - 一份 plugin 带着的定义（例如技能）放在那个类别的点上，项是这份 plugin 在持那一版的 `HeldItem` 加 `within`。`tenant-assets` 行的租户这一层列出时，在账本的那一页里按账本的次序并上点上这个租户范围里带 `within` 而账本没有的项，游标仍是名字。Skill 行的适配见到 `within`：正文用技能的正文契约在那个子目录上读出（这份 plugin 发布时已整份判过），读口只看得见那个子目录，本机目录的提示指到版本目录下的那个子目录。
 - 借给 plugin 的口与专门的写法由各自的拥有者放，plugin 的行不替它们写：
-  - 口：`plugin-notification` 行放 `notifications`（发一条通知，进的是通知自己的发送入口，上下文的租户是持有这份 plugin 的租户，行事者是 owner）；`tool-web` 行放 `web`（Tool 的单机 Web 提供者，规则归 [Tool 的规格](../../packages/tool/SPEC.md#条目来源)）。每个口的条目带着方法的说明。
+  - 口：`plugin-notification` 行放 `notifications`（发一条通知，进的是通知自己的发送入口，上下文的租户是持有这份 plugin 的租户，行事者是 owner）；`tool-bindings` 行在有 Web 的配置时放 `web`（Tool 的单机 Web 提供者，上限就是工具 `Web` 用的那一份 `web.fetch`，规则归 [Tool 的规格](../../packages/tool/SPEC.md#条目来源)）。每个口的条目带着方法的说明。
   - 写法：`plugin-access` 行放 `access.protocols` 的（实现是入口导出的 `guestProtocol`）；`tool-entry-sources` 行放 `tool.entry-sources` 的（实现是 Tool 导出的 `guestEntrySource`）。`plugin-host` 行给类别 `plugin` 加上 `GUEST_TOOL_GATES` 那一道关口；发行配置的动作规则里有一条按来源（类别 `plugin`）的允许，治理行的类别关口里有同一道，缺省询问。工具条目来源按发问者所为之行事的租户读（`entrySourceScope`）。
   - `server-entry` 行把资产的 `scopeOfLayer` 作为「租户的范围」交给入口；入口照它答 `access/v1` 的 `scoped`。
 - 一个类别的点收数据成员时与收目录成员同一个做法：这一项是那个类别的 `HeldItem`，资产引用与版本是这份 plugin 在持的那一版，正文是成员的 `data`。
