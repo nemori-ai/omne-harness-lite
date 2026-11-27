@@ -1437,6 +1437,11 @@
               "pending": false
             },
             {
+              "name": "ControlRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CallOrigin",
               "kind": "type",
               "pending": false

@@ -1,0 +1,105 @@
+{"dir": "out", "ev": {"type": "session.start", "event_id": "event_start", "session": {"model": "gpt-live-1.1", "instructions": "You are a booking assistant for a clinic. The clinic closes at 9 PM every day; answer questions about opening hours yourself. Delegate anything that needs checking availability, or booking, changing, or cancelling an appointment, to the backend. Be concise.", "audio": {"format": {"type": "audio/pcm", "rate": 24000}, "output": {"voice": "marin"}}, "delegation": {"type": "client", "acknowledgement_delay_ms": 800}}}}
+{"dir": "in", "ev": {"event_id": "event_EoQak8jm5nlqUQsHSJxJL", "type": "session.started", "client_event_id": "event_start", "session": {"id": "live_u117_EoQajp3oNKL8fBmWn3pDOhCo5nP8KoUN", "expires_at": 1795694525, "model": "gpt-live-1.1", "instructions": "You are a booking assistant for a clinic. The clinic closes at 9 PM every day; answer questions about opening hours yourself. Delegate anything that needs checking availability, or booking, changing, or cancelling an appointment, to the backend. Be concise.", "audio": {"output": {"voice": "marin"}, "format": {"type": "audio/pcm", "rate": 24000}}, "delegation": {"type": "client", "acknowledgement_delay_ms": 800}, "status": "active", "input": []}}}
+{"dir": "in", "ev": {"type": "session.output_audio.delta", "delta": "AAAA"}}
+{"dir": "in", "ev": {"type": "session.output_audio.delta", "delta": "AAAA"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 1800, "end_ms": 2000, "delta": " Hi", "event_id": "event_EoQanPSSpZCmlAJTEu4FK"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 2200, "end_ms": 2400, "delta": ", please", "event_id": "event_EoQanfPmAg1l8htHEmLpX"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 2400, "end_ms": 2600, "delta": " book", "event_id": "event_EoQanP0WArsnUdV42cfpu"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 2600, "end_ms": 2800, "delta": " me an", "event_id": "event_EoQao4Aq6s2nY4HOGgNJJ"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 3200, "end_ms": 3400, "delta": " appointment", "event_id": "event_EoQaoAiZ0RjgFbsKI2Gor"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 3400, "end_ms": 3600, "delta": " for", "event_id": "event_EoQaoTHotDjjmh5Uhqe7V"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 3800, "end_ms": 4000, "delta": " Friday", "event_id": "event_EoQapIHkP4x3fAiiqtn4E"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 4400, "end_ms": 4600, "delta": " afternoon", "event_id": "event_EoQaplVZt64Pv2LqPkxDb"}}
+{"dir": "in", "ev": {"type": "session.delegation.created", "offset_ms": 4600, "delegation": {"id": "item_EoQaqXmNU2UdvETPd9J8V", "type": "delegation", "target": "client"}, "event_id": "event_EoQaqZCOq6M4nFAy1ggOx"}}
+{"dir": "out", "ev": {"type": "session.thinking.append", "event_id": "evt_1", "delegation_id": "item_EoQaqXmNU2UdvETPd9J8V", "content": ""}}
+{"dir": "in", "ev": {"type": "session.thinking.appended", "start_ms": 5200, "end_ms": 5400, "event_id": "event_EoQaqUVSyeFfH3ahuLfqV", "client_event_id": "evt_1"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 5800, "end_ms": 6000, "delta": " Sure", "event_id": "event_EoQarwzncOdptKF7AUabI"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 6200, "end_ms": 6400, "delta": " —", "event_id": "event_EoQar6mnZ8tVZikO6GRzf"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 6400, "end_ms": 6600, "delta": " this", "event_id": "event_EoQarfs8Q8z7eOY6ZEPGk"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 6600, "end_ms": 6800, "delta": " Friday", "event_id": "event_EoQasRFT51EOL0muQ731n"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 7000, "end_ms": 7200, "delta": " afternoon", "event_id": "event_EoQasoYfzuQYq6vWpIcou"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 7600, "end_ms": 7800, "delta": ", what", "event_id": "event_EoQatQVXQgy08A2uHZZ4N"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 8000, "end_ms": 8200, "delta": " time", "event_id": "event_EoQatxtDIyFOY4N1PpsrA"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 8400, "end_ms": 8600, "delta": " works", "event_id": "event_EoQauTv2jweiLprakgjOs"}}
+{"dir": "out", "ev": {"type": "session.thinking.append", "event_id": "evt_2", "delegation_id": "item_EoQaqXmNU2UdvETPd9J8V", "content": "Checking Friday availability. Nothing is booked yet."}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 8600, "end_ms": 8800, "delta": " best", "event_id": "event_EoQaubCAMvf2yZ2hyXzRH"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 8800, "end_ms": 9000, "delta": " for", "event_id": "event_EoQau6RK4g16uxPpg0fle"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 9000, "end_ms": 9200, "delta": " you", "event_id": "event_EoQauDo9CAXhzu9EW4gvV"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 9200, "end_ms": 9400, "delta": "? And", "event_id": "event_EoQaub053aI4kzTA6Q06V"}}
+{"dir": "in", "ev": {"type": "session.thinking.appended", "start_ms": 9200, "end_ms": 9400, "event_id": "event_EoQaufeBki2QPRQASWPIK", "client_event_id": "evt_2"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 10000, "end_ms": 10200, "delta": " is", "event_id": "event_EoQavJIsIfvzoJ068UmbS"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 10200, "end_ms": 10400, "delta": " it", "event_id": "event_EoQavCc1tUEVRe5vhxY6B"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 10400, "end_ms": 10600, "delta": " with", "event_id": "event_EoQavnXbckPEDvhDgOQkp"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 10600, "end_ms": 10800, "delta": " a specific", "event_id": "event_EoQawBssq0iKBP1hxZ37x"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 11000, "end_ms": 11200, "delta": " provider", "event_id": "event_EoQawVvSRoQ6H10Jhg2cR"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 11600, "end_ms": 11800, "delta": " or", "event_id": "event_EoQawmLMfKIpU4vAUeJyk"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 12000, "end_ms": 12200, "delta": " the", "event_id": "event_EoQaxTj2i0PaUKxW9Kypt"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 13000, "end_ms": 13200, "delta": " How", "event_id": "event_EoQayneg0ka55GPKsuWzC"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 13200, "end_ms": 13400, "delta": " is", "event_id": "event_EoQayZ24xd1HxnlmBG9wI"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 13400, "end_ms": 13600, "delta": " it", "event_id": "event_EoQayBmabRe3NbQNLMT8y"}}
+{"dir": "in", "ev": {"event_id": "event_EoQaz8OvsimMoTtJhHPux", "type": "session.usage.updated", "context_window": {"usage_ratio": 0.010359375}, "usage": {"seconds": 13}}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 13800, "end_ms": 14000, "delta": " going", "event_id": "event_EoQaz0b7eHxCW4zCsl294"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 13800, "end_ms": 14000, "delta": " It's going", "event_id": "event_EoQazd7FjeLAcv1tThSnG"}}
+{"dir": "in", "ev": {"type": "session.input_transcript.delta", "start_ms": 14000, "end_ms": 14200, "delta": "?", "event_id": "event_EoQaz6DymeD24U0DtEAp8"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 14200, "end_ms": 14400, "delta": " fine", "event_id": "event_EoQazkNNdbrhX3dC75W69"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 14600, "end_ms": 14800, "delta": " —", "event_id": "event_EoQaz360OISIH6WdZOcxq"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 15200, "end_ms": 15400, "delta": " I'm", "event_id": "event_EoQb0ZSSJnQ0FmT7DkFtx"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 15400, "end_ms": 15600, "delta": " just checking", "event_id": "event_EoQb0yIeLrqC8B1UI4Hz3"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 15800, "end_ms": 16000, "delta": " that", "event_id": "event_EoQb1HGLLUuFd9AQexrXN"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 16000, "end_ms": 16200, "delta": " schedule", "event_id": "event_EoQb1KjH9micx0sW7CBI0"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 16200, "end_ms": 16400, "delta": " for", "event_id": "event_EoQb1TfZcplT8I4lpGTNe"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 16400, "end_ms": 16600, "delta": " you.", "event_id": "event_EoQb1aAUKTbiYgFWe1F7f"}}
+{"dir": "out", "ev": {"type": "session.commentary.append", "event_id": "evt_3", "delegation_id": "item_EoQaqXmNU2UdvETPd9J8V", "content": "Your appointment is confirmed for Friday at 2:00 PM with Doctor Lee."}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 20600, "end_ms": 20800, "delta": " Thanks for", "event_id": "event_EoQb6ngVOL81pJYPnJrU5"}}
+{"dir": "in", "ev": {"type": "session.commentary.appended", "start_ms": 20600, "end_ms": 20800, "event_id": "event_EoQb6bgoeJoQAAjp8EXEf", "client_event_id": "evt_3"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 20800, "end_ms": 21000, "delta": " waiting", "event_id": "event_EoQb6xfJrUSbUo7VlH2AD"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 21200, "end_ms": 21400, "delta": " —", "event_id": "event_EoQb6M0QMaEysJbgwgkVO"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 21400, "end_ms": 21600, "delta": " I’ve", "event_id": "event_EoQb6ovM1rTI9ZYoGat5j"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 21600, "end_ms": 21800, "delta": " booked", "event_id": "event_EoQb6NAur8RB1eYDOLS4A"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 21800, "end_ms": 22000, "delta": " you", "event_id": "event_EoQb7iOW2Z9ZvlCdpEtJH"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 22000, "end_ms": 22200, "delta": " for Friday", "event_id": "event_EoQb7MCyeYu2RkhgLD4Ip"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 22600, "end_ms": 22800, "delta": " at", "event_id": "event_EoQb7GrHJN47rXdeeqMuo"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 22800, "end_ms": 23000, "delta": " ", "event_id": "event_EoQb8aLrnVYVbWmkAKJbl"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 23000, "end_ms": 23200, "delta": "2", "event_id": "event_EoQb8zYJEvBDfAyPsiimA"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 23200, "end_ms": 23400, "delta": " p.m", "event_id": "event_EoQb8cdEYWHsru5TMN0TU"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 23400, "end_ms": 23600, "delta": ".", "event_id": "event_EoQb8aRbyIdLXkkGymSrG"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 23800, "end_ms": 24000, "delta": " with", "event_id": "event_EoQb98Mo3BCDQkOYPYtZR"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 24000, "end_ms": 24200, "delta": " Doctor", "event_id": "event_EoQb9My8pNQzhjfgSH46a"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 24400, "end_ms": 24600, "delta": " Lee", "event_id": "event_EoQb9pmmPcxCKdP6Db10s"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 24600, "end_ms": 24800, "delta": ".", "event_id": "event_EoQb96aK9d69R0S20RFBb"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 25000, "end_ms": 25200, "delta": " Does", "event_id": "event_EoQbAdXBep9pQ6W75I0ud"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 25200, "end_ms": 25400, "delta": " that", "event_id": "event_EoQbAFBP5Q2pp3fJemKAO"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 25400, "end_ms": 25600, "delta": " time", "event_id": "event_EoQbAfFzcpyAFiApCPbu1"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 25800, "end_ms": 26000, "delta": " still", "event_id": "event_EoQbAwYeXMXDa3IrGlk0j"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 26000, "end_ms": 26200, "delta": " work", "event_id": "event_EoQbBA0P7ZHCsL5ERmVeO"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 26200, "end_ms": 26400, "delta": " for", "event_id": "event_EoQbBPgUDPUzs468wxZQg"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 26400, "end_ms": 26600, "delta": " you?", "event_id": "event_EoQbBFa1ami6OwoZ9hvHM"}}
+{"dir": "out", "ev": {"type": "session.instructions.append", "event_id": "evt_4", "delegation_id": null, "content": "Tell the caller that the clinic is closed next Monday for maintenance."}}
+{"dir": "in", "ev": {"type": "session.instructions.appended", "start_ms": 28800, "end_ms": 29000, "event_id": "event_EoQbDh37gSKYmcLNE6F2p", "client_event_id": "evt_4"}}
+{"dir": "in", "ev": {"event_id": "event_EoQbEZEdH510IWQceTNn9", "type": "session.usage.updated", "context_window": {"usage_ratio": 0.0153671875}, "usage": {"seconds": 29}}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 29800, "end_ms": 30000, "delta": " Hi,", "event_id": "event_EoQbEZ62ceMjWS7EX3F1H"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 30000, "end_ms": 30200, "delta": " thanks", "event_id": "event_EoQbFpV4JKAlU6G6Zj0n1"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 30400, "end_ms": 30600, "delta": " for calling", "event_id": "event_EoQbFdnISXW5iqIuFtKrk"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 30600, "end_ms": 30800, "delta": ".", "event_id": "event_EoQbFMw1Wic0pMs6wJY6R"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 31200, "end_ms": 31400, "delta": " Just", "event_id": "event_EoQbGuBoFg7kFk29jSh3r"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 31600, "end_ms": 31800, "delta": " a quick", "event_id": "event_EoQbGPqNTgLoxO5cJPJtH"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 31800, "end_ms": 32000, "delta": " heads", "event_id": "event_EoQbGDAbssMr4pwD3wj6l"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 32200, "end_ms": 32400, "delta": " up,", "event_id": "event_EoQbHAcIZzrBbmqAqkip2"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 32600, "end_ms": 32800, "delta": " the", "event_id": "event_EoQbH19c9rsH4joGJYmU8"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 32800, "end_ms": 33000, "delta": " clinic", "event_id": "event_EoQbHRt0ky2fkiFeN881p"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 33200, "end_ms": 33400, "delta": " will be", "event_id": "event_EoQbIz8iK3gqGI6MCLpZ6"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 33400, "end_ms": 33600, "delta": " closed", "event_id": "event_EoQbI0kWiox4zeS50wFcB"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 33800, "end_ms": 34000, "delta": " next", "event_id": "event_EoQbIknoxjkacvlJfHCQx"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 34200, "end_ms": 34400, "delta": " Monday", "event_id": "event_EoQbJou4ytNmTLJbcDfcL"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 34600, "end_ms": 34800, "delta": " for", "event_id": "event_EoQbJsFLk1jzty8xs95oi"}}
+{"dir": "in", "ev": {"type": "session.output_transcript.delta", "start_ms": 34800, "end_ms": 35000, "delta": " maintenance.", "event_id": "event_EoQbJih4A6UXTlFPQAOBL"}}
+{"dir": "out", "ev": {"type": "session.thinking.append", "event_id": "evt_5", "delegation_id": "item_does_not_exist", "content": "x"}}
+{"dir": "out", "ev": {"type": "session.commentary.append", "event_id": "evt_bad_content", "delegation_id": null, "content": 123}}
+{"dir": "out", "ev": {"type": "session.thinking.append", "event_id": "evt_no_delegation", "content": "y"}}
+{"dir": "out", "ev": {"type": "session.nonexistent.command", "event_id": "evt_unknown"}}
+{"dir": "in", "ev": {"type": "error", "event_id": "event_EoQbL1fbcyPz2qTjiTb0P", "error": {"type": "invalid_request_error", "code": null, "message": "Unknown client or Decision delegation.", "param": "delegation_id", "client_event_id": "evt_5"}}}
+{"dir": "in", "ev": {"type": "error", "event_id": "event_EoQbL93M9MvRtNJ3PdphW", "error": {"type": "invalid_request_error", "code": "invalid_type", "message": "Invalid type for 'content': expected a string, but got an integer instead.", "param": "content", "client_event_id": "evt_bad_content"}}}
+{"dir": "in", "ev": {"type": "error", "event_id": "event_EoQbLws71byz13KoFRp0K", "error": {"type": "invalid_request_error", "code": "missing_required_parameter", "message": "Missing required parameter: 'delegation_id'.", "param": "delegation_id", "client_event_id": "evt_no_delegation"}}}
+{"dir": "in", "ev": {"type": "error", "event_id": "event_EoQbLvBDsZxJOUIcAQINe", "error": {"type": "invalid_request_error", "code": "invalid_value", "message": "Invalid value: 'ses...and'. Supported values are: 'session.start', 'session.update', 'session.input_audio.append', 'session.input_audio.mute', 'session.input_audio.unmute', 'session.output_audio.fixture.play', 'transport.dtmf.send', 'session.instructions.append', 'session.thinking.append', 'session.commentary.append', 'decision.create', 'decision.item.create', 'decision.item.delete', 'response.item.create', 'response.create', and 'session.close'.", "param": "type", "client_event_id": "evt_unknown"}}}
+{"dir": "out", "ev": {"type": "session.close", "event_id": "event_close"}}
+{"dir": "in", "ev": {"event_id": "event_EoQbPWdwCnGUk3yI3MwTM", "type": "session.closed", "reason": "close_requested", "session": {"id": "live_u117_EoQajp3oNKL8fBmWn3pDOhCo5nP8KoUN", "expires_at": 1795694525, "model": "gpt-live-1.1", "instructions": "You are a booking assistant for a clinic. The clinic closes at 9 PM every day; answer questions about opening hours yourself. Delegate anything that needs checking availability, or booking, changing, or cancelling an appointment, to the backend. Be concise.", "audio": {"output": {"voice": "marin"}, "format": {"type": "audio/pcm", "rate": 24000}}, "delegation": {"type": "client", "acknowledgement_delay_ms": 800}, "status": "active", "input": []}, "usage": {"seconds": 39}, "client_event_id": "event_close"}}

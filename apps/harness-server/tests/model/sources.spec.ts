@@ -112,7 +112,7 @@ describe('the official send sources', () => {
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     }).filter(source => source.provider === 'openai')
-    expect([...new Set(direct.map(source => source.model))]).toEqual(['gpt-6-luna'])
+    expect([...new Set(direct.map(source => source.model))]).toEqual(['gpt-6-luna', 'gpt-live-1.1'])
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-27T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>
@@ -129,7 +129,8 @@ describe('the official send sources', () => {
       chat.definition as typeof chat.definition & {
         reasoningEfforts?: unknown
       }
-    expect(direct.map(source => [source.profile, source.supplier])).toEqual([
+    const luna = direct.filter(source => source.model === 'gpt-6-luna')
+    expect(luna.map(source => [source.profile, source.supplier])).toEqual([
       [chat.adoption, chat.definition.suppliers[0].adoption],
       [officialProfileAdoption(previous as never), chat.definition.suppliers[0].adoption],
       [decisions.adoption, decisions.definition.suppliers[0].adoption],

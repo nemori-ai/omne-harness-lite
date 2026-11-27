@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { bindDecisions } from '../src/decisions/binding.ts'
 import { DECISION_WIRES } from '../src/decisions/wire.ts'
 import { recordAdoption, recordProvider } from '../src/family-table.ts'
-import { sendOf } from '../src/send.ts'
+import { isLiveSend, sendOf } from '../src/send.ts'
 import { LIMITS, REQUEST } from './support/test-family.ts'
 
 const MODEL = 'judge-1'
@@ -57,7 +57,7 @@ function requestOf(asked: DecisionAsk = ask): DecisionsModelRequest {
 function send(asked?: DecisionAsk) {
   const binding = bindDecisions(OWNER, RECORD, SUPPLIER, 'decisions-v1')
   const paired = sendOf(binding, requestOf(asked), 0, { maxDecisionBytes: 8192, json: LIMITS.json })
-  if (!('ok' in paired)) throw new Error(JSON.stringify(paired))
+  if (!('ok' in paired) || isLiveSend(paired.ok)) throw new Error(JSON.stringify(paired))
   return paired.ok
 }
 function bodyOf(asked?: DecisionAsk): unknown {

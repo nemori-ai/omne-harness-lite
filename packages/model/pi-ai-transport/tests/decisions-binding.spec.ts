@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { bindDecisions } from '../src/decisions/binding.ts'
 import { prepareDecision } from '../src/decisions/codec.ts'
 import { recordAdoption, recordProvider } from '../src/family-table.ts'
-import { sendOf } from '../src/send.ts'
+import { isLiveSend, sendOf } from '../src/send.ts'
 import { LIMITS, REQUEST } from './support/test-family.ts'
 
 const MODEL = 'openai/gpt-6-luna-decisions'
@@ -65,7 +65,7 @@ const pairing = (
 ) => sendOf(binding(), request, 0, { maxDecisionBytes, json: LIMITS.json })
 const send = (request?: FixedModelRequest, maxDecisionBytes?: number) => {
   const paired = pairing(request, maxDecisionBytes)
-  if (!('ok' in paired)) throw new Error(JSON.stringify(paired))
+  if (!('ok' in paired) || isLiveSend(paired.ok)) throw new Error(JSON.stringify(paired))
   return paired.ok
 }
 const frameOf = (body: unknown) => {

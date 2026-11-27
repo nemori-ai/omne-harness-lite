@@ -212,6 +212,22 @@ describe('a live call holds the properties of its model', () => {
     expect(f.assembly.controls.clock.pending()).toBe(0)
   })
 
+  it('lets go of the session without a terminal write when a successor settled the call first', async () => {
+    const f = liveFixture()
+    await f.admitted()
+    const first = f.drive()
+    await f.open()
+    expect(await f.restart(instance('successor'))).toEqual({ ok: undefined })
+    const settled = await f.settlement()
+    const delivered = f.deliveries.length
+    f.upstream.play({ kind: 'closed' })
+    expect(await first).toMatchObject({ failure: { kind: 'stale-instance' } })
+    await eventually(() => !f.holds())
+    expect(f.upstream.seen.drops).toBe(1)
+    expect(f.deliveries).toHaveLength(delivered)
+    expect(await f.settlement()).toEqual(settled)
+  })
+
   it('takes a delivery that throws as an unknown answer, and delivers the same run once the wait is over', async () => {
     const f = liveFixture()
     let thrown = false
@@ -477,6 +493,34 @@ describe('the three entries of a running live call', () => {
     f.upstream.play({ kind: 'closed' })
     expect(await driven).toEqual({ ok: undefined })
     expect(await open).toEqual({ done: true, value: undefined })
+  })
+
+  it('reads the call with the control its consumer holds, not the recovery of its host', async () => {
+    const f = liveFixture()
+    await f.admitted()
+    const driven = f.drive()
+    await f.open()
+    f.denied.add('recovery')
+    expect(await f.command(op('heard'))).toEqual({ ok: { state: 'taken' } })
+    expect(await f.provider.live.media(f.target)).toMatchObject({ ok: {} })
+    f.denied.delete('recovery')
+    f.denied.add('control')
+    const refused = { failure: { kind: 'denied', action: 'control' } }
+    expect(await f.command(op('refused'))).toEqual(refused)
+    expect(await f.provider.live.media(f.target)).toEqual(refused)
+    expect(await f.provider.live.end({ ...f.target, operation: op('end-refused') })).toEqual(
+      refused,
+    )
+    f.denied.delete('control')
+    f.denied.add('recovery')
+    expect(await f.provider.live.end({ ...f.target, operation: op('end') })).toMatchObject({
+      ok: { kind: 'requested', intent: 'end' },
+    })
+    f.denied.delete('recovery')
+    await eventually(() => f.upstream.seen.closes === 1)
+    f.upstream.play({ kind: 'closed' })
+    expect(await driven).toEqual({ ok: undefined })
+    expect(f.upstream.seen.sent).toHaveLength(1)
   })
 
   it('answers the same failure of the store for a call it does not know, in all three entries', async () => {

@@ -41,12 +41,13 @@ describe('the provider bodies of the release', () => {
     })
   })
 
-  it('OpenAI: its Responses and decisions endpoints without an end marker, an accounting with no lookup, and the one apiKey item', () => {
+  it('OpenAI: its Responses, decisions and live sessions endpoints without an end marker, an accounting with no lookup, and the one apiKey item', () => {
     expect(bodyOf('openai')).toEqual({
       name: 'openai',
       endpoints: [
         { protocol: 'responses', url: 'https://api.openai.com/v1/responses' },
         { protocol: 'decisions-v1', url: 'https://api.openai.com/v1/decisions' },
+        { protocol: 'live-sessions', url: 'wss://api.openai.com/v1/live/sessions' },
       ],
       accounting: { place: 'openai', costUnit: 'usd' },
       credentials: [

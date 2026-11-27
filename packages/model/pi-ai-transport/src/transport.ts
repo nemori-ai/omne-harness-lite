@@ -1,5 +1,6 @@
 import type { FixedModelRequest, Supplier, TransportFailure } from '@omne-harness/model-contract'
 import type {
+  MaterializedLiveTransport,
   MaterializeFailure,
   CostLookupAnswer,
   ModelTransport,
@@ -14,7 +15,8 @@ import {
   type CheckedRoute,
   type PiTransportConfig,
 } from './config.ts'
-import { NOT_IN_REQUEST, sendOf, supplierIndex, type PiSend } from './send.ts'
+import { isLiveSend, NOT_IN_REQUEST, sendOf, supplierIndex, type PiSend } from './send.ts'
+import { materializeLive } from './live/materialize.ts'
 import { lookupGenerationCost } from './cost-lookup.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
@@ -25,14 +27,11 @@ export type PiTransport = Readonly<{
   close(): Promise<void>
 }>
 
+type Child = MaterializedHandle | MaterializedLiveTransport
 type PreparedPhase =
   | Readonly<{ kind: 'open'; send: PiSend }>
-  | Readonly<{
-      kind: 'materializing'
-      send: PiSend
-      settled: Promise<MaterializedHandle | null>
-    }>
-  | Readonly<{ kind: 'materialized'; send: PiSend; child: MaterializedHandle | null }>
+  | Readonly<{ kind: 'materializing'; send: PiSend; settled: Promise<Child | null> }>
+  | Readonly<{ kind: 'materialized'; send: PiSend; child: Child | null }>
   | Readonly<{ kind: 'closing'; done: Promise<void> }>
   | Readonly<{ kind: 'closed'; done: Promise<void> }>
 
@@ -175,14 +174,19 @@ function createPrepared(
   async function runMaterialize(
     send: PiSend,
     signal: AbortSignal,
-  ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
+  ): Promise<Outcome<Child, MaterializeFailure>> {
+    const either = AbortSignal.any([signal, closing.signal])
+    if (isLiveSend(send)) return materializeLive({ config, route, supplier, send, signal: either })
+    const { framing } = route
+    if (framing === 'socket')
+      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter: send.adoption } }
     return materialize({
       config,
-      route,
+      route: { ...route, framing },
       supplier,
       resent,
       send,
-      signal: AbortSignal.any([signal, closing.signal]),
+      signal: either,
     })
   }
 
@@ -248,7 +252,7 @@ function createPrepared(
 
 async function childOf(
   phase: Exclude<PreparedPhase, Readonly<{ kind: 'closing' | 'closed' }>>,
-): Promise<MaterializedHandle | null> {
+): Promise<Child | null> {
   switch (phase.kind) {
     case 'open':
       return null

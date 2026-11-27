@@ -184,7 +184,7 @@ function endpointsOf(
     if (protocol === undefined || protocol === '') return 'invalid-protocol'
     if (out.some(item => item.protocol === protocol)) return 'duplicate-protocol'
     const url = stringField(entry, 'url')
-    if (url === undefined || !isHttpsUrl(url)) return 'invalid-endpoint'
+    if (url === undefined || !isEndpointUrl(url)) return 'invalid-endpoint'
     if (field(entry, 'endMarker') === undefined) {
       out.push({ protocol, url })
       continue
@@ -243,10 +243,11 @@ function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[
   return out
 }
 
-function isHttpsUrl(text: string): boolean {
+function isEndpointUrl(text: string): boolean {
   if (!URL.canParse(text)) return false
   const url = new URL(text)
-  return url.protocol === 'https:' && url.username === '' && url.password === '' && url.hash === ''
+  const scheme = url.protocol === 'https:' || url.protocol === 'wss:'
+  return scheme && url.username === '' && url.password === '' && url.hash === ''
 }
 
 function stringField(body: unknown, key: string): string | undefined {

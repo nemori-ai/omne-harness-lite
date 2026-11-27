@@ -15,3 +15,9 @@ export {
   OPENAI_DIRECT_DECISIONS_OWNER,
   OPENAI_DIRECT_DECISIONS_RECORDS,
 } from './decisions.ts'
+export {
+  createOpenAiLiveFamily,
+  officialOpenAiLiveProfiles,
+  OPENAI_LIVE_OWNER,
+  OPENAI_LIVE_RECORDS,
+} from './live.ts'

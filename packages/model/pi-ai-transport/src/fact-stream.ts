@@ -22,7 +22,7 @@ import { terminationOf, type SendEnd } from './termination.ts'
 export type SendInput = Readonly<{
   exchange: HttpExchange
   decoder: PiResponseDecoder
-  route: CheckedRoute
+  route: CheckedRoute & Readonly<{ framing: 'events' | 'whole' }>
   limits: PiTransportLimits
   diagnostics: readonly ProviderDiagnostic[]
   /** Whether the request carried reasoning state back. */

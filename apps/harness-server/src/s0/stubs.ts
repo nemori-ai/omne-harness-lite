@@ -428,6 +428,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-host': {
     provides: [
       'modelRuntime',
+      'modelLiveCalls',
       'modelInstanceHost',
       'modelStreamReferences',
       'modelStreamObservation',
@@ -445,7 +446,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-profiles': { provides: ['modelProfiles'], injects: ['modelPreferences'] },
   'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
-    provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
+    provides: ['modelRequestPreparation', 'modelDecisionPreparation', 'modelLivePreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
   'model-credential': {

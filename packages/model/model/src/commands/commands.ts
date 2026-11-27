@@ -50,7 +50,6 @@ import {
   prepareSupplierFailure,
   ready,
   receiptBinds,
-  requestedControl,
   retryable,
   retryChoiceFailure,
   settlementFailure,
@@ -76,6 +75,7 @@ import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+import { controlCommands } from './control.ts'
 import { custodyCommands } from './custody.ts'
 import { lateFactProof } from './late-evidence.ts'
 
@@ -112,7 +112,7 @@ function atDispatch<T>(
 export function callCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
+): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'settle'> {
   return {
     admit: raw => {
       const checked = judgeAdmit(raw)
@@ -259,29 +259,6 @@ export function callCommands<P>(
         core.read(input, 'read-account', call => ({
           ok: structuredClone(call.dispatches.map(d => d.record)),
         })),
-      ),
-    control: input =>
-      core.runWrite(input, () =>
-        core.write({
-          input,
-          method: 'control',
-          fields: { call: input.call, intent: input.intent },
-          check: call => authFailure(core.authorize(input, 'control', call, input.call)),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            const requested = requestedControl(input)
-            if (requested === null) return { failure: invalid('intent', 'unknown') }
-            if (call.state.control.kind === 'none') {
-              call.state = { ...call.state, control: requested }
-              bump(call)
-            }
-            return {
-              ok: { value: structuredClone(call.state.control), receipt: { kind: 'control' } },
-            }
-          },
-          replay: call => (call ? { ok: structuredClone(call.state.control) } : missingReceipt()),
-        }),
       ),
     settle: input =>
       core.runWrite(input, () =>
@@ -1039,6 +1016,7 @@ export function modelCommands<P>(
 ): ModelCommands<P> {
   return {
     ...callCommands(core, bound),
+    ...controlCommands(core),
     ...recoveryCommands(core, bound),
     ...dispatchCommands(core, bound),
     ...consumptionCommands(core),

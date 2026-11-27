@@ -60,11 +60,12 @@ describe('the release provider carries its model catalog (C1, C4)', () => {
     ).toEqual([...DECISIONS].sort())
   })
 
-  it('lists the chat and the decisions gpt-6-luna OpenAI serves itself as two rows, both off by default (C3)', () => {
+  it('lists the chat and the decisions gpt-6-luna and the live gpt-live-1.1 OpenAI serves itself as rows of their own, all off by default (C3)', () => {
     const models = releaseProvider('openai')?.body.models ?? []
     expect(models.map(entry => [entry.kind, entry.model, entry.enabled])).toEqual([
       ['llm', 'gpt-6-luna', false],
       ['decisions', 'gpt-6-luna', false],
+      ['live', 'gpt-live-1.1', false],
     ])
   })
 

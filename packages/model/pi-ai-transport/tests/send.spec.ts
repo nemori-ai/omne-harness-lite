@@ -1,7 +1,7 @@
 import type { LlmModelRequest, Supplier } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import { isBindingOf, type PiChatBinding } from '../src/family.ts'
-import { sendOf, supplierIndex } from '../src/send.ts'
+import { isLiveSend, sendOf, supplierIndex } from '../src/send.ts'
 import {
   adoption,
   createTestDecoder,
@@ -69,7 +69,7 @@ describe('a chat binding paired with a chat request', () => {
       },
     }
     const paired = sendOf(watched, REQUEST, 0, SEND_LIMITS)
-    if (!('ok' in paired)) throw new Error(JSON.stringify(paired))
+    if (!('ok' in paired) || isLiveSend(paired.ok)) throw new Error(JSON.stringify(paired))
     const accounting = { place: 'test-gateway', costUnit: 'test-credit' }
     expect(paired.ok.createDecoder(accounting)).toBe(decoder)
     expect(made).toEqual([{ request: REQUEST, accounting }])

@@ -1,6 +1,7 @@
 import {
   PROTOCOLS,
   type DecisionsEndpoint,
+  type LiveEndpoint,
   type EngineEndpoint,
   type ProviderEndpoint,
   type RouteAccounting,
@@ -88,7 +89,13 @@ export type PiDecisionsBinding = Readonly<{
   maxQuestions: number | null
   release(): Promise<void>
 }>
-export type PiFamilyBinding = PiChatBinding | PiDecisionsBinding
+export type PiLiveBinding = Readonly<{
+  supplier: Supplier
+  adoption: Adoption
+  endpoint: LiveEndpoint
+  release(): Promise<void>
+}>
+export type PiFamilyBinding = PiChatBinding | PiDecisionsBinding | PiLiveBinding
 type EndpointOf<K extends ModelKind> = {
   [E in ProviderEndpoint]: (typeof PROTOCOLS)[E]['kind'] extends K ? E : never
 }[ProviderEndpoint]

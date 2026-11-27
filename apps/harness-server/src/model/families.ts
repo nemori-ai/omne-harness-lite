@@ -3,6 +3,7 @@ import {
   createOpenAiDecisionsFamily,
   createOpenAiDirectDecisionsFamily,
   createOpenAiFamily,
+  createOpenAiLiveFamily,
   openAiTokenizerResources,
 } from '@omne-harness/pi-ai-openai'
 import { createDeepSeekFamily } from '@omne-harness/pi-ai-deepseek'
@@ -37,5 +38,6 @@ export function releaseFamilies(
     createOpenAiDecisionsFamily(),
     createOpenAiDirectDecisionsFamily(),
     createJevFamily(),
+    createOpenAiLiveFamily(),
   ])
 }

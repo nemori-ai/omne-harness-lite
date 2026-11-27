@@ -7,6 +7,7 @@ const METHODS = [
   'admit',
   'scanPending',
   'loadRecovery',
+  'loadControl',
   'loadOrigin',
   'loadRequest',
   'claim',

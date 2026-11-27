@@ -2,7 +2,8 @@ import type { JsonLimits } from '@omne-harness/json-text'
 import type { ModelKind } from '@omne-harness/model-contract'
 import type { ConnectRetryDiagnostic } from './diagnostics.ts'
 import type { PiFamilyContributions } from './family.ts'
-import { isPlainHttpsUrl } from './http.ts'
+import { isPlainHttpsUrl, isPlainWssUrl } from './http.ts'
+import type { LiveSocketFactory } from './live/session.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 import type { PiMediaReader } from './media.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
@@ -20,9 +21,11 @@ export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
 
 export type DecisionsEndpoint = 'decisions' | 'decisions-v1'
 
-export type ProviderEndpoint = EngineEndpoint | DecisionsEndpoint
+export type LiveEndpoint = 'live-sessions'
 
-export type Framing = 'events' | 'whole'
+export type ProviderEndpoint = EngineEndpoint | DecisionsEndpoint | LiveEndpoint
+
+export type Framing = 'events' | 'whole' | 'socket'
 
 /** Every interface a provider can offer, with the kind of model it serves and its framing. */
 export const PROTOCOLS = {
@@ -31,6 +34,7 @@ export const PROTOCOLS = {
   responses: { kind: 'llm', framing: 'events' },
   decisions: { kind: 'decisions', framing: 'whole' },
   'decisions-v1': { kind: 'decisions', framing: 'whole' },
+  'live-sessions': { kind: 'live', framing: 'socket' },
 } as const satisfies Readonly<
   Record<ProviderEndpoint, Readonly<{ kind: ModelKind; framing: Framing }>>
 >
@@ -75,6 +79,7 @@ export type PiTransportConfig = Readonly<{
   onResponseBody?: () => void
   /** Reads the media of this transport's requests; absent, a request that refers to media is unavailable. */
   media?: PiMediaReader
+  liveSocket?: LiveSocketFactory
 }>
 
 /** The route of one dispatch: the endpoint its engine speaks, with the accounting and auth. */
@@ -121,6 +126,7 @@ export type CheckedConfig = Readonly<{
   onConnectRetry?: ((event: ConnectRetryDiagnostic) => void) | undefined
   onResponseBody?: (() => void) | undefined
   media?: PiMediaReader | undefined
+  liveSocket?: LiveSocketFactory | undefined
 }>
 
 const JSON_LIMIT_NAMES = [
@@ -137,7 +143,7 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
-  for (const name of ['onConnectRetry', 'onResponseBody', 'media'] as const)
+  for (const name of ['onConnectRetry', 'onResponseBody', 'media', 'liveSocket'] as const)
     if (config[name] !== undefined && typeof config[name] !== 'function')
       throw new RangeError(`${name} must be absent or a function`)
   const network = networkInternalsOf(config.network)
@@ -150,18 +156,23 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     onConnectRetry: config.onConnectRetry,
     onResponseBody: config.onResponseBody,
     media: config.media,
+    liveSocket: config.liveSocket,
   }
 }
 
 function checkEndpoint(
   endpoint: PiRouteEndpoint,
+  socket: boolean,
 ): Readonly<{ url: URL; endMarker: string | null }> {
   if (!isObject(endpoint)) throw new RangeError('each route endpoint must be an object')
   const url =
     typeof endpoint.url === 'string' && URL.canParse(endpoint.url) ? new URL(endpoint.url) : null
-  if (url === null || !isPlainHttpsUrl(url))
+  const plain = url !== null && (socket ? isPlainWssUrl(url) : isPlainHttpsUrl(url))
+  if (url === null || !plain)
     throw new RangeError(
-      'each route url must be an https: URL without credentials, query or fragment',
+      socket
+        ? 'each live route url must be a wss: URL without credentials, query or fragment'
+        : 'each route url must be an https: URL without credentials, query or fragment',
     )
   if (endpoint.endMarker !== null && typeof endpoint.endMarker !== 'string')
     throw new RangeError('each route endMarker must be a string or null')
@@ -183,7 +194,7 @@ function checkRoutes(
       if (endpoint !== undefined) {
         if (PROTOCOLS[name].framing === 'whole' && endpoint.endMarker !== null)
           throw new RangeError(`the ${name} endpoint accepts one whole response`)
-        endpoints.set(name, checkEndpoint(endpoint))
+        endpoints.set(name, checkEndpoint(endpoint, PROTOCOLS[name].framing === 'socket'))
       }
     }
     if (endpoints.size === 0) throw new RangeError('each route needs at least one endpoint')

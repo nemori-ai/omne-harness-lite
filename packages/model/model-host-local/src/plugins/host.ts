@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Service, symbols, type Context } from '@deepseek-ai/cordis'
+import { serveModelLiveCalls } from './live-calls.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { LiveEventPort, ModelLiveness, ModelRuntimeProvider } from '@omne-harness/model'
 import {
@@ -331,7 +332,7 @@ export type ModelHostPluginOptions = Readonly<{
       liveEvents: LiveEventPort
     }>,
   ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'> &
-    Partial<Pick<ModelRuntimeProvider<unknown>, 'released' | 'holdsLiveBody'>> &
+    Partial<Pick<ModelRuntimeProvider<unknown>, 'released' | 'holdsLiveBody' | 'live'>> &
     Readonly<{ runtime?: ModelRuntime<unknown> }>
   results?: ResultPushOptions
   qualifyObservation(access: CallAccess<unknown>): Reply<void>
@@ -418,6 +419,7 @@ async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<vo
       apply: (child: Context) => {
         new HostContribution(child, host)
         stage.contribute(child, provider.runtime)
+        if (provider.live !== undefined) serveModelLiveCalls(child, provider.live)
         if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
       },
     })

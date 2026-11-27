@@ -14,6 +14,7 @@ import {
   modelCommandsKey,
   modelHostAuthorityKey,
   modelInstanceHostKey,
+  modelLiveCallsKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
   modelStreamObservationKey,
@@ -226,6 +227,7 @@ export function createModelHostRow(input: ModelHostRowInput = {}) {
     manifest: {
       provides: [
         modelRuntimeKey,
+        modelLiveCallsKey,
         modelInstanceHostKey,
         modelStreamReferencesKey,
         modelStreamObservationKey,

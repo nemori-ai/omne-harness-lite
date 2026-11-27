@@ -12,7 +12,7 @@ import type { DecisionsEndpoint, RouteAccounting } from '../config.ts'
 import { unreportedCost } from '../cost-lookup.ts'
 import type { PiDecisionsBinding, PiResponseDecoder } from '../family.ts'
 import { recordAdoption, type PiModelRecordHead } from '../family-table.ts'
-import type { PiSend } from '../send.ts'
+import type { PiRequestSend } from '../send.ts'
 import type { DecisionRequest, DecisionResponse } from './contract.ts'
 import { DECISION_WIRES, type DecisionWire } from './wire.ts'
 
@@ -125,7 +125,7 @@ export function decisionsCodec(
   binding: PiDecisionsBinding,
   ask: DecisionAsk,
   limits: Readonly<{ maxRequestBytes: number; json: JsonLimits }>,
-): Pick<PiSend, 'encode' | 'createDecoder'> {
+): Pick<PiRequestSend, 'encode' | 'createDecoder'> {
   const wire = DECISION_WIRES[binding.endpoint]
   const fixed = wire.prepare(
     { model: binding.supplier.model, ...ask },

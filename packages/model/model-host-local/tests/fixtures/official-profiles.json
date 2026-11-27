@@ -5624,5 +5624,42 @@
       "revision": "1",
       "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
     }
+  },
+  {
+    "kind": "live",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/live",
+          "name": "gpt-live-1.1",
+          "revision": "1",
+          "digest": "e709d11d17ba389b81291833c328116e687475b78d9ac0f1efc6a6caad51b1b7"
+        },
+        "provider": "openai",
+        "model": "gpt-live-1.1"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "voice",
+      "text"
+    ],
+    "output": [
+      "voice",
+      "text"
+    ],
+    "voices": [
+      "marin"
+    ],
+    "audioFormats": [
+      "pcm16"
+    ],
+    "maxSessionSeconds": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
   }
 ]

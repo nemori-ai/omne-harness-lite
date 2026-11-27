@@ -39,6 +39,7 @@ const OPENAI_BODY = {
   endpoints: [
     { protocol: 'responses', url: 'https://api.openai.com/v1/responses' },
     { protocol: 'decisions-v1', url: 'https://api.openai.com/v1/decisions' },
+    { protocol: 'live-sessions', url: 'wss://api.openai.com/v1/live/sessions' },
   ],
   accounting: { place: 'openai', costUnit: 'usd' },
   credentials: [

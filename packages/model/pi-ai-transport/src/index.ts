@@ -3,6 +3,7 @@ export type {
   PiChatBinding,
   PiDecisionsBinding,
   PiFamilyBinding,
+  PiLiveBinding,
   PiFamilyContributions,
   PiMaterializedMedia,
   PiProtocolFrame,
@@ -25,6 +26,7 @@ export type {
   PiRouteEndpoint,
   DecisionsEndpoint,
   EngineEndpoint,
+  LiveEndpoint,
   ProviderEndpoint,
   PiRouteAuth,
   PiTransportConfig,
@@ -32,6 +34,7 @@ export type {
   RouteAccounting,
 } from './config.ts'
 export { isEngineEndpoint, isProviderEndpoint, PROTOCOLS } from './config.ts'
+export type { LiveSocket, LiveSocketFactory } from './live/session.ts'
 export {
   RECORD_FACTS,
   type FactSource,

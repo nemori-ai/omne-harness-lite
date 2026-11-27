@@ -18,17 +18,17 @@ import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.t
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { retryBeforeRequestSent } from './retry.ts'
 import { digestOf, serializeBody } from './payload.ts'
-import type { PiSend } from './send.ts'
+import type { PiRequestSend } from './send.ts'
 import type { SendEnd } from './termination.ts'
 
 export type MaterializedHandle = MaterializedTransport
 
 export type MaterializeInput = Readonly<{
   config: CheckedConfig
-  route: CheckedRoute
+  route: CheckedRoute & Readonly<{ framing: 'events' | 'whole' }>
   supplier: Supplier
   resent: TransportDispatch['resent']
-  send: PiSend
+  send: PiRequestSend
   signal: AbortSignal
 }>
 

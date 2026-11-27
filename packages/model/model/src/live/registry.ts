@@ -69,22 +69,22 @@ const MODALITY_OF: Readonly<Record<ContentBlock['kind'], ModelModality | null>> 
   file: null,
 }
 /** Whether the call takes every block of the command in: a live call, by the modalities fixed with it. */
-function takes(request: FixedRequestHead, command: LiveCommand): boolean {
-  if (request.kind !== 'live') return true
+function takes(request: FixedRequestHead | null, command: LiveCommand): boolean {
+  if (request?.kind !== 'live') return true
   return command.content.every(block => {
     const modality = MODALITY_OF[block.kind]
     return modality !== null && request.input.includes(modality)
   })
 }
 
-/** The three entries of a running live call; each reads the call first with the caller's own access. */
+/** The three entries of a running live call; each reads the call first with the control its caller holds. */
 export function createLiveCalls<P>(
   commands: ModelCommands<P>,
   bodies: LiveBodies,
 ): ModelLiveCalls<P> {
   return {
     async command(input) {
-      const known = await commands.loadRecovery(input)
+      const known = await commands.loadControl(input)
       if ('failure' in known) return known
       if (!takes(known.ok.request, input.command)) return MODALITY
       const runner = bodies.get(input)
@@ -93,7 +93,7 @@ export function createLiveCalls<P>(
       return answer.kind === 'refused' ? phase(answer.reason) : { ok: answer.receipt }
     },
     async end(input): Reply<ControlState> {
-      const known = await commands.loadRecovery(input)
+      const known = await commands.loadControl(input)
       if ('failure' in known) return known
       const runner = bodies.get(input)
       if (runner === undefined)
@@ -108,7 +108,7 @@ export function createLiveCalls<P>(
       return recorded
     },
     async media(input): Reply<LiveMedia> {
-      const known = await commands.loadRecovery(input)
+      const known = await commands.loadControl(input)
       if ('failure' in known) return known
       const runner = bodies.get(input)
       if (runner === undefined) return absent(known.ok.state)

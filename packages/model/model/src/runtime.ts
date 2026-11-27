@@ -57,6 +57,7 @@ const METHODS = {
     'recall',
     'scanPending',
     'loadRecovery',
+    'loadControl',
     'loadOrigin',
     'loadRequest',
     'claim',

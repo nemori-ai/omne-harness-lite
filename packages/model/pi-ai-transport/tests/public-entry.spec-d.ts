@@ -98,7 +98,12 @@ it('a route names its endpoints by interface, its accounting and auth, and the c
       endpoints: Readonly<
         Partial<
           Record<
-            'chat-completions' | 'messages' | 'responses' | 'decisions' | 'decisions-v1',
+            | 'chat-completions'
+            | 'messages'
+            | 'responses'
+            | 'decisions'
+            | 'decisions-v1'
+            | 'live-sessions',
             Readonly<{ url: string; endMarker: string | null }>
           >
         >

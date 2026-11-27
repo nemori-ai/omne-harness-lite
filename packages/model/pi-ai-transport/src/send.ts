@@ -1,5 +1,6 @@
 import {
   DECISION_REPRESENTATION,
+  LIVE_REPRESENTATION,
   type Adoption,
   type FixedModelRequest,
   type LlmModelRequest,
@@ -9,7 +10,8 @@ import {
 import type { MaterializeFailure, TransportDispatch } from '@omne-harness/model-contract/provider'
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { ProviderEndpoint, RouteAccounting } from './config.ts'
+import type { LiveEndpoint, ProviderEndpoint, RouteAccounting } from './config.ts'
+import { startMessage } from './live/wire.ts'
 import { decisionsCodec } from './decisions/binding.ts'
 import {
   isBindingOf,
@@ -21,7 +23,7 @@ import {
 import { gatherMedia, type PiMediaReader } from './media.ts'
 
 /** A binding paired with the request it sends: where it goes, how it is written, how the answer is read. */
-export type PiSend = Readonly<{
+export type PiRequestSend = Readonly<{
   adoption: Adoption
   endpoint: ProviderEndpoint
   representation: Adoption
@@ -45,6 +47,16 @@ export type PiSend = Readonly<{
   createDecoder(accounting: RouteAccounting): PiResponseDecoder
   release(): Promise<void>
 }>
+/** A live session to open: the message that starts it, said once its socket is open. */
+export type PiLiveSend = Readonly<{
+  adoption: Adoption
+  endpoint: LiveEndpoint
+  representation: Adoption
+  start: Readonly<Record<string, unknown>>
+  release(): Promise<void>
+}>
+export type PiSend = PiRequestSend | PiLiveSend
+export const isLiveSend = (send: PiSend): send is PiLiveSend => 'start' in send
 type Encoded = Extract<ReturnType<PiChatBinding['encode']>, { ok: unknown }>['ok']
 
 export type SendLimits = Readonly<{ maxDecisionBytes: number | undefined; json: JsonLimits }>
@@ -128,8 +140,25 @@ export function sendOf(
         },
       }
     }
-    case 'live':
-      return unsupported('request.kind')
+    case 'live': {
+      if (!isBindingOf(binding, 'live')) return unsupported('request.kind')
+      if (request.history.length > 0) return unsupported('request.history')
+      if (request.standby !== undefined) return unsupported('request.standby')
+      const { instructions, voice } = request
+      const audio = request.media.audio
+      const start = startMessage({ model: binding.supplier.model, instructions, voice, audio })
+      if ('failure' in start) return unsupported(start.failure)
+      const { adoption, endpoint, release } = binding
+      return {
+        ok: {
+          adoption,
+          endpoint,
+          representation: LIVE_REPRESENTATION,
+          start: start.ok,
+          release,
+        },
+      }
+    }
     default: {
       const _exhaustive: never = request
       return _exhaustive

@@ -174,7 +174,7 @@ describe('the model-request-preparation row', () => {
       row: 'model-request-preparation',
       implementation: 'real',
       manifest: {
-        provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
+        provides: ['modelRequestPreparation', 'modelDecisionPreparation', 'modelLivePreparation'],
         injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
