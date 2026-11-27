@@ -19,6 +19,7 @@ export type RequestMethod =
   | 'tasks/get'
   | 'tasks/update'
   | 'tasks/cancel'
+  | 'subscriptions/listen'
 
 export type NotificationMethod = 'notifications/initialized' | 'notifications/cancelled'
 

@@ -15,11 +15,13 @@ import {
   type GateDecision,
 } from './internal/gate.ts'
 import { withdraws } from './internal/guard.ts'
+import type { ChangeFeed } from './internal/changes.ts'
 import type { ConnectionTable } from './internal/table.ts'
 
 export type StatusDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   table: ConnectionTable<P>
+  changes: ChangeFeed
 }>
 
 type InspectRefusal = Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>
@@ -106,5 +108,5 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     return succeed(views)
   }
 
-  return { inspect, list }
+  return { inspect, list, subscribe: deps.changes.subscribe }
 }

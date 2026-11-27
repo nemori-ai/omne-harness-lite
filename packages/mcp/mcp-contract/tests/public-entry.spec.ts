@@ -48,6 +48,8 @@ const DECISIONS = [
   'legacyInitializeParamsOf',
   'lineGoneAnswerOf',
   'listActionsRequest',
+  'listenEndOf',
+  'listenEventOf',
   'listingPageOf',
   'notSentFailureOf',
   'notificationTextOf',
@@ -120,6 +122,9 @@ const PROVIDER_TYPES = [
   'EligibilityVerdict',
   'HttpCredentialHandle',
   'HttpPurpose',
+  'ListenEnd',
+  'ListenEvent',
+  'ListenFilter',
   'ListingPage',
   'McpTransport',
   'McpTransportFactory',
@@ -165,6 +170,7 @@ const TESTING = [
   'requestStateOf',
   'revisionOf',
   'runConformanceCase',
+  'sampleCatalogRecord',
   'taskIdOf',
 ].sort()
 

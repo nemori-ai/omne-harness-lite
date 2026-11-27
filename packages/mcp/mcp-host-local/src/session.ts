@@ -25,6 +25,8 @@ import {
   notSentFailureOf,
   notificationTextOf,
   peerRequestAnswerOf,
+  listenEndOf,
+  listenEventOf,
   readPeerMessage,
   requestClassOf,
   requestMetaOf,
@@ -62,6 +64,9 @@ import {
 } from '@omne-harness/mcp-contract'
 import type {
   CallRequest,
+  ListenEnd,
+  ListenEvent,
+  ListenFilter,
   ListingPage,
   McpTransport,
   SentCall,
@@ -76,6 +81,7 @@ export type SessionOptions = Readonly<{
   versions: ProtocolVersions
   fetchMetadata: MetadataFetch
   reportDefect: (defect: unknown) => void
+  maxLongRequests?: number
 }>
 
 type Answered = Readonly<{ wire: WireAnswer; headers?: AnswerHeaders }>
@@ -95,6 +101,7 @@ type Sending =
       signal: AbortSignal
       observe?: (notification: PeerNotification) => void
     }>
+  | Readonly<{ kind: 'listen'; signal: AbortSignal; listen: (event: ListenEvent) => void }>
 
 type Refusal = Readonly<{ soFar(): AuthorizationDiscovery; done: Promise<AuthorizationDiscovery> }>
 
@@ -117,6 +124,7 @@ type Pending = {
   readonly departed: Promise<void>
   readonly depart: () => void
   readonly observe?: (notification: PeerNotification) => void
+  readonly listen?: (event: ListenEvent) => void
   phase: Phase
 }
 
@@ -138,6 +146,7 @@ export class Session implements McpTransport {
   private readonly line: Line
   private readonly material: TransportMaterial
   private rejectionReported = false
+  private listening = 0
   private readonly options: SessionOptions
   private readonly pending = new Map<string, Pending>()
   private readonly teardown = new AbortController()
@@ -279,6 +288,7 @@ export class Session implements McpTransport {
 
   private onPeerMessage(message: PeerMessage): void {
     if (message.kind === 'request') return this.work(() => this.respond(message))
+    if (message.subscriptionId !== undefined) return this.onListened(message)
     if (message.method !== 'notifications/progress' || message.progressToken === undefined) return
     const entry = this.pending.get(message.progressToken)
     if (entry?.observe === undefined || message.params === undefined) return
@@ -378,6 +388,7 @@ export class Session implements McpTransport {
         return OFFERED_LEGACY_VERSION
       case 'operation':
       case 'call':
+      case 'listen':
         return this.connection.version ?? this.options.versions[0]
       default: {
         const exhaustive: never = sending
@@ -390,6 +401,7 @@ export class Session implements McpTransport {
     const answered = Promise.withResolvers<Answered>()
     const departed = Promise.withResolvers<void>()
     const observe = sending.kind === 'call' ? sending.observe : undefined
+    const listen = sending.kind === 'listen' ? sending.listen : undefined
     return {
       id,
       context,
@@ -399,6 +411,7 @@ export class Session implements McpTransport {
       departed: departed.promise,
       depart: departed.resolve,
       ...(observe === undefined ? {} : { observe }),
+      ...(listen === undefined ? {} : { listen }),
       phase: AUTHORIZING,
     }
   }
@@ -416,7 +429,7 @@ export class Session implements McpTransport {
     }
     const entry = this.makeEntry(id, context, sending)
     this.pending.set(id, entry)
-    if (sending.kind === 'call') this.wireSignal(entry, sending.signal)
+    if (sending.kind === 'call' || sending.kind === 'listen') this.wireSignal(entry, sending.signal)
     this.work(() => this.sendOut(entry, method, params, sending), entry)
     return entry
   }
@@ -750,6 +763,40 @@ export class Session implements McpTransport {
     const first = await Promise.race([entry.departed.then(() => undefined), entry.answered])
     if (first?.wire.kind === 'not-sent') return { failure: first.wire.failure }
     return { ok: { requestId: entry.id, answer: entry.answered.then(answerOf) } }
+  }
+
+  // A long request: answered by its end, never as a failed request; a broken one leaves the connection as it is.
+  async listen(
+    filter: ListenFilter,
+    signal: AbortSignal,
+    observe: (event: ListenEvent) => void,
+  ): Promise<ListenEnd> {
+    if (signal.aborted) return { kind: 'stopped' }
+    if (this.connection.kind !== 'modern' || this.listening >= (this.options.maxLongRequests ?? 0))
+      return { kind: 'refused', failure: NOT_SENT_FAILURE }
+    this.listening += 1
+    try {
+      const params = { notifications: { toolsListChanged: filter.toolsListChanged } }
+      const entry = this.begin('subscriptions/listen', params, {
+        kind: 'listen',
+        signal,
+        listen: observe,
+      })
+      if (entry === undefined) return { kind: 'refused', failure: this.refused }
+      return listenEndOf((await entry.answered).wire)
+    } finally {
+      this.listening -= 1
+    }
+  }
+
+  private onListened(message: Extract<PeerMessage, { kind: 'notification' }>): void {
+    const entry =
+      message.subscriptionId === undefined ? undefined : this.pending.get(message.subscriptionId)
+    const event = listenEventOf(message.method, message.params)
+    if (entry?.listen === undefined || event === undefined) return
+    try {
+      entry.listen(event)
+    } catch {}
   }
 
   cancelRequest(requestId: string): Promise<void> {

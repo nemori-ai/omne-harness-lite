@@ -1,13 +1,51 @@
 {
   "digests": {
     "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c",
-    "2": "sha256:007955ddef7dc7dfc63724a953b63fa6f0ad4314733029240ac4bd1070452f7f"
+    "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d"
   },
   "major": 1,
   "name": "mcp",
   "revision": 2,
   "rules": {
-    "observations": {},
+    "observations": {
+      "observe-endpoints": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "about": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "endpoints",
+                  "events"
+                ]
+              }
+            },
+            "kind": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "since": 2
+      }
+    },
     "operations": {
       "list-endpoints": {
         "body": {

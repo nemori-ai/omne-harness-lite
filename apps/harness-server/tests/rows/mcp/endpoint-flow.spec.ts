@@ -38,7 +38,14 @@ import {
   pendingCard,
   sendInput,
 } from '../authorization/release-flow-support.ts'
-import { testPeer, type PeerAction, type PeerOptions, type TestPeer } from './peer.ts'
+import {
+  modernPeer,
+  testPeer,
+  type ModernPeer,
+  type PeerAction,
+  type PeerOptions,
+  type TestPeer,
+} from './peer.ts'
 
 type Assets = ProtocolClients['assets']
 
@@ -93,7 +100,7 @@ const bodyOf = (name: string, auth: 'none' | 'static' | 'oauth'): JsonValue => (
   ],
 })
 
-const peers: TestPeer[] = []
+const peers: (TestPeer | ModernPeer)[] = []
 async function peerOf(actions: PeerAction[], options?: PeerOptions): Promise<TestPeer> {
   const peer = await testPeer(actions, options)
   peers.push(peer)
@@ -895,5 +902,73 @@ it(
       },
     ])
     expect(exits).toEqual([0, 0])
+  },
+)
+
+it(
+  'C107 C112 a peer that adds an action and says so: the catalog follows without a refresh, and mcp/v1 tells the page',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const names = async () => {
+          const read = await mcp['read-endpoint']({ tenant: w.tenant, name: 'live' })
+          return read.outcome === 'succeeded' ? (read.body.actions?.map(a => a.name) ?? null) : null
+        }
+        at('register live, point it at the peer and fetch its actions once')
+        await registered(w, 'live')
+        await configured(w, 'live', 'target', peer.target, 'live-target')
+        expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { refreshed: 'published' },
+        })
+        expect(await names()).toEqual(['echo'])
+
+        at('observe the endpoints: the first frame comes at once')
+        const controller = new AbortController()
+        const frames = mcp.observe['observe-endpoints'](
+          { tenant: w.tenant },
+          { signal: controller.signal },
+        )
+        expect(await frames.next()).toEqual({
+          done: false,
+          value: { kind: 'changed', about: 'endpoints' },
+        })
+        await settled(
+          tree,
+          'the long request to be open',
+          async () => peer.asked.get('subscriptions/listen') ?? 0,
+          count => count === 1,
+        )
+        const listed = peer.asked.get('tools/list') ?? 0
+
+        at('the peer adds an action and says so; nobody refreshes')
+        peer.offer([ECHO, { name: 'write', description: 'Writes the text.', answer: 'echo' }])
+        await settled(
+          tree,
+          'the peer to be listed once more',
+          async () => Object.fromEntries(peer.asked),
+          asked => asked['tools/list'] === listed + 1,
+        )
+        expect(await frames.next()).toEqual({
+          done: false,
+          value: { kind: 'changed', about: 'endpoints' },
+        })
+        expect(await names()).toEqual(['echo', 'write'])
+        expect(peer.asked.get('tools/list')).toBe(listed + 1)
+        expect(peer.asked.get('subscriptions/listen')).toBe(1)
+        expect(peer.asked.get('tools/call') ?? 0).toBe(0)
+        controller.abort()
+      }),
+    )
+    expect(exit).toBe(0)
   },
 )

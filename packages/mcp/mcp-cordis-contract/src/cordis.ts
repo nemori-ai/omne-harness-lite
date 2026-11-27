@@ -85,6 +85,9 @@ export abstract class EndpointStatusService<P, S> extends Service implements End
   abstract list(
     ...args: Parameters<EndpointStatus<P, S>['list']>
   ): ReturnType<EndpointStatus<P, S>['list']>
+  abstract subscribe(
+    ...args: Parameters<EndpointStatus<P, S>['subscribe']>
+  ): ReturnType<EndpointStatus<P, S>['subscribe']>
 }
 
 export const mcpEndpointStatusKey = EndpointStatusService.provide

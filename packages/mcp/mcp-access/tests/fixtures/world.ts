@@ -15,6 +15,7 @@ import type {
   DefinitionDigest,
   EndpointRef,
   EndpointSettings,
+  EndpointChangeListener,
   EndpointStatusView,
   KnownAction,
   Millis,
@@ -142,6 +143,8 @@ export function createWorld(options: WorldOptions = {}) {
     name?: string
     bound?: Millis
   }[] = []
+  const listeners = new Set<EndpointChangeListener>()
+  let breakSubscribe = false
   let adoptionFailure: 'throw' | 'unknown' | undefined
   let present = options.faces !== false
 
@@ -214,6 +217,13 @@ export function createWorld(options: WorldOptions = {}) {
           fail({ kind: 'unknown' as const }),
         )
       },
+      subscribe(listener) {
+        if (breakSubscribe) throw new Error('feed fault')
+        listeners.add(listener)
+        return () => {
+          listeners.delete(listener)
+        }
+      },
     },
     discovery: {
       async current(access, endpoint) {
@@ -271,6 +281,27 @@ export function createWorld(options: WorldOptions = {}) {
     removeFaces() {
       present = false
     },
+    feed: {
+      listeners,
+      changed: (login: FixtureLogin) => {
+        for (const listener of listeners) listener.changed(login.tenant)
+      },
+      close: () => {
+        for (const listener of listeners) listener.closed()
+      },
+      breakSubscribe: () => {
+        breakSubscribe = true
+      },
+    },
+    observe: (
+      login: FixtureLogin,
+      target: FixtureLogin = login,
+      controller = new AbortController(),
+    ) =>
+      contribution.observations['observe-endpoints'](
+        { principal: loginIdentity(login), signal: controller.signal } as never,
+        { tenant: target.tenant },
+      ),
     list: (login: FixtureLogin, target: FixtureLogin = login) =>
       contribution.operations['list-endpoints'](callOf(login), { tenant: target.tenant }),
     read: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>

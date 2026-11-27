@@ -7,6 +7,8 @@ import {
   OFFERED_LEGACY_VERSION,
   authorizationRequiredAnswerOf,
   credentialRejectedAnswerOf,
+  listenEndOf,
+  listenEventOf,
   callAnswerOf,
   callRequestOf,
   cancelTaskRequest,
@@ -862,6 +864,41 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(streamGoneAnswerOf())
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'session-ended')).toBeUndefined()
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'credential-rejected')).toBeUndefined()
+  })
+
+  it('a long request reads the acknowledgement, what the peer agreed to, and the change of the tools; nothing else is its event (C107)', () => {
+    const agreed = (value: unknown) =>
+      listenEventOf('notifications/subscriptions/acknowledged', jsonOf({ notifications: value }))
+    expect(agreed({ toolsListChanged: true })).toEqual({
+      kind: 'acknowledged',
+      agreed: { toolsListChanged: true },
+    })
+    expect(agreed({})).toEqual({ kind: 'acknowledged', agreed: { toolsListChanged: false } })
+    expect(listenEventOf('notifications/tools/list_changed', undefined)).toEqual({
+      kind: 'tools-changed',
+    })
+    expect(listenEventOf('notifications/progress', jsonOf({ progressToken: 'r1' }))).toBeUndefined()
+  })
+
+  it('a long request ends as broken when its stream breaks, stopped when the caller stops, never as a failed request (C112)', () => {
+    expect(listenEndOf({ kind: 'no-answer', cause: 'stream-broken', resend: false })).toEqual({
+      kind: 'broken',
+    })
+    expect(listenEndOf({ kind: 'no-answer', cause: 'abandoned', resend: false })).toEqual({
+      kind: 'stopped',
+    })
+    expect(listenEndOf({ kind: 'result', result: jsonOf({ resultType: 'complete' }) })).toEqual({
+      kind: 'ended',
+    })
+    expect(listenEndOf(credentialRejectedAnswerOf())).toEqual({
+      kind: 'refused',
+      failure: {
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'credential-rejected',
+      },
+    })
+    expect(requestClassOf('subscriptions/listen', false)).toBe('tools/call')
   })
 
   it('a 401 or a scoped 403 to a request that carried a credential rejects the credential; without one it asks for authorization (SPEC 401 table, C101)', () => {

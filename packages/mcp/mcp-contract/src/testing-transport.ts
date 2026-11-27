@@ -78,6 +78,8 @@ export type PeerScript = Readonly<{
   }>[]
   notifications?: Replies
   wellKnown?: Readonly<{ [path: string]: PlainJson }>
+  /** What `subscriptions/listen` gets; a result ends it after its notifications. */
+  listen?: Replies
 }>
 
 export type PeerRequestHeaders = Readonly<{
@@ -141,7 +143,10 @@ function isRecord(value: PlainJson | undefined): value is Readonly<{ [key: strin
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function at(value: PlainJson | undefined, ...path: readonly string[]): PlainJson | undefined {
+export function at(
+  value: PlainJson | undefined,
+  ...path: readonly string[]
+): PlainJson | undefined {
   let current = value
   for (const key of path) {
     if (!isRecord(current)) return undefined
@@ -150,7 +155,10 @@ function at(value: PlainJson | undefined, ...path: readonly string[]): PlainJson
   return current
 }
 
-function result(value: PlainJson, notifications?: readonly PeerNotificationScript[]): PeerReply {
+export function result(
+  value: PlainJson,
+  notifications?: readonly PeerNotificationScript[],
+): PeerReply {
   return notifications === undefined
     ? { kind: 'result', result: value }
     : { kind: 'result', result: value, notifications }
@@ -165,11 +173,11 @@ function httpError(status: number, code: number, message: string, data?: PlainJs
   return { kind: 'http', status, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: answer }) }
 }
 
-const SILENT: PeerReply = { kind: 'silent' }
-const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
+export const SILENT: PeerReply = { kind: 'silent' }
+export const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
 const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 
-const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
+export const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
 const DONE = { content: [{ type: 'text', text: 'done' }] }
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
@@ -190,7 +198,7 @@ const taskId = (text: string): TaskId => {
 
 const echo: CallRequest = { action: actionNameOf('echo'), args: jsonOf({}) }
 
-const never = new AbortController().signal
+export const never: AbortSignal = new AbortController().signal
 
 function withModernDiscover(fixture: TransportFixture, script: ScriptSource): ScriptSource {
   if (typeof script === 'function')
@@ -198,7 +206,7 @@ function withModernDiscover(fixture: TransportFixture, script: ScriptSource): Sc
   return { discover: modern(fixture), ...script }
 }
 
-async function withPeer<T>(
+export async function withPeer<T>(
   fixture: TransportFixture,
   script: ScriptSource,
   needs: Partial<PeerNeeds>,
@@ -225,7 +233,7 @@ async function withPeer<T>(
   }
 }
 
-function requests(received: readonly PeerReceived[], method: string): readonly Request[] {
+export function requests(received: readonly PeerReceived[], method: string): readonly Request[] {
   return received.flatMap(entry =>
     entry.kind === 'request' && entry.method === method ? [entry] : [],
   )
@@ -243,7 +251,7 @@ function methods(received: readonly PeerReceived[]): readonly string[] {
   )
 }
 
-function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
+export function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
   assert.ok('ok' in outcome, `${what} failed: ${JSON.stringify(outcome)}`)
   return outcome.ok
 }
@@ -728,7 +736,7 @@ const LEGACY_FAILURE: TransportFailure = {
 const NOT_SENT_FAILURE: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
 const SESSION = 'session-1'
 
-async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
+export async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
   for (let round = 0; round < 500; round += 1) {
     if (requests(await peer.received(), method).length > 0) return
     await new Promise(resolve => setTimeout(resolve, 2))
@@ -1146,7 +1154,7 @@ function conclusionText(conclusion: TableConclusion): string {
   }
 }
 
-function tableCases(): readonly Case[] {
+export function tableCases(): readonly Case[] {
   return TRANSPORT_TABLE.map(row =>
     conformanceCase(
       'T8',
@@ -1177,7 +1185,7 @@ function tableCases(): readonly Case[] {
   )
 }
 
-const t1Cases = (): readonly Case[] => [
+export const t1Cases = (): readonly Case[] => [
   conformanceCase(
     'T1',
     'call: a sent call hands over the request id and the raw result',
@@ -1265,7 +1273,7 @@ const t1Cases = (): readonly Case[] => [
   ),
 ]
 
-const t2Cases = (): readonly Case[] => [
+export const t2Cases = (): readonly Case[] => [
   conformanceCase(
     'T2',
     'discover: the modern answer is read to the peer identity',
@@ -1404,7 +1412,7 @@ const t2Cases = (): readonly Case[] => [
   ),
 ]
 
-const t3Cases = (): readonly Case[] => [
+export const t3Cases = (): readonly Case[] => [
   conformanceCase(
     'T3',
     'every request and notification carries the three _meta keys and the fixed capabilities (item 7)',
@@ -1773,7 +1781,7 @@ const t3Cases = (): readonly Case[] => [
   ),
 ]
 
-const t4Cases = (): readonly Case[] => {
+export const t4Cases = (): readonly Case[] => {
   const metadata = (target: string, issuer: string) => ({
     resource: target,
     authorization_servers: [issuer],
@@ -1987,7 +1995,7 @@ function failingCredential(
   }
 }
 
-const t9Cases = (): readonly Case[] => [
+export const t9Cases = (): readonly Case[] => [
   conformanceCase(
     'T9',
     'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
@@ -2038,7 +2046,7 @@ const t9Cases = (): readonly Case[] => [
   ),
 ]
 
-const t5Cases = (): readonly Case[] => [
+export const t5Cases = (): readonly Case[] => [
   conformanceCase(
     'T5',
     'streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9)',
@@ -2148,7 +2156,7 @@ const t5Cases = (): readonly Case[] => [
   ),
 ]
 
-const t6Cases = (): readonly Case[] => {
+export const t6Cases = (): readonly Case[] => {
   const hints = { pollIntervalMs: 500, ttlMs: 60000, statusMessage: 'queued' }
   const inputRequests = {
     name: { method: 'elicitation/create', params: { mode: 'form', message: 'name?' } },
@@ -2341,18 +2349,5 @@ const t6Cases = (): readonly Case[] => {
           },
         ),
     ),
-  ]
-}
-
-export function mcpTransportConformance(): readonly ConformanceCase<TransportFixture>[] {
-  return [
-    ...tableCases(),
-    ...t1Cases(),
-    ...t2Cases(),
-    ...t3Cases(),
-    ...t4Cases(),
-    ...t5Cases(),
-    ...t6Cases(),
-    ...t9Cases(),
   ]
 }

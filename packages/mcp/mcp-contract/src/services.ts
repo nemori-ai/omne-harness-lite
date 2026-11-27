@@ -1,6 +1,6 @@
 import type { BodyContract } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Access } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ActionName,
@@ -157,6 +157,17 @@ export type EndpointStatusView = Readonly<{
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
 }>
 
+export type EndpointChangeListener = Readonly<{
+  /** The endpoints of this tenant may have changed; the subscriber reads them again. */
+  changed(tenant: TenantId): void
+  /** The feed is gone with the MCP it belonged to. Nothing more arrives; the subscriber subscribes again. */
+  closed(): void
+}>
+
+export interface EndpointChanges {
+  subscribe(listener: EndpointChangeListener): () => void
+}
+
 export interface EndpointStatus<P, S> {
   inspect(
     access: Access<P>,
@@ -165,6 +176,7 @@ export interface EndpointStatus<P, S> {
     Outcome<EndpointStatusView, Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>>
   >
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
+  subscribe: EndpointChanges['subscribe']
 }
 
 export type ReleaseReport = Readonly<{ kind: 'released' }> | Readonly<{ kind: 'no-connection' }>

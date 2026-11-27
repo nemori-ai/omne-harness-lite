@@ -70,6 +70,7 @@ export const mcpRowConfig = z.strictObject({
     maxListingPages: positive,
     maxActions: positive,
     instructionsByteLimit: positive,
+    maxLongRequests: positive,
     clientInfo: z.strictObject({ name: z.string().min(1), version: z.string().min(1) }),
   }),
   bridge: z.strictObject({

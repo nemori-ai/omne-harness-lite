@@ -61,6 +61,7 @@ export function assemble(): Assembly {
     store: createMemoryCatalogStore(),
     transports: createLocalTransportFactory({
       clientInfo: { name: 'omne-harness-e2e', version: '0' },
+      maxLongRequests: 2,
     }),
     checkOutput,
   }

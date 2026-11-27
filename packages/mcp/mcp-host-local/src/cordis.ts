@@ -53,6 +53,7 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
   instructionsByteLimit: true,
+  maxLongRequests: true,
   clientInfo: true,
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
@@ -78,11 +79,12 @@ function fieldsIssue(
 }
 
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
-  const { maxListingPages, maxActions, instructionsByteLimit } = record
+  const { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
   if (typeof maxActions !== 'number') return 'maxActions'
   if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
-  return { maxListingPages, maxActions, instructionsByteLimit }
+  if (typeof maxLongRequests !== 'number') return 'maxLongRequests'
+  return { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests }
 }
 
 function clientInfoOf(value: unknown): ClientInfo | string {
@@ -226,6 +228,9 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   list(...args: Parameters<EndpointStatus<unknown, unknown>['list']>) {
     return this.status.list(...args)
   }
+  subscribe(...args: Parameters<EndpointStatus<unknown, unknown>['subscribe']>) {
+    return this.status.subscribe(...args)
+  }
 }
 
 export function createMcpPlugin(parts: McpPluginParts) {
@@ -240,6 +245,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         store: storeOf(ctx),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
+          maxLongRequests: config.maxLongRequests,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),
         }),
         checkOutput: parts.checkOutput,

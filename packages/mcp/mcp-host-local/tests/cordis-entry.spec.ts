@@ -47,6 +47,7 @@ const principalKey = (principal: unknown) => String(principal)
 
 const CONFIG: McpPluginConfig = {
   maxListingPages: 5,
+  maxLongRequests: 2,
   maxActions: 100,
   instructionsByteLimit: 4096,
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },

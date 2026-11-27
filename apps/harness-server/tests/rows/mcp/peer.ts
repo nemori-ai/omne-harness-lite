@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
-import { McpServer } from '@modelcontextprotocol/server'
+import { NodeStreamableHTTPServerTransport, toNodeHandler } from '@modelcontextprotocol/node'
+import { createMcpHandler, McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 export type PeerAction = Readonly<{
@@ -173,6 +173,72 @@ export async function testPeer(
     },
     drop() {
       server.closeAllConnections()
+    },
+    async close() {
+      server.closeAllConnections()
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    },
+  }
+}
+
+/** A 2026-07-28 peer that says when its tools change; it holds no session, each request builds the server anew. */
+export type ModernPeer = Readonly<{
+  target: string
+  /** How often each method was asked. */
+  asked: ReadonlyMap<string, number>
+  /** Offers these actions from now on and tells every open listen. */
+  offer(actions: readonly PeerAction[]): void
+  close(): Promise<void>
+}>
+
+export async function modernPeer(initial: readonly PeerAction[]): Promise<ModernPeer> {
+  let offered = initial
+  const asked = new Map<string, number>()
+  const handler = createMcpHandler(() => {
+    const server = new McpServer(
+      { name: 'modern-peer', version: '1' },
+      { capabilities: { tools: { listChanged: true } } },
+    )
+    for (const action of offered)
+      server.registerTool(
+        action.name,
+        { description: action.description, inputSchema: z.object({ text: z.string() }) },
+        async ({ text }) => ({
+          content: [{ type: 'text' as const, text: `${action.name} answered ${text}` }],
+        }),
+      )
+    return server
+  })
+  const serve = toNodeHandler(handler)
+  const server: Server = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', chunk => chunks.push(chunk as Buffer))
+    request.on('end', () => {
+      const body = Buffer.concat(chunks)
+      try {
+        const method = (JSON.parse(body.toString('utf8')) as { method?: unknown }).method
+        if (typeof method === 'string') asked.set(method, (asked.get(method) ?? 0) + 1)
+      } catch {}
+      void serve(
+        {
+          method: request.method ?? 'GET',
+          url: request.url ?? '/',
+          headers: request.headers,
+          [Symbol.asyncIterator]: async function* () {
+            yield body
+          },
+        },
+        response,
+      )
+    })
+  })
+  const port = await listenFree(server)
+  return {
+    target: `http://127.0.0.1:${String(port)}/mcp`,
+    asked,
+    offer(actions) {
+      offered = actions
+      handler.notify.toolsChanged()
     },
     async close() {
       server.closeAllConnections()

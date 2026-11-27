@@ -48,6 +48,7 @@ const principalKey = (principal: unknown) => String(principal)
 
 const CONFIG: McpPluginConfig = {
   maxListingPages: 5,
+  maxLongRequests: 2,
   maxActions: 100,
   instructionsByteLimit: 4096,
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },
@@ -179,7 +180,7 @@ async function peerOf(script: PeerScript, onRequest?: (method: string) => void):
     script,
     {},
     ['2026-07-28'],
-    { clientInfo: CONFIG.clientInfo },
+    { clientInfo: CONFIG.clientInfo, maxLongRequests: CONFIG.maxLongRequests },
     onRequest === undefined ? {} : { beforeRecord: async method => onRequest(method) },
   )
   peers.push(peer)

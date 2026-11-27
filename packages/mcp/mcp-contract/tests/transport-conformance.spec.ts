@@ -17,6 +17,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import {
   actionNameOf,
   createScriptedTransportFactory,
+  isNotApplicable,
   mcpTransportConformance,
   runConformanceCase,
   type ConformanceCase,
@@ -77,13 +78,19 @@ function fixtureOf(wrap: Wrap = factory => factory): TransportFixture {
   }
 }
 
+// The scripted transport keeps no long request open; the clause that measures them has nothing to measure on it.
+const verdictOf = (conformance: ConformanceCase<TransportFixture>) =>
+  conformance.clause === 'T10'
+    ? { kind: 'not-applicable', handle: 'long requests' }
+    : { kind: 'passed' }
+
 function register(
   suite: readonly ConformanceCase<TransportFixture>[],
   fixture: () => TransportFixture,
 ) {
   for (const conformance of suite)
     it(`${conformance.clause} ${conformance.name}`, async () => {
-      expect(await runConformanceCase(conformance, fixture())).toEqual({ kind: 'passed' })
+      expect(await runConformanceCase(conformance, fixture())).toEqual(verdictOf(conformance))
     })
 }
 
@@ -93,6 +100,7 @@ async function failing(fixture: () => TransportFixture): Promise<readonly string
     try {
       await conformance.run(fixture())
     } catch (error) {
+      if (isNotApplicable(error)) continue
       if (!(error instanceof AssertionError)) throw error
       names.push(conformance.name)
     }
@@ -120,10 +128,10 @@ describe('the suite refuses a fixture that lists a legacy version', () => {
 })
 
 describe('the suite covers the transport clauses and the decided items', () => {
-  it('names T1 to T6, the table T8, the port failures T9, and items 7 to 9, 11, 12 and 14', () => {
+  it('names T1 to T6, the table T8, the port failures T9, the long requests T10, and items 7 to 9, 11, 12 and 14', () => {
     const cases = mcpTransportConformance()
     const clauses = new Set(cases.flatMap(conformance => conformance.clause.split(', ')))
-    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T8', 'T9'])
+    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T8', 'T9', 'T10'])
       expect(clauses.has(clause), clause).toBe(true)
     const names = cases.map(conformance => conformance.name).join('\n')
     for (const item of [7, 8, 9, 11, 12, 14]) expect(names).toContain(`(item ${item})`)

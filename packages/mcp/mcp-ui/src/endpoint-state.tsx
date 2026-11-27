@@ -22,10 +22,58 @@ const CONNECTION: Readonly<Record<Endpoint['connection']['state'], string>> = {
   lost: '连不上',
 }
 
+type Ended = Readonly<{ kind: string; reason?: string }>
+
+const reopenAfterMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 10_000)
+
+// An observation that ended for good is not opened again: it was refused, denied, or the page left.
+const final = (end: Ended): boolean =>
+  end.kind === 'refused' ||
+  end.kind === 'aborted' ||
+  (end.kind === 'ended' && end.reason === 'denied')
+
+/** Counts the frames that say the endpoints of the tenant may have changed; a broken observation is opened again. */
+export function useEndpointChanges(status: McpStatus | null, tenant: string): number {
+  const [changes, setChanges] = useState(0)
+  useEffect(() => {
+    const owner = readTenantText(tenant)
+    const observe = status?.observe?.['observe-endpoints']
+    if (observe === undefined || owner === undefined) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let attempt = 0
+    const open = async (): Promise<void> => {
+      let end: Ended = { kind: 'uncertain' }
+      try {
+        const frames = observe({ tenant: owner }, { signal: controller.signal })
+        for (;;) {
+          const next = await frames.next()
+          if (next.done === true) {
+            end = next.value
+            break
+          }
+          attempt = 0
+          if (next.value.about === 'endpoints') setChanges(count => count + 1)
+        }
+      } catch {}
+      if (controller.signal.aborted || final(end)) return
+      timer = setTimeout(() => void open(), reopenAfterMs(attempt))
+      attempt += 1
+    }
+    void open()
+    return () => {
+      controller.abort()
+      if (timer !== undefined) clearTimeout(timer)
+    }
+  }, [status, tenant])
+  return changes
+}
+
 export function useEndpointState(
   status: McpStatus | null,
   tenant: string,
   name: string,
+  changes = 0,
 ): Readonly<{ state: EndpointState; refresh: () => void }> {
   const [state, setState] = useState<EndpointState>({ kind: 'reading' })
   const [turn, setTurn] = useState(0)
@@ -51,7 +99,7 @@ export function useEndpointState(
     return () => {
       live = false
     }
-  }, [status, tenant, name, turn])
+  }, [status, tenant, name, turn, changes])
   const refresh = () => {
     const owner = readTenantText(tenant)
     if (status === null || owner === undefined) return

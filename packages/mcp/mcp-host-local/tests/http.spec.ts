@@ -49,6 +49,7 @@ const SECRET = 'secret-token-7f3a'
 
 const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
+  maxLongRequests: 2,
   probeTimeoutMs: 300,
 } as const
 

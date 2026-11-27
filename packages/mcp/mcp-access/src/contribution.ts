@@ -15,6 +15,7 @@ import { failureText } from '@omne-harness/mcp-bridge'
 import type { CatalogView, EndpointStatusView, RefreshResult } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
+import { createEndpointObservation } from './observe-endpoints.ts'
 import type { McpAccessSettings, McpFaces, McpPrincipals } from './ports.ts'
 import {
   blockedText,
@@ -240,6 +241,6 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
       'read-endpoint': readEndpoint,
       'refresh-endpoint': refreshEndpoint,
     },
-    observations: {},
+    observations: { 'observe-endpoints': createEndpointObservation(input) },
   }
 }

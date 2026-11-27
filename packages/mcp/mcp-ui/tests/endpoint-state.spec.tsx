@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeAll, expect, it } from 'vitest'
+import { afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { McpPage, type McpStatus } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import {
@@ -11,7 +11,7 @@ import {
   permissionRow,
   readOf,
 } from './fixtures/fake-governance.tsx'
-import { action, answered, fakeStatus, stood } from './fixtures/fake-status.ts'
+import { action, answered, fakeStatus, observed, stood } from './fixtures/fake-status.ts'
 
 beforeAll(stubAnimation)
 
@@ -223,3 +223,120 @@ it('E7 a read that is not answered, not visible, or throws says the status canno
     cleanup()
   }
 })
+
+it('E12 a frame that the endpoints may have changed reads each endpoint again, without 刷新 (C107)', async () => {
+  const fake = fakeStatus(
+    answered(stood({ catalog: { kind: 'acquired', actions: 1 } }), [action('read', 'Read')]),
+    answered(stood({ catalog: { kind: 'acquired', actions: 2 } }), [
+      action('read', 'Read'),
+      action('write', 'Write'),
+    ]),
+  )
+  const feed = observed(fake.status)
+  shownWith(feed.status)
+  const list = await screen.findByRole('list', { name: LIST })
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+  await act(async () => feed.frame('events'))
+  expect(fake.calls).toEqual(['read context7'])
+  await act(async () => feed.frame())
+  expect(await screen.findByText('Write')).toBeTruthy()
+  expect(fake.calls).toEqual(['read context7', 'read context7'])
+})
+
+it('E13 an observation that broke is opened again later; one that was denied is not (C107)', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    const feed = observed(fakeStatus(answered(stood(), [])).status)
+    shownWith(feed.status)
+    expect(feed.opened()).toBe(1)
+    await act(async () => feed.end({ kind: 'uncertain' }))
+    expect(feed.opened()).toBe(1)
+    await act(async () => vi.advanceTimersByTime(250))
+    expect(feed.opened()).toBe(2)
+    await act(async () => feed.end({ kind: 'ended', reason: 'denied' }))
+    await act(async () => vi.advanceTimersByTime(20_000))
+    expect(feed.opened()).toBe(2)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+const withFakeTimers = async (walk: () => Promise<void>) => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    await walk()
+  } finally {
+    vi.useRealTimers()
+  }
+}
+
+it.each([
+  ['refused', { kind: 'refused', outcome: 'protocol-rejected' }, 1],
+  ['aborted', { kind: 'aborted' }, 1],
+  ['unavailable on the server', { kind: 'ended', reason: 'unavailable' }, 2],
+] as const)(
+  'E14 an observation that ended %s is opened again only when it may come back (C107)',
+  async (_label, end, opened) =>
+    withFakeTimers(async () => {
+      const feed = observed(fakeStatus(answered(stood(), [])).status)
+      shownWith(feed.status)
+      await act(async () => feed.end(end))
+      await act(async () => vi.advanceTimersByTime(20_000))
+      expect(feed.opened()).toBe(opened)
+    }),
+)
+
+it('E15 the observation is opened for the tenant of the page; leaving the page stops it and opens nothing later (C107)', async () =>
+  withFakeTimers(async () => {
+    const feed = observed(fakeStatus(answered(stood(), [])).status)
+    shownWith(feed.status)
+    expect(feed.opens.map(open => open.tenant)).toHaveLength(1)
+    expect(feed.opens[0]?.tenant).toBeTruthy()
+    await act(async () => feed.end({ kind: 'uncertain' }))
+    cleanup()
+    expect(feed.opens[0]?.signal?.aborted).toBe(true)
+    await act(async () => vi.advanceTimersByTime(20_000))
+    expect(feed.opened()).toBe(1)
+  }))
+
+it('E16 each break in a row waits longer before the observation is opened again (C107)', async () =>
+  withFakeTimers(async () => {
+    const feed = observed(fakeStatus(answered(stood(), [])).status)
+    shownWith(feed.status)
+    await act(async () => feed.end({ kind: 'uncertain' }))
+    await act(async () => vi.advanceTimersByTime(200))
+    expect(feed.opened()).toBe(2)
+    await act(async () => feed.end({ kind: 'uncertain' }))
+    await act(async () => vi.advanceTimersByTime(300))
+    expect(feed.opened()).toBe(2)
+    await act(async () => vi.advanceTimersByTime(100))
+    expect(feed.opened()).toBe(3)
+  }))
+
+it('E17 another tenant opens its own observation and stops the one before (C107)', async () => {
+  const feed = observed(fakeStatus(answered(stood(), [])).status)
+  const fake = fakeGovernance(readOf(endpoint('context7', [permissionRow()])))
+  const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
+  const view = render(<McpPage governance={fake.governance} tenant={TENANT} status={feed.status} />)
+  view.rerender(<McpPage governance={fake.governance} tenant={other} status={feed.status} />)
+  await act(async () => undefined)
+  expect(feed.opened()).toBe(2)
+  expect(feed.opens[0]?.signal?.aborted).toBe(true)
+  expect(feed.opens[1]?.tenant).not.toEqual(feed.opens[0]?.tenant)
+})
+
+it('E18 a tenant text the page cannot read opens no observation; a client without observe waits for nothing (C107)', async () =>
+  withFakeTimers(async () => {
+    const feed = observed(fakeStatus(answered(stood(), [])).status)
+    const governance = fakeGovernance(readOf(endpoint('context7', [permissionRow()])))
+    render(
+      <McpPage governance={governance.governance} tenant="not a tenant" status={feed.status} />,
+    )
+    await act(async () => undefined)
+    expect(feed.opened()).toBe(0)
+    cleanup()
+    const timers = vi.getTimerCount()
+    shownWith(fakeStatus(answered(stood(), [])).status)
+    expect(await screen.findByText('已连上')).toBeTruthy()
+    expect(vi.getTimerCount()).toBe(timers)
+  }))

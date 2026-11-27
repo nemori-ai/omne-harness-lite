@@ -50,8 +50,8 @@ export {
 } from './testing-values.ts'
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'
+export { mcpTransportConformance } from './testing-transport-long.ts'
 export {
-  mcpTransportConformance,
   type PeerNeeds,
   type PeerNotificationScript,
   type PeerReceived,

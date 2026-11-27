@@ -61,7 +61,7 @@ const ofEndpoint = { ...ofTenant, name: { rule: text } } as const
 const notVisible = ruleCodec(object({}))
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential. */
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,
@@ -97,6 +97,20 @@ export const mcpProtocol = defineProtocol({
       },
     },
   },
-  observations: {},
+  observations: {
+    /** A frame only says what may have changed: the endpoints of the tenant, or the events of one; the client reads again. */
+    'observe-endpoints': {
+      identity: 'login',
+      open: ruleCodec(object(ofTenant)),
+      frame: ruleCodec(
+        object({
+          kind: { rule: literal('changed') },
+          about: { rule: literal('endpoints', 'events') },
+        }),
+      ),
+      ends: [],
+      since: 2,
+    },
+  },
 })
 export type McpProtocol = typeof mcpProtocol

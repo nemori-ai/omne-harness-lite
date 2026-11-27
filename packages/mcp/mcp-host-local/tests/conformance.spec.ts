@@ -14,6 +14,7 @@ const VERSIONS = ['2026-07-28']
 
 const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
+  maxLongRequests: 2,
 } as const
 
 function fixtureOf(): TransportFixture {
