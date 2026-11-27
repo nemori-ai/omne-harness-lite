@@ -56,6 +56,7 @@ import {
   sessionDock,
   sessionReadsSourceKey,
   sessionReadsUiModule,
+  sessionModelChoiceKey,
   sessionRunFailure,
   sessionSide,
   sessionStatus,
@@ -125,6 +126,7 @@ export const assembly: Assembly = {
       providers: assetsPageTarget(PROVIDER_CATEGORY),
       holding: assetsHolding,
       assets: assetGovernanceKey,
+      modelChoice: sessionModelChoiceKey,
     }),
     workspaceUiModule,
     createUsageUiModule({

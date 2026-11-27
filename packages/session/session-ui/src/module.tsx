@@ -308,6 +308,12 @@ const needsOf = (options: SessionUiOptions) => ({
 type Apply = UiModuleDefinition<ReturnType<typeof needsOf>>['apply']
 type Given = Parameters<Apply>
 
+function providedModelChoiceAsk(provide: Given[2]): ModelChoiceAsk {
+  const ask = createModelChoiceAsk()
+  provide(sessionModelChoiceKey, ask)
+  return ask
+}
+
 const apply = (
   options: SessionUiOptions,
   shell: Given[0],
@@ -345,8 +351,7 @@ const apply = (
   putOnCanvas(shell, options, workspaces, new ArchivedDirectory(client))
   const keys = sessionKeys(shell, workspaces, client, PAGES)
   provide(sessionComposerKey, keys.composer)
-  const modelAsk = createModelChoiceAsk()
-  provide(sessionModelChoiceKey, modelAsk)
+  const modelAsk = providedModelChoiceAsk(provide)
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,
