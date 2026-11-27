@@ -1,0 +1,31 @@
+export const PARTICIPANT = 'mcp.store'
+export const PROTOCOL = 'mcp-store/1'
+export const HANDLER = 'mcp.store.read'
+export const MIGRATION = { owner: PARTICIPANT, id: 'mcp-1' }
+export const TABLES = ['mcp_catalogs', 'mcp_continuations', 'mcp_tasks']
+
+/** What a catalog row holds: one kind of the peer's directory. */
+export const CATALOG_KINDS = ['actions'] as const
+export type CatalogKind = (typeof CATALOG_KINDS)[number]
+
+export const SCRIPTS = ['writeCatalog', 'markContinuation', 'recordTask', 'moveTask'] as const
+export type ScriptName = (typeof SCRIPTS)[number]
+
+export const READS = ['readCatalog', 'readTask', 'followingTasks'] as const
+export type ReadName = (typeof READS)[number]
+
+/** The key of one catalog row; the tenant is a column of every row and of every read. */
+export type CatalogRowKey = Readonly<{
+  tenant: string
+  account: string
+  holding: string
+  kind: CatalogKind
+}>
+
+/** The key of one task row; the account is a column too, so one task on two accounts is two rows. */
+export type TaskRowCells = Readonly<{
+  tenant: string
+  principal: string
+  holding: string
+  task: string
+}>

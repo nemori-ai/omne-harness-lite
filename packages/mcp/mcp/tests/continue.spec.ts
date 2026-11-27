@@ -10,7 +10,6 @@ import {
   actionNameOf,
   correlationKeyOf,
   endpointRefOf,
-  generationOf,
   jsonOf,
   requestStateOf,
   type PeerReply,
@@ -66,14 +65,14 @@ async function asked(c: Arranged, digest: DefinitionDigest): Promise<Generation>
 }
 
 function continuation(
-  issuedAt: Generation,
+  expectedDefinition: DefinitionDigest,
   extra: Readonly<{ requestState?: RequestState; inputResponses?: unknown }> = {},
 ) {
   return {
     ref: files,
     action: READ,
     args: jsonOf({}),
-    issuedAt,
+    expectedDefinition,
     correlationKey: c2,
     signal: new AbortController().signal,
     ...(extra.requestState === undefined ? {} : { requestState: extra.requestState }),
@@ -82,13 +81,13 @@ function continuation(
 }
 
 describe('continueWithInput', () => {
-  it('completes on the same generation, sending the request state and the input responses', async () => {
+  it('completes, sending the request state and the input responses', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     expect(
       await c.invoker.continueWithInput(
         alice,
-        continuation(issuedAt, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
+        continuation(c.digest, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
       ),
     ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
     const calls = c.p.requests('tools/call')
@@ -101,29 +100,28 @@ describe('continueWithInput', () => {
     })
   })
 
-  it('is not sent once the connection changed generation: unknown, and no call on the new generation', async () => {
+  it('needs no connection of the call it continues: after that one is gone it goes on a new one, from the values alone', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     expect(await c.connections.release(alice, files)).toMatchObject({ ok: { kind: 'released' } })
     expect(
       await c.invoker.continueWithInput(
         alice,
-        continuation(issuedAt, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
+        continuation(c.digest, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
       ),
-    ).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
-    expect(c.p.requests('tools/call')).toHaveLength(1)
-    expect(c.p.opens()).toBe(1)
-    expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
+    ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
+    expect(c.p.requests('tools/call')).toHaveLength(2)
+    expect(c.p.opens()).toBe(2)
   })
 
   it('after closeAll is not sent: connection-unavailable, and nothing connects', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     await c.connections.closeAll()
     expect(
       await c.invoker.continueWithInput(
         alice,
-        continuation(issuedAt, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
+        continuation(c.digest, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
       ),
     ).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
     expect(c.p.requests('tools/call')).toHaveLength(1)
@@ -138,11 +136,11 @@ describe('continueWithInput', () => {
       eligibility: (armed = armedEligibility(p.eligibility)).port,
     }))
     if (store === undefined || armed === undefined) throw new Error('not shaped')
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     const gate = armed.arm()
     const call = c.invoker.continueWithInput(
       alice,
-      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+      continuation(c.digest, { requestState: requestStateOf('s1') }),
     )
     await gate.reached
     await c.connections.closeAll()
@@ -158,11 +156,11 @@ describe('continueWithInput', () => {
     let store: ReturnType<typeof armedStore> | undefined
     const c = await arranged(p => ({ store: (store = armedStore(p.store)).port }))
     if (store === undefined) throw new Error('not shaped')
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     const read = store.arm()
     const call = c.invoker.continueWithInput(
       alice,
-      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+      continuation(c.digest, { requestState: requestStateOf('s1') }),
     )
     await read.reached
     await c.connections.closeAll()
@@ -172,26 +170,26 @@ describe('continueWithInput', () => {
     expect(c.p.opens()).toBe(1)
   })
 
-  it('is not sent on a generation other than the one given, even while a connection is up', async () => {
+  it('is not sent when the action is no longer the one the call was suspended on: definition-changed', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
-    const other = generationOf(issuedAt + 1)
+    await asked(c, c.digest)
+    const other = 'sha256:another-definition' as DefinitionDigest
     expect(
       await c.invoker.continueWithInput(
         alice,
         continuation(other, { requestState: requestStateOf('s1') }),
       ),
-    ).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
+    ).toEqual({ kind: 'not-sent', reason: { kind: 'definition-changed' } })
     expect(c.p.requests('tools/call')).toHaveLength(1)
   })
 
   it('with the input responses alone is lawful too: the continuation carries no request state', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     expect(
       await c.invoker.continueWithInput(
         alice,
-        continuation(issuedAt, { inputResponses: { q: 'a' } }),
+        continuation(c.digest, { inputResponses: { q: 'a' } }),
       ),
     ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
     const second = c.p.requests('tools/call')[1]
@@ -201,11 +199,11 @@ describe('continueWithInput', () => {
 
   it('with the request state alone is lawful: the continuation carries no input responses', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     expect(
       await c.invoker.continueWithInput(
         alice,
-        continuation(issuedAt, { requestState: requestStateOf('s1') }),
+        continuation(c.digest, { requestState: requestStateOf('s1') }),
       ),
     ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
     const second = c.p.requests('tools/call')[1]
@@ -213,7 +211,7 @@ describe('continueWithInput', () => {
     expect(second?.params).not.toHaveProperty('inputResponses')
   })
 
-  it('is not sent when the build answers a later generation than the one given: unknown, and no call on the new generation', async () => {
+  it('goes on the connection built after the one it was suspended on broke while it was being prepared', async () => {
     const p = peer({
       listing: { '': listing([{ name: 'read' }]) },
       calls: { read: [ASKS, completed([text('done')])] },
@@ -225,26 +223,25 @@ describe('continueWithInput', () => {
     const stalled = stallingAdoption(p.adoption, 4)
     const { services: s, table } = services({ ...p, ports: { ...p.ports, adoption: stalled.port } })
     const c = { p, digest, table, ...s }
-    const issuedAt = await asked(c, digest)
+    await asked(c, digest)
     const [first] = table.currentOf(alice.tenant, files.holding)
     if (first === undefined) throw new Error('no connection')
     const continued = c.invoker.continueWithInput(
       alice,
-      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+      continuation(c.digest, { requestState: requestStateOf('s1') }),
     )
     await settled()
     await loseOn(table, first, { reason: 'stream-broken', mark: 'connection-unavailable' })
     stalled.gate.resolve()
-    expect(await continued).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
+    expect(await continued).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
     expect(p.opens()).toBe(2)
-    expect(p.requests('tools/call')).toHaveLength(1)
-    expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
+    expect(p.requests('tools/call')).toHaveLength(2)
   })
 
   it('with neither the request state nor the input responses rejects with TypeError before any place is taken', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
-    await expect(c.invoker.continueWithInput(alice, continuation(issuedAt))).rejects.toThrow(
+    await asked(c, c.digest)
+    await expect(c.invoker.continueWithInput(alice, continuation(c.digest))).rejects.toThrow(
       TypeError,
     )
     expect(c.p.requests('tools/call')).toHaveLength(1)
@@ -253,20 +250,20 @@ describe('continueWithInput', () => {
 
   it('rejects arguments that are not a JSON object with TypeError', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     await expect(
-      c.invoker.continueWithInput(alice, { ...continuation(issuedAt), args: jsonOf([]) }),
+      c.invoker.continueWithInput(alice, { ...continuation(c.digest), args: jsonOf([]) }),
     ).rejects.toThrow(TypeError)
     expect(c.p.requests('tools/call')).toHaveLength(1)
   })
 
   it('reads each field of the request once: input responses that are an accessor answer once, and that answer is what goes out', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     let reads = 0
     const unjudged: JsonValue = { kind: 'number', lexeme: 'NaN' }
     const request = Object.defineProperty(
-      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+      continuation(c.digest, { requestState: requestStateOf('s1') }),
       'inputResponses',
       {
         enumerable: true,
@@ -288,13 +285,13 @@ describe('continueWithInput', () => {
 
   it('rejects input responses whose value tree fails judgeJsonValue with TypeError before any place is taken', async () => {
     const c = await arranged()
-    const issuedAt = await asked(c, c.digest)
+    await asked(c, c.digest)
     const inputResponses: JsonValue = {
       kind: 'array',
       items: [{ kind: 'number', lexeme: 'NaN' }],
     }
     await expect(
-      c.invoker.continueWithInput(alice, { ...continuation(issuedAt), inputResponses }),
+      c.invoker.continueWithInput(alice, { ...continuation(c.digest), inputResponses }),
     ).rejects.toThrow(TypeError)
     expect(c.p.requests('tools/call')).toHaveLength(1)
     expect(await c.invoker.cancel(alice, c2)).toBe('unknown')

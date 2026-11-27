@@ -23,6 +23,17 @@ const servers = new Set<Server>()
 
 // Listens on a free port above 10080: `fetch` refuses the WHATWG "bad ports" (1719 up to 10080)
 // with a bare `TypeError: fetch failed`. A port in use is tried again.
+// The notifications a long request carries name it, as a peer of 2026-07-28 does.
+function subscribed(method: string, requestId: string, chosen: PeerReply): PeerReply {
+  if (method !== 'subscriptions/listen' || chosen.kind !== 'result') return chosen
+  const meta = { 'io.modelcontextprotocol/subscriptionId': requestId }
+  const notifications = (chosen.notifications ?? []).map(notification => ({
+    method: notification.method,
+    params: { ...(isRecord(notification.params) ? notification.params : {}), _meta: meta },
+  }))
+  return { ...chosen, notifications }
+}
+
 export async function listenFree(server: Server): Promise<number> {
   for (;;) {
     const port = 20_000 + Math.floor(Math.random() * 40_000)
@@ -133,6 +144,7 @@ class Peer {
     }
     add('server/discover', script.discover)
     add('initialize', script.initialize)
+    add('subscriptions/listen', script.listen)
     for (const [cursor, replies] of Object.entries(script.listing ?? {}))
       add(`tools/list:${cursor}`, replies)
     for (const [tool, replies] of Object.entries(script.calls ?? {}))
@@ -196,6 +208,8 @@ class Peer {
           this.script.calls?.[text('name')],
           error(-32602, 'Unknown tool'),
         )
+      case 'subscriptions/listen':
+        return this.pick(method, this.script.listen, error(-32601, 'Method not found'))
       case 'tasks/get':
         return this.pick(`${method}:${text('taskId')}`, task?.get, error(-32602, 'Task not found'))
       case 'tasks/update':
@@ -353,7 +367,7 @@ class Peer {
       params: message['params'] ?? {},
       headers,
     })
-    const chosen = this.reply(method, params)
+    const chosen = subscribed(method, requestId, this.reply(method, params))
     const token = isRecord(params['_meta']) ? params['_meta']['progressToken'] : undefined
     const before = method === 'initialize' ? this.peerRequests('initialize') : []
     if (stream !== undefined) {

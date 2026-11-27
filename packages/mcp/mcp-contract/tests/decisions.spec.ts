@@ -6,6 +6,9 @@ import {
   LEGACY_PROTOCOL_VERSIONS,
   OFFERED_LEGACY_VERSION,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
+  listenEndOf,
+  listenEventOf,
   callAnswerOf,
   callRequestOf,
   cancelTaskRequest,
@@ -199,8 +202,12 @@ function eventOf(cell: TableCell): WireEvent {
   }
 }
 
+// The table is read with a static credential presented, as the transports run it.
 function conclusionOf(cell: TableCell): AnswerConclusion {
-  const ctx = context(cell.request, { session: cell.answer === 'http:404+session' })
+  const ctx = context(cell.request, {
+    session: cell.answer === 'http:404+session',
+    presented: true,
+  })
   return concludeAnswer(classifyWireEvent(eventOf(cell), ctx), ctx)
 }
 
@@ -263,9 +270,9 @@ function expectedOf(cell: TableCell, conclusion: TableConclusion): readonly unkn
     case 'failure':
       if (
         conclusion.failure.kind === 'not-sent' &&
-        conclusion.failure.cause === 'authorization-required'
+        conclusion.failure.cause === 'credential-rejected'
       )
-        return [{ kind: 'authorization-required' }]
+        return [{ kind: 'credential-rejected' }]
       return [
         {
           kind: probe ? 'final' : 'failure',
@@ -850,12 +857,97 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
       scopes: [],
     } as const
     const discovery = { kind: 'discovery', soFar: () => soFar } as const
-    for (const cause of ['stream-broken', 'session-ended'] as const) {
+    for (const cause of ['stream-broken', 'session-ended', 'credential-rejected'] as const) {
       expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).toEqual(notSent(cause))
       expect(lineGoneAnswerOf(discovery, cause), cause).toBeUndefined()
     }
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(streamGoneAnswerOf())
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'session-ended')).toBeUndefined()
+    expect(lineGoneAnswerOf({ kind: 'sent' }, 'credential-rejected')).toBeUndefined()
+  })
+
+  it('a long request reads the acknowledgement, what the peer agreed to, and the change of the tools; nothing else is its event (C107)', () => {
+    const agreed = (value: unknown) =>
+      listenEventOf('notifications/subscriptions/acknowledged', jsonOf({ notifications: value }))
+    expect(agreed({ toolsListChanged: true })).toEqual({
+      kind: 'acknowledged',
+      agreed: { toolsListChanged: true },
+    })
+    expect(agreed({})).toEqual({ kind: 'acknowledged', agreed: { toolsListChanged: false } })
+    expect(listenEventOf('notifications/tools/list_changed', undefined)).toEqual({
+      kind: 'tools-changed',
+    })
+    expect(listenEventOf('notifications/progress', jsonOf({ progressToken: 'r1' }))).toBeUndefined()
+  })
+
+  it('a long request ends as broken when its stream breaks, stopped when the caller stops, never as a failed request (C112)', () => {
+    expect(listenEndOf({ kind: 'no-answer', cause: 'stream-broken', resend: false })).toEqual({
+      kind: 'broken',
+    })
+    expect(listenEndOf({ kind: 'no-answer', cause: 'abandoned', resend: false })).toEqual({
+      kind: 'stopped',
+    })
+    expect(listenEndOf({ kind: 'result', result: jsonOf({ resultType: 'complete' }) })).toEqual({
+      kind: 'ended',
+    })
+    expect(listenEndOf(credentialRejectedAnswerOf())).toEqual({
+      kind: 'refused',
+      failure: {
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'credential-rejected',
+      },
+    })
+    expect(
+      listenEndOf({
+        kind: 'error',
+        error: jsonOf({ code: -32601, message: 'no listen here' }),
+        errorClass: '-32601',
+      }),
+    ).toEqual({
+      kind: 'refused',
+      failure: { kind: 'error-answer', code: -32601, message: 'no listen here' },
+    })
+    for (const kind of ['legacy-peer', 'legacy-http'] as const)
+      expect(listenEndOf({ kind }), kind).toEqual({
+        kind: 'refused',
+        failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+      })
+    expect(requestClassOf('subscriptions/listen', false)).toBe('tools/call')
+  })
+
+  it('a 401 or a scoped 403 to a request that carried a credential rejects the credential; without one it asks for authorization (SPEC 401 table, C101)', () => {
+    const requests: RequestClass[] = ['discover', 'tools/list', 'tools/call', 'tasks/get']
+    for (const request of requests)
+      for (const answer of ['http:401', 'http:403+scope'] as const) {
+        const event = eventOf({ request, answer } as TableCell)
+        const presented = context(request, { presented: true })
+        const bare = context(request)
+        expect(
+          concludeAnswer(classifyWireEvent(event, presented), presented),
+          `${request} ${answer} with a credential`,
+        ).toEqual({ kind: 'credential-rejected' })
+        expect(
+          concludeAnswer(classifyWireEvent(event, bare), bare),
+          `${request} ${answer} without one`,
+        ).toEqual({ kind: 'authorization-required' })
+      }
+    expect(credentialRejectedAnswerOf()).toEqual({
+      kind: 'not-sent',
+      failure: {
+        kind: 'not-sent',
+        cause: 'connection-unavailable',
+        unusable: 'credential-rejected',
+      },
+    })
+    for (const status of [401, 403]) {
+      const headers =
+        status === 403 ? { 'www-authenticate': 'Bearer error="insufficient_scope"' } : {}
+      expect(
+        fallbackGetConclusionOf({ status, headers, body: '' }, VERSIONS, true),
+        `GET ${String(status)}`,
+      ).toEqual({ kind: 'credential-rejected' })
+    }
   })
 
   it('the status of the fallback GET is read as an answer to initialize outside the SSE mode: 401 and a scoped 403 are authorization-required, any other status is not-sent (T3, S05, I07)', () => {
@@ -863,6 +955,7 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
       fallbackGetConclusionOf(
         { status: 401, headers: { 'www-authenticate': 'Bearer realm="x"' }, body: '' },
         VERSIONS,
+        false,
       ),
     ).toEqual({ kind: 'authorization-required' })
     expect(
@@ -873,11 +966,12 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
           body: '',
         },
         VERSIONS,
+        false,
       ),
     ).toEqual({ kind: 'authorization-required' })
     for (const status of [403, 404, 405, 500, 503]) {
       expect(
-        fallbackGetConclusionOf({ status, headers: {}, body: 'no' }, VERSIONS),
+        fallbackGetConclusionOf({ status, headers: {}, body: 'no' }, VERSIONS, false),
         `${status}`,
       ).toEqual({
         kind: 'settle',

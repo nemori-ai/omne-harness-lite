@@ -53,6 +53,16 @@ const notes = {
   use: { kind: 'blocked', reason: 'the endpoint is disabled' },
   catalog: { kind: 'not-acquired', reason: 'the address of the endpoint is not set' },
 }
+const REJECTED_TEXT =
+  'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one'
+const vault = {
+  name: 'vault',
+  connection: { state: 'lost', reason: REJECTED_TEXT },
+  credential: 'present',
+  credentialState: 'rejected',
+  use: { kind: 'usable' },
+  catalog: { kind: 'not-acquired', reason: REJECTED_TEXT },
+}
 const actions = [
   { name: 'search', summary: '[peer] Search the docs.', available: true, reason: null },
   {
@@ -72,7 +82,9 @@ const answers = (seen: Seen): Answer | undefined => {
         ? { outcome: 'succeeded', body: { endpoint: docs, actions } }
         : seen.body['name'] === 'notes'
           ? { outcome: 'succeeded', body: { endpoint: notes, actions: null } }
-          : { outcome: 'not-visible', body: {} }
+          : seen.body['name'] === 'vault'
+            ? { outcome: 'succeeded', body: { endpoint: vault, actions: null } }
+            : { outcome: 'not-visible', body: {} }
     case 'refresh-endpoint':
       return seen.body['name'] === 'docs'
         ? { outcome: 'succeeded', body: { refreshed: 'published', reason: null } }
@@ -148,6 +160,16 @@ describe('mcp show', () => {
       'Catalog: not acquired: the address of the endpoint is not set\n',
     )
     expect(shown.stdout).not.toContain('Actions:')
+  })
+
+  it('says the credential was rejected and how to set the right one (C101)', async () => {
+    await loggedIn(answers)
+    const shown = await cli(['mcp', 'show', 'vault'])
+    expect(shown.code).toBe(0)
+    expect(shown.stdout).toContain(`Connection: lost (${REJECTED_TEXT})\n`)
+    expect(shown.stdout).toContain(
+      'Credential: rejected (set the right one: omne setting set mcp:vault credential)\n',
+    )
   })
 
   it('prints the answer for an endpoint that is not visible and exits 3, and needs a name', async () => {

@@ -48,3 +48,47 @@ export function fakeStatus(...reads: ReadAnswer[]) {
     },
   }
 }
+
+type Observe = NonNullable<McpStatus['observe']>['observe-endpoints']
+type Frame = Awaited<ReturnType<ReturnType<Observe>['next']>>
+
+/** Adds `observe-endpoints` to a fake: each opening is one stream, fed by the test. */
+export function observed(status: McpStatus) {
+  const streams: ((next: Frame) => void)[] = []
+  const queued: Frame[][] = []
+  const opens: Readonly<{ tenant: unknown; signal: AbortSignal | undefined }>[] = []
+  const observe: Observe = (open, options) => {
+    const index = streams.length
+    opens.push({ tenant: open.tenant, signal: options.signal })
+    const waiting: Frame[] = []
+    queued.push(waiting)
+    let wake: (() => void) | undefined
+    streams.push(next => {
+      waiting.push(next)
+      wake?.()
+    })
+    options.signal?.addEventListener('abort', () => {
+      waiting.push({ done: true, value: { kind: 'aborted' } })
+      wake?.()
+    })
+    return (async function* () {
+      for (;;) {
+        const next = queued[index]!.shift()
+        if (next === undefined) {
+          await new Promise<void>(resolve => (wake = resolve))
+          continue
+        }
+        if (next.done === true) return next.value
+        yield next.value
+      }
+    })()
+  }
+  return {
+    status: { ...status, observe: { 'observe-endpoints': observe } } satisfies McpStatus,
+    opened: () => streams.length,
+    opens,
+    frame: (about: 'endpoints' | 'events' = 'endpoints') =>
+      streams.at(-1)!({ done: false, value: { kind: 'changed', about } }),
+    end: (value: Extract<Frame, { done: true }>['value']) => streams.at(-1)!({ done: true, value }),
+  }
+}

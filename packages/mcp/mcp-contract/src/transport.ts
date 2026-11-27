@@ -53,6 +53,20 @@ export type TaskAnswer =
   | Readonly<{ kind: 'not-finished' }>
   | Readonly<{ kind: 'expired' }>
 
+/** What a long request listens for; the peer may agree to less, and says so first. */
+export type ListenFilter = Readonly<{ toolsListChanged: boolean }>
+
+export type ListenEvent =
+  | Readonly<{ kind: 'acknowledged'; agreed: ListenFilter }>
+  | Readonly<{ kind: 'tools-changed' }>
+
+/** How a long request ends; it is never settled as a failed request, and a broken one is opened again by its opener. */
+export type ListenEnd =
+  | Readonly<{ kind: 'stopped' }>
+  | Readonly<{ kind: 'broken' }>
+  | Readonly<{ kind: 'ended' }>
+  | Readonly<{ kind: 'refused'; failure: TransportFailure }>
+
 export interface McpTransport {
   readonly generation: Generation
   discover(): Promise<Outcome<PeerIdentity, TransportFailure>>
@@ -70,6 +84,12 @@ export interface McpTransport {
   ): Promise<Outcome<'accepted', TransportFailure>>
   getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>>
   cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>>
+  /** A long request: `subscriptions/listen`, on a connection of the 2026-07-28 revision only. */
+  listen?(
+    filter: ListenFilter,
+    signal: AbortSignal,
+    observe: (event: ListenEvent) => void,
+  ): Promise<ListenEnd>
   close(): Promise<void>
 }
 

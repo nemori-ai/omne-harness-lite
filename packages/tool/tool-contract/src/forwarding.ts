@@ -67,6 +67,8 @@ export interface ToolForwardSource<P> {
   ): Reply<
     Readonly<{ kind: 'bound'; binding: ToolForwardBinding }> | Readonly<{ kind: 'unresolved' }>
   >
+  /** The parent brought its target's result back: what it received for the target may go when it ends. */
+  presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void
 }
 export interface ToolForwardRuntime<P> {
   invoke(
@@ -74,4 +76,5 @@ export interface ToolForwardRuntime<P> {
       Readonly<{ intent: ToolForwardIntent; target: ToolInvokeRequest }>,
   ): Promise<ToolInvokeOutcome>
   resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>
+  presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void
 }

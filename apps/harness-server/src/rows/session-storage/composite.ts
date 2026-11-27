@@ -9,7 +9,7 @@ import {
   SESSION_LOG_PARTICIPANTS,
   SESSION_RUN_LIVE_GUARD,
 } from '@omne-harness/session-storage-sql/participants'
-import { TOOL_PARTICIPANT } from '@omne-harness/tool-storage-sql'
+import { TOOL_PARTICIPANT, TOOL_WAIT_OPEN_GUARD } from '@omne-harness/tool-storage-sql'
 import {
   combinationManifest,
   manifestDigest,
@@ -25,6 +25,7 @@ export const SESSION_COMPOSITE_PARTICIPANTS: readonly string[] = [
   ...SESSION_LOG_PARTICIPANTS,
   MODEL_PARTICIPANT,
   TOOL_PARTICIPANT,
+  TOOL_WAIT_OPEN_GUARD,
   ...HITL_PARTICIPANTS,
   SESSION_RUN_LIVE_GUARD,
 ].toSorted()

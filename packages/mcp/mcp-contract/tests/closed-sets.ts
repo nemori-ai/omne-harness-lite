@@ -39,6 +39,7 @@ export const LISTING_DEFECTS = [
 export const UNAVAILABLE_REASONS = [
   'connection-unavailable',
   'authorization-required',
+  'credential-rejected',
   'credential-unavailable',
 ] as const satisfies readonly UnavailableReason[]
 
@@ -135,6 +136,7 @@ export const LOST_REASONS = [
   'preparation-failed',
   'discover-failed',
   'authorization-required',
+  'credential-rejected',
   'stream-broken',
   'negotiation-invalid',
   'session-ended',

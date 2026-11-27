@@ -85,5 +85,8 @@ export function createToolForwardRuntime<P, B extends ContentBlock, E>(
         ? { kind: 'association-unknown' }
         : admit(input, { kind: 'bound', ...found.ok.binding })
     },
+    presented(parent) {
+      source.presented?.(parent)
+    },
   }
 }

@@ -247,7 +247,45 @@ export async function readIssued(
   return stored === null ? unavailable() : succeed({ read, stored })
 }
 
-export function createInvocationForwarding<P>(
+// Tool may delete a parent's records before its forwarded child's: the binding stored when it forwarded then stands.
+async function standsAlone<P>(
+  input: LocalInvocationSourceInput<P>,
+  access: Access<P>,
+  stored: StoredForward,
+): Promise<boolean> {
+  const decoded = input.principalCodec.decode(stored.principal)
+  if ('failure' in decoded || typeof stored.origin.parent !== 'string') return false
+  const subject = await input.authority.samePrincipal({
+    current: access.principal,
+    original: decoded.ok,
+  })
+  const id = decodeToolCallId(stored.origin.parent)
+  if (subject.kind !== 'allowed' || 'failure' in id) return false
+  const read = await input.store.read({ kind: 'call', tenant: access.tenant, call: id.ok })
+  return read.kind === 'complete' && !read.records.some(row => row.kind === 'call')
+}
+
+type Recover<P> = (
+  access: Access<P> & Pick<ToolForwardBinding, 'call' | 'admission' | 'request'>,
+) => Reply<{ principal: PrincipalJson }>
+
+function standingAlone<P>(
+  input: LocalInvocationSourceInput<P>,
+  recover: Recover<P>,
+  storedOf: (access: Access<P>, consumer: ConsumerRef) => ReturnType<typeof readIssued>,
+): Recover<P> {
+  return async access => {
+    const recovered = await recover(access)
+    if ('ok' in recovered || recovered.failure.kind === 'denied') return recovered
+    const found = await storedOf(access, access.request.consumer)
+    const stored = 'ok' in found ? found.ok.stored : null
+    return stored !== null && (await standsAlone(input, access, stored))
+      ? succeed({ principal: stored.principal })
+      : recovered
+  }
+}
+
+function forwardingOf<P>(
   input: LocalInvocationSourceInput<P>,
   directGuard: ToolSourceGuard<P>,
   identitiesOf: (
@@ -484,4 +522,26 @@ export function nextSourceRevision(revision: string) {
   const parsed = decodeToolRevision((BigInt(revision) + 1n).toString())
   if ('failure' in parsed) throw new Error('Invalid invocation source revision')
   return parsed.ok
+}
+
+// A parent releases what it received for its target only once it brought the result back; one that answered
+// pending keeps it for a later read. The marks live in this process: after a restart nothing is released.
+export function createInvocationForwarding<P>(
+  ...args: Parameters<typeof forwardingOf<P>>
+): ReturnType<typeof forwardingOf<P>> {
+  const forwards = forwardingOf(...args)
+  const presented = new Set<string>()
+  const keyOf = (parent: Readonly<{ tenant: unknown; call: ToolCallId }>) =>
+    JSON.stringify([parent.tenant, parent.call])
+  return {
+    ...forwards,
+    recoverBinding: standingAlone(args[0], forwards.recoverBinding, forwards.storedOf),
+    source: { ...forwards.source, presented: parent => void presented.add(keyOf(parent)) },
+    async releaseReceivedCopies(given) {
+      if (!presented.has(keyOf(given))) return 'released'
+      const released = await forwards.releaseReceivedCopies(given)
+      if (released === 'released') presented.delete(keyOf(given))
+      return released
+    },
+  }
 }

@@ -2,7 +2,11 @@ import type { McpProtocol } from '@omne-harness/mcp-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { ComponentType } from 'react'
 
-export type McpStatus = Pick<ClientOf<McpProtocol>, 'read-endpoint' | 'refresh-endpoint'>
+type Client = ClientOf<McpProtocol>
+
+/** Without `observe` the page reads only when it opens and after a refresh. */
+export type McpStatus = Pick<Client, 'read-endpoint' | 'refresh-endpoint'> &
+  Readonly<{ observe?: Pick<Client['observe'], 'observe-endpoints'> }>
 
 export type McpNotice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 

@@ -26,6 +26,7 @@ import {
   type SuspensionRecord,
   type ToolBindings,
   type ToolExecutionFact,
+  type ToolExecutionContext,
   type ToolExecutionScope,
   type ToolExecutorBinding,
   type ToolSegmentContext,
@@ -33,7 +34,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
-import { noteCallFacts } from './entry-sources.ts'
+import { carryCallFacts, noteCallFacts } from './entry-sources.ts'
 import {
   createLiveAuthorExecution,
   localAuthorEvidence,
@@ -167,6 +168,12 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
 }
 
 // The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
+function segmentContextOf(full: ToolExecutionContext): ToolSegmentContext {
+  const context: ToolSegmentContext = { emit: update => full.emit(update), signal: full.signal }
+  carryCallFacts(full, context)
+  return context
+}
+
 function noted<P>(
   scope: ToolExecutionScope,
   facts: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
@@ -373,10 +380,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       scope = dependencies.scope({ ...input, execution })
       scope = withCapability(input, scope)
       const { context: full } = scope
-      const context: ToolSegmentContext = {
-        emit: update => full.emit(update),
-        signal: full.signal,
-      }
+      const context = segmentContextOf(full)
       const segment = await enter(segments, parsed, context)
       closing = closeScope(scope, 'failure' in segment ? 'failed' : 'returned')
       if ('failure' in segment) throw new Error(segment.failure.reason)

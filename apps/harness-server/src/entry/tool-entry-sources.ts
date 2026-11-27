@@ -3,6 +3,7 @@ import { canonicalDigest } from '@omne-harness/tool'
 import type { Access, SourceLayer, ToolAvailability } from '@omne-harness/tool-contract'
 import {
   sameSourceLayer,
+  type ToolEntrySource,
   type ToolMessageContentBlock,
   type ToolSourceEntry,
 } from '@omne-harness/tool-contract/provider'
@@ -47,6 +48,18 @@ export function sourceListsName(
   return entries.entry(access, availability.definition.name)?.availability.kind === 'available'
 }
 
+// A source that has not listed to this asker since the process started is asked to, so the next look finds its entries.
+function warmed(
+  source: ToolEntrySource<unknown, ToolMessageContentBlock> | undefined,
+  access: Access<unknown>,
+): undefined {
+  if (source !== undefined)
+    void Promise.resolve(access)
+      .then(asker => source.list(asker))
+      .catch(() => undefined)
+  return undefined
+}
+
 export function sourcedEntriesOf(ctx: Context): SourcedEntries {
   const sourceOf = (name: string) => {
     const service = ctx.get(toolEntrySourcesKey, false) as
@@ -58,8 +71,9 @@ export function sourcedEntriesOf(ctx: Context): SourcedEntries {
   return Object.freeze({
     owns: name => sourceOf(name) !== undefined,
     entry: (access, name) => {
+      const source = sourceOf(name)
       try {
-        return sourceOf(name)?.select(access, name)
+        return source?.select(access, name) ?? warmed(source, access)
       } catch {
         return undefined
       }

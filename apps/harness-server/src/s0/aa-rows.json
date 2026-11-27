@@ -67,6 +67,7 @@
     "tool-body-sweep",
     "tool-entry-sources",
     "slash-command",
+    "mcp-storage-sql",
     "mcp",
     "tool-bindings",
     "skills",
@@ -447,10 +448,19 @@
       ]
     },
     {
+      "row": "mcp-storage-sql",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
       "row": "mcp",
       "names": [
         "settingsSecretCustody",
-        "settingsSecretItems"
+        "settingsSecretItems",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

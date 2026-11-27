@@ -1,6 +1,7 @@
 import type { McpConfig, McpPorts, PeerNotification } from '@omne-harness/mcp-contract'
 import type { McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 import {
+  createMemoryTaskRecords,
   createMemoryCatalogStore,
   createScriptedTransportFactory,
   type MemoryAdoptionView,
@@ -104,6 +105,7 @@ export function peer(
       eligibility,
       credentials,
       store,
+      tasks: createMemoryTaskRecords(),
       transports: counted,
       checkOutput: checks.check,
       clock: { now: () => new Date('2026-11-05T12:00:00Z') },
