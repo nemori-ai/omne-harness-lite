@@ -475,7 +475,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['commandEntrySources', 'commandCatalog'],
     injects: ['dynamis', 'sessionUtteranceResolver'],
   },
-  'mcp-storage-sql': { provides: ['mcpCatalogStore'], injects: ['storage', 'tenantDomainLookup'] },
+  'mcp-storage-sql': {
+    provides: ['mcpCatalogStore', 'mcpContinuationRecords'],
+    injects: ['storage', 'tenantDomainLookup'],
+  },
   mcp: {
     provides: [
       'mcpActionDiscovery',

@@ -1063,7 +1063,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
     this.spend(this.left.continues, name)
     const controller = new AbortController()
     const op = this.newOp('continue', name, controller)
-    const issuedAt = this.table.current(key.connectionKey)?.generation ?? generationOf(1)
     this.invoke(
       op,
       () =>
@@ -1072,7 +1071,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
           action: ACTION,
           args: jsonOf({}),
           requestState: REQUEST_STATE,
-          issuedAt,
+          expectedDefinition: key.digest,
           correlationKey: CORRELATION,
           signal: controller.signal,
         }),

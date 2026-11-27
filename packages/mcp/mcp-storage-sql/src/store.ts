@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { ActionCatalogRecord, CatalogKey } from '@omne-harness/mcp-contract'
-import type { CatalogStore } from '@omne-harness/mcp-contract/provider'
+import type { CatalogStore, ContinuationRecords } from '@omne-harness/mcp-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import { HANDLER, PARTICIPANT, PROTOCOL, type CatalogRowKey, type ScriptName } from './schema.ts'
@@ -23,7 +23,7 @@ type Committed = Readonly<{ kind: 'answer'; response: unknown }> | Readonly<{ ki
 
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue
 
-function tenantText(key: CatalogKey): string {
+function tenantText(key: Pick<CatalogKey, 'tenant'>): string {
   const encoded = tenantCodec.encode(key.tenant)
   if (!encoded.ok) throw new TypeError('the tenant did not come from legal-identity')
   return encoded.value
@@ -35,11 +35,10 @@ function rowKeyOf(key: CatalogKey): CatalogRowKey {
   return { tenant: tenantText(key), account, holding: key.holding, kind: 'actions' }
 }
 
-/** The catalog store over SQL, one storage domain per tenant; every read carries the tenant. */
-export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
-  const scopeOf = (tenant: string) => ({ kind: 'tenant', tenant }) as const
+const scopeOf = (tenant: string) => ({ kind: 'tenant', tenant }) as const
 
-  async function commit(
+function committer(options: McpSqlOptions) {
+  return async function commit(
     tenant: string,
     script: ScriptName,
     command: unknown,
@@ -64,6 +63,32 @@ export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
     if (result.kind !== 'committed') return null
     return { kind: 'answer', response: result.responses[0].reply.response }
   }
+}
+
+/** The continuation records over SQL; a commit whose outcome is not known marks nothing, so nothing is sent on it. */
+export function createSqlContinuationRecords(options: McpSqlOptions): ContinuationRecords {
+  const commit = committer(options)
+  return {
+    async mark(key) {
+      try {
+        const tenant = tenantText(key)
+        const done = await commit(tenant, 'markContinuation', {
+          tenant,
+          checkpoint: key.checkpoint,
+        })
+        if (done === null || done.kind === 'unknown') return fail('unavailable')
+        const answer = (done.response as { ok?: unknown }).ok
+        return answer === 'marked' || answer === 'already' ? succeed(answer) : fail('unavailable')
+      } catch {
+        return fail('unavailable')
+      }
+    },
+  }
+}
+
+/** The catalog store over SQL, one storage domain per tenant; every read carries the tenant. */
+export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
+  const commit = committer(options)
 
   async function readRow(key: CatalogRowKey): Promise<{ ok: unknown } | null> {
     const binding = await options.bind(key.tenant)

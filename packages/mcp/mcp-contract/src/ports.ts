@@ -1,5 +1,5 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Access } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionRevision,
@@ -57,6 +57,14 @@ export interface CredentialUse<P> {
 
 export interface McpClock {
   now(): Date
+}
+
+/** One checkpoint of a suspended call: the tenant it belongs to and the digest of its state. */
+export type ContinuationKey = Readonly<{ tenant: TenantId; checkpoint: string }>
+
+/** Marks that the continuation of a checkpoint was sent; a mark stays, so a second run of the same checkpoint sends nothing. */
+export interface ContinuationRecords {
+  mark(key: ContinuationKey): Promise<Outcome<'marked' | 'already', 'unavailable'>>
 }
 
 export interface CatalogStore {

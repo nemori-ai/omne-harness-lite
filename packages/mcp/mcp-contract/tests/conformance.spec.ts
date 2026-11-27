@@ -27,10 +27,12 @@ import type {
 import {
   createMemoryAdoptionView,
   createMemoryCatalogStore,
+  createMemoryContinuationRecords,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   mcpAdoptionViewConformance,
   mcpCatalogStoreConformance,
+  mcpContinuationRecordsConformance,
   mcpCredentialUseConformance,
   mcpUseEligibilityConformance,
   mergeListingCases,
@@ -222,6 +224,13 @@ describe('CredentialUse conformance on the memory double', () => {
 
 describe('CatalogStore conformance on the memory double', () => {
   register(mcpCatalogStoreConformance(), () => storeFixture())
+})
+
+describe('ContinuationRecords conformance on the memory double', () => {
+  register(mcpContinuationRecordsConformance(), () => {
+    const records = createMemoryContinuationRecords()
+    return { records, tenant: home, otherTenant: away, unavailable: async () => records.cut() }
+  })
 })
 
 describe('the suites fail a port that breaks the contract', () => {

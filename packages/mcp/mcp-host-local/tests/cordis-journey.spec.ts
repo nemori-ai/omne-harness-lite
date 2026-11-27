@@ -274,16 +274,20 @@ async function availabilities(ctx: Context) {
   return view.ok.actions.map(action => [action.name, action.availability])
 }
 
-async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
+async function definitionOf(ctx: Context, tool: string) {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
   const known = view.ok.actions.find(action => action.name === tool)
   if (known === undefined) throw new Error(`the catalog has no action ${tool}`)
+  return known.definitionDigest
+}
+
+async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
   return service(ctx, mcpActionInvokerKey).invoke(ALICE, {
     ref: FILES,
     action: actionNameOf(tool),
     args: jsonOf({}),
-    expectedDefinition: known.definitionDigest,
+    expectedDefinition: await definitionOf(ctx, tool),
     correlationKey: key,
     signal: new AbortController().signal,
   })
@@ -335,14 +339,14 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
     const asked = await invoke(ctx, 'ask', CALL_1)
     if (asked.kind !== 'sent' || asked.outcome.kind !== 'inputRequired')
       throw new Error(`ask did not ask for input: ${JSON.stringify(asked)}`)
-    const { requestState, issuedAt } = asked.outcome
+    const { requestState } = asked.outcome
     const continued = await invoker.continueWithInput(ALICE, {
       ref: FILES,
       action: actionNameOf('ask'),
       args: jsonOf({}),
       ...(requestState === undefined ? {} : { requestState }),
       inputResponses: jsonOf({}),
-      issuedAt,
+      expectedDefinition: await definitionOf(ctx, 'ask'),
       correlationKey: correlationKeyOf('call-2'),
       signal: new AbortController().signal,
     })

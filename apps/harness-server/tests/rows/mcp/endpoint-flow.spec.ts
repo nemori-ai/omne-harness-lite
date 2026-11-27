@@ -112,6 +112,18 @@ afterEach(async () => {
 })
 
 // Each new user message asks for one call of Tools; a pending answer is followed by its recovery call.
+type Message = NonNullable<Parameters<typeof recoveryOf>[0]>
+
+/** The last recovery call any pending answer of Tools named in the conversation. */
+function pendingIn(body: string) {
+  const messages = (JSON.parse(body) as { messages?: Message[] }).messages ?? []
+  for (const message of messages.toReversed()) {
+    const next = recoveryOf(message)
+    if (next !== undefined) return next
+  }
+  return undefined
+}
+
 function scripted() {
   const bodies: string[] = []
   const script = toolCallsByRequest(body => {
@@ -122,6 +134,13 @@ function scripted() {
       return [toolsCall(`read_${String(bodies.length)}`, recovery.command, recovery.params)]
     if (last?.role !== 'user') return []
     const said = JSON.stringify(last.content)
+    // A person who answered a card asks the agent to read the call it left pending.
+    if (said.includes('start: read again')) {
+      const next = pendingIn(body)
+      return next === undefined
+        ? []
+        : [toolsCall(`again_${String(bodies.length)}`, next.command, next.params)]
+    }
     const call = /start: call ([a-z]+) ([a-z]+) ([a-z0-9-]+)/.exec(said)
     const inspect = /start: inspect ([a-z]+) ([a-z]+)/.exec(said)
     const code = PROGRAMS[/start: code ([a-z]+)/.exec(said)?.[1] ?? '']
@@ -970,5 +989,91 @@ it(
       }),
     )
     expect(exit).toBe(0)
+  },
+)
+
+// An endpoint `desk` on a 2026-07-28 peer whose `book` asks a person which day; calls run without a release card.
+async function asking(tree: ReleaseTree, peer: ModernPeer) {
+  const w = world(tree)
+  await registered(w, 'desk')
+  await configured(w, 'desk', 'target', peer.target, 'desk-target')
+  await configured(w, 'desk', 'invoke', 'auto', 'desk-auto')
+}
+
+const DAY_CARD = 'the question of desk'
+
+it(
+  'C109 MC-30 a peer that asks for input: the person gets a card that names the endpoint and marks its words, the answer goes back once, and the call ends with what the peer answers',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        await asking(tree, peer)
+        at('the agent calls book: a card asks which day, and nothing more goes to the peer')
+        const session = await tree.startSession('start: call desk book a')
+        const card = await pendingCard(tree, session, DAY_CARD)
+        const question = JSON.stringify(card.question)
+        expect(question).toContain('desk')
+        expect(question).toContain('Which day for room a?')
+        expect(question).toContain('[external data begins')
+        expect(peer.answers).toEqual([])
+        expect(peer.asked.get('tools/call')).toBe(1)
+        expect(await lastResult(tree, session, 1)).toContain('"reason":"waiting"')
+
+        at(
+          'the person answers after the turn ended: the call goes on once and ends with the booking',
+        )
+        await answerCard(tree, card, ['--text', 'Tuesday'], 'reply-day')
+        await settled(
+          tree,
+          'the answer to reach the peer',
+          async () => peer.answers.length,
+          n => n === 1,
+        )
+        await sendInput(tree, session, 'start: read again')
+        expect(await lastResult(tree, session, 2)).toContain('booked room a on Tuesday')
+        expect(peer.answers).toHaveLength(1)
+        expect(peer.asked.get('tools/call')).toBe(2)
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C110 a call parked on its question across a restart: the card is still there, and after the answer the call ends with what the peer answers, sent once',
+  { tags: ['slow'], timeout: 900_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    let parked = ''
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        await asking(tree, peer)
+        parked = await tree.startSession('start: call desk book a')
+        await pendingCard(tree, parked, DAY_CARD)
+        await endedRuns(tree, parked, 1)
+      },
+      async tree => {
+        const card = await pendingCard(tree, parked, `${DAY_CARD} after the restart`)
+        expect(JSON.stringify(card.question)).toContain('Which day for room a?')
+        expect(peer.answers).toEqual([])
+        await answerCard(tree, card, ['--text', 'Tuesday'], 'reply-a')
+        await settled(
+          tree,
+          'the answer for a to reach the peer',
+          async () => peer.answers.length,
+          n => n === 1,
+        )
+        await sendInput(tree, parked, 'start: read again')
+        expect(await lastResult(tree, parked, 2)).toContain('booked room a on Tuesday')
+        expect(peer.asked.get('tools/call')).toBe(2)
+      },
+    ])
+    expect(exits).toEqual([0, 0])
   },
 )

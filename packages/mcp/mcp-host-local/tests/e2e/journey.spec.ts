@@ -183,7 +183,7 @@ const JOURNEY: readonly JourneyStep[] = [
           args: jsonOf(input.call.args),
           ...(first.requestState === undefined ? {} : { requestState: first.requestState }),
           inputResponses: jsonOf(input.answer),
-          issuedAt: first.issuedAt,
+          expectedDefinition: await digestOf(context, input.call.tool),
           correlationKey: context.nextKey(),
           signal: new AbortController().signal,
         }),

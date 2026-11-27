@@ -35,3 +35,17 @@ export function saveCatalog(
     [...keyCells(key), revision, JSON.stringify(record)],
   )
 }
+
+/** Marks a checkpoint of a tenant once; the answer says whether this commit made the mark. */
+export function markOnce(port: SqlPort, tenant: string, checkpoint: string): 'marked' | 'already' {
+  const found = port.execute(
+    'SELECT 1 FROM mcp_continuations WHERE tenant = ? AND checkpoint = ? LIMIT 1',
+    [tenant, checkpoint],
+  ).rows[0]
+  if (found !== undefined) return 'already'
+  port.execute('INSERT INTO mcp_continuations (tenant, checkpoint) VALUES (?, ?)', [
+    tenant,
+    checkpoint,
+  ])
+  return 'marked'
+}

@@ -87,13 +87,14 @@ export type InvokeRequest = Readonly<{
   observe?: (notification: PeerNotification) => void
 }>
 
+/** A call taken up again from the values its suspension handed out; it may come on another connection. */
 export type ContinueRequest = Readonly<{
   ref: EndpointRef
   action: ActionName
   args: JsonValue
   requestState?: RequestState
   inputResponses?: JsonValue
-  issuedAt: Generation
+  expectedDefinition: DefinitionDigest
   correlationKey: CorrelationKey
   signal: AbortSignal
   connectBound?: Millis

@@ -25,6 +25,7 @@ import {
   mcpActionDiscoveryKey,
   mcpActionInvokerKey,
   mcpAdoptionViewKey,
+  mcpContinuationRecordsKey,
   mcpEndpointsPoint,
   mcpEndpointStatusKey,
   mcpUseEligibilityKey,
@@ -62,6 +63,7 @@ import {
 } from './endpoints.ts'
 import { keptAdoption, keptSettings, type AdoptionStamp, type HeldRefs } from './kept-adoption.ts'
 import { createOutputCheck } from './output-check.ts'
+import { mcpPersonAsk } from './person.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -77,6 +79,7 @@ export const mcpRowConfig = z.strictObject({
     acquireWaitMs: positive,
     resultMaxBytes: positive,
     connectBoundMs: positive.refine(isMillis),
+    maxInputRounds: positive,
   }),
 })
 
@@ -201,7 +204,7 @@ class Credentials extends CredentialUseService<unknown> {
 }
 
 type Discovery = Pick<ActionDiscovery<unknown>, 'current' | 'refresh'>
-type Invoker = Pick<ActionInvoker<unknown>, 'invoke' | 'cancelTask'>
+type Invoker = Pick<ActionInvoker<unknown>, 'invoke' | 'cancelTask' | 'continueWithInput'>
 
 // The services of MCP are read at each call: while they are away the answer is `unknown`, not a throw.
 function discoveryOf(ctx: Context): Discovery {
@@ -218,6 +221,8 @@ function invokerOf(ctx: Context): Invoker {
     invoke: async (...args) =>
       (await service()?.invoke(...args)) ?? { kind: 'not-sent', reason: UNKNOWN },
     cancelTask: async (...args) => (await service()?.cancelTask(...args)) ?? fail(UNKNOWN),
+    continueWithInput: async (...args) =>
+      (await service()?.continueWithInput(...args)) ?? { kind: 'not-sent', reason: UNKNOWN },
   }
 }
 
@@ -263,6 +268,11 @@ const mcpPlugin: Plugin.Object = {
       resultMaxBytes: config.bridge.resultMaxBytes,
       acquireWaitMs: config.bridge.acquireWaitMs,
       connectBound: config.bridge.connectBoundMs as Millis,
+      asking: {
+        person: mcpPersonAsk,
+        continuations: () => ctx.get(mcpContinuationRecordsKey, false),
+        maxInputRounds: config.bridge.maxInputRounds,
+      },
     })
     sources.contribute(source)
     provideResidentEndpoints(ctx, (access, name) => source.named(access, name))

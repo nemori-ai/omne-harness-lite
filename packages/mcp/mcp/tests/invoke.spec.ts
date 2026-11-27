@@ -302,13 +302,12 @@ describe('the send order: each step refuses with the place given back', () => {
       const first = await watched.calls.invoke(alice, request(digest))
       if (first.kind !== 'sent' || first.outcome.kind !== 'inputRequired')
         throw new Error('the first call was not asked for input')
-      const { issuedAt } = first.outcome
       const start = () =>
         watched.calls.continueWithInput(alice, {
           ref: files,
           action: READ,
           args: jsonOf({}),
-          issuedAt,
+          expectedDefinition: digest,
           correlationKey: c2,
           signal: new AbortController().signal,
           requestState: requestStateOf('s1'),

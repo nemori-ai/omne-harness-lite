@@ -1,7 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { CatalogStoreService, mcpCatalogStoreKey } from '@omne-harness/mcp-cordis-contract/cordis'
-import type { CatalogStore } from '@omne-harness/mcp-contract/provider'
-import { createSqlCatalogStore, mcpStoreParticipant } from '@omne-harness/mcp-storage-sql'
+import {
+  CatalogStoreService,
+  ContinuationRecordsService,
+  mcpCatalogStoreKey,
+  mcpContinuationRecordsKey,
+} from '@omne-harness/mcp-cordis-contract/cordis'
+import type { CatalogStore, ContinuationRecords } from '@omne-harness/mcp-contract/provider'
+import {
+  createSqlCatalogStore,
+  createSqlContinuationRecords,
+  mcpStoreParticipant,
+  type McpSqlOptions,
+} from '@omne-harness/mcp-storage-sql'
 import {
   combinationManifest,
   manifestDigest,
@@ -28,25 +38,39 @@ export async function mcpCombination(): Promise<Combination> {
   return { combinationVersion: `harness-mcp/${digest.slice(0, 16)}`, manifestDigest: digest }
 }
 
+function sqlOptions(ctx: Context): McpSqlOptions {
+  const logger = ctx.logger('mcp-storage-sql')
+  const storage = ctx.get(storageKey) as SqlStorage
+  const bind = createTenantBindings({
+    storage,
+    lookup: ctx.get(tenantDomainLookupKey) as TenantDomainLookup,
+    registration: () =>
+      ctx.get(tenantDomainRegistrationKey) as TenantDomainRegistration | undefined,
+    combination: mcpCombination,
+    report: (tenant, reason) => logger.warn('no mcp storage for tenant %s: %s', tenant, reason),
+    participants: MCP_PARTICIPANTS,
+  })
+  return { storage, bind }
+}
+
 /** The catalogs of MCP over the SQL storage of the tree, one storage domain per tenant. */
 class SqlCatalogStore extends CatalogStoreService {
-  static readonly inject = [storageKey, tenantDomainLookupKey]
   declare readonly read: CatalogStore['read']
   declare readonly write: CatalogStore['write']
 
   constructor(ctx: Context) {
     super(ctx)
-    const logger = ctx.logger('mcp-storage-sql')
-    const bind = createTenantBindings({
-      storage: ctx.get(storageKey) as SqlStorage,
-      lookup: ctx.get(tenantDomainLookupKey) as TenantDomainLookup,
-      registration: () =>
-        ctx.get(tenantDomainRegistrationKey) as TenantDomainRegistration | undefined,
-      combination: mcpCombination,
-      report: (tenant, reason) => logger.warn('no mcp storage for tenant %s: %s', tenant, reason),
-      participants: MCP_PARTICIPANTS,
-    })
-    Object.assign(this, createSqlCatalogStore({ storage: ctx.get(storageKey) as SqlStorage, bind }))
+    Object.assign(this, createSqlCatalogStore(sqlOptions(ctx)))
+  }
+}
+
+/** The continuation records of MCP in the same storage domain of the tenant. */
+class SqlContinuationRecords extends ContinuationRecordsService {
+  declare readonly mark: ContinuationRecords['mark']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlContinuationRecords(sqlOptions(ctx)))
   }
 }
 
@@ -54,10 +78,17 @@ export const mcpStorageSqlRow = defineRow({
   row: 'mcp-storage-sql',
   implementation: 'real',
   manifest: {
-    provides: [mcpCatalogStoreKey],
+    provides: [mcpCatalogStoreKey, mcpContinuationRecordsKey],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
-  plugin: SqlCatalogStore,
+  plugin: {
+    name: 'mcp-storage-sql',
+    inject: [storageKey, tenantDomainLookupKey],
+    apply(ctx: Context) {
+      new SqlCatalogStore(ctx)
+      new SqlContinuationRecords(ctx)
+    },
+  },
 })

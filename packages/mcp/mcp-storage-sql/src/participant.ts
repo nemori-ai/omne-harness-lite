@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
-import { loadCatalog, saveCatalog, type SqlPort } from './rows.ts'
+import { loadCatalog, markOnce, saveCatalog, type SqlPort } from './rows.ts'
 import { PARTICIPANT, PROTOCOL, SCRIPTS, type CatalogRowKey, type ScriptName } from './schema.ts'
 
 type WriteCatalog = Readonly<{
@@ -18,6 +18,9 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
     if (current !== input.expected) return { failure: 'revision-conflict' }
     saveCatalog(port, input.key, input.revision, input.record)
     return { ok: 'written' }
+  },
+  markContinuation(port, input: Readonly<{ tenant: string; checkpoint: string }>) {
+    return { ok: markOnce(port, input.tenant, input.checkpoint) }
   },
 }
 

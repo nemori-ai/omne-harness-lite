@@ -107,6 +107,25 @@ function source(
   }
 }
 
+function bindingOf(offered: Source) {
+  const { registry } = fiberedRegistry(null)
+  const sourced = createLocalEntrySources<string, unknown, ContentBlock>({
+    sources: () => [offered],
+    hold: () => () => undefined,
+    codec: createToolMessageResultCodec(4096) as never,
+  })
+  const fixed = {
+    availability: {
+      kind: 'available',
+      definition: entry.definition,
+      executor: entry.executor,
+      layer: { kind: 'tenant', tenant: tenantA },
+    },
+    command: 'run',
+  } as FixedToolRequest
+  return sourced.registry(registry).selectAndPin(asA, fixed, call)
+}
+
 function slotOf(offered: Source) {
   const { registry } = fiberedRegistry(null)
   const sourced = createLocalEntrySources<string, unknown, ContentBlock>({
@@ -243,5 +262,29 @@ describe('a source without the pair (C108, TL-78)', () => {
     const context = { signal: new AbortController().signal } as ToolExecutionContext
     noteCallFacts(context, { ...asA, call })
     expect(await slot.author.executor.execute(args, undefined, context)).toEqual(result('plain'))
+  })
+})
+
+describe('a source that has not listed for the asker since the process started (C110)', () => {
+  it('is asked to list when a call misses its entry, so the next look of the same call binds', async () => {
+    let lists = 0
+    let known = false
+    const forgetting: Source = {
+      ...source({ checkpoint: true, resume: true }),
+      list: async () => {
+        lists += 1
+        known = true
+        return succeed({ entries: [entry], withheld: [] })
+      },
+      select: (_access, name) => (known && name === entry.definition.name ? entry : undefined),
+    }
+    expect(bindingOf(forgetting)).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'the source entry is not available now' },
+    })
+    await Promise.resolve()
+    expect(lists).toBe(1)
+    expect(bindingOf(forgetting)).toMatchObject({
+      ok: { loaded: { definition: entry.definition } },
+    })
   })
 })

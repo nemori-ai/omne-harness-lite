@@ -11,6 +11,7 @@ import type {
   ActionInvoker,
   CatalogView,
   EndpointRef,
+  ContinueRequest,
   InvokeRequest,
   InvokeResult,
   KnownAction,
@@ -21,7 +22,7 @@ import type {
 } from '@omne-harness/mcp-contract'
 import { millisOf, revisionOf } from '@omne-harness/mcp-contract/testing'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { createMcpEntrySource } from '../src/index.ts'
+import { createMcpEntrySource, type McpAsking } from '../src/index.ts'
 import { ref, shape } from './support.ts'
 
 export type Principal = Readonly<{ id: string }>
@@ -58,7 +59,7 @@ export const notAcquired: CatalogView = { kind: 'not-acquired' }
 export type World = ReturnType<typeof world>
 
 /** A scripted MCP: what each endpoint reads as, what a refresh does, and what a call comes to. */
-export function world(acquireWaitMs = 50) {
+export function world(acquireWaitMs = 50, asking?: McpAsking) {
   const adopted = new Map<TenantId, readonly EndpointRef[] | 'unknown'>()
   const readings = new Map<string, (asker: Access<Principal>) => Reading>()
   const refreshes = new Map<
@@ -75,6 +76,10 @@ export function world(acquireWaitMs = 50) {
   let answer: (request: InvokeRequest) => InvokeResult | Promise<InvokeResult> = () => {
     throw new Error('the world has no answer scripted for a call')
   }
+  const continued: Array<Readonly<{ asker: Access<Principal>; request: ContinueRequest }>> = []
+  let continuation: (request: ContinueRequest) => InvokeResult | Promise<InvokeResult> = () => {
+    throw new Error('the world has no answer scripted for a continuation')
+  }
 
   const discovery: Pick<ActionDiscovery<Principal>, 'current' | 'refresh'> = {
     current: async (asker, endpoint) =>
@@ -86,7 +91,11 @@ export function world(acquireWaitMs = 50) {
       return scripted === undefined ? fail({ kind: 'connection-unavailable' }) : scripted()
     },
   }
-  const invoker: Pick<ActionInvoker<Principal>, 'invoke' | 'cancelTask'> = {
+  const invoker: Pick<ActionInvoker<Principal>, 'invoke' | 'cancelTask' | 'continueWithInput'> = {
+    continueWithInput: async (asker, request) => {
+      continued.push({ asker, request })
+      return continuation(request)
+    },
     invoke: async (asker, request) => {
       invoked.push({ asker, request })
       return answer(request)
@@ -110,11 +119,16 @@ export function world(acquireWaitMs = 50) {
     resultMaxBytes: 65_536,
     connectBound: millisOf(7000),
     acquireWaitMs,
+    ...(asking === undefined ? {} : { asking }),
   })
 
   return {
     source,
     invoked,
+    continued,
+    continuesWith(script: typeof continuation) {
+      continuation = script
+    },
     cancelledTasks,
     refreshed,
     bounds,

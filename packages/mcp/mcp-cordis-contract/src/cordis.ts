@@ -4,6 +4,7 @@ import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harne
 import type {
   AdoptionView,
   CatalogStore,
+  ContinuationRecords,
   CredentialUse,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
@@ -165,6 +166,21 @@ export abstract class CatalogStoreService extends Service implements CatalogStor
 
 export const mcpCatalogStoreKey = CatalogStoreService.provide
 
+/**
+ * Where the bridge marks a checkpoint whose continuation it sends, as a service; the bridge takes it at each resume.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class ContinuationRecordsService extends Service implements ContinuationRecords {
+  static readonly provide = 'mcpContinuationRecords'
+  constructor(ctx: Context) {
+    super(ctx, ContinuationRecordsService.provide)
+  }
+  abstract readonly mark: ContinuationRecords['mark']
+}
+
+export const mcpContinuationRecordsKey = ContinuationRecordsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -174,6 +190,7 @@ declare module '@deepseek-ai/cordis' {
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
     mcpCatalogStore: CatalogStoreService
+    mcpContinuationRecords: ContinuationRecordsService
   }
 }
 

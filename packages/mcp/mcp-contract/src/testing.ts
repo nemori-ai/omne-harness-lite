@@ -32,6 +32,12 @@ export {
   sampleCatalogRecord,
 } from './testing-catalog-store.ts'
 export {
+  createMemoryContinuationRecords,
+  mcpContinuationRecordsConformance,
+  type ContinuationRecordsFixture,
+  type MemoryContinuationRecords,
+} from './testing-continuations.ts'
+export {
   actionNameOf,
   adoptionRevisionOf,
   connectionTargetOf,

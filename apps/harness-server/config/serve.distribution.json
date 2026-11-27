@@ -379,7 +379,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/26"
+        "combinationVersion": "session-composite/27"
       }
     },
     {
@@ -391,7 +391,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/26"
+        "combinationVersion": "session-composite/27"
       }
     },
     {
@@ -963,7 +963,8 @@
         "bridge": {
           "acquireWaitMs": 3000,
           "resultMaxBytes": 65536,
-          "connectBoundMs": 10000
+          "connectBoundMs": 10000,
+          "maxInputRounds": 8
         }
       }
     },

@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { NodeStreamableHTTPServerTransport, toNodeHandler } from '@modelcontextprotocol/node'
-import { createMcpHandler, McpServer } from '@modelcontextprotocol/server'
+import {
+  acceptedContent,
+  createMcpHandler,
+  inputRequired,
+  McpServer,
+} from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 export type PeerAction = Readonly<{
@@ -186,14 +191,19 @@ export type ModernPeer = Readonly<{
   target: string
   /** How often each method was asked. */
   asked: ReadonlyMap<string, number>
+  /** The answers of a person that came back to `book`, in order. */
+  answers: readonly unknown[]
   /** Offers these actions from now on and tells every open listen. */
   offer(actions: readonly PeerAction[]): void
   close(): Promise<void>
 }>
 
+const WHEN = z.object({ date: z.string() })
+
 export async function modernPeer(initial: readonly PeerAction[]): Promise<ModernPeer> {
   let offered = initial
   const asked = new Map<string, number>()
+  const answers: unknown[] = []
   const handler = createMcpHandler(() => {
     const server = new McpServer(
       { name: 'modern-peer', version: '1' },
@@ -207,6 +217,36 @@ export async function modernPeer(initial: readonly PeerAction[]): Promise<Modern
           content: [{ type: 'text' as const, text: `${action.name} answered ${text}` }],
         }),
       )
+    // `book` asks a person which day, and books on the day the answer brings back.
+    server.registerTool(
+      'book',
+      { description: 'Books a room; asks which day.', inputSchema: z.object({ text: z.string() }) },
+      async ({ text }, ctx) => {
+        const response = ctx.mcpReq.inputResponses?.['when']
+        if (response === undefined)
+          return inputRequired({
+            inputRequests: {
+              when: inputRequired.elicit({
+                message: `Which day for room ${text}?`,
+                requestedSchema: WHEN,
+              }),
+            },
+          })
+        answers.push(response)
+        const accepted = acceptedContent(ctx.mcpReq.inputResponses, 'when', WHEN)
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text:
+                accepted === undefined
+                  ? `room ${text} not booked`
+                  : `booked room ${text} on ${accepted.date}`,
+            },
+          ],
+        }
+      },
+    )
     return server
   })
   const serve = toNodeHandler(handler)
@@ -236,6 +276,7 @@ export async function modernPeer(initial: readonly PeerAction[]): Promise<Modern
   return {
     target: `http://127.0.0.1:${String(port)}/mcp`,
     asked,
+    answers,
     offer(actions) {
       offered = actions
       handler.notify.toolsChanged()

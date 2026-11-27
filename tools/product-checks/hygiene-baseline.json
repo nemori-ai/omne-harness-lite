@@ -379,7 +379,7 @@
       },
       "packages/mcp/mcp/src/calls.ts": {
         "count": 1,
-        "longest": 170
+        "longest": 162
       },
       "packages/mcp/mcp/src/discovery.ts": {
         "count": 1,

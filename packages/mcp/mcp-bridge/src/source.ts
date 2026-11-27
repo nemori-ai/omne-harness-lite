@@ -16,6 +16,8 @@ import type {
   ToolMessageContentBlock,
   ToolSourceCall,
   ToolSourceEntry,
+  ToolSourceResume,
+  ToolSourceSuspension,
   ToolSourceWithheld,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -26,20 +28,15 @@ import {
   mcpActionExecutor,
   type BridgeShape,
 } from './convert.ts'
-import {
-  failureText,
-  notStarted,
-  settle,
-  unavailableText,
-  type BridgeResult,
-  type Settlement,
-} from './outcome.ts'
+import { asked, resumed, type Answer, type McpAsking } from './asking.ts'
+import { CONTINUATION_CHECKPOINT } from './continuation.ts'
+import { failureText, notStarted, settle, unavailableText, type BridgeResult } from './outcome.ts'
 
 export type McpBridgeDependencies<P> = Readonly<{
   /** The endpoints this asker has adopted now. The assembly adapts it from the adoption it gives MCP. */
   endpoints(access: Access<P>): Promise<Outcome<readonly EndpointRef[], 'unknown'>>
   discovery: Pick<ActionDiscovery<P>, 'current' | 'refresh'>
-  invoker: Pick<ActionInvoker<P>, 'invoke' | 'cancelTask'>
+  invoker: Pick<ActionInvoker<P>, 'invoke' | 'cancelTask' | 'continueWithInput'>
   programmable(access: Access<P>, ref: EndpointRef): Promise<boolean>
   principalKey(principal: P): string
   shape: BridgeShape
@@ -49,6 +46,7 @@ export type McpBridgeDependencies<P> = Readonly<{
   acquireWaitMs: number
   /** How long a connection may take when the endpoint's own connection timeout is not set. */
   connectBound: Millis
+  asking?: McpAsking
 }>
 
 type Row =
@@ -158,7 +156,7 @@ async function send<P>(
   call: ToolSourceCall<P>,
   ref: EndpointRef,
   declared: ToolCommandDeclaration,
-): Promise<Settlement> {
+): Promise<Answer> {
   const access: Access<P> = { principal: call.principal, tenant: call.tenant }
   const known = await calling(deps, access, ref, declared)
   if ('failure' in known) return notStarted(call.name, declared.name, known.failure)
@@ -173,6 +171,18 @@ async function send<P>(
     signal: call.signal,
     connectBound: deps.connectBound,
   })
+  const { asking } = deps
+  if (asking !== undefined && result.kind === 'sent' && result.outcome.kind === 'inputRequired') {
+    const kept = {
+      ref,
+      action: known.ok.name,
+      definition: known.ok.definitionDigest,
+      args: call.arguments,
+      requests: [],
+      round: 1,
+    }
+    return asked({ ...deps, asking }, call, kept, result.outcome)
+  }
   const { program } = declared.returns
   const given = call.program && program.kind === 'json' ? program : undefined
   const came = settle(call.name, declared.name, result, deps.resultMaxBytes, given)
@@ -293,14 +303,29 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
 
     select: (access, name) => listed.get(askerKey(access))?.get(name)?.entry,
 
-    async execute(call): Promise<BridgeResult> {
+    async execute(call) {
       const ref = call.declared === null ? undefined : await refOf(call)
       const outcome =
         ref === undefined || call.declared === null
           ? notStarted(call.name, call.command ?? '', failureText({ kind: 'not-available-to-you' }))
           : await send(deps, call, ref, call.declared)
-      if (outcome.effect === 'happened') return outcome.result
-      throw new Error(outcome.message)
+      return answerOf(outcome)
     },
+    ...(deps.asking === undefined
+      ? {}
+      : {
+          checkpoint: {
+            declaration: CONTINUATION_CHECKPOINT,
+            waits: [deps.asking.person.contract],
+          },
+          resume: async (call: ToolSourceResume<P>) =>
+            answerOf(await resumed({ ...deps, asking: deps.asking as McpAsking }, call)),
+        }),
   }
+}
+
+function answerOf(outcome: Answer): BridgeResult | ToolSourceSuspension {
+  if (outcome.effect === 'happened') return outcome.result
+  if (outcome.effect === 'suspended') return outcome.suspension
+  throw new Error(outcome.message)
 }

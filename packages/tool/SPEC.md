@@ -10,7 +10,7 @@ Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控
 | `tool-cordis-contract` | 在这套系统里 Tool 以哪些服务键、事件和登记协议出现。不含实现                                                       |
 | `tool`                 | 一次调用怎样一步步推进：独立执行、账本、推进协程、正文管线与清扫。不依赖 Cordis，离开这套系统也能单独用、单独测    |
 | `tool-host-local`      | 在一台机器上把账本、启动排序域、时钟、绑定登记表、目录、作者装载与邻域端口接起来，并给出 Cordis 插件               |
-| `tool-storage-sql`     | 在 SQL 存储契约上兑现耐久的记录仓、正文存储与到期索引                                                              |
+| `tool-storage-sql`     | 在 SQL 存储契约上兑现耐久的记录仓、正文存储与到期索引；另交一个只读的守卫 `tool.wait-open`：别的领域的一笔提交可以核对某次调用的某个等待还开着 |
 | `tool-definitions`     | 发行自带的几个工具作者（Tools、Files、Shell、Screen、TodoItems、Ask、Web、Skills、BkgToolCalls、Code）：参数、操作映射与结果文本 |
 | `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                   |
 | `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                            |

@@ -4,7 +4,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   catalogKeyOf,
   classifyOutcome,
-  connectionKeyOf,
   isActionArgs,
   type ActionArgs,
   type ActionCalls,
@@ -14,7 +13,6 @@ import {
   type CatalogKey,
   type ContinueRequest,
   type CorrelationKey,
-  type Generation,
   type InvokeRequest,
   type InvokeResult,
   type KnownAction,
@@ -120,8 +118,8 @@ function checkedSend(given: Send): Send {
       },
     }
   }
-  const { ref, action, args, requestState, inputResponses, issuedAt, correlationKey, signal } =
-    given.request
+  const { ref, action, args, requestState, inputResponses, expectedDefinition } = given.request
+  const { correlationKey, signal } = given.request
   const { connectBound, observe } = given.request
   if (requestState === undefined && inputResponses === undefined)
     throw new TypeError('a continuation carries the request state or the input responses')
@@ -131,7 +129,7 @@ function checkedSend(given: Send): Send {
       ref,
       action,
       args: judgedArgs(args),
-      issuedAt,
+      expectedDefinition,
       correlationKey,
       signal,
       ...(requestState === undefined ? {} : { requestState }),
@@ -209,13 +207,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const known = read.ok.actions.find(candidate => candidate.name === action)
     if (known === undefined || known.availability.kind === 'unavailable')
       return fail(ACTION_UNAVAILABLE)
-    if (send.kind === 'invoke' && known.definitionDigest !== send.request.expectedDefinition)
-      return fail(DEFINITION_CHANGED)
+    if (known.definitionDigest !== send.request.expectedDefinition) return fail(DEFINITION_CHANGED)
     return succeed(known)
-  }
-
-  function issuedOn(send: Send, generation: Generation | undefined): boolean {
-    return send.kind === 'invoke' || generation === send.request.issuedAt
   }
 
   async function connectionOf(
@@ -243,11 +236,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       knownActionOf(send, catalogKeyOf(access.tenant, endpoint, account)),
     )
     if (isHalted(known) || 'failure' in known) return known
-    const current = table.current(connectionKeyOf(access.tenant, endpoint, account))
-    if (!issuedOn(send, current?.generation)) return fail(UNKNOWN)
     const ensured = await under(stop, () => connectionOf(send, access, endpoint))
     if (isHalted(ensured) || 'failure' in ensured) return ensured
-    if (!issuedOn(send, ensured.ok.generation)) return fail(UNKNOWN)
     return succeed({ ensured: ensured.ok, known: known.ok })
   }
 

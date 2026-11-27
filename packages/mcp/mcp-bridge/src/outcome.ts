@@ -276,7 +276,8 @@ function faultText(fault: Extract<CallOutcome, { kind: 'protocolError' }>['fault
   }
 }
 
-function unknown(tool: string, action: string, what: string): string {
+/** The call was sent and what became of it is not known; it is not sent again. */
+export function unknownText(tool: string, action: string, what: string): string {
   return `${tool} ${action} was sent, and ${what}. ${NOT_KNOWN}`
 }
 
@@ -309,12 +310,16 @@ export function settle(
     case 'protocolError':
       return {
         effect: 'unknown',
-        message: unknown(tool, action, `the endpoint answered with ${faultText(outcome.fault)}`),
+        message: unknownText(
+          tool,
+          action,
+          `the endpoint answered with ${faultText(outcome.fault)}`,
+        ),
       }
     case 'unknown':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           outcome.cause === 'stream-broken'
@@ -325,7 +330,7 @@ export function settle(
     case 'inputRequired':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           'the endpoint asked a person for more input, which this version does not support',
@@ -334,7 +339,7 @@ export function settle(
     case 'task':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           'the endpoint turned it into a long-running task, which this version does not follow; the task was asked to cancel',

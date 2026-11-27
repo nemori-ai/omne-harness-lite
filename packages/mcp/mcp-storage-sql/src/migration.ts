@@ -3,6 +3,7 @@ import { MIGRATION, TABLES } from './schema.ts'
 
 const STATEMENTS = [
   'CREATE TABLE mcp_catalogs (tenant TEXT NOT NULL, account TEXT NOT NULL, holding TEXT NOT NULL, kind TEXT NOT NULL, revision INTEGER NOT NULL, record TEXT NOT NULL, PRIMARY KEY(tenant, account, holding, kind))',
+  'CREATE TABLE mcp_continuations (tenant TEXT NOT NULL, checkpoint TEXT NOT NULL, PRIMARY KEY(tenant, checkpoint))',
 ]
 
 export default {

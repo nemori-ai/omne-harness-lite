@@ -24,6 +24,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionId, WorkSnapshot } from '@omne-harness/session-contract'
 import { canonicalDigest } from '@omne-harness/tool'
+import { TOOL_FORWARDING_OWNER } from '@omne-harness/tool-host-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type {
   DecisionValue,
@@ -196,6 +197,19 @@ async function keptCards(
   return succeed({ fixed: fixed.ok, cards: { wait, questions: questions.ok, tool } })
 }
 
+// A call that Tools forwarded outlives the turn that started it: its card is the session's, answerable after that Run ends.
+async function located(
+  input: ToolHitlBridgeInput,
+  access: Access,
+  consumer: Recovery['request']['consumer'],
+): Promise<Outcome<Readonly<{ session: SessionId; run?: string }>, ToolFailure>> {
+  if (consumer.owner !== TOOL_FORWARDING_OWNER) return sessionRun(input, access, consumer.work)
+  const work = sessionWorkOf(access.principal, access.tenant)
+  return work === undefined
+    ? fail({ kind: 'denied', action: 'tool-decisions' })
+    : succeed({ session: work.session as SessionId })
+}
+
 async function sessionRun(
   input: ToolHitlBridgeInput,
   access: Access,
@@ -226,7 +240,7 @@ function commandsOf(
     questions: Questions
     tool: string
     session: SessionId
-    run: string
+    run?: string
     actorRef: string
     audience: HitlAudience
   }>,
@@ -246,7 +260,7 @@ function commandsOf(
     adoptionRef: BRIDGE_ADOPTION,
     toolCallRef: access.call,
     sessionRef: facts.session,
-    runRef: facts.run,
+    ...(facts.run === undefined ? {} : { runRef: facts.run }),
   })
   if (!origin.success) return invalid('origin', 'the call does not form a HITL tool origin')
   let given: ReturnType<HitlAudience>
@@ -384,8 +398,8 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolHitlBridge
     const kept = await keptCards(input, access, find, request)
     if ('failure' in kept) return kept
     const { fixed, cards } = kept.ok
-    const located = await sessionRun(input, access, fixed.request.consumer.work)
-    if ('failure' in located) return located
+    const place = await located(input, access, fixed.request.consumer)
+    if ('failure' in place) return place
     const principal = input.registrar(access.tenant)
     if (principal === undefined) return unavailable('the registering principal is not issued')
     const audience = input.audience()
@@ -394,7 +408,7 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolHitlBridge
       access,
       tenantText: tenantText.value,
       ...cards,
-      ...located.ok,
+      ...place.ok,
       actorRef: standingPrincipalRef(principal),
       audience,
     })

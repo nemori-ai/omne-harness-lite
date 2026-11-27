@@ -4,6 +4,7 @@ it('the public entry exports the store, its materials and the name of its partic
   const root = (await import('@omne-harness/mcp-storage-sql')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'createSqlCatalogStore',
+    'createSqlContinuationRecords',
     'mcpSqlMaterials',
     'mcpStoreParticipant',
   ])

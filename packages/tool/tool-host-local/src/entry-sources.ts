@@ -453,6 +453,10 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
     } catch {
       return fail('the entry source could not select the entry')
     }
+    if (entry === undefined)
+      void Promise.resolve(access)
+        .then(asker => source.list(asker))
+        .catch(() => undefined)
     if (entry === undefined || entry.availability.kind !== 'available')
       return fail('the source entry is not available now')
     if (canonicalDigest(entry.executor) !== canonicalDigest(executor))

@@ -23,9 +23,12 @@ describe('public entries', () => {
       'DEFINITION_BLOCK_BYTES',
       'TOOL_PARTICIPANT',
       'TOOL_STORAGE_OWNER',
+      'TOOL_WAIT_OPEN_FACT',
+      'TOOL_WAIT_OPEN_GUARD',
       'createSqlToolBodyStore',
       'createSqlToolLedgerStore',
       'toolStorageMaterials',
+      'toolWaitOpenGuardFacts',
     ])
   })
 

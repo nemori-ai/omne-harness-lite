@@ -2,6 +2,8 @@ export type {
   AdoptedEndpoint,
   AdoptionView,
   CatalogStore,
+  ContinuationKey,
+  ContinuationRecords,
   CredentialFailure,
   CredentialUse,
   EligibilityVerdict,

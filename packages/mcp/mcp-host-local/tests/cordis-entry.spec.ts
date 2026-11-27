@@ -296,7 +296,10 @@ describe('the MCP plugin on a Cordis context, without a peer', () => {
       await invoker.continueWithInput(ALICE, {
         ...call,
         inputResponses: jsonOf({}),
-        issuedAt: generationOf(0),
+        expectedDefinition: digestDefinition({
+          name: actionNameOf('echo'),
+          definition: jsonOf({}),
+        }),
         correlationKey: correlationKeyOf('call-2'),
       }),
     ).toEqual(NOT_SENT)
