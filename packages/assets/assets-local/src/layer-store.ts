@@ -9,6 +9,8 @@ import {
   type StoreOperation,
   type StorePublication,
   type TenantLayerStore,
+  withPlaced,
+  type AssetEntry,
 } from '@omne-harness/assets'
 import { originOf } from './origin.ts'
 import { manifestOf } from './packages.ts'
@@ -138,19 +140,38 @@ async function operationOf(
   return { kind: 'change', holding: holdingRef, capability, change, answer }
 }
 
+const BROUGHT = 'brought:'
+
+/** A definition a plugin brought, as a row: no holding of its own, so its holding names the plugin, and nothing can change it alone. */
+function broughtRow(entry: AssetEntry, from: string): AssetRow {
+  const { category, name } = entry.capability
+  return {
+    ...entry,
+    from,
+    holding: `${BROUGHT}${from}/${category}/${name}`,
+    origin: 'customized',
+    summary: null,
+  }
+}
+
 /** The tenant layer of one tenant's local assets, as the management service reads and changes it. */
 export function createTenantLayerStore(
   local: AssetsLocal,
   tenantRef: string,
   categories: Pick<CategoryView, 'lookup'>,
   layers: readonly AssetLayerSource[],
+  placed: (category: string) => readonly AssetEntry[] = () => [],
 ): TenantLayerStore {
   return Object.freeze({
     async list(request) {
       const read = await local.listHeld(request)
       if (read.kind === 'rejected')
         return read.reason === 'invalid_input' ? { kind: 'invalid' } : UNAVAILABLE
-      return { kind: 'page', items: read.items.map(rowOf), next: read.next }
+      const brought = placed(request.category).flatMap(entry =>
+        entry.from === undefined ? [] : [broughtRow(entry, entry.from)],
+      )
+      const page = { kind: 'page' as const, items: read.items.map(rowOf), next: read.next }
+      return withPlaced(page, brought, request)
     },
     async held(capability) {
       const read = await local.readHeldCapability({ capability })
@@ -192,6 +213,8 @@ export function createTenantLayerStore(
       return { kind: 'files', version, from }
     },
     async holding(holdingRef) {
+      if (holdingRef.startsWith(BROUGHT))
+        return { kind: 'brought', from: holdingRef.slice(BROUGHT.length).split('/')[0] ?? '' }
       const read = await local.readHolding({ holdingRef, scopeRef: tenantRef })
       if (read.kind === 'rejected') return UNAVAILABLE
       if (read.kind === 'absent') return { kind: 'absent' }

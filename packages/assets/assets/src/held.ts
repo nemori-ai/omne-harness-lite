@@ -11,6 +11,7 @@ export type HeldItem = Readonly<{
   replaceLocked: boolean
   within?: string
   valueAt?: string
+  from?: string
 }>
 
 export type HeldScope = readonly string[]
@@ -32,7 +33,9 @@ export type HeldPoint = Readonly<{
   gives: string
   item: Readonly<{
     kind: 'data'
-    fields: Readonly<Record<Exclude<keyof HeldItem, 'within' | 'valueAt'>, 'string' | 'boolean'>>
+    fields: Readonly<
+      Record<Exclude<keyof HeldItem, 'within' | 'valueAt' | 'from'>, 'string' | 'boolean'>
+    >
   }>
   resolve: 'most-specific'
   binding: 'run'

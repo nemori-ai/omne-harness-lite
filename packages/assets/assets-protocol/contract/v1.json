@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c"
+    "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c",
+    "2": "sha256:85216c7b7feb228d4062b231ba48724be23c5a8e0729855418fced94e8b7e19d"
   },
   "major": 1,
   "name": "assets",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-assets": {
@@ -612,6 +613,230 @@
                   ]
                 }
               },
+              "effect": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "advice": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "clients": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "label": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "disable": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "key": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "mark": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "+",
+                                      "-",
+                                      "~",
+                                      "!"
+                                    ]
+                                  }
+                                },
+                                "of": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "point": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "places": {
+                      "rule": {
+                        "item": {
+                          "fields": {
+                            "category": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "key": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "point": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "says": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "side": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "literal",
+                                    "values": [
+                                      "client",
+                                      "server"
+                                    ]
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "standing": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        "kind": "array"
+                      }
+                    },
+                    "remove": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "key": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "mark": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "+",
+                                      "-",
+                                      "~",
+                                      "!"
+                                    ]
+                                  }
+                                },
+                                "of": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "point": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 2
+              },
               "item": {
                 "rule": {
                   "fields": {
@@ -624,6 +849,13 @@
                       "rule": {
                         "kind": "boolean"
                       }
+                    },
+                    "from": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "text"
+                      },
+                      "since": 2
                     },
                     "holding": {
                       "rule": {
@@ -1919,6 +2151,13 @@
                         "rule": {
                           "kind": "boolean"
                         }
+                      },
+                      "from": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        },
+                        "since": 2
                       },
                       "holding": {
                         "rule": {
@@ -3369,7 +3608,15 @@
             "kind": "object"
           },
           "not-found": {
-            "fields": {},
+            "fields": {
+              "broughtBy": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 2
+              }
+            },
             "kind": "object"
           },
           "not-writable": {
@@ -3435,7 +3682,15 @@
             "kind": "object"
           },
           "not-found": {
-            "fields": {},
+            "fields": {
+              "broughtBy": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 2
+              }
+            },
             "kind": "object"
           },
           "not-writable": {

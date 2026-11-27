@@ -71,7 +71,8 @@ export type HoldingChange =
   | Readonly<{ kind: 'setEnabled'; enabled: boolean }>
 
 export type HoldingOutcome =
-  | Readonly<{ kind: 'changed' | 'no-change' | 'absent' | 'denied' | 'unavailable' | 'conflict' }>
+  | Readonly<{ kind: 'changed' | 'no-change' | 'denied' | 'unavailable' | 'conflict' }>
+  | Readonly<{ kind: 'absent'; broughtBy?: string }>
   | Readonly<{ kind: 'operation-conflict' }>
   | Readonly<{ kind: 'not-writable'; reason: 'official' | 'removed' }>
   | Readonly<{ kind: 'unknown'; operationId: string }>
@@ -221,6 +222,7 @@ export type TenantLayerStore = Readonly<{
         origin: AssetOrigin
         revision: number
       }>
+    | Readonly<{ kind: 'brought'; from: string }>
     | Readonly<{ kind: 'absent' | 'unavailable' }>
   >
   change(
@@ -526,6 +528,7 @@ async function changeHolding<P>(
     if (recalled.kind !== 'not-found') return storeOutcome(recalled, operationId)
     const holding = await store.holding(holdingRef)
     if (holding.kind === 'absent') return officialChange(official, holdingRef)
+    if (holding.kind === 'brought') return { kind: 'absent', broughtBy: holding.from }
     if (holding.kind !== 'holding') return { kind: holding.kind }
     const refused = decided(holding, change)
     if (refused !== undefined) return refused

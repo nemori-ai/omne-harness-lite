@@ -32,7 +32,13 @@ export type ChangeImpact = Readonly<{
   >
 }>
 
-export type PlacedLine = Readonly<{ point: string; key: string; standing: string; says: string }>
+export type PlacedLine = Readonly<{
+  point: string
+  key: string
+  standing: string
+  says: string
+  side?: 'client' | 'server'
+}>
 export type ClientLine = Readonly<{ label: string; says: string }>
 
 /** Where a holding is placed now and whether each place is in effect. The assembly adapts this port. */

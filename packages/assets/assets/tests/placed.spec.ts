@@ -1,6 +1,5 @@
-import { capabilityId, type AssetEntry, type AssetPage } from '@omne-harness/assets'
+import { capabilityId, withPlaced, type AssetEntry, type AssetPage } from '../src/index.ts'
 import { describe, expect, it } from 'vitest'
-import { withPlaced } from '../../../src/rows/tenant-assets/registry-sources.ts'
 
 const entry = (name: string, asset = `held/${name}`): AssetEntry => {
   const made = capabilityId('skill', name)
