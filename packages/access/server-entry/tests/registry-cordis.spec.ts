@@ -166,7 +166,7 @@ describe('the registry on real Cordis', () => {
     const registry = root.accessRegistry as unknown as AccessRegistryProvider
     const changes: string[] = []
     const subscription = registry.subscribe(change => {
-      if (change.change !== 'points')
+      if (change.change === 'mounted' || change.change === 'unmounted')
         changes.push(`${change.revision} ${change.change} ${change.protocol.name}`)
     })
     expect(subscription).toMatchObject({ revision: 0, protocols: [] })

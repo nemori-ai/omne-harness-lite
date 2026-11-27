@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect } from './desktop.ts'
 
-const PASSWORD = 'alice-pw-e2e'
+export const PASSWORD = 'alice-pw-e2e'
 const RECALL = '叫它回来'
 
 export async function signUp(page: Page): Promise<string> {

@@ -1,3 +1,4 @@
+import { issuedFor } from './acting.ts'
 import type { IncomingMessage } from 'node:http'
 import type {
   AccessIdentity,
@@ -75,5 +76,6 @@ export async function establish(
   if (tenant === undefined) return { kind: 'refused' }
   const acting = await ask(watch, () => port.actFor(login, tenant), issued)
   if (acting.kind !== 'given') return acting
+  issuedFor(acting.value.principal, tenant)
   return { kind: 'caller', principal: acting.value.principal, login: { identity: login, proof } }
 }

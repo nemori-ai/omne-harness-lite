@@ -149,6 +149,29 @@ describe('通用写法：代码交回的东西成为这个点的一项', () => {
     })
   })
 
+  it('清单的标识与次序盖过交回的对象里的同名字段；字段的种类照规矩核，缺了说缺哪一个', () => {
+    const page = rules({
+      item: {
+        kind: 'pure',
+        fields: { id: 'string', title: 'string', rank: 'number', render: 'function' },
+      },
+    })
+    const render = () => null
+    expect(
+      genericItem(page, { id: 'mine', title: 'Notes', render }, { id: 'notes', rank: 60 }),
+    ).toEqual({
+      item: { id: 'notes', title: 'Notes', rank: 60, render },
+    })
+    expect(genericItem(page, { title: 'Notes', render }, { id: 'notes' })).toEqual({
+      kind: 'refused',
+      detail: 'the item lacks rank (number)',
+    })
+    expect(genericItem(two, { available: render, run: 'not a function' })).toEqual({
+      kind: 'refused',
+      detail: 'the item lacks run (function)',
+    })
+  })
+
   it('交回的既不是那个函数也不是对象：说明这个点要什么', () => {
     expect(genericItem(two, () => null)).toEqual({
       kind: 'refused',

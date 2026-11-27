@@ -31,13 +31,17 @@ function contribute(shell: ShellService, identity: IdentityClient): void {
   const account: AccountPorts = { query: identity, login: shell.login, scope: shell.scope }
   const logout = (): void => void shell.login.logout()
   shell.contribute('gate', { id: GATE_ID, render: () => <Gate ports={login} /> })
-  shell.contribute('sidebar', {
-    id: ACCOUNT_ID,
-    order: ACCOUNT_ORDER,
-    group: 'utility',
-    render: () => <AccountBlock ports={account} logout={logout} />,
-    rail: () => <AccountRail ports={account} logout={logout} />,
-  })
+  shell.contribute(
+    'sidebar',
+    {
+      id: ACCOUNT_ID,
+      order: ACCOUNT_ORDER,
+      group: 'utility',
+      render: () => <AccountBlock ports={account} logout={logout} />,
+      rail: () => <AccountRail ports={account} logout={logout} />,
+    },
+    { lock: true },
+  )
 }
 
 export const identityUiModule: Plugin.Object = defineUiModule({

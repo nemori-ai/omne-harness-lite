@@ -20,6 +20,7 @@ import {
 
 const CODING = [
   'Agents',
+  'AppView',
   'Ask',
   'BkgToolCalls',
   'Calendar',

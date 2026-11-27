@@ -19,6 +19,7 @@ import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import {
   LOCAL_OPEN_LIMITS,
   LOCAL_PROGRAM_LIMITS,
+  LOCAL_IMAGE_BUDGET,
   LOCAL_SCREEN_LIMITS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
@@ -307,6 +308,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Jobs: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Canvas: { resultMaxBytes: 65_536 },
+      AppView: { resultMaxBytes: 65_536, ...LOCAL_IMAGE_BUDGET },
       Sessions: { resultMaxBytes: 131_072 },
       Agents: { resultMaxBytes: 1_048_576 },
       Goal: { resultMaxBytes: 1_048_576 },

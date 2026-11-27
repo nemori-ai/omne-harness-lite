@@ -6,6 +6,7 @@ import {
   list,
   noCalls as noLedger,
   settled,
+  standing,
   type Contract,
   type Entry,
   type Instance,
@@ -13,7 +14,11 @@ import {
   type Registry,
   type Scope,
 } from '@omne-harness/dynamis'
-import { revisionOf, type ProtocolContract } from '@omne-harness/public-contract'
+import {
+  revisionOf,
+  type GuestContractData,
+  type ProtocolContract,
+} from '@omne-harness/public-contract'
 import { memberOf, type Entered } from './registry.ts'
 
 export const PROTOCOLS = 'access.protocols'
@@ -43,7 +48,10 @@ export type ProtocolItem = Readonly<{
   contribution: AccessContribution<ProtocolContract>
   revision: number
   controller: AbortController
+  data?: GuestContractData
 }>
+
+export type ScopedProtocol = Readonly<{ name: string; major: number; contract: GuestContractData }>
 
 /** The books of the calls in flight; every call is pinned to the instance that took it. */
 export type Calls = Readonly<{ ledger: Ledger; serial: number }>
@@ -78,12 +86,39 @@ export type Open = Readonly<{
 export const keyOf = (protocol: Readonly<{ name: string; major: number }>): string =>
   `${protocol.name}/v${protocol.major}`
 
-export function protocolItem(contribution: AccessContribution<ProtocolContract>): ProtocolItem {
+export function protocolItem(
+  contribution: AccessContribution<ProtocolContract>,
+  data?: GuestContractData,
+): ProtocolItem {
   return {
     contribution,
     revision: revisionOf(contribution.protocol),
     controller: new AbortController(),
+    ...(data !== undefined && { data }),
   }
+}
+
+export function scopedOn(registry: Registry, asker: Scope): readonly ScopedProtocol[] | undefined {
+  const listing = list<ProtocolItem>(registry, PROTOCOLS, null, asker)
+  if (listing.kind !== 'read') return undefined
+  return listing.items.flatMap(({ entry }) => {
+    const { data } = entry.item
+    if (entry.scope.length === 0 || data === undefined) return []
+    const { name, major } = entry.item.contribution.protocol
+    return [{ name, major, contract: data }]
+  })
+}
+
+export function scopedSignature(registry: Registry): string {
+  return registry.placed
+    .filter(placed => placed.point === PROTOCOLS && placed.scope.length > 0)
+    .map(placed =>
+      [placed.scope.join('/'), placed.key, placed.digest, standing(registry, placed.instance)].join(
+        '|',
+      ),
+    )
+    .sort()
+    .join('\n')
 }
 
 /** The digest names the instance: two instances with one protocol are two items, never one. */

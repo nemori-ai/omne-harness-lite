@@ -41,6 +41,19 @@ const point = {
 
 const revision = { rule: { kind: 'positive-integer' } } as const
 
+/** How many times the protocols of tenants have changed: the same for every caller, it says nothing of whose. */
+const scoped = { rule: { kind: 'count' }, optional: true, since: 3 } as const
+
+/** A protocol of the acting tenant, with its contract written as data; a reader makes it a contract with guestContract. */
+const scopedProtocol = {
+  kind: 'object',
+  fields: {
+    name: { rule: { kind: 'text' } },
+    major: { rule: { kind: 'positive-integer' } },
+    contract: { rule: { kind: 'json' } },
+  },
+} as const
+
 const availabilityFrame = {
   kind: 'one-of',
   rules: [
@@ -52,6 +65,7 @@ const availabilityFrame = {
         protocols: { rule: { kind: 'array', item: servedProtocol } },
         conflicts,
         points: { rule: { kind: 'array', item: point }, optional: true, since: 2 },
+        scoped,
       },
     },
     {
@@ -62,6 +76,7 @@ const availabilityFrame = {
         added: { rule: { kind: 'array', item: servedProtocol } },
         removed: { rule: { kind: 'array', item: protocolKey } },
         conflicts,
+        scoped,
       },
     },
   ],
@@ -72,7 +87,22 @@ export type AvailabilityFrame = RuleValue<typeof availabilityFrame>
 export const accessProtocol = defineProtocol({
   name: 'access',
   major: 1,
-  operations: {},
+  operations: {
+    scoped: {
+      identity: 'acting-tenant',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec({ kind: 'object', fields: {} }),
+      outcomes: {
+        succeeded: ruleCodec({
+          kind: 'object',
+          fields: { protocols: { rule: { kind: 'array', item: scopedProtocol } } },
+        }),
+        'basis-unavailable': true,
+      },
+      since: 3,
+    },
+  },
   observations: {
     availability: {
       identity: 'none',

@@ -5,6 +5,7 @@ import {
   DoneIcon,
   EmptyState,
   LoadingIndicator,
+  NamedIcon,
   PIECES,
   RedrawProvider,
   SendIcon,
@@ -109,6 +110,27 @@ describe('the icons of the kit in the desktop shell', () => {
       await settle()
     })
     expect(icons()).toEqual(['own:send', 'own:done'])
+  })
+
+  it('an icon named by a page that the set does not have is the unknown glyph, until a plugin draws one under that name', async () => {
+    const t = await shown()
+    within = render(
+      <RedrawProvider value={t.state.redraw.draw}>
+        <NamedIcon name="weather" />
+      </RedrawProvider>,
+    ).container
+    expect(icons()).toEqual(['own:unknown'])
+    const brand = await t.module('brand')
+    await act(async () => {
+      iconPoint.put(
+        brand.shell,
+        'weather',
+        ({ subject }) => <b data-mine={`mine:${subject.name}`} />,
+        tenantScope(ALICE),
+      )
+      await settle()
+    })
+    expect(icons()).toEqual(['mine:weather'])
   })
 
   it('a drawing that throws leaves that icon as its own glyph and the other icons as they are', async () => {

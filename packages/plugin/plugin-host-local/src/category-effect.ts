@@ -16,7 +16,11 @@ export type ToldByClient = Readonly<{
   client: string
   points: readonly Readonly<{
     name: string
-    contract?: Readonly<{ item: Readonly<{ kind: string }>; binding: string }>
+    contract?: Readonly<{
+      item: Readonly<{ kind: string }>
+      binding: string
+      scopes?: Readonly<{ why: string; note: string }>
+    }>
     dataKeys?: readonly Readonly<{ name: string }>[]
   }>[]
   plugins: readonly Readonly<{
@@ -113,7 +117,9 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
       const takes = contract === undefined ? null : contract.item.kind === 'data' ? 'data' : 'code'
       const when = contract === undefined ? null : contract.binding === 'run' ? 'running' : 'build'
       const names = dataKeys === undefined ? {} : { dataKeys: dataKeys.map(each => each.name) }
-      known.set(name, { name, side: 'client', takes, when, ...names })
+      const scopes = contract?.scopes
+      const closed = scopes === undefined ? {} : { closed: { why: scopes.why, note: scopes.note } }
+      known.set(name, { name, side: 'client', takes, when, ...names, ...closed })
     }
   return [...known.values()]
 }

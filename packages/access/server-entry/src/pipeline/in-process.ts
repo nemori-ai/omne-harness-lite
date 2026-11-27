@@ -1,3 +1,4 @@
+import { issuedFor } from './acting.ts'
 import type {
   AccessIdentity,
   InProcessAnswer,
@@ -40,6 +41,7 @@ async function identified(
     if (rule === 'login') return { kind: 'caller', principal: resumed.login }
     const acting = await port.actFor(resumed.login, call.tenant)
     if (acting.outcome !== 'issued') return failed(acting.outcome)
+    issuedFor(acting.principal, call.tenant)
     return { kind: 'caller', principal: acting.principal }
   } catch {
     return { kind: 'unavailable' }

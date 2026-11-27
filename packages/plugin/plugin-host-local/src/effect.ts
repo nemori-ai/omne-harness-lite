@@ -1,6 +1,7 @@
 import type { ImpactLine } from '@omne-harness/assets'
 import {
   membersOf,
+  reasonText,
   type Member,
   type PluginManifest,
   type SideName,
@@ -15,6 +16,7 @@ export type KnownPoint = Readonly<{
   when: 'running' | 'build' | null
   /** The names the data of a member may use, where the point lists them; absent when any name may be used. */
   dataKeys?: readonly string[]
+  closed?: Readonly<{ why: string; note: string }>
 }>
 
 export type PluginImpactInput = Readonly<{
@@ -137,6 +139,11 @@ function arriving(input: PluginImpactInput, placed: Placed): Told {
     const hint = near.length === 0 ? '' : ` Nearest: ${near.join(', ')}.`
     return one('!', `→ ${member.point} is not a point now.${hint} It would not be placed.`, FIND)
   }
+  if (point.closed !== undefined)
+    return one(
+      '!',
+      `→ ${reasonText({ kind: 'closed', ...point.closed }).replace(/\.$/u, '')}. It would not be in effect.`,
+    )
   const way = wayOf(member)
   if (point.takes !== null && point.takes !== way)
     return one(

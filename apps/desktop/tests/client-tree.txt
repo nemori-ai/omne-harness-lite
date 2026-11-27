@@ -106,14 +106,14 @@ system
           workspace-ui#1  [effective]
   client
     assets
-      assets.category  [keyed-list, closed: one-per-process]
+      assets.category  [keyed-list, v1.2]
         skin
           plugin-ui.skins  [effective, plugin-ui#1]
-      assets.category-page  [list, closed: one-per-process]
+      assets.category-page  [list, v1.2]
         mcp  [effective, mcp-ui#1]
       assets.governance  [one, closed: grants-itself]
         assets-ui#1  [effective]
-      assets.holding  [keyed-list, closed: one-per-process]
+      assets.holding  [keyed-list, v1.2]
         converter
           media-converter  [effective, media-ui#1]
         model-provider
@@ -149,6 +149,8 @@ system
           served:human-intervention/v1#1  [effective]
         identity/v1
           served:identity/v1#1  [effective]
+        interface/v1
+          served:interface/v1#1  [effective]
         mcp/v1
           served:mcp/v1#1  [effective]
         media/v1
@@ -190,7 +192,7 @@ system
         model-ui#1  [effective]
     notification
       notification.entry  [keyed-one]
-      notification.inbox-sections  [list, closed: one-per-process]
+      notification.inbox-sections  [list, v1.2]
     plugin
       plugin.guest-forms  [keyed-one, build, closed: grants-itself]
         shell.layout
@@ -212,33 +214,33 @@ system
           media-ui#1  [effective]
         voice
           media-ui#1  [effective]
-      session.call-detail  [list, closed: one-per-process]
+      session.call-detail  [list, v1.2]
         tool-call-children  [effective, tool-ui#1]
         tool-call-output  [effective, tool-ui#1]
       session.composer  [one, closed: grants-itself]
         session-ui#1  [effective]
-      session.composer-attachments  [list, closed: one-per-process]
+      session.composer-attachments  [list, v1.2]
         media  [effective, media-ui#1]
       session.composer-intake  [one, closed: grants-itself]
         session-ui#1  [effective]
-      session.dock  [list, closed: one-per-process]
+      session.dock  [list, v1.2]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
       session.model-choice  [one, closed: grants-itself]
         session-ui#1  [effective]
-      session.run-failure  [list, closed: one-per-process]
+      session.run-failure  [list, v1.2]
         model-credential  [effective, model-ui#1]
-      session.side  [list, closed: one-per-process]
+      session.side  [list, v1.2]
         goal  [effective, goal-ui#1]
         usage  [effective, usage-ui#1]
-      session.status  [list, closed: one-per-process]
+      session.status  [list, v1.2]
         usage.occupancy  [effective, usage-ui#1]
         schedule.job-provenance  [effective, schedule-ui#1]
       session.tool-call  [keyed-one]
         Code
           tool-ui#1  [effective]
     shell
-      shell.actions  [list, closed: one-per-process]
+      shell.actions  [list, v1.2]
         assets.settings  [effective, assets-ui#1]
         session.stop  [effective, session-ui#1]
         human-intervention.waiting  [effective, human-intervention-ui#1]
@@ -248,29 +250,40 @@ system
         slash-command.keys  [effective, slash-command-ui#1]
         session.retry  [effective, session-ui#1]
         session.send  [effective, session-ui#1]
+        shell.next-region  [effective, DesktopShell#1]
         session.send-first  [effective, session-ui#1]
+        shell.prev-region  [effective, DesktopShell#1]
         session.send-after  [effective, session-ui#1]
         session.new  [effective, session-ui#1]
+        shell.bigger  [effective, DesktopShell#1]
         session.next  [effective, session-ui#1]
+        shell.smaller  [effective, DesktopShell#1]
         session.previous  [effective, session-ui#1]
+        shell.reset-size  [effective, DesktopShell#1]
         session.search  [effective, session-ui#1]
         session.focus-composer  [effective, session-ui#1]
+        shell.sidebar  [effective, DesktopShell#1]
         session.start-command  [effective, session-ui#1]
+        shell.close-layer  [effective, DesktopShell#1]
         session.details  [effective, session-ui#1]
+        shell.turn-face  [effective, DesktopShell#1]
         session.pick-model  [effective, session-ui#1]
         session.pick-permission  [effective, session-ui#1]
         session.side-panel  [effective, session-ui#1]
-      shell.back  [one, build, closed: one-per-process]
+        shell.palette  [effective, DesktopShell#1]
+        shell.shortcuts  [effective, DesktopShell#1]
+        shell.help  [effective, DesktopShell#1]
+      shell.back  [one, v1.2]
         canvas-ui#1  [effective]
-      shell.float  [list, build, closed: one-per-process]
+      shell.float  [list, v1.2]
         companion  [effective, session-ui#1]
       shell.gate  [one, build, closed: no-tenant]
         identity-ui#1  [effective]
       shell.icon  [keyed-one]
-      shell.keymap  [one, closed: one-per-process]
+      shell.keymap  [one, v1.2]
         slash-command-ui#1  [effective]
       shell.layout  [keyed-one]
-      shell.pages  [list, build, closed: one-per-process]
+      shell.pages  [list, v1.2]
         conversation  [effective, session-ui#1]
         history-search  [effective, session-ui#1]
         decisions  [effective, human-intervention-ui#1]
@@ -282,7 +295,7 @@ system
         settings  [effective, assets-ui#1]
         commands-and-keys  [effective, slash-command-ui#1]
         usage  [effective, usage-ui#1]
-      shell.parts  [keyed-one, closed: one-per-process]
+      shell.parts  [keyed-one, v1.2]
         assets.asset
           assets-ui#1  [effective]
         assets.asset.actions
@@ -600,7 +613,7 @@ system
         workspace.register
           workspace-ui#1  [effective]
       shell.piece  [keyed-one]
-      shell.say  [one, build, v1.3, closed: one-per-process]
+      shell.say  [one, v1.4]
         session-ui#1  [effective]
       shell.say-phrase  [keyed-one]
         shell.expand
@@ -609,7 +622,7 @@ system
           DesktopShell#1  [effective]
         shell.todo
           DesktopShell#1  [effective]
-      shell.sidebar  [list, build, closed: one-per-process]
+      shell.sidebar  [list, v1.2]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]
         identity.account  [effective, identity-ui#1]
@@ -617,7 +630,7 @@ system
       slash-command.composer  [one, closed: grants-itself]
         slash-command-ui#1  [effective]
     usage
-      usage.presentation  [keyed-list, closed: one-per-process]
+      usage.presentation  [keyed-list, v1.2]
         breakdown
           usage.share-bar  [effective, usage-ui#1]
           usage.share-list  [effective, usage-ui#1]
@@ -627,7 +640,7 @@ system
           usage.stacked-bar  [effective, usage-ui#1]
           usage.line  [effective, usage-ui#1]
           usage.area  [effective, usage-ui#1]
-      usage.widget  [keyed-list, closed: one-per-process]
+      usage.widget  [keyed-list, v1.2]
         session
           usage.summary  [effective, usage-ui#1]
           usage.tokens  [effective, usage-ui#1]

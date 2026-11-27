@@ -10,7 +10,9 @@ import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { fiberOf, readManifest } from '@omne-harness/plugin-protocol'
 import { installOn } from '@omne-harness/plugin-ui'
 import { tenantScope, type ShellLogin } from '@omne-harness/shell-contract'
+import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
+import { render } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { tokenOf, tokensOf } from '../src/page/shell/changes-sheet.ts'
@@ -53,14 +55,15 @@ async function signedIn() {
   for (const protocol of assembly.protocols) await serveProtocol(root, protocol, silent())
   for (const module of assembly.modules) await root.plugin(module)
   state.scope.set(TENANT)
-  let inside: Parameters<typeof installOn>[0] | undefined
+  let inside: ShellService | undefined
   await root.plugin({ name: 'loader', inject: ['shell'], apply: ctx => void (inside = ctx.shell) })
   return { root, shell: inside! }
 }
 
 /** A plugin of one member from a member to copy: the member's line, then each file under a line naming it. */
 function copied(name: string, example: string) {
-  const [first = '', ...rest] = example.split('\n')
+  const filled = example.replaceAll('<plugin>', name).replaceAll('<key>', 'some-key')
+  const [first = '', ...rest] = filled.split('\n')
   const files = new Map<string, string>()
   let at: string | undefined
   for (const line of rest) {
@@ -149,4 +152,78 @@ it('the look the developer handbook gives as an example installs as written, and
         : []
     expect(mine.length, `${member.point} ${member.key}`).toBe(1)
   }
+})
+
+it.each([
+  [
+    'the assets page',
+    '{"point":"shell.pages","key":"","id":"assets","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'assets', title: 'Mine', order: 0, icon: 'x', render: () => null })",
+  ],
+  [
+    'the account block',
+    '{"point":"shell.sidebar","key":"","id":"identity.account","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'identity.account', order: 0, render: () => null })",
+  ],
+  [
+    'an action of the shell',
+    '{"point":"shell.actions","key":"","id":"shell.palette","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'shell.palette', title: 'Mine', group: 'x', kind: 'ui', order: 0, available: () => true, run: () => undefined })",
+  ],
+])(
+  'FE-I73：%s 带锁：同标识的一份 Plugin 装不上，回执写被锁住，官方的照常',
+  async (_name, member, code) => {
+    const { root, shell } = await signedIn()
+    const scope = tenantScope(TENANT)
+    const read = readManifest(
+      `{"schema":1,"name":"mine","summary":"s","client":{"members":[${member}]}}`,
+    )
+    if (read.kind !== 'read') throw new Error(read.reason)
+    const before = list(root.dynamis.registry(), JSON.parse(member).point, null, scope)
+    const installed = await installOn(
+      shell,
+      { name: 'mine', version: 'v1', members: read.manifest.client?.members ?? [] },
+      scope,
+      {
+        given: { React, ui },
+        load: async () =>
+          import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(code)}`),
+      },
+    )
+    expect(installed).toMatchObject({
+      kind: 'failed',
+      reason: expect.stringContaining('locked by'),
+    })
+    expect(list(root.dynamis.registry(), JSON.parse(member).point, null, scope)).toEqual(before)
+  },
+)
+
+const NOTES_PAGE = join(
+  import.meta.dirname,
+  '../../../packages/plugin/plugin-host-local/skills/extending-the-app/examples/notes-page',
+)
+
+it('the page with its own server data the developer handbook gives installs as written: it is in the sidebar under its id and shows what its server side answers through its port', async () => {
+  const { root, shell } = await signedIn()
+  const server = (await import(join(NOTES_PAGE, 'protocol.js'))) as {
+    protocol: () => { handlers: { list: () => Promise<unknown> } }
+  }
+  const { handlers } = server.protocol()
+  await serveProtocol(root, { name: 'notes', major: 1 }, { list: () => handlers.list() })
+  const read = readManifest(readFileSync(join(NOTES_PAGE, 'plugin.json'), 'utf8'))
+  if (read.kind !== 'read') throw new Error(read.reason)
+  const { name, client } = read.manifest
+  const code = {
+    given: { React, ui },
+    load: (_name: string, _version: string, path: string) => import(join(NOTES_PAGE, path)),
+  }
+  const listed = { name, version: 'v1', members: client?.members ?? [], needs: client?.needs ?? [] }
+  const installed = await installOn(shell, listed, tenantScope(TENANT), code)
+  expect(installed.kind, JSON.stringify(installed)).toBe('installed')
+  const page = shell.items('pages').find(each => each.id === 'notes')
+  expect(page && [page.title, page.order]).toEqual(['Notes', 60])
+  const drawn = render(<>{page!.render({ scope: TENANT })}</>)
+  expect(await drawn.findByText('Buy milk')).toBeDefined()
+  expect(drawn.getByText('Call the plumber')).toBeDefined()
+  drawn.unmount()
 })

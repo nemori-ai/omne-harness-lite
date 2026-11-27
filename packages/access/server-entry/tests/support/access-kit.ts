@@ -208,6 +208,7 @@ export function recordingRegistry(inner: AccessRegistry): RegistryLog {
       mount: contribution => inner.mount(contribution),
       own: contribution => inner.own(contribution),
       subscribe: listener => inner.subscribe(listener),
+      scoped: asker => inner.scoped(asker),
       enter: (key, name) => {
         const entered = inner.enter(key, name)
         if ('refused' in entered) return entered

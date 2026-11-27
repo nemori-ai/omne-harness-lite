@@ -55,6 +55,9 @@ describe('the developer handbook the release brings (extending-the-app)', () => 
         for (const path of [
           'examples/weather-protocol/plugin.json',
           'examples/send-button-look/plugin.json',
+          'examples/notes-page/plugin.json',
+          'examples/notes-page/page.js',
+          'examples/notes-page/protocol.js',
         ])
           expect(listed, path).toContain(path)
         const file = 'examples/weather-protocol/protocol.js'
@@ -62,18 +65,23 @@ describe('the developer handbook the release brings (extending-the-app)', () => 
           readFileSync(join(directory, file), 'utf8').trim(),
         )
 
-        const dir = example('weather-protocol')
-        const files = Object.fromEntries(
-          readdirSync(dir).map(name => [name, readFileSync(join(dir, name), 'utf8')]),
-        )
         const tenant = tenantOf(savedTenant(tree.home))
-        const made = await uploadPlugin(tree.clients.assets, tenant, 'weather-protocol', files)
-        expect(made.outcome, JSON.stringify(made)).toBe('succeeded')
+        for (const name of ['weather-protocol', 'notes-page']) {
+          const dir = example(name)
+          const files = Object.fromEntries(
+            readdirSync(dir).map(each => [each, readFileSync(join(dir, each), 'utf8')]),
+          )
+          const made = await uploadPlugin(tree.clients.assets, tenant, name, files)
+          expect(made.outcome, JSON.stringify(made)).toBe('succeeded')
+        }
         let shown = ''
-        for (let turn = 0; turn < 8 && !shown.includes('plugin:weather-protocol@'); turn += 1)
+        for (let turn = 0; turn < 8 && !shown.includes('plugin:notes-page@'); turn += 1)
           shown = await ask('show access.protocols')
         expect(shown).toMatch(
           /^\s+weather\/v1\s+plugin:weather-protocol@\S+ this tenant\s+\[in effect\]$/mu,
+        )
+        expect(shown).toMatch(
+          /^\s+notes\/v1\s+plugin:notes-page@\S+ this tenant\s+\[in effect\]$/mu,
         )
       })
       expect(exitCode).toBe(0)

@@ -119,19 +119,20 @@ describe('the place words said to the figure go, which holds one', () => {
     expect(shell.items('say')[0]?.reply).toBe(reply)
   })
 
-  it('is a point of the shell with major version 1 and revision 3, fixed when the app is built, whose item gives five functions and may give two more', () => {
+  it('is a point of the shell with major version 1 and revision 4, open while running with the most specific counting, whose item gives its id and five functions and may give two more', () => {
     const contract = shellContracts.find(each => each.name === 'shell.say')
     expect(contract).toMatchObject({
       tree: 'client',
       arity: 'one',
       key: 'none',
-      resolve: 'conflict',
-      binding: 'build',
+      resolve: 'most-specific',
+      binding: 'run',
       version: 1,
-      revision: 3,
+      revision: 4,
       item: {
         kind: 'pure',
         fields: {
+          id: 'string',
           targets: 'function',
           current: 'function',
           subscribe: 'function',

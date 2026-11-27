@@ -64,6 +64,22 @@ describe('answers outside the binding', () => {
     }
   })
 
+  it('carries a body of any JSON: its shape is for the contract of the operation to judge', async () => {
+    for (const body of [['Buy milk'], 'sunny', 3]) {
+      const server = await serve(jsonReply(200, { outcome: 'succeeded', body }))
+      const transport = createHttpProtocolTransport({ origin: server.origin })
+      const report = await transport.call({
+        protocol: NOTES,
+        operation: 'ping',
+        messageId: 'm-1',
+        body: OPEN,
+      })
+      expect(report.kind === 'answered' && report.body.kind).toBe(
+        Array.isArray(body) ? 'array' : typeof body,
+      )
+    }
+  })
+
   it('puts the proof and the tenant of the credential source on the request, and nothing without one', async () => {
     const server = await serve(jsonReply(200, { outcome: 'succeeded', body: {} }))
     const signed = createHttpProtocolTransport({

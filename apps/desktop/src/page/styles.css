@@ -476,6 +476,23 @@ html[data-face='back'] .booting {
   display: none;
 }
 
+/* The drawing window takes its picture of a page at rest: nothing in it moves. */
+.shell-view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--omne-surface-page);
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+}
+
+.shell-view *,
+.shell-view *::before,
+.shell-view *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 .shell-outside {
   position: relative;
   display: flex;

@@ -13,9 +13,11 @@ import {
   type Toast,
   type ToastBoard,
 } from '@omne-harness/shell-contract'
+import type { SizeController, SizeTier } from '@omne-harness/ui-kit'
 import type { TokenNow } from './changes-sheet.ts'
 import type { Face, FacePreference } from './face.ts'
 import type { Lack, LackSlot, PageLacks } from './lacks.ts'
+import { paletteSwitch, type PaletteSwitch } from './palette.tsx'
 import { phraseRelay, type PhraseRelay } from './phrase-relay.ts'
 import { redrawRelay, type RedrawRelay } from './redraw.ts'
 
@@ -163,8 +165,30 @@ function outsideRelay(): OutsideRelay {
   }
 }
 
+export type SizeRelay = Pick<SizeController, 'current' | 'set'> & {
+  bind(source: Pick<SizeController, 'current' | 'set'>): () => void
+}
+
+const DEFAULT_SIZE: SizeTier = 'medium'
+
+function sizeRelay(): SizeRelay {
+  let source: Pick<SizeController, 'current' | 'set'> | undefined
+  return {
+    current: () => source?.current() ?? DEFAULT_SIZE,
+    set: tier => source?.set(tier),
+    bind(next) {
+      source = next
+      return () => {
+        if (source === next) source = undefined
+      }
+    },
+  }
+}
+
 export type ShellState = {
   readonly slots: SlotRelay
+  readonly size: SizeRelay
+  readonly palette: PaletteSwitch
   readonly lacks: LackRelay
   readonly redraw: RedrawRelay
   readonly phrases: PhraseRelay
@@ -380,6 +404,8 @@ export function createShellState(
     slots,
     lacks: lackRelay(),
     redraw: redrawRelay(),
+    size: sizeRelay(),
+    palette: paletteSwitch(),
     phrases: phraseRelay(),
     told,
     figure: createFigureStore(),

@@ -146,6 +146,7 @@ export {
   attachWhile,
   needPoint,
   needProtocol,
+  protocolClientOf,
   type BoundOf,
   type Need,
   type PointNeed,

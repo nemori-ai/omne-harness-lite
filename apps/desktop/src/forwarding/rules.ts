@@ -18,6 +18,7 @@ import type { LoginCredentials, LoginResult, LogoutResult } from '../shared/chan
 import { tenantText } from '../shared/tenant.ts'
 import { openPluginFile, type PluginFileAnswer, type PluginFileAt } from './plugin-files.ts'
 import type { CookieLogin } from './login-cookie.ts'
+import { tenantProtocols } from './tenant-protocols.ts'
 
 export type ServerConnector = (credentials: Credentials) => Transport
 
@@ -55,6 +56,8 @@ export interface ForwardingRules {
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 
+const AVAILABILITY = JSON.stringify(['access', 1, 'availability'])
+
 type IssueLoginOutcome = Awaited<
   ReturnType<ClientOf<typeof identityProtocol>['issue-login']>
 >['outcome']
@@ -76,6 +79,26 @@ type Demand = Identity | 'carries-credential'
 
 const targetOf = (key: ProtocolKey, name: string): string =>
   JSON.stringify([key.name, key.major, name])
+
+const keyOf = (key: ProtocolKey): string => JSON.stringify([key.name, key.major])
+
+async function* tapped(
+  frames: AsyncGenerator<JsonValue, ObserveEnd, undefined>,
+  see: (frame: JsonValue, first: boolean) => void,
+): AsyncGenerator<JsonValue, ObserveEnd, undefined> {
+  let first = true
+  try {
+    for (;;) {
+      const next = await frames.next()
+      if (next.done === true) return next.value
+      see(next.value, first)
+      first = false
+      yield next.value
+    }
+  } finally {
+    await frames.return({ kind: 'aborted' })
+  }
+}
 
 function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, Demand> {
   const demands = new Map<string, Demand>()
@@ -100,6 +123,8 @@ function credentialsFor(login: CookieLogin, identity: Exclude<Identity, 'none'>)
 export function createForwardingRules(options: RulesOptions): ForwardingRules {
   const { connect } = options
   const demands = demandsOf(options.contracts)
+  const listed = new Set(options.contracts.map(keyOf))
+  const tenant = tenantProtocols(login => connect(credentialsFor(login, 'acting-tenant')), targetOf)
   const identityFor = (login: CookieLogin | undefined) =>
     createClient(
       identityProtocol,
@@ -112,6 +137,16 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
     const demand = demands.get(target)
     if (demand === undefined || demand === 'carries-credential') return undefined
     return login === undefined || demand === 'none' ? {} : credentialsFor(login, demand)
+  }
+
+  async function callCredentials(
+    request: CallRequest,
+    login: CookieLogin | undefined,
+  ): Promise<Credentials | undefined> {
+    const target = targetOf(request.protocol, request.operation)
+    if (demands.has(target)) return credentialsOf(target, login)
+    if (login === undefined || listed.has(keyOf(request.protocol))) return undefined
+    return (await tenant.has(login, target)) ? credentialsFor(login, 'acting-tenant') : undefined
   }
 
   return {
@@ -130,14 +165,16 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
     },
 
     async call(request, login) {
-      const credentials = credentialsOf(targetOf(request.protocol, request.operation), login)
+      const credentials = await callCredentials(request, login)
       return credentials === undefined ? NOT_SENT : connect(credentials).call(request)
     },
 
     async *observe(request, login) {
       const credentials = credentialsOf(targetOf(request.protocol, request.observation), login)
       if (credentials === undefined) return { kind: 'not-sent' }
-      return yield* connect(credentials).observe(request)
+      const frames = connect(credentials).observe(request)
+      if (targetOf(request.protocol, request.observation) !== AVAILABILITY) return yield* frames
+      return yield* tapped(frames, (frame, first) => tenant.frame(frame, first))
     },
 
     async login(credentials) {
@@ -163,6 +200,7 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
 
     async logout(login) {
       try {
+        tenant.forget(login)
         const answer = await identityFor(login)['revoke-login']({ targetLoginId: login.loginId })
         return answer.outcome === 'succeeded' || answer.outcome === 'no-change'
           ? 'signed-out'

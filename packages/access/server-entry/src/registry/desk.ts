@@ -12,6 +12,7 @@ import type { ProtocolContract } from '@omne-harness/public-contract'
 import type {
   AvailabilityChange,
   AvailabilitySubscription,
+  HeldFor,
   RegistryForPipeline,
   ServedProtocol,
   StandaloneRegistry,
@@ -26,7 +27,10 @@ import {
   leave,
   noCalls,
   open,
+  protocolItem,
   protocolsContract,
+  scopedOn,
+  scopedSignature,
   type Open,
   type ProtocolItem,
 } from './table.ts'
@@ -60,6 +64,8 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
   const served = new Map<string, ServedProtocol>()
   let conflicts: readonly ProtocolKey[] = []
   let declared = noPoints
+  let scoped = 0
+  let seen = ''
   const waiting = new Map<string, () => void>()
   const listeners = new Set<(change: AvailabilityChange) => void>()
 
@@ -131,6 +137,7 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
         protocols: [...served.values()],
         conflicts,
         points: declared.facts,
+        scoped,
         unsubscribe: () => void listeners.delete(listener),
       }
     },
@@ -150,7 +157,13 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
       declared = facts
       // The points are not counted: a change of them resends the snapshot at the same revision.
       if (!same) tell({ revision, change: 'points', points: declared.facts })
+      const signature = scopedSignature(registry)
+      if (signature === seen) return
+      seen = signature
+      scoped += 1
+      tell({ revision, change: 'scoped', scoped })
     },
+    scoped: asker => scopedOn(read(), asker),
   }
 }
 
@@ -177,15 +190,25 @@ export function createStandaloneRegistry(options: DeskOptions = {}): StandaloneR
   return {
     enter: desk.enter,
     subscribe: desk.subscribe,
+    scoped: desk.scoped,
     own: contribution => mount(contribution),
     mount,
   }
 
-  function mount<P extends ProtocolContract>(typed: AccessContribution<P>): () => Promise<void> {
+  function mount<P extends ProtocolContract>(
+    typed: AccessContribution<P>,
+    held?: HeldFor,
+  ): () => Promise<void> {
     const contribution = typed as unknown as AccessContribution<ProtocolContract>
     minted += 1
     const instance = { fiber: `mount-${minted}`, generation: 1 }
-    set(mustInstall(registry, instance, [entryOf(contribution, instance)]))
+    const made = entryOf(contribution, instance)
+    const { lock: _lock, ...unlocked } = made
+    const entry =
+      held === undefined
+        ? made
+        : { ...unlocked, scope: held.scope, item: protocolItem(contribution, held.data) }
+    set(mustInstall(registry, instance, [entry]))
     let gone: Promise<void> | undefined
     return () => {
       if (gone !== undefined) return gone

@@ -366,6 +366,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
       'Agents',
+      'AppView',
       'Ask',
       'BkgToolCalls',
       'Calendar',

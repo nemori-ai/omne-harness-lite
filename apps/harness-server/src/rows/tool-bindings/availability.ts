@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
 import { canvasKey } from '@omne-harness/canvas-cordis-contract/cordis'
+import { interfaceInspectionsKey } from '@omne-harness/interface-access/cordis'
 import {
   scheduleCommandsKey,
   scheduleJobsKey,
@@ -205,6 +206,7 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => b
   'notification.read': notificationInboxKey,
   'notification.write': notificationSendingKey,
   'canvas.arrangement': canvasKey,
+  'interface.inspect': interfaceInspectionsKey,
   'session.read': sessionKey,
   'session.search': sessionSearchKey,
   'workspace.switch': workspaceInstancesKey,

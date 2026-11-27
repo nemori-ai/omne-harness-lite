@@ -39,6 +39,15 @@ export const toolHostConfig = z
         Jobs: z.strictObject({ resultMaxBytes: positive }).optional(),
         Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
         Canvas: z.strictObject({ resultMaxBytes: positive }).optional(),
+        AppView: z
+          .strictObject({
+            resultMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
         Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
         Goal: z.strictObject({ resultMaxBytes: positive }).optional(),
