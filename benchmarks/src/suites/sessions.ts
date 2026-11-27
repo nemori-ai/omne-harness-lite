@@ -152,15 +152,17 @@ export function measuredOf(
   }
 }
 
-export function openingsMeasured(
+const TAKEN = [clocked(COMMITS), COMMIT_BYTES, READS]
+
+export function takenMeasured(
   trajectory: Trajectory,
+  openings: readonly Opening[],
   axis: Axis<Opening>,
-  chosen: (opening: Opening) => boolean,
 ): Judged {
-  const openings = trajectory.openings.filter(chosen)
+  const taken = { ...axis, read: TAKEN }
   return {
-    readings: [...readingsOf(openings, axis), ...timesOf(trajectory)],
-    ...gatesOf(openings, axis),
+    readings: [...readingsOf(openings, taken), ...timesOf(trajectory)],
+    ...gatesOf(openings, taken),
   }
 }
 
@@ -341,20 +343,16 @@ export const ATTACHMENTS = suiteOf({
     full: { rounds: attaching(6), scales: ATTACHED_KIB },
   },
   judge: (trajectory, tier) =>
-    openingsMeasured(
-      trajectory,
-      {
-        name: 'attached KiB',
-        span: 'taking an input',
-        from: 'attachments: taking an input reads as often whatever the size of the file with it',
-        scales: tier.scales,
-        placeOf: attachedIn(tier),
-        gated: [READS],
-        mustFail: { what: 'the size of the file, which doubles', of: attachedIn(tier) },
-        known: {},
-      },
-      () => true,
-    ),
+    takenMeasured(trajectory, trajectory.openings, {
+      name: 'attached KiB',
+      span: 'taking an input',
+      from: 'attachments: taking an input reads as often whatever the size of the file with it',
+      scales: tier.scales,
+      placeOf: attachedIn(tier),
+      gated: [READS],
+      mustFail: { what: 'the size of the file, which doubles', of: attachedIn(tier) },
+      known: {},
+    }),
 })
 
 const LONG_INPUT = 100_000
@@ -409,15 +407,11 @@ export const COMPACTION = suiteOf({
         ),
       },
     }
-    return {
-      readings: [...readingsOf(compactions, axis), ...timesOf(trajectory)],
-      ...gatesOf(compactions, axis),
-    }
+    return takenMeasured(trajectory, compactions, axis)
   },
 })
 
 const COLD_AFTER = [2, 4, 8, 16]
-const RESTARTED = [clocked(COMMITS), clocked(COMMIT_BYTES), READS]
 
 export const COLD_OPEN = suiteOf({
   id: 'cold-open',
@@ -442,8 +436,9 @@ export const COLD_OPEN = suiteOf({
     },
   },
   judge: (trajectory, tier) =>
-    openingsMeasured(
+    takenMeasured(
       trajectory,
+      trajectory.openings.filter(opening => opening.cold),
       {
         name: 'rounds before the restart',
         span: 'taking the first input after a restart',
@@ -451,7 +446,6 @@ export const COLD_OPEN = suiteOf({
         scales: tier.scales,
         placeOf: opening => opening.round - 1,
         gated: [clocked(COMMIT_BYTES), READS],
-        read: RESTARTED,
         known: {
           'commit bytes of taking the first input after a restart': accepted(
             'the first input after a restart commits more bytes the longer the session is',
@@ -461,7 +455,6 @@ export const COLD_OPEN = suiteOf({
           ),
         },
       },
-      opening => opening.cold,
     ),
 })
 

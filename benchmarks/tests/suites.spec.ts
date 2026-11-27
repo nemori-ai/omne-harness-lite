@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest'
 import type { StepLine } from '../src/driver/lab.ts'
 import { callId, LIST, requestsOf, roundMark, scriptOf, type RoundShape } from '../src/script.ts'
 import { SUITES } from '../src/suites.ts'
-import { measuredOf, MULTI_ROUND, MULTI_STEP, writesOf } from '../src/suites/sessions.ts'
+import {
+  measuredOf,
+  MULTI_ROUND,
+  MULTI_STEP,
+  takenMeasured,
+  writesOf,
+} from '../src/suites/sessions.ts'
 import {
   BYTE_ALLOWANCE,
   CHANGES,
@@ -403,6 +409,55 @@ describe('the session suites', () => {
     expect(byId('multi-step').assembly).toMatchObject({ compactionTrigger: 'release' })
     expect(byId('attachments').workload).toMatchObject({
       rounds: expect.arrayContaining([expect.objectContaining({ attachBytes: 65536 })]),
+    })
+  })
+})
+
+describe('what taking an input comes to', () => {
+  const opening = (round: number, commits: number) => ({
+    round,
+    cold: false,
+    otherRequests: 0,
+    reads: 380,
+    commits,
+    commitBytes: 60_000,
+    requestBytes: 60_000 + 700 * round,
+    byHandler: {},
+  })
+  const axis: Axis<ReturnType<typeof opening>> = {
+    name: 'round',
+    span: 'taking an input',
+    from: 'the cost model of the test',
+    scales: [2, 4],
+    placeOf: one => one.round,
+    gated: [],
+    known: {},
+  }
+  const trajectory: Trajectory = {
+    steps: [],
+    openings: [],
+    watchings: [],
+    rounds: [],
+    digests: [],
+    kinds: {},
+    entryKinds: [],
+    wallMs: 1,
+    processorMs: null,
+    requests: 4,
+  }
+
+  it('reads the commits with the clock: the span starts at a moment of the client, and one more commit can fall in it', () => {
+    const openings = [opening(1, 30), opening(2, 30), opening(3, 30), opening(4, 31)]
+    const { readings } = takenMeasured(trajectory, openings, axis)
+    const named = (name: string) => readings.find(reading => reading.name === name)
+    expect(named('commits of taking an input at round 4')).toMatchObject({
+      kind: 'clocked',
+      value: 30.5,
+    })
+    expect(named('commit bytes of taking an input at round 4')).toMatchObject({ kind: 'clocked' })
+    expect(named('reads of taking an input at round 4')).toMatchObject({ kind: 'clocked' })
+    expect(named('request bytes after taking an input at round 4')).toMatchObject({
+      kind: 'count',
     })
   })
 })
