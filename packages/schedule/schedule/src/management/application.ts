@@ -11,6 +11,7 @@ import {
   type ScheduleOperationLocator,
   type ScheduleOperationResult,
   type ScheduleOperationView,
+  type ScheduleOwner,
 } from '@omne-harness/schedule-contract'
 import type {
   ManagementDecisionInput,
@@ -147,10 +148,11 @@ async function workRefusal(
   requestId: string,
   request: ManagementRequest,
   current: ScheduleRecord | null,
+  owner: ScheduleOwner,
 ): Promise<ScheduleDomainError | null> {
   const work = requestedWork(request, current)
   if (work === null) return null
-  const taken = await workAcceptance(dependencies.executor?.(work), work)
+  const taken = await workAcceptance(dependencies.executor?.(work), work, owner)
   if (taken.kind === 'refused') return managementError(requestId, 'invalid_input', taken.reason)
   return taken.kind === 'unknown'
     ? managementError(requestId, 'dependency_blocked', taken.reason, true)
@@ -204,7 +206,7 @@ async function prepare(
   const preliminary = decideScheduleManagement(input)
   if (preliminary.kind === 'rejected' && preliminary.error.code !== 'dependency_blocked')
     return preliminary.error
-  const unfit = await workRefusal(dependencies, context.requestId, request, current)
+  const unfit = await workRefusal(dependencies, context.requestId, request, current, context.owner)
   if (unfit !== null) return unfit
   const definition = requestedDefinition(request, current)
   let resolved = input.definition

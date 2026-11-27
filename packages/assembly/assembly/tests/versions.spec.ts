@@ -192,7 +192,14 @@ describe('指针文件的内容', () => {
       previous: null,
       settled: false,
     })
+    const settled = { current: 'a', previous: 'a', settled: true }
+    expect(parsePointer(JSON.stringify(settled))).toEqual(settled)
     for (const text of [
+      'null',
+      '3',
+      '{"current":3,"previous":null,"settled":false}',
+      '{"current":"a","previous":"","settled":false}',
+      '{"current":"a","previous":null,"settled":0}',
       '',
       '{"current":"a"',
       '[]',

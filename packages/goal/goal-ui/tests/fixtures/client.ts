@@ -99,7 +99,18 @@ export function fakeClient() {
     },
   }
   const streams: { push(): void; end(): void; signal: AbortSignal }[] = []
+  /** The session's own choice of decision model is scripted apart, and its calls kept apart: a test of the goal counts its own calls. */
+  const judge: { calls: [string, unknown][]; read: Answer; choose: Answer } = {
+    calls: [],
+    read: { outcome: 'basis-unavailable' },
+    choose: { outcome: 'succeeded', body: { model: null } },
+  }
   const client = {
+    'read-judge': (body: unknown) => (judge.calls.push(['read-judge', body]), played(judge.read)),
+    'choose-judge': (body: unknown) => (
+      judge.calls.push(['choose-judge', body]),
+      played(judge.choose)
+    ),
     'read-goal': (body: unknown) => (calls.push(['read-goal', body]), played(script.read)),
     'write-goal': (body: unknown) => (calls.push(['write-goal', body]), played(script.write)),
     'query-write-goal': (body: unknown) => (
@@ -138,7 +149,7 @@ export function fakeClient() {
       },
     },
   } as unknown as GoalClient
-  return { client, calls, script, streams }
+  return { client, calls, script, streams, judge }
 }
 
 export const settled = async (): Promise<void> => {

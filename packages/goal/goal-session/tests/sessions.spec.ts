@@ -24,16 +24,16 @@ const textOf = (input: { value: { message: unknown } }) =>
   (input.value.message as { blocks: { text: string }[] }).blocks[0]?.text
 
 describe('the input sources of goals', () => {
-  it('are three, each taken from the system component of goals, each waking the session', () => {
+  it('are four: three into the session of a goal and one into the session that examines for it; each taken from the system component of goals, each waking the session', () => {
     expect(goalInputSources('goal')).toEqual(
-      ['goal.start', 'goal.resume', 'goal.continue'].map(name => ({
+      ['goal.start', 'goal.resume', 'goal.continue', 'goal.examine'].map(name => ({
         name,
         label: expect.any(String),
         accepts: { subject: 'system', component: 'goal', screened: false },
         wake: 'always',
       })),
     )
-    expect(new Set(goalInputSources('goal').map(source => source.label)).size).toBe(3)
+    expect(new Set(goalInputSources('goal').map(source => source.label)).size).toBe(4)
   })
 })
 
@@ -66,13 +66,13 @@ describe('the facts of a session a goal stands on', () => {
     const { sessions, state } = world()
     expect(await sessions.facts(TENANT, SESSION)).toEqual({
       kind: 'read',
-      value: { attendance: 'attended', moment: '41', drive: null },
+      value: { attendance: 'attended', moment: '41', drive: null, where: null },
     })
     state.work = { kind: 'read', value: work({ attendance: 'unattended' }) }
     state.head = { kind: 'read', value: null }
     expect(await sessions.facts(TENANT, SESSION)).toEqual({
       kind: 'read',
-      value: { attendance: 'unattended', moment: '0', drive: null },
+      value: { attendance: 'unattended', moment: '0', drive: null, where: null },
     })
   })
   it('a session that drives itself says which input opened its round; one that does not is never asked', async () => {
@@ -88,12 +88,29 @@ describe('the facts of a session a goal stands on', () => {
         attendance: 'attended',
         moment: '41',
         drive: { since: '37', text: '把改动说明写进 CHANGELOG' },
+        where: null,
       },
     })
     state.opened = { kind: 'unavailable' }
     expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
     state.drives = { kind: 'unavailable' }
     expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+  })
+  it('says where its work is, and whether a round is going; neither is guessed when it cannot be read', async () => {
+    const { sessions, state } = world()
+    state.where = { kind: 'read', value: '/work/snake' }
+    expect(await sessions.facts(TENANT, SESSION)).toMatchObject({ value: { where: '/work/snake' } })
+    state.where = { kind: 'unavailable' }
+    expect(await sessions.facts(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+    expect(await sessions.running(TENANT, SESSION)).toEqual({ kind: 'read', value: false })
+    const run = { kind: 'active', run: 'run-1' } as never
+    state.work = { kind: 'read', value: work({ run }) }
+    expect(await sessions.running(TENANT, SESSION)).toEqual({ kind: 'read', value: true })
+    state.work = { kind: 'read', value: null }
+    expect(await sessions.running(TENANT, SESSION)).toEqual({ kind: 'read', value: false })
+    state.work = { kind: 'unavailable' }
+    expect(await sessions.running(TENANT, SESSION)).toEqual({ kind: 'unavailable' })
+    expect(await sessions.running('not-a-tenant', SESSION)).toEqual({ kind: 'unavailable' })
   })
   it('what the person last said is what the history of the session holds of them, with its place; nothing said reads as null', async () => {
     const { sessions, state } = world()

@@ -142,10 +142,10 @@ export const shellFigureLabel = definePart({
 export const shellFigureNote = definePart({
   name: FIGURE_NOTE_PART,
   label: '说话笺',
-  summary: '对 Agent 说一句话的笺：桌面上单击形打开的那一块，与窗口里随身入口展开的小框',
+  summary: '对 Agent 说一句话的笺，只有一块：桌面上单击形、窗口里按随身入口，开的都是它',
   within: 'shell.app',
   depths: ['tokens', 'style'],
-  when: '单击桌面上的形之后',
+  when: '说话笺开着时',
 })
 
 export const shellFigureTold = definePart({

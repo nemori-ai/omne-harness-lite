@@ -64,6 +64,20 @@ describe('judgeStamp：这一版认不认得这份状态目录', () => {
   })
 })
 
+describe('judgeStamp 点名的格式按名字排', () => {
+  it('拒绝与要迁的清单都按名字排，不看写下的次序', () => {
+    expect(judgeStamp(stamp({ zeta: 9, alpha: 9 }), {})).toEqual({
+      kind: 'refused',
+      writtenBy: 'server@1.4.0',
+      formats: ['alpha', 'zeta'],
+    })
+    expect(judgeStamp(stamp({}), { zeta: 2, alpha: 2 })).toEqual({
+      kind: 'migrate',
+      formats: ['alpha', 'zeta'],
+    })
+  })
+})
+
 describe('parseStamp', () => {
   it('读回写出的那一份', () => {
     const written = stamp({ ...KNOWN })
@@ -72,6 +86,9 @@ describe('parseStamp', () => {
 
   it.each([
     ['不是 JSON', '{'],
+    ['是 null', 'null'],
+    ['格式是 null', '{"writtenBy":"a","formats":null}'],
+    ['有一个号不是正整数', '{"writtenBy":"a","formats":{"x":1,"y":0}}'],
     ['不是对象', '[]'],
     ['没有写它的版本', '{"formats":{}}'],
     ['写它的版本是空的', '{"writtenBy":"","formats":{}}'],

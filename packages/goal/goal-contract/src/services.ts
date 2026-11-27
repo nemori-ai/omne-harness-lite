@@ -1,4 +1,5 @@
-import type { ExitId } from './body.ts'
+import type { CriterionId, ExitId } from './body.ts'
+import type { JudgeModel } from './judge/material.ts'
 import type { CardBase, CardRefusal, GoalRecord } from './record.ts'
 import type { Refusal } from './transition.ts'
 import type { BodyIssue } from './validate.ts'
@@ -23,6 +24,7 @@ export type GoalRefusal =
   | Readonly<{ kind: 'state'; reason: Refusal }>
   | Readonly<{ kind: 'another-goal' }>
   | Readonly<{ kind: 'card'; reason: CardRefusal }>
+  | Readonly<{ kind: 'differs' }>
 
 export type GoalCommand =
   | Readonly<{ kind: 'pause' | 'resume' | 'cancel' | 'abort' }>
@@ -75,10 +77,35 @@ export interface Goals {
     caller: GoalCaller,
     input: Readonly<{ session: string; patch: unknown }>,
   ): Promise<Outcome<GoalRecord, GoalRefusal>>
+  brief(
+    caller: GoalCaller,
+    input: Readonly<{ examiner: string }>,
+  ): Promise<Outcome<string, GoalRefusal>>
+  submit(
+    caller: GoalCaller,
+    input: Readonly<{ examiner: string; submission: unknown }>,
+  ): Promise<Outcome<Taken, GoalRefusal>>
+  examines(
+    caller: GoalCaller,
+    input: Readonly<{ examiner: string }>,
+  ): Promise<Outcome<boolean, GoalRefusal>>
+  judgeOf(
+    caller: GoalCaller,
+    input: Readonly<{ session: string }>,
+  ): Promise<Outcome<JudgeModel | null, GoalRefusal>>
+  chooseJudge(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; model: unknown }>,
+  ): Promise<Outcome<JudgeModel | null, GoalRefusal>>
 }
+export type Taken = Readonly<{ taken: 'counted' | 'stale' | 'repeat' }>
 
 export interface GoalChecking {
   observe(caller: GoalCaller, check: Check): Promise<Outcome<CheckAnswer, GoalRefusal>>
+  reran(
+    caller: GoalCaller,
+    input: Readonly<{ session: string; request: string; results: unknown }>,
+  ): Promise<Outcome<Readonly<{ examine: readonly CriterionId[] }>, GoalRefusal>>
   compacted(caller: GoalCaller, session: string): Promise<Outcome<string | null, GoalRefusal>>
 }
 

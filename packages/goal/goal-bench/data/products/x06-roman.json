@@ -1,0 +1,83 @@
+{
+  "id": "x06-roman",
+  "purpose": "写罗马数字的换算 roman.js：toRoman 与 fromRoman",
+  "files": {
+    "roman.js": "'use strict'\n\nconst PAIRS = [\n  [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],\n  [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],\n  [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],\n]\nconst WELL_FORMED = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/\n\nfunction toRoman(number) {\n  if (!Number.isInteger(number) || number < 1 || number > 3999) {\n    throw new RangeError('toRoman takes a whole number from 1 to 3999')\n  }\n  let rest = number\n  let out = ''\n  for (const [value, letters] of PAIRS) {\n    while (rest >= value) {\n      out += letters\n      rest -= value\n    }\n  }\n  return out\n}\n\nfunction fromRoman(text) {\n  if (text === '' || !WELL_FORMED.test(text)) throw new SyntaxError('not a roman numeral: ' + text)\n  let total = 0\n  let at = 0\n  for (const [value, letters] of PAIRS) {\n    while (text.startsWith(letters, at)) {\n      total += value\n      at += letters.length\n    }\n  }\n  return total\n}\n\nmodule.exports = { toRoman, fromRoman }\n",
+    "test.js": "'use strict'\nconst assert = require('node:assert')\nconst { toRoman, fromRoman } = require('./roman.js')\n\nassert.strictEqual(toRoman(4), 'IV')\nassert.strictEqual(toRoman(9), 'IX')\nassert.strictEqual(toRoman(14), 'XIV')\nassert.strictEqual(fromRoman('XIV'), 14)\nassert.throws(() => fromRoman('hello'))\nassert.throws(() => toRoman(4000))\nconsole.log('ok')\n",
+    "README.md": "# roman\n\n`toRoman(1994)` 得 `MCMXCIV`，`fromRoman(\"MCMXCIV\")` 得 1994。`node test.js` 跑自带的用例。\n"
+  },
+  "criteria": [
+    {
+      "statement": "toRoman 对 1 到 3999 都给标准写法，含 40、90、400、900 这几档（1994 是 MCMXCIV）",
+      "method": "用 node 载入 roman.js：toRoman 传 1994、444、3999，依次要得 MCMXCIV、CDXLIV、MMMCMXCIX。不要只试 4、9 这样的小数",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { toRoman } = require(here + '/roman.js')\nassert.deepStrictEqual([1994, 444, 3999].map(toRoman), ['MCMXCIV', 'CDXLIV', 'MMMCMXCIX'])\n"
+    },
+    {
+      "statement": "fromRoman 把标准写法换回数字，含减法的写法（CDXLIV 是 444）",
+      "method": "用 node 载入 roman.js：fromRoman 传 MCMXCIV、CDXLIV、XLII，依次要得 1994、444、42",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { fromRoman } = require(here + '/roman.js')\nassert.deepStrictEqual(['MCMXCIV', 'CDXLIV', 'XLII'].map(fromRoman), [1994, 444, 42])\n"
+    },
+    {
+      "statement": "fromRoman 拒绝不规范的写法：IIII、VX、IC 都要抛出错误",
+      "method": "用 node 载入 roman.js：fromRoman 分别传 IIII、VX、IC，三个都要抛出错误，不能返回数字",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { fromRoman } = require(here + '/roman.js')\nfor (const text of ['IIII', 'VX', 'IC']) assert.throws(() => fromRoman(text))\n"
+    },
+    {
+      "statement": "toRoman 对 0、负数、4000 及以上、小数都抛出错误",
+      "method": "用 node 载入 roman.js：toRoman 分别传 0、-3、4000、2.5，四个都要抛出错误，不能返回空串",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst { toRoman } = require(here + '/roman.js')\nfor (const value of [0, -3, 4000, 2.5]) assert.throws(() => toRoman(value))\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "only-four-and-nine",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "roman.js",
+          "find": "  for (const [value, letters] of PAIRS) {\n    while (rest >= value) {",
+          "replace": "  for (const [value, letters] of PAIRS.filter(pair => pair[1].length === 1 || pair[0] < 10)) {\n    while (rest >= value) {"
+        }
+      ]
+    },
+    {
+      "name": "subtraction-added",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "roman.js",
+          "find": "  for (const [value, letters] of PAIRS) {\n    while (text.startsWith(letters, at)) {\n      total += value\n      at += letters.length\n    }\n  }\n  return total",
+          "replace": "  const ONE = { M: 1000, D: 500, C: 100, L: 50, X: 10, V: 5, I: 1 }\n  for (const letter of text.slice(at)) total += ONE[letter]\n  if (text.includes('IV') || text.includes('IX')) total -= 2\n  return total"
+        }
+      ]
+    },
+    {
+      "name": "loose-spelling",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "roman.js",
+          "find": "if (text === '' || !WELL_FORMED.test(text)) throw",
+          "replace": "if (text === '' || !/^[MDCLXVI]+$/.test(text)) throw"
+        }
+      ]
+    },
+    {
+      "name": "zero-is-empty",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "roman.js",
+          "find": "if (!Number.isInteger(number) || number < 1 || number > 3999) {",
+          "replace": "if (number > 3999) {"
+        }
+      ]
+    }
+  ],
+  "mended": "loose-spelling",
+  "spoiled": [
+    "zero-is-empty",
+    "only-four-and-nine"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

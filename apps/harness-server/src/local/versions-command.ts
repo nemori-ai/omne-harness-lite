@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util'
 import { isAbsolute } from 'node:path'
 import { standingOfVersion } from '@omne-harness/assembly'
-import { installVersion, readVersions, switchVersion } from './install-root.ts'
+import { installVersion, readVersions, switchVersion } from '@omne-harness/assembly-cordis'
 import { UsageError } from './serve-command.ts'
 
 export const VERSIONS_USAGE =

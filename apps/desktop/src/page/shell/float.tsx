@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { FLOAT_GRIP_ATTRIBUTE, type FloatItem } from '@omne-harness/shell-contract'
+import { FLOAT_GRIP_ATTRIBUTE, type FloatItem, type FloatNote } from '@omne-harness/shell-contract'
 import {
   DEFAULT_PLACE,
   cornerOf,
@@ -12,6 +12,8 @@ import {
 } from './float-place.ts'
 import { useSlot } from './hooks.ts'
 import { Item } from './item.tsx'
+import type { ShellNote } from './say-note.ts'
+import { floatNote, useNoteView, WindowNote } from './say-note-view.tsx'
 import type { ShellState } from './state.ts'
 
 const GRIP = { [FLOAT_GRIP_ATTRIBUTE]: '' } as const
@@ -146,10 +148,15 @@ function useDrag(frame: React.RefObject<HTMLDivElement | null>, dragged: Dragged
   }, [frame])
 }
 
-type FrameProps = Readonly<{ item: FloatItem; scope: string | undefined; places: FloatPlaces }>
+type FrameProps = Readonly<{
+  item: FloatItem
+  scope: string | undefined
+  places: FloatPlaces
+  note: FloatNote
+}>
 
 /** One floating item where a person left it: dragged by its grip, kept whole inside the window. */
-function Frame({ item, scope, places }: FrameProps) {
+function Frame({ item, scope, places, note }: FrameProps) {
   const frame = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<FloatPlace>(() => places.read(item.id) ?? DEFAULT_PLACE)
   const [carried, setCarried] = useState<FloatPlace | null>(null)
@@ -164,6 +171,16 @@ function Frame({ item, scope, places }: FrameProps) {
   const shown = carried ?? place
   const drawn = room === null ? shown : kept(shown, room.window, room.item)
   const dragging = carried !== null
+  const { close } = note
+  useEffect(() => {
+    if (dragging) close()
+  }, [dragging, close])
+  const mine: FloatNote = {
+    ...note,
+    toggle: element => {
+      if (frame.current?.contains(element) === true) note.toggle(element)
+    },
+  }
   return (
     <div
       ref={frame}
@@ -175,7 +192,9 @@ function Frame({ item, scope, places }: FrameProps) {
       <Item
         quiet
         scope={scope}
-        render={() => item.render({ scope, grip: GRIP, corner: cornerOf(drawn), dragging })}
+        render={() =>
+          item.render({ scope, grip: GRIP, corner: cornerOf(drawn), dragging, note: mine })
+        }
       />
     </div>
   )
@@ -186,17 +205,35 @@ export type FloatProps = Readonly<{
   scope: string | undefined
   places: FloatPlaces
   inert: boolean
+  note: ShellNote | null
+  settings: () => void
 }>
 
-/** What floats over the application: the layer takes no pointer, the frame of each item does. */
-export function Float({ state, scope, places, inert }: FloatProps) {
+/** What floats over the application: the layer takes no pointer, the frame of each item and the note opened from one do. */
+export function Float({ state, scope, places, inert, note, settings }: FloatProps) {
   const items = useSlot(state.slots, 'float')
+  const view = useNoteView(note)
+  const layer = useRef<HTMLDivElement>(null)
+  const opened = view?.window?.id
+  const gone = opened !== undefined && !items.some(item => item.id === opened)
+  useEffect(() => {
+    if (gone) note?.close(opened)
+  }, [gone, note, opened])
   if (items.length === 0) return null
   return (
-    <div className="shell-float" inert={inert}>
+    <div ref={layer} className="shell-float" inert={inert}>
       {items.map(item => (
-        <Frame key={item.id} item={item} scope={scope} places={places} />
+        <Frame
+          key={item.id}
+          item={item}
+          scope={scope}
+          places={places}
+          note={floatNote(note, view, item.id)}
+        />
       ))}
+      {note !== null && view !== null && (
+        <WindowNote note={note} view={view} layer={layer} settings={settings} />
+      )}
     </div>
   )
 }

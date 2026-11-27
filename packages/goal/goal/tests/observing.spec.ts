@@ -345,6 +345,66 @@ describe('what a check stands on', () => {
   })
 })
 
+describe('a goal whose criterion stands on what was done in the round', () => {
+  /** What a person wants told in the session: nothing is left behind but the words. */
+  const SAID = {
+    statement: '在会话里列出了 todo.md 里全部没打勾的事项',
+    evidence: { kind: 'activity' },
+    pass: { kind: 'shows', text: '答复里有三件：续保、体检、护照' },
+  } as const
+  const TOLD: GoalDraft = { purpose: '把 todo.md 里没打勾的事项列给我', criteria: [SAID] }
+  const read: ObservedCall = { ...write(1), tool: 'Files read', path: 'todo.md', writes: false }
+
+  it('is shown the calls of the session and what the agent said last, as the goal a session implies is', async () => {
+    const s = await standing(SESSION, TOLD)
+    s.history.made(read)
+    s.history.say('没打勾的有三件：给车续保、预约年度体检、护照换新。')
+    s.decisions.answer(ask => replyOf(ask, 'holds'))
+    expect(value(await s.observe())).toEqual({ kind: 'pass' })
+    const state = s.decisions.asked[0]?.request.state as {
+      evidence: { A1: { ref: string; tool: string; excerpt: string }[] }
+    }
+    expect(state.evidence.A1.map(item => [item.ref, item.tool])).toEqual([
+      ['call-1', 'Files read'],
+      ['reply', 'Reply'],
+    ])
+    expect(state.evidence.A1.at(-1)?.excerpt).toBe(
+      '没打勾的有三件：给车续保、预约年度体检、护照换新。',
+    )
+    expect(s.record()?.state).toMatchObject({ status: 'settled', outcome: { kind: 'achieved' } })
+  })
+
+  it('is shown what the agent said when only one of its criteria stands on the round', async () => {
+    const kept = {
+      statement: '清单留在了 todo.md',
+      evidence: { kind: 'file', path: 'todo.md' },
+    } as const
+    const s = await standing(SESSION, { ...TOLD, criteria: [SAID, kept] })
+    s.history.say('没打勾的有三件。')
+    s.decisions.answer(ask => replyOf(ask, 'holds'))
+    value(await s.observe())
+    const state = s.decisions.asked[0]?.request.state as { evidence: { A1: { ref: string }[] } }
+    expect(state.evidence.A1.map(item => item.ref)).toEqual(['call-1', 'reply'])
+  })
+
+  it('has no basis when what the agent said cannot be read', async () => {
+    const s = await standing(SESSION, TOLD)
+    s.history.hearable(false)
+    expect(await s.observe()).toEqual({ kind: 'basis-unavailable' })
+    expect(s.decisions.asked).toEqual([])
+  })
+
+  it('a goal that stands on a file is not shown what the agent said, and is judged though it cannot be read', async () => {
+    const s = await standing()
+    s.history.say('写好了。')
+    s.history.hearable(false)
+    s.decisions.answer(ask => replyOf(ask, 'holds'))
+    value(await s.observe())
+    const state = s.decisions.asked[0]?.request.state as { evidence: { A1: { ref: string }[] } }
+    expect(state.evidence.A1.map(item => item.ref)).toEqual(['call-1'])
+  })
+})
+
 describe('after a compaction', () => {
   it('tells the agent what the goal in progress is for and what is open; nothing when none is in progress', async () => {
     const s = await standing()
@@ -510,6 +570,9 @@ describe('what a check withstands', () => {
       latest: async (tenant, session) =>
         session === key ? UNAVAILABLE : store.latest(tenant, session),
       owing: tenant => store.owing(tenant),
+      examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+      chosen: (tenant, session) => store.chosen(tenant, session),
+      choose: (tenant, session, model) => store.choose(tenant, session, model),
     })
   /** A store that answers the commits a test picks as written over by somebody else. */
   const staleWhen =
@@ -525,6 +588,9 @@ describe('what a check withstands', () => {
         },
         latest: (tenant, session) => store.latest(tenant, session),
         owing: tenant => store.owing(tenant),
+        examinedBy: (tenant, examiner) => store.examinedBy(tenant, examiner),
+        chosen: (tenant, session) => store.chosen(tenant, session),
+        choose: (tenant, session, model) => store.choose(tenant, session, model),
       }
     }
   const observe = (w: ReturnType<typeof world>, call = CALL, session = SESSION) =>

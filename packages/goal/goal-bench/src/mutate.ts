@@ -86,13 +86,16 @@ function withoutEvidence(material: JudgeMaterial, target: CriterionId): JudgeMat
   const rests = (call: ObservedCall): boolean =>
     cited.has(call.ref) ||
     (evidence.kind === 'command' && call.command === evidence.command) ||
-    (evidence.kind === 'file' && call.path === evidence.path)
+    (evidence.kind === 'file' && call.path === evidence.path) ||
+    (evidence.kind === 'activity' && call.tool === 'Reply')
   const calls = material.calls.filter(call => !rests(call))
   return claimed({ ...material, calls }, target, { status: 'claimed-done', refs: [] })
 }
 
 function budgetOf(material: JudgeMaterial): number {
-  const limit = material.body.exits.find(exit => exit.kind === 'budget')?.limits[0]
+  const limit = material.body.exits
+    .find(exit => exit.kind === 'budget')
+    ?.limits.find(entry => entry.unit === 'rounds')
   if (limit === undefined) throw new Error('the goal has no budget')
   return limit.amount
 }
@@ -230,7 +233,8 @@ export function expectedOf(
     exits: pick('X', 'yes').map(([name]) => name),
     unattainable: truths[DEAD_END]?.truth === 'yes',
   } as unknown as Findings
-  const verdict = rule(material.body, { rounds: material.rounds, stalled: 0, gap: null }, findings)
+  const progress = { rounds: material.rounds, stalled: 0, gap: null, examinations: 0 }
+  const verdict = rule(material.body, progress, findings)
   return { entries: truths, target, row: verdict.row, success: succeeded(verdict) }
 }
 

@@ -259,14 +259,14 @@ describe('serve process', () => {
       formats: Record<string, number>
     }
     expect(written.writtenBy).toMatch(/^harness-server@\d+\.\d+\.\d+/)
-    expect(written.formats).toEqual({ 'state-directory': 1, 'session-composite': 24 })
+    expect(written.formats).toEqual({ 'state-directory': 1, 'session-composite': 26 })
 
     // A later build left this directory: one format this build does not know, one at a newer number.
     writeFileSync(
       stampPath,
       JSON.stringify({
         writtenBy: 'harness-server@9.9.9',
-        formats: { ...written.formats, 'session-composite': 25, 'page-bundles': 1 },
+        formats: { ...written.formats, 'session-composite': 27, 'page-bundles': 1 },
       }),
     )
     const digests = (): Record<string, string> =>

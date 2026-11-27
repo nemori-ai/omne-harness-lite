@@ -1,8 +1,10 @@
 import { writeSync } from 'node:fs'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { macosRequestScreenAccess, screenBackendFor } from '@omne-harness/screen'
 import { app, Menu, safeStorage, session, shell, type BrowserWindow } from 'electron'
+import { PAGE_VERSION_EVENT } from '../shared/page-version.ts'
 import { DEFAULT_SERVER } from '../shared/server.ts'
 import {
   BUILD_PROFILE_MESSAGE,
@@ -31,6 +33,11 @@ import { developmentHost } from './dev-host.ts'
 import { deviceFigure } from './device-figure.ts'
 import { deviceScreenRoute } from './device-screen.ts'
 import { createLogger, type Logger } from './log.ts'
+import { tryCandidate } from './page-candidate.ts'
+import { watchMount, watchStable } from './page-mount.ts'
+import { PAGE_TRIAL, pageSettings } from './page-settings.ts'
+import { installRequest, pageUpdates } from './page-update.ts'
+import { pageVersions } from './page-versions.ts'
 import type { UtilityState } from './recovery.ts'
 import { refuseRemoteDebugging } from './remote-debugging.ts'
 import { loadScreenLibrary, SCREEN_SETTINGS_URL } from './screen-host.ts'
@@ -53,7 +60,7 @@ function focus(window: BrowserWindow | undefined): void {
   window.focus()
 }
 
-function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
+function utilityWatch(retry: () => void): UtilityWatch & { set(state: UtilityState): void } {
   let current: UtilityState = 'starting'
   const listeners = new Set<(state: UtilityState) => void>()
   return {
@@ -66,6 +73,7 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
       current = state
       for (const listener of listeners) listener(state)
     },
+    retry,
   }
 }
 
@@ -93,16 +101,58 @@ function setAppMenu(): void {
 async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   await app.whenReady()
   setAppMenu()
-  const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
+  const builtinRoot = fileURLToPath(new URL('../page/', import.meta.url))
+  const settings = pageSettings(process.env)
+  const versions = pageVersions({
+    userData: app.getPath('userData'),
+    builtinRoot,
+    publisherKeys: settings.publisherKeys,
+  })
+  const started = await versions.serving()
+  let pageRoot = started.root
+  const server = process.env['OMNE_SERVER'] ?? DEFAULT_SERVER
+  const utilityPath = fileURLToPath(new URL('../utility/entry.js', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
   // One utility process for the app, not per window: it outlives windows, reloads and crashes.
-  const utility = utilityWatch()
+  const utility = utilityWatch(() => void forwarding.restart().catch(() => {}))
   const forwarding = startServerProcess({
     onLifecycle: ({ state }) => utility.set(state),
-    utilityPath: fileURLToPath(new URL('../utility/entry.js', import.meta.url)),
-    env: { OMNE_SERVER: process.env['OMNE_SERVER'] ?? DEFAULT_SERVER, OMNE_PAGE_ROOT: pageRoot },
+    utilityPath,
+    env: () => ({ OMNE_SERVER: server, OMNE_PAGE_ROOT: pageRoot }),
     log,
   })
+  const contents = () => window?.webContents
+  const updates = pageUpdates(
+    {
+      versions,
+      async serve(serving) {
+        pageRoot = serving.root
+        await forwarding.restart()
+        contents()?.reloadIgnoringCache()
+      },
+      nudge: () =>
+        void contents()
+          ?.executeJavaScript(`window.dispatchEvent(new Event('${PAGE_VERSION_EVENT}'))`, true)
+          .catch(() => {}),
+      candidate: root =>
+        tryCandidate({ pageRoot: root, server, utilityPath, deadlineMs: settings.mountMs, log }),
+      window: {
+        watch: async () => {
+          const now = contents()
+          return now === undefined ? 'closed' : watchMount(now, settings.mountMs)
+        },
+        stable: async () => {
+          const now = contents()
+          return now !== undefined && (await watchStable(now, settings.stableMs))
+        },
+        reload: () => contents()?.reloadIgnoringCache(),
+        after: ms => delay(ms),
+      },
+      config: PAGE_TRIAL,
+      log,
+    },
+    started,
+  )
   const figure = deviceFigure(deviceFigureDeps(() => window))
   serveAppProtocol(appSession, {
     upstream: forwarding.fetch,
@@ -113,6 +163,7 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
     }),
     log,
     local: firstRoute([
+      updates.route,
       figure.route,
       deviceScreenRoute({
         backend: () =>
@@ -129,14 +180,23 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   void forwarding.ready().catch(() => {})
 
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
-  let window: BrowserWindow | undefined = openAppWindow(saved, utility, log)
+  let window: BrowserWindow | undefined = openAppWindow(saved, utility, log, updates.onTrial)
+  updates.resume()
+  const install = (argv: readonly string[]): void => {
+    const directory = installRequest(argv)
+    if (directory !== undefined) void updates.install(directory)
+  }
+  install(process.argv)
   watchMainWindow(window, figure)
   checkCookieKey(log, cookieKey)
   window.on('closed', () => {
     window = undefined
   })
-  developmentHost?.watchPage(pageRoot, () => window?.webContents.reloadIgnoringCache())
-  app.on('second-instance', () => focus(window))
+  developmentHost?.watchPage(builtinRoot, () => window?.webContents.reloadIgnoringCache())
+  app.on('second-instance', (_event, argv) => {
+    install(argv)
+    focus(window)
+  })
   app.on('window-all-closed', () => app.quit())
 
   let quitting = false

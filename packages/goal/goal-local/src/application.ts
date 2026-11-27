@@ -7,6 +7,7 @@ import {
   type GoalDecisions,
   type GoalHistory,
   type GoalChanges,
+  type GoalExamining,
   type GoalJudging,
   type GoalSessions,
 } from '@omne-harness/goal'
@@ -32,6 +33,7 @@ export type GoalLocalOptions = Readonly<{
     history: GoalHistory
     decisions: GoalDecisions
     judging: GoalJudging
+    examining: GoalExamining
     changes?: GoalChanges
   }>
   clock: Clock
@@ -105,7 +107,7 @@ export async function createGoalLocalApplication(
   }
 
   const registry = createGoals({ ...options.ports, store, clock: options.clock, hints: { wake } })
-  const { reconcile, observe, compacted, ...goals } = registry
+  const { reconcile, observe, compacted, reran, ...goals } = registry
 
   async function scan(): Promise<void> {
     const tenants = await options.sql.tenants()
@@ -127,7 +129,7 @@ export async function createGoalLocalApplication(
   schedule()
   return {
     goals: guarded(goals, lifetime, STOPPED),
-    checking: guarded({ observe, compacted }, lifetime, STOPPED),
+    checking: guarded({ observe, compacted, reran }, lifetime, STOPPED),
     reconciling: {
       reconcile: tenant =>
         lifetime.stopping ? Promise.resolve() : lifetime.track(reconcile(tenant)),

@@ -166,6 +166,15 @@ describe('换代（rollout）：全化表的一行', () => {
     expect(refusal(other, { fiber: 'else', generation: 1 }, 'f2')).toBe('other-predecessor')
   })
 
+  it('给的旧实例是同一个 fiber 的另一代：照样不是它要接替的那一个', () => {
+    expect(refusal(risen(), { fiber: 'mod', generation: 7 }, 'f2')).toBe('other-predecessor')
+  })
+
+  it('备着的座位再放一批、还写着接替谁：不被自己这一份等着的挡住', () => {
+    const more = put(staged(), 'f2', 'mod', [entry('host.one', 'j')], false, mod1)
+    expect(more.kind).toBe('put')
+  })
+
   it('fiber 还没就绪：拒绝', () => {
     expect(refusal(staged(), mod1, 'f2')).toBe('not-ready')
   })

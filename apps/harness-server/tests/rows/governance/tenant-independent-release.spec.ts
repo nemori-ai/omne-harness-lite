@@ -47,6 +47,26 @@ it('a login principal lists the independent settings with their defaults apart f
           { value: { kind: 'set', value: 'Asia/Shanghai' }, source: 'default' },
         ],
         [
+          'goal/judge/examination-minutes',
+          '目标的查验',
+          { value: { kind: 'set', value: '10' }, source: 'default' },
+        ],
+        [
+          'goal/judge/examiner',
+          '目标的查验',
+          { value: { kind: 'set', value: 'examiner@openai/gpt-6.1-sol' }, source: 'default' },
+        ],
+        [
+          'goal/judge/job-awaited',
+          '目标的查验',
+          { value: { kind: 'set', value: 'rerun' }, source: 'default' },
+        ],
+        [
+          'goal/judge/max-examinations',
+          '目标的查验',
+          { value: { kind: 'set', value: '3' }, source: 'default' },
+        ],
+        [
           'goal/judge/model',
           '目标的判定',
           { value: { kind: 'set', value: 'openai/gpt-6-luna-decisions' }, source: 'default' },

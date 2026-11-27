@@ -13,12 +13,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
-import {
-  entryOfVersion,
-  installVersion,
-  readVersions,
-  switchVersion,
-} from '../src/local/install-root.ts'
+import { installVersion, readVersions, switchVersion } from '@omne-harness/assembly-cordis'
+import { entryOfVersion } from '../src/local/install-root.ts'
 import { LAB_MARKER } from '../src/state-instance.ts'
 import { STATE_STAMP_FILE } from '../src/state-stamp.ts'
 import { freePort, operatorLayer, writeOperator } from './r9/support.ts'

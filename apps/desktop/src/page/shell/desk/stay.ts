@@ -6,7 +6,7 @@ import { DeskPictures } from './pictures.ts'
 import type { FigureLink } from './link.ts'
 import { createLookPublisher, type LookFeed, type LookPublisher } from './look.ts'
 import { firstLabel, insideApp } from './sign.ts'
-import { Talk, type Gift, type TalkDeps } from './talk.ts'
+import type { Gift, ShellNote } from '../say-note.ts'
 import { stayHook } from './use-stay.ts'
 import { NO_KEYS, WindowLook, type Clock, type Keys } from './window-look.ts'
 import {
@@ -29,8 +29,9 @@ export type StayDeps = Readonly<{
   clock: Clock
   changes: LookFeed
   issuer?: string
-}> &
-  TalkDeps
+  scope: () => string | undefined
+  note: ShellNote
+}>
 
 export type Stay = Readonly<{
   subscribe(listener: () => void): () => void
@@ -74,7 +75,8 @@ class FigureStay {
   private isAway = false
   private readonly listeners = new Set<() => void>()
   private readonly unlisten: () => void
-  private readonly talk: Talk
+  private readonly note: ShellNote
+  private readonly unnote: () => void
   private readonly look: WindowLook
   private readonly letGo: LetGo
   private readonly changes: LookPublisher
@@ -86,15 +88,21 @@ class FigureStay {
     })
     this.pictures = new DeskPictures(deps.link)
     this.unlisten = deps.link.listen(message => this.heard(message))
-    this.talk = new Talk(
-      deps,
-      () => this.publish(),
-      () => this.accepted(),
-    )
+    this.note = deps.note
+    const unport = this.note.desk({
+      open: () => noting(this.where),
+      close: () => this.closeNote(),
+      accepted: () => this.accepted(),
+    })
+    const unsubscribe = this.note.subscribe(() => this.publish())
+    this.unnote = () => {
+      unsubscribe()
+      unport()
+    }
     this.look = new WindowLook({
       device: deps.device,
       clock: deps.clock,
-      can: () => deskDraws(this.where) && this.read && this.talk.present(),
+      can: () => deskDraws(this.where) && this.read && this.note.present(),
       changed: () => this.publish(),
     })
     this.letGo = new LetGo({
@@ -161,7 +169,7 @@ class FigureStay {
     this.release()
     this.changes.dispose()
     this.look.dispose()
-    this.talk.dispose()
+    this.unnote()
     this.unlisten()
     this.deps.link.close()
     this.listeners.clear()
@@ -194,7 +202,7 @@ class FigureStay {
       visible,
       screen,
       size: this.deps.size(),
-      talker: this.talk.present(),
+      talker: this.note.present(),
     }
   }
 
@@ -204,16 +212,17 @@ class FigureStay {
     const back = insideApp(this.lease?.facts, this.handPoint())
     const looking = this.look.label(back)
     if (looking !== null || this.labelled) return looking
-    return firstLabel(back, this.read && this.talk.present())
+    return firstLabel(back, this.read && this.note.present())
   }
 
   /** What reading a window gave: into the open note, or a note opened with it. */
   private seen(gift: Gift): void {
-    if (noting(this.where)) return this.talk.give(gift)
+    if (noting(this.where)) return this.note.give(gift)
     this.run({ kind: 'seen' }, false, gift)
   }
 
   private accepted(): void {
+    if (!noting(this.where)) return
     this.rewrite = true
     this.run({ kind: 'recall' })
   }
@@ -228,7 +237,7 @@ class FigureStay {
     const lease = this.leased()
     if (lease === null) return
     const where = this.placed()
-    const note = noting(this.where) ? this.talk.scene() : null
+    const note = noting(this.where) ? this.note.scene() : null
     const frame = this.look.frame()
     const label = this.label()
     const look = { ...this.deps.look(), ...this.changes.stamp() }
@@ -238,7 +247,7 @@ class FigureStay {
     this.sentKey = key
     this.serial += 1
     if (again) this.pictures.forget()
-    this.pictures.send(noting(this.where) ? this.talk.pictures() : [])
+    this.pictures.send(noting(this.where) ? this.note.pictures() : [])
     this.deps.link.send({ kind: 'scene', scene: { lease, serial: this.serial, ...shown } })
   }
 
@@ -305,8 +314,11 @@ class FigureStay {
     for (const effect of effects) this.perform(effect, fromPage)
     const note = noting(where)
     if (note !== noting(was)) {
-      if (note) this.talk.open(gift)
-      else this.talk.close()
+      if (note) this.note.deskOpened(gift)
+      else {
+        this.pictures.forget()
+        this.note.deskClosed()
+      }
     }
     this.publish()
     this.notify()
@@ -339,7 +351,7 @@ class FigureStay {
   }
 
   private show(): void {
-    if (!noting(this.where) || !this.talk.show()) return
+    if (!noting(this.where) || !this.note.show()) return
     this.deps.device.front()
     this.closeNote()
   }
@@ -365,10 +377,12 @@ class FigureStay {
 
   private input(message: Extract<Up, { kind: 'input' }>): void {
     if (message.input === 'send') {
-      if (noting(this.where)) this.talk.send(message.words, message.to, message.pictures ?? [])
+      if (noting(this.where)) this.note.send(message.words, message.to, message.pictures ?? [])
       return
     }
-    if (message.input === 'unpicture') return this.talk.unpicture(message.picture)
+    if (message.input === 'unsent')
+      return this.note.unsent(message.words, message.chosen, message.edit)
+    if (message.input === 'unpicture') return this.note.unpicture(message.picture)
     if (message.at !== null) this.deskPoint = message.at
     this.deskKeys = { meta: message.meta === true, shift: message.shift === true }
     this.inputs[message.input]()

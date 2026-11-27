@@ -69,10 +69,16 @@ const DONE: Findings = {
   unattainable: false,
 }
 const found = (change: Partial<Findings>): Findings => ({ ...DONE, ...change })
-const AT = { generation: 1, revision: 2, rounds: 3 }
+const AT = { generation: 1, revision: 2, rounds: 3, written: 'call-9' }
 const CALL = 'exec-1/cand-4/before_terminal/call/0'
 const seen = (record: GoalRecord, findings: Findings, at = AT) =>
-  observe(record, { call: CALL, at, decided: { A2: findings.criteria.A2 ?? 'holds' }, findings })
+  observe(record, {
+    call: CALL,
+    at,
+    written: 'call-9',
+    decided: { A2: findings.criteria.A2 ?? 'holds' },
+    findings,
+  })
 
 describe('one observation of a goal', () => {
   it('lets the round end, and writes nothing, when no goal is in progress', () => {

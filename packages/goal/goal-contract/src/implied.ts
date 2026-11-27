@@ -1,3 +1,4 @@
+import { NO_EXAMINATION } from './awaited.ts'
 import type { GoalBody } from './body.ts'
 import { NO_READINGS } from './gap.ts'
 import { NO_PROGRESS } from './progress.ts'
@@ -50,5 +51,6 @@ export function impliedRecord(before: GoalRecord | null, start: ImpliedStart): G
     since,
     wake: null,
     observed: null,
+    examination: NO_EXAMINATION,
   }
 }

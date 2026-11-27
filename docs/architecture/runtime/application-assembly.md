@@ -560,7 +560,7 @@ flowchart LR
 | `dispatch-session` | `definitionMappings`、`sessionModesInstallation`、`dispatchPrincipal` |
 | `dispatch-tool` | `dispatchPrincipal` |
 | `goal` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal` |
-| `goal-session` | `definitionMappings`、`goalPrincipal` |
+| `goal-session` | `definitionMappings`、`goalPrincipal`、`sessionWorkingDirectory` |
 | `schedule-session` | `definitionMappings`、`schedulePrincipal`、`sessionModesInstallation` |
 | `canvas` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `server-entry` | `principalIssuer`、`identityGovernance` |
@@ -655,7 +655,7 @@ flowchart LR
 | `SessionInternalPrincipals` | `session-provider` 的 `sessionPrincipals` | 由装配入口签发，Session 身份桥核实 |
 | 会话工作主体（`SessionWorkPrincipals`） | `session-provider` 的 `sessionWorkPrincipals` | 装配入口在会话工作主体作用域 provide。按会话签发前按调用读取 `session-storage` 提供的会话归属读口，核对 tenant 与 session；读口缺席或不符时不签发 |
 | `RuntimeContextTrust`、`RequestContextTrust` | `runtime-context`、`request-context` | 装配入口在 Context 信任作用域 provide，两行 `inject` |
-| `assemblyLifecycle` | 参加停机的行 | 由包组的监督取代：行的启动、停机的三步与各步的期限归 [`packages/assembly` 的监督与期限](../../../packages/assembly/SPEC.md#监督与期限)，装配入口不提供登记表 |
+| `assemblyLifecycle` | 参加停机的行 | 行经它把自己的句柄（启动、停止、可选的排空）交给包组的监督；交句柄是调用方 fiber 的副作用，fiber 卸载时撤回。行的启动、停机的三步与各步的期限归 [`packages/assembly` 的监督与期限](../../../packages/assembly/SPEC.md#监督与期限)。它不核对名单与阶段，装配入口不提供登记表 |
 | 请求上下文信任 | `request-context` | 入口在受信子树装载 `RequestContextTrustService` 的子类，提供 `requestContextTrust`，内容是主体绑定与来源登记授权两个适配。来源登记的放行名单只有一格：`sessionWorkPrincipals` 签发的会话工作主体，以发行固定的 agent-context owner 做 `register`，目标作用域经受信 `sessionScopeLookup` 与 `sessionPrincipalBindings` 解出的会话须是主体的工作、租户须相同；作用域归属读不到时答 `unavailable` 或 `unknown`，不放行。必需注入，缺席时插件停在 `PENDING`。不进插件树，不进插件配置 |
 | 运行时上下文信任 | `runtime-context` | 入口在受信子树装载 `RuntimeContextTrustService` 的子类，提供 `runtimeContextTrust`，内容由 `createSessionRuntimeContextTrust` 组合四个端口：`authority` 照请求上下文信任的次序（核验器先答，只放行代租户行事主体，主体的租户等于动作里的租户，再按动作类别放行；表外类别与不带租户的 `revoke` 拒绝，默认拒绝）；`replayFacts` 取 `session-ad03` 提供的 `sessionReplayFacts`，`bindings` 用 `session-ad03` 持有者导出的作用域查找解出会话再经受信 `sessionPrincipalBindings` 核对归属；两个来源交付前、或来源缺席时答 `unavailable`（见缺口表）；`current` 是进程代次桥，绑定读取行的 fiber，行撤除后此前的答案不当前。必需注入，缺席时插件停在 `PENDING`。不进插件树，不进插件配置 |
 | 证据桥的生产来源与保管来源 | `session-ad10` 的 `sessionProductionSource`、`sessionCustodySource` | 入口在根上装载 `SessionProductionSourceService`、`SessionCustodySourceService` 的子类。原事实拥有者的来源行交付前，每次 `prepare` 答 `unavailable`、`owner` 是该键、诊断点名来源，不给任何守卫（见缺口表）。不进插件树，不进插件配置 |

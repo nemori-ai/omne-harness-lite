@@ -1,7 +1,10 @@
 import type {
   AnsweredCard,
+  Criterion,
   GoalCaller,
+  JobAwaited,
   JudgeConfig,
+  JudgeModel,
   JudgeReply,
   JudgeRequest,
   ObservedCall,
@@ -13,6 +16,9 @@ export type GoalAction =
   | 'confirm'
   | 'track'
   | 'observe'
+  | 'brief'
+  | 'submit'
+  | 'rerun'
   | 'set'
   | 'revise'
   | 'pause'
@@ -20,6 +26,7 @@ export type GoalAction =
   | 'cancel'
   | 'abort'
   | 'settle-by-exit'
+  | 'choose-judge'
 export type AuthorityAnswer = 'permitted' | 'denied' | 'unavailable'
 
 export interface GoalAuthority {
@@ -58,6 +65,33 @@ export interface GoalCalls {
   ): Promise<PortRead<readonly string[]>>
 }
 
+export type BatchToHand = Readonly<{
+  session: string
+  request: string
+  examiner: string | null
+  where: string | null
+  brief: string
+  criteria: readonly Readonly<{ id: string; evidence: Criterion['evidence'] }>[]
+}>
+export type HandAnswer =
+  | Readonly<{ kind: 'handed'; examiner: string }>
+  | Readonly<{ kind: 'taking' }>
+  | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'refused' }>
+
+export interface GoalExamining {
+  hand(tenant: string, batch: BatchToHand): Promise<HandAnswer>
+  calls(
+    tenant: string,
+    examiner: string,
+    request: string,
+  ): Promise<PortRead<readonly ObservedCall[]>>
+  ended(tenant: string, batch: BatchOut): Promise<'going' | 'ended' | 'unknown'>
+  cancel(tenant: string, batch: BatchOut): Promise<void>
+  close(tenant: string, goal: Readonly<{ session: string; examiner: string }>): Promise<void>
+}
+export type BatchOut = Readonly<{ session: string; examiner: string | null; request: string }>
+
 export interface GoalHistory {
   calls(tenant: string, session: string, since: string): Promise<PortRead<readonly ObservedCall[]>>
   /** What the agent last said since that moment, when it said it after its last tool call; null when it said nothing. */
@@ -76,8 +110,11 @@ export interface GoalDecisions {
   ask(input: DecisionAsk): Promise<JudgeReply>
 }
 
+export type ExaminationRules = Readonly<{ maxExaminations: number; job: JobAwaited }>
+
 export interface GoalJudging {
-  config(tenant: string, session: string): Promise<PortRead<JudgeConfig>>
+  config(tenant: string, session: string, chosen: JudgeModel | null): Promise<PortRead<JudgeConfig>>
+  examination(tenant: string): Promise<PortRead<ExaminationRules>>
 }
 
 export interface Clock {

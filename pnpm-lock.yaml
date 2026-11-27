@@ -489,6 +489,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly
+      '@omne-harness/assembly-cordis':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly-cordis
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../../packages/assets/assets-protocol

@@ -159,6 +159,46 @@ function fileOf(tree: ReleaseTree, name: string, content: unknown): string {
   return file
 }
 
+const EXAMINED = {
+  ...DRAFT,
+  criteria: [
+    { statement: '能走一局', evidence: { kind: 'examination', method: '用 node 走一局' } },
+  ],
+}
+
+describe('what the goal of a job may wait for, asked when the schedule is created', () => {
+  it(
+    'a goal that waits for an examination is refused under the default setting, naming the entry and the field; once the tenant lets jobs use examinations the same schedule is created',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const chat = toolCallsByRequest(() => [])
+      await onReleaseTreeRuns({ ...TREE, script: chat, time: fastTime() }, [
+        async tree => {
+          const file = fileOf(tree, 'examined.json', everyMinute(EXAMINED))
+          const create = (id: string) =>
+            tree.cli(['schedule', 'create', '--definition-file', file, '--create-id', id])
+          const refused = await create('e-0')
+          expect((refused.result?.['body'] as { reason?: string } | undefined)?.reason).toBe(
+            'instruction: A1.evidence: the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+          )
+          expect(refused.result).toMatchObject({
+            outcome: 'invalid',
+            body: {
+              code: 'invalid_input',
+              reason:
+                'instruction: A1.evidence: the settings of this tenant do not let the goal of a job use an examination: it costs model calls',
+            },
+          })
+          const set = ['setting', 'set', '--independent', 'goal/judge', 'job-awaited']
+          const changed = await tree.cli([...set, '--value', '"all"'])
+          expect(changed.status, changed.stderr).toBe(0)
+          succeeded(await create('e-1'))
+        },
+      ])
+    },
+  )
+})
+
 describe('agent work in a new session on the release tree', () => {
   it(
     'at the due minute a session nobody attends is created for the Job, the goal the Job carries is set in it, the agent works by it, and the Job succeeds when the goal is achieved',
@@ -284,6 +324,77 @@ describe('agent work in a new session on the release tree', () => {
               session: sessionOf(tree, jobId)?.session,
               account: { outcome: 'exit:X1', deliverables: [] },
             })
+          },
+        ],
+      )
+    },
+  )
+})
+
+const SAID_IN_THE_ROUND = {
+  purpose: '把 todo.md 里还没打勾的事项列给我',
+  criteria: [
+    {
+      statement: '答复里列出了还没打勾的事项',
+      evidence: { kind: 'activity' },
+      pass: { kind: 'shows', text: '没打勾的两项都在，已打勾的不在' },
+    },
+  ],
+  exits: ONE_ROUND.exits,
+}
+
+function saying(text: string): GatewayScript {
+  return ({ body }) => ({
+    status: 200,
+    contentType: 'text/event-stream',
+    body: sse([
+      {
+        model: (JSON.parse(body) as { model?: string }).model ?? 'm',
+        provider: 'OpenAI',
+        choices: [{ delta: { content: text } }],
+      },
+      { choices: [{ delta: {}, finish_reason: 'stop' }] },
+    ]),
+  })
+}
+
+describe('agent work whose goal stands on what is said in the round, on the release tree', () => {
+  it.each([
+    ['the right answer', '还没打勾的有两项：买牛奶、交水电费。', ['concluded', 'succeeded', null]],
+    ['a wrong answer', '还没打勾的只有一项：取快递。', ['concluded', 'failed', 'exit:X1']],
+  ])(
+    'the judge is shown the last reply of the round, and the Job ends by it: %s',
+    { tags: ['slow'], timeout: 300_000 },
+    async (_name, reply, ending) => {
+      const judged: AskedDecision[] = []
+      const right = (ask: AskedDecision) =>
+        ['买牛奶', '交水电费'].every(item => JSON.stringify(ask.state).includes(item))
+      await onReleaseTreeRuns(
+        {
+          ...TREE,
+          script: answeringDecisions(
+            saying(reply),
+            ask => ({ criterion: right(ask) ? 'holds' : 'no-evidence' }),
+            judged,
+          ),
+          time: fastTime(),
+        },
+        [
+          async tree => {
+            const file = fileOf(tree, 'said.json', everyMinute(SAID_IN_THE_ROUND))
+            const created = succeeded(
+              await tree.cli([
+                'schedule',
+                'create',
+                '--definition-file',
+                file,
+                '--create-id',
+                's-1',
+              ]),
+            )
+            const done = await concluded(tree, String(created['schedule']))
+            expect(done.map(job => [job['state'], job['outcome'], job['reason']])).toEqual([ending])
+            expect(JSON.stringify(judged.map(ask => ask.state))).toContain(reply)
           },
         ],
       )

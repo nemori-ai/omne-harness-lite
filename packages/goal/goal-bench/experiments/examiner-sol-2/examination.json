@@ -1,0 +1,65 @@
+{
+  "name": "examiner-sol-2",
+  "examiner": "real",
+  "definition": "examiner@openai/gpt-6.1-sol",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [],
+    "batches": 56,
+    "falseHolds": {
+      "errors": 0,
+      "n": 40,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.08762160245846368
+      }
+    },
+    "timid": {
+      "errors": 0,
+      "n": 184,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.020450537938611096
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 0,
+    "parroted": {
+      "errors": 0,
+      "n": 24,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.13797620655132792
+      }
+    },
+    "usd": {
+      "n": 56,
+      "mean": 0.02207605178571429,
+      "interval": {
+        "low": 0.020793005391291256,
+        "high": 0.023359098180137327
+      },
+      "median": 0.0233277,
+      "max": 0.0300241
+    },
+    "seconds": {
+      "n": 56,
+      "mean": 29.642857142857142,
+      "interval": {
+        "low": 28.038068872439872,
+        "high": 31.247645413274412
+      },
+      "median": 30,
+      "max": 45
+    },
+    "totalUsd": 1.2362589000000004,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": []
+  }
+}

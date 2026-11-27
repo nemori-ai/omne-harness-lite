@@ -1,6 +1,7 @@
 export {
   answerGoal,
   createGoalAuthor,
+  EXAMINING_CONDITIONS,
   GOAL_GATES,
   goalExecutor,
   goalToolModule,

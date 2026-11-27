@@ -33,6 +33,25 @@ export async function show(reached: Reached): Promise<Answer> {
   return answered('show', read, shown)
 }
 
+const TAKEN = {
+  counted: 'The readings were handed in.',
+  stale:
+    'Taken, and out of date: this batch is no longer the one waited for, so its readings do not count. Read brief: it shows the batch that is out now, if there is one.',
+  repeat: 'This batch was already handed in with the same readings. Nothing changed.',
+} as const
+
+export async function brief(reached: Reached): Promise<Answer> {
+  const input = { examiner: reached.session }
+  const read = await reached.goals.brief(reached.caller, input).catch(() => BASIS)
+  return answered('brief', read, text => text)
+}
+
+export async function submit(reached: Reached, args: ArgumentsOf<'submit'>): Promise<Answer> {
+  const input = { examiner: reached.session, submission: args.params }
+  const handed = await reached.goals.submit(reached.caller, input).catch(() => UNKNOWN)
+  return answered('submit', handed, ({ taken }) => TAKEN[taken])
+}
+
 export async function track(reached: Reached, args: ArgumentsOf<'track'>): Promise<Answer> {
   const input = { session: reached.session, patch: args.params }
   const written = await reached.goals.track(reached.caller, input).catch(() => UNKNOWN)

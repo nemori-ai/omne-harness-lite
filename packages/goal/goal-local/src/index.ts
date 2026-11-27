@@ -6,4 +6,14 @@ export { createGoalLocalApplication } from './application.ts'
 export type { GoalLocalApplication, GoalLocalOptions, Timers } from './application.ts'
 export { GoalPolicyError, goalPolicySchema } from './policy.ts'
 export type { GoalPolicy } from './policy.ts'
-export { goalJudgeItems, goalJudgeSettings, judgeModelOf } from './judge-setting.ts'
+export {
+  examinationSettingsOf,
+  EXAMINERS,
+  goalJudgeItems,
+  goalJudgeSettings,
+  judgeModelOf,
+  judgeSettingOf,
+  type ExaminationSettings,
+  type Examiner,
+  type JudgeSetting,
+} from './judge-setting.ts'

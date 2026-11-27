@@ -52,6 +52,17 @@ function ownWordsOf(payload: unknown): string {
     .trim()
 }
 
+/** Where the latest system reminder that begins with this line stands among these entries, newest first. */
+export const reminderIn =
+  (line: string) =>
+  (entries: readonly RoundEntry[]): string | 'more' => {
+    const begins = (text: string) => text === line || text.startsWith(`${line}\n`)
+    const found = entries.find(
+      entry => entry.kind === 'message.system_reminder' && begins(wordsOf(entry.payload)),
+    )
+    return found?.id ?? 'more'
+  }
+
 export function askedIn(
   entries: readonly RoundEntry[],
 ): Readonly<{ at: string; text: string }> | 'more' {

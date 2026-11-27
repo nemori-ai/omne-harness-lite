@@ -193,6 +193,96 @@ describe('planChange：一次变更走哪一档、让哪些行重跑', () => {
     })
   })
 
+  it('环不在走的起点上：只写环上的行；从第一行走不到的环也找得到', () => {
+    const tail = [row('a', ['ka'], []), row('b', ['kb'], ['ka', 'kc']), row('c', ['kc'], ['kb'])]
+    expect(planChange(tail, { kind: 'lost', row: 'a' })).toEqual({
+      kind: 'refused',
+      reason: 'cycle',
+      detail: ['b', 'c'],
+    })
+    const apart = [row('x', [], []), row('c', ['kc'], ['kd']), row('d', ['kd'], ['kc'])]
+    expect(planChange(apart, { kind: 'lost', row: 'x' })).toEqual({
+      kind: 'refused',
+      reason: 'cycle',
+      detail: ['c', 'd'],
+    })
+  })
+
+  it('旧的一份只能换进程，新的一份声明了换实现：照弱的那一份算，走换进程', () => {
+    const graph = chain('rerun').map(each =>
+      each.name === 'calendar' ? row('calendar', ['calendar'], ['storage'], 'restart') : each,
+    )
+    const next = { ...row('calendar', ['calendar'], ['storage'], 'implementation', 'd2') }
+    expect(planChange(graph, { kind: 'replace', row: 'calendar', next })).toEqual({
+      kind: 'impact',
+      way: 'restart',
+      reruns: ['calendar'],
+      reasons: ['contract-changed:calendar', 'restart-only:calendar'],
+    })
+  })
+
+  it('旧的一份能重跑，新的一份只能换进程：走换进程，原因里这一行只点一次', () => {
+    const graph = chain('rerun')
+    expect(planChange(graph, replace(graph, 'usage', { swap: 'restart' }))).toEqual({
+      kind: 'impact',
+      way: 'restart',
+      reruns: ['usage'],
+      reasons: ['row-reruns:usage', 'restart-only:usage'],
+    })
+  })
+
+  it('新的一份少提供一个键：等着那个键的行也重跑；变了的键按名字排', () => {
+    const graph = [row('p', ['zeta', 'alpha'], []), row('x', [], ['zeta']), row('y', [], ['alpha'])]
+    const fewer = { ...row('p', ['alpha'], []), swap: 'rerun' as const }
+    expect(planChange(graph, { kind: 'replace', row: 'p', next: fewer })).toEqual({
+      kind: 'impact',
+      way: 'restart',
+      reruns: ['p', 'x', 'y'],
+      reasons: ['contract-changed:zeta', 'restart-only:p', 'restart-only:x', 'restart-only:y'],
+    })
+    // The digest of the key it no longer provides is still written down: the key changed all the same.
+    const stale = { ...fewer, contracts: { alpha: 'd1', zeta: 'd1' } }
+    const dropped = planChange(graph, { kind: 'replace', row: 'p', next: stale })
+    expect(dropped.kind === 'impact' && dropped.reasons[0]).toBe('contract-changed:zeta')
+    const both = { ...row('p', ['zeta', 'alpha'], [], undefined, 'd2') }
+    const changed = planChange(graph, { kind: 'replace', row: 'p', next: both })
+    expect(changed.kind === 'impact' && changed.reasons.slice(0, 2)).toEqual([
+      'contract-changed:alpha',
+      'contract-changed:zeta',
+    ])
+  })
+
+  it('环在一行的第二个依赖方上：第一个依赖方走完没有环，接着看第二个', () => {
+    const graph = [row('a', ['ka'], ['kb']), row('c', [], ['ka']), row('b', ['kb'], ['ka'])]
+    expect(planChange(graph, { kind: 'lost', row: 'c' })).toEqual({
+      kind: 'refused',
+      reason: 'cycle',
+      detail: ['a', 'b'],
+    })
+  })
+
+  it('新的一份把原来提供的键改成了注入：它排在等这个键的行前面，不被自己挡住', () => {
+    const graph = [row('y', [], ['k'], 'rerun'), row('p', ['k'], [], 'rerun')]
+    const next = row('p', [], ['k'], 'rerun')
+    expect(planChange(graph, { kind: 'replace', row: 'p', next })).toEqual({
+      kind: 'impact',
+      way: 'rerun',
+      reruns: ['p', 'y'],
+      reasons: ['contract-changed:k', 'injects-changed:p'],
+    })
+  })
+
+  it('新旧两份合起来互相等着的两行：分不出先后，照图里的次序', () => {
+    const graph = [row('x', ['kx'], ['k'], 'rerun'), row('p', ['k'], [], 'rerun')]
+    const next = row('p', [], ['kx'], 'rerun')
+    expect(planChange(graph, { kind: 'replace', row: 'p', next })).toEqual({
+      kind: 'impact',
+      way: 'rerun',
+      reruns: ['x', 'p'],
+      reasons: ['contract-changed:k', 'injects-changed:p'],
+    })
+  })
+
   it('换上去的声明让图成了环：拒绝', () => {
     const graph = chain('rerun')
     expect(planChange(graph, replace(graph, 'storage', { injects: ['sessions'] }))).toEqual({

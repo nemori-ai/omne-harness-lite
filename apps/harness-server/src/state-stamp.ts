@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { judgeStamp, parseStamp, type Stamp } from '@omne-harness/assembly'
 import { COMBINATION_VERSION } from './rows/agent-journal/config.ts'
-import { writeWhole } from './write-whole.ts'
+import { writeWhole } from '@omne-harness/assembly-cordis'
 
 export const STATE_STAMP_FILE = 'state-stamp.json'
 

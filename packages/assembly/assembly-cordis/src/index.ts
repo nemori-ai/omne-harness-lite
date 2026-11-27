@@ -12,3 +12,13 @@ export {
   type Trust,
   type Verified,
 } from './provenance.ts'
+export {
+  installVersion,
+  POINTER_FILE,
+  readVersions,
+  switchVersion,
+  tellVersions,
+  VERSIONS_DIR,
+  writeWhole,
+  type Told,
+} from './version-directory.ts'

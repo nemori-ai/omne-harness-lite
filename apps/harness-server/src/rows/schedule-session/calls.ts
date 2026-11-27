@@ -22,6 +22,7 @@ import {
 } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { contextInitialization } from '../../assembly/session-context-initialization.ts'
+import { goalHolder } from '../goal/holder.ts'
 import {
   definitionMappingsKey,
   mappedDefinitionFor,
@@ -232,14 +233,23 @@ export function executorCallsOf(ctx: Context, ports: ScheduleSessionPorts): Exec
         }
       },
     },
-    goals: goalCallsOf(goals, system),
+    goals: { ...goalCallsOf(goals, system), rules: ({ tenant }) => jobRulesOf(ctx, tenant) },
   }
+}
+
+async function jobRulesOf(
+  ctx: Context,
+  tenant: string,
+): ReturnType<ExecutorCalls['goals']['rules']> {
+  const set = await goalHolder(ctx).examination?.(tenant)
+  if (set === undefined || set === null) return UNAVAILABLE
+  return { kind: 'read', value: { maxExaminations: set.maxExaminations, job: set.job } }
 }
 
 function goalCallsOf(
   goals: () => GoalsService | undefined,
   system: unknown,
-): ExecutorCalls['goals'] {
+): Omit<ExecutorCalls['goals'], 'rules'> {
   return {
     read: async ({ tenant, session }) =>
       (await goals()?.read({ tenant, subject: system }, session)) ?? {

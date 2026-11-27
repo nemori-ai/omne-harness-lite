@@ -1,0 +1,371 @@
+{
+  "name": "examiner-gauge-lenient",
+  "examiner": "lenient",
+  "definition": "scripted",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [
+      "x01-cart/exactly-hundred-pays-then-coupon-subtracts",
+      "x01-cart/fraction-allowed-then-mended",
+      "x02-slug/case-kept-then-edge-dashes-kept",
+      "x02-slug/stdin-ignored-then-mended",
+      "x03-todo/done-not-saved-then-mended",
+      "x03-todo/missing-is-fine-then-ids-reused",
+      "x04-csvsum/blank-lines-counted-then-whole-numbers-only",
+      "x04-csvsum/naive-split-then-mended",
+      "x05-snake/never-grows-then-mended",
+      "x05-snake/reverse-allowed-then-wraps-around",
+      "x06-roman/loose-spelling-then-mended",
+      "x06-roman/zero-is-empty-then-only-four-and-nine",
+      "x07-limiter/no-ceiling-then-mended",
+      "x07-limiter/one-shared-bucket-then-refill-in-wrong-unit",
+      "x08-mdtoc/fences-not-seen-then-mended",
+      "x08-mdtoc/flat-below-second-then-same-anchor-twice"
+    ],
+    "batches": 40,
+    "falseHolds": {
+      "errors": 32,
+      "n": 32,
+      "rate": 1,
+      "interval": {
+        "low": 0.8928208002353197,
+        "high": 1.0000000000000002
+      }
+    },
+    "timid": {
+      "errors": 0,
+      "n": 128,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.029136956719772594
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 0,
+    "parroted": {
+      "errors": 0,
+      "n": 0,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 1
+      }
+    },
+    "usd": {
+      "n": 40,
+      "mean": 0,
+      "interval": {
+        "low": 0,
+        "high": 0
+      },
+      "median": 0,
+      "max": 0
+    },
+    "seconds": {
+      "n": 40,
+      "mean": 11.05,
+      "interval": {
+        "low": 10.659580842643562,
+        "high": 11.44041915735644
+      },
+      "median": 11,
+      "max": 14
+    },
+    "totalUsd": 0,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": [
+      {
+        "case": "x01-cart/coupon-subtracts",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x01-cart/exactly-hundred-pays-then-coupon-subtracts",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x01-cart/fraction-allowed-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x01-cart/no-rounding",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x02-slug/case-kept-then-edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x02-slug/edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x02-slug/some-punctuation-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x02-slug/stdin-ignored-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x03-todo/done-not-saved-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x03-todo/first-word-only",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x03-todo/ids-reused",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x03-todo/missing-is-fine-then-ids-reused",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x04-csvsum/blank-lines-counted-then-whole-numbers-only",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x04-csvsum/missing-column-is-zero",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x04-csvsum/naive-split-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x04-csvsum/whole-numbers-only",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x05-snake/never-grows-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x05-snake/reverse-allowed-then-wraps-around",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x05-snake/up-down-swapped",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x05-snake/wraps-around",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x06-roman/loose-spelling-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x06-roman/only-four-and-nine",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x06-roman/subtraction-added",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x06-roman/zero-is-empty-then-only-four-and-nine",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x07-limiter/no-ceiling-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x07-limiter/one-shared-bucket-then-refill-in-wrong-unit",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x07-limiter/refill-in-wrong-unit",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x07-limiter/starts-one-short",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x08-mdtoc/anchor-keeps-punctuation",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x08-mdtoc/fences-not-seen-then-mended",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x08-mdtoc/flat-below-second-then-same-anchor-twice",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      },
+      {
+        "case": "x08-mdtoc/same-anchor-twice",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "fails",
+        "said": "holds",
+        "before": null
+      }
+    ]
+  }
+}

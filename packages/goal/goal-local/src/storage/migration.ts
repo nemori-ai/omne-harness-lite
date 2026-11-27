@@ -1,5 +1,5 @@
 import type { MigrationModule } from '@omne-harness/sql-contract/worker'
-import { MIGRATION, TABLES } from './schema.ts'
+import { MIGRATION } from './schema.ts'
 
 const STATEMENTS = [
   'CREATE TABLE gl_goals (session TEXT NOT NULL, generation INTEGER NOT NULL, version INTEGER NOT NULL, live INTEGER NOT NULL, owing INTEGER NOT NULL, record TEXT NOT NULL, PRIMARY KEY (session, generation))',
@@ -14,7 +14,7 @@ export default {
     for (const statement of STATEMENTS) port.execute(statement, [])
   },
   verify(port) {
-    for (const table of TABLES) port.execute(`SELECT * FROM ${table} LIMIT 0`, [])
+    port.execute('SELECT * FROM gl_goals LIMIT 0', [])
     return { kind: 'verified' }
   },
 } satisfies MigrationModule

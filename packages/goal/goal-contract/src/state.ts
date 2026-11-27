@@ -20,7 +20,7 @@ export const PauseSchema = z.discriminatedUnion('by', [
     exit: ExitIdSchema.nullable(),
   }),
 ])
-/** Why a goal is paused: the person paused it, or a row of the verdict table handed it to the person. */
+/** Why a goal is paused: the person paused it, or a verdict handed it to the person. `row` is the cause as kept goals and clients know it: 5 an exit of the person, 6 a dead end, 7 a stall, 8 a judge that did not answer. */
 export type Pause = z.infer<typeof PauseSchema>
 
 export const GoalOutcomeSchema = z.discriminatedUnion('kind', [

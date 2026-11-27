@@ -1,5 +1,6 @@
 import {
   NO_PROGRESS,
+  NO_EXAMINATION,
   NO_READINGS,
   validateDraft,
   type GoalRecord,
@@ -58,6 +59,7 @@ export function conformanceGoal(change: Partial<GoalRecord> = {}, generation = 1
     since: '0',
     wake: null,
     observed: null,
+    examination: NO_EXAMINATION,
     ...change,
   }
 }
@@ -173,6 +175,75 @@ export const storeConformance: readonly StoreConformanceCase[] = [
         await store.commit(T1, { session: S1, expected: 1, next: { ...owing, wake: null } }),
       )
       hold(read(await store.owing(T1)).length === 0, 'a cleared debt is still listed')
+    },
+  },
+  {
+    name: 'a goal with a batch out is listed, taken or not, until the batch is back',
+    async run(open) {
+      const store = await open()
+      const key = { revision: 1, written: 'call-1' }
+      const batch = { key, criteria: ['A1' as const], delivery: 'owed' as const, ran: {} }
+      const owed = conformanceGoal({ examination: { ...NO_EXAMINATION, batch, used: 1 } })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: owed }))
+      hold(read(await store.owing(T1)).length === 1, 'the owed batch is not listed')
+      const lost = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'unknown' as const, ran: {} },
+      }
+      committed(
+        await store.commit(T1, { session: S1, expected: 1, next: { ...owed, examination: lost } }),
+      )
+      hold(
+        read(await store.owing(T1)).length === 1,
+        'a batch of unknown handing over is not listed',
+      )
+      const taken = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'handed' as const, ran: {} },
+      }
+      committed(
+        await store.commit(T1, { session: S1, expected: 2, next: { ...owed, examination: taken } }),
+      )
+      hold(read(await store.owing(T1)).length === 1, 'a batch that was taken is not listed')
+      const back = { ...owed.examination, batch: null }
+      committed(
+        await store.commit(T1, { session: S1, expected: 3, next: { ...owed, examination: back } }),
+      )
+      hold(read(await store.owing(T1)).length === 0, 'a batch that is back is still listed')
+    },
+  },
+  {
+    name: 'a goal is found by the session that examines for it while it is live, and by no other session',
+    async run(open) {
+      const store = await open()
+      const examined = conformanceGoal({
+        examination: { ...NO_EXAMINATION, examiner: 'examiner-1' },
+      })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: examined }))
+      hold(same(read(await store.examinedBy(T1, 'examiner-1')), examined), 'the goal is not found')
+      hold(read(await store.examinedBy(T1, S1)) === null, 'the goal was found by its own session')
+      hold(read(await store.examinedBy(T1, 'examiner-2')) === null, 'another session found it')
+      hold(read(await store.examinedBy(T2, 'examiner-1')) === null, 'another tenant found it')
+      const done = { ...settled(examined), version: 2 }
+      committed(await store.commit(T1, { session: S1, expected: 1, next: done }))
+      hold(read(await store.examinedBy(T1, 'examiner-1')) === null, 'a settled goal was found')
+    },
+  },
+  {
+    name: 'a session has one choice of decision model: the last one written, none after it was taken away, and its own alone',
+    async run(open) {
+      const store = await open()
+      hold(read(await store.chosen(T1, S1)) === null, 'a session that chose none has a choice')
+      const wrote = (answer: { kind: string }) => hold(answer.kind === 'committed', 'not written')
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.14'))
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.13'))
+      hold(read(await store.chosen(T1, S1)) === 'typesafe/jev-1.13', 'the last choice is not read')
+      hold(read(await store.chosen(T1, 'another-session')) === null, 'another session reads it')
+      hold(read(await store.chosen(T2, S1)) === null, 'another tenant reads it')
+      wrote(await store.choose(T1, S1, null))
+      wrote(await store.choose(T1, S1, null))
+      hold(read(await store.chosen(T1, S1)) === null, 'a choice taken away is still read')
+      hold(read(await store.latest(T1, S1)) === null, 'a choice made a goal')
     },
   },
   {
