@@ -349,6 +349,10 @@
 | [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
 | [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
+| [UL-mcp-event-type](terms/reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type) | MCP 事件类型 | MCP Event Type | 一个 MCP 接入点的对端声明的、它会发生的一类事件：类型名、说明、订阅参数与内容的形状；**不是连接件事件类型，也不是通知事件类型** |
+| [UL-mcp-event-subscription](terms/reach-and-availability.md#ul-mcp-event-subscription--mcp-事件订阅--mcp-event-subscription) | MCP 事件订阅 | MCP Event Subscription | 本系统向一个接入点的对端要一类事件的一条耐久记录，带着收到的位置；正本在本系统；**不是事件订阅，也不是通知订阅** |
+| [UL-mcp-skill](terms/reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill) | MCP 技能 | MCP Skill | 一个接入点的对端经连接提供的一个技能，随接入点来去；**不是资产**，名字带接入点的前缀 |
+| [UL-skill-entry-source](terms/reach-and-availability.md#ul-skill-entry-source--技能条目来源--skill-entry-source) | 技能条目来源 | Skill Entry Source | 另一个领域向 `Skills` 入口登记、按需交出不在资产里的技能的那个角色；MCP 是一个 |
 | [UL-command-entry](terms/reach-and-availability.md#ul-command-entry--入口项--command-entry) | 入口项 | Command Entry | 一个会话此刻能用名字点名的一项：引用型、提示词命令、系统命令；位置由种类定；**是视图**，现算不存 |
 | [UL-command-entry-source](terms/reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source) | 入口来源 | Command Entry Source | 向命令登记、按需交出入口项的角色；被点名时连参数收到，答内容、操作请求或参数不对；Skill、资产、各流程各是一个；一个来源一个名字空间 |
 
