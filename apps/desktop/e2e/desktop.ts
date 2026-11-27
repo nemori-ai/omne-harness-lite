@@ -37,6 +37,12 @@ export const REPLY = 'hello from the e2e gateway'
 export const ASK_MARKER = 'ask-me-one-question'
 /** A message with this in it gets a reply that begins and never ends: its turn stays under way. */
 export const HOLD_MARKER = 'hold-this-turn-open'
+/** A message with one of these gets that upstream failure for as long as the session keeps the model it began with. */
+export const UPSTREAM_FAILURES = {
+  'upstream-answers-429': 429,
+  'upstream-answers-502': 502,
+  'upstream-answers-401': 401,
+} as const
 const ASK_PAUSE_MS = 3_000
 const ASK_ARGUMENTS = JSON.stringify({
   command: 'ask',
@@ -136,6 +142,21 @@ async function launch(
   }
 }
 
+let firstModel: string | undefined
+
+function failureOf(body: string, model: string) {
+  const marked = Object.entries(UPSTREAM_FAILURES).find(([marker]) => body.includes(marker))
+  if (marked === undefined) return undefined
+  firstModel ??= model
+  if (model !== firstModel) return undefined
+  const [, status] = marked
+  return {
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: { message: 'e2e gateway: upstream failure', code: status } }),
+  }
+}
+
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
 export const quit = ({ close }: Launched): Promise<void> => close()
 
@@ -152,6 +173,8 @@ async function startStack(
   try {
     gateway = await startModelGateway(async ({ body }) => {
       const model = JSON.parse(body).model ?? 'm'
+      const failing = failureOf(body, model)
+      if (failing !== undefined) return failing
       if (body.includes(HOLD_MARKER))
         return {
           status: 200,

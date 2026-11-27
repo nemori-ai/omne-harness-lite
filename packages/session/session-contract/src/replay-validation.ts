@@ -1,5 +1,5 @@
 import type { SessionLogObservation } from './projection.ts'
-import type { RunEnd, WorkSnapshot } from './values.ts'
+import type { RunEnd, RunFailure, WorkSnapshot } from './values.ts'
 import {
   CallConflict,
   associated,
@@ -26,23 +26,36 @@ const textOrNull = (value: unknown, field: string): void => {
   if (value !== null && typeof value !== 'string') invalidAt(field, 'expected text or null')
 }
 
+type Failure<K extends RunFailure['kind']> = Extract<RunFailure, { kind: K }>
+
+function validateNodeFailure(failure: Failure<'node-failed'>): void {
+  nonempty(failure.node, 'ended.end.failure.node')
+  nonempty(failure.category, 'ended.end.failure.category')
+  nonempty(failure.failureKind, 'ended.end.failure.failureKind')
+  if (failure.diagnostic !== undefined) nonempty(failure.diagnostic, 'ended.end.failure.diagnostic')
+}
+
+function validateNoReply(failure: Failure<'no-reply'>): void {
+  textOrNull(failure.cause, 'ended.end.failure.cause')
+  textOrNull(failure.upstreamStatus, 'ended.end.failure.upstreamStatus')
+  textOrNull(failure.diagnostic, 'ended.end.failure.diagnostic')
+  if (failure.throttled !== undefined && failure.throttled !== true)
+    invalidAt('ended.end.failure.throttled', 'not true')
+}
+
 function validateRunEnd(end: RunEnd): void {
   if (!CONCLUSIONS.has(end.conclusion)) invalidAt('ended.end.conclusion', 'not a conclusion')
   const { failure } = end
   if (failure === null) return
   switch (failure.kind) {
     case 'node-failed':
-      nonempty(failure.node, 'ended.end.failure.node')
-      nonempty(failure.category, 'ended.end.failure.category')
-      nonempty(failure.failureKind, 'ended.end.failure.failureKind')
+      validateNodeFailure(failure)
       return
     case 'model-refused':
       nonempty(failure.failure, 'ended.end.failure.failure')
       return
     case 'no-reply':
-      textOrNull(failure.cause, 'ended.end.failure.cause')
-      textOrNull(failure.upstreamStatus, 'ended.end.failure.upstreamStatus')
-      textOrNull(failure.diagnostic, 'ended.end.failure.diagnostic')
+      validateNoReply(failure)
       return
     case 'cannot-fit':
       nonempty(failure.reason, 'ended.end.failure.reason')

@@ -44,6 +44,8 @@ import {
   endOpened,
   endWithFailure,
   nodeFailed,
+  nodeFailedDisclosed,
+  noReplyThrottled,
   noReplyWithFault,
   refusedByModel,
 } from './fixtures/finish.ts'
@@ -122,6 +124,7 @@ function endOfFinish(intent: FinishIntent): unknown {
         cause: failure.fault?.cause ?? null,
         upstreamStatus: failure.fault?.upstreamStatus ?? null,
         diagnostic: failure.fault?.diagnostic ?? null,
+        ...(failure.fault?.throttled === true ? { throttled: true } : {}),
       },
     }
   if (failure.kind === 'model-refused')
@@ -134,6 +137,7 @@ function endOfFinish(intent: FinishIntent): unknown {
         node: failure.node,
         category: failure.category,
         failureKind: failure.failureKind,
+        ...(failure.diagnostic === undefined ? {} : { diagnostic: failure.diagnostic }),
       },
     }
   if (failure.kind === 'cannot-fit')
@@ -557,6 +561,8 @@ describe('the Session acknowledges an execution once it has received all of it',
     ['a call without reply', noReplyWithFault],
     ['a refused call', refusedByModel],
     ['a failed node', nodeFailed],
+    ['a call the upstream throttled', noReplyThrottled],
+    ['a failed node whose failure disclosed a line', nodeFailedDisclosed],
     ['a request that cannot fit', cannotFit],
   ])(
     'the failure of %s goes into the terminal entry field for field as readFinish gave it, and stays there after the records leave',

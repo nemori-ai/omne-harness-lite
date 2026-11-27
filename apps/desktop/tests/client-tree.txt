@@ -54,6 +54,8 @@ system
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
+        session.model-choice
+          session-ui#1  [effective]
         session.run-failure
           session-ui#1  [effective]
         session.side
@@ -222,6 +224,8 @@ system
       session.dock  [list, closed: one-per-process]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
+      session.model-choice  [one, closed: grants-itself]
+        session-ui#1  [effective]
       session.run-failure  [list, closed: one-per-process]
         model-credential  [effective, model-ui#1]
       session.side  [list, closed: one-per-process]

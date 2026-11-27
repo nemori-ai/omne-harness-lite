@@ -13,7 +13,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { RouteAccounting } from '../config.ts'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
-import { causeOfStatus } from '../termination.ts'
+import { statusFault } from '../termination.ts'
 import {
   readChunk,
   type Chunk,
@@ -242,13 +242,7 @@ function servingOf(
 function inBandError(code: number | null): Refusal {
   if (code === null)
     return { fault: { cause: 'unclassified', diagnostic: 'in-band-error', upstreamStatus: null } }
-  return {
-    fault: {
-      cause: causeOfStatus(code),
-      diagnostic: 'in-band-error',
-      upstreamStatus: code >= 100 && code <= 599 ? String(code) : null,
-    },
-  }
+  return { fault: statusFault(code, 'in-band-error') }
 }
 
 type Serves = Streaming & Readonly<{ serving: Serving }>

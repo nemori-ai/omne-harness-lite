@@ -64,6 +64,7 @@ const runCause = {
       node: { rule: text },
       category: { rule: literal('exception', 'invariant', 'unsupported-path', 'rejected') },
       failureKind: { rule: text },
+      diagnostic: { rule: text, optional: true, since: 3 },
     }),
     unknownValue,
     object({ kind: { rule: literal('none') } }),
@@ -79,6 +80,7 @@ const runCause = {
       kind: { rule: literal('no-reply') },
       cause: { rule: nullable(text) },
       upstreamStatus: { rule: nullable(text) },
+      throttled: { rule: literal('yes'), optional: true, since: 3 },
     }),
     object({ kind: { rule: literal('request-rejected') } }),
     object({

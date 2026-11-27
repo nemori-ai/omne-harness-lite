@@ -23,7 +23,7 @@ export function terminationOf(end: SendEnd): TransportTermination {
       return { kind: 'failed', fault: end.fault }
     case 'http-error':
       return end.fault === null
-        ? failed(causeOfStatus(end.status), `http-${end.status}`, String(end.status))
+        ? { kind: 'failed', fault: statusFault(end.status, `http-${end.status}`) }
         : { kind: 'failed', fault: end.fault }
     case 'connect-failed':
       return failed(
@@ -61,6 +61,14 @@ export function causeOfStatus(status: number): StatusCause {
   if (status === 429 || (status >= 500 && status <= 599)) return 'upstream-unavailable'
   if (status >= 400 && status <= 499) return 'input-rejected'
   return 'upstream-protocol'
+}
+
+const THROTTLED_STATUS = 429
+
+export function statusFault(status: number, diagnostic: string): ModelFault {
+  const upstreamStatus = status >= 100 && status <= 599 ? String(status) : null
+  const fault = { cause: causeOfStatus(status), diagnostic, upstreamStatus }
+  return status === THROTTLED_STATUS ? { ...fault, throttled: true } : fault
 }
 
 function failed(
