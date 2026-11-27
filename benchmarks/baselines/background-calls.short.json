@@ -5,9 +5,8 @@
   "tier": "short",
   "workload": "wl-66e51d7f4502",
   "assembly": "asm-7c54f1b44799",
-  "commit": "2d5024387ddb7f8e06565e6b8905b98c4dcd4b6d",
+  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
   "counts": {
-    "commit bytes of a step on an empty session": 1207329,
     "commits of a step at open background calls 16": 89,
     "commits of a step at open background calls 2": 89,
     "commits of a step at open background calls 4": 89,

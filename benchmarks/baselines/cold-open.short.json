@@ -5,7 +5,7 @@
   "tier": "short",
   "workload": "wl-1420df67e4cd",
   "assembly": "asm-7c54f1b44799",
-  "commit": "2d5024387ddb7f8e06565e6b8905b98c4dcd4b6d",
+  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
   "counts": {
     "request bytes after taking the first input after a restart at rounds before the restart 16": 85652,
     "request bytes after taking the first input after a restart at rounds before the restart 2": 65266,

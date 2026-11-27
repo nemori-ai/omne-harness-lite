@@ -5,7 +5,7 @@
   "tier": "short",
   "workload": "wl-ee16657eab14",
   "assembly": "asm-7c54f1b44799",
-  "commit": "2d5024387ddb7f8e06565e6b8905b98c4dcd4b6d",
+  "commit": "c9d6caa33a72a7aa6ee6462398f45802c435353f",
   "counts": {
     "commits of opening an observation": 0,
     "request bytes after opening an observation at rounds before 16": 76901,
