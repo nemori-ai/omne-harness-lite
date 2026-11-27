@@ -73,6 +73,7 @@ export type OverLimitMetric = (typeof OVER_LIMIT_METRICS)[number]
 export type ModelFault = Readonly<{
   diagnostic: string
   upstreamStatus: string | null
+  throttled?: true
 }> &
   (
     | Readonly<{

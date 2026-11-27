@@ -53,6 +53,7 @@ describe('the reminder commit answers', () => {
       kind: 'invalid',
       field: 'storage',
       reason: 'invalid_request: no',
+      disclosed: 'invalid_request: no',
     })
   })
 

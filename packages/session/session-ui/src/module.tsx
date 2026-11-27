@@ -26,6 +26,11 @@ import { BackgroundCallsStore } from './model/background-calls.ts'
 import type { ComposerAssistant } from './model/composer-assistant.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
 import type { SessionComposer } from './model/composer-handles.ts'
+import {
+  createModelChoiceAsk,
+  ModelChoiceAskContext,
+  type ModelChoiceAsk,
+} from './model/model-choice-ask.ts'
 import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
 import type { PictureIntake } from './model/pictures.ts'
 import {
@@ -102,6 +107,8 @@ export function conversationTarget(
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
 export const sessionComposerKey = serviceKey<SessionComposer>('session.composer')
+export const sessionModelChoiceKey =
+  serviceKey<Pick<ModelChoiceAsk, 'open'>>('session.model-choice')
 
 const SESSION_POINTS = [
   sessionDock,
@@ -301,6 +308,12 @@ const needsOf = (options: SessionUiOptions) => ({
 type Apply = UiModuleDefinition<ReturnType<typeof needsOf>>['apply']
 type Given = Parameters<Apply>
 
+function providedModelChoiceAsk(provide: Given[2]): ModelChoiceAsk {
+  const ask = createModelChoiceAsk()
+  provide(sessionModelChoiceKey, ask)
+  return ask
+}
+
 const apply = (
   options: SessionUiOptions,
   shell: Given[0],
@@ -338,6 +351,7 @@ const apply = (
   putOnCanvas(shell, options, workspaces, new ArchivedDirectory(client))
   const keys = sessionKeys(shell, workspaces, client, PAGES)
   provide(sessionComposerKey, keys.composer)
+  const modelAsk = providedModelChoiceAsk(provide)
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,
@@ -367,67 +381,79 @@ const apply = (
       keys.around(
         <EntryFocusContext.Provider value={focus}>
           <PartDrawContext.Provider value={shell}>
-            <SubjectOpener workspaces={workspaces} scope={scope} subject={subject} focus={focus} />
-            <FigureReport
-              workspaces={workspaces}
-              scope={scope}
-              background={background}
-              figure={figure}
-            />
-            <ConversationPage
-              workspaces={workspaces}
-              scope={scope}
-              work={(session, revision) =>
-                scope === undefined ? null : (
-                  <SessionWork store={held} tenant={scope} session={session} revision={revision} />
-                )
-              }
-              heading={session =>
-                scope === undefined ? null : (
-                  <>
-                    <ModelAction store={models} tenant={scope} session={session} />
-                    <WorkspaceAction store={places} tenant={scope} session={session} />
-                    <PermissionModeAction store={modes} tenant={scope} session={session} />
-                  </>
-                )
-              }
-              more={(session, say) =>
-                scope === undefined ? null : (
-                  <ArchiveAction
-                    store={archive}
-                    workspaces={workspaces}
-                    tenant={scope}
-                    session={session}
-                    say={say}
-                  />
-                )
-              }
-              waitingCalls={waitingCalls}
-              {...placesOf(shell)}
-              drafts={drafts}
-              assistant={assistant}
-              attachments={(session, draft) =>
-                sessionComposerAttachments.slot(shell, { session, draft }, fragments)
-              }
-              block={blockDrawer(shell, reads, scope)}
-              reply={replyDrawer(reads, scope)}
-              toolCall={toolCallDrawer(shell)}
-              side={session =>
-                sessionSide.slot(shell, { session }, entries =>
-                  scope === undefined ? (
-                    <SidePanel entries={entries} />
-                  ) : (
-                    <SideWithBackground
-                      entries={entries}
-                      store={background}
+            <ModelChoiceAskContext.Provider value={modelAsk}>
+              <SubjectOpener
+                workspaces={workspaces}
+                scope={scope}
+                subject={subject}
+                focus={focus}
+              />
+              <FigureReport
+                workspaces={workspaces}
+                scope={scope}
+                background={background}
+                figure={figure}
+              />
+              <ConversationPage
+                workspaces={workspaces}
+                scope={scope}
+                work={(session, revision) =>
+                  scope === undefined ? null : (
+                    <SessionWork
+                      store={held}
                       tenant={scope}
                       session={session}
-                      detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                      revision={revision}
                     />
-                  ),
-                )
-              }
-            />
+                  )
+                }
+                heading={session =>
+                  scope === undefined ? null : (
+                    <>
+                      <ModelAction store={models} tenant={scope} session={session} />
+                      <WorkspaceAction store={places} tenant={scope} session={session} />
+                      <PermissionModeAction store={modes} tenant={scope} session={session} />
+                    </>
+                  )
+                }
+                more={(session, say) =>
+                  scope === undefined ? null : (
+                    <ArchiveAction
+                      store={archive}
+                      workspaces={workspaces}
+                      tenant={scope}
+                      session={session}
+                      say={say}
+                    />
+                  )
+                }
+                waitingCalls={waitingCalls}
+                {...placesOf(shell)}
+                drafts={drafts}
+                assistant={assistant}
+                attachments={(session, draft) =>
+                  sessionComposerAttachments.slot(shell, { session, draft }, fragments)
+                }
+                block={blockDrawer(shell, reads, scope)}
+                reply={replyDrawer(reads, scope)}
+                toolCall={toolCallDrawer(shell)}
+                side={session =>
+                  sessionSide.slot(shell, { session }, entries =>
+                    scope === undefined ? (
+                      <SidePanel entries={entries} />
+                    ) : (
+                      <SideWithBackground
+                        entries={entries}
+                        store={background}
+                        tenant={scope}
+                        session={session}
+                        detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                      />
+                    ),
+                  )
+                }
+              />
+            </ModelChoiceAskContext.Provider>
           </PartDrawContext.Provider>
         </EntryFocusContext.Provider>,
       ),

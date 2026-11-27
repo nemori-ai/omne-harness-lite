@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:d59e9aab00229cd473ad875586dd7fa42ca808f835e311b5f40fe2170999d6fd",
-    "2": "sha256:2cf8a2f81392ad6b29f10d66deda262161eeed4e8d5c73d8c9a223996c7f06de"
+    "2": "sha256:2cf8a2f81392ad6b29f10d66deda262161eeed4e8d5c73d8c9a223996c7f06de",
+    "3": "sha256:74ee477efcf42f08111297894a2316d7e8dc38112282a2faf0dbe43236c21efd"
   },
   "major": 1,
   "name": "session-diagnostics",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {},
     "operations": {
@@ -1499,6 +1500,13 @@
                                                     ]
                                                   }
                                                 },
+                                                "diagnostic": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  },
+                                                  "since": 3
+                                                },
                                                 "failureKind": {
                                                   "rule": {
                                                     "kind": "text"
@@ -1661,6 +1669,16 @@
                                                       "no-reply"
                                                     ]
                                                   }
+                                                },
+                                                "throttled": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "yes"
+                                                    ]
+                                                  },
+                                                  "since": 3
                                                 },
                                                 "upstreamStatus": {
                                                   "rule": {

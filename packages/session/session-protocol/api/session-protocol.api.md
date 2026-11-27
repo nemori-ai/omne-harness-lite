@@ -474,6 +474,11 @@ export declare const sessionProtocol: {
                     readonly waiting: {
                         readonly cause: {
                             readonly detail: string | null;
+                            readonly fault?: {
+                                readonly cause: string;
+                                readonly throttled: boolean;
+                                readonly upstreamStatus: string | null;
+                            } | null;
                             readonly kind: string;
                         } | null;
                         readonly pending: number;
