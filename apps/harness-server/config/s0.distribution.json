@@ -331,6 +331,11 @@
       "config": {}
     },
     {
+      "id": "mcp-storage-sql",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "mcp",
       "plugin": "stubPlugin",
       "config": {}

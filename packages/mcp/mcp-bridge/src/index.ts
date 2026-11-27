@@ -26,3 +26,17 @@ export {
   type McpEntrySource,
   type NamedEntry,
 } from './source.ts'
+export { type McpAsking } from './asking.ts'
+export {
+  MAX_FORM_FIELDS,
+  type McpPersonAsk,
+  type PersonAnswer,
+  type PersonQuestion,
+  type PersonReply,
+} from './form.ts'
+export {
+  createTaskWaitBridge,
+  mcpTaskWait,
+  MCP_TASK_WAIT_OWNER,
+  type TaskWaitBridgeInput,
+} from './task-wait.ts'

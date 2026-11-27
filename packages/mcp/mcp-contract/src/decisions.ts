@@ -8,7 +8,7 @@ import type {
   UnusableCause,
 } from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
-import type { TransportFailure } from './transport.ts'
+import type { ListenEnd, ListenEvent, TransportFailure } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
 import {
   ERROR_CLASSES,
@@ -51,6 +51,7 @@ export type WireAnswer =
 export type AnswerConclusion =
   | Readonly<{ kind: 'settle'; wire: WireAnswer; unusable?: UnusableCause }>
   | Readonly<{ kind: 'authorization-required' }>
+  | Readonly<{ kind: 'credential-rejected' }>
   | Readonly<{ kind: 'wait' }>
 
 export type ProbeConclusion =
@@ -68,6 +69,7 @@ const LEGACY_HTTP: WireAnswer = { kind: 'legacy-http' }
 export const ABANDONED: WireAnswer = { kind: 'no-answer', cause: 'abandoned', resend: false }
 const WAIT: AnswerConclusion = { kind: 'wait' }
 const AUTHORIZATION_REQUIRED: AnswerConclusion = { kind: 'authorization-required' }
+const CREDENTIAL_REJECTED: AnswerConclusion = { kind: 'credential-rejected' }
 const MODERN_ERROR_CLASSES: readonly ErrorClass[] = [
   '-32020',
   '-32021',
@@ -130,6 +132,8 @@ function brokenStream(resend: boolean): WireAnswer {
 
 export function requestClassOf(method: RequestMethod, retried: boolean): RequestClass {
   if (method === 'server/discover') return retried ? 'discover-retry' : 'discover'
+  // A long request is concluded as a call is: never sent again, with the same refusals.
+  if (method === 'subscriptions/listen') return 'tools/call'
   return method
 }
 
@@ -146,15 +150,18 @@ function exchangeConclusionOf(
     case 'http:2xx':
       return settle(brokenStream(resends(context)))
     default:
-      return httpStatusConclusionOf(answer)
+      return httpStatusConclusionOf(answer, context)
   }
 }
 
-function httpStatusConclusionOf(answer: AnswerClass): AnswerConclusion | undefined {
+function httpStatusConclusionOf(
+  answer: AnswerClass,
+  context: WireContext,
+): AnswerConclusion | undefined {
   switch (answer) {
     case 'http:401':
     case 'http:403+scope':
-      return AUTHORIZATION_REQUIRED
+      return context.presented === true ? CREDENTIAL_REJECTED : AUTHORIZATION_REQUIRED
     case 'http:403':
       return settle(NOT_SENT)
     case 'http:404+session':
@@ -354,6 +361,14 @@ export function streamGoneAnswerOf(): WireAnswer {
   return { kind: 'no-answer', cause: 'stream-broken', resend: false, unusable: 'stream-broken' }
 }
 
+/** What a request whose credential the peer rejected answers: not sent, and the connection is not usable. */
+export function credentialRejectedAnswerOf(): WireAnswer {
+  return {
+    kind: 'not-sent',
+    failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' },
+  }
+}
+
 export function authorizationRequiredAnswerOf(discovery: AuthorizationDiscovery): WireAnswer {
   return {
     kind: 'not-sent',
@@ -389,7 +404,10 @@ export function lineGoneAnswerOf(
     case 'authorizing':
       return unusableAnswerOf(NOT_SENT, cause)
     case 'sent':
-      return cause === 'session-ended' ? undefined : streamGoneAnswerOf()
+      // A sent request is answered by the peer on its own once the session ended or the credential was refused.
+      return cause === 'session-ended' || cause === 'credential-rejected'
+        ? undefined
+        : streamGoneAnswerOf()
     case 'discovery':
       return undefined
     default: {
@@ -402,14 +420,60 @@ export function lineGoneAnswerOf(
 export function fallbackGetConclusionOf(
   answer: Readonly<{ status: number; headers: Readonly<{ [name: string]: string }>; body: string }>,
   versions: ProtocolVersions,
-): Extract<AnswerConclusion, { kind: 'settle' | 'authorization-required' }> {
-  const context: WireContext = { id: '', request: 'initialize', session: false, versions }
+  presented: boolean,
+): Extract<
+  AnswerConclusion,
+  { kind: 'settle' | 'authorization-required' | 'credential-rejected' }
+> {
+  const context: WireContext = {
+    id: '',
+    request: 'initialize',
+    session: false,
+    versions,
+    presented,
+  }
   const { status, headers, body } = answer
   const conclusion = concludeAnswer(
     classifyWireEvent({ kind: 'http-status', status, headers, body }, context),
     context,
   )
-  return conclusion.kind === 'authorization-required'
+  return conclusion.kind === 'authorization-required' || conclusion.kind === 'credential-rejected'
     ? conclusion
     : { kind: 'settle', wire: NOT_SENT }
+}
+
+/** The notification of a long request read as its event; any other method is none of its events. */
+export function listenEventOf(
+  method: string,
+  params: JsonValue | undefined,
+): ListenEvent | undefined {
+  if (method === 'notifications/tools/list_changed') return { kind: 'tools-changed' }
+  if (method !== 'notifications/subscriptions/acknowledged') return undefined
+  const asked = isObject(params) ? member(params, 'notifications') : undefined
+  const tools = isObject(asked) ? member(asked, 'toolsListChanged') : undefined
+  return {
+    kind: 'acknowledged',
+    agreed: { toolsListChanged: tools?.kind === 'boolean' && tools.value },
+  }
+}
+
+/** The answer that ends a long request: a broken stream is broken, not a failure; the caller's stop is a stop. */
+export function listenEndOf(wire: WireAnswer): ListenEnd {
+  switch (wire.kind) {
+    case 'result':
+      return { kind: 'ended' }
+    case 'error':
+      return { kind: 'refused', failure: errorFailureOf(wire) }
+    case 'no-answer':
+      return wire.cause === 'abandoned' ? { kind: 'stopped' } : { kind: 'broken' }
+    case 'not-sent':
+      return { kind: 'refused', failure: wire.failure }
+    case 'legacy-peer':
+    case 'legacy-http':
+      return { kind: 'refused', failure: NOT_SENT_FAILURE }
+    default: {
+      const exhaustive: never = wire
+      return exhaustive
+    }
+  }
 }

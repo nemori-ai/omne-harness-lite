@@ -30,7 +30,6 @@ import {
   type Ensured,
   type EnsureFailure,
 } from '../../src/internal/table.ts'
-import { TaskTable } from '../../src/internal/task-table.ts'
 import { catalogKeyTextOf, tenantTextOf } from '../../src/internal/text.ts'
 import { createTasks } from '../../src/tasks.ts'
 import { CONFIG, VALUE, settingsOf } from '../doubles/world.ts'
@@ -472,7 +471,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       config: CONFIG,
       table: this.table,
       inFlight: new CountedInFlight(this),
-      tasks: new TaskTable(),
+      clock: { now: () => new Date('2026-11-05T12:00:00Z') },
     }
     this.calls_ = createCalls(deps)
     this.tasks_ = createTasks(deps)
@@ -1063,7 +1062,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
     this.spend(this.left.continues, name)
     const controller = new AbortController()
     const op = this.newOp('continue', name, controller)
-    const issuedAt = this.table.current(key.connectionKey)?.generation ?? generationOf(1)
     this.invoke(
       op,
       () =>
@@ -1072,7 +1070,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
           action: ACTION,
           args: jsonOf({}),
           requestState: REQUEST_STATE,
-          issuedAt,
+          expectedDefinition: key.digest,
           correlationKey: CORRELATION,
           signal: controller.signal,
         }),

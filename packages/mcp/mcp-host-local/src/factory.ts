@@ -24,6 +24,7 @@ export function createLocalTransportFactory(options: LocalTransportOptions): Mcp
     versions: VERSIONS,
     fetchMetadata: metadataFetcher(fetchFn),
     reportDefect,
+    maxLongRequests: options.maxLongRequests,
   }
   return {
     async open(material, signal) {

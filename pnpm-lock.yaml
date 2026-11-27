@@ -189,8 +189,8 @@ catalogs:
       specifier: 2.4.0
       version: 2.4.0
     '@modelcontextprotocol/server-everything':
-      specifier: 2.1.0
-      version: 2.1.0
+      specifier: 2.3.1
+      version: 2.3.1
     '@omne-harness/repo-config':
       specifier: 0.0.8
       version: 0.0.8
@@ -949,6 +949,9 @@ importers:
       '@omne-harness/mcp-host-local':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-host-local
+      '@omne-harness/mcp-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-storage-sql
       '@omne-harness/media':
         specifier: workspace:*
         version: link:../../packages/media/media
@@ -4962,6 +4965,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -5067,7 +5073,7 @@ importers:
         version: 2.4.0
       '@modelcontextprotocol/server-everything':
         specifier: 'catalog:'
-        version: 2.1.0(supports-color@7.2.0)
+        version: 2.3.1(supports-color@7.2.0)
       '@omne-harness/dynamis-cordis':
         specifier: workspace:*
         version: link:../../dynamis/dynamis-cordis
@@ -5096,6 +5102,34 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-storage-sql:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -10030,8 +10064,8 @@ packages:
     peerDependencies:
       '@modelcontextprotocol/server': ^2.4.0
 
-  '@modelcontextprotocol/server-everything@2.1.0':
-    resolution: {integrity: sha512-frpLCQv+IgGH+y4gSOcaQRxUBZ7yYZY2xZ5Ve8yz2vubltPfrilDxRTCjPQEk3W8fsaZSdabvagkfs+T6Bf6mw==}
+  '@modelcontextprotocol/server-everything@2.3.1':
+    resolution: {integrity: sha512-fOONra8VnAjlVp5xO+dWWoKGkZYg8sBEg52txVoLT0N43B3F5nX3UmsgHch79DM0L+nVCi/w5d/WV6UfhBH7kA==}
     engines: {node: '>=24'}
     hasBin: true
 
@@ -13509,9 +13543,6 @@ packages:
     resolution: {integrity: sha512-52N+Y4HRMOJmbLmr+DqO4iSRyyB7N52gm7PWCT6h0p978+oKbqHCB7gIJIwZvBUsjlSdWbrBFqUSmIFNZMpn0A==}
     engines: {node: '>= 4'}
 
-  immediate@3.0.6:
-    resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
-
   immer@11.2.10:
     resolution: {integrity: sha512-pzANBj+0A9u+prdhBJ14DVi44vCvVUQzBa8DKt6I0AMCokPHtt722BK9IX5bFC70xUSU9TnzLRIJLTGqIzjEFw==}
 
@@ -13699,9 +13730,6 @@ packages:
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
 
-  jszip@3.10.2:
-    resolution: {integrity: sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==}
-
   katex@0.16.27:
     resolution: {integrity: sha512-aeQoDkuRWSqQN6nSvVCEFvfXdqo1OQiCmmW1kc9xSdjutPv7BGO7pqY9sQRJpMOGrEdfDgF2TfRXe5eUAD2Waw==}
     hasBin: true
@@ -13733,9 +13761,6 @@ packages:
 
   lazy-val@1.0.5:
     resolution: {integrity: sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==}
-
-  lie@3.3.0:
-    resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -14543,9 +14568,6 @@ packages:
   package-manager-detector@1.9.0:
     resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
 
-  pako@1.0.11:
-    resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
-
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
 
@@ -15034,9 +15056,6 @@ packages:
   serve-static@2.2.1:
     resolution: {integrity: sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==}
     engines: {node: '>= 18'}
-
-  setimmediate@1.0.5:
-    resolution: {integrity: sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA==}
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
@@ -16513,14 +16532,13 @@ snapshots:
       '@modelcontextprotocol/server': 2.4.0
       hono: 4.13.19
 
-  '@modelcontextprotocol/server-everything@2.1.0(supports-color@7.2.0)':
+  '@modelcontextprotocol/server-everything@2.3.1(supports-color@7.2.0)':
     dependencies:
       '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
       '@modelcontextprotocol/server': 2.4.0
       '@modelcontextprotocol/server-legacy': 2.4.0(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)
       cors: 2.8.6
       express: 5.3.0(supports-color@7.2.0)
-      jszip: 3.10.2
       zod: 4.6.5
     transitivePeerDependencies:
       - supports-color
@@ -20093,8 +20111,6 @@ snapshots:
 
   ignore@7.0.16: {}
 
-  immediate@3.0.6: {}
-
   immer@11.2.10: {}
 
   immutable@5.1.9: {}
@@ -20236,13 +20252,6 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jszip@3.10.2:
-    dependencies:
-      lie: 3.3.0
-      pako: 1.0.11
-      readable-stream: 2.3.8
-      setimmediate: 1.0.5
-
   katex@0.16.27:
     dependencies:
       commander: 8.3.0
@@ -20279,10 +20288,6 @@ snapshots:
   layout-base@2.0.1: {}
 
   lazy-val@1.0.5: {}
-
-  lie@3.3.0:
-    dependencies:
-      immediate: 3.0.6
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -21167,8 +21172,6 @@ snapshots:
 
   package-manager-detector@1.9.0: {}
 
-  pako@1.0.11: {}
-
   parse-entities@4.0.2:
     dependencies:
       '@types/unist': 2.0.11
@@ -21778,8 +21781,6 @@ snapshots:
       send: 1.2.1(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
-
-  setimmediate@1.0.5: {}
 
   setprototypeof@1.2.0: {}
 

@@ -1,6 +1,8 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ToolDecision, ToolWaitContract } from './author-context.ts'
+import type { AuthorWait, ToolCheckpointDeclaration } from './checkpointed-author.ts'
 import type { ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
 import type { Access, Adoption } from './identity.ts'
 import { judgeToolDefinition } from './judge-definition.ts'
@@ -38,12 +40,41 @@ export type ToolSourceCall<P> = Access<P> &
     signal: AbortSignal
   }>
 
+/** A call of a checkpoint source stops here until its wait is answered; the shape a checkpointed author suspends with. */
+export type ToolSourceSuspension = Readonly<{
+  kind: 'suspended'
+  state: Uint8Array
+  wait: AuthorWait
+  closedResult: string
+}>
+
+export type ToolSourceAnswer<B extends ContentBlock> = ToolRenderedResult<B> | ToolSourceSuspension
+
+/** A call taken up again: the facts of the call without its arguments, which the checkpoint keeps. */
+export type ToolSourceResume<P> = Omit<ToolSourceCall<P>, 'arguments'> &
+  Readonly<{ checkpoint: Uint8Array; response: ToolDecision<unknown> }>
+
+/** How the state of a suspended call is kept, and the waits it may suspend on: at least one. */
+export type ToolSourceCheckpoint = Readonly<{
+  declaration: ToolCheckpointDeclaration
+  waits: readonly ToolWaitContract<unknown, 'ask'>[]
+}>
+
+/** A source that gives `checkpoint` and `resume` together may suspend; any other that suspends breaks its contract. */
 export type ToolEntrySource<P, B extends ContentBlock> = Readonly<{
   prefix: string
   list(access: Access<P>): Reply<ToolSourceListing>
   select(access: Access<P>, name: string): ToolSourceEntry | undefined
-  execute(call: ToolSourceCall<P>): Promise<ToolRenderedResult<B>>
+  execute(call: ToolSourceCall<P>): Promise<ToolSourceAnswer<B>>
+  checkpoint?: ToolSourceCheckpoint
+  resume?(call: ToolSourceResume<P>): Promise<ToolSourceAnswer<B>>
 }>
+
+export function isToolSourceSuspension<B extends ContentBlock>(
+  answer: ToolSourceAnswer<B>,
+): answer is ToolSourceSuspension {
+  return 'kind' in answer && answer.kind === 'suspended'
+}
 
 export type ToolSourceBreach = Readonly<{ name: string; reason: string }>
 

@@ -26,7 +26,7 @@ import type {
 } from '@omne-harness/mcp-contract/provider'
 import type { AdmittedEndpoint } from '../../src/internal/gate.ts'
 import { catalogKeyTextOf } from '../../src/internal/text.ts'
-import { jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
+import { createMemoryTaskRecords, jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
 import { type Principal } from '../doubles/identities.ts'
 
 export const PORT_ANSWERS = {
@@ -419,6 +419,7 @@ export function scriptedPorts(
         })
       },
     },
+    tasks: createMemoryTaskRecords(),
     store: {
       read(catalogKey) {
         const key = keyOfCatalog(catalogKey)

@@ -44,10 +44,12 @@ export function loseIfLost(
   if (lost !== undefined) loseInScope(table, ensured, lost)
 }
 
+const CREDENTIAL_REJECTED: ConnectionFailure = { kind: 'credential-unavailable', cause: 'rejected' }
+
 export function connectionFailureOf(failure: NotSent): ConnectionFailure {
-  return failure.cause === 'authorization-required'
-    ? { kind: 'authorization-required', discovery: failure.discovery }
-    : CONNECTION_UNAVAILABLE
+  if (failure.cause === 'authorization-required')
+    return { kind: 'authorization-required', discovery: failure.discovery }
+  return failure.unusable === 'credential-rejected' ? CREDENTIAL_REJECTED : CONNECTION_UNAVAILABLE
 }
 
 export function connectionFailureOfBuild(
@@ -81,5 +83,9 @@ export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined 
 }
 
 function unusableOf(unusable: UnusableCause | undefined): Lost | undefined {
-  return unusable === undefined ? undefined : { reason: unusable, mark: 'connection-unavailable' }
+  if (unusable === undefined) return undefined
+  return {
+    reason: unusable,
+    mark: unusable === 'credential-rejected' ? 'credential-rejected' : 'connection-unavailable',
+  }
 }

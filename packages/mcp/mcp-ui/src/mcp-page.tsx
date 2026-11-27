@@ -14,7 +14,12 @@ import {
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
-import { EndpointActions, EndpointStatus, useEndpointState } from './endpoint-state.tsx'
+import {
+  EndpointActions,
+  EndpointStatus,
+  useEndpointChanges,
+  useEndpointState,
+} from './endpoint-state.tsx'
 import { mcpEndpoint, mcpEndpointPermission, mcpPage } from './parts.ts'
 import type {
   McpEndpoint,
@@ -37,7 +42,12 @@ export type McpPageProps = Readonly<{
   status: McpStatus | null
 }>
 
-type Reach = Readonly<{ view: McpView; status: McpStatus | null; tenant: string }>
+type Reach = Readonly<{
+  view: McpView
+  status: McpStatus | null
+  tenant: string
+  changes: number
+}>
 
 export function McpPage({ governance, tenant, status }: McpPageProps): JSX.Element | null {
   const [view, setView] = useState<McpView | null>(null)
@@ -46,7 +56,8 @@ export function McpPage({ governance, tenant, status }: McpPageProps): JSX.Eleme
     setView(opened)
     return opened.close
   }, [governance, tenant])
-  return view === null ? null : <McpBody reach={{ view, status, tenant }} />
+  const changes = useEndpointChanges(status, tenant)
+  return view === null ? null : <McpBody reach={{ view, status, tenant, changes }} />
 }
 
 function NoticeLine({
@@ -110,7 +121,12 @@ function Endpoint({
 }): JSX.Element {
   const { view } = reach
   const DefaultRow = view.Row
-  const { state, refresh } = useEndpointState(reach.status, reach.tenant, endpoint.name)
+  const { state, refresh } = useEndpointState(
+    reach.status,
+    reach.tenant,
+    endpoint.name,
+    reach.changes,
+  )
   return (
     <section className="mcp-endpoint" aria-label={endpoint.name} {...mcpEndpoint.props}>
       <h3 className="mcp-endpoint-title">{endpoint.name}</h3>
