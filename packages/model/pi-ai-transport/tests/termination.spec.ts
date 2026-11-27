@@ -48,11 +48,28 @@ describe('the termination of a send', () => {
   ] satisfies readonly (readonly [number, PlainCause])[])(
     'HTTP %i fails as %s with the status and nothing else of the response',
     (status, cause) => {
+      const plain = failed(cause, `http-${status}`, String(status))
       expect(terminationOf({ kind: 'http-error', status, fault: null })).toEqual(
-        failed(cause, `http-${status}`, String(status)),
+        status === 429 && plain.kind === 'failed'
+          ? { ...plain, fault: { ...plain.fault, throttled: true } }
+          : plain,
       )
     },
   )
+
+  it('marks a 429 as throttled, and no other status that fails as upstream-unavailable', () => {
+    const throttled = (status: number) => {
+      const end = terminationOf({ kind: 'http-error', status, fault: null })
+      return end.kind === 'failed' ? end.fault.throttled : undefined
+    }
+    expect([429, 500, 502, 503, 529].map(throttled)).toEqual([
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ])
+  })
 
   it('an HTTP error the engine recognized fails with the fault the engine gave', () => {
     const fault = {

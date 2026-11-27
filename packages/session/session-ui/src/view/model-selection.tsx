@@ -14,8 +14,11 @@ import {
   FoldedChoice,
   HeadingChoice,
   HeadingEntriesContext,
+  useHeadingFolded,
+  useHeadingOpening,
   useHeadingRead,
 } from './heading-fold.tsx'
+import { useModelChoiceAsked } from '../model/model-choice-ask.ts'
 import { sessionHeaderModel } from '../parts.ts'
 
 const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
@@ -25,7 +28,18 @@ const defaultLabel = (choice: ModelChoice | undefined) =>
 
 type ChoiceProps = Parameters<typeof FoldedChoice>[0]
 
-function InlineChoice({ label, value, shown, options, onPick, onOpen }: ChoiceProps) {
+type Opening = Readonly<{ open?: boolean; onOpenChange?: (open: boolean) => void }>
+
+function InlineChoice({
+  label,
+  value,
+  shown,
+  options,
+  onPick,
+  onOpen,
+  open,
+  onOpenChange,
+}: ChoiceProps & Opening) {
   if (options === null)
     return (
       <span>
@@ -33,7 +47,15 @@ function InlineChoice({ label, value, shown, options, onPick, onOpen }: ChoicePr
       </span>
     )
   return (
-    <Select value={value} onValueChange={onPick} onOpenChange={open => open && onOpen?.()}>
+    <Select
+      value={value}
+      onValueChange={onPick}
+      {...(open === undefined ? {} : { open })}
+      onOpenChange={next => {
+        onOpenChange?.(next)
+        if (next) onOpen?.()
+      }}
+    >
       <SelectTrigger aria-label={label} size="sm">
         <SelectValue>{shown}</SelectValue>
       </SelectTrigger>
@@ -89,6 +111,19 @@ function routesOf(
 
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
+function useAskedOpen({ store, tenant, session }: Props, inBar: boolean) {
+  const folded = useHeadingFolded(FOLD_RANK.model)
+  const state = useState(false)
+  const [, setOpen] = state
+  const asked = useCallback(() => {
+    if (!inBar) return
+    void store.loadChoices({ tenant, session })
+    if (!folded) setOpen(true)
+  }, [store, tenant, session, inBar, folded, setOpen])
+  useModelChoiceAsked(session, asked)
+  return state
+}
+
 export function ModelAction({ store, tenant, session }: Props) {
   const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
@@ -100,6 +135,8 @@ export function ModelAction({ store, tenant, session }: Props) {
   const listing = useOffered(store, where, inBar)
   const entries = useContext(HeadingEntriesContext)
   const [said, say] = useState<string | null>(null)
+  const [open, setOpen] = useAskedOpen({ store, tenant, session }, inBar)
+  const opening = useHeadingOpening(FOLD_RANK.model)
   useEffect(() => {
     if (inBar) say(null)
   }, [store, tenant, session, inBar])
@@ -164,14 +201,14 @@ export function ModelAction({ store, tenant, session }: Props) {
       rank={FOLD_RANK.model}
       bar={
         <span className="omne-session-model" {...sessionHeaderModel.props}>
-          <InlineChoice {...modelChoice(say)} />
+          <InlineChoice {...modelChoice(say)} open={open} onOpenChange={setOpen} />
           <InlineChoice {...effortChoice(say)} />
           {said === null ? null : <span role="status">{said}</span>}
         </span>
       }
       menu={tell => (
         <>
-          <FoldedChoice {...modelChoice(tell)} />
+          <FoldedChoice {...modelChoice(tell)} opened={opening} />
           <FoldedChoice {...effortChoice(tell)} />
         </>
       )}

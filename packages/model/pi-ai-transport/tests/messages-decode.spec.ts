@@ -292,6 +292,7 @@ describe('decode: events written for the case', () => {
       cause,
       diagnostic: 'in-band-error',
       upstreamStatus: null,
+      ...(type === 'rate_limit_error' ? { throttled: true } : {}),
     })
   })
 

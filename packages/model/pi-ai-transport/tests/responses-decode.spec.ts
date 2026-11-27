@@ -274,6 +274,7 @@ describe('decode: events written for the case', () => {
     ['permission_denied', null, 'input-rejected'],
     ['image_content_policy_violation', null, 'input-rejected'],
     ['server_error', 'authentication', 'credential'],
+    ['rate_limit_exceeded', 'authentication', 'credential'],
     ['something_new', null, 'unclassified'],
   ])(
     'reads a failed response with code %s and type %s as an in-band %s fault',
@@ -286,6 +287,9 @@ describe('decode: events written for the case', () => {
         cause,
         diagnostic: 'in-band-error',
         upstreamStatus: null,
+        ...(code === 'rate_limit_exceeded' && cause === 'upstream-unavailable'
+          ? { throttled: true }
+          : {}),
       })
     },
   )
@@ -297,6 +301,7 @@ describe('decode: events written for the case', () => {
       cause: 'upstream-unavailable',
       diagnostic: 'in-band-error',
       upstreamStatus: null,
+      throttled: true,
     })
   })
 

@@ -96,9 +96,12 @@ import { attemptWrite, originalJournal, type OriginalWrite } from './original-wr
 import {
   localFailure,
   namedStop,
+  nodeFailed,
   nodeFailureCategory,
+  nodeFault,
   revocationWait,
-  type NodeFailureCategory,
+  savedNodeFault,
+  type NodeFault,
 } from './node-failure.ts'
 import { acceptanceOf, nextInitialHandoff, nonEmpty, rejectedInput } from './initial-admission.ts'
 import { readBatchToolCalls } from './action-source.ts'
@@ -429,13 +432,7 @@ function coordinate<P>(
   let snapshot: ExecutionSnapshot | null = null
   let facts: LoopFacts | null = null
   let decided: Next | null = null
-  let fault: Readonly<{
-    node: string
-    category: NodeFailureCategory
-    failureKind: Failure['kind']
-    step: StepId | null
-    history: DurableEvidence | null
-  }> | null = null
+  let fault: NodeFault | null = null
   let faultDecision: Extract<Next, { kind: 'try-finish' }> | null = null
   let faultCandidate: FinishCandidateContent | null = null
   let candidate: Candidate | null = null
@@ -706,13 +703,8 @@ function coordinate<P>(
     if (fault !== null) return fail(failure)
     const category = nodeFailureCategory(failure)
     if (authority === null || category === null || closingNodes.includes(at)) return fail(failure)
-    fault = {
-      node: at,
-      category,
-      failureKind: failure.kind,
-      step: checkpoint?.step ?? null,
-      history: snapshot?.history ?? null,
-    }
+    const step = checkpoint?.step ?? null
+    fault = nodeFault({ node: at, category, step, history: snapshot?.history ?? null }, failure)
     return succeed('F1')
   }
 
@@ -771,13 +763,7 @@ function coordinate<P>(
     const saved = loaded.ok.settlement.candidate
     if (fault === null && saved?.failure?.kind === 'node-failed') {
       const failure = saved.failure
-      fault = {
-        node: failure.node,
-        category: failure.category,
-        failureKind: failure.failureKind,
-        step: failure.step,
-        history: null,
-      }
+      fault = savedNodeFault(failure)
       faultDecision = { kind: 'try-finish', conclusion: saved.conclusion, failure }
       faultCandidate = {
         origin: saved.origin,
@@ -2883,15 +2869,7 @@ function coordinate<P>(
           failureKind: fault.failureKind,
           historyAtFailure: fault.history,
         })
-        const failure: FailureCandidate = {
-          kind: 'node-failed',
-          node: fault.node,
-          category: fault.category,
-          failureKind: fault.failureKind,
-          step: fault.step,
-          at: instant.ok,
-          source,
-        }
+        const failure = nodeFailed(fault, instant.ok, source)
         faultDecision = { kind: 'try-finish', conclusion: { kind: 'fail', cause: source }, failure }
       }
       if (faultDecision !== null) {

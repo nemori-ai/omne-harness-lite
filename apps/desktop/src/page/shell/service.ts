@@ -58,6 +58,14 @@ export class DesktopShell extends ShellService {
     ctx.effect(() => state.login.subscribe(turn), 'desktop-shell.turn-login')
     ctx.effect(
       () =>
+        state.phrases.bind({
+          phrases: () => this.phrases(),
+          watch: listener => this.watchChanges(listener),
+        }),
+      'desktop-shell.phrases',
+    )
+    ctx.effect(
+      () =>
         state.outside.bind({
           warn: text => this.ctx.logger.warn(`shell: ${text}`),
           navigate: (pageId, subject) => this.navigate(pageId, subject),

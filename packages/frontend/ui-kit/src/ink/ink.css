@@ -280,6 +280,46 @@
   gap: var(--omne-space-inline);
 }
 
+.omne-say-reply {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-wrapped);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.omne-say-reply-text {
+  margin: 0;
+}
+
+.omne-say-reply-told {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+
+.omne-say-phrases {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--omne-space-inline);
+  width: max-content;
+}
+
+.omne-say-phrases[data-side='right'] {
+  left: calc(100% + var(--omne-space-inline));
+}
+
+.omne-say-phrases[data-side='left'] {
+  right: calc(100% + var(--omne-space-inline));
+  align-items: flex-end;
+}
+
 .omne-figure-label {
   position: fixed;
   z-index: var(--omne-layer-figure);

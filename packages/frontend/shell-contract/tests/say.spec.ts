@@ -110,7 +110,16 @@ describe('the place words said to the figure go, which holds one', () => {
     expect(shell.items('say')[0]?.pictures).toBe(pictures)
   })
 
-  it('is a point of the shell with major version 1 and revision 3, open while running with the most specific counting, whose item gives its id and five functions and may give a sixth', () => {
+  it('places an item that follows what is said back as it places one that does not, and the shell reads back its reply as given', async () => {
+    const { root, shell } = await startShell()
+    const reply = (): (() => void) => () => undefined
+    const item: SayItem = { ...sayItem('session'), reply }
+    await place(root, 'a', ctx => ctx.shell.contribute('say', item))
+    expect(shell.items('say')).toEqual([item])
+    expect(shell.items('say')[0]?.reply).toBe(reply)
+  })
+
+  it('is a point of the shell with major version 1 and revision 4, open while running with the most specific counting, whose item gives its id and five functions and may give two more', () => {
     const contract = shellContracts.find(each => each.name === 'shell.say')
     expect(contract).toMatchObject({
       tree: 'client',
@@ -119,7 +128,7 @@ describe('the place words said to the figure go, which holds one', () => {
       resolve: 'most-specific',
       binding: 'run',
       version: 1,
-      revision: 3,
+      revision: 4,
       item: {
         kind: 'pure',
         fields: {
@@ -133,5 +142,6 @@ describe('the place words said to the figure go, which holds one', () => {
       },
     })
     expect(Object.keys(contract?.item.fields ?? {})).not.toContain('pictures')
+    expect(Object.keys(contract?.item.fields ?? {})).not.toContain('reply')
   })
 })

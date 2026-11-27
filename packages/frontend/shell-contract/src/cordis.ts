@@ -18,7 +18,6 @@ import {
 import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import {
-  changesOn,
   GUEST_FORMS_POINT,
   itemEntry,
   laidOut,
@@ -26,9 +25,13 @@ import {
   layoutEntry,
   pluginContracts,
   lookScope,
+  phraseContract,
+  phraseEntry,
+  readChanges,
   RENDER_POINT,
   renderContract,
   renderEntry,
+  shippedPhrases,
   styleContract,
   styleEntry,
   TOKENS_POINT,
@@ -37,9 +40,12 @@ import {
   shellGuestForms,
   type Changes,
   type ClientGuestForm,
+  type ChangesRead,
   type Known,
   type Names,
   type PartStyle,
+  type PhraseItem,
+  type SayPhrase,
 } from './change.ts'
 import { GRANTS_ITSELF } from './closed.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
@@ -136,6 +142,7 @@ const CONTRACTS = [
   renderContract,
   layoutContract,
   ...pluginContracts,
+  phraseContract,
 ]
 
 function checkedPart(declaration: PartDeclaration, host: string): Entry {
@@ -169,7 +176,7 @@ export abstract class ShellService extends Service implements ShellSlots {
         registry: Registry
         tenant: string | undefined
         look: string | undefined
-        changes: Changes
+        answer: ChangesRead
       }>
     | undefined
   private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
@@ -182,7 +189,7 @@ export abstract class ShellService extends Service implements ShellSlots {
     super(ctx, ShellService.provide)
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
-    dynamis.put(CONTRACTS.map(contract => declare(contract)))
+    dynamis.put([...CONTRACTS.map(contract => declare(contract)), ...shippedPhrases()])
     dynamis.put(
       Object.entries(shellGuestForms).map(([point, item]) =>
         itemEntry({ point: GUEST_FORMS_POINT, key: point }, item, [], 'shell'),
@@ -304,6 +311,10 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
   }
 
+  putPhrase(key: string, item: PhraseItem, scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put([phraseEntry(key, item, scope)])
+  }
+
   async host(
     name: string,
     apply: (shell: ShellService) => void,
@@ -333,19 +344,31 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   changes(): Changes {
+    return this.answer().changes
+  }
+
+  phrases(): readonly SayPhrase[] {
+    return this.answer().phrases
+  }
+
+  private answer(): ChangesRead {
     const registry = this.registry()
     const tenant = this.scope.get()
     const look = this.worn
     let read = this.read
     if (read?.registry !== registry || read.tenant !== tenant || read.look !== look) {
-      read = { registry, tenant, look, changes: this.changesFor(lookScope(tenant, look)) }
+      read = { registry, tenant, look, answer: this.readFor(lookScope(tenant, look)) }
       this.read = read
     }
-    return read.changes
+    return read.answer
   }
 
   changesFor(asker: Scope): Changes {
-    return changesOn(this.registry(), asker, ...this.tokenNames())
+    return this.readFor(asker).changes
+  }
+
+  private readFor(asker: Scope): ChangesRead {
+    return readChanges(this.registry(), asker, ...this.tokenNames())
   }
 
   projection(range: ProjectionRange): Projection {

@@ -26,13 +26,14 @@ export function parseBuildArgs(args: readonly string[]): PackagedProfile {
 export const bundleDir = (profile: BuildProfile): string => `dist/${profile}`
 
 /** The bundles of a profile, relative to its directory. */
-export const BUNDLES = ['main/main.js', 'utility/entry.js'] as const
+export const BUNDLES = ['main/main.js', 'utility/entry.js', 'preload/preload.cjs'] as const
 export type Bundle = (typeof BUNDLES)[number]
 
 /** Each bundle's entry module, relative to apps/desktop. */
 export const BUNDLE_ENTRIES: Readonly<Record<Bundle, string>> = {
   'main/main.js': 'src/main/main.ts',
   'utility/entry.js': 'src/utility/entry.ts',
+  'preload/preload.cjs': 'src/preload/preload.ts',
 }
 
 /** A module only some profiles bundle; the rest bundle `empty`, an implementation that does nothing. */

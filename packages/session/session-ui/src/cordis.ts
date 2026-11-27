@@ -5,6 +5,7 @@ export {
   createSessionUiModule,
   sessionComposerIntakeKey,
   sessionComposerKey,
+  sessionModelChoiceKey,
   sessionUiModule,
   type SessionUiOptions,
 } from './module.tsx'

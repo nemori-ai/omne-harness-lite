@@ -40,12 +40,14 @@ import {
 } from './block-slot.ts'
 import { Composer } from './composer.tsx'
 import {
+  FOLD_RANK,
   HeadingFoldContext,
   HeadingEntriesContext,
   HeadingRevisionContext,
   useHeadingFold,
   type HeadingFold,
 } from './heading-fold.tsx'
+import { useModelChoiceAsked } from '../model/model-choice-ask.ts'
 import { NoticeLine } from './notice.tsx'
 import { PartDrawContext } from './part-draw.ts'
 import { Bubble, ItemView, speakerOf } from './parts.tsx'
@@ -284,7 +286,20 @@ function SessionMore({
   readonly choices: (session: string) => ReactNode
 }) {
   const [said, say] = useState<string | null>(null)
-  const menu = useMemo<HeadingFold>(() => ({ place: 'menu', folded, say }), [folded])
+  const [open, setOpen] = useState<'shut' | 'open' | 'model'>('shut')
+  const menu = useMemo<HeadingFold>(
+    () => ({
+      place: 'menu',
+      folded,
+      say,
+      ...(open === 'model' ? { opening: FOLD_RANK.model } : {}),
+    }),
+    [folded, open],
+  )
+  const asked = useCallback(() => {
+    if (folded >= FOLD_RANK.model) setOpen('model')
+  }, [folded])
+  useModelChoiceAsked(session, asked)
   return (
     <>
       {said === null ? null : (
@@ -292,7 +307,7 @@ function SessionMore({
           {said}
         </span>
       )}
-      <DropdownMenu>
+      <DropdownMenu open={open !== 'shut'} onOpenChange={next => setOpen(next ? 'open' : 'shut')}>
         <DropdownMenuTrigger asChild>
           <IconButton label="更多" tooltipSide="bottom" {...sessionHeaderMore.props}>
             <MoreIcon aria-hidden="true" />
@@ -468,7 +483,12 @@ function OpenSession({
             driver={driver}
             dock={dock(state.session)}
             failure={cause =>
-              failure({ session: state.session, cause: cause.kind, detail: cause.detail })
+              failure({
+                session: state.session,
+                cause: cause.kind,
+                detail: cause.detail,
+                fault: cause.fault,
+              })
             }
           />
           {work(state.session, state.revision)}

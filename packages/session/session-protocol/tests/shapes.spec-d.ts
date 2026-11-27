@@ -328,7 +328,15 @@ test('read-waiting names a session and answers the waiting Run, the pending coun
     readonly waiting: {
       readonly run: string
       readonly pending: number
-      readonly cause: { readonly kind: string; readonly detail: string | null } | null
+      readonly cause: {
+        readonly kind: string
+        readonly detail: string | null
+        readonly fault?: {
+          readonly cause: string
+          readonly upstreamStatus: string | null
+          readonly throttled: boolean
+        } | null
+      } | null
     } | null
   }>()
   expectTypeOf<ResultBody<'read-waiting', 'invalid'>>().toExtend<Empty>()

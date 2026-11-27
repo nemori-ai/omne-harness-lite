@@ -4,6 +4,10 @@ export const NOTE_WIDTH = 360
 
 export const NOTE_GAP = { x: 22, y: 11 } as const
 
+export const REPLY_HEIGHT = 240
+
+export const PHRASES_SHOWN = 4
+
 export interface Spot {
   readonly left: number
   readonly top: number
@@ -30,6 +34,19 @@ export type SayTold =
   | { readonly kind: 'cannot-send-pictures' }
   | { readonly kind: 'not-seen'; readonly reason: string }
 
+export type SayReplyState = 'coming' | 'ended' | 'unknown'
+
+export interface SayReply {
+  readonly text: string
+  readonly state: SayReplyState
+  readonly more?: boolean | undefined
+}
+
+export interface SayPhrase {
+  readonly key: string
+  readonly label: string
+}
+
 export interface SayNote {
   readonly targets: readonly SayTarget[] | undefined
   readonly target: string | undefined
@@ -37,6 +54,24 @@ export interface SayNote {
   readonly fate?: SayFate | undefined
   readonly pictures?: readonly SayPicture[] | undefined
   readonly told?: SayTold | undefined
+  readonly reply?: SayReply | undefined
+  readonly phrases?: readonly SayPhrase[] | undefined
+}
+
+export interface SayAct {
+  readonly write: (text: string) => void
+  readonly choose: (target: string) => void
+  readonly send: () => void
+  readonly phrase: (key: string) => void
+  readonly drop: (index: number) => void
+  readonly open: () => void
+  readonly close: () => void
+  readonly settings: () => void
+}
+
+export interface SayInside {
+  readonly note: SayNote
+  readonly act: SayAct
 }
 
 export interface SayWords {
@@ -54,6 +89,8 @@ export interface SayWords {
   readonly noPictures: string
   readonly notSeen: string
   readonly drop: string
+  readonly replyUnknown: string
+  readonly replyMore: string
 }
 
 export const SAY_WORDS: SayWords = {
@@ -71,6 +108,8 @@ export const SAY_WORDS: SayWords = {
   noPictures: '现在发不了图',
   notSeen: '没能看这个窗口：',
   drop: '去掉',
+  replyUnknown: '不知道它后来怎样了，到对话页看一下',
+  replyMore: '后面的在对话页',
 }
 
 export const hasWords = (text: string): boolean => text.trim() !== ''
@@ -80,11 +119,22 @@ export const hasPictures = (note: SayNote): boolean => (note.pictures?.length ??
 const sendsPictures = (note: SayNote): boolean =>
   hasPictures(note) && note.told?.kind !== 'cannot-send-pictures'
 
+export const isSending = (note: SayNote): boolean => note.fate?.kind === 'sending'
+
 export const canSay = (note: SayNote): boolean =>
   (hasWords(note.text) || sendsPictures(note)) &&
   note.targets !== undefined &&
   note.target !== undefined &&
-  note.fate?.kind !== 'sending'
+  !isSending(note)
+
+export function shownReply(note: SayNote): SayReply | null {
+  const reply = note.reply
+  if (note.fate?.kind !== 'accepted' || reply === undefined) return null
+  return reply.text === '' && reply.state !== 'unknown' ? null : reply
+}
+
+export const shownPhrases = (note: SayNote): readonly SayPhrase[] =>
+  hasPictures(note) ? (note.phrases ?? []).slice(0, PHRASES_SHOWN) : []
 
 export interface SayLine {
   readonly words: string

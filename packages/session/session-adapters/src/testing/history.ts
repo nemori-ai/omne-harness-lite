@@ -248,24 +248,32 @@ function takenConsequences(
   ]
 }
 
+type Candidate<K extends FailureCandidate['kind']> = Extract<FailureCandidate, { kind: K }>
+
+const nodeFailureOf = (failure: Candidate<'node-failed'>): RunFailure => ({
+  kind: failure.kind,
+  node: failure.node,
+  category: failure.category,
+  failureKind: failure.failureKind,
+  ...(failure.diagnostic === undefined ? {} : { diagnostic: failure.diagnostic }),
+})
+
+const noReplyOf = ({ kind, fault }: Candidate<'no-reply'>): RunFailure => ({
+  kind,
+  cause: fault?.cause ?? null,
+  upstreamStatus: fault?.upstreamStatus ?? null,
+  diagnostic: fault?.diagnostic ?? null,
+  ...(fault?.throttled === true ? { throttled: true as const } : {}),
+})
+
 function runFailureOf(failure: FailureCandidate): RunFailure {
   switch (failure.kind) {
     case 'node-failed':
-      return {
-        kind: failure.kind,
-        node: failure.node,
-        category: failure.category,
-        failureKind: failure.failureKind,
-      }
+      return nodeFailureOf(failure)
     case 'model-refused':
       return { kind: failure.kind, failure: failure.failure.kind }
     case 'no-reply':
-      return {
-        kind: failure.kind,
-        cause: failure.fault?.cause ?? null,
-        upstreamStatus: failure.fault?.upstreamStatus ?? null,
-        diagnostic: failure.fault?.diagnostic ?? null,
-      }
+      return noReplyOf(failure)
     case 'cannot-fit':
       return { kind: failure.kind, reason: failure.reason }
     case 'request-rejected':

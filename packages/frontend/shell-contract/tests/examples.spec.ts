@@ -137,6 +137,18 @@ describe('the example of each point the shell declares', () => {
     ])
   })
 
+  it('adds a ready phrase beside the note, for one tenant', async () => {
+    const { shell, contract } = await world()
+    shell.tenant = ALICE
+    await putExample(shell, contract('shell.say-phrase'), {}, tenantScope(ALICE))
+    expect(shell.changes().refused).toEqual([])
+    expect(shell.phrases()).toContainEqual({
+      key: 'notes.translate',
+      label: '翻成英文',
+      words: '把图里的字翻成英文',
+    })
+  })
+
   it('names the theme and the brand colour where an agent looks for them', async () => {
     const { contract } = await world()
     expect(contract(TOKENS_POINT).summary).toMatch(/^The theme: /u)

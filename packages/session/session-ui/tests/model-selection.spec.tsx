@@ -8,6 +8,7 @@ import {
   type ModelChoiceSource,
 } from '../src/model/model-selection.ts'
 import { HeadingEntriesContext } from '../src/view/heading-fold.tsx'
+import { createModelChoiceAsk, ModelChoiceAskContext } from '../src/model/model-choice-ask.ts'
 import { ModelAction } from '../src/view/model-selection.tsx'
 
 beforeAll(() => {
@@ -231,6 +232,23 @@ describe('the model in the heading of a conversation', () => {
     expect(select.mock.calls[0]?.[0]).toMatchObject({ session: SESSION, model: CLAUDE })
     expect(screen.getByRole('status').textContent).toBe(`已换成 ${CLAUDE}`)
     expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain(CLAUDE)
+  })
+
+  it('asked to open from elsewhere, the choice of this session opens; that of another session stays shut', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.attach(sourceOf(LISTED))
+    const ask = createModelChoiceAsk()
+    render(
+      <ModelChoiceAskContext.Provider value={ask}>
+        <ModelAction store={store} tenant={TENANT} session={SESSION} />
+      </ModelChoiceAskContext.Provider>,
+    )
+    await settle()
+    act(() => ask.open('another-session'))
+    await settle()
+    expect(screen.queryByRole('option')).toBeNull()
+    act(() => ask.open(SESSION))
+    await screen.findByRole('option', { name: /claude-y/u })
   })
 
   it('the current model stays offered when it cannot be picked, disabled with its reason (C9)', async () => {

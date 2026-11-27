@@ -8,6 +8,7 @@ import {
 import { REMOTE_DEBUGGING_REFUSED_MESSAGE } from '../src/startup-signals.ts'
 
 const MAIN = 'main/main.js' as const
+const PRELOAD = 'preload/preload.cjs' as const
 const UTILITY = 'utility/entry.js' as const
 const HOST = 'src/main/dev-host.ts'
 const EMPTY = 'src/main/dev-host.empty.ts'
@@ -42,11 +43,14 @@ describe('包的文字', () => {
   const testMain = 'globalThis.desktopBuildProfile="test";w.openDevTools()'
 
   it('发行档：有拒绝远程调试与关掉 DevTools，没有别的档的标记，环境变量名只许读的那几个', () => {
-    expect(checkBundleTexts('release', { [MAIN]: release, [UTILITY]: '' }).problems).toEqual([])
+    expect(
+      checkBundleTexts('release', { [MAIN]: release, [UTILITY]: '', [PRELOAD]: '' }).problems,
+    ).toEqual([])
     expect(
       checkBundleTexts('release', {
         [MAIN]: 'x()',
         [UTILITY]: 'globalThis.desktopBuildProfile;process.env.OMNE_DEBUG_X',
+        [PRELOAD]: '',
       }).problems,
     ).toEqual([
       'dist/release/utility/entry.js contains the build profile global desktopBuildProfile, which the release profile must not',
@@ -57,15 +61,22 @@ describe('包的文字', () => {
   })
 
   it('测试档是正对照：自己的标记要找得到；留着没替换的档名算错', () => {
-    expect(checkBundleTexts('test', { [MAIN]: testMain, [UTILITY]: '' }).problems).toEqual([])
     expect(
-      checkBundleTexts('test', { [MAIN]: 'x', [UTILITY]: 'OMNE_BUILD_PROFILE' }).problems,
+      checkBundleTexts('test', { [MAIN]: testMain, [UTILITY]: '', [PRELOAD]: '' }).problems,
+    ).toEqual([])
+    expect(
+      checkBundleTexts('test', { [MAIN]: 'x', [UTILITY]: 'OMNE_BUILD_PROFILE', [PRELOAD]: '' })
+        .problems,
     ).toEqual([
       'dist/test/utility/entry.js contains OMNE_BUILD_PROFILE',
       'no test bundle contains the build profile global desktopBuildProfile: the check cannot see what it looks for',
     ])
     expect(
-      checkBundleTexts('test', { [MAIN]: `${testMain};({devTools:!0})`, [UTILITY]: '' }).problems,
+      checkBundleTexts('test', {
+        [MAIN]: `${testMain};({devTools:!0})`,
+        [UTILITY]: '',
+        [PRELOAD]: '',
+      }).problems,
     ).toEqual([
       'dist/test/main/main.js contains the DevTools switch devTools, which the test profile must not',
     ])

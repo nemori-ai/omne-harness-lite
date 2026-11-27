@@ -79,18 +79,18 @@ async function firstDispatch(label: string, mode: Gateway | 'refused') {
 
 describe('first content of a sent request, through the real transport and the real receive reader', () => {
   it.each([
-    ['http-503', 'http-503', '503'],
-    ['http-429', 'http-429', '429'],
+    ['http-503', 'http-503', '503', {}],
+    ['http-429', 'http-429', '429', { throttled: true }],
   ] as const)(
-    'an HTTP error answer (%s) proves that there was no content',
+    'an HTTP error answer (%s) proves that there was no content, and the saved fault keeps what the transport said',
     { tags: ['slow'], timeout: CASE_TIMEOUT_MS },
-    async (mode, diagnostic, upstreamStatus) => {
+    async (mode, diagnostic, upstreamStatus, marks) => {
       const dispatch = await firstDispatch(`receive-${mode}`, mode)
       expect(dispatch.send).toBe('started')
       expect(dispatch.firstContent).toBe('none-proven')
       expect(dispatch.terminal).toEqual({
         kind: 'failed',
-        fault: { cause: 'upstream-unavailable', diagnostic, upstreamStatus },
+        fault: { cause: 'upstream-unavailable', diagnostic, upstreamStatus, ...marks },
       })
     },
   )

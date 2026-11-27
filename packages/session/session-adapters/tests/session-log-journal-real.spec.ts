@@ -101,7 +101,12 @@ describe('the combination the Journal commits under', () => {
     const s = await sqlScene('real-manifest', { storage: 'real', manifest: 'b'.repeat(64) })
     scenes.push(s)
     expect(await s.view.journal.open(s.openInput)).toMatchObject({
-      failure: { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' },
+      failure: {
+        kind: 'invalid',
+        field: 'storage',
+        reason: 'manifest_mismatch',
+        disclosed: 'manifest_mismatch',
+      },
     })
     const fresh = s.fresh().journal
     expect(await fresh.load({ ...s.access, execution: s.execution })).toMatchObject({

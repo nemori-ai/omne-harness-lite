@@ -47,7 +47,7 @@
     "packages/media/media-ui/src/view/attachment-tray.tsx | 打开系统设置": {
       "primary": 1
     },
-    "packages/model/model-ui/src/view/credential-remedy.tsx | 去填": {
+    "packages/model/model-ui/src/view/run-failure-remedy.tsx | 去填/换模型": {
       "primary": 1
     },
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {

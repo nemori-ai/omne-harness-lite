@@ -1,34 +1,35 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import {
-  createSizeController,
-  resolveTheme,
-  type SizeRoot,
-  type ThemeChoice,
-} from '@omne-harness/ui-kit'
+import { createSizeController, resolveTheme, type SizeRoot } from '@omne-harness/ui-kit'
 import { CONTENT_SECURITY_POLICY } from '../src/shared/page-policy.ts'
-import { SIZE_KEY, bindSizeKeys, storedSizePreference } from '../src/page/shell/size.ts'
-import { THEME_KEY, storedThemePreference } from '../src/page/shell/theme.ts'
+import { bindSizeKeys } from '../src/page/shell/size.ts'
+import { VISUAL_KEY } from '../src/page/shell/visual.ts'
+import { themeBootScript } from '../src/page/theme-boot.ts'
 import { TOKENS_KEY, dropBootTokens, storedTokens } from '../src/page/shell/boot-tokens.ts'
 import { FACE_KEY, storedFacePreference } from '../src/page/shell/face.ts'
+import { visualRecordKernel, type VisualPreferences } from '../src/shared/visual-record.ts'
+import type { VisualBootstrap } from '../src/shared/desktop-bridge.ts'
 
 // The query the theme controller follows (`colorSchemeQuery` in the shared interface kit).
 const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)'
 
 const PAGE = join(import.meta.dirname, '..', 'src', 'page')
-const source = readFileSync(join(PAGE, 'public', 'theme-boot.js'), 'utf8')
+const source = themeBootScript()
+// Under mutation testing the serialized kernel carries the instrumentation, which cannot run on its own.
+const booting = /stryMutAct|stryCov/.test(source) ? describe.skip : describe
 
 type Stored = Readonly<Record<string, string | null>> | 'throws'
+type Booted = { theme?: string; size?: string; face?: string; handed?: VisualBootstrap }
+
+const record = (t: number, preferences: Partial<VisualPreferences>): string =>
+  visualRecordKernel.encode({ version: 1, stamp: { t, id: 'a' }, preferences })
 
 /** Runs the boot script against a stand-in `window` and `document`; gives what it set on the root. */
-function run(
-  stored: Stored,
-  systemDark: boolean | 'none',
-): { theme?: string; size?: string; face?: string } {
-  const dataset: { theme?: string; size?: string; face?: string } = {}
+function run(stored: Stored, systemDark: boolean | 'none', seed?: string | null): Booted {
+  const dataset: Booted & Record<string, unknown> = {}
   const queries: string[] = []
-  const window = {
+  const window: Record<string, unknown> = {
     localStorage: {
       getItem(key: string) {
         if (stored === 'throws') throw new Error('blocked')
@@ -38,14 +39,20 @@ function run(
     ...(systemDark === 'none'
       ? {}
       : { matchMedia: (query: string) => (queries.push(query), { matches: systemDark }) }),
+    ...(seed === undefined
+      ? {}
+      : { omneDesktop: { visual: { seed: { record: seed, pending: false } } } }),
   }
-  new Function('window', 'document', source)(window, { documentElement: { dataset } })
+  new Function('window', 'document', source)(window, {
+    documentElement: { dataset, style: { setProperty: () => {} } },
+  })
   for (const query of queries) expect(query).toBe(COLOR_SCHEME_QUERY)
-  return dataset
+  const handed = window['omneVisualBootstrap'] as VisualBootstrap | undefined
+  return { ...dataset, ...(handed === undefined ? {} : { handed }) }
 }
 
 function boot(stored: string | null | 'throws', systemDark: boolean | 'none'): string | undefined {
-  return run(stored === 'throws' ? stored : { [THEME_KEY]: stored }, systemDark).theme
+  return run(stored === 'throws' ? stored : { [VISUAL_KEY]: stored }, systemDark).theme
 }
 
 const holding = (key: string, value: string | null) => () => ({
@@ -53,24 +60,50 @@ const holding = (key: string, value: string | null) => () => ({
   setItem: () => {},
 })
 
-describe('首帧之前的主题', () => {
-  it('和主题控制器得出同一个主题：存的每种取值乘以系统的明暗', () => {
-    for (const stored of ['light', 'dark', 'system', 'nonsense', null] as const)
+booting('首帧之前的主题与字号档（DT-20）', () => {
+  it('和两个控制器得出同一个样子：记录里的每种主题乘以系统的明暗，读不懂的记录当作没有', () => {
+    const stored = [
+      ...(['light', 'dark', 'system'] as const).map(theme => record(1, { theme })),
+      record(1, {}),
+      '{"theme":"dark"}',
+      null,
+    ]
+    for (const raw of stored)
       for (const systemDark of [true, false]) {
-        const choice: ThemeChoice = storedThemePreference(() => ({
-          getItem: () => stored,
-          setItem: () => {},
-        })).read()
-        expect(boot(stored, systemDark), `${stored} ${systemDark}`).toBe(
-          resolveTheme(choice, systemDark),
-        )
+        const choice = visualRecordKernel.effective(visualRecordKernel.decode(raw).record).theme
+        expect(boot(raw, systemDark), `${raw} ${systemDark}`).toBe(resolveTheme(choice, systemDark))
       }
   })
 
-  it('读不到存的偏好时跟随系统；没有系统查询时是浅色', () => {
+  it('读不到存的记录时跟随系统；没有系统查询时是浅色', () => {
     expect(boot('throws', true)).toBe('dark')
     expect(boot('throws', false)).toBe('light')
     expect(boot(null, 'none')).toBe('light')
+  })
+
+  it('字号档和字号档控制器写的一样：中楷时不写 data-size', () => {
+    for (const size of ['small', 'medium', 'large', 'reading'] as const) {
+      const root: SizeRoot = { dataset: {} }
+      createSizeController({ read: () => size, write: () => {}, root })
+      expect(run({ [VISUAL_KEY]: record(1, { size }) }, false).size, size).toBe(root.dataset.size)
+    }
+    expect('size' in run('throws', false)).toBe(false)
+  })
+
+  it('镜像种子有效就取它，不论戳的先后，否则取本机存的，把它交给视觉偏好', () => {
+    const local = record(1, { theme: 'light', size: 'large' })
+    const mirror = record(2, { theme: 'dark' })
+    const newer = run({ [VISUAL_KEY]: local }, false, mirror)
+    expect([newer.theme, newer.size]).toEqual(['dark', undefined])
+    expect(newer.handed).toEqual({
+      storageKey: VISUAL_KEY,
+      record: visualRecordKernel.decode(mirror).record,
+    })
+    const older = run({ [VISUAL_KEY]: mirror }, false, local)
+    expect([older.theme, older.size]).toEqual(['light', 'large'])
+    expect(run({}, false, 'nonsense').handed).toEqual({ storageKey: VISUAL_KEY })
+    expect(run({ [VISUAL_KEY]: mirror }, false, 'nonsense').theme).toBe('dark')
+    expect(run({ [VISUAL_KEY]: local }, false, null).size).toBe('large')
   })
 
   it('页面在入口脚本之前装入它，它是同源的外部脚本，内容安全策略不为它放宽', () => {
@@ -79,31 +112,12 @@ describe('首帧之前的主题', () => {
     expect(bootAt).toBeGreaterThan(0)
     expect(bootAt).toBeLessThan(html.indexOf('type="module"'))
     expect(CONTENT_SECURITY_POLICY).toContain("script-src 'self'")
-    expect(CONTENT_SECURITY_POLICY).not.toContain('unsafe-inline')
+    const script = CONTENT_SECURITY_POLICY.split('; ').find(item => item.startsWith('script-src '))
+    expect(script).toBe("script-src 'self'")
   })
 })
 
-describe('首帧之前的字号档', () => {
-  it('和字号档控制器得出同一档：存的每种取值，两处读同一个键', () => {
-    for (const stored of ['small', 'medium', 'large', 'reading', 'nonsense', '', null]) {
-      const root: SizeRoot = { dataset: {} }
-      createSizeController({ ...storedSizePreference(holding(SIZE_KEY, stored)), root })
-      expect(run({ [SIZE_KEY]: stored }, false).size, String(stored)).toBe(root.dataset.size)
-    }
-  })
-
-  it('读不到存的字号档时是中楷：两处都不写 data-size', () => {
-    expect('size' in run('throws', false)).toBe(false)
-    const root: SizeRoot = { dataset: {} }
-    const blocked = () => {
-      throw new Error('blocked')
-    }
-    createSizeController({ ...storedSizePreference(blocked), root })
-    expect('size' in root.dataset).toBe(false)
-  })
-})
-
-describe('首帧之前的面（DT-50）', () => {
+booting('首帧之前的面（DT-50）', () => {
   it('和外壳得出同一面：存的每种取值，两处读同一个键', () => {
     for (const stored of ['back', 'front', 'Back', 'nonsense', '', null]) {
       const shell = storedFacePreference(holding(FACE_KEY, stored)).read()
@@ -195,7 +209,7 @@ describe('字号档的按键', () => {
   })
 })
 
-describe('首帧之前整个应用的令牌', () => {
+booting('首帧之前整个应用的令牌', () => {
   /** Runs the boot script with what is stored under the tokens key; gives what it wrote on the root. */
   function tinted(stored: string | null | 'throws') {
     const written = new Map<string, string>()

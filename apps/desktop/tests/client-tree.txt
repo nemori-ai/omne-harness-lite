@@ -54,6 +54,8 @@ system
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
+        session.model-choice
+          session-ui#1  [effective]
         session.run-failure
           session-ui#1  [effective]
         session.side
@@ -87,6 +89,8 @@ system
         shell.piece
           DesktopShell#1  [effective]
         shell.say
+          DesktopShell#1  [effective]
+        shell.say-phrase
           DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
@@ -193,6 +197,8 @@ system
           DesktopShell#1  [effective]
         shell.part-style
           DesktopShell#1  [effective]
+        shell.say-phrase
+          DesktopShell#1  [effective]
         shell.tokens
           DesktopShell#1  [effective]
       plugin.ports  [keyed-one, build, closed: grants-itself]
@@ -218,6 +224,8 @@ system
       session.dock  [list, v1.2]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
+      session.model-choice  [one, closed: grants-itself]
+        session-ui#1  [effective]
       session.run-failure  [list, v1.2]
         model-credential  [effective, model-ui#1]
       session.side  [list, v1.2]
@@ -603,8 +611,15 @@ system
         workspace.register
           workspace-ui#1  [effective]
       shell.piece  [keyed-one]
-      shell.say  [one, v1.3]
+      shell.say  [one, v1.4]
         session-ui#1  [effective]
+      shell.say-phrase  [keyed-one]
+        shell.expand
+          DesktopShell#1  [effective]
+        shell.keep
+          DesktopShell#1  [effective]
+        shell.todo
+          DesktopShell#1  [effective]
       shell.sidebar  [list, v1.2]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]

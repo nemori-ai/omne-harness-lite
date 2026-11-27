@@ -24,6 +24,18 @@ afterEach(() => {
 })
 
 describe('the size controller', () => {
+  it('adopt paints a tier chosen elsewhere, tells the listeners, and writes nothing', () => {
+    const { root, write, controller } = setup('medium')
+    const heard = vi.fn<(tier: SizeTier) => void>()
+    controller.subscribe(heard)
+    controller.adopt('reading')
+    controller.adopt('reading')
+    expect(root.dataset.size).toBe('reading')
+    expect(controller.current()).toBe('reading')
+    expect(heard).toHaveBeenCalledExactlyOnceWith('reading')
+    expect(write).not.toHaveBeenCalled()
+  })
+
   it('knows four tiers and starts from the middle one', () => {
     expect(SIZE_TIERS).toEqual(['small', 'medium', 'large', 'reading'])
     expect(setup(null).controller.current()).toBe('medium')

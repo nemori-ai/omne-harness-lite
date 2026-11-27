@@ -2,7 +2,14 @@ import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import { ask, declare, type Contract, type Scope } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
-import { LAYOUT_POINT, STYLE_POINT, TOKENS_POINT, type PartStyle } from './change.ts'
+import {
+  LAYOUT_POINT,
+  PHRASE_POINT,
+  STYLE_POINT,
+  TOKENS_POINT,
+  type PartStyle,
+  type PhraseItem,
+} from './change.ts'
 import { ShellService } from './cordis.ts'
 import type { Hosted, ScopeSource, ShellLogin } from './host.ts'
 import type { KeyRender } from './point.ts'
@@ -193,6 +200,7 @@ const DATA: Readonly<Record<string, Put>> = {
     shell.putTokens(key, data, scope),
   [STYLE_POINT]: (shell, key, data: PartStyle, scope) => shell.putStyle(key, data, scope),
   [LAYOUT_POINT]: (shell, key, data: readonly string[], scope) => shell.putLayout(key, data, scope),
+  [PHRASE_POINT]: (shell, key, data: PhraseItem, scope) => shell.putPhrase(key, data, scope),
 }
 
 async function drawingOf(member: ExampleMember, file: string, given: object): Promise<KeyRender> {

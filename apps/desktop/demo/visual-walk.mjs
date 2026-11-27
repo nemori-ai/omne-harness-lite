@@ -1516,7 +1516,12 @@ async function apply(browser, { theme, width, size }) {
         // A page without the app's size keys (the specimen): set the size on the root itself.
         if (want === 'medium') delete root.dataset.size
         else root.dataset.size = want
-        try { localStorage.setItem('omne.size', want) } catch {}
+        try {
+          const was = JSON.parse(localStorage.getItem('omne.visual') ?? 'null')
+          const preferences = { ...was?.preferences, size: want }
+          const t = Math.max(Date.now(), (was?.stamp?.t ?? -1) + 1)
+          localStorage.setItem('omne.visual', JSON.stringify({ version: 1, stamp: { t, id: 'walk' }, preferences }))
+        } catch {}
       }
       await document.fonts.ready
       await new Promise(resolve => setTimeout(resolve, 450))
