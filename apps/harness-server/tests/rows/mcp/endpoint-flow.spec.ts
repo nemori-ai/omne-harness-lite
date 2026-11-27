@@ -20,6 +20,7 @@ import {
   onReleaseTree,
   onReleaseTreeRuns,
   toolCallsByRequest,
+  toolLedger,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 import {
@@ -1072,6 +1073,106 @@ it(
         await sendInput(tree, parked, 'start: read again')
         expect(await lastResult(tree, parked, 2)).toContain('booked room a on Tuesday')
         expect(peer.asked.get('tools/call')).toBe(2)
+      },
+    ])
+    expect(exits).toEqual([0, 0])
+  },
+)
+
+// The call of `report` on desk, as the Tool ledger has it.
+const reportCall = (tree: ReleaseTree) =>
+  toolLedger(tree.storageRoot).find(row => row.tool === 'mcp__desk')
+
+async function reportSettled(tree: ReleaseTree, what: string) {
+  return settled(
+    tree,
+    what,
+    async () => reportCall(tree),
+    row => row?.phase === 'settled',
+  )
+}
+
+it(
+  'C111 MC-28 MC-29 a peer that makes the call a task: the call waits for it, a question of the task goes to a person and back by tasks/update, and the call ends with the result; tools/call is sent once',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        await asking(tree, peer)
+        at('the agent calls report: the peer makes a task, and the call waits for it')
+        const session = await tree.startSession('start: call desk report a')
+        await settled(
+          tree,
+          'the task to be made',
+          async () => peer.tasks.list().length,
+          n => n === 1,
+        )
+        expect(await lastResult(tree, session, 1)).toContain('"reason":"waiting"')
+        expect(reportCall(tree)?.phase).not.toBe('settled')
+
+        at('the task asks which format: a card names the endpoint, the answer goes back once')
+        peer.tasks.ask()
+        const card = await pendingCard(tree, session, 'the question of the task')
+        expect(JSON.stringify(card.question)).toContain('Which format should the report have?')
+        await answerCard(tree, card, ['--text', 'pdf'], 'reply-format')
+        await settled(
+          tree,
+          'the answer to reach the task',
+          async () => peer.tasks.list()[0]?.updates.length,
+          n => n === 1,
+        )
+
+        at('the task finishes: the call ends with its result, and nothing was sent twice')
+        peer.tasks.finish()
+        await reportSettled(tree, 'the call of report to end')
+        await sendInput(tree, session, 'start: read again')
+        expect(await lastResult(tree, session, 2)).toContain('report on a as pdf')
+        expect(peer.asked.get('tools/call')).toBe(1)
+        expect(peer.asked.get('tasks/update')).toBe(1)
+        expect(peer.asked.get('tasks/cancel')).toBeUndefined()
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C111 a call waiting for its task across a restart goes on waiting, and ends with the result; tools/call is sent once',
+  { tags: ['slow'], timeout: 900_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    let waiting = ''
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        await asking(tree, peer)
+        waiting = await tree.startSession('start: call desk report a')
+        await settled(
+          tree,
+          'the task to be made',
+          async () => peer.tasks.list().length,
+          n => n === 1,
+        )
+        await endedRuns(tree, waiting, 1)
+      },
+      async tree => {
+        const before = peer.asked.get('tasks/get') ?? 0
+        await settled(
+          tree,
+          'the watcher to look at the working task again after the restart',
+          async () => (peer.asked.get('tasks/get') ?? 0) - before,
+          n => n >= 2,
+        )
+        peer.tasks.finish()
+        await reportSettled(tree, 'the call of report to end after the restart')
+        expect(peer.asked.get('tasks/get') ?? 0).toBeGreaterThan(before)
+        await sendInput(tree, waiting, 'start: read again')
+        expect(await lastResult(tree, waiting, 2)).toContain('report on a')
+        expect(peer.asked.get('tools/call')).toBe(1)
       },
     ])
     expect(exits).toEqual([0, 0])

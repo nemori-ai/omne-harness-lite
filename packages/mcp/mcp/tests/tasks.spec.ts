@@ -378,17 +378,35 @@ describe('the answers of the task operations (T6)', () => {
     })
   })
 
-  it('provideTaskInput hands the responses to the peer and answers accepted; cancelTask answers requested', async () => {
+  it('provideTaskInput hands the responses to the peer and answers accepted; the row awaiting input follows the task again in the next round; cancelTask answers requested', async () => {
     const c = await started({ get: WORKING, update: { kind: 'result', result: {} } })
+    const listed = await c.p.ports.tasks.following(alice.tenant)
+    const kept = 'ok' in listed ? listed.ok[0] : undefined
+    if (kept === undefined) throw new Error('the task row is not kept')
+    const following = { state: 'following', round: 1 } as const
+    const input = { kind: 'input' } as const
+    await c.p.ports.tasks.move(kept.key, following, { state: 'awaiting', round: 1, arrival: input })
     expect(await c.invoker.provideTaskInput(alice, task, jsonOf({ q: 'a' }))).toEqual({
       ok: 'accepted',
     })
+    expect(await c.p.ports.tasks.read(kept.key)).toMatchObject({
+      ok: { state: 'following', round: 2 },
+    })
+    expect(await c.p.ports.tasks.read(kept.key)).not.toHaveProperty('ok.arrival')
     expect(c.p.requests('tasks/update')[0]?.params).toMatchObject({
       taskId: 't1',
       inputResponses: { q: 'a' },
     })
     expect(await c.invoker.cancelTask(alice, task)).toEqual({ ok: 'requested' })
     expect(c.p.requests('tasks/cancel')[0]?.params).toMatchObject({ taskId: 't1' })
+  })
+
+  it('input the peer took while the row did not await it leaves the call not known: nothing would follow the task', async () => {
+    const c = await started({ get: WORKING, update: { kind: 'result', result: {} } })
+    expect(await c.invoker.provideTaskInput(alice, task, jsonOf({ q: 'a' }))).toEqual({
+      failure: { kind: 'effect-unknown', cause: 'abandoned' },
+    })
+    expect(c.p.requests('tasks/update')).toHaveLength(1)
   })
 
   it('provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing', async () => {

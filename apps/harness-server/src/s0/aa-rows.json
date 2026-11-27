@@ -458,7 +458,8 @@
       "row": "mcp",
       "names": [
         "settingsSecretCustody",
-        "settingsSecretItems"
+        "settingsSecretItems",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

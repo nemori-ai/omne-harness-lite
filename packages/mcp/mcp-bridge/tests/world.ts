@@ -91,7 +91,24 @@ export function world(acquireWaitMs = 50, asking?: McpAsking) {
       return scripted === undefined ? fail({ kind: 'connection-unavailable' }) : scripted()
     },
   }
-  const invoker: Pick<ActionInvoker<Principal>, 'invoke' | 'cancelTask' | 'continueWithInput'> = {
+  type TaskResult = Awaited<ReturnType<ActionInvoker<Principal>['taskResult']>>
+  type TaskInput = Awaited<ReturnType<ActionInvoker<Principal>['provideTaskInput']>>
+  const results: TaskRef[] = []
+  const inputs: Array<Readonly<{ task: TaskRef; responses: unknown }>> = []
+  let result: () => TaskResult = () => fail({ kind: 'unknown' })
+  let input: () => TaskInput = () => succeed('accepted')
+  const invoker: Pick<
+    ActionInvoker<Principal>,
+    'invoke' | 'cancelTask' | 'continueWithInput' | 'taskResult' | 'provideTaskInput'
+  > = {
+    taskResult: async (_asker, task) => {
+      results.push(task)
+      return result()
+    },
+    provideTaskInput: async (_asker, task, responses) => {
+      inputs.push({ task, responses })
+      return input()
+    },
     continueWithInput: async (asker, request) => {
       continued.push({ asker, request })
       return continuation(request)
@@ -128,6 +145,14 @@ export function world(acquireWaitMs = 50, asking?: McpAsking) {
     continued,
     continuesWith(script: typeof continuation) {
       continuation = script
+    },
+    results,
+    inputs,
+    resultsIn(script: () => TaskResult) {
+      result = script
+    },
+    inputsAnswer(script: () => TaskInput) {
+      input = script
     },
     cancelledTasks,
     refreshed,

@@ -7,6 +7,8 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { FormField, FormRequest } from './form.ts'
 
+export type KeptTask = Readonly<{ taskId: string; issuedAt: number; round: number }>
+
 /** What a suspended call keeps: all a resume needs, and nothing the core has to still hold. */
 export type Kept = Readonly<{
   ref: EndpointRef
@@ -16,6 +18,8 @@ export type Kept = Readonly<{
   requestState?: string
   requests: readonly FormRequest[]
   round: number
+  on: 'person' | 'task'
+  task?: KeptTask
 }>
 
 const OWNER = '@omne-harness/mcp-bridge'
@@ -48,6 +52,15 @@ const isText = (value: unknown): value is string => typeof value === 'string'
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const KINDS: ReadonlySet<unknown> = new Set(['text', 'number', 'boolean', 'choice'])
+const isCount = (value: unknown, least: number): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= least
+
+function taskOf(value: unknown): KeptTask | undefined | 'unread' {
+  if (value === undefined) return undefined
+  if (!isRecord(value) || !isText(value['taskId'])) return 'unread'
+  const { taskId, issuedAt, round } = value
+  return isCount(issuedAt, 0) && isCount(round, 1) ? { taskId, issuedAt, round } : 'unread'
+}
 
 function isField(value: unknown): value is FormField {
   return (
@@ -81,12 +94,19 @@ export function decodeKept(bytes: Uint8Array): Kept | undefined {
     return undefined
   }
   if (!isRecord(saved) || !isRecord(saved['ref']) || !isText(saved['args'])) return undefined
-  const { ref, action, definition, requestState, requests, round } = saved
+  const { ref, action, definition, requestState, requests, round, on } = saved
+  const task = taskOf(saved['task'])
+  if (
+    task === 'unread' ||
+    (on !== 'person' && on !== 'task') ||
+    (on === 'task' && task === undefined)
+  )
+    return undefined
   if (!isText(ref['name']) || !isText(ref['holding']) || !isText(action) || !isText(definition))
     return undefined
   if (requestState !== undefined && !isText(requestState)) return undefined
   if (!Array.isArray(requests) || !requests.every(isRequest)) return undefined
-  if (typeof round !== 'number' || !Number.isSafeInteger(round) || round < 1) return undefined
+  if (!isCount(round, 1)) return undefined
   const args = readJsonText(saved['args'], LIMITS)
   if (args.kind !== 'ok') return undefined
   return {
@@ -97,6 +117,8 @@ export function decodeKept(bytes: Uint8Array): Kept | undefined {
     ...(requestState === undefined ? {} : { requestState }),
     requests,
     round,
+    on,
+    ...(task === undefined ? {} : { task }),
   }
 }
 

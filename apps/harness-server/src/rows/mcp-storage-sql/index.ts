@@ -4,11 +4,18 @@ import {
   ContinuationRecordsService,
   mcpCatalogStoreKey,
   mcpContinuationRecordsKey,
+  mcpTaskRecordsKey,
+  TaskRecordsService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
-import type { CatalogStore, ContinuationRecords } from '@omne-harness/mcp-contract/provider'
+import type {
+  CatalogStore,
+  ContinuationRecords,
+  TaskRecords,
+} from '@omne-harness/mcp-contract/provider'
 import {
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlTaskRecords,
   mcpStoreParticipant,
   type McpSqlOptions,
 } from '@omne-harness/mcp-storage-sql'
@@ -64,6 +71,19 @@ class SqlCatalogStore extends CatalogStoreService {
   }
 }
 
+/** The task table of MCP in the same storage domain of the tenant. */
+class SqlTaskRecords extends TaskRecordsService {
+  declare readonly record: TaskRecords['record']
+  declare readonly read: TaskRecords['read']
+  declare readonly move: TaskRecords['move']
+  declare readonly following: TaskRecords['following']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlTaskRecords(sqlOptions(ctx)))
+  }
+}
+
 /** The continuation records of MCP in the same storage domain of the tenant. */
 class SqlContinuationRecords extends ContinuationRecordsService {
   declare readonly mark: ContinuationRecords['mark']
@@ -78,7 +98,7 @@ export const mcpStorageSqlRow = defineRow({
   row: 'mcp-storage-sql',
   implementation: 'real',
   manifest: {
-    provides: [mcpCatalogStoreKey, mcpContinuationRecordsKey],
+    provides: [mcpCatalogStoreKey, mcpContinuationRecordsKey, mcpTaskRecordsKey],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: null,
   },
@@ -89,6 +109,7 @@ export const mcpStorageSqlRow = defineRow({
     apply(ctx: Context) {
       new SqlCatalogStore(ctx)
       new SqlContinuationRecords(ctx)
+      new SqlTaskRecords(ctx)
     },
   },
 })

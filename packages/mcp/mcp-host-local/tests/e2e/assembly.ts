@@ -11,6 +11,8 @@ import type {
 import {
   createMemoryAdoptionView,
   createMemoryCatalogStore,
+  createMemoryTaskRecords,
+  type MemoryTaskRecords,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   jsonOf,
@@ -45,6 +47,8 @@ const CONFIG: McpConfig<Principal> = {
 
 export type Assembly = Readonly<{
   services: McpServices<Principal, string>
+  /** The task table; without a watcher here, the journey moves a row on itself. */
+  records: MemoryTaskRecords
   adopt(ref: EndpointRef, target: ConnectionTarget): void
 }>
 
@@ -54,11 +58,13 @@ export function assemble(): Assembly {
   const adoption = createMemoryAdoptionView<Principal, string>({ scopeKey: scope => scope })
   const eligibility = createMemoryUseEligibility<Principal>({ principalKey: CONFIG.principalKey })
   const checkOutput: OutputValidator = () => ({ kind: 'conforms' })
+  const records = createMemoryTaskRecords()
   const ports: McpPorts<Principal, string> = {
     adoption,
     eligibility,
     credentials: createMemoryCredentialUse<Principal>(),
     store: createMemoryCatalogStore(),
+    tasks: records,
     transports: createLocalTransportFactory({
       clientInfo: { name: 'omne-harness-e2e', version: '0' },
       maxLongRequests: 2,
@@ -68,6 +74,7 @@ export function assemble(): Assembly {
   const absent: SettingValue<never> = { kind: 'absent' }
   return {
     services: createMcp(ports, CONFIG),
+    records,
     adopt(ref, target) {
       adoption.adopt({
         tenant: ALICE.tenant,

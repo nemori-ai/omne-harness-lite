@@ -28,6 +28,7 @@ import {
   mcpContinuationRecordsKey,
   mcpEndpointsPoint,
   mcpEndpointStatusKey,
+  mcpTaskWatchKey,
   mcpUseEligibilityKey,
   UseEligibilityService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -41,6 +42,7 @@ import {
   type ToolEntrySourcesService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { gatedCategoryContract } from '../../entry/category-gates.ts'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
 import { provideResidentEndpoints, residentEndpointsKey } from './resident-endpoints.ts'
@@ -64,6 +66,7 @@ import {
 import { keptAdoption, keptSettings, type AdoptionStamp, type HeldRefs } from './kept-adoption.ts'
 import { createOutputCheck } from './output-check.ts'
 import { mcpPersonAsk } from './person.ts'
+import { mountMcpTasks } from './tasks.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -73,6 +76,7 @@ export const mcpRowConfig = z.strictObject({
     maxActions: positive,
     instructionsByteLimit: positive,
     maxLongRequests: positive,
+    taskWatch: z.strictObject({ pollFloorMs: positive, backoffCapMs: positive }),
     clientInfo: z.strictObject({ name: z.string().min(1), version: z.string().min(1) }),
   }),
   bridge: z.strictObject({
@@ -204,7 +208,10 @@ class Credentials extends CredentialUseService<unknown> {
 }
 
 type Discovery = Pick<ActionDiscovery<unknown>, 'current' | 'refresh'>
-type Invoker = Pick<ActionInvoker<unknown>, 'invoke' | 'cancelTask' | 'continueWithInput'>
+type Invoker = Pick<
+  ActionInvoker<unknown>,
+  'invoke' | 'cancelTask' | 'continueWithInput' | 'taskResult' | 'provideTaskInput'
+>
 
 // The services of MCP are read at each call: while they are away the answer is `unknown`, not a throw.
 function discoveryOf(ctx: Context): Discovery {
@@ -223,12 +230,20 @@ function invokerOf(ctx: Context): Invoker {
     cancelTask: async (...args) => (await service()?.cancelTask(...args)) ?? fail(UNKNOWN),
     continueWithInput: async (...args) =>
       (await service()?.continueWithInput(...args)) ?? { kind: 'not-sent', reason: UNKNOWN },
+    taskResult: async (...args) => (await service()?.taskResult(...args)) ?? fail(UNKNOWN),
+    provideTaskInput: async (...args) =>
+      (await service()?.provideTaskInput(...args)) ?? fail(UNKNOWN),
   }
 }
 
 const mcpPlugin: Plugin.Object = {
   name: 'mcp',
-  inject: [tenantAssetsKey, assetCategoriesKey, toolEntrySourcesKey],
+  inject: [
+    tenantAssetsKey,
+    assetCategoriesKey,
+    toolEntrySourcesKey,
+    TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+  ],
   Config: mcpRowConfig,
   apply(ctx: Context, raw: unknown) {
     const config = mcpRowConfig.parse(raw)
@@ -272,10 +287,12 @@ const mcpPlugin: Plugin.Object = {
         person: mcpPersonAsk,
         continuations: () => ctx.get(mcpContinuationRecordsKey, false),
         maxInputRounds: config.bridge.maxInputRounds,
+        followTasks: true,
       },
     })
     sources.contribute(source)
     provideResidentEndpoints(ctx, (access, name) => source.named(access, name))
+    mountMcpTasks(ctx, config.bridge.connectBoundMs as Millis)
   },
 }
 
@@ -291,9 +308,15 @@ export const mcpRow = defineRow({
       mcpAdoptionViewKey,
       mcpUseEligibilityKey,
       mcpCredentialUseKey,
+      mcpTaskWatchKey,
       residentEndpointsKey,
     ],
-    injects: [tenantAssetsKey, assetCategoriesKey, toolEntrySourcesKey],
+    injects: [
+      tenantAssetsKey,
+      assetCategoriesKey,
+      toolEntrySourcesKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+    ],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

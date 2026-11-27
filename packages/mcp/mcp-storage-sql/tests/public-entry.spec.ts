@@ -5,6 +5,7 @@ it('the public entry exports the store, its materials and the name of its partic
   expect(Object.keys(root).sort()).toEqual([
     'createSqlCatalogStore',
     'createSqlContinuationRecords',
+    'createSqlTaskRecords',
     'mcpSqlMaterials',
     'mcpStoreParticipant',
   ])

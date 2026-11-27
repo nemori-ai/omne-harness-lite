@@ -34,3 +34,9 @@ export {
   type PersonQuestion,
   type PersonReply,
 } from './form.ts'
+export {
+  createTaskWaitBridge,
+  mcpTaskWait,
+  MCP_TASK_WAIT_OWNER,
+  type TaskWaitBridgeInput,
+} from './task-wait.ts'

@@ -1,11 +1,17 @@
 import { heldPoint } from '@omne-harness/assets'
 import { type Context, Service } from '@deepseek-ai/cordis'
-import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harness/mcp-contract'
+import type {
+  ActionDiscovery,
+  ActionInvoker,
+  EndpointStatus,
+  TaskWatch,
+} from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
   CatalogStore,
   ContinuationRecords,
   CredentialUse,
+  TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 
@@ -181,6 +187,42 @@ export abstract class ContinuationRecordsService extends Service implements Cont
 
 export const mcpContinuationRecordsKey = ContinuationRecordsService.provide
 
+/**
+ * The durable task table of MCP as a service; the core takes it at each use, absent means the store is unavailable.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class TaskRecordsService extends Service implements TaskRecords {
+  static readonly provide = 'mcpTaskRecords'
+  constructor(ctx: Context) {
+    super(ctx, TaskRecordsService.provide)
+  }
+  abstract readonly record: TaskRecords['record']
+  abstract readonly read: TaskRecords['read']
+  abstract readonly move: TaskRecords['move']
+  abstract readonly following: TaskRecords['following']
+}
+
+export const mcpTaskRecordsKey = TaskRecordsService.provide
+
+/**
+ * The task watcher of MCP as a service: the bridge gives it the principal of a waiting call, the assembly wakes calls it tells of.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class TaskWatchService<P> extends Service implements TaskWatch<P> {
+  static readonly provide = 'mcpTaskWatch'
+  constructor(ctx: Context) {
+    super(ctx, TaskWatchService.provide)
+  }
+  abstract readonly follow: TaskWatch<P>['follow']
+  abstract readonly drop: TaskWatch<P>['drop']
+  abstract readonly following: TaskWatch<P>['following']
+  abstract readonly subscribe: TaskWatch<P>['subscribe']
+}
+
+export const mcpTaskWatchKey = TaskWatchService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -191,6 +233,8 @@ declare module '@deepseek-ai/cordis' {
     mcpCredentialUse: CredentialUseService<unknown>
     mcpCatalogStore: CatalogStoreService
     mcpContinuationRecords: ContinuationRecordsService
+    mcpTaskRecords: TaskRecordsService
+    mcpTaskWatch: TaskWatchService<unknown>
   }
 }
 

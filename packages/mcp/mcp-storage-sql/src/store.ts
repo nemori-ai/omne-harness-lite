@@ -1,10 +1,24 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { ActionCatalogRecord, CatalogKey } from '@omne-harness/mcp-contract'
-import type { CatalogStore, ContinuationRecords } from '@omne-harness/mcp-contract/provider'
+import type { ActionCatalogRecord, CatalogKey, PeerAccount } from '@omne-harness/mcp-contract'
+import type {
+  CatalogStore,
+  ContinuationRecords,
+  TaskRecords,
+  TaskRow,
+  TaskRowKey,
+} from '@omne-harness/mcp-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
-import { HANDLER, PARTICIPANT, PROTOCOL, type CatalogRowKey, type ScriptName } from './schema.ts'
+import {
+  HANDLER,
+  PARTICIPANT,
+  PROTOCOL,
+  type CatalogRowKey,
+  type ReadName,
+  type ScriptName,
+  type TaskRowCells,
+} from './schema.ts'
 
 /** Where one tenant's MCP facts are stored, and under which storage combination. */
 export type TenantBinding = Readonly<{
@@ -29,11 +43,24 @@ function tenantText(key: Pick<CatalogKey, 'tenant'>): string {
   return encoded.value
 }
 
+const accountText = (account: PeerAccount): string =>
+  account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
+
 function rowKeyOf(key: CatalogKey): CatalogRowKey {
-  const account =
-    key.account.kind === 'anonymous' ? 'anonymous' : `credential:${key.account.binding}`
-  return { tenant: tenantText(key), account, holding: key.holding, kind: 'actions' }
+  return {
+    tenant: tenantText(key),
+    account: accountText(key.account),
+    holding: key.holding,
+    kind: 'actions',
+  }
 }
+
+const taskCellsOf = (key: TaskRowKey): TaskRowCells => ({
+  tenant: tenantText(key),
+  principal: key.principalKey,
+  holding: key.holding,
+  task: key.taskId,
+})
 
 const scopeOf = (tenant: string) => ({ kind: 'tenant', tenant }) as const
 
@@ -86,24 +113,94 @@ export function createSqlContinuationRecords(options: McpSqlOptions): Continuati
   }
 }
 
-/** The catalog store over SQL, one storage domain per tenant; every read carries the tenant. */
-export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
-  const commit = committer(options)
-
-  async function readRow(key: CatalogRowKey): Promise<{ ok: unknown } | null> {
-    const binding = await options.bind(key.tenant)
+function reader(options: McpSqlOptions) {
+  return async function read(
+    tenant: string,
+    name: ReadName,
+    request: Readonly<Record<string, unknown>>,
+  ): Promise<{ ok: unknown } | null> {
+    const binding = await options.bind(tenant)
     if (binding === null) return null
     const requestKey = randomUUID()
     const result = await options.storage.read({
-      domain: { scope: scopeOf(key.tenant), transactionDomain: binding.transactionDomain },
+      domain: { scope: scopeOf(tenant), transactionDomain: binding.transactionDomain },
       handler: HANDLER,
       protocol: PROTOCOL,
       requestKey,
-      input: json({ read: 'readCatalog', key }),
+      input: json({ read: name, ...request }),
     })
     if (result.kind !== 'read' || result.requestKey !== requestKey) return null
     return result.output as { ok: unknown }
   }
+}
+
+/** The task table over SQL; a move whose commit is not known counts when the row now stands at the step it moved to. */
+export function createSqlTaskRecords(options: McpSqlOptions): TaskRecords {
+  const commit = committer(options)
+  const readOf = reader(options)
+  const guarded = async <T>(work: () => Promise<T | null>) => {
+    try {
+      const done = await work()
+      return done === null ? fail('unavailable' as const) : succeed(done)
+    } catch {
+      return fail('unavailable' as const)
+    }
+  }
+  const read: TaskRecords['read'] = key =>
+    guarded(async () => {
+      const cells = taskCellsOf(key)
+      const found = await readOf(cells.tenant, 'readTask', { key: cells })
+      if (found === null) return null
+      return found.ok === 'absent' || found.ok === 'ambiguous' ? found.ok : (found.ok as TaskRow)
+    })
+  return {
+    read,
+    record: (key, row) =>
+      guarded(async () => {
+        const cells = taskCellsOf(key)
+        const command = { key: cells, account: accountText(row.account), row }
+        const done = await commit(cells.tenant, 'recordTask', command)
+        if (done?.kind === 'answer') return 'recorded' as const
+        if (done === null) return null
+        const now = await read(key)
+        return 'ok' in now && now.ok !== 'absent' ? ('recorded' as const) : null
+      }),
+    move: (key, from, to) =>
+      guarded(async () => {
+        const cells = taskCellsOf(key)
+        const done = await commit(cells.tenant, 'moveTask', { key: cells, from, to })
+        if (done === null) return null
+        if (done.kind === 'answer') {
+          const answer = (done.response as { ok?: unknown }).ok
+          return answer === 'moved' || answer === 'stale' ? answer : null
+        }
+        const now = await read(key)
+        const row = 'ok' in now && typeof now.ok === 'object' ? now.ok : undefined
+        return row?.state === to.state && row.round === to.round ? ('moved' as const) : null
+      }),
+    following: tenant =>
+      guarded(async () => {
+        const text = tenantText({ tenant })
+        const found = await readOf(text, 'followingTasks', { tenant: text })
+        if (found === null || !Array.isArray(found.ok)) return null
+        return (found.ok as readonly Readonly<Record<string, unknown>>[]).map(item => ({
+          key: {
+            tenant,
+            principalKey: String(item['principal']),
+            holding: item['holding'] as TaskRowKey['holding'],
+            taskId: item['task'] as TaskRowKey['taskId'],
+          },
+          row: item['row'] as TaskRow,
+        }))
+      }),
+  }
+}
+
+/** The catalog store over SQL, one storage domain per tenant; every read carries the tenant. */
+export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
+  const commit = committer(options)
+  const readOf = reader(options)
+  const readRow = (key: CatalogRowKey) => readOf(key.tenant, 'readCatalog', { key })
 
   const read: CatalogStore['read'] = async key => {
     try {

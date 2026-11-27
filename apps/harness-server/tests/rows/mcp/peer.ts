@@ -6,6 +6,8 @@ import {
   createMcpHandler,
   inputRequired,
   McpServer,
+  ProtocolError,
+  ProtocolErrorCode,
 } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
@@ -195,20 +197,125 @@ export type ModernPeer = Readonly<{
   answers: readonly unknown[]
   /** Offers these actions from now on and tells every open listen. */
   offer(actions: readonly PeerAction[]): void
+  /** The tasks `report` made, and what moves them on. */
+  tasks: PeerTasks
   close(): Promise<void>
 }>
 
+export type PeerTask = {
+  readonly taskId: string
+  readonly topic: string
+  status: 'working' | 'input_required' | 'completed' | 'cancelled'
+  readonly updates: unknown[]
+}
+
+export type PeerTasks = Readonly<{
+  list(): readonly PeerTask[]
+  finish(): void
+  ask(): void
+}>
+
 const WHEN = z.object({ date: z.string() })
+const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
+const FORMAT_ASK = {
+  format: {
+    method: 'elicitation/create',
+    params: {
+      mode: 'form',
+      message: 'Which format should the report have?',
+      requestedSchema: {
+        type: 'object',
+        properties: { format: { type: 'string' } },
+        required: ['format'],
+      },
+    },
+  },
+}
+
+function describeTask(task: PeerTask) {
+  const update = task.updates.at(-1) as { format?: { content?: { format?: string } } } | undefined
+  const format = update?.format?.content?.format
+  return {
+    taskId: task.taskId,
+    status: task.status,
+    createdAt: '2026-11-27T12:00:00.000Z',
+    lastUpdatedAt: '2026-11-27T12:00:00.000Z',
+    ttlMs: 3_600_000,
+    pollIntervalMs: 50,
+    ...(task.status === 'input_required' ? { inputRequests: FORMAT_ASK } : {}),
+    ...(task.status === 'completed'
+      ? {
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: `report on ${task.topic}${format === undefined ? '' : ` as ${format}`}`,
+              },
+            ],
+          },
+        }
+      : {}),
+  }
+}
+
+function serveTasks(server: McpServer, tasks: Map<string, PeerTask>): void {
+  const find = (taskId: string) => {
+    const task = tasks.get(taskId)
+    if (task === undefined) throw new ProtocolError(ProtocolErrorCode.InvalidParams, 'Unknown task')
+    return task
+  }
+  server.registerTool(
+    'report',
+    { description: 'Builds a report as a task.', inputSchema: z.object({ text: z.string() }) },
+    async ({ text }, ctx) => {
+      const envelope = (ctx.mcpReq.envelope as Record<string, unknown> | undefined)?.[
+        'io.modelcontextprotocol/clientCapabilities'
+      ] as { extensions?: Record<string, unknown> } | undefined
+      if (envelope?.extensions?.[TASKS_EXTENSION] === undefined)
+        return { content: [{ type: 'text' as const, text: `report on ${text} at once` }] }
+      const task: PeerTask = { taskId: randomUUID(), topic: text, status: 'working', updates: [] }
+      tasks.set(task.taskId, task)
+      return { content: [], resultType: 'task', ...describeTask(task) } as never
+    },
+  )
+  const id = z.looseObject({ taskId: z.string() })
+  server.server.setRequestHandler(
+    'tasks/get',
+    { params: id, result: z.looseObject({}) },
+    async ({ taskId }) => describeTask(find(taskId)),
+  )
+  server.server.setRequestHandler(
+    'tasks/update',
+    { params: id, result: z.object({}) },
+    async (params, ctx) => {
+      const task = find(params.taskId)
+      task.updates.push(ctx.mcpReq.inputResponses)
+      task.status = 'working'
+      return {}
+    },
+  )
+  server.server.setRequestHandler(
+    'tasks/cancel',
+    { params: id, result: z.object({}) },
+    async ({ taskId }) => {
+      const task = find(taskId)
+      if (task.status === 'working' || task.status === 'input_required') task.status = 'cancelled'
+      return {}
+    },
+  )
+}
 
 export async function modernPeer(initial: readonly PeerAction[]): Promise<ModernPeer> {
   let offered = initial
   const asked = new Map<string, number>()
   const answers: unknown[] = []
+  const tasks = new Map<string, PeerTask>()
   const handler = createMcpHandler(() => {
     const server = new McpServer(
       { name: 'modern-peer', version: '1' },
-      { capabilities: { tools: { listChanged: true } } },
+      { capabilities: { tools: { listChanged: true }, extensions: { [TASKS_EXTENSION]: {} } } },
     )
+    serveTasks(server, tasks)
     for (const action of offered)
       server.registerTool(
         action.name,
@@ -280,6 +387,16 @@ export async function modernPeer(initial: readonly PeerAction[]): Promise<Modern
     offer(actions) {
       offered = actions
       handler.notify.toolsChanged()
+    },
+    tasks: {
+      list: () => [...tasks.values()],
+      finish: () => {
+        for (const task of tasks.values()) if (task.status === 'working') task.status = 'completed'
+      },
+      ask: () => {
+        for (const task of tasks.values())
+          if (task.status === 'working') task.status = 'input_required'
+      },
     },
     async close() {
       server.closeAllConnections()

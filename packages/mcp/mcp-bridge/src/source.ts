@@ -28,15 +28,19 @@ import {
   mcpActionExecutor,
   type BridgeShape,
 } from './convert.ts'
-import { asked, resumed, type Answer, type McpAsking } from './asking.ts'
+import { answered, resumed, type Answer, type McpAsking } from './asking.ts'
 import { CONTINUATION_CHECKPOINT } from './continuation.ts'
+import { mcpTaskWait } from './task-wait.ts'
 import { failureText, notStarted, settle, unavailableText, type BridgeResult } from './outcome.ts'
 
 export type McpBridgeDependencies<P> = Readonly<{
   /** The endpoints this asker has adopted now. The assembly adapts it from the adoption it gives MCP. */
   endpoints(access: Access<P>): Promise<Outcome<readonly EndpointRef[], 'unknown'>>
   discovery: Pick<ActionDiscovery<P>, 'current' | 'refresh'>
-  invoker: Pick<ActionInvoker<P>, 'invoke' | 'cancelTask' | 'continueWithInput'>
+  invoker: Pick<
+    ActionInvoker<P>,
+    'invoke' | 'cancelTask' | 'continueWithInput' | 'taskResult' | 'provideTaskInput'
+  >
   programmable(access: Access<P>, ref: EndpointRef): Promise<boolean>
   principalKey(principal: P): string
   shape: BridgeShape
@@ -172,7 +176,11 @@ async function send<P>(
     connectBound: deps.connectBound,
   })
   const { asking } = deps
-  if (asking !== undefined && result.kind === 'sent' && result.outcome.kind === 'inputRequired') {
+  const waits =
+    result.kind === 'sent' &&
+    (result.outcome.kind === 'inputRequired' ||
+      (result.outcome.kind === 'task' && asking?.followTasks === true))
+  if (asking !== undefined && waits) {
     const kept = {
       ref,
       action: known.ok.name,
@@ -180,8 +188,9 @@ async function send<P>(
       args: call.arguments,
       requests: [],
       round: 1,
-    }
-    return asked({ ...deps, asking }, call, kept, result.outcome)
+      on: 'person',
+    } as const
+    return answered({ ...deps, asking }, call, kept, result)
   }
   const { program } = declared.returns
   const given = call.program && program.kind === 'json' ? program : undefined
@@ -316,7 +325,9 @@ export function createMcpEntrySource<P>(deps: McpBridgeDependencies<P>): McpEntr
       : {
           checkpoint: {
             declaration: CONTINUATION_CHECKPOINT,
-            waits: [deps.asking.person.contract],
+            waits: deps.asking.followTasks
+              ? [deps.asking.person.contract, mcpTaskWait]
+              : [deps.asking.person.contract],
           },
           resume: async (call: ToolSourceResume<P>) =>
             answerOf(await resumed({ ...deps, asking: deps.asking as McpAsking }, call)),

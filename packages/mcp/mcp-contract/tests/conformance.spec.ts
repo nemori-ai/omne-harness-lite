@@ -28,11 +28,13 @@ import {
   createMemoryAdoptionView,
   createMemoryCatalogStore,
   createMemoryContinuationRecords,
+  createMemoryTaskRecords,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   mcpAdoptionViewConformance,
   mcpCatalogStoreConformance,
   mcpContinuationRecordsConformance,
+  mcpTaskRecordsConformance,
   mcpCredentialUseConformance,
   mcpUseEligibilityConformance,
   mergeListingCases,
@@ -229,6 +231,13 @@ describe('CatalogStore conformance on the memory double', () => {
 describe('ContinuationRecords conformance on the memory double', () => {
   register(mcpContinuationRecordsConformance(), () => {
     const records = createMemoryContinuationRecords()
+    return { records, tenant: home, otherTenant: away, unavailable: async () => records.cut() }
+  })
+})
+
+describe('TaskRecords conformance on the memory double', () => {
+  register(mcpTaskRecordsConformance(), () => {
+    const records = createMemoryTaskRecords()
     return { records, tenant: home, otherTenant: away, unavailable: async () => records.cut() }
   })
 })

@@ -38,6 +38,12 @@ export {
   type MemoryContinuationRecords,
 } from './testing-continuations.ts'
 export {
+  createMemoryTaskRecords,
+  mcpTaskRecordsConformance,
+  type MemoryTaskRecords,
+  type TaskRecordsFixture,
+} from './testing-tasks.ts'
+export {
   actionNameOf,
   adoptionRevisionOf,
   connectionTargetOf,

@@ -4804,6 +4804,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract

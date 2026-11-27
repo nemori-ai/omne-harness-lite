@@ -30,6 +30,9 @@ import type {
   CatalogStore,
   CredentialUse,
   McpClock,
+  TaskArrival,
+  TaskRecords,
+  TaskRowState,
   UseEligibility,
 } from './ports.ts'
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
@@ -135,6 +138,22 @@ export interface TaskControl<P> {
 
 export type ActionInvoker<P> = ActionCalls<P> & TaskControl<P>
 
+export type FollowedTask = Readonly<{ state: TaskRowState; round: number; arrival?: TaskArrival }>
+
+/** The task watcher: follows a task as the principal that gives it, while this process lives, and says when it got somewhere. */
+export interface TaskWatch<P> {
+  follow(access: Access<P>, task: TaskRef): Promise<Outcome<FollowedTask, OperationFailure>>
+  drop(
+    access: Access<P>,
+    task: TaskRef,
+    cancel: boolean,
+  ): Promise<Outcome<'dropped' | 'already', OperationFailure>>
+  following(tenant: TenantId): Promise<Outcome<readonly CorrelationKey[], 'unavailable'>>
+  subscribe(arrived: (tenant: TenantId, call: CorrelationKey) => void): () => void
+}
+
+export type TaskWatchConfig = Readonly<{ pollFloorMs: number; backoffCapMs: number }>
+
 export type DegradedReason = 'discover-failed' | 'list-failed'
 
 export type LostReason =
@@ -200,6 +219,7 @@ export type McpPorts<P, S> = Readonly<{
   eligibility: UseEligibility<P>
   credentials: CredentialUse<P>
   store: CatalogStore
+  tasks: TaskRecords
   transports: McpTransportFactory
   checkOutput: OutputValidator
   clock?: McpClock
@@ -210,12 +230,14 @@ export type McpConfig<P> = Readonly<{
   maxListingPages: number
   maxActions: number
   instructionsByteLimit: number
+  taskWatch?: TaskWatchConfig
 }>
 
 export type McpServices<P, S> = Readonly<{
   inspection: EndpointInspection
   discovery: ActionDiscovery<P>
   invoker: ActionInvoker<P>
+  tasks?: TaskWatch<P>
   status: EndpointStatus<P, S>
   connections: Connections<P>
 }>

@@ -7,10 +7,15 @@ import {
   tenant,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import type { CatalogStore, ContinuationRecords } from '@omne-harness/mcp-contract/provider'
+import type {
+  CatalogStore,
+  ContinuationRecords,
+  TaskRecords,
+} from '@omne-harness/mcp-contract/provider'
 import {
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlTaskRecords,
   mcpSqlMaterials,
   type TenantBinding,
 } from '@omne-harness/mcp-storage-sql'
@@ -40,6 +45,7 @@ export function temporaryRoot(): string {
 export type SqlWorld = Readonly<{
   store: CatalogStore
   continuations: ContinuationRecords
+  tasks: TaskRecords
   /** From now on the tenants are not bound: every read and write meets no storage domain. */
   unbind(): void
   close(): Promise<void>
@@ -97,6 +103,7 @@ export async function openSqlWorld(root = temporaryRoot()): Promise<SqlWorld> {
   return {
     store: createSqlCatalogStore({ storage, bind }),
     continuations: createSqlContinuationRecords({ storage, bind }),
+    tasks: createSqlTaskRecords({ storage, bind }),
     unbind() {
       bound = false
     },

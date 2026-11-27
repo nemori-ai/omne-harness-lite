@@ -955,6 +955,10 @@
           "maxActions": 256,
           "instructionsByteLimit": 16384,
           "maxLongRequests": 4,
+          "taskWatch": {
+            "pollFloorMs": 1000,
+            "backoffCapMs": 30000
+          },
           "clientInfo": {
             "name": "omne-harness",
             "version": "0.0.0"

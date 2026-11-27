@@ -99,6 +99,7 @@ function arranged(maxInputRounds = 3) {
     person,
     continuations: () => (present ? records : undefined),
     maxInputRounds,
+    followTasks: false,
   })
   w.adopt(home, 'desk')
   w.offers('desk', [action('book', { inputSchema: { type: 'object' } })])
@@ -281,7 +282,12 @@ describe('a peer that asks a person for input (C109, MC-30)', () => {
   it('questions that do not fit one request of the wait go back as cancel at once', async () => {
     const records = createMemoryContinuationRecords()
     const tooBig: McpPersonAsk = { ...person, request: () => undefined }
-    const w = world(50, { person: tooBig, continuations: () => records, maxInputRounds: 3 })
+    const w = world(50, {
+      person: tooBig,
+      continuations: () => records,
+      maxInputRounds: 3,
+      followTasks: false,
+    })
     w.adopt(home, 'desk')
     w.offers('desk', [action('book', { inputSchema: { type: 'object' } })])
     w.answers(() => inputRequired(ASK_DAY))
@@ -300,7 +306,12 @@ describe('a peer that asks a person for input (C109, MC-30)', () => {
       w.source.resume?.(resumeOf(call, odd, { kind: 'answer', value: { q1: 'Tuesday' } })),
     ).rejects.toThrow('not one this bridge gave out')
     const unread: McpPersonAsk = { ...person, reply: () => undefined }
-    const other = world(50, { person: unread, continuations: () => records, maxInputRounds: 3 })
+    const other = world(50, {
+      person: unread,
+      continuations: () => records,
+      maxInputRounds: 3,
+      followTasks: false,
+    })
     await expect(
       other.source.resume?.(resumeOf(call, suspension, { kind: 'answer', value: {} })),
     ).rejects.toThrow('not one this bridge gave out')

@@ -1,56 +1,34 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Access } from '@omne-harness/legal-identity'
 import {
   isCorrelationKey,
   isRequestState,
-  type ActionInvoker,
   type ActionName,
   type CallOutcome,
   type DefinitionDigest,
   type InvokeResult,
-  type Millis,
 } from '@omne-harness/mcp-contract'
-import type { ContinuationRecords } from '@omne-harness/mcp-contract/provider'
 import type { ToolDecision } from '@omne-harness/tool-contract'
-import type {
-  ToolSourceCall,
-  ToolSourceResume,
-  ToolSourceSuspension,
-} from '@omne-harness/tool-contract/provider'
-import { checkpointDigest, decodeKept, encodeKept, type Kept } from './continuation.ts'
-import { allAnswered, formOf, questionsOf, responsesOf, type McpPersonAsk } from './form.ts'
-import { notStarted, settle, unknownText, type Settlement } from './outcome.ts'
+import type { ToolSourceResume } from '@omne-harness/tool-contract/provider'
+import { decodeKept, type Kept } from './continuation.ts'
+import { allAnswered, formOf, responsesOf } from './form.ts'
+import { settle } from './outcome.ts'
+import {
+  accessOf,
+  BREACH,
+  markedOnce,
+  onPerson,
+  tooManyRounds,
+  unknownOf,
+  type Answer,
+  type AskingDeps,
+  type Facts,
+} from './steps.ts'
+import { arrived, firstRound, onTask, taskInput } from './tasks.ts'
+import { readTaskWaitAnswer } from './task-wait.ts'
 
-/** Given to the bridge, a peer that asks for input suspends the call on a person; without it that call's effect is not known. */
-export type McpAsking = Readonly<{
-  person: McpPersonAsk
-  continuations(): ContinuationRecords | undefined
-  /** How many times one call may come back asking for input; the next one is a fault of the peer. */
-  maxInputRounds: number
-}>
+export type { Answer, AskingDeps, McpAsking } from './steps.ts'
 
-type Facts<P> = Omit<ToolSourceCall<P>, 'arguments'>
 type Asked = Extract<CallOutcome, { kind: 'inputRequired' }>
-
-export type AskingDeps<P> = Readonly<{
-  asking: McpAsking
-  invoker: Pick<ActionInvoker<P>, 'continueWithInput'>
-  resultMaxBytes: number
-  connectBound: Millis
-}>
-
-export type Answer =
-  | Settlement
-  | Readonly<{ effect: 'suspended'; suspension: ToolSourceSuspension }>
-
-const accessOf = <P>(call: Facts<P>): Access<P> => ({
-  principal: call.principal,
-  tenant: call.tenant,
-})
-
-function closedText(endpoint: string): string {
-  return `The MCP endpoint ${endpoint} asked a person for more input, and the question was closed before anyone answered. Nothing more was sent to the endpoint.`
-}
 
 async function continued<P>(
   deps: AskingDeps<P>,
@@ -74,18 +52,21 @@ async function continued<P>(
     signal: call.signal,
     connectBound: deps.connectBound,
   })
-  return answered(deps, call, kept, result)
+  return answered(deps, call, { ...kept, round: kept.round + 1 }, result)
 }
 
-async function answered<P>(
+/** What the peer answered a call with: input asked for, a task to wait for, or how the call ended. */
+export function answered<P>(
   deps: AskingDeps<P>,
   call: Facts<P>,
   kept: Kept,
   result: InvokeResult,
-): Promise<Answer> {
-  if (result.kind !== 'sent' || result.outcome.kind !== 'inputRequired')
-    return settle(call.name, kept.action, result, deps.resultMaxBytes)
-  return asked(deps, call, { ...kept, round: kept.round + 1 }, result.outcome)
+): Promise<Answer> | Answer {
+  if (result.kind === 'sent' && result.outcome.kind === 'inputRequired')
+    return asked(deps, call, kept, result.outcome)
+  if (result.kind === 'sent' && result.outcome.kind === 'task' && deps.asking.followTasks)
+    return onTask(kept, firstRound(result.outcome))
+  return settle(call.name, kept.action, result, deps.resultMaxBytes)
 }
 
 /** The peer asks for input: put the questions to a person, or answer at once when no person can be asked. */
@@ -95,26 +76,10 @@ export async function asked<P>(
   kept: Kept,
   outcome: Asked,
 ): Promise<Answer> {
-  const tool = call.name
-  if (kept.round > deps.asking.maxInputRounds)
-    return {
-      effect: 'unknown',
-      message: unknownText(
-        tool,
-        kept.action,
-        `the endpoint asked for input more than ${String(deps.asking.maxInputRounds)} times`,
-      ),
-    }
+  const bounded = tooManyRounds(deps, call, kept)
+  if (bounded !== undefined) return bounded
   const read = formOf(outcome.inputRequests?.untrusted)
-  if (read.kind === 'breach')
-    return {
-      effect: 'unknown',
-      message: unknownText(
-        tool,
-        kept.action,
-        'the endpoint asked for a kind of input this version did not offer',
-      ),
-    }
+  if (read.kind === 'breach') return unknownOf(call, kept, BREACH)
   const next: Kept = {
     ...kept,
     ...(outcome.requestState === undefined ? {} : { requestState: outcome.requestState }),
@@ -123,56 +88,29 @@ export async function asked<P>(
   if (read.kind === 'unaskable')
     return continued(deps, call, next, allAnswered(read.keys, 'cancel'))
   if (read.requests.length === 0) return continued(deps, call, next, undefined)
-  const { person } = deps.asking
-  const request = person.request(questionsOf(kept.ref.name, read.requests))
-  if (request === undefined)
-    return continued(
-      deps,
-      call,
-      next,
-      allAnswered(
-        next.requests.map(item => item.key),
-        'cancel',
-      ),
-    )
-  return {
-    effect: 'suspended',
-    suspension: {
-      kind: 'suspended',
-      state: encodeKept(next),
-      wait: {
-        kind: 'ask',
-        key: 'input',
-        contract: person.contract,
-        request,
-      },
-      closedResult: closedText(kept.ref.name),
-    },
-  }
+  const keys = read.requests.map(item => item.key)
+  return (
+    onPerson(deps, next, read.requests) ?? continued(deps, call, next, allAnswered(keys, 'cancel'))
+  )
 }
 
-/** Takes a suspended call up again: the continuation is marked before it is sent, so a second run sends nothing. */
+/** Takes a suspended call up again from what it waited on: a person, or its task. */
 export async function resumed<P>(deps: AskingDeps<P>, call: ToolSourceResume<P>): Promise<Answer> {
   const kept = decodeKept(call.checkpoint)
-  const reply = deps.asking.person.reply(call.response as ToolDecision<unknown>)
+  const response = call.response as ToolDecision<unknown>
+  if (kept?.on === 'task') {
+    const arrival = response.kind === 'answer' ? readTaskWaitAnswer(response.value) : undefined
+    if (arrival === undefined)
+      throw new Error('the answer of the task wait is not one this bridge gave out')
+    return arrived(deps, call, kept, arrival)
+  }
+  const reply = deps.asking.person.reply(response)
   if (kept === undefined || reply === undefined)
     throw new Error('the checkpoint or the answer is not one this bridge gave out')
-  const records = deps.asking.continuations()
-  const why = 'the record that keeps a continuation from being sent twice could not be written'
-  if (records === undefined) return notStarted(call.name, kept.action, why)
-  const marked = await records.mark({
-    tenant: call.tenant,
-    checkpoint: checkpointDigest(call.checkpoint),
-  })
-  if ('failure' in marked) return notStarted(call.name, kept.action, why)
-  if (marked.ok === 'already')
-    return {
-      effect: 'unknown',
-      message: unknownText(
-        call.name,
-        kept.action,
-        'the answer of the person was already sent once before the service stopped',
-      ),
-    }
-  return continued(deps, call, kept, responsesOf(kept.requests, reply))
+  const gate = await markedOnce(deps, call, kept)
+  if (gate !== undefined) return gate
+  const responses = responsesOf(kept.requests, reply)
+  return kept.task === undefined
+    ? continued(deps, call, kept, responses)
+    : taskInput(deps, call, kept, responses)
 }

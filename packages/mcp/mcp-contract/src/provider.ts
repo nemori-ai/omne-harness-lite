@@ -9,6 +9,10 @@ export type {
   EligibilityVerdict,
   HttpCredentialHandle,
   HttpPurpose,
+  TaskRecords,
+  TaskRow,
+  TaskRowKey,
+  TaskRowStep,
   UseEligibility,
 } from './ports.ts'
 export type {

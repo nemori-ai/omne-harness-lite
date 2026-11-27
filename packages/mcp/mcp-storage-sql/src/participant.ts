@@ -1,7 +1,14 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
-import { loadCatalog, markOnce, saveCatalog, type SqlPort } from './rows.ts'
-import { PARTICIPANT, PROTOCOL, SCRIPTS, type CatalogRowKey, type ScriptName } from './schema.ts'
+import { insertTask, loadCatalog, markOnce, saveCatalog, stepTask, type SqlPort } from './rows.ts'
+import {
+  PARTICIPANT,
+  PROTOCOL,
+  SCRIPTS,
+  type CatalogRowKey,
+  type ScriptName,
+  type TaskRowCells,
+} from './schema.ts'
 
 type WriteCatalog = Readonly<{
   key: CatalogRowKey
@@ -9,6 +16,8 @@ type WriteCatalog = Readonly<{
   record: JsonValue
   expected: number | 'absent'
 }>
+
+type Step = Readonly<{ state: string; round: number }>
 
 /** The commands come from this member's own store, so their shape is not parsed again here. */
 const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
@@ -21,6 +30,13 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   },
   markContinuation(port, input: Readonly<{ tenant: string; checkpoint: string }>) {
     return { ok: markOnce(port, input.tenant, input.checkpoint) }
+  },
+  recordTask(port, input: Readonly<{ key: TaskRowCells; account: string; row: Step }>) {
+    insertTask(port, input.key, input.account, input.row)
+    return { ok: 'recorded' }
+  },
+  moveTask(port, input: Readonly<{ key: TaskRowCells; from: Step; to: Step }>) {
+    return { ok: stepTask(port, input.key, input.from, input.to) }
   },
 }
 

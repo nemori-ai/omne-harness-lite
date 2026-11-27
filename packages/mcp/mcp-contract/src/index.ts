@@ -236,6 +236,9 @@ export type {
   ReleaseReport,
   TaskControl,
   TaskRef,
+  TaskWatch,
+  TaskWatchConfig,
+  FollowedTask,
 } from './services.ts'
-export type { McpClock } from './ports.ts'
+export type { McpClock, TaskArrival, TaskRowState } from './ports.ts'
 export type { PeerNotification } from './transport.ts'

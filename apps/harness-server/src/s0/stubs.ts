@@ -476,7 +476,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['dynamis', 'sessionUtteranceResolver'],
   },
   'mcp-storage-sql': {
-    provides: ['mcpCatalogStore', 'mcpContinuationRecords'],
+    provides: ['mcpCatalogStore', 'mcpContinuationRecords', 'mcpTaskRecords'],
     injects: ['storage', 'tenantDomainLookup'],
   },
   mcp: {
@@ -487,9 +487,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpAdoptionView',
       'mcpUseEligibility',
       'mcpCredentialUse',
+      'mcpTaskWatch',
       'residentEndpoints',
     ],
-    injects: ['tenantAssets', 'assetCategories', 'toolEntrySources'],
+    injects: [
+      'tenantAssets',
+      'assetCategories',
+      'toolEntrySources',
+      'tenantDomainScannerPrincipal',
+    ],
   },
   'tool-bindings': {
     provides: ['toolBindings', 'toolCatalog', 'toolReleaseDetails'],

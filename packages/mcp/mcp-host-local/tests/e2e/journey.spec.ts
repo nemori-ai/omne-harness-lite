@@ -48,6 +48,19 @@ type JourneyStep = Readonly<{
 const ALL: readonly TargetId[] = ['E-http', 'E-sse']
 const MODERN_EVERYTHING: readonly TargetId[] = ['E-http']
 
+// What the watcher does when a task asks for input: its row awaits a person.
+async function awaitingInput(records: Assembly['records']): Promise<void> {
+  const listed = await records.following(ALICE.tenant)
+  const kept = 'ok' in listed ? listed.ok[0] : undefined
+  if (kept === undefined) throw new Error('the task row is not followed')
+  const { round } = kept.row
+  await records.move(
+    kept.key,
+    { state: 'following', round },
+    { state: 'awaiting', round, arrival: { kind: 'input' } },
+  )
+}
+
 function ok<T, F>(outcome: Outcome<T, F>, what: string): T {
   if (!('ok' in outcome)) throw new Error(`${what} failed: ${JSON.stringify(outcome)}`)
   return outcome.ok
@@ -216,6 +229,7 @@ const JOURNEY: readonly JourneyStep[] = [
         status = report.status
         if (status === 'completed' || status === 'failed' || status === 'cancelled') break
         if (status === 'input_required' && !answered) {
+          await awaitingInput(context.assembly.records)
           ok(await invoker.provideTaskInput(ALICE, ref, jsonOf(task.answer)), 'provideTaskInput')
           answered = true
         }
