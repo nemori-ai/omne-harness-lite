@@ -25,6 +25,7 @@ import { createReleaseAvailability } from './availability.ts'
 import { releaseCatalogViewOf } from './catalog-view.ts'
 import { z } from 'zod'
 import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { entrySourceScope } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
@@ -223,6 +224,7 @@ const bindingsPlugin: Plugin.Object = {
         ? {}
         : {
             entrySources: {
+              scope: entrySourceScope,
               codec: createToolMessageResultCodec(config.sources.resultMaxBytes),
               policy: {
                 ...DEFAULT_ENTRY_SOURCE_POLICY,

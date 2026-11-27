@@ -244,7 +244,7 @@ async function availabilityOf(
       kind: 'answered',
       text: `${name} is not available now (${availability.reason}). Continue without it.`,
     })
-  const sourced = ports.sourced?.().owns(name) === true
+  const sourced = ports.sourced?.().owns(access, name) === true
   if (!callable(released, held, sourced, availability, input.tenant))
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)

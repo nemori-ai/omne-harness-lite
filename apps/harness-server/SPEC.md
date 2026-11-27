@@ -439,7 +439,7 @@
 - 一份 plugin 带着的定义（例如技能）放在那个类别的点上，项是这份 plugin 在持那一版的 `HeldItem` 加 `within`。`tenant-assets` 行的租户这一层列出时，在账本的那一页里按账本的次序并上点上这个租户范围里带 `within` 而账本没有的项，游标仍是名字。Skill 行的适配见到 `within`：正文用技能的正文契约在那个子目录上读出（这份 plugin 发布时已整份判过），读口只看得见那个子目录，本机目录的提示指到版本目录下的那个子目录。
 - 借给 plugin 的口与专门的写法由各自的拥有者放，plugin 的行不替它们写：
   - 口：`plugin-notification` 行放 `notifications`（发一条通知，进的是通知自己的发送入口，上下文的租户是持有这份 plugin 的租户，行事者是 owner）；`tool-web` 行放 `web`（Tool 的单机 Web 提供者，规则归 [Tool 的规格](../../packages/tool/SPEC.md#条目来源)）。每个口的条目带着方法的说明。
-  - 写法：`plugin-access` 行放 `access.protocols` 的（实现是入口导出的 `guestProtocol`）；`tool-entry-sources` 行放 `tool.entry-sources` 的（实现是 Tool 导出的 `guestEntrySource`）。
+  - 写法：`plugin-access` 行放 `access.protocols` 的（实现是入口导出的 `guestProtocol`）；`tool-entry-sources` 行放 `tool.entry-sources` 的（实现是 Tool 导出的 `guestEntrySource`）。`plugin-host` 行给类别 `plugin` 加上 `GUEST_TOOL_GATES` 那一道关口；发行配置的动作规则里有一条按来源（类别 `plugin`）的允许，治理行的类别关口里有同一道，缺省询问。工具条目来源按发问者所为之行事的租户读（`entrySourceScope`）。
   - `server-entry` 行把资产的 `scopeOfLayer` 作为「租户的范围」交给入口；入口照它答 `access/v1` 的 `scoped`。
 - 一个类别的点收数据成员时与收目录成员同一个做法：这一项是那个类别的 `HeldItem`，资产引用与版本是这份 plugin 在持的那一版，正文是成员的 `data`。
 - plugin 带来的工具条目照来源判：发行的动作规则有一条按来源写的允许（类别 `plugin`），类别关口表里 `plugin` 这一类有一道关口 `invoke`，缺省询问。去掉这两条，这样的工具全部答判不了。

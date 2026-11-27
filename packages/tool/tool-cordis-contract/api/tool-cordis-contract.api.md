@@ -136,6 +136,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type Scope } from '@omne-harness/dynamis';
 import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { Plugin } from '@deepseek-ai/cordis';
 import { type ToolEntrySource, type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ProgramActionAdmission, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolMediaStore, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
@@ -448,7 +449,7 @@ export declare class ToolEntrySourcesService<P, B extends ContentBlock> extends 
     private readonly inflight;
     private readonly idle;
     constructor(ctx: Context);
-    sources(): readonly ToolEntrySource<P, B>[];
+    sources(asker: Scope): readonly ToolEntrySource<P, B>[];
     hold(prefix: string): () => void;
     contribute(source: ToolEntrySource<P, B>): void;
 }

@@ -32,6 +32,7 @@ export type ServerPoint =
 
 export type GuestContext = Readonly<{
   key: string
+  plugin: string
   bind: (principal: unknown) => Bound
   within?: <T>(run: () => T) => T
 }>
@@ -127,6 +128,7 @@ async function madeBy(
   ports: ServerInstallPorts,
   pending: Pending,
   bind: GuestContext['bind'],
+  plugin: string,
 ): Promise<unknown> {
   const { member, file, form, rules } = pending
   const within = ports.within === undefined ? undefined : ports.within.bind(ports)
@@ -149,7 +151,7 @@ async function madeBy(
     return made.item
   }
   try {
-    return form(given, { key: member.key, bind, ...(within !== undefined && { within }) })
+    return form(given, { key: member.key, plugin, bind, ...(within !== undefined && { within }) })
   } catch (error) {
     throw new Error(`the point refused what ${member.export} made: ${reasonOf(error)}`)
   }
@@ -163,7 +165,7 @@ const uniqueOf = (lacks: readonly Absent[]): readonly Absent[] =>
 
 /** Puts what one plugin writes for the server, in the scope of the tenant that holds it: all of its members, or none. */
 export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Promise<Outcome> {
-  return async ({ members, needs, files }) => {
+  return async ({ name, members, needs, files }) => {
     const needed = ports.needs(needs)
     const places = members.map(member => `${member.point}\n${member.key}`)
     const steps = members.map((member, index): Step => {
@@ -193,7 +195,7 @@ export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Pr
       const made =
         step.kind === 'item'
           ? step
-          : await madeBy(ports, step.pending, needed.bind).then(item => ({ item }), reasonOf)
+          : await madeBy(ports, step.pending, needed.bind, name).then(item => ({ item }), reasonOf)
       if (typeof made === 'string') return failed(`${label}: ${made}`)
       entries.push({
         point: member.point,
