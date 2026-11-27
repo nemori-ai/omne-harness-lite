@@ -1,9 +1,17 @@
 import { heldPoint } from '@omne-harness/assets'
 import { type Context, Service } from '@deepseek-ai/cordis'
-import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harness/mcp-contract'
+import type {
+  ActionDiscovery,
+  ActionInvoker,
+  EndpointStatus,
+  TaskWatch,
+} from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
+  ContinuationRecords,
   CredentialUse,
+  TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 
@@ -84,6 +92,9 @@ export abstract class EndpointStatusService<P, S> extends Service implements End
   abstract list(
     ...args: Parameters<EndpointStatus<P, S>['list']>
   ): ReturnType<EndpointStatus<P, S>['list']>
+  abstract subscribe(
+    ...args: Parameters<EndpointStatus<P, S>['subscribe']>
+  ): ReturnType<EndpointStatus<P, S>['subscribe']>
 }
 
 export const mcpEndpointStatusKey = EndpointStatusService.provide
@@ -144,6 +155,74 @@ export abstract class CredentialUseService<P> extends Service implements Credent
 
 export const mcpCredentialUseKey = CredentialUseService.provide
 
+/**
+ * Where the catalogs of MCP are kept across a restart, as a service. The core takes it at each read and write;
+ * while it is away both answer unavailable.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class CatalogStoreService extends Service implements CatalogStore {
+  static readonly provide = 'mcpCatalogStore'
+  constructor(ctx: Context) {
+    super(ctx, CatalogStoreService.provide)
+  }
+  abstract readonly read: CatalogStore['read']
+  abstract readonly write: CatalogStore['write']
+}
+
+export const mcpCatalogStoreKey = CatalogStoreService.provide
+
+/**
+ * Where the bridge marks a checkpoint whose continuation it sends, as a service; the bridge takes it at each resume.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class ContinuationRecordsService extends Service implements ContinuationRecords {
+  static readonly provide = 'mcpContinuationRecords'
+  constructor(ctx: Context) {
+    super(ctx, ContinuationRecordsService.provide)
+  }
+  abstract readonly mark: ContinuationRecords['mark']
+}
+
+export const mcpContinuationRecordsKey = ContinuationRecordsService.provide
+
+/**
+ * The durable task table of MCP as a service; the core takes it at each use, absent means the store is unavailable.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class TaskRecordsService extends Service implements TaskRecords {
+  static readonly provide = 'mcpTaskRecords'
+  constructor(ctx: Context) {
+    super(ctx, TaskRecordsService.provide)
+  }
+  abstract readonly record: TaskRecords['record']
+  abstract readonly read: TaskRecords['read']
+  abstract readonly move: TaskRecords['move']
+  abstract readonly following: TaskRecords['following']
+}
+
+export const mcpTaskRecordsKey = TaskRecordsService.provide
+
+/**
+ * The task watcher of MCP as a service: the bridge gives it the principal of a waiting call, the assembly wakes calls it tells of.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class TaskWatchService<P> extends Service implements TaskWatch<P> {
+  static readonly provide = 'mcpTaskWatch'
+  constructor(ctx: Context) {
+    super(ctx, TaskWatchService.provide)
+  }
+  abstract readonly follow: TaskWatch<P>['follow']
+  abstract readonly drop: TaskWatch<P>['drop']
+  abstract readonly following: TaskWatch<P>['following']
+  abstract readonly subscribe: TaskWatch<P>['subscribe']
+}
+
+export const mcpTaskWatchKey = TaskWatchService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -152,6 +231,10 @@ declare module '@deepseek-ai/cordis' {
     mcpAdoptionView: AdoptionViewService<unknown, unknown>
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
+    mcpCatalogStore: CatalogStoreService
+    mcpContinuationRecords: ContinuationRecordsService
+    mcpTaskRecords: TaskRecordsService
+    mcpTaskWatch: TaskWatchService<unknown>
   }
 }
 

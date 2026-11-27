@@ -29,6 +29,8 @@ export type TenantBindingPorts = Readonly<{
   registration(): TenantDomainRegistration | undefined
   combination(): Promise<Combination>
   report(tenant: string, reason: string): void
+  /** The participants of the combination; the media participant when not given. */
+  participants?: readonly string[]
 }>
 
 /** The metadata of a tenant's media lives in its own domain. A binding that was had is not asked again. */
@@ -49,7 +51,7 @@ export function createTenantBindings(ports: TenantBindingPorts) {
       scope,
       transactionDomain,
       ...fixed,
-      participants: MEDIA_PARTICIPANTS,
+      participants: ports.participants ?? MEDIA_PARTICIPANTS,
     })
     if (registered.kind === 'registered') return { transactionDomain, ...fixed }
     ports.report(tenant, `the storage answered ${registered.kind}`)

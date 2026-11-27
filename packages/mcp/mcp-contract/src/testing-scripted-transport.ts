@@ -25,6 +25,7 @@ import { cancelsByNotification, type ConnectionView } from './connection.ts'
 import {
   NOT_SENT_FAILURE,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
   concludeAnswer,
   lineGoneAnswerOf,
   notSentFailureOf,
@@ -257,6 +258,7 @@ class ScriptedTransport implements McpTransport {
   readonly generation: Generation
   private readonly pending = new Map<string, Pending>()
   private readonly authorized = new Set<string>()
+  private rejectionReported = false
   private nextId = 0
   private peerRequestCount = 0
   private version: string | undefined
@@ -364,6 +366,7 @@ class ScriptedTransport implements McpTransport {
       request: how.request ?? requestClassOf(method, false),
       session: this.session !== undefined && method !== 'initialize',
       versions: this.versions,
+      presented: this.credential !== undefined,
     }
     const answered = Promise.withResolvers<Answered>()
     const departed = Promise.withResolvers<void>()
@@ -472,11 +475,26 @@ class ScriptedTransport implements McpTransport {
         return
       case 'authorization-required':
         return this.enterDiscovery(entry, headers)
+      case 'credential-rejected':
+        return this.rejectCredential(entry, headers)
       default: {
         const exhaustive: never = conclusion
         return exhaustive
       }
     }
+  }
+
+  // The peer refused the credential this request carried: reported once, and the connection is not usable.
+  private rejectCredential(entry: Pending, headers: Headers): void {
+    const credential = this.credential
+    if (credential !== undefined && this.authorized.has(entry.id) && !this.rejectionReported) {
+      this.rejectionReported = true
+      void Promise.resolve()
+        .then(() => credential.reportRejection())
+        .catch(() => undefined)
+    }
+    this.settle(entry, { wire: credentialRejectedAnswerOf(), headers })
+    this.unusable('credential-rejected')
   }
 
   private notify(notification: PeerNotificationScript, entry: Pending): void {
@@ -495,25 +513,19 @@ class ScriptedTransport implements McpTransport {
 
   private enterDiscovery(entry: Pending, headers: Headers): void {
     const { target } = this.material
-    const credential = this.credential
-    const reported =
-      credential !== undefined && this.authorized.has(entry.id)
-        ? Promise.resolve()
-            .then(() => credential.reportRejection())
-            .catch(() => undefined)
-        : Promise.resolve()
     const controller = new AbortController()
     const run = startAuthorizationDiscovery(
       target,
       authorizationChallengeOf(headers['www-authenticate']),
       async url => {
         const metadata = this.peer.wellKnown(url)
+        await this.options.pace?.({ kind: 'fetch', url })
         return metadata === undefined ? undefined : jsonOf(metadata)
       },
       controller.signal,
     )
     entry.phase = { kind: 'discovery', headers, soFar: run.soFar, abort: () => controller.abort() }
-    void Promise.all([reported, run.done]).then(([, discovery]) =>
+    void run.done.then(discovery =>
       this.settle(entry, { wire: authorizationRequiredAnswerOf(discovery), headers }),
     )
   }

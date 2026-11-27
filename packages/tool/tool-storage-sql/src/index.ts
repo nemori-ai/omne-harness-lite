@@ -11,3 +11,9 @@ export {
 } from './body-store.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'
 export { DEFINITION_BLOCK_BYTES } from './worker/schema.ts'
+export {
+  TOOL_WAIT_OPEN_FACT,
+  TOOL_WAIT_OPEN_GUARD,
+  toolWaitOpenGuardFacts,
+  type WaitOpen,
+} from './wait-open.ts'

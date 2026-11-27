@@ -94,6 +94,8 @@ export type WireContext = Readonly<{
   session: boolean
   versions: readonly string[]
   mode?: 'sse'
+  /** The request carried a credential: a 401 or an `insufficient_scope` 403 then rejects it. */
+  presented?: boolean
 }>
 
 export type WireClassification =
@@ -103,7 +105,13 @@ export type WireClassification =
 
 export type PeerMessage =
   | Readonly<{ kind: 'request'; id: JsonValue; method: string }>
-  | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
+  | Readonly<{
+      kind: 'notification'
+      method: string
+      params?: JsonValue
+      progressToken?: string
+      subscriptionId?: string
+    }>
 
 export const WIRE_LIMITS = {
   maxBytes: 16_777_216,
@@ -140,6 +148,15 @@ function progressTokenOf(params: JsonValue | undefined): string | undefined {
   return token?.kind === 'number' ? token.lexeme : undefined
 }
 
+const SUBSCRIPTION_ID_KEY = 'io.modelcontextprotocol/subscriptionId'
+
+function subscriptionIdOf(params: JsonValue | undefined): string | undefined {
+  const meta = isObject(params) ? member(params, '_meta') : undefined
+  const id = isObject(meta) ? member(meta, SUBSCRIPTION_ID_KEY) : undefined
+  if (id?.kind === 'string') return id.value
+  return id?.kind === 'number' ? id.lexeme : undefined
+}
+
 export function readPeerMessage(text: string): PeerMessage | undefined {
   const message = parse(text)
   const method = isObject(message) ? textOf(member(message, 'method')) : undefined
@@ -148,11 +165,13 @@ export function readPeerMessage(text: string): PeerMessage | undefined {
   if (id !== undefined) return { kind: 'request', id, method }
   const params = member(message, 'params')
   const progressToken = progressTokenOf(params)
+  const subscriptionId = subscriptionIdOf(params)
   return {
     kind: 'notification',
     method,
     ...(params === undefined ? {} : { params }),
     ...(progressToken === undefined ? {} : { progressToken }),
+    ...(subscriptionId === undefined ? {} : { subscriptionId }),
   }
 }
 

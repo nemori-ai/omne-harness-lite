@@ -52,7 +52,7 @@ it('the cordis entry gives the plugin factory and nothing else at run time', asy
   expect(Object.keys(cordis)).toEqual(['createMcpAccessPlugin'])
 })
 
-it('mounts mcp/v1 with its three operations and no observation', async () => {
+it('mounts mcp/v1 with its three operations and the observation of changes', async () => {
   const { registry, contribution } = await assemble()
   expect(registry.mounted).toHaveLength(1)
   expect(contribution.protocol).toBe(mcpProtocol)
@@ -61,7 +61,7 @@ it('mounts mcp/v1 with its three operations and no observation', async () => {
     'read-endpoint',
     'refresh-endpoint',
   ])
-  expect(Object.keys(contribution.observations)).toEqual([])
+  expect(Object.keys(contribution.observations)).toEqual(['observe-endpoints'])
 })
 
 it('hands the settings to the handler: the refresh runs with the connect bound given', async () => {

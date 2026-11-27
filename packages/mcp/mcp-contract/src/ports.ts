@@ -1,15 +1,18 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Access } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionRevision,
   ConnectionTarget,
+  CorrelationKey,
   CredentialBinding,
   EndpointHolding,
+  Generation,
+  TaskId,
 } from './brands.ts'
 import type { ActionCatalogRecord, ExpectedRevision } from './catalog.ts'
 import type { BlockedReason } from './outcomes.ts'
-import type { CatalogKey, EndpointRef, EndpointSettings } from './values.ts'
+import type { CatalogKey, EndpointRef, EndpointSettings, PeerAccount, Untrusted } from './values.ts'
 
 export type AdoptedEndpoint = Readonly<{
   ref: EndpointRef
@@ -57,6 +60,57 @@ export interface CredentialUse<P> {
 
 export interface McpClock {
   now(): Date
+}
+
+/** One checkpoint of a suspended call: the tenant it belongs to and the digest of its state. */
+export type ContinuationKey = Readonly<{ tenant: TenantId; checkpoint: string }>
+
+/** Marks that the continuation of a checkpoint was sent; a mark stays, so a second run of the same checkpoint sends nothing. */
+export interface ContinuationRecords {
+  mark(key: ContinuationKey): Promise<Outcome<'marked' | 'already', 'unavailable'>>
+}
+
+export type TaskRowKey = Readonly<{
+  tenant: TenantId
+  principalKey: string
+  holding: EndpointHolding
+  taskId: TaskId
+}>
+
+export type TaskArrival =
+  | Readonly<{ kind: 'terminal'; status: 'completed' | 'failed' | 'cancelled' }>
+  | Readonly<{ kind: 'input'; inputRequests?: Untrusted<JsonValue> }>
+  | Readonly<{ kind: 'expired' }>
+  | Readonly<{ kind: 'unknown' }>
+
+export type TaskRowState = 'following' | 'awaiting' | 'arrived' | 'dropped'
+
+export type TaskRow = Readonly<{
+  account: PeerAccount
+  issuedAt: Generation
+  call: CorrelationKey
+  state: TaskRowState
+  round: number
+  arrival?: TaskArrival
+  outputSchema?: JsonValue
+  pollIntervalMs?: number
+  expiresAt?: number
+}>
+
+export type TaskRowStep = Readonly<{ state: TaskRowState; round: number; arrival?: TaskArrival }>
+
+/** The durable task table: a row is there before a call waits on its task; a move happens only from the step it names. */
+export interface TaskRecords {
+  record(key: TaskRowKey, row: TaskRow): Promise<Outcome<'recorded', 'unavailable'>>
+  read(key: TaskRowKey): Promise<Outcome<TaskRow | 'absent' | 'ambiguous', 'unavailable'>>
+  move(
+    key: TaskRowKey,
+    from: Pick<TaskRowStep, 'state' | 'round'>,
+    to: TaskRowStep,
+  ): Promise<Outcome<'moved' | 'stale', 'unavailable'>>
+  following(
+    tenant: TenantId,
+  ): Promise<Outcome<readonly Readonly<{ key: TaskRowKey; row: TaskRow }>[], 'unavailable'>>
 }
 
 export interface CatalogStore {

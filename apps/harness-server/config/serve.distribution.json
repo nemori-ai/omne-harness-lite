@@ -402,7 +402,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/26"
+        "combinationVersion": "session-composite/27"
       }
     },
     {
@@ -414,7 +414,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/26"
+        "combinationVersion": "session-composite/27"
       }
     },
     {
@@ -884,7 +884,12 @@
       "id": "agent-host",
       "plugin": "agentHostRow",
       "config": {
-        "jointCommits": ["message", "context-transition", "custody", "processed"],
+        "jointCommits": [
+          "message",
+          "context-transition",
+          "custody",
+          "processed"
+        ],
         "coordination": "coordinated"
       }
     },
@@ -957,9 +962,19 @@
       "id": "slash-command",
       "plugin": "slashCommandRow",
       "config": {
-        "declaredSources": ["session-commands", "skill", "prompt", "goal-command"],
+        "declaredSources": [
+          "session-commands",
+          "skill",
+          "prompt",
+          "goal-command"
+        ],
         "timeoutMs": 5000
       }
+    },
+    {
+      "id": "mcp-storage-sql",
+      "plugin": "mcpStorageSqlRow",
+      "config": {}
     },
     {
       "id": "mcp",
@@ -969,6 +984,11 @@
           "maxListingPages": 16,
           "maxActions": 256,
           "instructionsByteLimit": 16384,
+          "maxLongRequests": 4,
+          "taskWatch": {
+            "pollFloorMs": 1000,
+            "backoffCapMs": 30000
+          },
           "clientInfo": {
             "name": "omne-harness",
             "version": "0.0.0"
@@ -977,7 +997,8 @@
         "bridge": {
           "acquireWaitMs": 3000,
           "resultMaxBytes": 65536,
-          "connectBoundMs": 10000
+          "connectBoundMs": 10000,
+          "maxInputRounds": 8
         }
       }
     },
@@ -1147,7 +1168,9 @@
       "id": "system-extensions",
       "plugin": "systemExtensionsRow",
       "config": {
-        "declared": ["goal-check"]
+        "declared": [
+          "goal-check"
+        ]
       }
     },
     {

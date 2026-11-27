@@ -12,7 +12,7 @@ export interface McpPrincipals {
 /** The three faces of MCP, read on each call; the scope of the adoption and the status is `null`. */
 export type McpFaces = Readonly<{
   adoption: Pick<AdoptionView<Principal, null>, 'endpoints'>
-  status: Pick<EndpointStatus<Principal, null>, 'inspect'>
+  status: Pick<EndpointStatus<Principal, null>, 'inspect' | 'subscribe'>
   discovery: Pick<ActionDiscovery<Principal>, 'current' | 'refresh'>
 }>
 

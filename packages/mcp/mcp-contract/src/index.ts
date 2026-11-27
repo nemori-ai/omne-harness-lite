@@ -128,6 +128,9 @@ export {
   PROBE_REQUESTS,
   RESENT_REQUESTS,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
+  listenEndOf,
+  listenEventOf,
   concludeAnswer,
   concludeProbe,
   fallbackGetConclusionOf,
@@ -218,6 +221,8 @@ export type {
   Connections,
   ContinueRequest,
   DegradedReason,
+  EndpointChangeListener,
+  EndpointChanges,
   EndpointInspection,
   EndpointStatus,
   EndpointStatusView,
@@ -231,6 +236,9 @@ export type {
   ReleaseReport,
   TaskControl,
   TaskRef,
+  TaskWatch,
+  TaskWatchConfig,
+  FollowedTask,
 } from './services.ts'
-export type { McpClock } from './ports.ts'
+export type { McpClock, TaskArrival, TaskRowState } from './ports.ts'
 export type { PeerNotification } from './transport.ts'

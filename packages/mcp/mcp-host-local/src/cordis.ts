@@ -1,25 +1,32 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createInMemoryCatalogStore, createMcp } from '@omne-harness/mcp'
+import { createMcp } from '@omne-harness/mcp'
 import type {
   ActionDiscovery,
   ActionInvoker,
   EndpointStatus,
   McpConfig,
   McpPorts,
+  TaskWatch,
+  TaskWatchConfig,
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
   CredentialFailure,
   CredentialUse,
   HttpCredentialHandle,
   HttpPurpose,
+  TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
   ActionDiscoveryService,
   ActionInvokerService,
   EndpointStatusService,
+  TaskWatchService,
   mcpAdoptionViewKey,
+  mcpCatalogStoreKey,
+  mcpTaskRecordsKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -40,18 +47,25 @@ export type McpPluginParts = Readonly<
 >
 
 export type McpPluginConfig = Readonly<
-  Omit<McpConfig<unknown>, 'principalKey'> & Omit<LocalTransportOptions, 'fetch'>
+  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch'> &
+    Omit<LocalTransportOptions, 'fetch'> & { taskWatch: TaskWatchConfig }
 >
 
 type ClientInfo = McpPluginConfig['clientInfo']
-type Bounds = Omit<McpPluginConfig, 'clientInfo'>
+type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
 const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
   instructionsByteLimit: true,
+  maxLongRequests: true,
   clientInfo: true,
+  taskWatch: true,
+}
+const TASK_WATCH_FIELDS: Readonly<Record<keyof TaskWatchConfig, true>> = {
+  pollFloorMs: true,
+  backoffCapMs: true,
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
 
@@ -76,11 +90,12 @@ function fieldsIssue(
 }
 
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
-  const { maxListingPages, maxActions, instructionsByteLimit } = record
+  const { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
   if (typeof maxActions !== 'number') return 'maxActions'
   if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
-  return { maxListingPages, maxActions, instructionsByteLimit }
+  if (typeof maxLongRequests !== 'number') return 'maxLongRequests'
+  return { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests }
 }
 
 function clientInfoOf(value: unknown): ClientInfo | string {
@@ -91,6 +106,16 @@ function clientInfoOf(value: unknown): ClientInfo | string {
   if (typeof name !== 'string') return 'clientInfo.name must be a text'
   if (typeof version !== 'string') return 'clientInfo.version must be a text'
   return { name, version }
+}
+
+function taskWatchOf(value: unknown): TaskWatchConfig | string {
+  if (!isPlainRecord(value)) return 'taskWatch must be an object'
+  const fields = fieldsIssue(value, TASK_WATCH_FIELDS, 'taskWatch')
+  if (fields !== undefined) return fields
+  const { pollFloorMs, backoffCapMs } = value
+  if (typeof pollFloorMs !== 'number') return 'taskWatch.pollFloorMs must be a number'
+  if (typeof backoffCapMs !== 'number') return 'taskWatch.backoffCapMs must be a number'
+  return { pollFloorMs, backoffCapMs }
 }
 
 function issue(message: string): ConfigResult {
@@ -109,7 +134,9 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
       if (typeof bounds === 'string') return issue(`${bounds} must be a number`)
       const clientInfo = clientInfoOf(value['clientInfo'])
       if (typeof clientInfo === 'string') return issue(clientInfo)
-      return { value: { ...bounds, clientInfo } }
+      const taskWatch = taskWatchOf(value['taskWatch'])
+      if (typeof taskWatch === 'string') return issue(taskWatch)
+      return { value: { ...bounds, clientInfo, taskWatch } }
     },
   },
 }
@@ -136,6 +163,26 @@ function eligibilityOf(ctx: Context): UseEligibility<unknown> {
       if (port === undefined) return { kind: 'unknown' }
       return port.check(...args)
     },
+  }
+}
+
+// The catalog store is taken at each read and write; while it is away both answer unavailable.
+function storeOf(ctx: Context): CatalogStore {
+  return {
+    read: key => ctx.get(mcpCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
+function tasksOf(ctx: Context): TaskRecords {
+  const unavailable = () => Promise.resolve(fail('unavailable' as const))
+  return {
+    record: (key, row) => ctx.get(mcpTaskRecordsKey)?.record(key, row) ?? unavailable(),
+    read: key => ctx.get(mcpTaskRecordsKey)?.read(key) ?? unavailable(),
+    move: (key, from, to) => ctx.get(mcpTaskRecordsKey)?.move(key, from, to) ?? unavailable(),
+    following: tenant => ctx.get(mcpTaskRecordsKey)?.following(tenant) ?? unavailable(),
   }
 }
 
@@ -202,6 +249,20 @@ class HostActionInvoker extends ActionInvokerService<unknown> {
   }
 }
 
+class HostTaskWatch extends TaskWatchService<unknown> {
+  readonly follow: TaskWatch<unknown>['follow']
+  readonly drop: TaskWatch<unknown>['drop']
+  readonly following: TaskWatch<unknown>['following']
+  readonly subscribe: TaskWatch<unknown>['subscribe']
+  constructor(ctx: Context, watch: TaskWatch<unknown>) {
+    super(ctx)
+    this.follow = (...args) => watch.follow(...args)
+    this.drop = (...args) => watch.drop(...args)
+    this.following = (...args) => watch.following(...args)
+    this.subscribe = (...args) => watch.subscribe(...args)
+  }
+}
+
 class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   private readonly status: EndpointStatus<unknown, unknown>
   constructor(ctx: Context, status: EndpointStatus<unknown, unknown>) {
@@ -214,6 +275,9 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   list(...args: Parameters<EndpointStatus<unknown, unknown>['list']>) {
     return this.status.list(...args)
   }
+  subscribe(...args: Parameters<EndpointStatus<unknown, unknown>['subscribe']>) {
+    return this.status.subscribe(...args)
+  }
 }
 
 export function createMcpPlugin(parts: McpPluginParts) {
@@ -225,9 +289,11 @@ export function createMcpPlugin(parts: McpPluginParts) {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
-        store: createInMemoryCatalogStore(),
+        store: storeOf(ctx),
+        tasks: tasksOf(ctx),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
+          maxLongRequests: config.maxLongRequests,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),
         }),
         checkOutput: parts.checkOutput,
@@ -238,6 +304,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxListingPages: config.maxListingPages,
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
+        taskWatch: config.taskWatch,
       })
       ctx.effect(
         () => async () => {
@@ -248,6 +315,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostActionDiscovery(ctx, services.discovery)
       new HostActionInvoker(ctx, services.invoker)
       new HostEndpointStatus(ctx, services.status)
+      if (services.tasks !== undefined) new HostTaskWatch(ctx, services.tasks)
     },
   })
 }

@@ -8,7 +8,6 @@ import {
   type UnusableCause,
 } from '@omne-harness/mcp-contract'
 import type {
-  HttpCredentialHandle,
   McpTransport,
   McpTransportFactory,
   TransportFailure,
@@ -18,6 +17,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import {
   actionNameOf,
   createScriptedTransportFactory,
+  isNotApplicable,
   mcpTransportConformance,
   runConformanceCase,
   type ConformanceCase,
@@ -78,13 +78,19 @@ function fixtureOf(wrap: Wrap = factory => factory): TransportFixture {
   }
 }
 
+// The scripted transport keeps no long request open; the clause that measures them has nothing to measure on it.
+const verdictOf = (conformance: ConformanceCase<TransportFixture>) =>
+  conformance.clause === 'T10'
+    ? { kind: 'not-applicable', handle: 'long requests' }
+    : { kind: 'passed' }
+
 function register(
   suite: readonly ConformanceCase<TransportFixture>[],
   fixture: () => TransportFixture,
 ) {
   for (const conformance of suite)
     it(`${conformance.clause} ${conformance.name}`, async () => {
-      expect(await runConformanceCase(conformance, fixture())).toEqual({ kind: 'passed' })
+      expect(await runConformanceCase(conformance, fixture())).toEqual(verdictOf(conformance))
     })
 }
 
@@ -94,6 +100,7 @@ async function failing(fixture: () => TransportFixture): Promise<readonly string
     try {
       await conformance.run(fixture())
     } catch (error) {
+      if (isNotApplicable(error)) continue
       if (!(error instanceof AssertionError)) throw error
       names.push(conformance.name)
     }
@@ -121,10 +128,10 @@ describe('the suite refuses a fixture that lists a legacy version', () => {
 })
 
 describe('the suite covers the transport clauses and the decided items', () => {
-  it('names T1 to T6, the table T8, the port failures T9, and items 7 to 9, 11, 12 and 14', () => {
+  it('names T1 to T6, the table T8, the port failures T9, the long requests T10, and items 7 to 9, 11, 12 and 14', () => {
     const cases = mcpTransportConformance()
     const clauses = new Set(cases.flatMap(conformance => conformance.clause.split(', ')))
-    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T8', 'T9'])
+    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T8', 'T9', 'T10'])
       expect(clauses.has(clause), clause).toBe(true)
     const names = cases.map(conformance => conformance.name).join('\n')
     for (const item of [7, 8, 9, 11, 12, 14]) expect(names).toContain(`(item ${item})`)
@@ -283,9 +290,12 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that drops the mark of a row that ends the transport (T1, T8)', async () => {
     expect(await failing(() => fixtureOf(droppingMarks))).toEqual([
+      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (credential-rejected), unusable, reportRejection once',
       '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
       'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
       'Streamable HTTP: a call stopped after the session ended (S07), before close(): abandoned, carrying session-ended',
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
+      'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     ])
   })
 
@@ -309,15 +319,12 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that does not report a refused authorization to the handle', async () => {
     expect(await failing(() => fixtureOf(forgettingRejections))).toEqual([
-      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once',
-      '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
-      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
-      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
-      '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
-      '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
+      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (credential-rejected), unusable, reportRejection once',
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
       'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
       'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
       'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
+      'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     ])
   })
 })
@@ -449,45 +456,38 @@ describe('the scripted transport factory', () => {
 })
 
 describe('the scripted transport stops a request by its phase on every stop (T5, stopAnswerOf)', () => {
-  const holdingDiscovery = (): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> => {
+  // A request without a credential refused with 401 stays in the discovery while its metadata fetch is held.
+  const discovering = async () => {
     let reach = (): void => undefined
     const reached = new Promise<void>(resolve => {
       reach = resolve
     })
-    return {
-      purpose: 'http-authorization',
-      async authorize(headers) {
-        headers.set('authorization', 'Bearer test-token')
-        return { ok: true }
-      },
-      reportRejection() {
-        reach()
-        return new Promise<void>(() => undefined)
-      },
-      async release() {},
-      reached,
-    }
-  }
-
-  const discovering = async () => {
-    const credential = holdingDiscovery()
-    const factory = createScriptedTransportFactory({
-      calls: {
-        echo: {
-          kind: 'http',
-          status: 401,
-          headers: { 'www-authenticate': 'Bearer scope="files"' },
+    const factory = createScriptedTransportFactory(
+      {
+        calls: {
+          echo: {
+            kind: 'http',
+            status: 401,
+            headers: { 'www-authenticate': 'Bearer scope="files"' },
+          },
         },
       },
-    })
-    const opened = await factory.open(materialOf({ credential }), new AbortController().signal)
+      {
+        pace: received => {
+          if (received.kind !== 'fetch') return
+          reach()
+          return new Promise<void>(() => undefined)
+        },
+      },
+    )
+    const opened = await factory.open(materialOf({}), new AbortController().signal)
     if ('failure' in opened) throw new Error('did not open')
     const transport = opened.ok
     const call = transport.call(
       { action: actionNameOf('echo'), args: json({}) },
       new AbortController().signal,
     )
-    await credential.reached
+    await reached
     const [request] = factory.received()
     if (request?.kind !== 'request') throw new Error('the call did not reach the peer')
     return { factory, transport, call, id: request.id }

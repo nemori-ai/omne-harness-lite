@@ -15,6 +15,7 @@ import type { ActionDefinition } from './values.ts'
 export type UnavailableReason =
   | 'connection-unavailable'
   | 'authorization-required'
+  | 'credential-rejected'
   | 'credential-unavailable'
 
 export type Availability =

@@ -9,6 +9,7 @@ import {
 
 const OPTIONS: LocalTransportOptions = {
   clientInfo: { name: 'host', version: '1' },
+  maxLongRequests: 2,
 }
 
 const target = (() => {

@@ -26,6 +26,7 @@ type Endpoint = Readonly<{
   name: string
   connection: Readonly<{ state: string; reason: string | null }>
   credential: string
+  credentialState?: string
   use: Readonly<{ kind: string; reason?: string }>
   catalog: Readonly<{ kind: string; actions?: number; reason?: string | null }>
 }>
@@ -49,6 +50,12 @@ function table(rows: readonly (readonly string[])[]): string {
   return `${lines.join('\n')}\n`
 }
 
+// The state of the credential when the server tells it (revision 2), else what is set.
+const credentialOf = ({ name, credential, credentialState }: Endpoint) =>
+  credentialState === 'rejected'
+    ? `rejected (set the right one: omne setting set mcp:${name} credential)`
+    : (credentialState ?? credential)
+
 const connectionOf = ({ state, reason }: Endpoint['connection']) =>
   reason === null ? state : `${state} (${reason})`
 const useOf = ({ kind, reason }: Endpoint['use']) =>
@@ -65,7 +72,7 @@ const RENDER = {
       ...(body as { items: Endpoint[] }).items.map(item => [
         item.name,
         connectionOf(item.connection),
-        item.credential,
+        item.credentialState ?? item.credential,
         useOf(item.use),
         item.catalog.kind === 'acquired' ? String(item.catalog.actions) : '-',
       ]),
@@ -75,7 +82,7 @@ const RENDER = {
     const lines = [
       `Name: ${endpoint.name}`,
       `Connection: ${connectionOf(endpoint.connection)}`,
-      `Credential: ${endpoint.credential}`,
+      `Credential: ${credentialOf(endpoint)}`,
       `Use: ${useOf(endpoint.use)}`,
       `Catalog: ${catalogOf(endpoint.catalog)}`,
       ...(actions === null

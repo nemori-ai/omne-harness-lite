@@ -39,13 +39,15 @@ const CONFIG_ITEM = {
 
 const CREDENTIAL_CAUSE = {
   missing: 'is not set',
-  rejected: 'was rejected',
+  rejected: 'was rejected by the endpoint; the person needs to set the right one',
   unknown: 'could not be read',
 } as const
 
 const UNAVAILABLE: Readonly<Record<UnavailableReason, string>> = {
   'connection-unavailable': 'the endpoint could not be reached',
   'authorization-required': 'the endpoint requires an authorization this version cannot give',
+  'credential-rejected':
+    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one',
   'credential-unavailable': 'the credential of the endpoint is not usable',
 }
 
@@ -274,7 +276,8 @@ function faultText(fault: Extract<CallOutcome, { kind: 'protocolError' }>['fault
   }
 }
 
-function unknown(tool: string, action: string, what: string): string {
+/** The call was sent and what became of it is not known; it is not sent again. */
+export function unknownText(tool: string, action: string, what: string): string {
   return `${tool} ${action} was sent, and ${what}. ${NOT_KNOWN}`
 }
 
@@ -307,12 +310,16 @@ export function settle(
     case 'protocolError':
       return {
         effect: 'unknown',
-        message: unknown(tool, action, `the endpoint answered with ${faultText(outcome.fault)}`),
+        message: unknownText(
+          tool,
+          action,
+          `the endpoint answered with ${faultText(outcome.fault)}`,
+        ),
       }
     case 'unknown':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           outcome.cause === 'stream-broken'
@@ -323,7 +330,7 @@ export function settle(
     case 'inputRequired':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           'the endpoint asked a person for more input, which this version does not support',
@@ -332,7 +339,7 @@ export function settle(
     case 'task':
       return {
         effect: 'unknown',
-        message: unknown(
+        message: unknownText(
           tool,
           action,
           'the endpoint turned it into a long-running task, which this version does not follow; the task was asked to cancel',

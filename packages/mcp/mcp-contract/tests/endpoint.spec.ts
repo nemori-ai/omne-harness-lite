@@ -136,6 +136,17 @@ describe('mcpEndpointBodyContract', () => {
       expect(contract.deriveDeclarations(readBody(body)).entries).toEqual(entries)
     })
 
+  it('the version of the settings follows their content, not the version of the asset: a new body keeps the set values (#1582, C105)', () => {
+    const settings = (body: object, definition: string) =>
+      contract.settings?.(readBody(body), { definition } as never)
+    const first = settings({ ...http, auth: 'static' }, 'sha256:1111')
+    const next = settings({ ...http, auth: 'oauth' }, 'sha256:2222')
+    expect(next?.version).toBe(first?.version)
+    expect(first?.version).toMatch(/^sha256:/u)
+    const bare = settings({ ...http, auth: 'none' }, 'sha256:1111')
+    expect(bare?.version).not.toBe(first?.version)
+  })
+
   it('throws instead of declaring settings for a rejected body', () => {
     expect(() => contract.deriveDeclarations(readBody({ ...http, auth: 'bearer' }))).toThrow(
       /auth-unknown/,
@@ -203,12 +214,10 @@ describe('mcpEndpointBodyContract', () => {
     ])
   })
 
-  it('names the definition after the endpoint and the version after the pinned definition', () => {
-    expect(settingsOf(http, 'sha256-abc')).toMatchObject({
-      definitionId: 'search',
-      version: 'sha256-abc',
-    })
-    expect(settingsOf(http).version).toBe('unpinned')
+  it('names the definition after the endpoint and the version after its own content, pinned or not', () => {
+    expect(settingsOf(http, 'sha256-abc')).toMatchObject({ definitionId: 'search' })
+    expect(settingsOf(http, 'sha256-abc').version).toBe(settingsOf(http).version)
+    expect(settingsOf(http).version).toMatch(/^sha256:/u)
   })
 
   it('gives the same body the same definition, byte for byte', () => {

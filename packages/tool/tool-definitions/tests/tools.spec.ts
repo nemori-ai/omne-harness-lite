@@ -17,6 +17,7 @@ import {
   decodeToolInvocationRef,
   defaultResultPolicy,
   deriveDefinition,
+  commandSignature,
   programSignature,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
@@ -206,6 +207,15 @@ describe('Tools complete author', () => {
       tools: [{ name: 'Files', resident: false, directCall: false }],
       next: 'opaque-next',
     })
+    // C103: each command carries its parameter signature, derived as the usage line of inspect is.
+    if (definition.kind !== 'commands') throw new Error('Files has commands')
+    const commands = JSON.parse(textOf(reply)).tools[0].commands
+    expect(commands.map((command: { signature: string }) => command.signature)).toEqual(
+      definition.commands.map(command => commandSignature(command.parameters)),
+    )
+    expect(commands.find((command: { name: string }) => command.name === 'read').signature).toMatch(
+      /^\{path/u,
+    )
   })
 
   it('search with programmable: true asks only for what a program can call and shows the functions of each tool', async () => {
