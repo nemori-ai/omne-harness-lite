@@ -26,7 +26,7 @@ description: >
 | 看这台机器的环境记录、标识、有哪些套件、有没有基线 | `pnpm --silent run perf -- env [套件]` | 几秒，不跑套件 |
 | 跑一个或几个套件的短档 | `pnpm --silent run perf -- run <套件…> --tier short` | 一个套件 1 到 4 分钟 |
 | 跑全部套件的短档 | `pnpm --silent run perf -- run --tier short` | 约 20 分钟 |
-| 跑全档（多轮是 200 轮） | `pnpm --silent run perf -- run <套件> --tier full` | 10 到 30 分钟 |
+| 跑全档（多轮是 200 轮） | `pnpm --silent run perf -- run <套件> --tier full` | 几分钟到半小时；多轮的 200 轮约半小时 |
 | 比两个提交 | `pnpm --silent run perf -- compare <基准> <候选> <套件> --tier short` | 备检出与构建约 10 分钟一个提交，再加跑的时间 |
 | 只比计数、不做计时的轮次 | 上一条加 `--counts-only` | 少掉十轮以上的重复 |
 | 比两份已有的结果 | `pnpm --silent run perf -- compare <结果目录> <结果目录>` | 立刻 |
