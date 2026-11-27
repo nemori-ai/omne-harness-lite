@@ -27,13 +27,16 @@ import {
   scriptedAnswer,
   withModelRoute,
 } from './model-gateway/script.ts'
+import { LAB_EXAMINER_ROW, labExaminerRow } from './examiner.ts'
 import { LAB_PROGRAMS_ROW, labProgramsRow } from './programs.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
   '       harness-server-lab serve [serve options] [--skip <duration>] [--speed <factor>] [--model-script <file>]\n' +
+  '           [--examiner-model <model>]\n' +
   '--model-script: the model is a script read from the file at each request, not a provider;\n' +
   '    the requests its `provider` rules fit go to the provider as they came.\n' +
+  '--examiner-model: every examination of a goal runs under this model, whatever the tenant set.\n' +
   'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor>'
 
 const LAB_OPTIONS = {
@@ -41,6 +44,7 @@ const LAB_OPTIONS = {
   skip: { type: 'string' },
   speed: { type: 'string' },
   'model-script': { type: 'string' },
+  'examiner-model': { type: 'string' },
 } as const
 
 const PROTOCOL = 'simulated-clock'
@@ -98,11 +102,12 @@ async function labModel(script: string | undefined): Promise<LabModel> {
 }
 
 /** The release distribution and, after its rows, the rows only the lab assembly has. */
-function withLabRows(inputs: ServeInputs): ServeInputs {
+function withLabRows(inputs: ServeInputs, examiner: string | undefined): ServeInputs {
   const distribution = inputs.distribution as { rows?: readonly unknown[] }
+  const lab = examiner === undefined ? [LAB_PROGRAMS_ROW] : [LAB_PROGRAMS_ROW, LAB_EXAMINER_ROW]
   return {
     ...inputs,
-    distribution: { ...distribution, rows: [...(distribution.rows ?? []), LAB_PROGRAMS_ROW] },
+    distribution: { ...distribution, rows: [...(distribution.rows ?? []), ...lab] },
   }
 }
 
@@ -127,14 +132,19 @@ async function serve(argv: readonly string[]): Promise<number> {
     recordWriter({ kind: 'lab-time', ...reply })
   })
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
-  const { 'model-script': script, ...given } = values
+  const { 'model-script': script, 'examiner-model': examiner, ...given } = values
   const model = await labModel(script)
   try {
     const inputs = model.route(await serveInputs({ ...given, 'state-root': dir }))
-    return await serveUntilStopped(withLabRows(inputs), values['stop-on-stdin-close'] === true, {
+    const stop = values['stop-on-stdin-close'] === true
+    const plugins = { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow }
+    return await serveUntilStopped(withLabRows(inputs, examiner), stop, {
       time: { source: clock.source, protocol: PROTOCOL },
       instance: 'lab',
-      extraPlugins: { [LAB_PROGRAMS_ROW.plugin]: labProgramsRow },
+      extraPlugins:
+        examiner === undefined
+          ? plugins
+          : { ...plugins, [LAB_EXAMINER_ROW.plugin]: labExaminerRow(examiner) },
     })
   } finally {
     await model.close()

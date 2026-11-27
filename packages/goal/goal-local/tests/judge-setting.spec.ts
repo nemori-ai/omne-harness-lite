@@ -80,8 +80,11 @@ describe('the settings of examinations', () => {
     expect(items.map(item => [item.id, item.valueSchema, item.default])).toEqual([
       [
         goalJudgeItems.examiner,
-        { type: 'string', enum: ['examiner@openai/gpt-6.1-sol'] },
-        { kind: 'value', value: 'examiner@openai/gpt-6.1-sol' },
+        {
+          type: 'string',
+          enum: ['examiner@anthropic/claude-haiku-5.5', 'examiner@openai/gpt-6.1-sol'],
+        },
+        { kind: 'value', value: 'examiner@anthropic/claude-haiku-5.5' },
       ],
       [
         goalJudgeItems.maxExaminations,
@@ -106,13 +109,14 @@ describe('the settings of examinations', () => {
       for (const label of labels) expect(label.description).not.toBe('')
     }
     expect(EXAMINERS.map(({ definition, model }) => [definition, model])).toEqual([
+      ['examiner', 'anthropic/claude-haiku-5.5'],
       ['examiner', 'openai/gpt-6.1-sol'],
     ])
   })
 
   it('read as the defaults when the tenant set none: the examiner of the release, three examinations, ten minutes, a job may run a command again', () => {
     expect(examinationSettingsOf(read([]))).toEqual({
-      examiner: { definition: 'examiner', model: 'openai/gpt-6.1-sol' },
+      examiner: { definition: 'examiner', model: 'anthropic/claude-haiku-5.5' },
       maxExaminations: 3,
       minutes: 10,
       job: 'rerun',
