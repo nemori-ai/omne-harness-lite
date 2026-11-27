@@ -191,6 +191,7 @@
 - `RunStartJudgment` · `judgments.d.ts`
 - `RunState` · `values.d.ts`
 - `RunTerminal` · `values.d.ts`
+- `SESSION_ENTRY_KINDS` · `entries.d.ts`
 - `SavedModelSelection` · `control-values.d.ts`
 - `ScopeReleaseDisposition` · `values.d.ts`
 - `ScopeReleasePort` · `ports.d.ts`
@@ -1840,6 +1841,7 @@ export type DecodedEntry = Readonly<{
 }> | Readonly<{
     malformed: string;
 }>;
+export declare const SESSION_ENTRY_KINDS: readonly SessionEntryKind[];
 export type StoredEntry = Pick<HistoryEntry, 'kind' | 'payload'> & Partial<Pick<HistoryEntry, 'schema' | 'origin'>>;
 export declare function decodeEntry(entry: StoredEntry, references?: EntryReferences): DecodedEntry;
 export declare function decodeEntries(rows: readonly StoredEntry[], created: InitialAdoption | null): DecodedEntry[];
@@ -2696,7 +2698,7 @@ export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, red
 export { batchCallKeys, reduce } from './reduce.ts';
 export { consumptionIdOf } from './decide-results.ts';
 export { decideCompactionCommit, projectCompactionCommit, type CompactionCommitState, } from './compaction-commit.ts';
-export { expandHistoryEntries } from './entries.ts';
+export { expandHistoryEntries, SESSION_ENTRY_KINDS } from './entries.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';

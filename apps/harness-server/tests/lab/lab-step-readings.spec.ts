@@ -129,6 +129,7 @@ describe('the lab assembly says what the storage counted at each model request',
 
       const steps = linesOf(serving.out(), 'lab-step')
       expect(steps.map(step => step['request'])).toEqual([1, 2])
+      expect(steps.map(step => step['step'])).toEqual([0, 1])
       for (const step of steps) {
         expect(step['requestBytes']).toBeGreaterThan(0)
         expect(step['requestDigest']).toMatch(/^sha256:[0-9a-f]{64}$/u)

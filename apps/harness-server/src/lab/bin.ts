@@ -22,9 +22,11 @@ import { createLabClock, readSavedTime, saveTime } from './clock.ts'
 import { answer, parseDuration, readingOf } from './control.ts'
 import { startModelGateway, type ModelGateway } from './model-gateway/gateway.ts'
 import {
+  fittingStep,
   parseModelScript,
   providerUrlOf,
   scriptedAnswer,
+  withCompactionTrigger,
   withModelRoute,
 } from './model-gateway/script.ts'
 import { LAB_EXAMINER_ROW, labExaminerRow } from './examiner.ts'
@@ -36,16 +38,18 @@ import {
   stepLine,
   storageLine,
   type ReadingsSource,
+  entryKindsLine,
 } from './readings.ts'
 
 const USAGE =
   'usage: harness-server-lab setup [setup options]\n' +
   '       harness-server-lab serve [serve options] [--skip <duration>] [--speed <factor>] [--model-script <file>]\n' +
-  '           [--examiner-model <model>]\n' +
+  '           [--examiner-model <model>] [--compaction-trigger <percent>]\n' +
   '--model-script: the model is a script read from the file at each request, not a provider;\n' +
   '    the requests its `provider` rules fit go to the provider as they came.\n' +
   '--examiner-model: every examination of a goal runs under this model, whatever the tenant set.\n' +
-  'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor> | readings'
+  '--compaction-trigger: a compaction is due at this share of the window of the model, 1 to 100.\n' +
+  'Control lines on standard input: read | skip <duration> | set <UTC instant> | speed <factor> | readings | entry-kinds'
 
 const LAB_OPTIONS = {
   ...SERVE_OPTIONS,
@@ -53,6 +57,7 @@ const LAB_OPTIONS = {
   speed: { type: 'string' },
   'model-script': { type: 'string' },
   'examiner-model': { type: 'string' },
+  'compaction-trigger': { type: 'string' },
 } as const
 
 const PROTOCOL = 'simulated-clock'
@@ -86,8 +91,9 @@ async function scriptedModel(file: string, counted: ReadingsSource): Promise<Mod
   }
   const gateway = await startModelGateway(
     request => {
-      recordWriter(stepLine(request, counted))
-      return scriptedAnswer(read(), request)
+      const script = read()
+      recordWriter(stepLine(request, counted, fittingStep(script, request)))
+      return scriptedAnswer(script, request)
     },
     request => providerUrlOf(read(), request),
   )
@@ -109,6 +115,17 @@ async function labModel(script: string | undefined, counted: ReadingsSource): Pr
       return { ...inputs, operator: withModelRoute(layer, gateway.url) }
     },
     close: () => gateway.close(),
+  }
+}
+
+function withTrigger(inputs: ServeInputs, percent: string | undefined): ServeInputs {
+  if (percent === undefined) return inputs
+  const layer = inputs.operator as Parameters<typeof withCompactionTrigger>[0] | undefined
+  if (layer === undefined) throw new UsageError('--compaction-trigger needs an operator layer')
+  try {
+    return { ...inputs, operator: withCompactionTrigger(layer, percent) }
+  } catch (error) {
+    throw new UsageError(`--compaction-trigger: ${(error as Error).message}`)
   }
 }
 
@@ -141,15 +158,24 @@ async function serve(argv: readonly string[]): Promise<number> {
   control.on('line', line => {
     if (line.trim() === '') return
     if (line.trim() === 'readings') return void recordWriter(storageLine(counted))
+    if (line.trim() === 'entry-kinds') return void recordWriter(entryKindsLine())
     const reply = answer(clock, line)
     persist()
     recordWriter({ kind: 'lab-time', ...reply })
   })
   recordWriter({ kind: 'lab-time', ok: true, command: 'start', ...readingOf(clock), fired: 0 })
-  const { 'model-script': script, 'examiner-model': examiner, ...given } = values
+  const {
+    'model-script': script,
+    'examiner-model': examiner,
+    'compaction-trigger': trigger,
+    ...given
+  } = values
   const model = await labModel(script, counted)
   try {
-    const inputs = model.route(await serveInputs({ ...given, 'state-root': dir }))
+    const inputs = withTrigger(
+      model.route(await serveInputs({ ...given, 'state-root': dir })),
+      trigger,
+    )
     const stop = values['stop-on-stdin-close'] === true
     const plugins = {
       [LAB_PROGRAMS_ROW.plugin]: labProgramsRow,

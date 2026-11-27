@@ -1,3 +1,4 @@
+import { SESSION_ENTRY_KINDS } from '@omne-harness/session-contract'
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { StorageReadings } from '@omne-harness/sql-contract'
@@ -45,6 +46,7 @@ export type StepLine = Readonly<{
   path: string
   requestBytes: number
   requestDigest: string
+  step: number | null
   storage: StorageReadings | null
 }>
 
@@ -52,6 +54,7 @@ export type StepLine = Readonly<{
 export function stepLine(
   request: Readonly<{ index: number; rawBody: string; path: string }>,
   source: ReadingsSource,
+  step: number | null = null,
 ): StepLine {
   return {
     kind: 'lab-step',
@@ -59,6 +62,7 @@ export function stepLine(
     path: request.path,
     requestBytes: Buffer.byteLength(request.rawBody),
     requestDigest: `sha256:${createHash('sha256').update(request.rawBody).digest('hex')}`,
+    step,
     storage: source.read?.() ?? null,
   }
 }
@@ -71,3 +75,10 @@ export const storageLine = (source: ReadingsSource): StorageLine =>
   source.read === null
     ? { kind: 'lab-storage', ok: false, error: 'the storage is not up' }
     : { kind: 'lab-storage', ok: true, storage: source.read() }
+
+export type EntryKindsLine = Readonly<{ kind: 'lab-entry-kinds'; kinds: readonly string[] }>
+
+export const entryKindsLine = (): EntryKindsLine => ({
+  kind: 'lab-entry-kinds',
+  kinds: [...SESSION_ENTRY_KINDS].sort(),
+})
