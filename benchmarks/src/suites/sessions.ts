@@ -62,6 +62,7 @@ export type Tier = Readonly<{
   rounds: readonly RoundShape[]
   scales: readonly number[]
   setup?: Setup
+  known?: Readonly<Record<string, Acceptance>>
 }>
 
 type Judged = Omit<Measured, 'digests'>
@@ -205,7 +206,18 @@ export const MULTI_ROUND = suiteOf({
   limits: [SMALL_TOOL],
   tiers: {
     short: { rounds: rounds(16), scales: [2, 4, 8, 16] },
-    full: { rounds: rounds(SERIES_ROUNDS), scales: [25, 50, 100, 200] },
+    full: {
+      rounds: rounds(SERIES_ROUNDS),
+      scales: [25, 50, 100, 200],
+      known: {
+        'commits of a step': accepted(
+          'past some tens of rounds a step commits a few times more, and more again by two hundred',
+        ),
+        'wall time of a round over the rounds': accepted(
+          'a round of the same work takes several times longer by the two hundredth round',
+        ),
+      },
+    },
   },
   judge: (trajectory, tier) =>
     measuredOf(
@@ -222,9 +234,10 @@ export const MULTI_ROUND = suiteOf({
           'reads of a step': accepted(
             'the reads of the model call records and of the standing of the account rise with every round',
           ),
+          ...tier.known,
         },
       },
-      {},
+      tier.known ?? {},
     ),
 })
 

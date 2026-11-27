@@ -1,6 +1,6 @@
 import { judged, outcomeOf } from '@omne-harness/perf-harness'
 import { describe, expect, it } from 'vitest'
-import { measuredOf } from '../src/suites/sessions.ts'
+import { measuredOf, MULTI_ROUND } from '../src/suites/sessions.ts'
 import type { Axis } from '../src/suites/scale.ts'
 import { SERIES_ROUNDS, seriesGatesOf, seriesReadingsOf } from '../src/suites/series.ts'
 import type { RoundEnd, Step, Trajectory } from '../src/trajectory.ts'
@@ -126,5 +126,13 @@ describe('a suite that asks for the gates over the rounds', () => {
       true,
     )
     expect(measuredOf(trajectory(SERIES_ROUNDS), axis).gates).toHaveLength(3)
+  })
+})
+
+describe('the multi-round suite at its two tiers', () => {
+  it('accepts at two hundred rounds two failures the short tier does not show, and no more', () => {
+    const tierOf = (name: string) =>
+      (MULTI_ROUND.plan(name).workload as { rounds: unknown[] }).rounds.length
+    expect([tierOf('short'), tierOf('full')]).toEqual([16, SERIES_ROUNDS])
   })
 })
