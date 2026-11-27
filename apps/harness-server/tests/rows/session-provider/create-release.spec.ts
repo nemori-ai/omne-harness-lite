@@ -93,6 +93,7 @@ const residentNames = [
   'OmneExtensionPoints',
   'OmneExtensions',
   'Screen',
+  'AppView',
   'Skills',
   'Code',
 ]

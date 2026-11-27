@@ -45,6 +45,7 @@ describe('tool-host: the release authors are loaded by the registrant at start',
       await until(() => names().length === 10)
       expect(names()).toEqual([
         'Agents',
+        'AppView',
         'Ask',
         'BkgToolCalls',
         'Calendar',
@@ -110,9 +111,9 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(21)
+    expect(seen).toHaveLength(22)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(Array(21).fill('unavailable'))
+    expect(results.map(result => result.outcome)).toEqual(Array(22).fill('unavailable'))
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

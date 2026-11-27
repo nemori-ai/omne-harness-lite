@@ -115,6 +115,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'usage-adapters': { provides: ['usageSessionScope'], injects: ['usageSources'] },
   'usage-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'canvas-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'interface-access': {
+    provides: ['interfaceInspections'],
+    injects: ['accessRegistry', 'principalIssuer'],
+  },
   'plugin-access': { provides: ['pluginReports'], injects: ['accessRegistry', 'principalIssuer'] },
   'plugin-host': { injects: ['assetCategories'] },
   'plugin-notification': { provides: [], injects: [], phase: 'composition' },

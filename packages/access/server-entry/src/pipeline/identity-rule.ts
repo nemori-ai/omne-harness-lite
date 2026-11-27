@@ -1,4 +1,4 @@
-import { issuedFor } from '../acting.ts'
+import { issuedFor } from './acting.ts'
 import type { IncomingMessage } from 'node:http'
 import type {
   AccessIdentity,

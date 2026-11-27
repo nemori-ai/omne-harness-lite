@@ -269,7 +269,7 @@ function Outside(props: {
 export const CONNECTING_TEXT = '正在连接服务……'
 
 /** A page or gate whose module lacks something it needs: one sentence for each, or the wait for the connection. */
-function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
+export function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
   const said = props.lacks.flatMap(lack =>
     lack.kind === 'connecting' ? [] : [lackText(lack, props.slot)],
   )
@@ -282,7 +282,7 @@ function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
   ))
 }
 
-function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
+export function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
   const [, changed] = useReducer((count: number) => count + 1, 0)
   useEffect(() => state.lacks.subscribe(changed), [state.lacks])
   return (slot, id) => state.lacks.of(slot, id)

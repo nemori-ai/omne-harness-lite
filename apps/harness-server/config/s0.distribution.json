@@ -616,6 +616,11 @@
       "config": {}
     },
     {
+      "id": "interface-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "plugin-access",
       "plugin": "stubPlugin",
       "config": {}

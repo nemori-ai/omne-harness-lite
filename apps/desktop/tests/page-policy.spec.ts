@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assembly } from '../src/page/assembly.tsx'
+import { assembly, pageAssembly } from '../src/page/assembly.tsx'
 import { CONTENT_SECURITY_POLICY } from '../src/shared/page-policy.ts'
 import { domainProtocols } from '../src/shared/protocols.ts'
 
@@ -62,5 +62,19 @@ describe('媒体进了装配', () => {
     const names = assembly.modules.map(module => module.name ?? '')
     expect(names).toContain('media-ui')
     expect(names.filter(name => name.startsWith('hand-over'))).toEqual([])
+  })
+})
+
+describe('看界面的窗口装的是只看的那一份', () => {
+  it('协议清单里有 interface/v1；人用的页装界面检视的模块，只看的页不装，所以不开那条观察', () => {
+    const names = domainProtocols.map(protocol => `${protocol.name}/v${String(protocol.major)}`)
+    expect(names).toContain('interface/v1')
+    const modules = (viewing: boolean) =>
+      pageAssembly({ store: () => window.localStorage, viewing }).modules.map(
+        module => module.name ?? '',
+      )
+    expect(modules(false)).toContain('interface-ui')
+    expect(modules(true)).not.toContain('interface-ui')
+    expect(modules(true)).toEqual(modules(false).filter(name => name !== 'interface-ui'))
   })
 })

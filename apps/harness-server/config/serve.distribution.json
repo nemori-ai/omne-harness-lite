@@ -96,6 +96,11 @@
               "tool": "Canvas"
             },
             {
+              "id": "app-view",
+              "effect": "allow",
+              "tool": "AppView"
+            },
+            {
               "id": "sessions",
               "effect": "allow",
               "tool": "Sessions"
@@ -455,7 +460,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:658b3341a6ecc98a41d903bf58a04d523381718a4709df766703f5d766fe6b6e"
+              "digest": "sha256:08a0a9f905b80c8e5ce6901eb79941327603ac99663704e8efa86e5b3daeadc2"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -618,6 +623,13 @@
                   "capability": {
                     "category": "tool",
                     "name": "Screen"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "tool",
+                    "name": "AppView"
                   },
                   "resident": true
                 },
@@ -1260,6 +1272,14 @@
       "id": "canvas-access",
       "plugin": "canvasAccessRow",
       "config": {}
+    },
+    {
+      "id": "interface-access",
+      "plugin": "interfaceAccessRow",
+      "config": {
+        "dueMs": 30000,
+        "perTenant": 4
+      }
     },
     {
       "id": "plugin-access",

@@ -219,6 +219,7 @@ describe('serve: the release tree of doubles', () => {
         'model-access:real',
         'usage-access:real',
         'canvas-access:real',
+        'interface-access:real',
         'plugin-access:real',
         'plugin-host:real',
         'plugin-notification:real',

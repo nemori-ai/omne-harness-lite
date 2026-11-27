@@ -389,6 +389,7 @@ describe('the startup snapshot', () => {
       '@omne-harness/schedule-tools',
       '@omne-harness/notification-tools',
       '@omne-harness/canvas-tools',
+      '@omne-harness/interface-tools',
       '@omne-harness/session-tools',
       '@omne-harness/dispatch-tools',
       '@omne-harness/goal-tools',
