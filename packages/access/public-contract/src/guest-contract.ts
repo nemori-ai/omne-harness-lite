@@ -1,3 +1,4 @@
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { defineProtocol, type OperationContract, type ProtocolContract } from './protocol.ts'
 import { ruleCodec, type Codec } from './rule-codec.ts'
 import type { Rule } from './rule.ts'
@@ -97,3 +98,7 @@ export function guestContractData(contract: ProtocolContract): GuestContractData
     ),
   }
 }
+
+/** The contract a reader of `scoped` is told, read from the tree its answer carries it in. */
+export const guestContractOfTree = (tree: JsonValue): GuestContractRead =>
+  guestContract(JSON.parse(writeJsonText(tree)))

@@ -23,6 +23,8 @@ import {
   serverPointsEntry,
   type ServedProtocol,
 } from './protocols-point.ts'
+import { guarded } from './guarded.ts'
+import { scopedProtocolsPlugin } from './scoped-protocols.ts'
 
 export type LoginState = 'signed-out' | 'signing-in' | 'signed-in' | 'signing-out'
 
@@ -50,6 +52,7 @@ export interface Connection {
     /** The points the server declares; and the keys now on one of them, where it makes them public. */
     points(): ReadonlyMap<string, ServerPoint>
     keys(point: string): readonly string[] | undefined
+    scopedChanges(): number
     subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void
   }
   readonly login: {
@@ -97,6 +100,8 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
   const listeners = new Set<(open: ReadonlySet<ProtocolKey>) => void>()
   const claimed = new Map<string, number>()
   const reported = new Set<string>()
+  let scopedChanges = 0
+  let fresh = true
 
   function reportMissing(): void {
     for (const [text, key] of view?.open ?? []) {
@@ -109,7 +114,13 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
 
   return {
     view: () => view,
+    restart(): void {
+      fresh = true
+    },
     set(next: AvailabilityView): void {
+      const moved = next.scoped !== undefined && (fresh || next.scoped !== view?.scoped)
+      if (moved) scopedChanges += 1
+      fresh = false
       view = next
       current = new Set(next.open.values())
       reportMissing()
@@ -123,6 +134,7 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
       standing: (key: ProtocolKey) => protocolStanding(view, key),
       points: (): ReadonlyMap<string, ServerPoint> => view?.points ?? NO_POINTS,
       keys: (point: string) => view?.points.get(point)?.keys,
+      scopedChanges: () => scopedChanges,
       subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void {
         listeners.add(listener)
         return () => {
@@ -208,6 +220,7 @@ export class ConnectionService extends Service implements Connection {
       const stop = (): void => subscription.abort()
       stopped.addEventListener('abort', stop)
       const frames = access.observe.availability({}, { signal: subscription.signal })
+      state.restart()
       try {
         for (;;) {
           const next = await frames.next()
@@ -251,6 +264,9 @@ export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
     apply(ctx: Context) {
       ctx.plugin(ConnectionService, options)
       ctx.plugin(protocolsPointPlugin)
+      ctx.plugin(
+        scopedProtocolsPlugin(options.backoff ?? defaultBackoff, options.sleep ?? timerSleep),
+      )
     },
   }
 }
@@ -269,50 +285,6 @@ const protocolsPointPlugin: Plugin.Object = {
       }),
     ])
   },
-}
-
-function guarded<P extends ProtocolContract>(
-  protocol: P,
-  client: ClientOf<P>,
-  revoked: AbortSignal,
-): ClientOf<P> {
-  const unavailable = Object.freeze({ outcome: 'unavailable' as const })
-  const raw = client as unknown as Record<
-    string,
-    (body: unknown, options: { signal: AbortSignal; messageId?: string }) => unknown
-  >
-  const guardedClient: Record<string, unknown> = {}
-  for (const name of Object.keys(protocol.operations))
-    guardedClient[name] = (
-      body: unknown,
-      options?: { signal?: AbortSignal; messageId?: string },
-    ) =>
-      revoked.aborted
-        ? Promise.resolve(unavailable)
-        : raw[name]!(body, {
-            ...options,
-            signal:
-              options?.signal === undefined ? revoked : AbortSignal.any([options.signal, revoked]),
-          })
-  const observers: Record<string, unknown> = {}
-  const rawObservers = client.observe as unknown as Record<
-    string,
-    (open: unknown, options: { signal: AbortSignal }) => AsyncGenerator<unknown, unknown>
-  >
-  for (const name of Object.keys(protocol.observations))
-    observers[name] = (open: unknown, options: { signal: AbortSignal; messageId?: string }) => {
-      if (revoked.aborted)
-        return (async function* () {
-          yield* []
-          return { kind: 'unavailable' }
-        })()
-      return rawObservers[name]!(open, {
-        ...options,
-        signal: AbortSignal.any([options.signal, revoked]),
-      })
-    }
-  guardedClient['observe'] = observers
-  return guardedClient as ClientOf<P>
 }
 
 export const protocolServiceName = (key: ProtocolKey): string => `protocol:${keyText(key)}`

@@ -7,6 +7,7 @@ export type Listed = Readonly<{
   version: string
   kind?: PluginKind
   members: readonly Member[]
+  needs?: readonly string[]
   fault?: string
 }>
 

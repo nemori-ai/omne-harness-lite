@@ -51,7 +51,7 @@ import { GRANTS_ITSELF } from './closed.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
-  pinnedClient,
+  protocolClientOf,
   pointReader,
   referenceOf,
   referencesOf,
@@ -785,7 +785,7 @@ function boundOf(shell: ShellService, registry: () => Registry, needs: Record<st
     const reference = referenceOf(need)
     bound[slot] =
       need.kind === 'protocol'
-        ? pinnedClient(registry, reference)
+        ? protocolClientOf(registry, need)
         : pointReader(registry, reference, listener => shell.watchAdoptions(listener))
   }
   return Object.freeze(bound)

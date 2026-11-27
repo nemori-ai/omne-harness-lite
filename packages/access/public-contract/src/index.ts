@@ -17,7 +17,7 @@ export type { FieldRule, LeafKind, Rule } from './rule.ts'
 export { livesAt, projectRule, revisionOf } from './revision.ts'
 export { defineProtocol } from './protocol.ts'
 export { accessProtocol } from './access-protocol.ts'
-export { guestContract, guestContractData } from './guest-contract.ts'
+export { guestContract, guestContractData, guestContractOfTree } from './guest-contract.ts'
 export type { GuestContractData, GuestContractRead, GuestOperationData } from './guest-contract.ts'
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts'
 export type {

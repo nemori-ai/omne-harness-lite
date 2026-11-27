@@ -37,6 +37,7 @@
 - `encodeTenantText` · `identity-text.d.ts`
 - `guestContract` · `guest-contract.d.ts`
 - `guestContractData` · `guest-contract.d.ts`
+- `guestContractOfTree` · `guest-contract.d.ts`
 - `livesAt` · `revision.d.ts`
 - `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
@@ -369,6 +370,7 @@ export {};
 ## 声明文件 `guest-contract.d.ts`
 
 ```ts
+import { type JsonValue } from '@omne-harness/json-text';
 import { type ProtocolContract } from './protocol.ts';
 import type { Rule } from './rule.ts';
 export type GuestOperationData = Readonly<{
@@ -392,6 +394,7 @@ export type GuestContractRead = Readonly<{
 }>;
 export declare function guestContract(given: unknown): GuestContractRead;
 export declare function guestContractData(contract: ProtocolContract): GuestContractData;
+export declare const guestContractOfTree: (tree: JsonValue) => GuestContractRead;
 ```
 
 ## 声明文件 `identity-text.d.ts`
@@ -422,7 +425,7 @@ export type { FieldRule, LeafKind, Rule } from './rule.ts';
 export { livesAt, projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
-export { guestContract, guestContractData } from './guest-contract.ts';
+export { guestContract, guestContractData, guestContractOfTree } from './guest-contract.ts';
 export type { GuestContractData, GuestContractRead, GuestOperationData } from './guest-contract.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
 export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBodies, ProtocolContract, } from './protocol.ts';

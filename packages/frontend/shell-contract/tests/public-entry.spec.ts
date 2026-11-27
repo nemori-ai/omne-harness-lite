@@ -43,6 +43,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'partFault',
     'partsOn',
     'projectionOn',
+    'protocolClientOf',
     'resolveKey',
     'serviceKey',
     'shellContracts',

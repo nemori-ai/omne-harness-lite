@@ -12,6 +12,7 @@ it('exports the identity text codecs, the common contract, the user message and 
     'encodeTenantText',
     'guestContract',
     'guestContractData',
+    'guestContractOfTree',
     'livesAt',
     'projectRule',
     'readAccountIdText',
