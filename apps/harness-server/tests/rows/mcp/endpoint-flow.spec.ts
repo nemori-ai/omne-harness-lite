@@ -5,9 +5,17 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ActionDiscovery, EndpointRef, Millis } from '@omne-harness/mcp-contract'
 import { mcpActionDiscoveryKey } from '@omne-harness/mcp-cordis-contract/cordis'
+import { mcpProtocol } from '@omne-harness/mcp-protocol'
+import { createClient } from '@omne-harness/sdk/core'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import { savedTenant } from '../../r9/support.ts'
-import { tenantOf, type ProtocolClients } from '../../support/protocol-clients.ts'
+import {
+  originOf,
+  protocolTransport,
+  savedCredentials,
+  tenantOf,
+  type ProtocolClients,
+} from '../../support/protocol-clients.ts'
 import { onReleaseTree, toolCallsByRequest, type ReleaseTree } from '../../support/release-tree.ts'
 import {
   journey,
@@ -530,7 +538,7 @@ async function keyed(
 }
 
 it(
-  'a secured endpoint is named with its reason until its credential is set, is then called with it, and the value shows in no answer and no model request',
+  'a secured endpoint is named with its reason until its credential is set; a wrong one is rejected and says so; the right one is then called with, and the value shows in no answer and no model request',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
     const { bodies, script } = scripted()
@@ -553,6 +561,39 @@ it(
           { name: 'mcp__secured', reason: expect.stringContaining('credential') },
         ])
 
+        at(
+          'a wrong credential: the endpoint rejects it, the person and the agent are told so (C101)',
+        )
+        expect(await keyed(w, ownerOf('secured'), 'credential', 'not-the-key')).toMatchObject({
+          outcome: 'succeeded',
+        })
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'secured' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { refreshed: 'failed' },
+        })
+        const rejected = await settled(
+          tree,
+          'the endpoint to show its credential rejected',
+          () => mcp['read-endpoint']({ tenant: w.tenant, name: 'secured' }),
+          read => read.outcome === 'succeeded' && read.body.endpoint.credentialState === 'rejected',
+        )
+        expect(rejected).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { credential: 'present', credentialState: 'rejected' } },
+        })
+        await sendInput(tree, session, 'start: search')
+        expect((await searched(tree, session, 3)).withheld).toEqual([
+          {
+            name: 'mcp__secured',
+            reason: expect.stringContaining('was rejected by the endpoint'),
+          },
+        ])
+        expect(peer.calls).toEqual([])
+
         at('the credential is written as a secret')
         expect(await keyed(w, ownerOf('secured'), 'credential', CREDENTIAL)).toMatchObject({
           outcome: 'succeeded',
@@ -560,13 +601,13 @@ it(
 
         at('offered once the credential is set')
         await sendInput(tree, session, 'start: search')
-        const after = await searched(tree, session, 3)
+        const after = await searched(tree, session, 4)
         expect(mcpOf(after).map(entry => entry.name)).toEqual(['mcp__secured'])
         expect(after.withheld ?? []).toEqual([])
 
         at('called with the credential')
         await sendInput(tree, session, 'start: call secured echo keyed')
-        expect(await lastResult(tree, session, 4)).toContain('echo answered keyed')
+        expect(await lastResult(tree, session, 5)).toContain('echo answered keyed')
         expect(peer.calls).toEqual([{ action: 'echo', text: 'keyed' }])
 
         at('the value shows in no answer and no model request')

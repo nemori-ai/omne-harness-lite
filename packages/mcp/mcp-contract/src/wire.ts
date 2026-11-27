@@ -94,6 +94,8 @@ export type WireContext = Readonly<{
   session: boolean
   versions: readonly string[]
   mode?: 'sse'
+  /** The request carried a credential: a 401 or an `insufficient_scope` 403 then rejects it. */
+  presented?: boolean
 }>
 
 export type WireClassification =

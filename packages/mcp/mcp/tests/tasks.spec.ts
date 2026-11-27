@@ -621,7 +621,7 @@ describe('a task request the build does not get to send', () => {
         },
       },
     })
-    adoptHttp(p, files)
+    adoptHttp(p, files, { auth: 'none' })
     const { services: s } = services(p)
     expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },

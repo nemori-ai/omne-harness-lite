@@ -63,11 +63,18 @@ export function useEndpointState(
   return { state, refresh }
 }
 
-function statusText({ connection, credential, use }: Endpoint): string {
+const CREDENTIAL: Readonly<Partial<Record<NonNullable<Endpoint['credentialState']>, string>>> = {
+  absent: '凭据没配',
+  invalid: '凭据的配值不对',
+  rejected: '凭据被拒，要在设置里改成对的',
+  'reconnect-required': '要重新连接',
+}
+
+function statusText({ connection, credential, credentialState, use }: Endpoint): string {
   const said = CONNECTION[connection.state]
   const parts = [connection.reason === null ? said : `${said}：${connection.reason}`]
-  if (credential === 'absent') parts.push('凭据没配')
-  if (credential === 'invalid') parts.push('凭据的配值不对')
+  const credentialSaid = CREDENTIAL[credentialState ?? credential]
+  if (credentialSaid !== undefined) parts.push(credentialSaid)
   if (use.kind === 'blocked') parts.push(`不能用：${use.reason}`)
   return parts.join('；')
 }

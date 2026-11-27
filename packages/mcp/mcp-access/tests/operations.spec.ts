@@ -144,6 +144,7 @@ describe('step 4: list-endpoints', () => {
             name: 'docs',
             connection: { state: 'ready', reason: null },
             credential: 'present',
+            credentialState: 'present',
             use: { kind: 'usable' },
             catalog: { kind: 'acquired', actions: 2 },
           },
@@ -151,6 +152,7 @@ describe('step 4: list-endpoints', () => {
             name: 'notes',
             connection: { state: 'lost', reason: 'the endpoint could not be reached' },
             credential: 'absent',
+            credentialState: 'absent',
             use: { kind: 'blocked', reason: 'the endpoint is disabled' },
             catalog: { kind: 'not-acquired', reason: 'the endpoint could not be reached' },
           },
@@ -158,6 +160,7 @@ describe('step 4: list-endpoints', () => {
             name: 'plain',
             connection: { state: 'none', reason: null },
             credential: 'not-required',
+            credentialState: 'not-required',
             use: { kind: 'usable' },
             catalog: { kind: 'not-acquired', reason: 'the address of the endpoint is not set' },
           },
@@ -188,12 +191,37 @@ describe('step 4: list-endpoints', () => {
       { kind: 'lost', reason: 'authorization-required' },
       'the endpoint requires an authorization this version cannot give',
     ],
+    [
+      { kind: 'lost', reason: 'credential-rejected' },
+      'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one',
+    ],
   ] as const)('says of the connection %j: %j', async (connection, reason) => {
     const world = createWorld()
     world.define(alice, 'docs', { status: readyStatus(docs, { connection }) })
     const answer = await world.list(alice)
     expect(bodyOf(answer)['items']).toMatchObject([{ connection: { reason } }])
   })
+
+  it.each([
+    [{ kind: 'lost', reason: 'credential-rejected' }, 'present', 'rejected'],
+    [{ kind: 'ready' }, 'present', 'present'],
+    [{ kind: 'lost', reason: 'stream-broken' }, 'present', 'present'],
+    [{ kind: 'lost', reason: 'credential-rejected' }, 'absent', 'absent'],
+    [{ kind: 'none' }, 'not-required', 'not-required'],
+  ] as const)(
+    'the state of the credential on connection %j with the credential %s is %s, alike in list and read (C101)',
+    async (connection, credential, state) => {
+      const world = createWorld()
+      world.define(alice, 'docs', { status: readyStatus(docs, { connection, credential }) })
+      expect(bodyOf(await world.list(alice))['items']).toMatchObject([
+        { credential, credentialState: state },
+      ])
+      expect(bodyOf(await world.read(alice, 'docs'))['endpoint']).toMatchObject({
+        credential,
+        credentialState: state,
+      })
+    },
+  )
 
   it('writes the reason of a failed catalog read as the bridge does', async () => {
     const world = createWorld()
@@ -301,6 +329,7 @@ describe('step 4: read-endpoint', () => {
           name: 'docs',
           connection: { state: 'ready', reason: null },
           credential: 'present',
+          credentialState: 'present',
           use: { kind: 'usable' },
           catalog: { kind: 'acquired', actions: 2 },
         },

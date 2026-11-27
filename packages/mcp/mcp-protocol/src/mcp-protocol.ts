@@ -1,6 +1,8 @@
 import { defineProtocol, ruleCodec, type Rule } from '@omne-harness/public-contract'
 
-type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
+type Fields = Readonly<
+  Record<string, { readonly rule: Rule; readonly optional?: true; readonly since?: number }>
+>
 
 const text = { kind: 'text' } as const
 const anyText = { kind: 'string' } as const
@@ -27,6 +29,12 @@ const endpoint = object({
     }),
   },
   credential: { rule: literal('present', 'absent', 'invalid', 'not-required') },
+  /** Revision 2: the credential as it stands now, with the two states a credential can be refused in. */
+  credentialState: {
+    rule: literal('present', 'absent', 'invalid', 'not-required', 'rejected', 'reconnect-required'),
+    optional: true,
+    since: 2,
+  },
   use: {
     rule: oneOf(
       object({ kind: { rule: literal('usable') } }),
@@ -53,7 +61,7 @@ const ofEndpoint = { ...ofTenant, name: { rule: text } } as const
 const notVisible = ruleCodec(object({}))
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again. */
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,

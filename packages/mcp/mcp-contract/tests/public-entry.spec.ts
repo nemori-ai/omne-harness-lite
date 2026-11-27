@@ -96,6 +96,7 @@ const ROOT = [
   'classifyOutcome',
   'completeListing',
   'connectionKeyOf',
+  'credentialRejectedAnswerOf',
   'digestDefinition',
   'isActionArgs',
   'markUnavailable',

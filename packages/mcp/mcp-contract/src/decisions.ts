@@ -51,6 +51,7 @@ export type WireAnswer =
 export type AnswerConclusion =
   | Readonly<{ kind: 'settle'; wire: WireAnswer; unusable?: UnusableCause }>
   | Readonly<{ kind: 'authorization-required' }>
+  | Readonly<{ kind: 'credential-rejected' }>
   | Readonly<{ kind: 'wait' }>
 
 export type ProbeConclusion =
@@ -68,6 +69,7 @@ const LEGACY_HTTP: WireAnswer = { kind: 'legacy-http' }
 export const ABANDONED: WireAnswer = { kind: 'no-answer', cause: 'abandoned', resend: false }
 const WAIT: AnswerConclusion = { kind: 'wait' }
 const AUTHORIZATION_REQUIRED: AnswerConclusion = { kind: 'authorization-required' }
+const CREDENTIAL_REJECTED: AnswerConclusion = { kind: 'credential-rejected' }
 const MODERN_ERROR_CLASSES: readonly ErrorClass[] = [
   '-32020',
   '-32021',
@@ -146,15 +148,18 @@ function exchangeConclusionOf(
     case 'http:2xx':
       return settle(brokenStream(resends(context)))
     default:
-      return httpStatusConclusionOf(answer)
+      return httpStatusConclusionOf(answer, context)
   }
 }
 
-function httpStatusConclusionOf(answer: AnswerClass): AnswerConclusion | undefined {
+function httpStatusConclusionOf(
+  answer: AnswerClass,
+  context: WireContext,
+): AnswerConclusion | undefined {
   switch (answer) {
     case 'http:401':
     case 'http:403+scope':
-      return AUTHORIZATION_REQUIRED
+      return context.presented === true ? CREDENTIAL_REJECTED : AUTHORIZATION_REQUIRED
     case 'http:403':
       return settle(NOT_SENT)
     case 'http:404+session':
@@ -354,6 +359,14 @@ export function streamGoneAnswerOf(): WireAnswer {
   return { kind: 'no-answer', cause: 'stream-broken', resend: false, unusable: 'stream-broken' }
 }
 
+/** What a request whose credential the peer rejected answers: not sent, and the connection is not usable. */
+export function credentialRejectedAnswerOf(): WireAnswer {
+  return {
+    kind: 'not-sent',
+    failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' },
+  }
+}
+
 export function authorizationRequiredAnswerOf(discovery: AuthorizationDiscovery): WireAnswer {
   return {
     kind: 'not-sent',
@@ -389,7 +402,10 @@ export function lineGoneAnswerOf(
     case 'authorizing':
       return unusableAnswerOf(NOT_SENT, cause)
     case 'sent':
-      return cause === 'session-ended' ? undefined : streamGoneAnswerOf()
+      // A sent request is answered by the peer on its own once the session ended or the credential was refused.
+      return cause === 'session-ended' || cause === 'credential-rejected'
+        ? undefined
+        : streamGoneAnswerOf()
     case 'discovery':
       return undefined
     default: {
@@ -402,14 +418,24 @@ export function lineGoneAnswerOf(
 export function fallbackGetConclusionOf(
   answer: Readonly<{ status: number; headers: Readonly<{ [name: string]: string }>; body: string }>,
   versions: ProtocolVersions,
-): Extract<AnswerConclusion, { kind: 'settle' | 'authorization-required' }> {
-  const context: WireContext = { id: '', request: 'initialize', session: false, versions }
+  presented: boolean,
+): Extract<
+  AnswerConclusion,
+  { kind: 'settle' | 'authorization-required' | 'credential-rejected' }
+> {
+  const context: WireContext = {
+    id: '',
+    request: 'initialize',
+    session: false,
+    versions,
+    presented,
+  }
   const { status, headers, body } = answer
   const conclusion = concludeAnswer(
     classifyWireEvent({ kind: 'http-status', status, headers, body }, context),
     context,
   )
-  return conclusion.kind === 'authorization-required'
+  return conclusion.kind === 'authorization-required' || conclusion.kind === 'credential-rejected'
     ? conclusion
     : { kind: 'settle', wire: NOT_SENT }
 }

@@ -8,7 +8,6 @@ import {
   type UnusableCause,
 } from '@omne-harness/mcp-contract'
 import type {
-  HttpCredentialHandle,
   McpTransport,
   McpTransportFactory,
   TransportFailure,
@@ -283,9 +282,12 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that drops the mark of a row that ends the transport (T1, T8)', async () => {
     expect(await failing(() => fixtureOf(droppingMarks))).toEqual([
+      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (credential-rejected), unusable, reportRejection once',
       '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
       'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
       'Streamable HTTP: a call stopped after the session ended (S07), before close(): abandoned, carrying session-ended',
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
+      'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     ])
   })
 
@@ -309,15 +311,12 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that does not report a refused authorization to the handle', async () => {
     expect(await failing(() => fixtureOf(forgettingRejections))).toEqual([
-      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once',
-      '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
-      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
-      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
-      '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
-      '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
+      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (credential-rejected), unusable, reportRejection once',
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
       'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
       'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
       'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
+      'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     ])
   })
 })
@@ -449,45 +448,38 @@ describe('the scripted transport factory', () => {
 })
 
 describe('the scripted transport stops a request by its phase on every stop (T5, stopAnswerOf)', () => {
-  const holdingDiscovery = (): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> => {
+  // A request without a credential refused with 401 stays in the discovery while its metadata fetch is held.
+  const discovering = async () => {
     let reach = (): void => undefined
     const reached = new Promise<void>(resolve => {
       reach = resolve
     })
-    return {
-      purpose: 'http-authorization',
-      async authorize(headers) {
-        headers.set('authorization', 'Bearer test-token')
-        return { ok: true }
-      },
-      reportRejection() {
-        reach()
-        return new Promise<void>(() => undefined)
-      },
-      async release() {},
-      reached,
-    }
-  }
-
-  const discovering = async () => {
-    const credential = holdingDiscovery()
-    const factory = createScriptedTransportFactory({
-      calls: {
-        echo: {
-          kind: 'http',
-          status: 401,
-          headers: { 'www-authenticate': 'Bearer scope="files"' },
+    const factory = createScriptedTransportFactory(
+      {
+        calls: {
+          echo: {
+            kind: 'http',
+            status: 401,
+            headers: { 'www-authenticate': 'Bearer scope="files"' },
+          },
         },
       },
-    })
-    const opened = await factory.open(materialOf({ credential }), new AbortController().signal)
+      {
+        pace: received => {
+          if (received.kind !== 'fetch') return
+          reach()
+          return new Promise<void>(() => undefined)
+        },
+      },
+    )
+    const opened = await factory.open(materialOf({}), new AbortController().signal)
     if ('failure' in opened) throw new Error('did not open')
     const transport = opened.ok
     const call = transport.call(
       { action: actionNameOf('echo'), args: json({}) },
       new AbortController().signal,
     )
-    await credential.reached
+    await reached
     const [request] = factory.received()
     if (request?.kind !== 'request') throw new Error('the call did not reach the peer')
     return { factory, transport, call, id: request.id }

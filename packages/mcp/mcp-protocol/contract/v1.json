@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c"
+    "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c",
+    "2": "sha256:007955ddef7dc7dfc63724a953b63fa6f0ad4314733029240ac4bd1070452f7f"
   },
   "major": 1,
   "name": "mcp",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {},
     "operations": {
@@ -126,6 +127,21 @@
                             "not-required"
                           ]
                         }
+                      },
+                      "credentialState": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "present",
+                            "absent",
+                            "invalid",
+                            "not-required",
+                            "rejected",
+                            "reconnect-required"
+                          ]
+                        },
+                        "since": 2
                       },
                       "name": {
                         "rule": {
@@ -353,6 +369,21 @@
                           "not-required"
                         ]
                       }
+                    },
+                    "credentialState": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "present",
+                          "absent",
+                          "invalid",
+                          "not-required",
+                          "rejected",
+                          "reconnect-required"
+                        ]
+                      },
+                      "since": 2
                     },
                     "name": {
                       "rule": {

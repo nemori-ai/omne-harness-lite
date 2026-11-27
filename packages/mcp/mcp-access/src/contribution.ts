@@ -89,6 +89,13 @@ function catalogOf(
     : { kind: 'not-acquired', reason: notAcquiredText(adopted, status.connection) }
 }
 
+// A present credential the endpoint refused is rejected until the connection is ready again.
+function credentialStateOf(status: EndpointStatusView): NonNullable<Endpoint['credentialState']> {
+  const refused =
+    status.connection.kind === 'lost' && status.connection.reason === 'credential-rejected'
+  return status.credential === 'present' && refused ? 'rejected' : status.credential
+}
+
 function endpointOf(
   adopted: AdoptedEndpoint,
   status: EndpointStatusView,
@@ -98,6 +105,7 @@ function endpointOf(
     name: adopted.ref.name,
     connection: { state: status.connection.kind, reason: connectionText(status.connection) },
     credential: status.credential,
+    credentialState: credentialStateOf(status),
     use:
       status.use.kind === 'usable'
         ? { kind: 'usable' }

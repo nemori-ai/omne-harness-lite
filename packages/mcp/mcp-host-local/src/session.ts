@@ -5,6 +5,7 @@ import {
   OFFERED_LEGACY_VERSION,
   authorizationChallengeOf,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
   callAnswerOf,
   callRequestOf,
   cancelTaskRequest,
@@ -136,6 +137,7 @@ export class Session implements McpTransport {
   readonly generation: Generation
   private readonly line: Line
   private readonly material: TransportMaterial
+  private rejectionReported = false
   private readonly options: SessionOptions
   private readonly pending = new Map<string, Pending>()
   private readonly teardown = new AbortController()
@@ -312,11 +314,6 @@ export class Session implements McpTransport {
   }
 
   private refusalOf(target: string, headers: AnswerHeaders, signal: AbortSignal): Refusal {
-    const credential = this.material.credential
-    const reported =
-      credential === undefined
-        ? Promise.resolve()
-        : this.callHandle(() => credential.reportRejection())
     const challenge = authorizationChallengeOf(headers['www-authenticate'])
     const run: AuthorizationDiscoveryRun = startAuthorizationDiscovery(
       target,
@@ -324,7 +321,7 @@ export class Session implements McpTransport {
       this.options.fetchMetadata,
       signal,
     )
-    return { soFar: run.soFar, done: Promise.all([reported, run.done]).then(([, found]) => found) }
+    return { soFar: run.soFar, done: run.done }
   }
 
   private plainHeaders(): Headers {
@@ -414,6 +411,7 @@ export class Session implements McpTransport {
       request: sending.kind === 'probe' ? sending.request : requestClassOf(method, false),
       session: this.carriesSession && method !== 'initialize',
       versions: this.options.versions,
+      presented: this.material.credential !== undefined,
       ...(this.connection.kind === 'legacy-sse' ? { mode: 'sse' } : {}),
     }
     const entry = this.makeEntry(id, context, sending)
@@ -534,11 +532,24 @@ export class Session implements McpTransport {
         return
       case 'authorization-required':
         return this.enterDiscovery(entry, headers)
+      case 'credential-rejected':
+        this.settle(entry, { wire: credentialRejectedAnswerOf(), headers })
+        return this.rejectCredential()
       default: {
         const exhaustive: never = conclusion
         return exhaustive
       }
     }
+  }
+
+  // The peer refused the credential: the handle hears it once (V3), and the connection is not usable.
+  private rejectCredential(): void {
+    const credential = this.material.credential
+    if (credential !== undefined && !this.rejectionReported) {
+      this.rejectionReported = true
+      void this.callHandle(() => credential.reportRejection())
+    }
+    this.die('credential-rejected')
   }
 
   private enterDiscovery(entry: Pending, headers: AnswerHeaders): void {
@@ -689,8 +700,16 @@ export class Session implements McpTransport {
   }
 
   private async refusedGet(opened: Extract<GetOpened, { kind: 'status' }>): Promise<Answered> {
-    const conclusion = fallbackGetConclusionOf(opened, this.options.versions)
+    const conclusion = fallbackGetConclusionOf(
+      opened,
+      this.options.versions,
+      this.material.credential !== undefined,
+    )
     if (conclusion.kind === 'settle') return { wire: conclusion.wire }
+    if (conclusion.kind === 'credential-rejected') {
+      this.rejectCredential()
+      return { wire: credentialRejectedAnswerOf() }
+    }
     const refusal = this.refusalOf(this.material.target, opened.headers, this.teardown.signal)
     const discovery = (await this.untilClosed(refusal.done)) ?? refusal.soFar()
     return { wire: authorizationRequiredAnswerOf(discovery) }

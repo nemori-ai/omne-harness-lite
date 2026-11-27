@@ -36,6 +36,7 @@ export declare const mcpProtocol: {
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
                         };
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
+                        readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
                         readonly use: {
                             readonly kind: "usable";
@@ -79,6 +80,7 @@ export declare const mcpProtocol: {
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
                         };
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
+                        readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
                         readonly use: {
                             readonly kind: "usable";

@@ -481,7 +481,7 @@ describe('the send order: each step refuses with the place given back', () => {
     expect(c.p.requests('tools/call')).toHaveLength(0)
   })
 
-  it('step 7: a connection failure of the build is the reason as it is: credential-unavailable, authorization-required', async () => {
+  it('step 7: a connection failure of the build is the reason as it is: credential-unavailable (missing, rejected), authorization-required', async () => {
     const credential = arrange({}, { adopt: 'none' })
     adoptHttp(credential.p, files, {
       auth: 'static',
@@ -493,18 +493,26 @@ describe('the send order: each step refuses with the place given back', () => {
       NOT_SENT({ kind: 'credential-unavailable', cause: 'missing' }),
     )
 
-    const authorization = arrange(
-      { discover: { kind: 'http', status: 401, headers: BEARER } },
-      { adopt: 'http' },
-    )
-    await storedRecord(authorization.p, credentialKey, ['read'])
+    const authorization = arrange({ discover: { kind: 'http', status: 401, headers: BEARER } })
+    await storedRecord(authorization.p, anonymousKey, ['read'])
     expect(await authorization.invoker.invoke(alice, request(digest))).toMatchObject(
       NOT_SENT({
         kind: 'authorization-required',
         discovery: { metadata: 'unavailable', issuers: [], scopes: ['a'] },
       }),
     )
-    for (const c of [credential, authorization]) expect(c.p.requests('tools/call')).toHaveLength(0)
+
+    const rejected = arrange(
+      { discover: { kind: 'http', status: 401, headers: BEARER } },
+      { adopt: 'http' },
+    )
+    await storedRecord(rejected.p, credentialKey, ['read'])
+    expect(await rejected.invoker.invoke(alice, request(digest))).toEqual(
+      NOT_SENT({ kind: 'credential-unavailable', cause: 'rejected' }),
+    )
+    expect(await state(rejected)).toEqual({ kind: 'lost', reason: 'credential-rejected' })
+    for (const c of [credential, authorization, rejected])
+      expect(c.p.requests('tools/call')).toHaveLength(0)
   })
 
   it('step 7: a discover that fails on both paths is connection-unavailable; one without an answer (effect-unknown) is connection-unavailable too', async () => {
@@ -607,16 +615,23 @@ describe('the send order: each step refuses with the place given back', () => {
     expect(await state(c)).toEqual({ kind: 'lost', reason: 'session-ended' })
   })
 
-  it('step 9: a call refused for authorization is authorization-required with the discovery, and the connection is lost', async () => {
-    const c = arrange(
-      { calls: { read: { kind: 'http', status: 401, headers: BEARER } } },
-      { adopt: 'http' },
-    )
+  it('step 9: a call refused for authorization is authorization-required with the discovery without a credential, the credential rejected with one; either way the connection is lost (C101)', async () => {
+    const c = arrange({ calls: { read: { kind: 'http', status: 401, headers: BEARER } } })
     const digest = await published(c)
     expect(await c.invoker.invoke(alice, request(digest))).toMatchObject(
       NOT_SENT({ kind: 'authorization-required', discovery: { scopes: ['a'] } }),
     )
     expect(await state(c)).toEqual({ kind: 'lost', reason: 'authorization-required' })
+
+    const keyed = arrange(
+      { calls: { read: { kind: 'http', status: 401, headers: BEARER } } },
+      { adopt: 'http' },
+    )
+    const keyedDigest = await published(keyed)
+    expect(await keyed.invoker.invoke(alice, request(keyedDigest))).toEqual(
+      NOT_SENT({ kind: 'credential-unavailable', cause: 'rejected' }),
+    )
+    expect(await state(keyed)).toEqual({ kind: 'lost', reason: 'credential-rejected' })
   })
 
   it('step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends, nothing is sent again', async () => {

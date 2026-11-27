@@ -39,13 +39,15 @@ const CONFIG_ITEM = {
 
 const CREDENTIAL_CAUSE = {
   missing: 'is not set',
-  rejected: 'was rejected',
+  rejected: 'was rejected by the endpoint; the person needs to set the right one',
   unknown: 'could not be read',
 } as const
 
 const UNAVAILABLE: Readonly<Record<UnavailableReason, string>> = {
   'connection-unavailable': 'the endpoint could not be reached',
   'authorization-required': 'the endpoint requires an authorization this version cannot give',
+  'credential-rejected':
+    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one',
   'credential-unavailable': 'the credential of the endpoint is not usable',
 }
 

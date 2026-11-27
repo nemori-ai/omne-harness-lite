@@ -140,6 +140,7 @@ export type LostReason =
   | 'preparation-failed'
   | 'discover-failed'
   | 'authorization-required'
+  | 'credential-rejected'
   | 'stream-broken'
   | 'negotiation-invalid'
   | 'session-ended'

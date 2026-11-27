@@ -662,6 +662,7 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
       const failure = conclusion.failure
       if (failure.kind === 'no-answer') return gone(failure.cause)
       if (failure.kind !== 'not-sent') return undefined
+      if (failure.cause === 'credential-rejected') return 'credential-rejected'
       return failure.cause === 'session-ended' ? 'session-ended' : undefined
     }
     default:
@@ -686,19 +687,16 @@ function assertFailure(
   reply: PeerReply,
   unusable?: UnusableCause,
 ): void {
-  if (expected.kind === 'not-sent' && expected.cause === 'authorization-required')
-    assert.ok(
-      actual.kind === 'not-sent' && actual.cause === 'authorization-required',
-      `not authorization-required: ${JSON.stringify(actual)}`,
-    )
-  else assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
+  assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
 }
 
 function failureOf(
-  expected: Exclude<ExpectedFailure, Readonly<{ cause: 'authorization-required' }>>,
+  expected: ExpectedFailure,
   reply: PeerReply,
   unusable?: UnusableCause,
 ): TransportFailure {
+  if (expected.kind === 'not-sent' && expected.cause === 'credential-rejected')
+    return { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' }
   if (expected.kind === 'no-answer')
     return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind === 'not-sent') {
@@ -981,7 +979,6 @@ async function checkInitialize(
       unusableCauseOf(conclusion),
     )
     assert.deepStrictEqual(initialized, [])
-    assert.ok(conclusion.unusable !== true)
     await afterwards(transport)
   })
 }
@@ -1802,10 +1799,9 @@ const t4Cases = (): readonly Case[] => {
   return [
     conformanceCase(
       'T4',
-      '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401: not-sent authorization-required from WWW-Authenticate and the named metadata (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           target => ({
             calls: {
@@ -1817,7 +1813,7 @@ const t4Cases = (): readonly Case[] => {
               [`${METADATA_PATH}${pathOf(target)}`]: metadata(target, 'https://issuer.test'),
             },
           }),
-          { credential },
+          {},
           async (peer, transport) => {
             const target = targetOf(peer)
             const discovery = authorizationRequired(
@@ -1830,23 +1826,20 @@ const t4Cases = (): readonly Case[] => {
             })
             assert.deepStrictEqual(discovery.issuers, ['https://issuer.test'])
             assert.deepStrictEqual(discovery.scopes, ['files:read'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           target => ({
             listing: { '': unauthorized('realm="mcp"') },
             wellKnown: { [METADATA_PATH]: metadata(target, 'https://root.test') },
           }),
-          { credential },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.listActions(), 'listActions'),
@@ -1862,20 +1855,17 @@ const t4Cases = (): readonly Case[] => {
             assert.strictEqual(discovery.metadata, 'fetched')
             assert.deepStrictEqual(discovery.issuers, ['https://root.test'])
             assert.deepStrictEqual(discovery.scopes, ['files:read', 'files:write'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { calls: { echo: unauthorized('scope="a b"') } },
-          { credential },
+          {},
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -1885,14 +1875,12 @@ const t4Cases = (): readonly Case[] => {
             assert.strictEqual(new URL(discovery.resourceMetadataUrl).pathname, METADATA_PATH)
             assert.deepStrictEqual(discovery.issuers, [])
             assert.deepStrictEqual(discovery.scopes, ['a', 'b'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401: a named resource_metadata that is not a JSON object counts as unavailable and is still reported (item 11)',
+      '401: a named resource_metadata that is not a JSON object counts as unavailable (item 11)',
       async fixture =>
         withPeer(
           fixture,
@@ -1903,7 +1891,7 @@ const t4Cases = (): readonly Case[] => {
               [METADATA_PATH]: metadata(target, 'https://root.test'),
             },
           }),
-          { credential: countingCredential() },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -1918,53 +1906,63 @@ const t4Cases = (): readonly Case[] => {
     ),
     conformanceCase(
       'T4',
-      '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 on discover: authorization-required with no legacy fallback (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { discover: unauthorized('scope="files:read"'), initialize: LEGACY },
-          { credential },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(failure(await transport.discover(), 'discover'))
             assert.deepStrictEqual(discovery.scopes, ['files:read'])
-            assert.strictEqual(credential.rejections(), 1)
             assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '403 insufficient_scope: authorization-required with the scope of the header (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { calls: { echo: forbidden('error="insufficient_scope", scope="files:write"') } },
-          { credential },
+          {},
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
             )
             assert.deepStrictEqual(discovery.scopes, ['files:write'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 on a request that no handle authorized is still authorization-required',
-      async fixture =>
-        withPeer(
-          fixture,
-          { discover: unauthorized('realm="mcp"') },
-          {},
-          async (_peer, transport) => {
-            authorizationRequired(failure(await transport.discover(), 'discover'))
-          },
-        ),
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
+      async fixture => {
+        const rejected = { failure: { ...NOT_SENT_FAILURE, unusable: 'credential-rejected' } }
+        for (const [send, script] of [
+          [
+            (t: McpTransport) => t.call(echo, never),
+            { calls: { echo: unauthorized('realm="m"') } },
+          ],
+          [
+            (t: McpTransport) => t.listActions(),
+            { listing: { '': forbidden('error="insufficient_scope"') } },
+          ],
+          [
+            (t: McpTransport) => t.discover(),
+            { discover: unauthorized('scope="r"'), initialize: LEGACY },
+          ],
+        ] as const) {
+          const credential = countingCredential()
+          await withPeer(fixture, script, { credential }, async (peer, transport) => {
+            assert.deepStrictEqual(await send(transport), rejected)
+            assert.deepStrictEqual(await transport.listActions(), rejected)
+            assert.strictEqual(credential.rejections(), 1)
+            assert.ok(!(await peer.received()).some(entry => entry.kind === 'fetch'))
+          })
+        }
+      },
     ),
   ]
 }
@@ -2015,7 +2013,7 @@ const t9Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T9',
-    'a credential handle whose reportRejection rejects: the refusal is still authorization-required',
+    'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     async fixture =>
       withPeer(
         fixture,
@@ -2030,11 +2028,11 @@ const t9Cases = (): readonly Case[] => [
         },
         { credential: failingCredential('report-rejects') },
         async (_peer, transport) => {
-          const refused = failure(await transport.call(echo, never), 'call')
-          assert.ok(
-            refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-            JSON.stringify(refused),
-          )
+          assert.deepStrictEqual(failure(await transport.call(echo, never), 'call'), {
+            kind: 'not-sent',
+            cause: 'connection-unavailable',
+            unusable: 'credential-rejected',
+          })
         },
       ),
   ),

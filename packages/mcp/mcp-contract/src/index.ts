@@ -128,6 +128,7 @@ export {
   PROBE_REQUESTS,
   RESENT_REQUESTS,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
   concludeAnswer,
   concludeProbe,
   fallbackGetConclusionOf,
