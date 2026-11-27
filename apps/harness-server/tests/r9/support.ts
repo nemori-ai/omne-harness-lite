@@ -138,6 +138,10 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       maxPendingAccounts: 16,
       maxCostMisses: 5,
     },
+    live: {
+      capacity: 64,
+      deadlines: { openMs: 15_000, closeMs: 10_000, drainMs: 30_000, redeliverMs: 1000 },
+    },
   }
   const records = {
     owners: [

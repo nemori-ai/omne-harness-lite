@@ -108,6 +108,7 @@ describe('a chat binding paired with a chat request', () => {
       fallback,
       retryPolicy,
       source,
+      input: ['text', 'voice'],
       instructions: 'Answer the phone.',
       history: [],
       voice: null,

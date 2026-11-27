@@ -89,6 +89,7 @@ export function transportOver(
       const materialized = await (await prepare()).materialize(signal)
       if (!('ok' in materialized))
         throw new Error(`materialize failed: ${JSON.stringify(materialized)}`)
+      if (!('start' in materialized.ok)) throw new Error('materialize: a live binding')
       return materialized.ok
     },
   }

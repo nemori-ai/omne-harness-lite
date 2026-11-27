@@ -207,6 +207,7 @@ async function materializedOf(
   const materialized = await prepared.ok.materialize(new AbortController().signal)
   if (!('ok' in materialized))
     throw new Error(`materialize: ${JSON.stringify(materialized.failure)}`)
+  if (!('start' in materialized.ok)) throw new Error('materialize: a live binding')
   return materialized.ok
 }
 

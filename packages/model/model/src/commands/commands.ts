@@ -50,6 +50,7 @@ import {
   prepareSupplierFailure,
   ready,
   receiptBinds,
+  requestedControl,
   retryable,
   retryChoiceFailure,
   settlementFailure,
@@ -264,22 +265,15 @@ export function callCommands<P>(
         core.write({
           input,
           method: 'control',
-          fields: { call: input.call },
+          fields: { call: input.call, intent: input.intent },
           check: call => authFailure(core.authorize(input, 'control', call, input.call)),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
+            const requested = requestedControl(input)
+            if (requested === null) return { failure: invalid('intent', 'unknown') }
             if (call.state.control.kind === 'none') {
-              call.state = {
-                ...call.state,
-                control: {
-                  kind: 'requested',
-                  intent: 'cancel',
-                  operation: input.operation,
-                  propagation: 'pending',
-                  upstream: 'unknown',
-                },
-              }
+              call.state = { ...call.state, control: requested }
               bump(call)
             }
             return {

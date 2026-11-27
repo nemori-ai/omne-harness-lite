@@ -9,10 +9,11 @@ import {
 } from '@omne-harness/legal-identity'
 import {
   createModelRuntime,
+  type LiveEventPort,
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, testLiveHosting } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -239,6 +240,8 @@ function world(
     lostContact?: boolean
     answer?: readonly Exclude<TransportFact, { kind: 'ended' }>[]
     lookup?: ResultPushOptions['lookup']
+    /** Whether this process still holds the live body of a call. */
+    holdsLiveBody?: (call: ModelCallId) => boolean
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -390,6 +393,9 @@ function world(
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential: (materialized, _value, signal) => materialized.start(signal),
           release: async () => {},
         },
@@ -454,13 +460,14 @@ function world(
       Object.assign(this, commands)
     }
   }
-  const provided: { commands?: ModelCommands<unknown> } = {}
+  const provided: { commands?: ModelCommands<unknown>; liveEvents?: LiveEventPort } = {}
   const pluginClass = () =>
     createModelRuntimeLocalPlugin({
       provider: given => {
         provided.commands = given.commands
+        provided.liveEvents = given.liveEvents
         const send = memory.controls.send.createSender({ resources, commands: given.commands })
-        return createModelRuntime(
+        const runtime = createModelRuntime(
           {
             commands: given.commands,
             send,
@@ -468,9 +475,14 @@ function world(
             instances: given.host,
             clock: given.clock,
             liveness: given.liveness,
+            live: testLiveHosting({ events: given.liveEvents }),
           },
           CONFIGURATION,
         )
+        const holds = input.holdsLiveBody
+        return holds === undefined
+          ? runtime
+          : { ...runtime, holdsLiveBody: target => holds(target.call) }
       },
       qualifyObservation: async () => ({ ok: undefined }),
       ...(input.lostContact === true && {
@@ -882,6 +894,47 @@ it('keeps the acknowledgement when the cleanup fails, and a successor finishes t
   expect(await w.custody('one')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
   expect(w.handoffs).toHaveLength(1)
   expect(scripted.pushes).toHaveLength(1)
+})
+
+it('holds the result while this process holds the live body of the call, and pushes it once the body is gone', async () => {
+  let held = true
+  const w = world({ holdsLiveBody: () => held })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(
+    () => w.record('one')?.result !== null && w.record('one') !== undefined,
+    'the frozen result',
+  )
+  await quiet()
+  expect(scripted.pushes).toEqual([])
+  expect(w.record('one')?.result?.standing).toEqual({ status: 'pending' })
+  held = false
+  w.provided.liveEvents?.exited({ tenant: TENANT, call: callOf('one') })
+  await until(() => w.record('one')?.cleanup === 'released', 'the push once the body is gone')
+  expect(scripted.pushes).toMatchObject([{ kind: 'result' }])
+})
+
+it('pushes a run of live events to the consumer frozen at admission, keyed by the reference of the call', async () => {
+  const w = world()
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  const admitted = await w.admit('one')
+  const consumer = { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' }
+  const run = { tenant: TENANT, call: callOf('one'), consumer, from: 1, to: 1 }
+  const answer = await w.provided.liveEvents?.deliver(
+    { ...run, frames: [{ gap: { from: 1, to: 1 } }] },
+    new AbortController().signal,
+  )
+  expect(answer).toBe('saved')
+  expect(scripted.pushes.find(each => each.kind === 'live')).toMatchObject({
+    key: { kind: 'live', reference: admitted.reference, from: 1, to: 1 },
+    consumer,
+  })
 })
 
 it('keeps a result without a receiver waiting and pushes it when the consumer owner registers', async () => {

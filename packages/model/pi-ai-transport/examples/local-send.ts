@@ -222,6 +222,7 @@ try {
   if (!('ok' in prepared)) throw new Error(`prepare failed: ${prepared.failure.kind}`)
   const materialized = await prepared.ok.materialize(new AbortController().signal)
   if (!('ok' in materialized)) throw new Error(`materialize failed: ${materialized.failure.kind}`)
+  if (!('start' in materialized.ok)) throw new Error('materialize: a live binding')
   console.log(`payload digest: ${materialized.ok.receipt.payloadDigest}`)
   secret = 'example-secret'
   const facts = materialized.ok.start(new AbortController().signal)

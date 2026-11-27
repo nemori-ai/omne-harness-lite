@@ -139,7 +139,7 @@ function hostPlugin(
           lookup: lateBoundCostLookup(ctx),
         },
         ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
-        provider: ({ host, commands, clock, liveness }) =>
+        provider: ({ host, commands, clock, liveness, liveEvents }) =>
           createModelRuntime(
             {
               commands: qualifyingCommands(
@@ -160,6 +160,7 @@ function hostPlugin(
                 { adoption: NO_RESEND_RETRY_POLICY, policy: createNoResendRetryPolicy() },
               ]),
               liveness,
+              live: { events: liveEvents, ...config.live },
             },
             config.runtime,
           ),

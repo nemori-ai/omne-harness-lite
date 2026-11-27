@@ -1,14 +1,14 @@
 import type {
+  MaterializedLiveTransport,
   MaterializedTransport,
   PreparedTransport,
-  TransportFact,
 } from '@omne-harness/model-contract/provider'
 import type { SendResource } from './types.ts'
 
 export class SendLifetime {
   resource: SendResource | undefined
   prepared: PreparedTransport | undefined
-  materialized: MaterializedTransport | undefined
+  materialized: MaterializedTransport | MaterializedLiveTransport | undefined
   private closing: Promise<void> | undefined
 
   close(): Promise<void> {
@@ -32,17 +32,17 @@ export class SendLifetime {
   }
 }
 
-export function ownedFacts(
-  source: AsyncIterable<TransportFact>,
+export function ownedFacts<F>(
+  source: AsyncIterable<F>,
   lifetime: SendLifetime,
   finished: () => void,
-): AsyncIterable<TransportFact> {
+): AsyncIterable<F> {
   let handed = false
   return {
     [Symbol.asyncIterator]() {
       if (handed) throw new Error('model-send facts-already-consumed')
       handed = true
-      let iterator: AsyncIterator<TransportFact> | undefined
+      let iterator: AsyncIterator<F> | undefined
       let ended = false
       let queue = Promise.resolve()
       const get = () => (iterator ??= source[Symbol.asyncIterator]())

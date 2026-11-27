@@ -7,6 +7,7 @@ import {
   type ModelFailure,
   type Termination,
   type Reply,
+  type Settlement,
 } from '@omne-harness/model-contract'
 import {
   type ModelCommands,
@@ -19,11 +20,15 @@ import {
   type SendDemand,
   type Publication,
   type ExecutionRef,
+  type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { createObservation } from './observation.ts'
 import { executionFailure, verdictOf } from './commands/execution-write.ts'
 import { createReceiver, newOperation, type TerminalCompetition } from './receive.ts'
 import { createRetryStage } from './retry-stage.ts'
+import { endLive } from './live/ending.ts'
+import type { DriverLive } from './live/hosting.ts'
+import type { LiveEnd, LiveRunner } from './live/runner.ts'
 
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]
 type Settle = Parameters<ModelCommands<unknown>['settle']>[0]
@@ -32,11 +37,13 @@ type Recovery<P> = Extract<
   Awaited<ReturnType<ModelCommands<P>['loadRecovery']>>,
   { ok: unknown }
 >['ok']
+type LiveFinish = Readonly<{ events: Settlement['events']; runner: LiveRunner | null }>
 type SettlementWrite<P> = Extract<Finishing<P>['settlement'], { kind: 'write' }>
 type Finishing<P> = {
   kind: 'finish'
   execution: ExecutionRef
   receiver: Receiver<P> | null
+  live?: LiveFinish
   termination: Termination | null
   driveFailure: ModelFailure | null
   // False while the retry policy may still decide how the failed dispatch ends.
@@ -52,7 +59,15 @@ type Stage<P> =
   | { kind: 'send'; demand: SendDemand<P> }
   | { kind: 'not-sent'; demand: SendDemand<P>; refusal: ModelFailure }
   | { kind: 'unsent'; demand: SendDemand<P> }
-  | { kind: 'receive'; receiver: Receiver<P>; execution: ExecutionRef }
+  | { kind: 'receive'; receiver: Receiver<P>; execution: ExecutionRef; live?: LiveFinish }
+  | {
+      kind: 'live'
+      runner: LiveRunner
+      ending: Promise<LiveEnd>
+      execution: ExecutionRef
+      demand: SendDemand<P>
+      window: string
+    }
   | Finishing<P>
   | { kind: 'done' }
   | { kind: 'failed'; failure: ModelFailure }
@@ -140,6 +155,68 @@ function beginActivity<P>(
       },
     }
 }
+function finishing<P>(
+  execution: ExecutionRef,
+  termination: Termination | null,
+  driveFailure: ModelFailure | null,
+  more: Partial<Pick<Finishing<P>, 'receiver' | 'live' | 'resolved'>> = {},
+): Finishing<P> {
+  const { receiver = null, resolved = driveFailure !== null, live } = more
+  const settlement = { kind: 'ready' } as const
+  const stage: Finishing<P> = {
+    kind: 'finish',
+    execution,
+    receiver,
+    termination,
+    driveFailure,
+    resolved,
+    settlement,
+  }
+  return live === undefined ? stage : { ...stage, live }
+}
+const batching = (c: { outputBatchBytes: number; outputBatchDelayMs: number }) => ({
+  batchBytes: c.outputBatchBytes,
+  batchDelayMs: c.outputBatchDelayMs,
+})
+function receiverFor<P>(
+  receiving: Readonly<
+    { commands: ModelCommands<P>; clock: ModelClock } & ReturnType<typeof batching>
+  >,
+  view: Activity<P>['view'],
+  sent: Readonly<{ demand: SendDemand<P>; window: string; facts: AsyncIterable<TransportFact> }>,
+  refresh: () => void,
+): Receiver<P> {
+  return createReceiver({
+    ...receiving,
+    ...sent,
+    beginContent: () => view.beginContent(),
+    rejectContent: () => view.rejectContent(),
+    confirm: snapshot => view.confirm(snapshot),
+    refresh,
+  })
+}
+function tellBody(runner: LiveRunner | null | undefined, result: Awaited<Reply<void>>): void {
+  if (!runner) return
+  if ('ok' in result) runner.feed({ kind: 'settled' })
+  else if (verdictOf(result.failure) === 'superseded') runner.feed({ kind: 'superseded' })
+}
+function refusePrepare<P>(
+  active: Activity<P>,
+  execution: ExecutionRef,
+  prepared: { failure: ModelFailure },
+): Awaited<Reply<void>> {
+  switch (verdictOf(prepared.failure)) {
+    case 'unconfirmed':
+      return prepared
+    case 'outdated':
+    case 'superseded':
+      active.stage = { kind: 'idle' }
+      return prepared
+    case 'refused':
+      active.stage = finishing(execution, executionFailure(prepared.failure), prepared.failure)
+      return { ok: undefined }
+  }
+}
 function keyOf<P>(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
   const tenant = tenantCodec.encode(input.tenant)
   return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
@@ -154,18 +231,19 @@ async function resumedStage<P>(
   latest: DispatchRecord,
 ): Reply<Stage<P>> {
   const ending = recovery.logicalTerminal
-  if (ending !== null || latest.materialization !== null)
+  if (ending !== null || latest.materialization !== null) {
+    const live: LiveFinish | undefined =
+      recovery.request.kind === 'live' ? { events: 'unknown', runner: null } : undefined
+    const resolved = ending === null
     return {
-      ok: {
-        kind: 'finish',
+      ok: finishing(
         execution,
-        receiver: null,
-        termination: ending ?? RUNTIME_LOST,
-        driveFailure: null,
-        resolved: ending === null,
-        settlement: { kind: 'ready' },
-      },
+        ending ?? RUNTIME_LOST,
+        null,
+        live ? { resolved, live } : { resolved },
+      ),
     }
+  }
   const request = await commands.loadRequest(input)
   if ('failure' in request) return request
   return {
@@ -213,6 +291,7 @@ export function createModelDriver<P>(
   },
   send: ModelSendBoundary<P>,
   retry: ModelRetryPolicy<P>,
+  live: DriverLive<P>,
 ) {
   const activities = new Map<string, Activity<P>>()
   const running = new Set<string>()
@@ -294,6 +373,7 @@ export function createModelDriver<P>(
         operation: newOperation(),
         expected: current.ok.state.revision,
         termination,
+        ...(entry.live === undefined ? {} : { events: entry.live.events }),
       },
     }
     return { ok: undefined }
@@ -393,6 +473,7 @@ export function createModelDriver<P>(
       result = blocked('settle-unconfirmed')
     }
     const unreleased = (await releasing).find(released => 'failure' in released)
+    tellBody(entry.live?.runner, result)
     if ('failure' in result) return result
     if (unreleased !== undefined) return unreleased
     active.stage = entry.driveFailure
@@ -521,31 +602,6 @@ export function createModelDriver<P>(
     refreshProjection(input)
     return { ok: undefined }
   }
-  function refusePrepare(
-    active: Activity<P>,
-    execution: ExecutionRef,
-    prepared: { failure: ModelFailure },
-  ): Awaited<Reply<void>> {
-    switch (verdictOf(prepared.failure)) {
-      case 'unconfirmed':
-        return prepared
-      case 'outdated':
-      case 'superseded':
-        active.stage = { kind: 'idle' }
-        return prepared
-      case 'refused':
-        active.stage = {
-          kind: 'finish',
-          execution,
-          receiver: null,
-          termination: executionFailure(prepared.failure),
-          driveFailure: prepared.failure,
-          resolved: true,
-          settlement: { kind: 'ready' },
-        }
-        return { ok: undefined }
-    }
-  }
   async function settleNotSent(
     active: Activity<P>,
     entry: Extract<Stage<P>, { kind: 'not-sent' }>,
@@ -553,15 +609,8 @@ export function createModelDriver<P>(
   ): Reply<void> {
     const terminal = await notSentTerminal(commands, entry.demand)
     if ('failure' in terminal) return terminal
-    const ending = (termination: Termination, driveFailure: ModelFailure | null): Stage<P> => ({
-      kind: 'finish',
-      execution: entry.demand.execution,
-      receiver: null,
-      termination,
-      driveFailure,
-      resolved: driveFailure !== null,
-      settlement: { kind: 'ready' },
-    })
+    const ending = (termination: Termination, driveFailure: ModelFailure | null) =>
+      finishing<P>(entry.demand.execution, termination, driveFailure)
     refreshProjection(input)
     if (terminal.ok !== null) {
       active.stage = ending(terminal.ok, null)
@@ -595,46 +644,67 @@ export function createModelDriver<P>(
       active.stage = { kind: 'not-sent', demand, refusal: sent.failure }
       return settleNotSent(active, active.stage, input)
     }
-    const view = active.view
+    if (sent.kind === 'started-live') {
+      const runner = live.run(demand, sent.session)
+      const { execution } = demand
+      const { window } = sent
+      active.stage = { kind: 'live', execution, runner, ending: runner.start(), demand, window }
+      refreshProjection(input)
+      return { ok: undefined }
+    }
     active.stage = {
       kind: 'receive',
       execution: demand.execution,
-      receiver: createReceiver({
-        commands,
-        clock,
-        demand,
-        window: sent.window,
-        facts: sent.facts,
-        batchBytes: configuration.outputBatchBytes,
-        batchDelayMs: configuration.outputBatchDelayMs,
-        beginContent: () => view.beginContent(),
-        rejectContent: () => view.rejectContent(),
-        confirm: snapshot => view.confirm(snapshot),
-        refresh: () => refreshProjection(input),
-      }),
+      receiver: receiverOf(active, demand, sent.window, sent.facts, input),
     }
     refreshProjection(input)
     return { ok: undefined }
   }
+  const receiving = { commands, clock, ...batching(configuration) }
+  const receiverOf = (
+    active: Activity<P>,
+    demand: SendDemand<P>,
+    window: string,
+    facts: AsyncIterable<TransportFact>,
+    input: ModelDriveInput<P>,
+  ) =>
+    receiverFor(receiving, active.view, { demand, window, facts }, () => refreshProjection(input))
   async function receiveDispatch(
     active: Activity<P>,
     entry: Extract<Stage<P>, { kind: 'receive' }>,
     signal: AbortSignal,
     competition: TerminalCompetition,
   ): Reply<boolean> {
-    const received = await entry.receiver.run(signal, competition)
-    if ('failure' in received) return received
-    if (!received.ok) return { ok: false }
-    active.stage = {
-      kind: 'finish',
-      execution: entry.execution,
-      receiver: entry.receiver,
-      termination: received.ok.termination,
-      driveFailure: received.ok.failure,
-      resolved: received.ok.failure !== null,
-      settlement: { kind: 'ready' },
+    // A live ending is decided already: writing it goes on while the process stops.
+    const until = entry.live === undefined ? signal : new AbortController().signal
+    const received = await entry.receiver.run(until, competition)
+    if ('failure' in received) {
+      if (verdictOf(received.failure) === 'superseded')
+        entry.live?.runner?.feed({ kind: 'superseded' })
+      return received
     }
+    if (!received.ok) return { ok: false }
+    const { receiver, live } = entry
+    const { termination, failure } = received.ok
+    active.stage = finishing(
+      entry.execution,
+      termination,
+      failure,
+      live ? { receiver, live } : { receiver },
+    )
     return { ok: true }
+  }
+  async function liveDispatch(
+    active: Activity<P>,
+    entry: Extract<Stage<P>, { kind: 'live' }>,
+    input: ModelDriveInput<P>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const { runner, demand, window } = entry
+    const ended = await endLive(commands, active.claim, runner, entry.ending, signal)
+    const receiver = receiverOf(active, demand, window, ended.facts, input)
+    const live = { runner, events: { last: ended.last } }
+    active.stage = { kind: 'receive', execution: entry.execution, receiver, live }
   }
   async function sendOrSettle(
     active: Activity<P>,
@@ -692,6 +762,7 @@ export function createModelDriver<P>(
     }
     const sent = await sendOrSettle(active, input, signal)
     if ('failure' in sent) return sent
+    if (active.stage.kind === 'live') await liveDispatch(active, active.stage, input, signal)
     if (active.stage.kind === 'receive') {
       const received = await receiveDispatch(active, active.stage, signal, competition)
       if ('failure' in received) return received

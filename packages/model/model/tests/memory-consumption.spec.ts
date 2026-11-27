@@ -321,7 +321,7 @@ it('unknown writes block release, reveal does not repeat effects, and cleanup us
   const f = await completed()
   const controlInput = { ...f.admit, operation: op('unknown-control') }
   f.control.injectUnknown({ ...controlInput, method: 'control', effect: 'not-applied' })
-  expect(await f.commands.control(controlInput)).toMatchObject({
+  expect(await f.commands.control({ ...controlInput, intent: 'cancel' })).toMatchObject({
     failure: { kind: 'commit-unknown' },
   })
   unbox(await f.commands.handoff(f.handoff()))

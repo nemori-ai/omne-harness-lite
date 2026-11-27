@@ -580,7 +580,13 @@ describe('a cold mirror', () => {
     })
     const reading = subject.commands.loadRecovery(access(callId('stale')))
     await turn()
-    unbox(await subject.commands.control({ ...access(callId('stale')), operation: op('cancel') }))
+    unbox(
+      await subject.commands.control({
+        ...access(callId('stale')),
+        operation: op('cancel'),
+        intent: 'cancel',
+      }),
+    )
     release()
     unbox(await reading)
     expect(subject.coordinator.check(demand, 'prepare')).toEqual({
@@ -706,7 +712,13 @@ describe('parity with the memory coordinator', () => {
     answer(subject.coordinator.check({ ...open.demand, principal: stranger }, 'access'))
     answer(fence.enter())
     answer(fence.enter())
-    unbox(await subject.commands.control({ ...access(callId('prepared')), operation: op('stop') }))
+    unbox(
+      await subject.commands.control({
+        ...access(callId('prepared')),
+        operation: op('stop'),
+        intent: 'cancel',
+      }),
+    )
     answer(subject.coordinator.check(prepared.demand, 'prepare'))
     return answers
   }

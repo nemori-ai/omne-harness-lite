@@ -207,6 +207,9 @@ export function runtimeFixture(
               return script.transport.prepare(request, supplier, dispatch)
             },
           },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential() {
             stream.starts++
             stream.suppliers.push(demand.supplier.adoption.name)

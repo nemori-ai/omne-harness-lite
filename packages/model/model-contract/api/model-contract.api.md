@@ -286,9 +286,13 @@
 - `FixedRequestHead` · `root.d.ts`
 - `IndependentModelFact` · `provider-protocol.d.ts`
 - `LateDispatchFact` · `provider-protocol.d.ts`
+- `LiveFact` · `provider-protocol.d.ts`
+- `LiveInput` · `provider-protocol.d.ts`
+- `LiveSession` · `provider-protocol.d.ts`
 - `MODEL_INPUT_LIMITS` · `input-tree.d.ts`
 - `MODEL_SEND` · `credential.d.ts`
 - `MaterializeFailure` · `provider-protocol.d.ts`
+- `MaterializedLiveTransport` · `provider-protocol.d.ts`
 - `MaterializedTransport` · `provider-protocol.d.ts`
 - `MediaRefusal` · `provider-protocol.d.ts`
 - `MeterCalibration` · `profile.d.ts`
@@ -2482,6 +2486,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
 import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, FixedRequestHead, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { LiveCommand, LiveCommandOutcome, LiveEvent, MediaFrame } from './live-call.ts';
 import type { AbandonInput, AbandonReceipt, AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { ConnectRetryReason, DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
@@ -2625,8 +2630,44 @@ export interface MaterializedTransport {
     start(signal: AbortSignal): AsyncIterable<TransportFact>;
     close(): Promise<void>;
 }
+export type LiveFact = Readonly<{
+    kind: 'opened';
+    expiresAt: string | null;
+}> | Readonly<{
+    kind: 'event';
+    event: Extract<LiveEvent, {
+        t: 'transcript' | 'delegation' | 'asleep';
+    }>;
+}> | Readonly<{
+    kind: 'command';
+    id: ModelOperationId;
+    outcome: LiveCommandOutcome;
+}> | Readonly<{
+    kind: 'media';
+    frame: MediaFrame;
+}> | Readonly<{
+    kind: 'account';
+    event: string;
+    value: CallAccountReport;
+}> | Readonly<{
+    kind: 'closed';
+}>;
+export interface LiveInput {
+    send(command: LiveCommand, id: ModelOperationId): 'sent' | 'closed';
+    media(frame: MediaFrame): 'sent' | 'dropped';
+    close(): void;
+}
+export type LiveSession = Readonly<{
+    facts: AsyncIterable<LiveFact>;
+    input: LiveInput;
+}>;
+export interface MaterializedLiveTransport {
+    readonly receipt: MaterializationReceipt;
+    open(signal: AbortSignal): LiveSession;
+    close(): Promise<void>;
+}
 export interface PreparedTransport {
-    materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, MaterializeFailure>>;
+    materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport | MaterializedLiveTransport, MaterializeFailure>>;
     close(): Promise<void>;
 }
 export type TransportDispatch = Readonly<{
@@ -2793,8 +2834,13 @@ export interface ModelCommands<P> {
     }>): Reply<Revision>;
     settle(input: WriteContext & Readonly<{
         termination: Termination;
+        events?: Settlement['events'];
     }>): Reply<Settlement>;
-    control(input: Mutation<P>): Reply<ControlState>;
+    control(input: Mutation<P> & Readonly<{
+        intent: Extract<ControlState, {
+            kind: 'requested';
+        }>['intent'];
+    }>): Reply<ControlState>;
     acquireRead(input: Mutation<P> & Readonly<{
         result: ResultVersion;
     }>): Reply<ReadStart>;
@@ -2835,6 +2881,10 @@ export type SendResult = Readonly<{
     kind: 'started';
     window: string;
     facts: AsyncIterable<TransportFact>;
+}> | Readonly<{
+    kind: 'started-live';
+    window: string;
+    session: LiveSession;
 }> | Readonly<{
     kind: 'not-started';
     failure: ModelFailure;
@@ -2899,7 +2949,7 @@ export interface ModelProvider<P> {
 
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
-export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, LiveFact, LiveInput, LiveSession, MaterializedLiveTransport, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelDecisionPreparation } from '../decision-preparation.ts';
@@ -3350,7 +3400,7 @@ import type { Message } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { ModelInvocationRef } from './reference.ts';
 import type { DecisionAsk } from './decision-call.ts';
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts';
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts';
 declare const identity: unique symbol;
 export type Identity<K extends string> = string & {
     readonly [identity]: K;
@@ -3485,6 +3535,7 @@ export type DecisionsRequest = Readonly<{
 }>;
 export type LiveRequest = Readonly<{
     kind: 'live';
+    input: readonly ModelModality[];
     instructions: string;
     history: readonly Message[];
     voice: string | null;

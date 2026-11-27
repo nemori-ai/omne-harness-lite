@@ -111,6 +111,7 @@ async function run(
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized))
       return { materialized, facts: [], bodies: bodies(), sends: sends() }
+    if (!('start' in materialized.ok)) throw new Error('a decision binding is not live')
     const facts = await collect(materialized.ok.start(new AbortController().signal))
     return { facts, bodies: bodies(), sends: sends(), receipt: materialized.ok.receipt }
   } finally {

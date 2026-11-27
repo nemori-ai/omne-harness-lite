@@ -257,8 +257,16 @@ function callChecks<P>(): readonly Check<P>[] {
           'a command on the call through another tenant',
         )
         const none = refused(
-          await command(scene, callId('live-none'), operationId('none')),
-          'a command on a call that does not exist',
+          await calls.command({
+            ...mutationOf(
+              scene,
+              callId('live-none'),
+              operationId('none'),
+              scene.subject.otherTenant,
+            ),
+            command: SAY,
+          }),
+          'a command through another tenant on a call that does not exist',
         )
         expect(
           same(theirs, none),

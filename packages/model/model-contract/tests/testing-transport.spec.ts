@@ -39,6 +39,7 @@ const supplier = request.suppliers[0]
 async function materialize(scripted: ReturnType<typeof createScriptedTransport>) {
   const prepared = must(await scripted.transport.prepare(request, supplier, { resent: [] }))
   const materialized = must(await prepared.materialize(new AbortController().signal))
+  if (!('start' in materialized)) throw new Error('the scripted transport answers a request')
   return { prepared, materialized }
 }
 

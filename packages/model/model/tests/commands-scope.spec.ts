@@ -110,7 +110,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
       }),
     settle: c =>
       c.settle({ ...write('settle'), termination: { kind: 'completed', reason: 'stop' } }),
-    control: c => c.control({ ...access, call, operation: op('control') }),
+    control: c => c.control({ ...access, call, operation: op('control'), intent: 'cancel' }),
     acquireRead: c =>
       c.acquireRead({
         ...access,

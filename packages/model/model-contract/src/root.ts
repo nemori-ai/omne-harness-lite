@@ -5,7 +5,7 @@ import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ModelInvocationRef } from './reference.ts'
 import type { DecisionAsk } from './decision-call.ts'
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
 declare const identity: unique symbol
 export type Identity<K extends string> = string & { readonly [identity]: K }
@@ -112,6 +112,8 @@ export type DecisionsRequest = Readonly<{ kind: 'decisions'; ask: DecisionAsk }>
 /** A live session: what it is told first, the conversation it continues, its voice, and how its media go. */
 export type LiveRequest = Readonly<{
   kind: 'live'
+  /** The modalities the profile takes in, fixed with the request: commands and media outside them are refused. */
+  input: readonly ModelModality[]
   instructions: string
   history: readonly Message[]
   voice: string | null

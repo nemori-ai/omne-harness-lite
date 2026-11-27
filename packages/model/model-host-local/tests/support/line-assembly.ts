@@ -12,6 +12,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
+import { testLiveHosting } from '@omne-harness/model/testing'
 import type { ModelCommandsCoreOptions, ModelSendSource } from '@omne-harness/model/commands'
 import {
   decodeModelCallId,
@@ -690,6 +691,7 @@ export async function assembleLine(input: LineInput) {
           retry: NO_RETRY,
           instances: given.host,
           clock: given.clock,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       ),

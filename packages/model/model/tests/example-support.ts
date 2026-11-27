@@ -201,12 +201,15 @@ export function createExampleAssembly(script: {
                   close: () => prepared.ok.close(),
                   async materialize(signal) {
                     const result = await prepared.ok.materialize(signal)
-                    if ('ok' in result) owned = result.ok
+                    if ('ok' in result && 'start' in result.ok) owned = result.ok
                     return result
                   },
                 },
               }
             },
+          },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
           },
           startWithCredential(materialized, _syntheticCredential, signal) {
             if (materialized !== owned) throw new Error('Foreign example materialization')

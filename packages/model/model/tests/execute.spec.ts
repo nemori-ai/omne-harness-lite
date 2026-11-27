@@ -29,16 +29,17 @@ describe('independent execution through the public entry', () => {
         return succeed({
           async materialize(abort) {
             const materialized = await prepared.ok.materialize(abort)
-            if ('failure' in materialized) return materialized
+            if ('failure' in materialized || !('start' in materialized.ok)) return materialized
             stages.push(given.counts().start)
+            const request = materialized.ok
             return succeed({
-              receipt: materialized.ok.receipt,
+              receipt: request.receipt,
               start(signal) {
-                const stream = materialized.ok.start(signal)
+                const stream = request.start(signal)
                 stages.push(given.counts().start)
                 return stream
               },
-              close: () => materialized.ok.close(),
+              close: () => request.close(),
             })
           },
           close: () => prepared.ok.close(),

@@ -52,7 +52,7 @@ export function createConfiguredModelRuntimeLocalPlugin(
         ...(options.observation !== undefined && { observation: options.observation }),
         qualifyObservation: options.qualifyObservation,
         results: { ledger: options.ledger, limits: settings.results },
-        provider: ({ host, commands, clock }) =>
+        provider: ({ host, commands, clock, liveEvents }) =>
           createModelRuntime(
             {
               commands,
@@ -60,6 +60,7 @@ export function createConfiguredModelRuntimeLocalPlugin(
               instances: host,
               send: options.send,
               retry: createDefaultRetryPolicy({ ...settings.retry, clock, random: Math.random }),
+              live: { events: liveEvents, ...settings.live },
             },
             settings.runtime,
           ),

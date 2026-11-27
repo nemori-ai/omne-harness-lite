@@ -1367,6 +1367,26 @@
               "pending": false
             },
             {
+              "name": "LiveFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveSession",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MaterializedLiveTransport",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "MaterializedTransport",
               "kind": "type",
               "pending": false

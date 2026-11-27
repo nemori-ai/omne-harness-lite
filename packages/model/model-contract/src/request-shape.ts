@@ -15,7 +15,7 @@ import type {
   Supplier,
   ToolDeclaration,
 } from './root.ts'
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { rejected } from './input-tree.ts'
 import { judgeReplayDeclaration } from './replay-values.ts'
@@ -438,7 +438,20 @@ function decisionsRequest(value: unknown, field: string): Checked<DecisionsModel
   return succeed({ kind: 'decisions', ...routing.ok, ask, source: source.ok })
 }
 
-const LIVE_KEYS = [...COMMON_KEYS, 'instructions', 'history', 'voice', 'media']
+const LIVE_KEYS = [...COMMON_KEYS, 'input', 'instructions', 'history', 'voice', 'media']
+const LIVE_MODALITIES: ReadonlySet<string> = new Set<ModelModality>(['text', 'image', 'voice'])
+const isModality = (item: unknown): item is ModelModality =>
+  typeof item === 'string' && LIVE_MODALITIES.has(item)
+
+function liveInput(value: unknown, field: string): Checked<LiveModelRequest['input']> {
+  const listed = sequence(value, field, (item, at) =>
+    isModality(item) ? succeed(item) : rejected(at, 'value'),
+  )
+  if ('failure' in listed) return listed
+  return listed.ok.length > 0 && new Set(listed.ok).size === listed.ok.length
+    ? listed
+    : rejected(field, 'value')
+}
 
 function liveMedia(value: unknown, field: string): Checked<LiveModelRequest['media']> {
   const record = closed(value, ['via', 'audio'], field)
@@ -483,6 +496,8 @@ function liveRequest(value: unknown, field: string): Checked<LiveModelRequest> {
   if ('failure' in source) return source
   const content = liveContent(record.ok, field)
   if ('failure' in content) return content
+  const input = liveInput(record.ok.input, `${field}/input`)
+  if ('failure' in input) return input
   const media = liveMedia(record.ok.media, `${field}/media`)
   if ('failure' in media) return media
   const standby = liveStandby(record.ok, field)
@@ -490,6 +505,7 @@ function liveRequest(value: unknown, field: string): Checked<LiveModelRequest> {
   return succeed({
     kind: 'live',
     ...routing.ok,
+    input: input.ok,
     ...content.ok,
     ...standby.ok,
     media: media.ok,

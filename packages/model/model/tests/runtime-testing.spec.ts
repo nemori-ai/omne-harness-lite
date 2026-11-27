@@ -133,6 +133,7 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
     send: counted(f.dependencies.send),
     retry: counted(f.dependencies.retry),
     clock: counted(f.dependencies.clock),
+    live: f.dependencies.live,
     instances: counted({
       ...f.dependencies.instances,
       directory: counted(f.dependencies.instances.directory),
@@ -585,6 +586,7 @@ it('rejects each incomplete dependency without invoking any dependency method', 
     send: tracked(f.dependencies.send),
     retry: tracked(f.dependencies.retry),
     clock: tracked(f.dependencies.clock),
+    live: { ...f.dependencies.live, events: tracked(f.dependencies.live.events) },
     instances: tracked({
       ...f.dependencies.instances,
       directory: tracked(f.dependencies.instances.directory),
@@ -604,6 +606,30 @@ it('rejects each incomplete dependency without invoking any dependency method', 
       }
     }
   }
+  const live = dependencies.live
+  for (const broken of [
+    { ...live, events: undefined },
+    { ...live, events: { ...live.events, deliver: 1 } },
+    { ...live, events: { deliver: live.events.deliver } },
+    ...[0, 1.5, NaN, undefined].map(capacity => ({ ...live, capacity })),
+    ...['openMs', 'closeMs', 'drainMs', 'redeliverMs'].flatMap(field =>
+      [-1, 0.5, Infinity, undefined].map(bad => ({
+        ...live,
+        deadlines: { ...live.deadlines, [field]: bad },
+      })),
+    ),
+    { ...live, deadlines: undefined },
+    null,
+    { ...live, events: null },
+  ]) {
+    expect(() =>
+      Reflect.apply(createModelRuntime, undefined, [
+        { ...dependencies, live: broken },
+        configuration,
+      ]),
+    ).toThrow(new TypeError('invalid Model dependency live'))
+    expect(invoked).toBe(0)
+  }
   for (const directory of [undefined, {}, { connect: 1 }]) {
     expect(() =>
       Reflect.apply(createModelRuntime, undefined, [
@@ -613,6 +639,12 @@ it('rejects each incomplete dependency without invoking any dependency method', 
     ).toThrow(TypeError)
     expect(invoked).toBe(0)
   }
+  const smallest = {
+    ...live,
+    capacity: 1,
+    deadlines: { openMs: 0, closeMs: 0, drainMs: 0, redeliverMs: 0 },
+  }
+  expect(() => createModelRuntime({ ...dependencies, live: smallest }, configuration)).not.toThrow()
   expect(() => createModelRuntime(dependencies, configuration)).not.toThrow()
   expect(invoked).toBe(0)
 })

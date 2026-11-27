@@ -12,7 +12,7 @@ import {
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, testLiveHosting } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -358,6 +358,9 @@ export function world(
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential: (materialized, _value, signal) => materialized.start(signal),
           release: async () => {},
         },
@@ -441,6 +444,7 @@ export function world(
           instances: given.host,
           clock: given.clock,
           liveness: given.liveness,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       )

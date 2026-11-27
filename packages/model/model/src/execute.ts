@@ -179,7 +179,13 @@ async function* execute(
 
     const materialization = await preparation(async (): Promise<Sendable> => {
       const outcome = await preparationResult.ok.materialize(signal)
-      if ('ok' in outcome) return outcome
+      if ('ok' in outcome) {
+        const materialized = outcome.ok
+        if (!('open' in materialized)) return { ok: materialized }
+        await materialized.close()
+        const adapter = materialized.receipt.supplier
+        return fail({ kind: 'unsupported', field: 'request.kind', adapter })
+      }
       const { failure } = outcome
       return fail(failure.kind === 'media' ? mediaRefusal(failure).failure : failure)
     }, 'materialize')

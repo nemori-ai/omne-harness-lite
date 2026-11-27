@@ -32,6 +32,7 @@ import type {
   ExecutionRef,
   IndependentModelFact,
   LateDispatchFact,
+  MaterializedLiveTransport,
   MaterializedTransport,
   ModelClock,
   ModelCommands,
@@ -137,7 +138,7 @@ it('a media read is asked with the access, the reference and the limits of the m
 
 it('a materialization fails as a transport does, or names the medium it could not send and why', () => {
   expectTypeOf<ReturnType<PreparedTransport['materialize']>>().resolves.toEqualTypeOf<
-    Outcome<MaterializedTransport, MaterializeFailure>
+    Outcome<MaterializedTransport | MaterializedLiveTransport, MaterializeFailure>
   >()
   const gone: MaterializeFailure = { kind: 'media', reference, reason: 'material-unavailable' }
   const over: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit', limit: '9' }

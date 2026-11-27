@@ -742,7 +742,8 @@ describe('capacity across real sends', () => {
       expect(await collect(first)).toEqual([RESPONSE, COMPLETED])
       await expect.poll(() => waiting.done).toBe(true)
       const second = waiting.value
-      if (second === undefined || !('ok' in second)) throw new Error('expected a materialization')
+      if (second === undefined || !('ok' in second) || !('start' in second.ok))
+        throw new Error('expected a chat materialization')
       const stream = second.ok.start(new AbortController().signal)
       expect(transport.sends()).toBe(2)
       expect(await collect(stream)).toEqual([RESPONSE, COMPLETED])
@@ -779,7 +780,8 @@ describe('capacity across real sends', () => {
         const waiting = (await transport.prepare()).materialize(new AbortController().signal)
         await held.close()
         const next = await waiting
-        if (!('ok' in next)) throw new Error('expected a materialization')
+        if (!('ok' in next) || !('start' in next.ok))
+          throw new Error('expected a chat materialization')
         expect(await collect(next.ok.start(new AbortController().signal))).toEqual([
           RESPONSE,
           COMPLETED,

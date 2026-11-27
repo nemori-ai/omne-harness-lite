@@ -79,6 +79,7 @@ async function materialized(
 ): Promise<MaterializedTransport> {
   const outcome = await prepared.materialize(signal)
   if (!('ok' in outcome)) throw new Error(`expected a materialization: ${JSON.stringify(outcome)}`)
+  if (!('start' in outcome.ok)) throw new Error('expected a chat materialization, not a live one')
   return outcome.ok
 }
 

@@ -310,9 +310,9 @@ describe('the conformance suite on live calls', () => {
       withLive(subject, calls => ({
         ...calls,
         async command(input) {
-          return input.tenant === subject.otherTenant
-            ? fail({ kind: 'denied', action: 'live-command' })
-            : calls.command(input)
+          return calls.command(
+            input.tenant === subject.otherTenant ? { ...input, tenant: subject.tenant } : input,
+          )
         },
       })),
     )

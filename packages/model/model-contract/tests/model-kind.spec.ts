@@ -33,7 +33,7 @@ describe('the model kind of a fixed request', () => {
     })
   })
 
-  it('a live request is judged like any request, with its instructions, history, voice and media', () => {
+  it('a live request is judged like any request, with the modalities it takes, its instructions, history, voice and media', () => {
     const { profile, suppliers, fallback, retryPolicy, source } = request
     const live = {
       kind: 'live',
@@ -42,6 +42,7 @@ describe('the model kind of a fixed request', () => {
       fallback,
       retryPolicy,
       source,
+      input: ['text', 'voice'],
       instructions: 'Answer the caller briefly.',
       history: [],
       voice: null,
@@ -63,6 +64,10 @@ describe('the model kind of a fixed request', () => {
       [{ ...live, instructions: 5 }, '/instructions', 'type'],
       [{ ...live, source: 5 }, '/source', 'type'],
       [{ ...live, suppliers: [] }, '/suppliers', 'value'],
+      [{ ...live, input: [] }, '/input', 'value'],
+      [{ ...live, input: ['text', 'text'] }, '/input', 'value'],
+      [{ ...live, input: ['text', 'smell'] }, '/input/1', 'value'],
+      [{ ...live, input: 'text' }, '/input', 'type'],
     ] as const)
       expect(judgeFixedModelRequest(broken), field).toEqual({ failure: { field, reason } })
   })

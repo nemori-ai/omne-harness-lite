@@ -72,12 +72,16 @@ export function scriptedSendResources<P, Script>(
                   close: () => result.ok.close(),
                   async materialize(signal) {
                     const resultMaterialized = await result.ok.materialize(signal)
-                    if ('ok' in resultMaterialized) owned = resultMaterialized.ok
+                    if ('ok' in resultMaterialized && 'start' in resultMaterialized.ok)
+                      owned = resultMaterialized.ok
                     return resultMaterialized
                   },
                 },
               }
             },
+          },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
           },
           startWithCredential(materialized, secrets, signal) {
             if (materialized !== owned || secret !== undefined)

@@ -607,7 +607,9 @@ describe('closing a prepared transport while it materializes', () => {
       const closed = prepared.ok.close()
       const outcome = await pending
       const facts =
-        'ok' in outcome ? await collect(outcome.ok.start(new AbortController().signal)) : []
+        'ok' in outcome && 'start' in outcome.ok
+          ? await collect(outcome.ok.start(new AbortController().signal))
+          : []
       await closed
       if (gap <= 2) expect(outcome).toEqual({ failure: PREPARED_CLOSED_FAILURE })
       if ('ok' in outcome)

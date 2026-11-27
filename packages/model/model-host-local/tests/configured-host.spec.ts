@@ -58,6 +58,10 @@ const CONFIG = {
     maxCostMisses: 3,
     delaysMs: [1000, 5000, 30000],
   },
+  live: {
+    capacity: 64,
+    deadlines: { openMs: 10_000, closeMs: 5000, drainMs: 5000, redeliverMs: 1000 },
+  },
 }
 const REQUEST: LlmModelRequest = {
   kind: 'llm',
@@ -318,6 +322,33 @@ it('the schema gives the retry settings as they are, and names what is wrong wit
   expect(
     validate({ ...CONFIG, retry: { adoption, policy, replayResend: { max: 0 } } }),
   ).toMatchObject({ value: { retry: { replayResend: { max: 0 } } } })
+  void f.ctx.fiber.dispose()
+})
+
+it('the schema gives the live settings as they are, and names the one out of range', () => {
+  const f = fixture()
+  const validate = (config: unknown) => f.Plugin.Config['~standard'].validate(config)
+  expect(validate(CONFIG)).toMatchObject({ value: { live: CONFIG.live } })
+  for (const capacity of [0, 1.5, '64'])
+    expect(validate({ ...CONFIG, live: { ...CONFIG.live, capacity } })).toEqual({
+      issues: [{ message: 'live.capacity must be an integer of at least 1 within the safe range' }],
+    })
+  for (const field of ['openMs', 'closeMs', 'drainMs', 'redeliverMs'] as const)
+    expect(
+      validate({
+        ...CONFIG,
+        live: { ...CONFIG.live, deadlines: { ...CONFIG.live.deadlines, [field]: -1 } },
+      }),
+    ).toEqual({
+      issues: [
+        {
+          message: `live.deadlines.${field} must be an integer of at least 0 within the safe range`,
+        },
+      ],
+    })
+  expect(validate({ ...CONFIG, live: undefined })).toEqual({
+    issues: [{ message: 'live must be an object' }],
+  })
   void f.ctx.fiber.dispose()
 })
 

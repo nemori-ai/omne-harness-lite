@@ -14,6 +14,7 @@ import {
   MODEL_SEND,
   requestRepresentation,
   type MaterializeFailure,
+  type MaterializedLiveTransport,
   type MaterializedTransport,
   type MediaRefusal,
   type ModelCommands,
@@ -22,7 +23,12 @@ import {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
-import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from './types.ts'
+import type {
+  CredentialSelection,
+  ModelSendBoundaryOptions,
+  SendResource,
+  SendStart,
+} from './types.ts'
 
 // A dispatch without reasoning state leaves out every reply that carries a replay mark: the
 // resend after a refusal of it, and every dispatch of the call after the resend.
@@ -81,6 +87,32 @@ export const unavailable = (dependency: string, diagnostic: string): ModelFailur
   diagnostic,
 })
 export const refused = (failure: ModelFailure): SendResult => ({ kind: 'not-started', failure })
+/** Starts the request, or opens the session of a live binding, with the secrets of the credential. */
+function begin(
+  resource: SendResource,
+  materialized: MaterializedTransport | MaterializedLiveTransport,
+  secrets: ReadonlyMap<string, string>,
+  signal: AbortSignal,
+): SendStart {
+  return 'open' in materialized
+    ? { kind: 'started-live', session: resource.openWithCredential(materialized, secrets, signal) }
+    : { kind: 'started', facts: resource.startWithCredential(materialized, secrets, signal) }
+}
+function handed(
+  decision: Extract<SendStart, { kind: 'started' | 'started-live' }>,
+  window: string,
+  lifetime: SendLifetime,
+  finished: () => void,
+): SendResult {
+  if (decision.kind === 'started')
+    return { kind: 'started', window, facts: ownedFacts(decision.facts, lifetime, finished) }
+  const { facts, input } = decision.session
+  return {
+    kind: 'started-live',
+    window,
+    session: { facts: ownedFacts(facts, lifetime, finished), input },
+  }
+}
 function credentialFault(diagnostic: string): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
@@ -233,10 +265,7 @@ export function createAttemptRunner<P>(
       const credential = resolveCredential(attempt, selection)
       if ('failure' in credential) return { kind: 'refused', ...credential }
       try {
-        return {
-          kind: 'started',
-          facts: resource.startWithCredential(materialized, credential.ok, attempt.signal),
-        }
+        return begin(resource, materialized, credential.ok, attempt.signal)
       } catch {
         return { kind: 'unknown', diagnostic: 'transport-start-unknown' }
       }
@@ -247,7 +276,7 @@ export function createAttemptRunner<P>(
   async function acquireResources(
     attempt: SendAttempt<P>,
     dispatch: DispatchRecord,
-  ): Promise<{ ok: MaterializedTransport } | RefusalReason> {
+  ): Promise<{ ok: MaterializedTransport | MaterializedLiveTransport } | RefusalReason> {
     const input = attempt.input
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
@@ -424,7 +453,7 @@ export function createAttemptRunner<P>(
           state:
             decision.kind === 'refused'
               ? 'not-sent'
-              : decision.kind === 'started'
+              : decision.kind === 'started' || decision.kind === 'started-live'
                 ? 'started'
                 : 'unknown',
         },
@@ -480,16 +509,8 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: unknown(attempt, decision.diagnostic) }
     }
     attempt.stage = { kind: 'handed' }
-    return {
-      kind: 'complete',
-      result: {
-        kind: 'started',
-        window: attempt.window,
-        facts: ownedFacts(decision.facts, attempt.lifetime, () => {
-          attempts.delete(id)
-        }),
-      },
-    }
+    const result = handed(decision, attempt.window, attempt.lifetime, () => attempts.delete(id))
+    return { kind: 'complete', result }
   }
   function terminalStage(
     attempt: SendAttempt<P>,

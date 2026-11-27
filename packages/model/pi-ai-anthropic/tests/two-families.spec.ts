@@ -21,7 +21,11 @@ import {
   type NetworkResources,
   type PiTransport,
 } from '@omne-harness/pi-ai-transport'
-import { fixtureDirectory, GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
+import {
+  fixtureDirectory,
+  GATEWAY_END_MARKER,
+  OPENROUTER_ACCOUNTING,
+} from '@omne-harness/pi-ai-transport/testing'
 import {
   createOpenAiFamily,
   OPENAI_RECORDS,
@@ -143,26 +147,23 @@ function buildTransport(): Built {
     tls: { ca: certificate.cert },
   })
   let reads = 0
+  // Every record fixture was recorded under the gateway's accounting, a direct one too.
+  const route = {
+    endpoints: {
+      'chat-completions': {
+        url: new URL(PATHS['chat-completions'], server.url).href,
+        endMarker: GATEWAY_END_MARKER,
+      },
+      responses: { url: new URL(PATHS.responses, server.url).href, endMarker: GATEWAY_END_MARKER },
+      messages: { url: new URL(PATHS.messages, server.url).href, endMarker: null },
+    },
+    accounting: OPENROUTER_ACCOUNTING,
+    auth: { kind: 'bearer', item: 'apiKey' },
+  } as const
   const transport = createPiTransport({
     network,
     families: FAMILIES,
-    routes: {
-      openrouter: {
-        endpoints: {
-          'chat-completions': {
-            url: new URL(PATHS['chat-completions'], server.url).href,
-            endMarker: GATEWAY_END_MARKER,
-          },
-          responses: {
-            url: new URL(PATHS.responses, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
-          },
-          messages: { url: new URL(PATHS.messages, server.url).href, endMarker: null },
-        },
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
-        auth: { kind: 'bearer', item: 'apiKey' },
-      },
-    },
+    routes: { openrouter: route, openai: route },
     credential: {
       read: () => {
         reads += 1
@@ -183,12 +184,14 @@ async function send(built: Built, request: LlmModelRequest): Promise<readonly Tr
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized))
       throw new Error(`materialize: ${JSON.stringify(materialized.failure)}`)
+    const chat = materialized.ok
+    if (!('start' in chat)) throw new Error('materialize: a live binding')
     try {
       const facts: TransportFact[] = []
-      for await (const fact of materialized.ok.start(new AbortController().signal)) facts.push(fact)
+      for await (const fact of chat.start(new AbortController().signal)) facts.push(fact)
       return facts
     } finally {
-      await materialized.ok.close()
+      await chat.close()
     }
   } finally {
     await prepared.ok.close()

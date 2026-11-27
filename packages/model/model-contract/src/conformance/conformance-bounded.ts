@@ -1,5 +1,10 @@
 import type { ModelRuntime } from '../index.ts'
-import type { ModelProvider, PreparedTransport, MaterializedTransport } from '../provider/index.ts'
+import type {
+  MaterializedLiveTransport,
+  MaterializedTransport,
+  ModelProvider,
+  PreparedTransport,
+} from '../provider/index.ts'
 import { within } from './conformance-kit.ts'
 import type {
   ConformanceHooks,
@@ -106,16 +111,27 @@ function boundedHooks<P>(hooks: ConformanceHooks<P>, waitMs: number): Conformanc
 }
 
 function boundedMaterialized(
-  materialized: MaterializedTransport,
+  materialized: MaterializedTransport | MaterializedLiveTransport,
   waitMs: number,
-): MaterializedTransport {
+): MaterializedTransport | MaterializedLiveTransport {
+  const close = bounded(waitMs, 'the close of the materialized transport', () =>
+    materialized.close(),
+  )
+  // Read the receipt on every access: a transport whose receipt changes between reads must stay visible.
+  if ('open' in materialized)
+    return {
+      get receipt() {
+        return materialized.receipt
+      },
+      open: signal => materialized.open(signal),
+      close,
+    }
   return {
-    // Read on every access: a transport whose receipt changes between reads must stay visible.
     get receipt() {
       return materialized.receipt
     },
     start: signal => materialized.start(signal),
-    close: bounded(waitMs, 'the close of the materialized transport', () => materialized.close()),
+    close,
   }
 }
 
