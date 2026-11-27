@@ -12,6 +12,7 @@ import type {
   AuthorizationRecords,
   CatalogStore,
   ContinuationRecords,
+  EventRecords,
   HoldingRows,
   TaskRecords,
 } from '@omne-harness/mcp-contract/provider'
@@ -19,6 +20,7 @@ import {
   createSqlAuthorizationRecords,
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlEventRecords,
   createSqlHoldingRows,
   createSqlTaskRecords,
   mcpSqlMaterials,
@@ -53,6 +55,7 @@ export type SqlWorld = Readonly<{
   tasks: TaskRecords
   grants: AuthorizationRecords
   events: CatalogStore<EventCatalogRecord>
+  subscriptions: EventRecords
   holdings: HoldingRows
   /** From now on the tenants are not bound: every read and write meets no storage domain. */
   unbind(): void
@@ -126,6 +129,7 @@ export async function openSqlWorld(root = temporaryRoot()): Promise<SqlWorld> {
     tasks: createSqlTaskRecords({ storage, bind }),
     grants: createSqlAuthorizationRecords({ storage, bind }),
     events: createSqlCatalogStore<EventCatalogRecord>({ storage, bind }, 'events'),
+    subscriptions: createSqlEventRecords({ storage, bind }),
     holdings: createSqlHoldingRows({ storage, bind }),
     unbind() {
       bound = false

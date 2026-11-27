@@ -3,9 +3,22 @@ import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { listFollowing, loadCatalog, loadTask, type SqlPort } from './rows.ts'
 import { loadClient, loadGrant, type GrantCells } from './rows-grants.ts'
 import { keptHoldings } from './rows-holdings.ts'
+import {
+  listSubscriptions,
+  loadSubscription,
+  readOccurrences,
+  type SubscriptionCells,
+} from './rows-subscriptions.ts'
 import { HANDLER, PROTOCOL, READS, type ReadName, type TaskRowCells } from './schema.ts'
 
-type ReadRequest = Readonly<{ read: ReadName; key: never; tenant: string; issuer: string }>
+type ReadRequest = Readonly<{
+  read: ReadName
+  key: never
+  tenant: string
+  issuer: string
+  after: number
+  limit: number
+}>
 
 const RUN: Record<ReadName, (port: SqlPort, request: ReadRequest) => unknown> = {
   readCatalog(port, request) {
@@ -26,6 +39,17 @@ const RUN: Record<ReadName, (port: SqlPort, request: ReadRequest) => unknown> = 
   },
   keptHoldings(port, request) {
     return { ok: keptHoldings(port, request.tenant) }
+  },
+  listSubscriptions(port, request) {
+    return { ok: listSubscriptions(port, request.tenant) }
+  },
+  readSubscription(port, request) {
+    return { ok: loadSubscription(port, request.key as SubscriptionCells) ?? 'absent' }
+  },
+  readOccurrences(port, request) {
+    return {
+      ok: readOccurrences(port, request.key as SubscriptionCells, request.after, request.limit),
+    }
   },
 }
 

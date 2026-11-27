@@ -52,3 +52,15 @@ export type {
 } from './grant.ts'
 export type { HoldingRows, KeptHolding } from './holdings.ts'
 export type { EventListingPage } from './events.ts'
+export type {
+  EventRecords,
+  GapReason,
+  Occurrence,
+  ReceivedBatch,
+  RetentionBounds,
+  StoredOccurrence,
+  SubscriptionKey,
+  SubscriptionRow,
+  SubscriptionState,
+  TerminationReason,
+} from './subscriptions.ts'

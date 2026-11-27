@@ -5,7 +5,9 @@ export const MIGRATION = { owner: PARTICIPANT, id: 'mcp-1' }
 export const TABLES = ['mcp_catalogs', 'mcp_continuations', 'mcp_tasks']
 export const GRANT_MIGRATION = { owner: PARTICIPANT, id: 'mcp-2' }
 export const GRANT_TABLES = ['mcp_pending', 'mcp_grants', 'mcp_clients']
-export const OWNED_TABLES = [...TABLES, ...GRANT_TABLES]
+export const SUBSCRIPTION_MIGRATION = { owner: PARTICIPANT, id: 'mcp-3' }
+export const SUBSCRIPTION_TABLES = ['mcp_subscriptions', 'mcp_occurrences']
+export const OWNED_TABLES = [...TABLES, ...GRANT_TABLES, ...SUBSCRIPTION_TABLES]
 
 /** What a catalog row holds: one kind of the peer's directory. */
 export const CATALOG_KINDS = ['actions', 'events'] as const
@@ -23,6 +25,9 @@ export const SCRIPTS = [
   'removeGrant',
   'register',
   'forgetHolding',
+  'writeSubscription',
+  'removeSubscription',
+  'receiveEvents',
 ] as const
 export type ScriptName = (typeof SCRIPTS)[number]
 
@@ -33,6 +38,9 @@ export const READS = [
   'readGrant',
   'readClient',
   'keptHoldings',
+  'listSubscriptions',
+  'readSubscription',
+  'readOccurrences',
 ] as const
 export type ReadName = (typeof READS)[number]
 

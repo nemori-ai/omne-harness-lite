@@ -7,6 +7,7 @@ import type {
 } from '@omne-harness/sql-contract'
 import {
   GRANT_MIGRATION,
+  SUBSCRIPTION_MIGRATION,
   HANDLER,
   MIGRATION,
   OWNED_TABLES,
@@ -32,6 +33,7 @@ export function mcpSqlMaterials(): McpSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
   const grants = file('migration-grants')
+  const subscriptions = file('migration-subscriptions')
   const reader = file('read')
   return {
     participants: [
@@ -56,6 +58,12 @@ export function mcpSqlMaterials(): McpSqlMaterials {
         checksum: grants.digest,
         requires: [MIGRATION],
       },
+      {
+        ...SUBSCRIPTION_MIGRATION,
+        moduleUrl: subscriptions.moduleUrl,
+        checksum: subscriptions.digest,
+        requires: [GRANT_MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -65,7 +73,7 @@ export function mcpSqlMaterials(): McpSqlMaterials {
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: OWNED_TABLES,
-        requiresMigrations: [MIGRATION, GRANT_MIGRATION],
+        requiresMigrations: [MIGRATION, GRANT_MIGRATION, SUBSCRIPTION_MIGRATION],
         maxRowsRead: 1000,
         maxOutputBytes: 8 * 1024 * 1024,
       },

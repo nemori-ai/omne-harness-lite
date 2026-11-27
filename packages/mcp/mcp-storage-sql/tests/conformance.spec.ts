@@ -9,6 +9,7 @@ import {
   mcpContinuationRecordsConformance,
   mcpTaskRecordsConformance,
   mcpAuthorizationRecordsConformance,
+  mcpEventRecordsConformance,
   runConformanceCase,
   sampleCatalogRecord,
 } from '@omne-harness/mcp-contract/testing'
@@ -116,4 +117,23 @@ describe('the SQL grants conform to their contract (MC-31, C202)', () => {
       })
       expect(verdict).toEqual({ kind: 'passed' })
     })
+})
+
+describe('the SQL event records conform to their contract (MC-36, C302, C303, C307)', () => {
+  const worlds: SqlWorld[] = []
+  afterEach(async () => {
+    await Promise.all(worlds.splice(0).map(world => world.close()))
+  })
+  for (const conformance of mcpEventRecordsConformance()) {
+    it(`${conformance.clause} ${conformance.name}`, async () => {
+      const world = await openSqlWorld()
+      worlds.push(world)
+      const verdict = await runConformanceCase(conformance, {
+        records: world.subscriptions,
+        tenant: tenantOf('s'),
+        otherTenant: tenantOf('t'),
+      })
+      expect(verdict).toEqual({ kind: 'passed' })
+    })
+  }
 })
