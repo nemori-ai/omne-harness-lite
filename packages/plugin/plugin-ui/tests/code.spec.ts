@@ -286,7 +286,7 @@ describe('a member that is code', () => {
     [
       'its export gives something that is not a drawing',
       { 'send.js': { send: () => ({ render: 'later' }) } },
-      'shell.part-render notes.send: the item lacks render (function)',
+      'member 1 (shell.part-render notes.send): the item lacks render (function)',
     ],
   ] as const)('fails the whole plugin when %s', async (_name, files, reason) => {
     const other = { 'cards/todo.js': { todo: () => () => null } }

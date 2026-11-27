@@ -81,19 +81,37 @@ export function reasonText(reason: Reason): string {
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** The generic way for code: a function fills the one field the rules ask for when it is a function; an object is the item. */
+const HOLDS: Readonly<Record<FieldKind, (value: unknown) => boolean>> = {
+  string: value => typeof value === 'string',
+  number: value => typeof value === 'number',
+  boolean: value => typeof value === 'boolean',
+  function: value => typeof value === 'function',
+  object: isRecord,
+  array: Array.isArray,
+}
+
+/** The generic way for code: a function fills the one field the rules ask for when it is a function; an object is the item. The member's id and rank go over the fields of those names, and each field is checked for its kind. */
 export function genericItem(
   rules: PointRules,
   given: unknown,
+  spot: Readonly<{ id?: string; rank?: number }> = {},
 ): Readonly<{ item: object }> | Reason {
   const fields = Object.entries(rules.item.fields)
   const [only] = fields
   if (fields.length === 1 && only?.[1] === 'function' && typeof given === 'function')
     return { item: { [only[0]]: given } }
-  if (isRecord(given)) return { item: given }
-  const asked = fields.map(([name]) => name).join(', ')
-  return {
-    kind: 'refused',
-    detail: `what was given is not an item of the point, which asks for ${asked}`,
+  if (!isRecord(given)) {
+    const asked = fields.map(([name]) => name).join(', ')
+    const detail = `what was given is not an item of the point, which asks for ${asked}`
+    return { kind: 'refused', detail }
   }
+  const named = rules.item.fields
+  const item: Readonly<Record<string, unknown>> = {
+    ...given,
+    ...(spot.id !== undefined && 'id' in named && { id: spot.id }),
+    ...(spot.rank !== undefined && 'rank' in named && { rank: spot.rank }),
+  }
+  const lacking = fields.find(([name, kind]) => !HOLDS[kind](item[name]))
+  if (lacking === undefined) return { item }
+  return { kind: 'refused', detail: `the item lacks ${lacking[0]} (${lacking[1]})` }
 }

@@ -58,7 +58,7 @@ function answerOf(source: string, limits: JsonLimits): CallReport {
   if (read.kind !== 'ok') return UNCERTAIN
   const outcome = text(member(read.value, 'outcome'))
   const body = member(read.value, 'body')
-  if (outcome === undefined || body?.kind !== 'object') return UNCERTAIN
+  if (outcome === undefined || body === undefined) return UNCERTAIN
   return { kind: 'answered', outcome, body }
 }
 

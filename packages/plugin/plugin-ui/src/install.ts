@@ -171,7 +171,7 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
       files === undefined ? undefined : { module: `${files}${path}`, export: name, files }
     const item =
       form === undefined
-        ? genericItem(rules, given)
+        ? genericItem(rules, given, member)
         : { item: form.form(given, { key: member.key }) }
     if ('kind' in item) throw new Error(reasonText(item))
     shell.putItem(
