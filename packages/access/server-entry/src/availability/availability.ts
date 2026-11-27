@@ -57,7 +57,6 @@ function changeFrame(change: Mounting, scoped: { scoped?: number }): Availabilit
 
 /** The revision of `access/v1` that added the points to the snapshot. */
 const POINTS_SINCE = 2
-/** The revision that added the count of the changes of the tenants' protocols. */
 const SCOPED_SINCE = 3
 
 type Owed = {
@@ -188,13 +187,11 @@ const TREE: JsonLimits = {
   maxNumberLength: Number.MAX_SAFE_INTEGER,
 }
 
-/** The contract as the tree a JSON field of the protocol carries. */
 function treeOf(contract: unknown): JsonValue | undefined {
   const read = readJsonText(JSON.stringify(contract), TREE)
   return read.kind === 'ok' ? read.value : undefined
 }
 
-/** The protocols of the tenant the caller acts for: never another tenant's, never the deployment's. */
 function scopedOperation(
   registry: RegistryForPipeline,
   tenantScope: ((tenant: string) => Scope) | undefined,

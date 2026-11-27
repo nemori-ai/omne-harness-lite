@@ -48,7 +48,6 @@ export type ProtocolItem = Readonly<{
   contribution: AccessContribution<ProtocolContract>
   revision: number
   controller: AbortController
-  /** The contract of a tenant's protocol as its plugin wrote it; a protocol of the deployment has none. */
   data?: GuestContractData
 }>
 
@@ -99,7 +98,6 @@ export function protocolItem(
   }
 }
 
-/** The protocols of the asker's tenant served now: deeper than the deployment, with their contracts as data. */
 export function scopedOn(registry: Registry, asker: Scope): readonly ScopedProtocol[] | undefined {
   const listing = list<ProtocolItem>(registry, PROTOCOLS, null, asker)
   if (listing.kind !== 'read') return undefined
@@ -111,7 +109,6 @@ export function scopedOn(registry: Registry, asker: Scope): readonly ScopedProto
   })
 }
 
-/** What stands of the protocols of tenants, whoever's: a change of it is counted, and says nothing more. */
 export function scopedSignature(registry: Registry): string {
   return registry.placed
     .filter(placed => placed.point === PROTOCOLS && placed.scope.length > 0)
