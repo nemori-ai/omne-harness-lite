@@ -275,9 +275,10 @@ it(
         await connect()
         expect(await refresh()).toMatchObject(published)
         expect(peer.authorizations.at(-1)?.header).toBe('Bearer at-1')
-        expect(
-          peer.authorizations.filter(({ header }) => !header?.startsWith('Bearer at-')),
-        ).toEqual([])
+        // Only what omne sends to the endpoint counts: the peer's port is random and other processes on the machine may probe it.
+        const sent = peer.authorizations.filter(({ request }) => / \/mcp(?:\?|$)/u.test(request))
+        expect(sent.length).toBeGreaterThan(0)
+        expect(sent.filter(({ header }) => !header?.startsWith('Bearer at-'))).toEqual([])
 
         await new Promise(resolve => setTimeout(resolve, 4_000))
         expect(await refresh()).toMatchObject(published)
