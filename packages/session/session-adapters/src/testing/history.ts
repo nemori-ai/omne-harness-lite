@@ -256,6 +256,7 @@ function runFailureOf(failure: FailureCandidate): RunFailure {
         node: failure.node,
         category: failure.category,
         failureKind: failure.failureKind,
+        ...(failure.diagnostic === undefined ? {} : { diagnostic: failure.diagnostic }),
       }
     case 'model-refused':
       return { kind: failure.kind, failure: failure.failure.kind }
@@ -265,6 +266,7 @@ function runFailureOf(failure: FailureCandidate): RunFailure {
         cause: failure.fault?.cause ?? null,
         upstreamStatus: failure.fault?.upstreamStatus ?? null,
         diagnostic: failure.fault?.diagnostic ?? null,
+        ...(failure.fault?.throttled === true ? { throttled: true as const } : {}),
       }
     case 'cannot-fit':
       return { kind: failure.kind, reason: failure.reason }

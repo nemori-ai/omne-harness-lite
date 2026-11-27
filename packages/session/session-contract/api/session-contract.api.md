@@ -4217,8 +4217,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:474fee523aae55344e6817b7ffa667c5dfc70f23a5a2d637b139368125ff8fc1";
-export declare const SESSION_RELEASE_DIGEST = "sha256:474fee523aae55344e6817b7ffa667c5dfc70f23a5a2d637b139368125ff8fc1";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ffb72526eb53ad2ce20ef6aacfd9085a6dd20a26e0b4c7ca07ba7642d3f28e64";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ffb72526eb53ad2ce20ef6aacfd9085a6dd20a26e0b4c7ca07ba7642d3f28e64";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5422,6 +5422,7 @@ export type RunFailure = Readonly<{
     node: string;
     category: string;
     failureKind: string;
+    diagnostic?: string;
 }> | Readonly<{
     kind: 'model-refused';
     failure: string;
@@ -5430,6 +5431,7 @@ export type RunFailure = Readonly<{
     cause: string | null;
     upstreamStatus: string | null;
     diagnostic: string | null;
+    throttled?: true;
 }> | Readonly<{
     kind: 'cannot-fit';
     reason: string;

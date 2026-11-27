@@ -35,6 +35,8 @@ function validateRunEnd(end: RunEnd): void {
       nonempty(failure.node, 'ended.end.failure.node')
       nonempty(failure.category, 'ended.end.failure.category')
       nonempty(failure.failureKind, 'ended.end.failure.failureKind')
+      if (failure.diagnostic !== undefined)
+        nonempty(failure.diagnostic, 'ended.end.failure.diagnostic')
       return
     case 'model-refused':
       nonempty(failure.failure, 'ended.end.failure.failure')
@@ -43,6 +45,8 @@ function validateRunEnd(end: RunEnd): void {
       textOrNull(failure.cause, 'ended.end.failure.cause')
       textOrNull(failure.upstreamStatus, 'ended.end.failure.upstreamStatus')
       textOrNull(failure.diagnostic, 'ended.end.failure.diagnostic')
+      if (failure.throttled !== undefined && failure.throttled !== true)
+        invalidAt('ended.end.failure.throttled', 'not true')
       return
     case 'cannot-fit':
       nonempty(failure.reason, 'ended.end.failure.reason')
