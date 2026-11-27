@@ -1,0 +1,26 @@
+{
+  "name": "@omne-harness/benchmarks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "性能评测套件：会话路径上的场景、代价模型与门；经实验装配与命令行客户端驱动产品，不导入产品源码；不发布",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/perf-harness": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/repo-toolchain": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
