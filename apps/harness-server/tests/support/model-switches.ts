@@ -32,15 +32,19 @@ async function setModelSetting(
   expect(written).toMatchObject({ outcome: 'succeeded' })
 }
 
-/** Sets the tenant's on and off for some models of OpenRouter. */
-export const setModelSwitches = (tree: ReleaseTree, on: Readonly<Record<string, boolean>>) =>
-  setModelSetting(
-    tree,
-    'model-switches',
-    Object.fromEntries(
-      Object.entries(on).map(([model, value]) => [model, { kind: 'boolean', value }]),
+/** Sets the tenant's on and off for some models of one kind of OpenRouter, chat models unless named. */
+export const setModelSwitches = (
+  tree: ReleaseTree,
+  on: Readonly<Record<string, boolean>>,
+  kind: 'llm' | 'decisions' = 'llm',
+) =>
+  setModelSetting(tree, 'model-switches', {
+    [kind]: objectOf(
+      Object.fromEntries(
+        Object.entries(on).map(([model, value]) => [model, { kind: 'boolean', value }]),
+      ),
     ),
-  )
+  })
 
 /** Sets the tenant's default reasoning effort for some models of OpenRouter. */
 export const setModelEfforts = (tree: ReleaseTree, efforts: Readonly<Record<string, string>>) =>

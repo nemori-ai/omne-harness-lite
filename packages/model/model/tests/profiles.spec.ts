@@ -3,6 +3,7 @@ import type {
   Adoption,
   DurableEvidence,
   ModalityRequirement,
+  ModelNeed,
   ModelProfile,
   ProfileResolution,
   ProfileScope,
@@ -110,11 +111,10 @@ function snapshotOf(
   return { precedence: over.precedence ?? [factory], candidates, source: evidence }
 }
 
-function requirement(
-  modalities: ModalityRequirement['modalities'] = ['text'],
-): ModalityRequirement {
-  return { modalities, source: evidence }
+function requirement(modalities: ModalityRequirement['modalities'] = ['text']): ModelNeed<'llm'> {
+  return { kind: 'llm', modalities: { input: modalities }, source: evidence }
 }
+const decisionsNeed: ModelNeed<'decisions'> = { kind: 'decisions', source: evidence }
 
 function tenantOf(organization: string, account: string): TenantId {
   const parsed = tenantCodec.parse(
@@ -153,7 +153,7 @@ function profilesOf(snapshot: ModelProfileSnapshot, tenant = tenantOf('1', '1'))
 
 async function resolveOf(snapshot: ModelProfileSnapshot, route: string, required = requirement()) {
   const { profiles, tenant } = profilesOf(snapshot)
-  return must(await profiles.resolve({ principal, tenant, kind: 'llm', route, required }))
+  return must(await profiles.resolve({ principal, tenant, route, required }))
 }
 
 async function listOf(
@@ -162,7 +162,7 @@ async function listOf(
   required = requirement(),
 ) {
   const { profiles, tenant } = profilesOf(snapshot)
-  return must(await profiles.list({ principal, tenant, kind: 'llm', selected, required }))
+  return must(await profiles.list({ principal, tenant, selected, required }))
 }
 
 function routesOf(choices: ModelChoices): readonly string[] {
@@ -365,7 +365,6 @@ it('refuses a snapshot with a duplicated identity instead of using half of it', 
     await profiles.resolve({
       principal,
       tenant,
-      kind: 'llm',
       route: 'alpha',
       required: requirement(),
     }),
@@ -384,7 +383,6 @@ it('refuses a snapshot whose candidate scope is outside the precedence', async (
     await profiles.list({
       principal,
       tenant,
-      kind: 'llm',
       selected: null,
       required: requirement(),
     }),
@@ -406,7 +404,6 @@ it('denies an unminted tenant before reading the source', async () => {
       await profiles.resolve({
         principal,
         tenant: copied,
-        kind: 'llm',
         route: 'alpha',
         required: requirement(),
       }),
@@ -417,7 +414,6 @@ it('denies an unminted tenant before reading the source', async () => {
       await profiles.list({
         principal,
         tenant: copied,
-        kind: 'llm',
         selected: null,
         required: requirement(),
       }),
@@ -440,7 +436,6 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
       await profiles.resolve({
         principal,
         tenant: tenantOf('1', '1'),
-        kind: 'llm',
         route: 'alpha',
         required: requirement(),
       }),
@@ -451,7 +446,6 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
       await profiles.list({
         principal,
         tenant: tenantOf('1', '1'),
-        kind: 'llm',
         selected: null,
         required: requirement(),
       }),
@@ -534,12 +528,12 @@ function decisionsOf(route = 'alpha'): ModelProfile {
 it('keeps two profiles of one name apart by their kind of model: each kind resolves its own', async () => {
   const snapshot = snapshotOf([candidateOf(profileOf()), candidateOf(decisionsOf())])
   const { profiles, tenant } = profilesOf(snapshot)
-  const asked = { principal, tenant, route: 'alpha', required: requirement() }
-  expect(must(await profiles.resolve({ ...asked, kind: 'llm' }))).toMatchObject({
+  const asked = { principal, tenant, route: 'alpha' }
+  expect(must(await profiles.resolve({ ...asked, required: requirement() }))).toMatchObject({
     kind: 'resolved',
     profile: { identity: { kind: 'llm' }, definition: { kind: 'llm' } },
   })
-  expect(must(await profiles.resolve({ ...asked, kind: 'decisions' }))).toMatchObject({
+  expect(must(await profiles.resolve({ ...asked, required: decisionsNeed }))).toMatchObject({
     kind: 'resolved',
     profile: { identity: { kind: 'decisions' }, definition: { kind: 'decisions' } },
   })
@@ -547,7 +541,7 @@ it('keeps two profiles of one name apart by their kind of model: each kind resol
 
 it('a name that only another kind of model carries is unknown to this kind, and is no choice of it', async () => {
   const { profiles, tenant } = profilesOf(snapshotOf([candidateOf(profileOf())]))
-  const asked = { principal, tenant, kind: 'decisions', required: requirement() } as const
+  const asked = { principal, tenant, required: decisionsNeed } as const
   expect(must(await profiles.resolve({ ...asked, route: 'alpha' }))).toEqual({
     kind: 'absent',
     reason: 'unknown-name',
@@ -563,7 +557,6 @@ it('refuses a snapshot whose profile is of another kind than its identity says',
     await profiles.resolve({
       principal,
       tenant,
-      kind: 'llm',
       route: 'alpha',
       required: requirement(),
     }),

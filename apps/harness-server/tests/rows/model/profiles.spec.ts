@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ModelProfile } from '@omne-harness/model-contract'
+import type { ModelNeed, ModelProfile } from '@omne-harness/model-contract'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
@@ -22,8 +22,9 @@ const rows = [
   { id: 'every-model-on', plugin: 'everyModelOnRow' },
   { id: 'model-profiles', plugin: 'modelProfilesRow', config },
 ]
-const REQUIRED = {
-  modalities: ['text'] as ['text'],
+const REQUIRED: ModelNeed<'llm'> = {
+  kind: 'llm',
+  modalities: { input: ['text'] },
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
@@ -50,7 +51,6 @@ describe('the model-profiles row', () => {
         const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
         const listed = await service.list({
           ...ACCESS,
-          kind: 'llm',
           selected: null,
           required: REQUIRED,
         })
@@ -78,7 +78,6 @@ describe('the model-profiles row', () => {
       const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
       return service.resolve({
         ...ACCESS,
-        kind: 'llm',
         route: 'openai/gpt-5.6-sol',
         required: REQUIRED,
       })

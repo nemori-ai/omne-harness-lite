@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { isProfileOf, profileCovers, type ModelProfile } from '@omne-harness/model-contract'
+import { isProfileOf, meetsNeed, type ModelProfile } from '@omne-harness/model-contract'
 import { resolutionOf } from '@omne-harness/model-contract/testing'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -16,7 +16,7 @@ type Resolve = ModelProfiles<unknown>['resolve']
 /**
  * The official profiles, and one route more that takes words only. Every official profile takes
  * pictures, so the release has no such route of its own; this one is the profile of `SEES` with
- * its input cut to text, judged against the requirement with Model's own `profileCovers`.
+ * its input cut to text, judged against the requirement with Model's own `meetsNeed`.
  */
 class WithWordsOnlyRoute extends ModelProfilesLocalPlugin {
   constructor(ctx: Context, config: ConstructorParameters<typeof ModelProfilesLocalPlugin>[1]) {
@@ -27,13 +27,13 @@ class WithWordsOnlyRoute extends ModelProfilesLocalPlugin {
       const seeing = await official({
         ...input,
         route: SEES,
-        required: { ...input.required, modalities: ['text'], fileTypes: [] },
+        required: { ...input.required, modalities: { input: ['text'] }, fileTypes: [] },
       })
       if (!('ok' in seeing) || seeing.ok.kind !== 'resolved') return seeing
       const { profile } = seeing.ok
       if (!isProfileOf(profile, 'llm')) return seeing
       const definition = { ...profile.definition, input: ['text'] as const }
-      const covered = profileCovers(definition, input.required)
+      const covered = meetsNeed(definition, input.required)
       const reading = resolutionOf(
         {
           ...seeing.ok,
@@ -46,7 +46,7 @@ class WithWordsOnlyRoute extends ModelProfilesLocalPlugin {
           selectable: covered,
           reasons: covered ? [] : ['modality'],
         },
-        input.kind,
+        input.required.kind,
       )
       return reading === null ? seeing : { ok: reading }
     }
@@ -97,7 +97,7 @@ class TakingWordsOnly extends ModelProfilesLocalPlugin {
     const official = this.resolve
     const resolve: Resolve = async input => {
       const resolved = await official(input)
-      const more = input.required.modalities.some(modality => modality !== 'text')
+      const more = (input.required.modalities?.input ?? []).some(modality => modality !== 'text')
       if (!more || !('ok' in resolved) || resolved.ok.kind !== 'resolved') return resolved
       return { ok: { ...resolved.ok, selectable: false, reasons: ['modality'] } }
     }
@@ -131,7 +131,7 @@ export function withRouteReadingWordsOnly(route: string) {
       const official = this.resolve
       const resolve: Resolve = async input => {
         if (input.route !== route) return official(input)
-        const words = { ...input.required, modalities: ['text'] as const, fileTypes: [] }
+        const words = { ...input.required, modalities: { input: ['text'] as const }, fileTypes: [] }
         const resolved = await official({ ...input, required: words })
         if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') return resolved
         const { profile } = resolved.ok
@@ -139,7 +139,7 @@ export function withRouteReadingWordsOnly(route: string) {
         const chat: ModelProfile<'llm'> = profile
         const { fileTypes: _files, ...rest } = chat.definition
         const definition = { ...rest, input: ['text'] as const }
-        const covered = profileCovers(definition, input.required)
+        const covered = meetsNeed(definition, input.required)
         const reading = resolutionOf(
           {
             ...resolved.ok,
@@ -147,7 +147,7 @@ export function withRouteReadingWordsOnly(route: string) {
             selectable: covered,
             reasons: covered ? [] : ['modality'],
           },
-          input.kind,
+          input.required.kind,
         )
         return reading === null ? resolved : { ok: reading }
       }

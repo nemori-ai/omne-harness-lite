@@ -129,18 +129,36 @@ export function isNativeFileType(value: string): boolean {
   return 'ok' in judged && judged.ok.mediaType === value && judged.ok.modality === null
 }
 
-/** File types are canonical media types of no modality; a profile covers what it takes natively. */
-export function profileCovers(
-  definition: Pick<ProfileCommon, 'input'> & Pick<LlmProfile, 'fileTypes'>,
-  required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>,
-): boolean {
-  const input: readonly string[] = definition.input
-  const natively = (type: string): boolean => definition.fileTypes?.includes(type) ?? false
+export type ModelNeed<K extends ProfileKind = ProfileKind> = Readonly<{
+  kind: K
+  modalities?: Readonly<{ input?: readonly Modality[]; output?: readonly Modality[] }>
+  fileTypes?: readonly string[]
+  source: DurableEvidence
+}>
+
+export function chatNeedOf(content: ModalityRequirement): ModelNeed<'llm'> {
+  const { modalities, fileTypes, source } = content
+  return {
+    kind: 'llm',
+    modalities: { input: modalities },
+    ...(fileTypes === undefined ? {} : { fileTypes }),
+    source,
+  }
+}
+
+/** Whether a profile meets a need: it takes and gives every modality asked, and takes the file types natively. */
+export function meetsNeed(definition: ModelProfileDefinition, need: ModelNeed): boolean {
+  if (definition.kind !== need.kind) return false
+  const natively = definition.kind === 'llm' ? definition.fileTypes : undefined
   return (
-    required.modalities.every(modality => input.includes(modality)) &&
-    (required.fileTypes?.every(natively) ?? true)
+    holdsAll(definition.input, need.modalities?.input) &&
+    holdsAll(definition.output, need.modalities?.output) &&
+    holdsAll(natively, need.fileTypes)
   )
 }
+
+const holdsAll = (held: readonly string[] | undefined, asked: readonly string[] | undefined) =>
+  asked === undefined || asked.every(item => held?.includes(item) === true)
 export type ProfileResolution<K extends ProfileKind = ProfileKind> =
   | Readonly<{
       kind: 'resolved'
@@ -159,23 +177,13 @@ export type ModelChoices<K extends ProfileKind = ProfileKind> = Readonly<{
   selected: Readonly<{ route: string; resolution: ProfileResolution<K> }> | null
   source: DurableEvidence
 }>
+export type ProfileListInput<P, K extends ProfileKind = ProfileKind> = Access<P> &
+  Readonly<{ selected: string | null; required: ModelNeed<K> }>
+export type ProfileResolveInput<P, K extends ProfileKind = ProfileKind> = Access<P> &
+  Readonly<{ route: string; required: ModelNeed<K> }>
 export interface ModelProfiles<P> {
-  list<K extends ProfileKind>(
-    input: Access<P> &
-      Readonly<{
-        kind: K
-        selected: string | null
-        required: ModalityRequirement
-      }>,
-  ): Reply<ModelChoices<K>>
-  resolve<K extends ProfileKind>(
-    input: Access<P> &
-      Readonly<{
-        kind: K
-        route: string
-        required: ModalityRequirement
-      }>,
-  ): Reply<ProfileResolution<K>>
+  list<K extends ProfileKind>(input: ProfileListInput<P, K>): Reply<ModelChoices<K>>
+  resolve<K extends ProfileKind>(input: ProfileResolveInput<P, K>): Reply<ProfileResolution<K>>
 }
 export type ProfileChange =
   | Readonly<{ kind: 'create'; identity: ProfileIdentity; definition: ModelProfileDefinition }>

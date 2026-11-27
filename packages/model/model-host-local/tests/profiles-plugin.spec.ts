@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Adoption, ModalityRequirement } from '@omne-harness/model-contract'
+import type { Adoption, ModalityRequirement, ModelNeed } from '@omne-harness/model-contract'
 import type { ModelChoices } from '@omne-harness/model-contract/provider'
 import { createScriptedModelProfiles } from '@omne-harness/model-contract/testing'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
@@ -47,8 +47,9 @@ const MODALITY_SOURCE = {
   revision: '1',
   digest: 'digest-modality',
 }
-const requirement = (modalities: ModalityRequirement['modalities']): ModalityRequirement => ({
-  modalities,
+const requirement = (modalities: ModalityRequirement['modalities']): ModelNeed<'llm'> => ({
+  kind: 'llm',
+  modalities: { input: modalities },
   source: MODALITY_SOURCE,
 })
 
@@ -100,7 +101,6 @@ it('resolves every official route of the installed families to the profile defin
       await service.resolve({
         principal,
         tenant: TENANT,
-        kind: 'llm',
         route,
         required: requirement(['text']),
       }),
@@ -119,7 +119,6 @@ it('lists every current record as a selectable choice, all with an unavailable c
     await service.list({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       selected: null,
       required: requirement(['text']),
     }),
@@ -149,7 +148,6 @@ it('answers a voice requirement as unselectable with only the modality reason, o
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route,
       required: requirement(['text']),
     }),
@@ -158,7 +156,6 @@ it('answers a voice requirement as unselectable with only the modality reason, o
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route,
       required: requirement(['text', 'voice']),
     }),
@@ -177,7 +174,6 @@ it('serves qwen/qwen3.8-omni-flash as the official profile that takes voice', as
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route: 'qwen/qwen3.8-omni-flash',
       required: requirement(['text', 'voice']),
     }),
@@ -196,7 +192,6 @@ it('offers image input on the three GLM Flash routes when an image is required',
       await service.list({
         principal,
         tenant: TENANT,
-        kind: 'llm',
         selected: null,
         required: requirement(['text', 'image']),
       }),
@@ -233,7 +228,6 @@ it('answers unavailable through a handle kept past removal, instead of the old s
   const answer = await handle.list({
     principal,
     tenant: TENANT,
-    kind: 'llm',
     selected: null,
     required: requirement(['text']),
   })
@@ -254,7 +248,6 @@ it('reads one snapshot at construction: every read of the plugin sees the same p
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route: ROUTES[0] ?? '',
       required: requirement(['text']),
     }),
@@ -263,7 +256,6 @@ it('reads one snapshot at construction: every read of the plugin sees the same p
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route: ROUTES[0] ?? '',
       required: requirement(['text']),
     }),
@@ -321,7 +313,6 @@ it('passes the configuration through to the profiles it publishes', async () => 
     await service.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route: ROUTES[0] ?? '',
       required: requirement(['text']),
     }),
@@ -338,30 +329,22 @@ it('agrees with the scripted double on the answers it can register, and on the t
   if (service === undefined) throw new Error('no modelProfiles service')
   const route = ROUTES[0] ?? ''
   const required = requirement(['text'])
-  const real = must(
-    await service.resolve({ principal, tenant: TENANT, kind: 'llm', route, required }),
-  )
+  const real = must(await service.resolve({ principal, tenant: TENANT, route, required }))
   const realList = must(
-    await service.list({ principal, tenant: TENANT, kind: 'llm', selected: route, required }),
+    await service.list({ principal, tenant: TENANT, selected: route, required }),
   )
 
   const scripted = createScriptedModelProfiles()
   scripted.setAccess({ principal, tenant: TENANT }, 'allow')
-  scripted.setResolution({ principal, tenant: TENANT, kind: 'llm', route, required }, { ok: real })
-  scripted.setList(
-    { principal, tenant: TENANT, kind: 'llm', selected: route, required },
-    { ok: realList },
-  )
-  expect(
-    await scripted.profiles.resolve({ principal, tenant: TENANT, kind: 'llm', route, required }),
-  ).toEqual({
+  scripted.setResolution({ principal, tenant: TENANT, route, required }, { ok: real })
+  scripted.setList({ principal, tenant: TENANT, selected: route, required }, { ok: realList })
+  expect(await scripted.profiles.resolve({ principal, tenant: TENANT, route, required })).toEqual({
     ok: real,
   })
   expect(
     await scripted.profiles.list({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       selected: route,
       required,
     }),
@@ -372,7 +355,6 @@ it('agrees with the scripted double on the answers it can register, and on the t
     await scripted.profiles.resolve({
       principal: unscripted,
       tenant: TENANT,
-      kind: 'llm',
       route,
       required,
     }),
@@ -384,7 +366,6 @@ it('agrees with the scripted double on the answers it can register, and on the t
       await service.resolve({
         principal: unscripted,
         tenant: TENANT,
-        kind: 'llm',
         route,
         required,
       }),
@@ -392,14 +373,10 @@ it('agrees with the scripted double on the answers it can register, and on the t
   ).toBe('resolved')
 
   const copied = structuredClone(TENANT)
-  expect(
-    await scripted.profiles.resolve({ principal, tenant: copied, kind: 'llm', route, required }),
-  ).toEqual({
+  expect(await scripted.profiles.resolve({ principal, tenant: copied, route, required })).toEqual({
     failure: { kind: 'denied', action: 'tenant' },
   })
-  expect(
-    await service.resolve({ principal, tenant: copied, kind: 'llm', route, required }),
-  ).toEqual({
+  expect(await service.resolve({ principal, tenant: copied, route, required })).toEqual({
     failure: { kind: 'denied', action: 'tenant' },
   })
 })
@@ -416,7 +393,6 @@ it('serves a reloaded plugin from its own snapshot while the removed handle stay
     await ctx.modelProfiles!.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route,
       required: requirement(['text']),
     }),
@@ -427,7 +403,6 @@ it('serves a reloaded plugin from its own snapshot while the removed handle stay
     await oldHandle.resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route,
       required: requirement(['text']),
     }),
@@ -458,7 +433,6 @@ it('reads the current trusted credential service for the caller without consumin
     const input = {
       principal,
       tenant: TENANT,
-      kind: 'llm',
       selected: null,
       required: requirement(['text']),
     } as const

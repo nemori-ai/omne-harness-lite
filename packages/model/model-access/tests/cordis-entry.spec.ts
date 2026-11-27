@@ -2,6 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { AccessRegistryService } from '@omne-harness/access-cordis-contract/cordis'
 import { createModelAccessPlugin } from '@omne-harness/model-access/cordis'
+import { chatNeedOf } from '@omne-harness/model-contract'
 import { modelProtocol, type ModelProtocol } from '@omne-harness/model-protocol'
 import { expect, it } from 'vitest'
 import { createWorld, fixtureLogin, loginIdentity, REQUIRED } from './fixtures/world.ts'
@@ -55,7 +56,7 @@ it('mounts model/v1 with its one operation and no observation', async () => {
 it('hands the plugin settings to the handler: the requirement a listed model is judged by', async () => {
   const { list, world } = await assemble()
   expect((await list()).outcome).toBe('succeeded')
-  expect(world.listed[0]?.required).toEqual(REQUIRED)
+  expect(world.listed[0]?.required).toEqual(chatNeedOf(REQUIRED))
 })
 
 it('answers basis-unavailable while Model is off, and the protocol stays mounted', async () => {

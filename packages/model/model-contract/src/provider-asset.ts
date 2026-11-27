@@ -47,6 +47,9 @@ export type LlmCatalog = Readonly<{
 }>
 export type DecisionsCatalog = Readonly<{ kind: 'decisions'; maxQuestions?: string }>
 export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog)
+export type CatalogKind = CatalogModel['kind']
+
+export const CATALOG_KINDS = ['llm', 'decisions'] as const satisfies readonly CatalogKind[]
 
 export type ProviderAccounting = Readonly<{
   place: string
@@ -62,9 +65,9 @@ export type ModelProviderBody = Readonly<{
   models: readonly CatalogModel[]
 }>
 
-/** What a tenant chose over a catalog: the models that are on, and the default effort of some. */
+/** What a tenant chose over a catalog: the models of each kind that are on, and the default effort of some chat models. */
 export type ProviderPreferences = Readonly<{
-  enabled: ReadonlySet<string>
+  enabled: Readonly<Record<CatalogKind, ReadonlySet<string>>>
   efforts: ReadonlyMap<string, ReasoningEffort>
 }>
 
@@ -270,12 +273,19 @@ const PREFERENCE_ITEMS = [
     category: 'preference' as const,
     presentation: {
       title: '启用的模型',
-      description: '这家供应商的每个模型开或关；没有设的按发行缺省。',
+      description: '这家供应商的每个模型按模型类型开或关；没有设的按发行缺省。',
       impact: '之后的模型列表与请求按新的开关；正在跑的调用不受影响。',
       clear: '清除之后每个模型回到发行缺省。',
       adoption: 'next-read' as const,
     },
-    valueSchema: { type: 'object', additionalProperties: { type: 'boolean' } },
+    valueSchema: {
+      type: 'object',
+      properties: {
+        llm: { type: 'object', additionalProperties: { type: 'boolean' } },
+        decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+      } satisfies Record<CatalogKind, unknown>,
+      additionalProperties: false,
+    },
     default: { kind: 'absent' as const },
     merge: 'override' as const,
     sensitivity: 'ordinary' as const,
@@ -417,7 +427,11 @@ function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
   const out: CatalogModel[] = []
   for (const entry of value.items) {
     const model = catalogModelOf(entry)
-    if (model === undefined || out.some(other => other.model === model.model)) return undefined
+    if (
+      model === undefined ||
+      out.some(other => other.kind === model.kind && other.model === model.model)
+    )
+      return undefined
     out.push(model)
   }
   return out
@@ -434,11 +448,11 @@ export function preferencesOf(
   switches: unknown,
   efforts: unknown,
 ): ProviderPreferences {
-  const enabled = new Set<string>()
+  const enabled: Record<CatalogKind, Set<string>> = { llm: new Set(), decisions: new Set() }
   const chosen = new Map<string, ReasoningEffort>()
   for (const entry of body.models) {
-    const on = entryOf(switches, entry.model)
-    if (typeof on === 'boolean' ? on : entry.enabled) enabled.add(entry.model)
+    const on = entryOf(entryOf(switches, entry.kind), entry.model)
+    if (typeof on === 'boolean' ? on : entry.enabled) enabled[entry.kind].add(entry.model)
     if (entry.kind !== 'llm') continue
     const effort = entryOf(efforts, entry.model)
     const supported = entry.efforts.find(level => level === effort)

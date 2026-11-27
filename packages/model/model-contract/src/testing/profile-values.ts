@@ -8,7 +8,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import type { ModelFailure } from '../result.ts'
-import { isProfileOf, profileCovers } from '../profile.ts'
+import { chatNeedOf, isProfileOf, meetsNeed } from '../profile.ts'
 import type {
   ModalityRequirement,
   ModelChoices,
@@ -38,7 +38,7 @@ export function profileScopeFailure(
 }
 
 export function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
-  return profileCovers(profile.definition, required)
+  return meetsNeed(profile.definition, chatNeedOf(required))
 }
 
 function copyScope(scope: ProfileScope): ProfileScope {

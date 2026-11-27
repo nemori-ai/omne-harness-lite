@@ -12,13 +12,13 @@ export function createModelProfiles<P>(source: ModelProfileSource<P>): ModelProf
       if (!isMinted(input.tenant)) return { failure: { kind: 'denied', action: 'tenant' } }
       const read = await source.read({ principal: input.principal, tenant: input.tenant })
       if ('failure' in read) return read
-      return judgeProfileChoices(read.ok, input.kind, input.selected, input.required)
+      return judgeProfileChoices(read.ok, input.selected, input.required)
     },
     async resolve(input) {
       if (!isMinted(input.tenant)) return { failure: { kind: 'denied', action: 'tenant' } }
       const read = await source.read({ principal: input.principal, tenant: input.tenant })
       if ('failure' in read) return read
-      return judgeProfileResolution(read.ok, input.kind, input.route, input.required)
+      return judgeProfileResolution(read.ok, input.route, input.required)
     },
   }
 }

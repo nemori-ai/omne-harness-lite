@@ -1,4 +1,5 @@
 import type { Failure } from '@omne-harness/agent-contract'
+import { chatNeedOf } from '@omne-harness/model-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, test } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
@@ -152,9 +153,8 @@ describe('the selected model', () => {
       {
         principal: sessionAccess.principal,
         tenant: sessionAccess.tenant,
-        kind: 'llm',
         route: ROUTE,
-        required: textRequirement,
+        required: chatNeedOf(textRequirement),
       },
     ])
   })

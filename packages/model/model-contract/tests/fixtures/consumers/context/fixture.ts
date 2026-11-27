@@ -22,6 +22,7 @@ import {
   expect,
   imageBlock,
   profile,
+  need,
   readFileTool,
   required,
   textBlock,
@@ -64,11 +65,11 @@ function setup(
     shadowed: [],
   }
   profiles.setResolution(
-    { ...access, kind: 'llm', route: profile.identity.route, required },
+    { ...access, route: profile.identity.route, required: need },
     { ok: resolved },
   )
   profiles.setList(
-    { ...access, kind: 'llm', selected: profile.identity.route, required },
+    { ...access, selected: profile.identity.route, required: need },
     {
       ok: {
         choices: [resolved],
@@ -194,9 +195,8 @@ async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void
   const { services, profiles } = setup()
   const resolution = await services.profiles.resolve({
     ...access,
-    kind: 'llm',
     route: 'default',
-    required,
+    required: need,
   })
   expect('ok' in resolution, 'the profile service refused the route')
   expect(resolution.ok.kind === 'resolved', 'the route did not resolve')

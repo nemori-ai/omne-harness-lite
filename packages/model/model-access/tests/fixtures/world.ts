@@ -11,6 +11,7 @@ import type {
   ModelFailure,
   ProfileResolution,
 } from '@omne-harness/model-contract'
+import { resolutionOf } from '@omne-harness/model-contract/testing'
 import type { ModelAccessPrincipals, ModelChoiceReader } from '@omne-harness/model-access'
 
 export type FixtureLogin = Readonly<{ loginText: string; tenant: TenantId; tenantText: string }>
@@ -52,9 +53,41 @@ export function resolved(
   reasoningEfforts?: Resolved['profile']['definition']['reasoningEfforts'],
 ): ProfileResolution<'llm'> {
   const profile = {
-    identity: { scope: { kind: 'factory' }, route },
-    definition: { input: ['text', 'image'], output: ['text'], reasoningEfforts },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route },
+    definition: {
+      kind: 'llm',
+      suppliers: [{ provider: 'openrouter', model: route }],
+      input: ['text', 'image'],
+      output: ['text'],
+      reasoningEfforts,
+    },
   } as unknown as Resolved['profile']
+  return {
+    kind: 'resolved',
+    profile,
+    source: REQUIRED.source,
+    selectable: true,
+    reasons: [],
+    credential: 'available',
+    shadowed: [],
+    ...over,
+  }
+}
+
+/** A decisions profile as Model resolves it; only what the list reads is filled in. */
+export function judged(
+  route: string,
+  over: Partial<Extract<ProfileResolution<'decisions'>, { kind: 'resolved' }>> = {},
+): ProfileResolution<'decisions'> {
+  const profile = {
+    identity: { kind: 'decisions', scope: { kind: 'factory' }, route },
+    definition: {
+      kind: 'decisions',
+      suppliers: [{ provider: 'openrouter', model: route }],
+      input: ['text'],
+      output: ['text'],
+    },
+  } as unknown as Extract<ProfileResolution<'decisions'>, { kind: 'resolved' }>['profile']
   return {
     kind: 'resolved',
     profile,
@@ -76,7 +109,7 @@ export function createWorld() {
   const state = {
     acting: 'issued' as Script<Acting>,
     listing: [resolved('anthropic/claude-sonnet-5')] as Script<
-      readonly ProfileResolution<'llm'>[] | ModelFailure
+      readonly ProfileResolution[] | ModelFailure
     >,
     present: true,
   }
@@ -94,7 +127,11 @@ export function createWorld() {
       listed.push(input)
       if (state.listing === 'throw') throw new Error('model is down')
       if ('kind' in state.listing) return { failure: state.listing }
-      return { ok: { choices: state.listing, selected: null, source: REQUIRED.source } }
+      const choices = state.listing.flatMap(choice => {
+        const narrowed = resolutionOf(choice, input.required.kind)
+        return narrowed === null ? [] : [narrowed]
+      })
+      return { ok: { choices, selected: null, source: REQUIRED.source } }
     },
   }
   return {

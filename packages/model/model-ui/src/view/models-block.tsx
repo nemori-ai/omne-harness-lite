@@ -19,8 +19,11 @@ import {
   MODEL_REASONING_EFFORTS,
   MODEL_SWITCHES,
   catalogOf,
+  groupsOf,
   rowsOf,
   withEntry,
+  withSwitch,
+  type CatalogKind,
   type CatalogRow,
   type ModelRow,
   type Own,
@@ -34,6 +37,10 @@ const MODALITIES: Readonly<Record<string, string>> = {
   file: '文件',
 }
 const PROVIDER_DEFAULT = 'provider-default'
+const KIND_TITLES: Readonly<Record<CatalogKind, string>> = {
+  llm: '聊天',
+  decisions: '判定',
+}
 const LOCKED: Readonly<Record<string, string>> = {
   locked: '这两项被上层锁定，这里不能改。',
 }
@@ -67,7 +74,7 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
       </TableCell>
       <TableCell>
         <div className="omne-model-row-fact">{`收：${modalities(row.input)} · 发：${modalities(row.output)}`}</div>
-        <div className="omne-model-row-fact">{`窗口 ${row.window}`}</div>
+        <Limit row={row} />
       </TableCell>
       <TableCell>
         <Switch
@@ -75,7 +82,7 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
           disabled={locked(switches)}
           aria-label={`启用 ${row.title}`}
           onCheckedChange={on =>
-            view.setValue(switches.key ?? '', withEntry(ownOf(switches), row.model, on))
+            view.setValue(switches.key ?? '', withSwitch(ownOf(switches), row.kind, row.model, on))
           }
         />
         <div className="omne-model-row-fact">
@@ -83,7 +90,7 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
         </div>
       </TableCell>
       <TableCell>
-        {row.efforts.length === 0 ? (
+        {row.kind !== 'llm' ? null : row.efforts.length === 0 ? (
           <span className="omne-model-row-fact">不能调推理强度</span>
         ) : (
           <>
@@ -113,6 +120,13 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
       </TableCell>
     </TableRow>
   )
+}
+
+/** The limit a person reads of a model: the window of a chat model, the questions of a decisions model. */
+function Limit({ row }: Readonly<{ row: ModelRow }>): JSX.Element | null {
+  if (row.kind === 'llm') return <div className="omne-model-row-fact">{`窗口 ${row.window}`}</div>
+  if (row.maxQuestions === undefined) return null
+  return <div className="omne-model-row-fact">{`每次至多 ${row.maxQuestions} 题`}</div>
 }
 
 // A write this block made that did not land: the settings machine's words; an unknown one can be asked again.
@@ -181,13 +195,18 @@ function ModelsTable({
         <LockNote setting={switches} />
         <WriteNotice setting={switches} view={view} />
         <WriteNotice setting={efforts} view={view} />
-        <Table>
-          <TableBody>
-            {rowsOf(catalog, ownOf(switches), ownOf(efforts)).map(row => (
-              <ModelLine key={row.model} row={row} wired={wired} />
-            ))}
-          </TableBody>
-        </Table>
+        {groupsOf(rowsOf(catalog, ownOf(switches), ownOf(efforts))).map(group => (
+          <div key={group.kind} className="omne-model-group">
+            <h4 className="omne-model-group-title">{KIND_TITLES[group.kind]}</h4>
+            <Table aria-label={KIND_TITLES[group.kind]}>
+              <TableBody>
+                {group.rows.map(row => (
+                  <ModelLine key={row.model} row={row} wired={wired} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ))}
       </>
     </Block>
   )

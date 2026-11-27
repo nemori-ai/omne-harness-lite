@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { createModelAccessContribution } from '@omne-harness/model-access'
 import {
-  profileCovers,
-  type ModalityRequirement,
+  chatNeedOf,
+  meetsNeed,
+  type ModelNeed,
   type ModelProfile,
   type ProfileResolution,
 } from '@omne-harness/model-contract'
@@ -114,8 +115,7 @@ describe('the port over the profiles service', () => {
     expect(asked).toEqual([
       {
         ...call,
-        kind: 'llm',
-        required: { modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE },
+        required: chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }),
       },
     ])
     answer = { failure: { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'x' } }
@@ -157,12 +157,19 @@ describe('a target judged for the history of a session', () => {
 
   /** Profiles whose one route takes what `definition` says: it judges the requirement as Model does. */
   function world(definition: Pick<ModelProfile<'llm'>['definition'], 'input' | 'fileTypes'>) {
-    const asked: ModalityRequirement[] = []
+    const asked: ModelNeed[] = []
     const taking = { adoption, definition } as unknown as ModelProfile<'llm'>
     const profiles = {
-      resolve: async (input: { required: ModalityRequirement }) => {
+      resolve: async (input: { required: ModelNeed }) => {
         asked.push(input.required)
-        const covered = profileCovers(definition, input.required)
+        const covered = meetsNeed(
+          {
+            kind: 'llm',
+            output: ['text'],
+            ...definition,
+          } as unknown as ModelProfile<'llm'>['definition'],
+          input.required,
+        )
         return {
           ok: resolved({
             profile: taking,
@@ -193,11 +200,11 @@ describe('a target judged for the history of a session', () => {
     })
     expect(reads).toEqual([{ tenant: 't', session }])
     expect(asked).toEqual([
-      {
+      chatNeedOf({
         modalities: ['text', 'image'],
         fileTypes: ['application/pdf'],
         source: SELECTION_REQUIREMENT_SOURCE,
-      },
+      }),
     ])
   })
 
@@ -219,7 +226,9 @@ describe('a target judged for the history of a session', () => {
     expect((await modelTargetsOf(plain.profiles, wordsOnly.read)?.check(call))?.kind).toBe(
       'selectable',
     )
-    expect(plain.asked).toEqual([{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }])
+    expect(plain.asked).toEqual([
+      chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }),
+    ])
   })
 
   it('a history that cannot be read is unavailable, never an empty history; Model is not asked', async () => {
@@ -240,7 +249,7 @@ describe('a target judged for the history of a session', () => {
     expect((await modelTargetsOf(profiles, read)?.check(creating))?.kind).toBe('selectable')
     expect([reads, asked]).toEqual([
       [],
-      [{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }],
+      [chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE })],
     ])
   })
 })
@@ -289,16 +298,13 @@ describe('the list of models for a session and selecting a model in it (I-4)', (
     pictures: { input: ['text', 'image'] },
     everything: { input: ['text', 'image'], fileTypes: ['application/pdf'] },
   }
-  function resolutionOf(route: string, required: ModalityRequirement): ProfileResolution<'llm'> {
-    const definition = { ...DEFINITIONS[route], output: ['text'] }
-    const covered = profileCovers(
-      definition as unknown as ModelProfile<'llm'>['definition'],
-      required,
-    )
+  function resolutionOf(route: string, required: ModelNeed): ProfileResolution<'llm'> {
+    const definition = { kind: 'llm', ...DEFINITIONS[route], output: ['text'] }
+    const covered = meetsNeed(definition as unknown as ModelProfile<'llm'>['definition'], required)
     return resolved({
       profile: {
         adoption: { ...adoption, name: route },
-        identity: { scope: { kind: 'factory' }, route },
+        identity: { kind: 'llm', scope: { kind: 'factory' }, route },
         definition,
       } as unknown as ModelProfile<'llm'>,
       selectable: covered,
@@ -306,10 +312,10 @@ describe('the list of models for a session and selecting a model in it (I-4)', (
     })
   }
   const profiles = {
-    resolve: async (input: { route: string; required: ModalityRequirement }) => ({
+    resolve: async (input: { route: string; required: ModelNeed }) => ({
       ok: resolutionOf(input.route, input.required),
     }),
-    list: async (input: { required: ModalityRequirement }) => ({
+    list: async (input: { required: ModelNeed }) => ({
       ok: { choices: Object.keys(DEFINITIONS).map(route => resolutionOf(route, input.required)) },
     }),
   } as unknown as ModelProfiles<unknown>

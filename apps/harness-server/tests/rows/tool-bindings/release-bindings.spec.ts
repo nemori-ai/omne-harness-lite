@@ -401,8 +401,8 @@ describe('what the model of a session takes, read from its saved selection and t
     const asked: unknown[] = []
     const answer = await over(
       async (input: unknown) => (asked.push(input), selection),
-      async (input: { route: string; required: { modalities: unknown } }) => {
-        asked.push({ route: input.route, modalities: input.required.modalities })
+      async (input: { route: string; required: { modalities?: { input?: unknown } } }) => {
+        asked.push({ route: input.route, modalities: input.required.modalities?.input })
         return resolved([])
       },
     )

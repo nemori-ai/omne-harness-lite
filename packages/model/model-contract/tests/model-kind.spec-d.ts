@@ -13,7 +13,10 @@ import {
   type DecisionsRequest,
   type FixedModelRequest,
   type LlmRequest,
+  type ModelNeed,
   type ProfileKind,
+  type ProfileListInput,
+  type ProfileResolveInput,
   type RequestCommon,
 } from '../src/index.ts'
 
@@ -35,6 +38,17 @@ describe('the kinds of model', () => {
     expectTypeOf<LlmModelRequest>().toEqualTypeOf<RequestCommon & LlmRequest>()
     expectTypeOf<DecisionsModelRequest>().toEqualTypeOf<RequestCommon & DecisionsRequest>()
     expectTypeOf<ProfileKind>().toEqualTypeOf<FixedModelRequest['kind']>()
+  })
+
+  it('a need names the kind of model it asks for, and the inputs to the profiles carry it', () => {
+    expectTypeOf<ModelNeed<'decisions'>['kind']>().toEqualTypeOf<'decisions'>()
+    expectTypeOf<ProfileListInput<string, 'llm'>['required']>().toEqualTypeOf<ModelNeed<'llm'>>()
+    expectTypeOf<ProfileResolveInput<string, 'decisions'>['required']>().toEqualTypeOf<
+      ModelNeed<'decisions'>
+    >()
+    // @ts-expect-error -- a need of no kind
+    const unnamed: ModelNeed = { source: { owner: 'o', record: 'r', revision: '1', digest: 'd' } }
+    expectTypeOf(unnamed).toExtend<object>()
   })
 
   it('a table that leaves a kind out does not compile', () => {

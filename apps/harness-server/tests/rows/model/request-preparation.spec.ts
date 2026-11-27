@@ -11,7 +11,11 @@ import { providerCredentialKey, releaseProvider } from '../../../src/assets/mode
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
-import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
+import {
+  chatNeedOf,
+  type AssembledModelInput,
+  type ModelProfile,
+} from '@omne-harness/model-contract'
 import { officialProfiles } from '@omne-harness/model-host-local'
 import {
   ModelPreparationResourcesService,
@@ -143,9 +147,8 @@ async function profileOf(
   const profiles = ctx.get('modelProfiles') as ModelProfilesLike
   const resolved = await profiles.resolve({
     ...ACCESS,
-    kind: 'llm',
     route,
-    required: REQUIRED,
+    required: chatNeedOf(REQUIRED),
   })
   if (!('ok' in resolved) || resolved.ok.kind !== 'resolved')
     throw new Error('profile did not resolve')

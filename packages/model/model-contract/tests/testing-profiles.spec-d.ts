@@ -1,6 +1,6 @@
 import { expectTypeOf, it } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
-import type { ModalityRequirement, ProfileResolution } from '@omne-harness/model-contract'
+import type { ModelNeed, ProfileResolution } from '@omne-harness/model-contract'
 import type { ModelChoices, ModelProfiles } from '@omne-harness/model-contract/provider'
 import {
   createScriptedModelProfiles,
@@ -18,7 +18,11 @@ class Agent {
 type Other = Readonly<{ id: number }>
 
 const access: Access<Agent> = { tenant, principal: new Agent() }
-const required: ModalityRequirement = { modalities: ['text', 'video'], source: evidence }
+const required: ModelNeed = {
+  kind: 'llm',
+  modalities: { input: ['text', 'video'] },
+  source: evidence,
+}
 const absent: ProfileResolution = { kind: 'absent', reason: 'unknown-name' }
 
 it('the profile double offers the business port of its own principal and keeps the controls apart', () => {
@@ -42,22 +46,22 @@ it('the controls take the inputs and replies of the port, a requirement with vid
   scripted.setAccess(access, 'unavailable')
   // @ts-expect-error a decision outside allow, deny and unavailable
   scripted.setAccess(access, 'maybe')
-  scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: absent })
+  scripted.setResolution({ ...access, route: 'default', required }, { ok: absent })
   scripted.setResolution(
-    { ...access, kind: 'llm', route: 'down', required },
+    { ...access, route: 'down', required },
     { failure: { kind: 'unavailable', dependency: 'source', diagnostic: 'down' } },
   )
   scripted.setResolution(
-    { ...access, kind: 'llm', route: 'x', required },
+    { ...access, route: 'x', required },
     // @ts-expect-error an absent reason outside the three
     { ok: { kind: 'absent', reason: 'gone' } },
   )
   // @ts-expect-error a resolution needs its requirement
-  scripted.setResolution({ ...access, kind: 'llm', route: 'default' }, { ok: absent })
+  scripted.setResolution({ ...access, route: 'default' }, { ok: absent })
   // @ts-expect-error the principal of another type
   scripted.setResolution({ tenant, principal: { id: 1 }, route: 'r', required }, { ok: absent })
   const choices: ModelChoices = { choices: [], selected: null, source: evidence }
-  scripted.setList({ ...access, kind: 'llm', selected: null, required }, { ok: choices })
+  scripted.setList({ ...access, selected: null, required }, { ok: choices })
   // @ts-expect-error a list needs its selection, even when it is null
   scripted.setList({ ...access, required }, { ok: choices })
 })

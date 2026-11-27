@@ -11,7 +11,8 @@ import {
   type SupplierPort,
 } from '@omne-harness/model'
 import {
-  profileCovers,
+  chatNeedOf,
+  meetsNeed,
   type LlmModelRequest,
   type ModelFailure,
   type ModelPreparationLease,
@@ -65,7 +66,7 @@ function qualify(input: PrepareInput): ModelFailure | null {
   if (scope !== null) return scope
   if (input.profile.availability === 'withdrawn')
     return { kind: 'invalid', field: 'profile', reason: 'withdrawn' }
-  if (!profileCovers(input.profile.definition, input.required))
+  if (!meetsNeed(input.profile.definition, chatNeedOf(input.required)))
     return { kind: 'invalid', field: 'required.modalities', reason: 'modality' }
   return null
 }

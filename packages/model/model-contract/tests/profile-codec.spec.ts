@@ -3,10 +3,14 @@ import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeProviderName,
   decodeRevision,
-  profileCovers,
+  chatNeedOf,
+  meetsNeed,
   profileResolutionValue,
   readProfileResolution,
   supportedReasoningEfforts,
+  type ModalityRequirement,
+  type ModelNeed,
+  type ModelProfileDefinition,
   type ProfileResolution,
 } from '@omne-harness/model-contract'
 
@@ -19,6 +23,7 @@ const tenant = tenantCodec.parse(
 )
 if (!tenant.ok) throw new Error('tenant fixture')
 const adopted = { owner: 'test', name: 'profile', revision: '1', digest: 'a'.repeat(64) }
+const evidence = { owner: 'test', record: 'need', revision: '1', digest: 'n' }
 const resolution: ProfileResolution = {
   kind: 'resolved',
   selectable: true,
@@ -133,7 +138,21 @@ it.each([
   expect(readProfileResolution(withFileTypes(fileTypes), 'llm')).toHaveProperty('failure')
 })
 
-const definition = { input: ['text', 'image'], fileTypes: ['application/pdf'] } as const
+const definition = {
+  kind: 'llm',
+  input: ['text', 'image'],
+  output: ['text'],
+  fileTypes: ['application/pdf'],
+} as unknown as ModelProfileDefinition
+type Modality = ModalityRequirement['modalities'][number]
+const need = (
+  required: Readonly<{ modalities: readonly Modality[]; fileTypes?: readonly string[] }>,
+): ModelNeed => ({
+  kind: 'llm',
+  modalities: { input: required.modalities },
+  ...(required.fileTypes === undefined ? {} : { fileTypes: required.fileTypes }),
+  source: evidence,
+})
 
 it.each([
   [{ modalities: ['text'] }, true],
@@ -144,11 +163,60 @@ it.each([
   [{ modalities: ['text'], fileTypes: ['application/pdf'] }, true],
   [{ modalities: ['text'], fileTypes: ['application/pdf', 'application/zip'] }, false],
   [{ modalities: ['voice'], fileTypes: ['application/pdf'] }, false],
-] as const)('a profile of text, image and PDF covers %j: %s', (required, covered) => {
-  expect(profileCovers(definition, required)).toBe(covered)
+] as const)('a profile of text, image and PDF meets %j: %s', (required, covered) => {
+  expect(meetsNeed(definition, need(required))).toBe(covered)
 })
 
-it('a profile that declares no file types covers no file type', () => {
-  const required = { modalities: ['text'], fileTypes: ['application/pdf'] } as const
-  expect(profileCovers({ input: ['text'] }, required)).toBe(false)
+it('a profile that declares no file types takes no file type', () => {
+  const textOnly = {
+    kind: 'llm',
+    input: ['text'],
+    output: ['text'],
+  } as unknown as ModelProfileDefinition
+  expect(meetsNeed(textOnly, need({ modalities: ['text'], fileTypes: ['application/pdf'] }))).toBe(
+    false,
+  )
+})
+
+it('the chat need of some content asks the model to take it, and states no file type it was not given', () => {
+  expect(
+    chatNeedOf({ modalities: ['text'], fileTypes: ['application/pdf'], source: evidence }),
+  ).toStrictEqual({
+    kind: 'llm',
+    modalities: { input: ['text'] },
+    fileTypes: ['application/pdf'],
+    source: evidence,
+  })
+  expect(chatNeedOf({ modalities: ['text'], source: evidence })).toStrictEqual({
+    kind: 'llm',
+    modalities: { input: ['text'] },
+    source: evidence,
+  })
+})
+
+it('a decisions profile meets a decisions need of what it takes, and takes no file natively', () => {
+  const judge = {
+    kind: 'decisions',
+    input: ['text'],
+    output: ['text'],
+  } as unknown as ModelProfileDefinition
+  const asks = (over: Partial<ModelNeed>) =>
+    ({ kind: 'decisions', source: evidence, ...over }) as ModelNeed
+  expect(meetsNeed(judge, asks({ modalities: { input: ['text'] } }))).toBe(true)
+  expect(meetsNeed(judge, asks({ modalities: { input: ['image'] } }))).toBe(false)
+  expect(meetsNeed(judge, asks({ fileTypes: ['application/pdf'] }))).toBe(false)
+  expect(meetsNeed(judge, { kind: 'llm', source: evidence })).toBe(false)
+})
+
+it('a need that asks for no modality is met by any profile of its kind', () => {
+  expect(meetsNeed(definition, { kind: 'llm', source: evidence })).toBe(true)
+  expect(meetsNeed(definition, { kind: 'llm', modalities: {}, source: evidence })).toBe(true)
+})
+
+it('a profile meets a need of its own kind only, and gives what the need asks it to give', () => {
+  expect(meetsNeed(definition, { kind: 'decisions', source: evidence })).toBe(false)
+  const gives = (output: readonly Modality[]) =>
+    ({ kind: 'llm', modalities: { output }, source: evidence }) as ModelNeed
+  expect(meetsNeed(definition, gives(['text']))).toBe(true)
+  expect(meetsNeed(definition, gives(['image']))).toBe(false)
 })

@@ -19,6 +19,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type ModalityRequirement,
+  chatNeedOf,
   type ModelCallId,
   type ModelDelivery,
   type ModelFailure,
@@ -597,7 +598,7 @@ export async function assembleLine(input: LineInput) {
     updatedAt: '2026-11-02T00:00:00Z',
   })
   const resolution = decoded(
-    await ctx.modelProfiles.resolve({ ...ACCESS, kind: 'llm', route: ROUTE, required: REQUIRED }),
+    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: chatNeedOf(REQUIRED) }),
   )
   if (resolution.kind !== 'resolved') throw new Error(`the profile ${ROUTE} did not resolve`)
   const { profile } = resolution

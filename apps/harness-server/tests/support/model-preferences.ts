@@ -1,8 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
 import {
+  CATALOG_KINDS,
   MODEL_PROVIDER_CATEGORY,
   MODEL_SWITCHES,
+  type CatalogKind,
 } from '@omne-harness/model-contract/provider-asset'
 import { modelPreferencesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { officialCatalog } from '@omne-harness/model-host-local'
@@ -20,7 +22,11 @@ const openrouter: ProviderName = (() => {
   if (!('ok' in decoded)) throw new Error('provider name')
   return decoded.ok
 })()
-const everyModel = () => officialCatalog(openrouter, () => true).map(entry => entry.model)
+const everyModel = () => officialCatalog(openrouter, () => true)
+const modelsOf = (kind: CatalogKind) =>
+  everyModel()
+    .filter(entry => entry.kind === kind)
+    .map(entry => entry.model)
 
 /** Serves the preferences directly, for a tree without the model-credential row. */
 export const everyModelOnRow = defineRow({
@@ -31,7 +37,7 @@ export const everyModelOnRow = defineRow({
   plugin: {
     name: 'every-model-on',
     apply(ctx: Context) {
-      const enabled = new Set(everyModel())
+      const enabled = { llm: new Set(modelsOf('llm')), decisions: new Set(modelsOf('decisions')) }
       serveModelPreferences(ctx, { read: async () => ({ ok: { enabled, efforts: new Map() } }) })
     },
   },
@@ -46,7 +52,12 @@ export const everyModelSwitchedOnRow = defineRow({
   plugin: {
     name: 'every-model-switched-on',
     apply(ctx: Context) {
-      const switches = Object.fromEntries(everyModel().map(model => [model, true]))
+      const switches = Object.fromEntries(
+        CATALOG_KINDS.map(kind => [
+          kind,
+          Object.fromEntries(modelsOf(kind).map(model => [model, true])),
+        ]),
+      )
       const view = {
         owner: { kind: 'asset', category: MODEL_PROVIDER_CATEGORY, name: 'openrouter' },
         item: MODEL_SWITCHES,

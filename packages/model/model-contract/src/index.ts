@@ -87,6 +87,9 @@ export type {
   MediaMeasurementFact,
   MeterRepresentation,
   ModalityRequirement,
+  ModelNeed,
+  ProfileListInput,
+  ProfileResolveInput,
   ModelInputMeter,
   ModelLimit,
   ModelModality,
@@ -113,8 +116,9 @@ export {
   LIMIT_METRICS,
   mediaLimitMetric,
   OVER_LIMIT_METRICS,
+  chatNeedOf,
   isProfileOf,
-  profileCovers,
+  meetsNeed,
   supportedReasoningEfforts,
 } from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'

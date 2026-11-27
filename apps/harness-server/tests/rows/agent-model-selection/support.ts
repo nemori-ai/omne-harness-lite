@@ -2,6 +2,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
   decodeProviderName,
+  chatNeedOf,
   decodeRevision,
   type Adoption,
   type DurableEvidence,
@@ -269,9 +270,8 @@ export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace =
       {
         principal: sessionAccess.principal,
         tenant: sessionAccess.tenant,
-        kind: 'llm',
         route,
-        required: textRequirement,
+        required: chatNeedOf(textRequirement),
       },
       answer,
     )
@@ -287,7 +287,7 @@ export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace =
         if (typeof answers !== 'function') return scripted.profiles.resolve(input)
         const answered = await answers(input.route)
         if (!('ok' in answered)) return answered
-        const narrowed = resolutionOf(answered.ok, input.kind)
+        const narrowed = resolutionOf(answered.ok, input.required.kind)
         if (narrowed === null) throw new Error('the answer is of another model kind')
         return { ok: narrowed }
       }

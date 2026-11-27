@@ -918,13 +918,33 @@
               "pending": false
             },
             {
-              "name": "profileCovers",
+              "name": "isProfileOf",
               "kind": "value",
               "pending": false
             },
             {
-              "name": "isProfileOf",
+              "name": "chatNeedOf",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "meetsNeed",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ModelNeed",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileListInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileResolveInput",
+              "kind": "type",
               "pending": false
             },
             {
@@ -1154,6 +1174,16 @@
             {
               "name": "judgeModelRequest",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "supplyOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ModelSupply",
+              "kind": "type",
               "pending": false
             },
             {
@@ -2101,6 +2131,16 @@
             {
               "name": "DecisionsCatalog",
               "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CatalogKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CATALOG_KINDS",
+              "kind": "value",
               "pending": false
             },
             {

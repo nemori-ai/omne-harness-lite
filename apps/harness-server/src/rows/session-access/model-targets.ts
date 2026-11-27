@@ -5,7 +5,7 @@ import type {
   ProfileResolution,
 } from '@omne-harness/model-contract'
 import type { SessionRequirement } from '@omne-harness/model-access'
-import { supportedReasoningEfforts } from '@omne-harness/model-contract'
+import { chatNeedOf, supportedReasoningEfforts } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -104,7 +104,8 @@ export function modelTargetsOf(
           : await sessionRequirementOf(view, { tenant, session })
       if (requirement === null) return { kind: 'unavailable' }
       const { required } = requirement
-      const resolved = await profiles.resolve({ principal, tenant, kind: 'llm', route, required })
+      const need = chatNeedOf(required)
+      const resolved = await profiles.resolve({ principal, tenant, route, required: need })
       if (!('ok' in resolved)) return { kind: 'unavailable' }
       const target = targetOf(resolved.ok)
       if (resolved.ok.kind !== 'resolved' || target.kind !== 'refused') return target

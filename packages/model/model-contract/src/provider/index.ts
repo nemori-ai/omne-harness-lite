@@ -99,3 +99,4 @@ export {
 } from '../judge-request.ts'
 export { requestHead, requestRepresentation } from '../request-head.ts'
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts'
+export { supplyOf, type ModelSupply } from '../supply.ts'

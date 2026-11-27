@@ -1,5 +1,9 @@
 import { NO_RESEND_RETRY_POLICY, type SupplierPort } from '@omne-harness/model'
-import { DECISION_REPRESENTATION, type ModelFailure } from '@omne-harness/model-contract'
+import {
+  DECISION_REPRESENTATION,
+  type ModelFailure,
+  type ModelNeed,
+} from '@omne-harness/model-contract'
 import {
   judgeModelRequest,
   type ModelDecisionPreparation,
@@ -16,8 +20,9 @@ const invalid = (field: string, reason: string): { failure: ModelFailure } => ({
 })
 
 // A decision takes its material as text: the form every decision call is written in says so.
-const TEXT_MATERIAL = Object.freeze({
-  modalities: ['text'] as const,
+const TEXT_MATERIAL: ModelNeed<'decisions'> = Object.freeze({
+  kind: 'decisions',
+  modalities: Object.freeze({ input: Object.freeze(['text'] as const) }),
   source: Object.freeze({
     owner: DECISION_REPRESENTATION.owner,
     record: DECISION_REPRESENTATION.name,
@@ -35,7 +40,6 @@ export function createDecisionPreparation<P>(
       const resolved = await options.profiles.resolve({
         principal,
         tenant,
-        kind: 'decisions',
         route: model,
         required: TEXT_MATERIAL,
       })

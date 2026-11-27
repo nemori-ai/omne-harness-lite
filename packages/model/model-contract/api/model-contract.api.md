@@ -105,6 +105,7 @@
 - `ModelKind` · `model-kind.d.ts`
 - `ModelLimit` · `profile.d.ts`
 - `ModelModality` · `profile.d.ts`
+- `ModelNeed` · `profile.d.ts`
 - `ModelOperationId` · `root.d.ts`
 - `ModelOutputV1` · `model-output-v1.d.ts`
 - `ModelOutputV1Delta` · `model-output-v1.d.ts`
@@ -139,8 +140,10 @@
 - `ProfileCommon` · `profile.d.ts`
 - `ProfileIdentity` · `profile.d.ts`
 - `ProfileKind` · `profile.d.ts`
+- `ProfileListInput` · `profile.d.ts`
 - `ProfileReplay` · `profile.d.ts`
 - `ProfileResolution` · `profile.d.ts`
+- `ProfileResolveInput` · `profile.d.ts`
 - `ProfileScope` · `profile.d.ts`
 - `ProfileSupplier` · `profile.d.ts`
 - `ProviderName` · `root.d.ts`
@@ -176,6 +179,7 @@
 - `VisibleBlock` · `call-surface.d.ts`
 - `accountUndelivered` · `cost-lookup.d.ts`
 - `applyModelStreamDelta` · `model-stream-values.d.ts`
+- `chatNeedOf` · `profile.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
 - `costLookupOf` · `cost-lookup.d.ts`
 - `decisionAnswersBlock` · `decision-call.d.ts`
@@ -208,7 +212,7 @@
 - `judgeModelParameters` · `profile-codec.d.ts`
 - `judgeToolDeclarations` · `profile-codec.d.ts`
 - `mediaLimitMetric` · `profile.d.ts`
-- `profileCovers` · `profile.d.ts`
+- `meetsNeed` · `profile.d.ts`
 - `profileProblems` · `profile-problems.d.ts`
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
@@ -304,6 +308,7 @@
 - `ModelRequestPreparation` · `profile.d.ts`
 - `ModelRetryPolicy` · `provider-protocol.d.ts`
 - `ModelSendBoundary` · `provider-protocol.d.ts`
+- `ModelSupply` · `supply.d.ts`
 - `ModelTextTokenizer` · `tokenizer.d.ts`
 - `ModelToolPayloadAdapter` · `provider-protocol.d.ts`
 - `ModelTransport` · `provider-protocol.d.ts`
@@ -342,9 +347,12 @@
 - `requestRepresentation` · `request-head.d.ts`
 - `resolveModelOperationRef` · `reference.d.ts`
 - `selectCredentialLayer` · `credential-values.d.ts`
+- `supplyOf` · `supply.d.ts`
 
 ## 入口 `./provider-asset` · `provider-asset.d.ts`
 
+- `CATALOG_KINDS` · `provider-asset.d.ts`
+- `CatalogKind` · `provider-asset.d.ts`
 - `CatalogModel` · `provider-asset.d.ts`
 - `CredentialItemDeclaration` · `provider-asset.d.ts`
 - `DecisionsCatalog` · `provider-asset.d.ts`
@@ -1468,8 +1476,8 @@ export type * from './decision-call.ts';
 export { DECISION_REPRESENTATION, decisionAnswersBlock, decisionAnswersOf, judgeDecisionAsk, } from './decision-call.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
-export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, LlmProfile, DecisionsProfile, ProfileKind, ParameterAdoption, ProfileCommon, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
-export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, isProfileOf, profileCovers, supportedReasoningEfforts, } from './profile.ts';
+export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelNeed, ProfileListInput, ProfileResolveInput, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, LlmProfile, DecisionsProfile, ProfileKind, ParameterAdoption, ProfileCommon, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, chatNeedOf, isProfileOf, meetsNeed, supportedReasoningEfforts, } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
@@ -1984,7 +1992,17 @@ export type ModalityRequirement = Readonly<{
 }>;
 export declare function mediaLimitMetric(mediaType: string): 'image-bytes' | 'voice-bytes' | 'file-bytes';
 export declare function isNativeFileType(value: string): boolean;
-export declare function profileCovers(definition: Pick<ProfileCommon, 'input'> & Pick<LlmProfile, 'fileTypes'>, required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>): boolean;
+export type ModelNeed<K extends ProfileKind = ProfileKind> = Readonly<{
+    kind: K;
+    modalities?: Readonly<{
+        input?: readonly Modality[];
+        output?: readonly Modality[];
+    }>;
+    fileTypes?: readonly string[];
+    source: DurableEvidence;
+}>;
+export declare function chatNeedOf(content: ModalityRequirement): ModelNeed<'llm'>;
+export declare function meetsNeed(definition: ModelProfileDefinition, need: ModelNeed): boolean;
 export type ProfileResolution<K extends ProfileKind = ProfileKind> = Readonly<{
     kind: 'resolved';
     profile: ModelProfile<K>;
@@ -2006,17 +2024,17 @@ export type ModelChoices<K extends ProfileKind = ProfileKind> = Readonly<{
     }> | null;
     source: DurableEvidence;
 }>;
+export type ProfileListInput<P, K extends ProfileKind = ProfileKind> = Access<P> & Readonly<{
+    selected: string | null;
+    required: ModelNeed<K>;
+}>;
+export type ProfileResolveInput<P, K extends ProfileKind = ProfileKind> = Access<P> & Readonly<{
+    route: string;
+    required: ModelNeed<K>;
+}>;
 export interface ModelProfiles<P> {
-    list<K extends ProfileKind>(input: Access<P> & Readonly<{
-        kind: K;
-        selected: string | null;
-        required: ModalityRequirement;
-    }>): Reply<ModelChoices<K>>;
-    resolve<K extends ProfileKind>(input: Access<P> & Readonly<{
-        kind: K;
-        route: string;
-        required: ModalityRequirement;
-    }>): Reply<ProfileResolution<K>>;
+    list<K extends ProfileKind>(input: ProfileListInput<P, K>): Reply<ModelChoices<K>>;
+    resolve<K extends ProfileKind>(input: ProfileResolveInput<P, K>): Reply<ProfileResolution<K>>;
 }
 export type ProfileChange = Readonly<{
     kind: 'create';
@@ -2256,6 +2274,11 @@ export type DecisionsCatalog = Readonly<{
     maxQuestions?: string;
 }>;
 export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog);
+export type CatalogKind = CatalogModel['kind'];
+export declare const CATALOG_KINDS: readonly [
+    "llm",
+    "decisions"
+];
 export type ProviderAccounting = Readonly<{
     place: string;
     costUnit: string;
@@ -2272,7 +2295,7 @@ export type ModelProviderBody = Readonly<{
     models: readonly CatalogModel[];
 }>;
 export type ProviderPreferences = Readonly<{
-    enabled: ReadonlySet<string>;
+    enabled: Readonly<Record<CatalogKind, ReadonlySet<string>>>;
     efforts: ReadonlyMap<string, ReasoningEffort>;
 }>;
 export declare const MODEL_SWITCHES = "model-switches";
@@ -2735,6 +2758,7 @@ export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.
 export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest, judgeModelRequest, } from '../judge-request.ts';
 export { requestHead, requestRepresentation } from '../request-head.ts';
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts';
+export { supplyOf, type ModelSupply } from '../supply.ts';
 ```
 
 ## 声明文件 `reference.d.ts`
@@ -3294,6 +3318,38 @@ export type Admit<P> = Mutation<P> & Readonly<{
 }>;
 ```
 
+## 声明文件 `supply.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { ModelChoices, ProfileKind, ProfileResolution } from './profile.ts';
+import type { ModelFailure } from './result.ts';
+import type { ProviderName } from './root.ts';
+export type ModelSupply<K extends ProfileKind = ProfileKind> = Readonly<{
+    state: 'ready';
+    choices: readonly Extract<ProfileResolution<K>, {
+        kind: 'resolved';
+    }>[];
+}> | Readonly<{
+    state: 'blocked';
+    by: 'no-offering';
+}> | Readonly<{
+    state: 'blocked';
+    by: 'credential';
+    providers: readonly ProviderName[];
+}> | Readonly<{
+    state: 'blocked';
+    by: 'not-enabled' | 'locked' | 'scope';
+    models: readonly Readonly<{
+        provider: ProviderName;
+        route: string;
+    }>[];
+}> | Readonly<{
+    state: 'unknown';
+}>;
+export declare function supplyOf<K extends ProfileKind>(listed: Outcome<ModelChoices<K>, ModelFailure>): ModelSupply<K>;
+```
+
 ## 声明文件 `testing/access.d.ts`
 
 ```ts
@@ -3695,7 +3751,7 @@ export declare function findRow<P, K, T>(rows: readonly ScriptRow<P, K, T>[], ac
 
 ```ts
 import { type Access } from '@omne-harness/legal-identity';
-import type { ModelProfiles } from '../profile.ts';
+import { type ModelProfiles } from '../profile.ts';
 import { type ScriptedAccessDecision } from './access.ts';
 export type ScriptedModelProfileCall<P> = Readonly<{
     sequence: number;

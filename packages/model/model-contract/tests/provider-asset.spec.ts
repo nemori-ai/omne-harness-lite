@@ -453,6 +453,7 @@ describe('the provider model catalog (C1, C2)', () => {
       'a decisions model whose question limit is written as null',
       { models: [{ ...MODEL, kind: 'decisions', maxQuestions: null }] },
     ],
+    ['one model of one kind twice', { models: [MODEL, { ...MODEL, title: 'Again' }] }],
   ])('refuses %s', (_case, change) => {
     expect(parseModelProviderBody(body(plainBody(change)))).toEqual({
       failure: 'invalid-models',
@@ -493,7 +494,7 @@ describe('the provider model catalog (C1, C2)', () => {
     expect(otherKey?.version).not.toBe(one?.version)
   })
 
-  it('a switch takes a boolean per model and an effort one of the four, nothing else', () => {
+  it('a switch takes a boolean per model of each kind and an effort one of the four, nothing else', () => {
     const projection = projectAssetSettings(
       (() => {
         const point = createCategoryPoint()
@@ -522,7 +523,11 @@ describe('the provider model catalog (C1, C2)', () => {
     const [switches, efforts] = projection.definition.items
     expect(switches?.valueSchema).toEqual({
       type: 'object',
-      additionalProperties: { type: 'boolean' },
+      properties: {
+        llm: { type: 'object', additionalProperties: { type: 'boolean' } },
+        decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+      },
+      additionalProperties: false,
     })
     expect(efforts?.valueSchema).toEqual({
       type: 'object',
@@ -547,15 +552,48 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     return parsed.ok
   }
 
+  const on = (preferences: ReturnType<typeof preferencesOf>) =>
+    Object.fromEntries(
+      Object.entries(preferences.enabled).map(([kind, models]) => [kind, [...models]]),
+    )
+
   it('without settings each model is as the release enables it, with no default effort', () => {
     const preferences = preferencesOf(catalog(), undefined, undefined)
-    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [] })
     expect([...preferences.efforts]).toEqual([])
   })
 
-  it('a switch of the tenant turns a model on or off', () => {
-    const preferences = preferencesOf(catalog(), { 'm/on': false, 'm/off': true }, undefined)
-    expect([...preferences.enabled]).toEqual(['m/off'])
+  it('a switch of the tenant turns a model of its kind on or off', () => {
+    const switches = { llm: { 'm/on': false, 'm/off': true } }
+    expect(on(preferencesOf(catalog(), switches, undefined))).toEqual({
+      llm: ['m/off'],
+      decisions: [],
+    })
+  })
+
+  it('a value that names models without their kind turns nothing on or off', () => {
+    expect(preferencesOf(catalog(), { 'm/on': false, 'm/off': true }, undefined)).toEqual(
+      preferencesOf(catalog(), undefined, undefined),
+    )
+  })
+
+  it('a model that is both a chat model and a decisions model is two entries, each with its own switch', () => {
+    const common = { model: 'm/both', title: 'Both', input: ['text'], output: ['text'] }
+    const parsed = parseModelProviderBody(
+      body(
+        plainBody({
+          models: [
+            { ...common, kind: 'llm', window: '1000', efforts: [], enabled: true },
+            { ...common, kind: 'decisions', enabled: true },
+          ],
+        }),
+      ),
+    )
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(on(preferencesOf(parsed.ok, { decisions: { 'm/both': false } }, undefined))).toEqual({
+      llm: ['m/both'],
+      decisions: [],
+    })
   })
 
   it('a decisions model follows its switch as a chat model does, and takes no default effort', () => {
@@ -564,8 +602,12 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
       body(plainBody({ models: [{ ...judge, input: ['text'], output: ['text'] }] })),
     )
     if (!('ok' in parsed)) throw new Error(String(parsed.failure))
-    expect([...preferencesOf(parsed.ok, undefined, undefined).enabled]).toEqual(['m/judge'])
-    expect([...preferencesOf(parsed.ok, { 'm/judge': false }, undefined).enabled]).toEqual([])
+    expect(on(preferencesOf(parsed.ok, undefined, undefined)).decisions).toEqual(['m/judge'])
+    const off = { decisions: { 'm/judge': false } }
+    expect(on(preferencesOf(parsed.ok, off, undefined)).decisions).toEqual([])
+    expect(
+      on(preferencesOf(parsed.ok, { llm: { 'm/judge': false } }, undefined)).decisions,
+    ).toEqual(['m/judge'])
     expect(preferencesOf(parsed.ok, undefined, { 'm/judge': 'high' }).efforts.size).toBe(0)
   })
 
@@ -578,10 +620,10 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
   it('ignores what does not belong to the catalog or is not a value of its kind', () => {
     const preferences = preferencesOf(
       catalog(),
-      { 'm/elsewhere': true, 'm/off': 'yes' },
+      { llm: { 'm/elsewhere': true, 'm/off': 'yes' }, image: { 'm/off': true } },
       { 'm/elsewhere': 'low', 'm/on': 'max' },
     )
-    expect([...preferences.enabled]).toEqual(['m/on'])
+    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [] })
     expect(preferences.efforts.size).toBe(0)
     expect(preferencesOf(catalog(), [true], 'high')).toEqual(
       preferencesOf(catalog(), undefined, undefined),

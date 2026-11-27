@@ -166,15 +166,14 @@ it('makes every official profile resolvable, with no credential and no reason', 
   const source = sourceOf(['alpha/route', 'beta/route'])
   const profiles = createModelProfiles(source)
   const required = {
-    modalities: ['text'] as const,
+    kind: 'llm',
     source: { owner: 'model-host-local-tests', record: 'modality', revision: '1', digest: 'm' },
-  }
+  } as const
   const resolved = await profiles.resolve({
     principal,
     tenant: TENANT,
-    kind: 'llm',
     route: 'alpha/route',
-    required: { ...required, modalities: ['text'] },
+    required: { ...required, modalities: { input: ['text'] } },
   })
   if ('failure' in resolved) throw new Error(`resolve failure ${JSON.stringify(resolved.failure)}`)
   expect(resolved.ok).toMatchObject({ kind: 'resolved', selectable: true, reasons: [] })
@@ -288,10 +287,10 @@ it('keeps uncertain credential presence unknown while the official profiles rema
     const resolved = await createModelProfiles(source).resolve({
       principal,
       tenant: TENANT,
-      kind: 'llm',
       route: 'alpha/route',
       required: {
-        modalities: ['text'],
+        kind: 'llm',
+        modalities: { input: ['text'] },
         source: { owner: 'test', record: 'text', revision: '1', digest: '0'.repeat(64) },
       },
     })
@@ -334,7 +333,9 @@ function withPreferences(port: (() => ModelPreferencesPort | undefined) | undefi
 const chosen = (enabled: readonly string[], efforts: readonly (readonly [string, 'high'])[] = []) =>
   ({
     async read() {
-      return { ok: { enabled: new Set(enabled), efforts: new Map(efforts) } }
+      return {
+        ok: { enabled: { llm: new Set(enabled), decisions: new Set() }, efforts: new Map(efforts) },
+      }
     },
   }) satisfies ModelPreferencesPort
 
@@ -382,7 +383,9 @@ it('reads the preferences once per provider and with the access of the reader', 
   await withPreferences(() => ({
     async read(input) {
       seen.push(input)
-      return { ok: { enabled: new Set(['on/route']), efforts: new Map() } }
+      return {
+        ok: { enabled: { llm: new Set(['on/route']), decisions: new Set() }, efforts: new Map() },
+      }
     },
   })).read({ principal, tenant: TENANT })
   expect(seen).toEqual([{ provider: 'openrouter', access: { principal, tenant: TENANT } }])

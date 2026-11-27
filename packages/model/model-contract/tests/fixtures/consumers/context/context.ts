@@ -15,7 +15,7 @@ import type {
 import type { ModelProfiles, ModelRequestPreparation } from '@omne-harness/model-contract/provider'
 import { meterInput, triggerLine } from './meter-input.ts'
 import type { Sender } from './services.ts'
-import { access, adoption, required, textBlock, type Principal } from './values.ts'
+import { access, adoption, need, required, textBlock, type Principal } from './values.ts'
 
 export type Services = Readonly<{
   profiles: ModelProfiles<Principal>
@@ -62,7 +62,7 @@ export async function prepareRequest(
     signal: AbortSignal
   }>,
 ): Promise<Prepared> {
-  const resolution = await services.profiles.resolve({ ...access, kind: 'llm', route, required })
+  const resolution = await services.profiles.resolve({ ...access, route, required: need })
   if (!('ok' in resolution)) return { kind: 'rejected', failure: resolution.failure, dropped: 0 }
   if (resolution.ok.kind !== 'resolved' || !resolution.ok.selectable) return { kind: 'no-profile' }
   const chosen = resolution.ok.profile

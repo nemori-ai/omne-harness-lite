@@ -175,8 +175,9 @@ export function createOfficialProfileSource<P>(
   const profiles: ModelProfile[] = []
   for (const definition of input.definitions) {
     const profile = profileOf(definition, input.updatedAt)
-    if (profiles.some(existing => existing.identity.route === profile.identity.route))
-      throw new RangeError(`two official profiles share the route ${profile.identity.route}`)
+    const { kind, route } = profile.identity
+    if (profiles.some(other => other.identity.kind === kind && other.identity.route === route))
+      throw new RangeError(`two official ${kind} profiles share the route ${route}`)
     const problems = profileProblems(definition)
     if (problems.length > 0)
       throw new RangeError(
@@ -213,7 +214,8 @@ export function createOfficialProfileSource<P>(
           const effort = chosen?.efforts.get(route)
           return Object.freeze({
             profile,
-            excluded: chosen === undefined ? false : !chosen.enabled.has(route),
+            excluded:
+              chosen === undefined ? false : !chosen.enabled[profile.definition.kind].has(route),
             locked: false,
             credential: credentials?.get(provider) ?? 'unavailable',
             ...(effort === undefined ? {} : { defaultReasoningEffort: effort }),

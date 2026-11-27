@@ -1,11 +1,11 @@
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelFailure } from '../result.ts'
-import type {
-  ModalityRequirement,
-  ModelChoices,
-  ModelProfiles,
-  ProfileKind,
-  ProfileResolution,
+import {
+  meetsNeed,
+  type ModelChoices,
+  type ModelNeed,
+  type ModelProfiles,
+  type ProfileResolution,
 } from '../profile.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
 import { misuse } from './error.ts'
@@ -13,7 +13,6 @@ import {
   copyChoices,
   resolutionOf,
   copyResolution,
-  covers,
   findRow,
   frozenAnswer,
   profileScopeFailure,
@@ -59,13 +58,13 @@ const ABSENT = ['unknown-name', 'withdrawn', 'excluded'] as const
 function checkResolution(
   resolution: ProfileResolution,
   tenant: TenantId,
-  required: ModalityRequirement,
+  required: ModelNeed,
 ): void {
   if (resolution.kind === 'resolved') checkResolved(resolution, tenant, required)
   else if (!ABSENT.includes(resolution.reason)) throw misuse('the absent reason is not known')
 }
 
-function checkResolved(resolution: Resolved, tenant: TenantId, required: ModalityRequirement) {
+function checkResolved(resolution: Resolved, tenant: TenantId, required: ModelNeed) {
   const { profile, reasons } = resolution
   if (profileScopeFailure(profile.identity.scope, tenant) !== null)
     throw misuse('the scripted profile scope does not apply to the tenant')
@@ -75,7 +74,7 @@ function checkResolved(resolution: Resolved, tenant: TenantId, required: Modalit
   if (new Set(reasons).size !== reasons.length) throw misuse('a resolution reason repeats')
   if (resolution.selectable !== (reasons.length === 0))
     throw misuse('selectable must equal the absence of reasons')
-  if (covers(profile, required) === reasons.includes('modality'))
+  if (meetsNeed(profile.definition, required) === reasons.includes('modality'))
     throw misuse('the modality reason must state exactly whether the profile covers the input')
   if (!CREDENTIALS.includes(resolution.credential))
     throw misuse('the credential state is not known')
@@ -131,11 +130,10 @@ function checkSelectedResolution(
 export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
   const rules = createAccessRules<P>()
   type ListKey = Readonly<{
-    kind: ProfileKind
     selected: string | null
-    required: ModalityRequirement
+    required: ModelNeed
   }>
-  type ResolveKey = Readonly<{ kind: ProfileKind; route: string; required: ModalityRequirement }>
+  type ResolveKey = Readonly<{ route: string; required: ModelNeed }>
   const lists: ScriptRow<P, ListKey, ModelChoices>[] = []
   const resolutions: ScriptRow<P, ResolveKey, ProfileResolution>[] = []
   const recorded: ScriptedModelProfileCall<P>[] = []
@@ -157,7 +155,6 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const snapshot = Object.freeze({
         tenant: input.tenant,
         principal: input.principal,
-        kind: input.kind,
         selected: input.selected,
         required: frozenCopy(input.required),
       })
@@ -165,7 +162,6 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const refused = qualify(snapshot, 'profiles.list')
       if (refused !== null) return refusal(refused)
       const row = findRow(lists, snapshot, {
-        kind: snapshot.kind,
         selected: snapshot.selected,
         required: snapshot.required,
       })
@@ -173,7 +169,7 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       if (!('ok' in row.answer)) return row.answer
       const { choices, selected, source } = row.answer.ok
       const narrow = (resolution: ProfileResolution) => {
-        const narrowed = resolutionOf(resolution, input.kind)
+        const narrowed = resolutionOf(resolution, input.required.kind)
         if (narrowed === null) throw misuse('a scripted choice is of another model kind')
         return narrowed
       }
@@ -192,7 +188,6 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const snapshot = Object.freeze({
         tenant: input.tenant,
         principal: input.principal,
-        kind: input.kind,
         route: input.route,
         required: frozenCopy(input.required),
       })
@@ -200,13 +195,12 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const refused = qualify(snapshot, 'profiles.resolve')
       if (refused !== null) return refusal(refused)
       const row = findRow(resolutions, snapshot, {
-        kind: snapshot.kind,
         route: snapshot.route,
         required: snapshot.required,
       })
       if (row === undefined) throw misuse('no scripted profiles.resolve answer')
       if (!('ok' in row.answer)) return row.answer
-      const narrowed = resolutionOf(row.answer.ok, input.kind)
+      const narrowed = resolutionOf(row.answer.ok, input.required.kind)
       if (narrowed === null) throw misuse('the scripted resolution is of another model kind')
       return { ok: narrowed }
     },
@@ -222,7 +216,6 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
         tenant,
         principal: input.principal,
         key: Object.freeze({
-          kind: input.kind,
           selected: input.selected,
           required: frozenCopy(input.required),
         }),
@@ -240,7 +233,6 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
         tenant,
         principal: input.principal,
         key: Object.freeze({
-          kind: input.kind,
           route: input.route,
           required: frozenCopy(input.required),
         }),

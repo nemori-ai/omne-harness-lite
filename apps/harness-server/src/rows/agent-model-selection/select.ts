@@ -1,13 +1,14 @@
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
+  chatNeedOf,
   supportedReasoningEfforts,
   type ModalityRequirement,
   type ModelFailure,
   type Parameter,
   type ProfileResolution,
+  type ProfileResolveInput,
   type ReasoningEffort,
 } from '@omne-harness/model-contract'
-import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -21,10 +22,7 @@ type Selected = Extract<
   Awaited<ReturnType<ModelSelection<unknown>['select']>>,
   { ok: unknown }
 >['ok']
-type ProfilesFailure = Extract<
-  Awaited<ReturnType<ModelProfilesService<unknown>['resolve']>>,
-  { failure: unknown }
->['failure']
+type ProfilesFailure = ModelFailure
 
 export type SelectionBindings = Readonly<{
   sessionOf(input: SelectInput): Promise<Outcome<SessionId, Failure>>
@@ -36,7 +34,7 @@ export type SelectionPorts = Readonly<{
     access: SessionAccess<unknown>,
   ): Promise<Outcome<SessionModelSelection, SessionFailure>> | undefined
   resolveProfile(
-    input: Parameters<ModelProfilesService<unknown>['resolve']>[0] & Readonly<{ kind: 'llm' }>,
+    input: ProfileResolveInput<unknown, 'llm'>,
   ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
   bindings: SelectionBindings
 }>
@@ -109,9 +107,8 @@ export async function selectModel(
   const resolving = ports.resolveProfile({
     principal: input.principal,
     tenant: input.tenant,
-    kind: 'llm',
     route,
-    required: ports.bindings.requirementOf(input),
+    required: chatNeedOf(ports.bindings.requirementOf(input)),
   })
   if (resolving === undefined)
     return fail(unavailable('modelProfiles', 'the model profiles service is not available'))

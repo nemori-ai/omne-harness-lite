@@ -8,6 +8,7 @@ import {
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { judgeMessage, parseMessageId, type Message, type MessagePart } from '@omne-harness/message'
 import {
+  chatNeedOf,
   decodeModelCallId,
   decodeProviderName,
   decodeRevision,
@@ -62,6 +63,7 @@ export const required: ModalityRequirement = {
   modalities: ['text'],
   source: evidence('modality'),
 }
+export const need = chatNeedOf(required)
 
 export const callId = (name: string): ModelCallId => must(decodeModelCallId(`mcall_${name}`))
 

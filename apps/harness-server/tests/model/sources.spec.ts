@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { officialProfileAdoption } from '@omne-harness/model-host-local'
 import { ModelProfilesLocalPlugin } from '@omne-harness/model-host-local/cordis'
+import type { ModelNeed } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { officialSendSources } from '../../src/model/sources.ts'
 import { fixtureTenant } from '../entry/support.ts'
@@ -14,8 +15,9 @@ const ADOPTION = {
   digest: '0'.repeat(64),
 }
 const PROFILES = { retryPolicy: ADOPTION, compactionTriggerPercent: '80' }
-const REQUIRED = {
-  modalities: ['text'] as ['text'],
+const REQUIRED: ModelNeed<'llm'> = {
+  kind: 'llm',
+  modalities: { input: ['text'] },
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
 
@@ -62,9 +64,8 @@ describe('the official send sources', () => {
     for (const route of decisionRoutes) {
       const judged = await profiles.resolve({
         ...access,
-        kind: 'decisions',
         route,
-        required: REQUIRED,
+        required: { kind: 'decisions', source: REQUIRED.source },
       })
       if (!('ok' in judged) || judged.ok.kind !== 'resolved')
         throw new Error(`${route}: not resolved`)
@@ -83,7 +84,6 @@ describe('the official send sources', () => {
       const resolved = await profiles.resolve({
         principal: Object.freeze({ subject: 'test' }),
         tenant: fixtureTenant('a'),
-        kind: 'llm',
         route,
         required: REQUIRED,
       })
@@ -112,9 +112,8 @@ describe('the official send sources', () => {
     const resolved = await profiles.resolve({
       principal: Object.freeze({ subject: 'test' }),
       tenant: fixtureTenant('a'),
-      kind: 'llm',
       route: 'qwen/qwen3.8-omni-flash',
-      required: { ...REQUIRED, modalities: ['text', 'voice'] },
+      required: { ...REQUIRED, modalities: { input: ['text', 'voice'] } },
     })
     if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') throw new Error('not resolved')
     expect(resolved.ok.profile.definition.input).toEqual(['text', 'voice'])

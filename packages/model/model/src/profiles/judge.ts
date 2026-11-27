@@ -1,8 +1,8 @@
 import { organizationEquals, tenantEquals } from '@omne-harness/legal-identity'
 import {
   isProfileOf,
-  profileCovers,
-  type ModalityRequirement,
+  meetsNeed,
+  type ModelNeed,
   type ModelFailure,
   type ModelProfile,
   type ProfileKind,
@@ -111,12 +111,9 @@ function mostSpecific<K extends ProfileKind>(
   )
 }
 
-function reasonsOf(
-  winner: Candidate<ProfileKind>,
-  required: ModalityRequirement,
-): readonly Reason[] {
+function reasonsOf(winner: Candidate<ProfileKind>, required: ModelNeed): readonly Reason[] {
   const reasons: Reason[] = []
-  if (!profileCovers(winner.profile.definition, required)) reasons.push('modality')
+  if (!meetsNeed(winner.profile.definition, required)) reasons.push('modality')
   if (winner.locked) reasons.push('locked')
   return reasons
 }
@@ -139,7 +136,7 @@ function shadowedOf(
 function resolveChecked<K extends ProfileKind>(
   snapshot: Field<K>,
   route: string,
-  required: ModalityRequirement,
+  required: ModelNeed,
 ): ProfileResolution<K> {
   const judged = alive(snapshot, route)
   if (judged.kind === 'absent') return judged.absent
@@ -160,7 +157,11 @@ function resolveChecked<K extends ProfileKind>(
 }
 
 /** A route every registered profile of which the tenant has turned off: listed, never selectable. */
-function turnedOff<K extends ProfileKind>(snapshot: Field<K>, route: string): ProfileResolution<K> {
+function turnedOff<K extends ProfileKind>(
+  snapshot: Field<K>,
+  route: string,
+  required: ModelNeed,
+): ProfileResolution<K> {
   const registered = snapshot.candidates.filter(
     candidate =>
       candidate.profile.identity.route === route && candidate.profile.availability === 'active',
@@ -171,7 +172,7 @@ function turnedOff<K extends ProfileKind>(snapshot: Field<K>, route: string): Pr
     profile: winner.profile,
     source: snapshot.source,
     selectable: false,
-    reasons: ['not-enabled'],
+    reasons: [...reasonsOf(winner, required), 'not-enabled'],
     credential: winner.credential,
     shadowed: [],
   }
@@ -179,24 +180,22 @@ function turnedOff<K extends ProfileKind>(snapshot: Field<K>, route: string): Pr
 
 export function judgeProfileResolution<K extends ProfileKind>(
   snapshot: ModelProfileSnapshot,
-  kind: K,
   route: string,
-  required: ModalityRequirement,
+  required: ModelNeed<K>,
 ): Outcome<ProfileResolution<K>, ModelFailure> {
   const defect = checkSnapshot(snapshot)
   if (defect !== null) return { failure: defect }
-  return { ok: resolveChecked(fieldOf(snapshot, kind), route, required) }
+  return { ok: resolveChecked(fieldOf(snapshot, required.kind), route, required) }
 }
 
 export function judgeProfileChoices<K extends ProfileKind>(
   snapshot: ModelProfileSnapshot,
-  kind: K,
   selected: string | null,
-  required: ModalityRequirement,
+  required: ModelNeed<K>,
 ): Outcome<ModelChoices<K>, ModelFailure> {
   const defect = checkSnapshot(snapshot)
   if (defect !== null) return { failure: defect }
-  const field = fieldOf(snapshot, kind)
+  const field = fieldOf(snapshot, required.kind)
   const choices: ProfileResolution<K>[] = []
   const routes = new Set<string>()
   for (const { profile } of field.candidates) {
@@ -205,7 +204,7 @@ export function judgeProfileChoices<K extends ProfileKind>(
     routes.add(route)
     const resolution = resolveChecked(field, route, required)
     if (resolution.kind === 'resolved') choices.push(resolution)
-    else if (resolution.reason === 'excluded') choices.push(turnedOff(field, route))
+    else if (resolution.reason === 'excluded') choices.push(turnedOff(field, route, required))
   }
   const selection =
     selected === null
