@@ -75,6 +75,15 @@ describe('a long request: subscriptions/listen (C107, C112)', () => {
     })
     controller.abort()
     expect(await first).toEqual({ kind: 'stopped' })
+    // The one that ended gave its place back: the next long request is sent and acknowledged.
+    const again = new AbortController()
+    const heard: ListenEvent[] = []
+    const next = transport.listen?.({ toolsListChanged: true }, again.signal, event =>
+      heard.push(event),
+    )
+    await until(() => heard.length > 0)
+    again.abort()
+    expect(await next).toEqual({ kind: 'stopped' })
   })
 
   it('a broken stream ends it as broken, not as a failure, and the connection stays usable', async () => {

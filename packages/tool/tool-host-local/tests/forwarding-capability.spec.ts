@@ -410,6 +410,48 @@ it.each([
   },
 )
 
+it('a target that went to the background is answered as background at once, not looked at again until the bound (C102)', async () => {
+  const f = await forwardingFixture()
+  let looks = 0
+  const provider = createLocalToolForwarding({
+    attemptMs: 60,
+    runtime: () => ({
+      queries: {
+        lookup: async () => {
+          looks += 1
+          const foreground = { kind: 'background' } as never
+          return succeed({
+            kind: 'found',
+            state: { ...f.call.state, phase: 'running', foreground },
+          })
+        },
+      },
+    }),
+    catalog: () => undefined,
+    reader: () => ({
+      present: async () => 'presented',
+      read: async () => fail({ kind: 'unused' }),
+    }),
+    consumer: async () => fail({ kind: 'denied', action: 'unused' }),
+    prepareTarget: async () => succeed(f.target),
+    forwarding: () => ({
+      resume: async () => ({ kind: 'association-unknown' }),
+      invoke: async () => ({ kind: 'accepted', reference: f.reference, state: f.call.state }),
+    }),
+  } as never)
+  const attached = provider.bind(f.parent, scope())
+  const capability = toolsCapabilityOf(attached.context)
+  if (capability === undefined) throw new Error('missing attachment')
+  expect(await capability.execute(f.intent)).toMatchObject({
+    kind: 'pending',
+    reference: f.reference,
+    reason: 'background',
+  })
+  expect(looks).toBe(1)
+  await attached.finish('returned')
+  await provider.close()
+})
+
 it('a target that settles between the last look and the bound is still brought back: at the bound it gets one more look (C102)', async () => {
   const f = await forwardingFixture()
   let settled = false

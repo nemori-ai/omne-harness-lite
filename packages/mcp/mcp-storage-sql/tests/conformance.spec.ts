@@ -9,6 +9,7 @@ import {
   mcpContinuationRecordsConformance,
   mcpTaskRecordsConformance,
   runConformanceCase,
+  sampleCatalogRecord,
 } from '@omne-harness/mcp-contract/testing'
 import { openSqlWorld, tenantOf, type SqlWorld } from './world.ts'
 
@@ -42,6 +43,18 @@ describe('the SQL catalog store conforms to the store contract (MC-31)', () => {
       })
       expect(verdict).toEqual({ kind: 'passed' })
     })
+
+  it('a write whose commit outcome is not known is written only when the row now holds its revision', async () => {
+    const world = await openSqlWorld()
+    open.push(world)
+    const first = sampleCatalogRecord(1, ['read'])
+    world.blur(false)
+    expect(await world.store.write(key, first, 'absent')).toEqual({ failure: 'unavailable' })
+    expect(await world.store.read(key)).toEqual({ ok: 'absent' })
+    world.blur(true)
+    expect(await world.store.write(key, first, 'absent')).toEqual({ ok: true })
+    expect(await world.store.read(key)).toEqual({ ok: first })
+  })
 })
 
 describe('the SQL continuation records conform to their contract (MC-27, MC-31)', () => {

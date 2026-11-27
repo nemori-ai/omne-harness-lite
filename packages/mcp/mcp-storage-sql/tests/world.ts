@@ -48,6 +48,8 @@ export type SqlWorld = Readonly<{
   tasks: TaskRecords
   /** From now on the tenants are not bound: every read and write meets no storage domain. */
   unbind(): void
+  /** The next commit answers that its outcome is not known; `landed` says whether it committed first. */
+  blur(landed: boolean): void
   close(): Promise<void>
 }>
 
@@ -79,8 +81,18 @@ export async function openSqlWorld(root = temporaryRoot()): Promise<SqlWorld> {
     },
   })
   if (created.kind !== 'created') throw new Error(JSON.stringify(created))
-  const { storage, control } = created
+  const { storage: real, control } = created
   let bound = true
+  let blurred: boolean | null = null
+  const storage: typeof real = Object.assign(Object.create(real) as typeof real, {
+    async commit(...args: Parameters<typeof real.commit>) {
+      const landed = blurred
+      if (landed === null) return real.commit(...args)
+      blurred = null
+      if (landed) await real.commit(...args)
+      return { kind: 'unknown', identity: args[0].identity, diagnostic: 'blurred' } as const
+    },
+  })
   const known = new Map<string, TenantBinding>()
   async function bind(tenantText: string): Promise<TenantBinding | null> {
     if (!bound) return null
@@ -106,6 +118,9 @@ export async function openSqlWorld(root = temporaryRoot()): Promise<SqlWorld> {
     tasks: createSqlTaskRecords({ storage, bind }),
     unbind() {
       bound = false
+    },
+    blur(landed) {
+      blurred = landed
     },
     async close() {
       const closed = await control.close({ initiator: 'assembly' })

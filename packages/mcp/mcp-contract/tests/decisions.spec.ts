@@ -898,6 +898,21 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
         unusable: 'credential-rejected',
       },
     })
+    expect(
+      listenEndOf({
+        kind: 'error',
+        error: jsonOf({ code: -32601, message: 'no listen here' }),
+        errorClass: '-32601',
+      }),
+    ).toEqual({
+      kind: 'refused',
+      failure: { kind: 'error-answer', code: -32601, message: 'no listen here' },
+    })
+    for (const kind of ['legacy-peer', 'legacy-http'] as const)
+      expect(listenEndOf({ kind }), kind).toEqual({
+        kind: 'refused',
+        failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+      })
     expect(requestClassOf('subscriptions/listen', false)).toBe('tools/call')
   })
 

@@ -86,6 +86,8 @@ export async function forwardingFixture(
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
+  /** Whether the subject check can answer now; the next check then answers unavailable. */
+  let subjectKnown = true
   /** A call whose records reads no longer find: its records were deleted. */
   let deleted: string | null = null
   /** The read that fails next: the n-th one of its kind from now, once. */
@@ -146,9 +148,11 @@ export async function forwardingFixture(
       qualify: async () =>
         allowed ? { kind: 'allowed' as const } : { kind: 'denied' as const, reason: 'revoked' },
       samePrincipal: async ({ current, original }: { current: string; original: string }) =>
-        current === original
-          ? { kind: 'allowed' as const }
-          : { kind: 'denied' as const, reason: 'other' },
+        !subjectKnown
+          ? { kind: 'unavailable' as const, diagnostic: 'offline' }
+          : current === original
+            ? { kind: 'allowed' as const }
+            : { kind: 'denied' as const, reason: 'other' },
     },
     principalCodec: {
       encode: (principal: string) => principal,
@@ -257,6 +261,9 @@ export async function forwardingFixture(
     },
     deleteParent: () => {
       deleted = parent.call
+    },
+    loseSubject: () => {
+      subjectKnown = false
     },
     blind: (kind: 'read' | 'record', nth: number) => {
       blind = { kind, left: nth }

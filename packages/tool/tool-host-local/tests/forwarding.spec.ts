@@ -194,6 +194,10 @@ it('a forwarded child whose parent records were deleted is still verified by the
   expect(await f.source.guard.verify({ ...asked, principal: 'mallory' })).toMatchObject({
     kind: 'forged',
   })
+  f.loseSubject()
+  expect(await f.source.guard.verify({ ...asked, principal: 'alice' })).toMatchObject({
+    kind: 'unavailable',
+  })
 })
 
 it('a parent that is still there but cannot be read for a moment does not let the stored binding stand', async () => {
