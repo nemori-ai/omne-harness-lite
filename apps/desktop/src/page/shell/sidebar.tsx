@@ -22,10 +22,10 @@ import {
   FigureSeat,
   FoldIcon,
   GlideMenu,
-  ICONS,
   IconButton,
   LoadingState,
   MenuIcon,
+  NamedIcon,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -34,7 +34,6 @@ import {
   TooltipContent,
   TooltipTrigger,
   TurnIcon,
-  UnknownIcon,
   ViewIcon,
   type ResolvedTheme,
   type SizeController,
@@ -177,7 +176,6 @@ function PageRow(props: {
   glide: boolean
 }) {
   const { page, scope, selected } = props
-  const Icon = ICONS[page.icon] ?? UnknownIcon
   const { badge } = page
   const row = useRef<HTMLAnchorElement>(null)
   useLayoutEffect(() => {
@@ -200,7 +198,7 @@ function PageRow(props: {
         draggable={false}
         onClick={follow(props.choose, page.id)}
       >
-        <Icon aria-hidden="true" />
+        <NamedIcon name={page.icon} aria-hidden="true" />
         <span className="shell-link-label">{page.title}</span>
         {badge === undefined ? null : (
           <span className="shell-nav-badge">

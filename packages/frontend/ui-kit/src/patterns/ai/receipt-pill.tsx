@@ -3,13 +3,8 @@ import { useRef } from 'react'
 import { useArrival } from '../../motion/motion.ts'
 import { cn } from '../../lib/utils.ts'
 import { FACT_TONE, TONE_BADGE, TONE_SURFACE, type Fact } from './tone.ts'
-import {
-  CancelledIcon,
-  CloseIcon,
-  DoneIcon,
-  type Icon as SetIcon,
-  UnknownIcon,
-} from '../../icons/index.ts'
+import { CancelledIcon, CloseIcon, DoneIcon, type Icon as SetIcon } from '../../icons/index.ts'
+import { UnknownIcon } from '../../icons/kit-only.ts'
 
 export type ReceiptTone = 'accepted' | 'declined' | 'unknown' | 'cancelled'
 

@@ -293,6 +293,17 @@ function refusedOf(changes: Changes, by: string): Outcome | undefined {
   )
 }
 
+const lockedOf = (hosted: Hosted): Outcome | undefined => {
+  const locked = hosted.effects().filter(effect => effect.state === 'locked')
+  if (locked.length === 0) return undefined
+  return outcomeOf(
+    locked.map(({ entry, detail }) => ({
+      label: `${entry.point} ${entry.key}${entry.id === '' ? '' : ` ${entry.id}`}`,
+      fault: { reason: `locked by ${detail}: the app keeps its own item here` },
+    })),
+  )
+}
+
 /** Puts the members of one plugin in a scope of its own, in the scope it is to count in: all of them, or none. */
 export async function installOn(
   shell: InstallShell,
@@ -309,7 +320,7 @@ export async function installOn(
     .host(fiberOf(listed.name, listed.version), inside => putAll(inside, ready))
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
-  const refusal = refusedOf(shell.changesFor(scope), hosted.by)
+  const refusal = refusedOf(shell.changesFor(scope), hosted.by) ?? lockedOf(hosted)
   if (refusal === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
   await hosted.dispose()
   return refusal

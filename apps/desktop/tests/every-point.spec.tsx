@@ -60,7 +60,8 @@ async function signedIn() {
 
 /** A plugin of one member from a member to copy: the member's line, then each file under a line naming it. */
 function copied(name: string, example: string) {
-  const [first = '', ...rest] = example.split('\n')
+  const filled = example.replaceAll('<plugin>', name).replaceAll('<key>', 'some-key')
+  const [first = '', ...rest] = filled.split('\n')
   const files = new Map<string, string>()
   let at: string | undefined
   for (const line of rest) {
@@ -150,3 +151,47 @@ it('the look the developer handbook gives as an example installs as written, and
     expect(mine.length, `${member.point} ${member.key}`).toBe(1)
   }
 })
+
+it.each([
+  [
+    'the assets page',
+    '{"point":"shell.pages","key":"","id":"assets","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'assets', title: 'Mine', order: 0, icon: 'x', render: () => null })",
+  ],
+  [
+    'the account block',
+    '{"point":"shell.sidebar","key":"","id":"identity.account","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'identity.account', order: 0, render: () => null })",
+  ],
+  [
+    'an action of the shell',
+    '{"point":"shell.actions","key":"","id":"shell.palette","module":"m.js","export":"m"}',
+    "export const m = () => ({ id: 'shell.palette', title: 'Mine', group: 'x', kind: 'ui', order: 0, available: () => true, run: () => undefined })",
+  ],
+])(
+  'FE-I73：%s 带锁：同标识的一份 Plugin 装不上，回执写被锁住，官方的照常',
+  async (_name, member, code) => {
+    const { root, shell } = await signedIn()
+    const scope = tenantScope(TENANT)
+    const read = readManifest(
+      `{"schema":1,"name":"mine","summary":"s","client":{"members":[${member}]}}`,
+    )
+    if (read.kind !== 'read') throw new Error(read.reason)
+    const before = list(root.dynamis.registry(), JSON.parse(member).point, null, scope)
+    const installed = await installOn(
+      shell,
+      { name: 'mine', version: 'v1', members: read.manifest.client?.members ?? [] },
+      scope,
+      {
+        given: { React, ui },
+        load: async () =>
+          import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(code)}`),
+      },
+    )
+    expect(installed).toMatchObject({
+      kind: 'failed',
+      reason: expect.stringContaining('locked by'),
+    })
+    expect(list(root.dynamis.registry(), JSON.parse(member).point, null, scope)).toEqual(before)
+  },
+)

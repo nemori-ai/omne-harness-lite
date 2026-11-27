@@ -3,9 +3,9 @@ import {
   type Contract,
   type Entry,
   type Registry,
+  type Scope,
   type Unavailable,
 } from '@omne-harness/dynamis'
-import { READ_FOR_ALL } from './closed.ts'
 import type { ReactNode } from 'react'
 
 export const PARTS_POINT = 'shell.parts'
@@ -73,14 +73,15 @@ export const partsContract: Contract = {
   item: { kind: 'data', fields: { label: 'string', summary: 'string', depths: 'array' } },
   resolve: 'conflict',
   binding: 'run',
-  scopes: READ_FOR_ALL,
   onError: 'a name declared two ways stands for no part, and nothing can be changed by it',
   version: 1,
-  revision: 1,
+  revision: 2,
   keys: 'private',
   conformance: null,
   summary:
-    'The parts of the interface that have a name: what each is called, what it is, what it is inside, and which depths of change it opens.',
+    'The parts of the interface that have a name: what each is called, what it is, what it is inside, and which depths of change it opens. A part a plugin declares is named after the plugin.',
+  example:
+    '{"point":"shell.parts","key":"<plugin>.title","data":{"label":"Title","summary":"The title of the page this plugin adds","depths":["style"]}}',
 }
 
 const SEGMENT = /^[a-z][a-z0-9-]*$/u
@@ -156,12 +157,14 @@ export function definePart<P = undefined>(declaration: PartDeclaration): Part<P>
 }
 
 /** The parts declared now, in the order of the registry; a name declared two ways stands for no part. */
-export function partsOn(registry: Registry): PartsRead {
-  const read = list<PartItem>(registry, PARTS_POINT, null, [])
+export function partsOn(registry: Registry, asker: Scope = []): PartsRead {
+  const read = list<PartItem>(registry, PARTS_POINT, null, asker)
   if (read.kind !== 'read') return read
   const parts = read.items.map(({ entry, holders }) => ({
     name: entry.key,
     ...entry.item,
+    within: entry.item.within ?? null,
+    when: entry.item.when ?? null,
     by: holders.map(holder => holder.fiber),
   }))
   const conflicts = read.conflicts.map(entries => ({

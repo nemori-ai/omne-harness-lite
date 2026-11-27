@@ -44,7 +44,7 @@ import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { runAction } from './dispatch.ts'
 import { bindShellKeys, shellKeys } from './keys.ts'
-import { paletteSwitch, ShellPalette } from './palette.tsx'
+import { ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import {
   shellApp,
@@ -518,8 +518,9 @@ export function Shell(props: ShellProps) {
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
   const face = useWatched(state.face)
-  const palette = useMemo(paletteSwitch, [])
-  const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
+  const palette = state.palette
+  const keys = useMemo(() => shellKeys(state), [state])
+  useEffect(() => state.size.bind(props.size), [state, props.size])
   useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage = homeOf(merged, pages)
   const doing = merged.doing === 'idle' ? undefined : merged.doing

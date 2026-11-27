@@ -533,7 +533,7 @@ export function readChanges(
   names: Names = () => undefined,
 ): ChangesRead {
   const found: Found = { standing: [], refused: [], conflicts: [] }
-  const declared = partsOn(registry)
+  const declared = partsOn(registry, asker)
   const parts = declared.kind === 'read' ? declared.parts : []
   const asked: Asked = { registry, asker, parts, tokens: { known, names }, found }
   const tokens = standingOn(TOKENS, asked)

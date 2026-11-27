@@ -15,13 +15,6 @@ import { createSizeController } from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { bindActionKeys } from '../src/page/shell/dispatch.ts'
-import {
-  faceActions,
-  frameActions,
-  regionActions,
-  sizeActions,
-} from '../src/page/shell/layout-actions.ts'
-import { paletteActions, paletteSwitch } from '../src/page/shell/palette.tsx'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
 import { quietConnection } from './support/shell-setup.tsx'
@@ -49,15 +42,8 @@ async function assembled(): Promise<readonly ActionItem[]> {
   for (const protocol of assembly.protocols) await serveProtocol(root, protocol, silent())
   for (const module of assembly.modules) await root.plugin(module)
   for (let round = 0; round < 5; round += 1) await Promise.resolve()
-  const size = createSizeController({ read: () => null, write: () => undefined })
-  return [
-    ...regionActions(),
-    ...sizeActions(size),
-    ...frameActions(),
-    ...faceActions(state.face, state.login.state() === 'signed-in'),
-    ...paletteActions(paletteSwitch()),
-    ...state.slots.items('actions'),
-  ]
+  state.size.bind(createSizeController({ read: () => null, write: () => undefined }))
+  return state.slots.items('actions')
 }
 
 const SIGN: Readonly<Record<string, string>> = {

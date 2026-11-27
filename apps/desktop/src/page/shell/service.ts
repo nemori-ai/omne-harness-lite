@@ -17,6 +17,7 @@ import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
 import { goHome, toFront } from './home.ts'
+import { ownActions, turnActions } from './keys.ts'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import { projectedRange, redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
@@ -46,6 +47,15 @@ export class DesktopShell extends ShellService {
     for (const point of redrawPoints) point.declare(this)
     ctx.effect(() => state.redraw.bind(redrawThrough(this)), 'desktop-shell.redraw')
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
+    for (const action of ownActions(state)) this.contribute('actions', action, { lock: true })
+    let turning: readonly (() => unknown)[] = []
+    const turn = (): void => {
+      for (const withdraw of turning) withdraw()
+      turning = turnActions(state).map(action => this.contribute('actions', action, { lock: true }))
+    }
+    turn()
+    ctx.effect(() => state.face.two.subscribe(turn), 'desktop-shell.turn')
+    ctx.effect(() => state.login.subscribe(turn), 'desktop-shell.turn-login')
     ctx.effect(
       () =>
         state.outside.bind({
@@ -168,8 +178,12 @@ export class DesktopShell extends ShellService {
   }
 
   /** A page remembers the module that put it: that module is in front while its page is on show. */
-  override contribute<K extends SlotName>(slot: K, item: ItemOf<K>): () => unknown {
-    const withdraw = super.contribute(slot, item)
+  override contribute<K extends SlotName>(
+    slot: K,
+    item: ItemOf<K>,
+    options: Readonly<{ lock?: true }> = {},
+  ): () => unknown {
+    const withdraw = super.contribute(slot, item, options)
     if (slot !== 'pages') return withdraw
     const { pageOwners } = this.state
     const owner = this.ctx.fiber

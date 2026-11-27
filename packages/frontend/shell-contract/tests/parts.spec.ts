@@ -136,7 +136,7 @@ describe('a part a view module declares', () => {
       conflicts: [],
     })
     const drawn = render(tree(shell.registry(), []).root)
-    expect(drawn).toContain(`${PARTS_POINT}  [keyed-one, closed: one-per-process]`)
+    expect(drawn).toContain(`${PARTS_POINT}  [keyed-one, v1.2]`)
     expect(drawn).toContain('notes.composer.send')
   })
 
@@ -290,5 +290,19 @@ describe('a part a view module declares', () => {
     await settle()
     const read = partsOn(shell.registry())
     expect(read.kind === 'read' && read.parts.map(part => part.label)).toEqual(['输入框'])
+  })
+})
+
+it('a part a plugin declares as data, with what a part must say and no more, reads as inside nothing and always drawn', async () => {
+  const { shell } = await startShellOf(ReferenceShell)
+  shell.putItem(
+    { point: PARTS_POINT, key: 'late.title' },
+    { label: '后来的标题', summary: '一份 Plugin 后来声明的部位', depths: ['style'] },
+    ['org', 'acc'],
+  )
+  const read = partsOn(shell.registry(), ['org', 'acc'])
+  expect(read.kind === 'read' && read.parts.find(part => part.name === 'late.title')).toMatchObject({
+    within: null,
+    when: null,
   })
 })
