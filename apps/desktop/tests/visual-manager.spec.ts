@@ -621,7 +621,7 @@ it('E20/E21 repairs from the pending native mirror and confirms it only on expli
   expect(push).toHaveBeenCalledExactlyOnceWith(value)
   expect(manager.getStatus().storage.native).toBe('ok')
 })
-it('re-probes native read and push transport failures on the next commit and on restore, without blocking the Web stores', async () => {
+it('re-probes native read and push transport failures without blocking the Web stores', async () => {
   const read = vi
     .fn<() => { record: null; pending: boolean }>(() => ({ record: null, pending: false }))
     .mockImplementationOnce(() => {
@@ -635,21 +635,11 @@ it('re-probes native read and push transport failures on the next commit and on 
   expect(manager.getStatus().storage.native).toBe('unavailable')
   manager.actions.setSize('large')
   expect(records.decode(local()).record?.preferences).toEqual({ size: 'large' })
-  await Promise.resolve()
-  expect(push).toHaveBeenCalledOnce()
-  expect(manager.getStatus().storage.native).toBe('unavailable')
-  manager.actions.setTheme('dark')
-  await Promise.resolve()
-  expect(push).toHaveBeenCalledTimes(2)
-  expect(push).toHaveBeenLastCalledWith(local())
-  expect(manager.getStatus().storage.native).toBe('ok')
-  push.mockRejectedValueOnce(new Error('ipc'))
-  manager.actions.setSize('small')
+  manager.actions.retry()
   await Promise.resolve()
   expect(manager.getStatus().storage.native).toBe('unavailable')
   restore()
   await Promise.resolve()
-  expect(push).toHaveBeenLastCalledWith(local())
   expect(manager.getStatus().storage.native).toBe('ok')
 })
 

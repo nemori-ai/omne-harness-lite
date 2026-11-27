@@ -264,9 +264,8 @@ class VisualRecordOwner {
   }
 
   commit(change: Change) {
-    // A command can come before the connection, and a copy that failed is tried again on every commit.
-    if (this.storage.local === 'unavailable') this.storage.local = 'ok'
-    if (!this.initialized || this.storage.native === 'unavailable') this.connectNative()
+    // A command can come before the connection.
+    if (!this.initialized) this.connectNative()
     this.observe()
     this.latestPush = undefined
     const record: VisualRecord = {
