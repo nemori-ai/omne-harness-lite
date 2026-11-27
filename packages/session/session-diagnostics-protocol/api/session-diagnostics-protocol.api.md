@@ -239,6 +239,7 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly reason: "denied" | "not-accepted" | "not-found" | "not-recorded" | "retention-expired" | "unavailable" | "unsupported";
                                 } | {
                                     readonly category: "exception" | "invariant" | "rejected" | "unsupported-path";
+                                    readonly diagnostic?: string;
                                     readonly failureKind: string;
                                     readonly kind: "node-failed";
                                     readonly node: string;
@@ -256,6 +257,7 @@ export declare const sessionDiagnosticsProtocol: {
                                 } | {
                                     readonly cause: string | null;
                                     readonly kind: "no-reply";
+                                    readonly throttled?: "yes";
                                     readonly upstreamStatus: string | null;
                                 } | {
                                     readonly kind: "request-rejected";
