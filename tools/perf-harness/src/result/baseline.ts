@@ -100,13 +100,9 @@ export function compareCounts(baseline: Baseline | null, result: Result): CountC
     : { state: 'different', against: baseline.commit, differences }
 }
 
-export function steadyOf(
-  side: 'base' | 'candidate',
-  first: Result,
-  again: Result,
-): CountComparison {
-  const baseline = baselineOf(first)
-  if ('state' in baseline) return baseline
+type Side = 'base' | 'candidate'
+
+function steady(side: Side, baseline: Baseline, again: Result): CountComparison {
   const self = compareCounts(baseline, again)
   if (self.state !== 'different') return self
   const moved = self.differences.map(item => item.name).join(', ')
@@ -116,11 +112,16 @@ export function steadyOf(
   }
 }
 
+export function steadyOf(side: Side, first: Result, again: Result): CountComparison {
+  const baseline = baselineOf(first)
+  return 'state' in baseline ? baseline : steady(side, baseline, again)
+}
+
 export function compareSteady(base: Result, again: Result, candidate: Result): CountComparison {
-  const self = steadyOf('base', base, again)
-  if (self.state !== 'equal') return self
   const baseline = baselineOf(base)
-  return 'state' in baseline ? baseline : compareCounts(baseline, candidate)
+  if ('state' in baseline) return baseline
+  const self = steady('base', baseline, again)
+  return self.state === 'equal' ? compareCounts(baseline, candidate) : self
 }
 
 export const FACILITY_MAJOR = FACILITY.major

@@ -106,6 +106,8 @@ describe('the verdict of a paired comparison', () => {
     expect(verdict.change?.high).toBeCloseTo(0.335, 12)
     expect(verdict.median).toBeCloseTo(0.29, 12)
     expect(verdict.least).toEqual({ base: 100, self: 100, candidate: 120 })
+    const uneven = measured.map((round, index) => ({ ...round, base: 100 + index }))
+    expect(judgePaired(uneven).least).toEqual({ base: 100, self: 100, candidate: 120 })
     const quicker = measured.map(round => ({ ...round, base: 200, self: 200 - round.self + 100 }))
     expect(judgePaired(quicker).least).toEqual({ base: 200, self: 191, candidate: 120 })
     expect(judgePaired(quicker)).toMatchObject({

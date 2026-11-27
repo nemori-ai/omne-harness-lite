@@ -132,10 +132,10 @@ describe('the line through the block medians of rounds 11 to 200', () => {
     const short = { state: 'blocked', reason: 'requires 190 finite values of rounds 11-200' }
     expect(judgeGrowth([1])).toEqual(short)
     expect(judgeGrowth(from11(round => (round === 50 ? Number.NaN : 1)))).toEqual(short)
-    expect(judgeGrowth(from11(round => (round - 105.5) * 1.8e306))).toEqual({
-      state: 'blocked',
-      reason: 'growth statistics exceed finite numeric range',
-    })
+    const beyond = { state: 'blocked', reason: 'growth statistics exceed finite numeric range' }
+    expect(judgeGrowth(from11(round => (round - 105.5) * 1.8e306))).toEqual(beyond)
+    const noise = seeded(3)
+    expect(judgeGrowth(from11(round => round * 1e200 + noise() * 1e199))).toEqual(beyond)
   })
 })
 

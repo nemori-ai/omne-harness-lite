@@ -530,14 +530,19 @@ describe('the command line', () => {
     const file = baselineFile(base.baselines, 'a', 'short')
     expect(file).toBe(join(base.baselines, 'a.short.json'))
     expect(readBaseline(base.baselines, 'a', 'short')).toEqual(baseline)
-    const later = {
+    const later: Result = {
       ...result,
-      readings: result.readings.map(reading => ({ ...reading, value: reading.value + 1 })),
+      readings: result.readings.map(reading => ({
+        ...reading,
+        kind: 'count',
+        value: reading.value + 1,
+      })),
     }
     expect(compareCounts(baseline, later)).toMatchObject({
       state: 'different',
       differences: [
         { name: 'a of one step', base: 2, now: 3 },
+        { name: 'b of one step', base: null, now: 5 },
         { name: 'k of one step', base: 3, now: 4 },
         { name: 'z of one step', base: 1, now: 2 },
       ],

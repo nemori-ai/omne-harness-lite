@@ -38,10 +38,7 @@ function quartiles(values: readonly number[]): Band {
     const position = (sorted.length - 1) * share
     const below = Math.floor(position)
     const lower = sorted[below] ?? 0
-    return (
-      lower +
-      ((sorted[Math.min(below + 1, sorted.length - 1)] ?? lower) - lower) * (position - below)
-    )
+    return lower + ((sorted[below + 1] ?? lower) - lower) * (position - below)
   }
   return { low: at(0.25), high: at(0.75) }
 }
