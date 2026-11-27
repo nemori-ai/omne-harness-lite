@@ -260,6 +260,22 @@ describe('encode: the body', () => {
     )
   })
 
+  it('refuses a record whose pin names more than one upstream', () => {
+    for (const serving of [
+      { order: ['lab', 'other'], reports: ['Lab'] },
+      { order: ['lab'], reports: ['Lab', 'Other'] },
+    ] as const)
+      expect(() => bind(responsesRecord({ serving }))).toThrow(
+        'the serving pin must name one upstream',
+      )
+  })
+
+  it('pins no upstream for a provider that serves the model itself', () => {
+    const sent = body(encode(responsesRecord({ serving: null })))
+    expect(sent).not.toHaveProperty('provider')
+    expect(sent).toMatchObject({ model: 'lab/model-a', stream: true, store: false })
+  })
+
   it('writes the system prompt as instructions where the record says so, its text blocks joined', () => {
     const record = responsesRecord({ wire: { ...responsesRecord().wire, system: 'instructions' } })
     const sent = body(

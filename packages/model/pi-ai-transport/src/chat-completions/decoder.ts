@@ -12,6 +12,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { RouteAccounting } from '../config.ts'
+import { unreportedCost } from '../cost-lookup.ts'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
 import { causeOfStatus } from '../termination.ts'
 import {
@@ -198,7 +199,7 @@ function accounted(
   if (!('ok' in usage)) return { fault: usage.failure }
   const report: CallAccountReport = {
     usage: usage.ok.items,
-    cost: costOf(finished.usage, input.accounting.costUnit),
+    cost: costOf(finished.usage, input.accounting),
     trimmed: { state: 'unknown', unit: 'token' },
     place: `${input.accounting.place}/${finished.serving.provider}`,
     duration: { state: 'unknown' },
@@ -562,9 +563,13 @@ function diagnosticFact(value: ProviderDiagnostic): TransportFact {
   return { kind: 'diagnostic', value }
 }
 
-function costOf(usage: GatewayUsage | null, costUnit: string): CallAccountReport['cost'] {
+function costOf(
+  usage: GatewayUsage | null,
+  accounting: RouteAccounting,
+): CallAccountReport['cost'] {
+  const { costUnit } = accounting
   const cost = usage?.raw['cost']
-  if (cost === undefined || cost.kind === 'null') return []
+  if (cost === undefined || cost.kind === 'null') return unreportedCost(accounting)
   const lexeme = cost.kind === 'number' ? plainDecimal(cost.lexeme) : null
   if (lexeme !== null) return [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }]
   return [{ state: 'unknown', unit: costUnit, source: 'billable' }]

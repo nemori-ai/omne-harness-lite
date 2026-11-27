@@ -25,7 +25,11 @@ function decoder(limits = LIMITS): PiResponseDecoder {
     release: async () => {},
   }).createDecoder({
     request: fixedRequest(RECORD, { tools: [tool('lookup')] }),
-    accounting: { place: 'gateway', costUnit: 'credit' },
+    accounting: {
+      place: 'gateway',
+      costUnit: 'credit',
+      generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+    },
   })
 }
 

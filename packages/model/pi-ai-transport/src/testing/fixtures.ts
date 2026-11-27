@@ -1,7 +1,3 @@
-import {
-  OPENROUTER_ACCOUNTING,
-  OPENROUTER_PROVIDER_BODY_TEXT,
-} from '../chat-completions/openrouter.ts'
 import type { RouteAccounting } from '../config.ts'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -17,11 +13,21 @@ import { terminationOf } from '../termination.ts'
 
 export const GATEWAY_END_MARKER = '[DONE]'
 
-// The gateway's own body says which interface ends its stream with a marker.
-const GATEWAY_ENDPOINTS: readonly Readonly<{ protocol: string; endMarker?: string }>[] =
-  Reflect.get(JSON.parse(OPENROUTER_PROVIDER_BODY_TEXT), 'endpoints')
+/** How the gateway the recordings were made through accounts: it names who served, and looks a cost up afterwards. */
+export const OPENROUTER_ACCOUNTING: RouteAccounting = Object.freeze({
+  place: 'openrouter',
+  costUnit: 'openrouter-credit',
+  generation: Object.freeze({ requestHeader: 'x-generation-id', path: '/api/v1/generation' }),
+})
+
+// Which interface of the gateway ends its stream with a marker; a recording made elsewhere simply has none.
+const GATEWAY_END_MARKERS: Readonly<Record<PiChatBinding['endpoint'], string | null>> = {
+  'chat-completions': GATEWAY_END_MARKER,
+  messages: null,
+  responses: GATEWAY_END_MARKER,
+}
 function endMarkerOf(endpoint: PiChatBinding['endpoint']): string | null {
-  return GATEWAY_ENDPOINTS.find(item => item.protocol === endpoint)?.endMarker ?? null
+  return GATEWAY_END_MARKERS[endpoint]
 }
 
 export const FIXTURE_FILES = ['request.json', 'stream.sse', 'facts.json'] as const

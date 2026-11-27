@@ -79,9 +79,9 @@ let vaults = 0
 const OFFICIAL_SECRET = 'synth-official-secret'
 const TENANT_SECRET = 'synth-tenant-secret'
 
-function apiKey(scope: SecretScope) {
-  const provider = releaseProvider('openrouter')
-  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+function apiKey(scope: SecretScope, name = 'openrouter') {
+  const provider = releaseProvider(name)
+  if (provider === undefined) throw new Error(`the release holds no ${name} provider`)
   return providerCredentialKey(provider, scope, 'apiKey')
 }
 function secret(raw: string) {
@@ -98,6 +98,11 @@ function vaultPath(tenant?: 'active' | 'unreadable'): string {
     path,
     seed: [
       { key: apiKey({ layer: 'official' }), secret: secret(OFFICIAL_SECRET), configuredAt: null },
+      {
+        key: apiKey({ layer: 'official' }, 'openai'),
+        secret: secret(OFFICIAL_SECRET),
+        configuredAt: null,
+      },
       ...(tenant === undefined
         ? []
         : [{ key: tenantKey, secret: secret(TENANT_SECRET), configuredAt: null }]),
@@ -151,7 +156,7 @@ async function profileOf(
     required: chatNeedOf(REQUIRED),
   })
   if (!('ok' in resolved) || resolved.ok.kind !== 'resolved')
-    throw new Error('profile did not resolve')
+    throw new Error(`profile ${route} did not resolve: ${JSON.stringify(resolved)}`)
   return resolved.ok.profile
 }
 type ModelProfilesLike = {
@@ -190,15 +195,18 @@ describe('the model-request-preparation row', () => {
   })
 
   it('leases every official chat send source for preparation at the same supplier adoption', async () => {
+    // A chat source is named by its supplier adoption: a decisions model can share its name.
     const chat = new Set(
       officialProfiles(profilesConfig)
         .filter(definition => definition.kind === 'llm')
-        .flatMap(definition => definition.suppliers.map(supplier => supplier.model)),
+        .flatMap(definition =>
+          definition.suppliers.map(supplier => supplier.adoption.owner + supplier.model),
+        ),
     )
     const sources = officialSendSources({
       profiles: profilesConfig,
       current: () => ({ ok: { authorized: false } }),
-    }).filter(source => chat.has(source.model))
+    }).filter(source => chat.has(source.supplier.owner + source.model))
     const { value } = await withLiveRows({ rows, plugins, probe }, async ctx => {
       const leases = ctx.get(
         'modelPreparationResources',

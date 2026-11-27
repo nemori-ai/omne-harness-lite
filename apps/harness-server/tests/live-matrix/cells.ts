@@ -38,10 +38,14 @@ const PROFILE_INPUT = {
 const byRoute = (left: LiveModel, right: LiveModel) =>
   left.route < right.route ? -1 : left.route > right.route ? 1 : 0
 
-// The matrix runs chat turns: its cells are the official profiles of the chat kind.
+// The matrix runs chat turns through the gateway whose key it is given, and holds each cell to a
+// budget in the cost that gateway reports: its cells are the official chat profiles through it.
+// A provider that reports no cost cannot be held to a budget; its records cite their own measurements.
+const GATEWAY = 'openrouter'
+
 export function currentModels(): readonly LiveModel[] {
   return officialProfiles(PROFILE_INPUT)
-    .filter(definition => definition.kind === 'llm')
+    .filter(definition => definition.kind === 'llm' && definition.suppliers[0].provider === GATEWAY)
     .map(officialProfileAdoption)
     .map(adoption => ({
       route: adoption.name,

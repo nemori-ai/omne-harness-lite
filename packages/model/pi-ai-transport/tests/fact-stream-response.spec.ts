@@ -1,6 +1,6 @@
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
-import { OPENROUTER_ACCOUNTING } from '../src/chat-completions/openrouter.ts'
+import { OPENROUTER_ACCOUNTING } from '../src/testing/fixtures.ts'
 import type { RouteAccounting } from '../src/config.ts'
 import { factsOfSend } from '../src/fact-stream.ts'
 import type { PiResponseDecoder } from '../src/family.ts'

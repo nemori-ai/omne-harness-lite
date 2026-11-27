@@ -7,6 +7,7 @@ it('an interface is of one model kind and frames its reply one way', () => {
     messages: { kind: 'llm', framing: 'events' },
     responses: { kind: 'llm', framing: 'events' },
     decisions: { kind: 'decisions', framing: 'whole' },
+    'decisions-v1': { kind: 'decisions', framing: 'whole' },
   })
 })
 

@@ -58,6 +58,11 @@ function wiredFields(table: ParameterTable): readonly GatewayField[] {
   return fields
 }
 
+// The interface does not report which upstream served, so a pin must leave only one.
+function pinsOneUpstream({ serving }: ResponsesRecord): boolean {
+  return serving === null || (serving.order.length === 1 && serving.reports.length === 1)
+}
+
 function checkRecord(record: ResponsesRecord, adoption: Adoption): void {
   recordDeclaration(record)
   const { produces, accepts } = record.replay.formats
@@ -66,8 +71,7 @@ function checkRecord(record: ResponsesRecord, adoption: Adoption): void {
   const { toolNames } = record.wire
   if (!TOOL_NAME_RULES.includes(toolNames.rule) || !isPositiveInteger(toolNames.maxLength))
     throw new RangeError(`record ${record.name}: wire.toolNames is not an engine rule`)
-  // The interface does not report which upstream served, so the pin must leave only one.
-  if (record.serving.order.length !== 1 || record.serving.reports.length !== 1)
+  if (!pinsOneUpstream(record))
     throw new RangeError(`record ${record.name}: the serving pin must name one upstream`)
   const fields = [...wiredFields(record.parameters), ...record.extensions.map(rule => rule.field)]
   for (const field of fields)

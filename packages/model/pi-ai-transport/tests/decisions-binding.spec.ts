@@ -30,7 +30,11 @@ const SUPPLIER: Supplier = {
   model: MODEL,
   credential: { layer: 'official' },
 }
-const ACCOUNTING = { place: 'openrouter', costUnit: 'openrouter-credit' }
+const ACCOUNTING = {
+  place: 'openrouter',
+  costUnit: 'openrouter-credit',
+  generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+}
 const ask: DecisionAsk = {
   state: { goal: 'faster home page' },
   questions: {
@@ -54,7 +58,7 @@ function requestOf(asked: DecisionAsk = ask): DecisionsModelRequest {
     source: REQUEST.source,
   }
 }
-const binding = () => bindDecisions(OWNER, RECORD, SUPPLIER)
+const binding = () => bindDecisions(OWNER, RECORD, SUPPLIER, 'decisions')
 const pairing = (
   request: FixedModelRequest = requestOf(),
   maxDecisionBytes: number | undefined = 4096,
@@ -89,7 +93,7 @@ describe('the binding of a decisions record', () => {
 
   it('states no limit on the questions when the record states none', () => {
     const unlimited = { ...RECORD, decisions: { maxQuestions: null } }
-    expect(bindDecisions(OWNER, unlimited, SUPPLIER).maxQuestions).toBeNull()
+    expect(bindDecisions(OWNER, unlimited, SUPPLIER, 'decisions').maxQuestions).toBeNull()
   })
 
   it('pairs only with a decisions request, and only when the assembly gave a byte limit', () => {

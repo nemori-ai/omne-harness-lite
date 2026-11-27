@@ -2,9 +2,17 @@
 // identity its response header carried. It generates nothing; the secret goes into the header only.
 import { request, type RequestOptions } from 'node:https'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { CostLookupAnswer } from '@omne-harness/model-contract/provider'
+import type { CallAccountReport, CostLookupAnswer } from '@omne-harness/model-contract/provider'
 import { plainDecimal } from './chat-completions/decimal.ts'
+import type { RouteAccounting } from './config.ts'
 import type { ExchangeResources } from './http.ts'
+
+/** The cost of a reply that reported none: left for the lookup its accounting states, otherwise unknown, never zero. */
+export function unreportedCost(accounting: RouteAccounting): CallAccountReport['cost'] {
+  return accounting.generation === undefined
+    ? [{ state: 'unknown', unit: accounting.costUnit, source: 'billable' }]
+    : []
+}
 
 export type CostLookupInput = Readonly<{
   /** The generation endpoint; the request id goes into its query. */

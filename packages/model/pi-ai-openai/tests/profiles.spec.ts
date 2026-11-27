@@ -40,7 +40,14 @@ describe('officialOpenAiProfiles', () => {
       ]
       expect(PROFILES[index]).toEqual({
         kind: 'llm',
-        suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
+        suppliers: [
+          {
+            adoption: supplier,
+            provider: record.route.provider,
+            model: record.route.model,
+            replay: {},
+          },
+        ],
         fallback: false,
         input: ['text', 'image'],
         ...(record.name === 'openai/gpt-5.6-luna' ? { fileTypes: ['application/pdf'] } : {}),

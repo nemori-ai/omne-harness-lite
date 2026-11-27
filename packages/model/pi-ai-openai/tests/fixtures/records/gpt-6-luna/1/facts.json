@@ -1,0 +1,584 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating multiples and weather**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " range"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " there"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " being"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " means"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " overlaps"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " So"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exact"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " times"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " giving"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " want"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " check"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " in"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " so"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " appropriate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating multiples and weather**\n\nI need to calculate the number of positive multiples of 3 below 100, which gives me the range 1 to 99. I find 33 multiples of 3, and for 7, there are 14. Both being multiples of 21 means 4 overlaps. So the exact count of odd numbers is 33 + 14 - 2 times 4, giving me 39. Then I want to check the weather in Lima, so I'll call the appropriate tool for that."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_1caaa2f6f7c14884bb0fa4418b2abf1a",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"content\":[],\"encrypted_content\":\"gAAAAABrCRnvjIrAvTY38g7GHrq_PcoDeL89lgebIdn2RK8ctdGhro_0yAmPds_E0bFWrCqaDXNtDa3oMBnOtS1mZxWOIWBJ757RH9A-G8s0EFbJOfZIbOPzhU8w1wdDCLcEVPtIl259_FUvNf35LVeXz4F3ZI52Yp57c_lJl-hCkO44FDs49aeJpJ-lMZ4o_SOTcSKENFovwBfKe9BOpoUnhdh4KLG5WeEmInFmo8GpbCfcVTIquTVBn_8mDnOjALtfNCFfaI0eMerB-HkEOJg_yptboU-JJTrPlGv3Pwl-WYJdN5MSoyp8dz9iBBovm2UPEe4cCkIHg4DWBRgDvnbSdahEFpOnpgPLw29gIvHVe7gxKHM5PNxRohw8QvZBPV7pl1Jm-kxR1e4B-1R0y1T9ptJD1QtHK1JuM04MrZZrEbrW_r2Rj-a0OUfsxKftFgc45zsZZgM7_vefqRVigEwAmQVPZHckgfDot5N74xvnZvDLhA3yFHHFXE5ICUJ3FFHMQ-PVK0jTlsdWteM4LJ9LxrtGDwuev7A-pKSiJLgSCwAXcRKbzmiQ9DDVdSXSKTVZJsGa8uyFAeyyo0cpZeg5pgRB76xwErzk2XSqTFoV_TQBg0o_7d526YhVer6GlObLhyidyFnpY2AK04wDS-Zh4fQ3YlbEDSY_brMfiQaFQ6IWUYmsHpR7Ryyquy9pSIOYrEQed3FIJ0okmLE63zfwkm4QO51qB75w1PmTf5KvwFQ6eaxiiBxXF7RyAjuvp2q-dQ40jzN-VcMK_m4OOBj6MUcSjjKqSdZ90In08J5Cvj76fbknENJvhjqu2wnZflSYc2FsXFv_eK_y9kCyBDvnCBrAHo2FkM7WMt8r00fGNiJKCaOoTu2Xr_MjcdXl1OQloqUA9Txerdr9IcIOR325lCtaWb2OwZsCwlkUFLgcTi0gVuOks1KvXOybW0OkPxz2ovUig9tNPMd_e58FcK1Q9l3aXLD43Ww3n9HLMUFcVE03eZ7lN1syyUdqvyB4ZfKhudowyz5NEAsjUdLf6z4T5AMXVYrCY8oB3nlkdI7HhTTAANZmttI9tr0c87RmR3PW17s0h2BaY7E7JThaPWtuthERz7UvBKUFlBpvWngIBoQdnlLZ6X1JnmlDnVjOzQxXZKuZ9TjjZchHI9eoLgLNbJEtYHiV4HcSIy0bMu1IA3dTLn7zreuoiv6LrMGEYmTxuc-b0TGfTLeqkIlpRQSLFTGHAoQTaqOuZ6H1vdytmyZtsum8f7lkdLXGyfLnRUAHr48-QDCOjv0AnEXpMY3T-3qzdFp7TLzIXPjwrhLixQNoB2vyejYAUhzCTaCzurOt90vulS5FzmuOKaZ45aQO2c6aL603lobRNJBWAkpSO1SSWXWMJCgWymJ5O1T06tvEA7aw9JbZGD8QgvXhVOkXMbW8hqgjV-9z0lTpgecvC8ssWxZ7UCflWmTFKtfxfvmKiDw8LlTFQ0tfycySe6rQTnXWIcmVmtpjV3WGCYacKypVfEHVQYuEweZ2SKlrLHvoUp02utaQYj5C2BdbGSI_J0eQtmIkG7gMlqcrE4ePFXKbOuNxXGdvTCCkTqeWMZPxeHlKRSiqowGMgn4qPjJ-9IISVGMymA2ARXTIZ3Ah9SGKFHmM_a6fT874DO8WrQUs01cF8Z_xnWaUZao6YpMcUZMyvh2NU0_2H5FTIjjwjlfxm-nFSKEKMhrgUrUMM7_lOrIf9Zuf3z-YQ-FDZ8WGVWskpOD6hVXFsCA7gs9qqLFFbDUk2soioYz88pxu-r58rD8irnJMl-ZE7bScjjpY9OWeD-6PJMAM8yoiomuoxwa82M53O3AIbccTfIKSuriD9cB-eh_xcuXyiyZAe0_pkQY8gcAN84E_wnc6Mo5WZ_a-3uz4FO7_KY5el-73zJDXtEGvzZPAtZl1NAZLOJjsGOdLTQ9PhqhNLMWAWWvHCI6jxCFDDn4jWmdp57SnHy8SZ5BgIEuIb2zQDXWbOnzf6oEeUVoR11WLKq0jadcAwsVZ5n0rJwPI9-Jdqvlrik9jf3e3bLOCCEp9Boz0e6o-d3Me4URxqUs4qFipEG2yMVyfyg4LRHxLKAsWIrbzEbjJneqP4rTVZDO-3R7LiE-1O_5HZ0W744sQA_cdyqkIQ9lZDk7O7MU=\",\"id\":\"rs_0745093e2c3d6428016b0919ed542087d09f9bc68b50d1ddff\",\"summary\":[{\"text\":\"**Calculating multiples and weather**\\n\\nI need to calculate the number of positive multiples of 3 below 100, which gives me the range 1 to 99. I find 33 multiples of 3, and for 7, there are 14. Both being multiples of 21 means 4 overlaps. So the exact count of odd numbers is 33 + 14 - 2 times 4, giving me 39. Then I want to check the weather in Lima, so I'll call the appropriate tool for that.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_1caaa2f6f7c14884bb0fa4418b2abf1a\",\"id\":\"fc_0745093e2c3d6428016b0919ef9e3887d0b319d11e95be0083\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "101",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "80",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "59",
+          "unit": "token"
+        }
+      ],
+      "cost": [],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

@@ -16,6 +16,7 @@ export function effortMapping(record: OpenAiRecord): ReasoningEffortMapping {
     case 'openai/gpt-6-astra':
     case 'openai/gpt-6-sol':
     case 'openai/gpt-6-luna':
+    case 'gpt-6-luna':
     case 'openai/gpt-5.6-terra':
     case 'openai/gpt-5.6-luna':
       return { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' }

@@ -2257,6 +2257,146 @@
     "suppliers": [
       {
         "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "gpt-6-luna",
+          "revision": "1",
+          "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+        },
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "gpt-6-luna#representation",
+      "revision": "1",
+      "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "gpt-6-luna#meter",
+      "revision": "1",
+      "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "kind": "llm",
+    "suppliers": [
+      {
+        "adoption": {
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-fable-5.2",
           "revision": "1",
@@ -5391,6 +5531,35 @@
       "text"
     ],
     "maxQuestions": "200",
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/direct-decisions",
+          "name": "gpt-6-luna",
+          "revision": "1",
+          "digest": "11fa38696606388b1d754b7e8d9947593e6674c622d5ce0c8db3f132130114ef"
+        },
+        "provider": "openai",
+        "model": "gpt-6-luna"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": "400",
     "retryPolicy": {
       "owner": "@omne-harness/model",
       "name": "retry-policy/no-resend",

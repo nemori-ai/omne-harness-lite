@@ -484,7 +484,11 @@ describe('prepare', () => {
     const assembled = (limits: PiTransportConfig['limits']) =>
       build({
         families: composeFamilies([
-          defineDecisionsFamily({ owner: 'test-decisions', records: [record] }),
+          defineDecisionsFamily({
+            owner: 'test-decisions',
+            endpoint: 'decisions',
+            records: [record],
+          }),
         ]),
         routes: {
           [supplier.provider]: {

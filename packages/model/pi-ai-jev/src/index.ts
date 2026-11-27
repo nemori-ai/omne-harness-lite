@@ -9,7 +9,7 @@ import { JEV_OWNER, JEV_RECORDS } from './records.ts'
 export { JEV_OWNER, JEV_RECORDS } from './records.ts'
 
 export function createJevFamily(): PiFamily<PiDecisionsBinding> {
-  return defineDecisionsFamily({ owner: JEV_OWNER, records: JEV_RECORDS })
+  return defineDecisionsFamily({ owner: JEV_OWNER, endpoint: 'decisions', records: JEV_RECORDS })
 }
 
 export function officialJevProfiles(

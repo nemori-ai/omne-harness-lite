@@ -1,4 +1,4 @@
-import { judgeDecisionAsk } from '@omne-harness/model-contract'
+import { judgeDecisionAsk, type DecisionAsk } from '@omne-harness/model-contract'
 import { canonicalJson } from '../canonical-json.ts'
 import type {
   DecisionLimits,
@@ -15,23 +15,42 @@ function state(value: unknown): boolean {
   return typeof value === 'string' || Array.isArray(value) || object(value)
 }
 
-/** The bytes sent and the questions used to check the answer are the same owned snapshot. */
-export function prepareDecision(request: DecisionRequest, limits: DecisionLimits) {
+/** A request as an owned snapshot: its model, and its ask judged and within the question limit. */
+export type OwnedAsk = Readonly<{ model: string; ask: DecisionAsk }>
+export type PreparedDecision = Readonly<{ body: Buffer; questions: DecisionRequest['questions'] }>
+
+// A request that holds what is not JSON has no snapshot.
+function snapshotOf(request: DecisionRequest): unknown {
   try {
-    const text = canonicalJson(request)
-    if (Buffer.byteLength(text) > limits.maxRequestBytes) return null
-    const snapshot: unknown = JSON.parse(text)
-    if (!object(snapshot) || typeof snapshot.model !== 'string' || snapshot.model.length === 0)
-      return null
-    const ask = judgeDecisionAsk({ state: snapshot.state, questions: snapshot.questions })
-    if (ask === null || Object.keys(snapshot).length !== 3) return null
-    const { maxQuestions } = limits
-    if (maxQuestions !== null && Object.keys(ask.questions).length > maxQuestions) return null
-    return { body: Buffer.from(text), questions: ask.questions }
+    return JSON.parse(canonicalJson(request))
   } catch {
-    return null
+    return undefined
   }
 }
+
+function ownedAsk(request: DecisionRequest, maxQuestions: number | null): OwnedAsk | null {
+  const snapshot = snapshotOf(request)
+  if (!object(snapshot) || typeof snapshot.model !== 'string' || snapshot.model.length === 0)
+    return null
+  const ask = judgeDecisionAsk({ state: snapshot.state, questions: snapshot.questions })
+  if (ask === null || Object.keys(snapshot).length !== 3) return null
+  if (maxQuestions !== null && Object.keys(ask.questions).length > maxQuestions) return null
+  return { model: snapshot.model, ask }
+}
+
+/** Prepares a request in one wire shape: the bytes sent and the questions used to check the answer are the same owned snapshot. */
+export function preparedIn(write: (owned: OwnedAsk) => string) {
+  return (request: DecisionRequest, limits: DecisionLimits): PreparedDecision | null => {
+    const owned = ownedAsk(request, limits.maxQuestions)
+    if (owned === null) return null
+    const text = write(owned)
+    if (Buffer.byteLength(text) > limits.maxRequestBytes) return null
+    return { body: Buffer.from(text), questions: owned.ask.questions }
+  }
+}
+
+/** The request as this interface takes it: the ask itself beside the model. */
+export const prepareDecision = preparedIn(({ model, ask }) => canonicalJson({ model, ...ask }))
 
 function probability(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1

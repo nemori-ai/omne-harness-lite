@@ -106,10 +106,13 @@ function bodyOf(
   return {
     ok: object({
       model: text(record.route.model),
-      provider: object({
-        order: list(record.serving.order.map(text)),
-        allow_fallbacks: bool(false),
-      }),
+      provider:
+        record.serving === null
+          ? undefined
+          : object({
+              order: list(record.serving.order.map(text)),
+              allow_fallbacks: bool(false),
+            }),
       stream: bool(true),
       store: bool(false),
       include: list([text('reasoning.encrypted_content')]),

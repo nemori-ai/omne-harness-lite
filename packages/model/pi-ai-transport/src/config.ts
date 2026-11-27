@@ -18,7 +18,7 @@ export type PiRouteAuth = Readonly<{ kind: 'bearer'; item: string }> | null
 /** The interface an engine speaks at the gateway. */
 export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
 
-export type DecisionsEndpoint = 'decisions'
+export type DecisionsEndpoint = 'decisions' | 'decisions-v1'
 
 export type ProviderEndpoint = EngineEndpoint | DecisionsEndpoint
 
@@ -30,6 +30,7 @@ export const PROTOCOLS = {
   messages: { kind: 'llm', framing: 'events' },
   responses: { kind: 'llm', framing: 'events' },
   decisions: { kind: 'decisions', framing: 'whole' },
+  'decisions-v1': { kind: 'decisions', framing: 'whole' },
 } as const satisfies Readonly<
   Record<ProviderEndpoint, Readonly<{ kind: ModelKind; framing: Framing }>>
 >

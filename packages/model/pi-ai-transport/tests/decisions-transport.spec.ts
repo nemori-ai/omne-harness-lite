@@ -84,7 +84,9 @@ async function run(
   const bodies = () => server.requests.map(request => Buffer.from(request.body).toString('utf8'))
   const resources = network(server.ca)
   const sends = countSends(resources)
-  const families = composeFamilies([defineDecisionsFamily({ owner: OWNER, records: [RECORD] })])
+  const families = composeFamilies([
+    defineDecisionsFamily({ owner: OWNER, endpoint: 'decisions', records: [RECORD] }),
+  ])
   const built = createPiTransport({
     network: resources.handle,
     families,

@@ -3,6 +3,7 @@ export {
   fixtureDirectory,
   FIXTURE_FILES,
   GATEWAY_END_MARKER,
+  OPENROUTER_ACCOUNTING,
   replayStream,
   type FixtureReport,
 } from './fixtures.ts'

@@ -1,6 +1,7 @@
 import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import {
   createOpenAiDecisionsFamily,
+  createOpenAiDirectDecisionsFamily,
   createOpenAiFamily,
   openAiTokenizerResources,
 } from '@omne-harness/pi-ai-openai'
@@ -34,6 +35,7 @@ export function releaseFamilies(
     createDeepSeekFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.deepseek }),
     createGlmFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.glm }),
     createOpenAiDecisionsFamily(),
+    createOpenAiDirectDecisionsFamily(),
     createJevFamily(),
   ])
 }

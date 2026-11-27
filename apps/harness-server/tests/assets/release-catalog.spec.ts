@@ -46,7 +46,9 @@ const INPUT = {
 describe('the release provider carries its model catalog (C1, C4)', () => {
   it('lists every official profile of OpenRouter once, with its facts', () => {
     const provider = releaseProvider('openrouter')
-    const routes = officialProfiles(INPUT).map(definition => definition.suppliers[0].model)
+    const routes = officialProfiles(INPUT)
+      .filter(definition => definition.suppliers[0].provider === 'openrouter')
+      .map(definition => definition.suppliers[0].model)
     expect(provider?.body.models.map(entry => entry.model).sort()).toEqual([...routes].sort())
     const models = provider?.body.models ?? []
     expect(models.filter(entry => entry.kind === 'llm')).toHaveLength(43)
@@ -56,6 +58,14 @@ describe('the release provider carries its model catalog (C1, C4)', () => {
         .map(entry => entry.model)
         .sort(),
     ).toEqual([...DECISIONS].sort())
+  })
+
+  it('lists the chat and the decisions gpt-6-luna OpenAI serves itself as two rows, both off by default (C3)', () => {
+    const models = releaseProvider('openai')?.body.models ?? []
+    expect(models.map(entry => [entry.kind, entry.model, entry.enabled])).toEqual([
+      ['llm', 'gpt-6-luna', false],
+      ['decisions', 'gpt-6-luna', false],
+    ])
   })
 
   it('enables by default exactly the 25 chat models of the release, and every decisions model', () => {

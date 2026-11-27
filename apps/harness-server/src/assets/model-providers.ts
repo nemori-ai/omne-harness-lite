@@ -17,12 +17,10 @@ import {
   type PiRoute,
   type PiRouteEndpoint,
 } from '@omne-harness/pi-ai-transport'
-import { OPENROUTER_PROVIDER_BODY_TEXT } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harness/settings'
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
+import { RELEASE_PROVIDER_TEXTS } from './providers.ts'
 import { RELEASE_ENABLED_MODELS } from './release-models.ts'
-
-const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
 const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {

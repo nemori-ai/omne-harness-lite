@@ -1,4 +1,5 @@
 import type { Adoption, ModelModality, ModelProfileDefinition } from '@omne-harness/model-contract'
+import type { DecisionsEndpoint } from '../config.ts'
 import { bindDecisions, type DecisionsRecordData } from '../decisions/binding.ts'
 import type { PiDecisionsBinding } from '../family.ts'
 import {
@@ -20,15 +21,19 @@ export type DecisionsRecord = PiModelRecordHead &
     }>
   }>
 
-/** A family of decisions records. A record is data: binding one holds no resource. */
+/** A family of decisions records on one interface. A record is data: binding one holds no resource. */
 export function defineDecisionsFamily(
-  spec: Readonly<{ owner: string; records: readonly DecisionsRecord[] }>,
+  spec: Readonly<{
+    owner: string
+    endpoint: DecisionsEndpoint
+    records: readonly DecisionsRecord[]
+  }>,
 ): PiFamily<PiDecisionsBinding> {
-  const { owner, records } = spec
+  const { owner, endpoint, records } = spec
   return defineFamily({
     owner,
     records,
-    acquire: async (record, supplier) => ({ ok: bindDecisions(owner, record, supplier) }),
+    acquire: async (record, supplier) => ({ ok: bindDecisions(owner, record, supplier, endpoint) }),
   })
 }
 

@@ -25,10 +25,12 @@ const DECISION_ROUTES = ['openai/gpt-6-luna-decisions', 'typesafe/jev-1.13', 'ty
 
 describe('the official send sources', () => {
   it('name every official profile of the release families with the adoption the real profiles plugin resolves, and are official', async () => {
-    const sources = officialSendSources({
+    const all = officialSendSources({
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     })
+    // The profiles through OpenRouter; the two OpenAI serves itself are named in the next case.
+    const sources = all.filter(source => source.provider === 'openrouter')
     const routes = [...new Set(sources.map(source => source.model))]
     const families = new Set(sources.map(source => source.model.split('/')[0]))
     expect(families).toEqual(
@@ -102,6 +104,36 @@ describe('the official send sources', () => {
       }
       expect(matching[0]?.current).toBe(matching[1]?.current)
     }
+    await ctx.fiber.dispose()
+  })
+
+  it('name the chat and the decisions profile of gpt-6-luna at OpenAI apart, each resolving in its own kind', async () => {
+    const direct = officialSendSources({
+      profiles: PROFILES,
+      current: () => ({ ok: { authorized: false } }),
+    }).filter(source => source.provider === 'openai')
+    expect([...new Set(direct.map(source => source.model))]).toEqual(['gpt-6-luna'])
+    const ctx = new Context()
+    await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-27T00:00:00Z' })
+    const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>
+    const access = { principal: Object.freeze({ subject: 'test' }), tenant: fixtureTenant('a') }
+    const profileOf = async (required: ModelNeed) => {
+      const judged = await profiles.resolve({ ...access, route: 'gpt-6-luna', required })
+      if (!('ok' in judged) || judged.ok.kind !== 'resolved') throw new Error('not resolved')
+      return judged.ok.profile
+    }
+    const chat = await profileOf(REQUIRED)
+    const decisions = await profileOf({ kind: 'decisions', source: REQUIRED.source })
+    expect([chat.identity.kind, decisions.identity.kind]).toEqual(['llm', 'decisions'])
+    const { reasoningEfforts: _selected, ...previous } =
+      chat.definition as typeof chat.definition & {
+        reasoningEfforts?: unknown
+      }
+    expect(direct.map(source => [source.profile, source.supplier])).toEqual([
+      [chat.adoption, chat.definition.suppliers[0].adoption],
+      [officialProfileAdoption(previous as never), chat.definition.suppliers[0].adoption],
+      [decisions.adoption, decisions.definition.suppliers[0].adoption],
+    ])
     await ctx.fiber.dispose()
   })
 

@@ -24,10 +24,18 @@ import { frame } from './support/messages-record.ts'
 import { readFileSync } from 'node:fs'
 import { replayStream } from '../src/testing/index.ts'
 
-const ACCOUNTING = { place: 'gateway', costUnit: 'gateway-credit' }
+// A gateway that looks a cost up afterwards: a reply without one leaves it to the lookup.
+const ACCOUNTING = {
+  place: 'gateway',
+  costUnit: 'gateway-credit',
+  generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+}
 const UPSTREAM = responsesRecord({ serving: { order: ['upstream'], reports: ['Upstream'] } })
 
-function decoderOf(record: ResponsesRecord = UPSTREAM): PiResponseDecoder {
+function decoderOf(
+  record: ResponsesRecord = UPSTREAM,
+  accounting: typeof ACCOUNTING | Readonly<{ place: string; costUnit: string }> = ACCOUNTING,
+): PiResponseDecoder {
   const binding = bindResponses({
     record,
     supplier: supplierOf(record),
@@ -36,7 +44,7 @@ function decoderOf(record: ResponsesRecord = UPSTREAM): PiResponseDecoder {
     release: async () => {},
   })
   const request = fixedRequest(record, { tools: [tool('get_weather'), tool('lookup')] })
-  return binding.createDecoder({ request, accounting: ACCOUNTING })
+  return binding.createDecoder({ request, accounting })
 }
 
 type Run = Readonly<{ facts: readonly TransportFact[]; fault: ModelFault | null }>
@@ -322,6 +330,20 @@ describe('decode: events written for the case', () => {
         ],
         cost: [],
       },
+    })
+  })
+
+  it('accounts at the provider, with an unknown cost, a reply of a model the provider serves itself', () => {
+    const { facts } = run(
+      [
+        stream.created,
+        ...messageItem(0, 'm1', 'ok'),
+        stream.completed({ input_tokens: 13, output_tokens: 5 }),
+      ],
+      decoderOf(responsesRecord({ serving: null }), { place: 'provider', costUnit: 'usd' }),
+    )
+    expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
+      value: { cost: [{ state: 'unknown', unit: 'usd', source: 'billable' }], place: 'provider' },
     })
   })
 

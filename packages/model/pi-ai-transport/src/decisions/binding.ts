@@ -8,12 +8,13 @@ import {
 } from '@omne-harness/model-contract'
 import type { CallAccountReport, TransportFact } from '@omne-harness/model-contract/provider'
 import { plainDecimal } from '../chat-completions/decimal.ts'
-import type { RouteAccounting } from '../config.ts'
+import type { DecisionsEndpoint, RouteAccounting } from '../config.ts'
+import { unreportedCost } from '../cost-lookup.ts'
 import type { PiDecisionsBinding, PiResponseDecoder } from '../family.ts'
 import { recordAdoption, type PiModelRecordHead } from '../family-table.ts'
 import type { PiSend } from '../send.ts'
-import { isDecisionResponse, prepareDecision } from './codec.ts'
 import type { DecisionRequest, DecisionResponse } from './contract.ts'
+import { DECISION_WIRES, type DecisionWire } from './wire.ts'
 
 const ACCOUNT_EVENT = 'usage'
 const BLOCK = '0'
@@ -23,17 +24,18 @@ export type DecisionsRecordData = Readonly<{
   decisions: Readonly<{ maxQuestions: string | null }>
 }>
 
-/** Binds a decisions record to a supplier: the record is data, and holds nothing to release. */
+/** Binds a decisions record to a supplier on the interface its family speaks: the record is data, and holds nothing to release. */
 export function bindDecisions(
   owner: string,
   record: PiModelRecordHead & DecisionsRecordData,
   supplier: Supplier,
+  endpoint: DecisionsEndpoint,
 ): PiDecisionsBinding {
   const { maxQuestions } = record.decisions
   return Object.freeze({
     supplier,
     adoption: recordAdoption(owner, record),
-    endpoint: 'decisions',
+    endpoint,
     maxQuestions: maxQuestions === null ? null : Number(maxQuestions),
     release: async () => {},
   })
@@ -50,37 +52,49 @@ const protocol = (diagnostic: string): ModelFault => ({
   upstreamStatus: null,
 })
 
-function costOf(usage: DecisionResponse['usage'], unit: string): CallAccountReport['cost'] {
-  if (usage.cost === undefined) return []
+function costOf(
+  usage: DecisionResponse['usage'],
+  accounting: RouteAccounting,
+): CallAccountReport['cost'] {
+  if (usage.cost === undefined) return unreportedCost(accounting)
+  const unit = accounting.costUnit
   const lexeme = plainDecimal(String(usage.cost))
   return lexeme === null
     ? [{ state: 'unknown', unit, source: 'billable' }]
     : [{ state: 'known', lexeme, unit, source: 'billable' }]
 }
 
-function reportOf(response: DecisionResponse, accounting: RouteAccounting): CallAccountReport {
+function reportOf(
+  response: DecisionResponse,
+  accounting: RouteAccounting,
+  wire: DecisionWire,
+): CallAccountReport {
   const { usage } = response
   return {
     usage: [
       { name: 'input', state: 'known', lexeme: String(usage.input_tokens), unit: 'token' },
       { name: 'output', state: 'known', lexeme: String(usage.output_tokens), unit: 'token' },
     ],
-    cost: costOf(usage, accounting.costUnit),
+    cost: costOf(usage, accounting),
     trimmed: { state: 'unknown', unit: 'token' },
-    place: `${accounting.place}/${response.provider ?? 'unknown'}`,
+    place: wire.place(response, accounting),
     duration: { state: 'unknown' },
     revision: '1',
   }
 }
 
-function answerFacts(response: DecisionResponse, accounting: RouteAccounting): TransportFact[] {
+function answerFacts(
+  response: DecisionResponse,
+  accounting: RouteAccounting,
+  wire: DecisionWire,
+): TransportFact[] {
   const block = decisionAnswersBlock(response.answers)
   if (block.kind !== 'text') throw new Error('the answers of a decision are one text block')
   return [
     { kind: 'block-open', index: BLOCK, mode: 'append', content: 'text' },
     { kind: 'block-delta', index: BLOCK, delta: block.text },
     { kind: 'block-seal', index: BLOCK, block },
-    { kind: 'account', event: ACCOUNT_EVENT, value: reportOf(response, accounting) },
+    { kind: 'account', event: ACCOUNT_EVENT, value: reportOf(response, accounting, wire) },
   ]
 }
 
@@ -88,16 +102,16 @@ function answerFacts(response: DecisionResponse, accounting: RouteAccounting): T
 function decoderOf(
   questions: DecisionRequest['questions'],
   accounting: RouteAccounting,
+  wire: DecisionWire,
 ): PiResponseDecoder {
   let answered = false
   return {
     accept(frame) {
       if (frame.kind !== 'data' || answered) return { failure: protocol('decision-second-body') }
-      const value: unknown = JSON.parse(writeJsonText(frame.value))
-      if (!isDecisionResponse(value, questions))
-        return { failure: protocol('decision-answers-do-not-match') }
+      const read = wire.read(JSON.parse(writeJsonText(frame.value)), questions)
+      if (read === null) return { failure: protocol('decision-answers-do-not-match') }
       answered = true
-      return { ok: answerFacts(value, accounting) }
+      return { ok: answerFacts(read, accounting, wire) }
     },
     end() {
       if (!answered) return { failure: protocol('decision-no-answer') }
@@ -112,7 +126,8 @@ export function decisionsCodec(
   ask: DecisionAsk,
   limits: Readonly<{ maxRequestBytes: number; json: JsonLimits }>,
 ): Pick<PiSend, 'encode' | 'createDecoder'> {
-  const fixed = prepareDecision(
+  const wire = DECISION_WIRES[binding.endpoint]
+  const fixed = wire.prepare(
     { model: binding.supplier.model, ...ask },
     { maxRequestBytes: limits.maxRequestBytes, maxQuestions: binding.maxQuestions },
   )
@@ -126,7 +141,7 @@ export function decisionsCodec(
     createDecoder(accounting) {
       if (fixed === null)
         throw new Error('the request of this decoder is not the decision that was encoded')
-      return decoderOf(fixed.questions, accounting)
+      return decoderOf(fixed.questions, accounting, wire)
     },
   }
 }

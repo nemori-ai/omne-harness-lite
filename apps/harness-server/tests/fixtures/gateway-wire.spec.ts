@@ -11,15 +11,14 @@ import {
   type PiChatBinding,
   type PiModelRecordHead,
 } from '@omne-harness/pi-ai-transport'
-import {
-  OPENROUTER_ACCOUNTING,
-  type ChatCompletionsLimits,
-  type FamilyMeter,
-  type ParameterTable,
+import type {
+  ChatCompletionsLimits,
+  FamilyMeter,
+  ParameterTable,
 } from '@omne-harness/pi-ai-transport/chat-completions'
 import { bindMessages } from '@omne-harness/pi-ai-transport/messages'
 import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
-import { replayStream } from '@omne-harness/pi-ai-transport/testing'
+import { OPENROUTER_ACCOUNTING, replayStream } from '@omne-harness/pi-ai-transport/testing'
 import { request as httpsRequest } from 'node:https'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'

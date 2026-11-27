@@ -1,6 +1,6 @@
 import type { LlmModelRequest, Supplier } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
-import type { PiChatBinding } from '../src/family.ts'
+import { isBindingOf, type PiChatBinding } from '../src/family.ts'
 import { sendOf, supplierIndex } from '../src/send.ts'
 import {
   adoption,
@@ -16,7 +16,7 @@ const SEND_LIMITS = { maxDecisionBytes: undefined, json: LIMITS.json }
 
 async function chatBinding(): Promise<PiChatBinding> {
   const acquired = await createTestFamily().families.acquire(SUPPLIER, new AbortController().signal)
-  if (!('ok' in acquired) || acquired.ok.endpoint === 'decisions') throw new Error('no binding')
+  if (!('ok' in acquired) || !isBindingOf(acquired.ok, 'llm')) throw new Error('no binding')
   return acquired.ok
 }
 

@@ -414,10 +414,10 @@ it('serves a reloaded plugin from its own snapshot while the removed handle stay
 it('reads the current trusted credential service for the caller without consuming a secret', async () => {
   const ctx = new Context()
   let configured = false
-  let reads = 0
+  const reads: string[] = []
   serveModelCredential(ctx, {
     layerOf: query => {
-      reads += 1
+      reads.push(query.provider)
       expect(query.access).toEqual({ principal, tenant: TENANT })
       expect(query.official).toBe(true)
       return configured ? { ok: { layer: 'official' } } : { failure: { kind: 'missing' } }
@@ -443,7 +443,8 @@ it('reads the current trusted credential service for the caller without consumin
           choice.kind === 'resolved' && choice.selectable && choice.credential === 'missing',
       ),
     ).toBe(true)
-    expect(reads).toBe(1)
+    // One read per provider of the official profiles, each once.
+    expect(reads.toSorted()).toEqual(['openai', 'openrouter'])
     configured = true
     const second = must(await service.list(input))
     expect(
@@ -452,7 +453,7 @@ it('reads the current trusted credential service for the caller without consumin
           choice.kind === 'resolved' && choice.selectable && choice.credential === 'available',
       ),
     ).toBe(true)
-    expect(reads).toBe(2)
+    expect(reads.toSorted()).toEqual(['openai', 'openai', 'openrouter', 'openrouter'])
   } finally {
     await ctx.fiber.dispose()
   }

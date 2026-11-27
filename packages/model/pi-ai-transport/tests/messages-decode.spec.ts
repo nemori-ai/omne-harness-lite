@@ -14,7 +14,7 @@ import {
 } from './support/chat-record.ts'
 import { frame, framesOf, messagesRecord } from './support/messages-record.ts'
 import { factsOfSend } from '../src/fact-stream.ts'
-import { OPENROUTER_ACCOUNTING } from '../src/chat-completions/openrouter.ts'
+import { OPENROUTER_ACCOUNTING } from '../src/testing/fixtures.ts'
 import type { HttpExchange } from '../src/http.ts'
 
 const ACCOUNTING = { place: 'gateway', costUnit: 'gateway-credit' }
