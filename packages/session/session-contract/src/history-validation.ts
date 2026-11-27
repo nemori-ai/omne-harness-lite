@@ -236,6 +236,7 @@ function requireObservedTail(
   boundary: ExecutionHistoryBoundary,
   upper: bigint,
 ): void {
+  if (readNoMore(context.snapshot, boundary.run)) return
   const prefix = context.reads?.prefixes.find(item => item.execution === boundary.execution)
   if (
     prefix === undefined ||
@@ -272,8 +273,7 @@ export function requirePrepared(context: HistoryContext, scope: SessionInputScop
       boundary.ended === null
         ? BigInt(boundary.emittedThrough)
         : BigInt(boundary.ended.sequence) - 1n
-    if (BigInt(boundary.readThrough) < upper && !readNoMore(context.snapshot, boundary.run))
-      requireObservedTail(context, boundary, upper)
+    if (BigInt(boundary.readThrough) < upper) requireObservedTail(context, boundary, upper)
     for (const batch of context.index.batches.filter(
       item =>
         item.execution === execution &&

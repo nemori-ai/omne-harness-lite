@@ -116,8 +116,9 @@ function issuesOf(value: unknown): readonly Issue[] {
   const delays = read('reconciliationDelaysMs')
   if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
     issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
-  for (const field of ['maxRunSteps', 'haltLimit'])
-    issues.push(...optionalCountIssues(field, read(field)))
+  issues.push(
+    ...['maxRunSteps', 'haltLimit'].flatMap(field => optionalCountIssues(field, read(field))),
+  )
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')
   const joint = jointCommitsIssue(read('jointCommits'))
