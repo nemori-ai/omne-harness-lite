@@ -950,7 +950,7 @@ it(
           outcome: 'succeeded',
           body: { refreshed: 'published' },
         })
-        expect(await names()).toEqual(['echo'])
+        expect(await names()).toEqual(['book', 'echo', 'report'])
 
         at('observe the endpoints: the first frame comes at once')
         const controller = new AbortController()
@@ -982,7 +982,7 @@ it(
           done: false,
           value: { kind: 'changed', about: 'endpoints' },
         })
-        expect(await names()).toEqual(['echo', 'write'])
+        expect(await names()).toEqual(['book', 'echo', 'report', 'write'])
         expect(peer.asked.get('tools/list')).toBe(listed + 1)
         expect(peer.asked.get('subscriptions/listen')).toBe(1)
         expect(peer.asked.get('tools/call') ?? 0).toBe(0)
