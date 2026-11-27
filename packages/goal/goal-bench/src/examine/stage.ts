@@ -12,6 +12,8 @@ export type StageOptions = Readonly<{
   cli: string
   keyFile: string
   credentialFile: string
+  /** The model the examinations run under; undefined: the one the release sets. */
+  examinerModel?: string
 }>
 export type GapRow = Readonly<{ id: string; value?: string; reader?: string }>
 export type GoalView = Readonly<{
@@ -125,7 +127,14 @@ export async function openStage(
   const out = join(directory, 'serve.out')
   const child = spawn(
     process.execPath,
-    [options.lab, 'serve', '--stop-on-stdin-close', '--model-script', scriptFile],
+    [
+      options.lab,
+      'serve',
+      '--stop-on-stdin-close',
+      '--model-script',
+      scriptFile,
+      ...(options.examinerModel === undefined ? [] : ['--examiner-model', options.examinerModel]),
+    ],
     {
       env,
       cwd: directory,

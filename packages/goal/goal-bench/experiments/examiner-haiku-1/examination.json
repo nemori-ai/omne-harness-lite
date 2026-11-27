@@ -1,0 +1,65 @@
+{
+  "name": "examiner-haiku-1",
+  "examiner": "real",
+  "definition": "examiner@anthropic/claude-haiku-5.5",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [],
+    "batches": 56,
+    "falseHolds": {
+      "errors": 0,
+      "n": 40,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.08762160245846368
+      }
+    },
+    "timid": {
+      "errors": 0,
+      "n": 184,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.020450537938611096
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 0,
+    "parroted": {
+      "errors": 0,
+      "n": 24,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.13797620655132792
+      }
+    },
+    "usd": {
+      "n": 56,
+      "mean": 0.003467119821428571,
+      "interval": {
+        "low": 0.0032116125507010962,
+        "high": 0.0037226270921560454
+      },
+      "median": 0.00352555,
+      "max": 0.00511045
+    },
+    "seconds": {
+      "n": 56,
+      "mean": 22.946428571428573,
+      "interval": {
+        "low": 21.221050298172962,
+        "high": 24.671806844684184
+      },
+      "median": 25,
+      "max": 36
+    },
+    "totalUsd": 0.19415870999999996,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": []
+  }
+}
