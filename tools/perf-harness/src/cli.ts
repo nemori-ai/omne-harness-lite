@@ -10,6 +10,7 @@ import {
   baselineOf,
   compareCounts,
   compareSteady,
+  steadyOf,
   readBaseline,
   writeBaseline,
 } from './result/baseline.ts'
@@ -331,7 +332,12 @@ async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise
       writeResult(directory, result)
       return directory
     })
-    const compared = compareSteady(from, again, to)
+    const found = compareSteady(from, again, to)
+    const self =
+      found.state === 'different'
+        ? steadyOf('candidate', to, await measured(setting, roots.candidate, one))
+        : null
+    const compared = self === null || self.state === 'equal' ? found : self
     io.out(reportOf(to, compared))
     io.out(`Results: ${kept.join(' ')}`)
     worst = Math.max(

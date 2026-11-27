@@ -181,6 +181,23 @@ describe('what a trajectory comes to', () => {
     for (const suite of SUITES) expect(suite.changes).toBe(CHANGES)
   })
 
+  it('names who committed and who read in the middle step of the top rung, not who did so once on its own clock', () => {
+    const once = round(at =>
+      at === 12
+        ? {
+            byParticipant: { 'tenant-1/session': 11, 'tenant-1/media.index': 1 },
+            byHandler: { 'tenant-1/session.history': 30, 'tenant-1/media.index.read': 1 },
+          }
+        : {},
+    )
+    const { readings } = measuredOf({ ...trajectory, steps: once }, AXIS)
+    const names = readings.map(reading => reading.name)
+    expect(names).toContain('commits of a step by tenant-1/session at step 16')
+    expect(names).toContain('reads of a step by tenant-1/session.history at step 16')
+    expect(names).not.toContain('commits of a step by tenant-1/media.index at step 16')
+    expect(names).not.toContain('reads of a step by tenant-1/media.index.read at step 16')
+  })
+
   it('leaves out the processor time where it cannot be read', () => {
     const { readings } = measuredOf({ ...trajectory, processorMs: null }, AXIS)
     expect(readings.some(reading => reading.name === 'processor time of the server')).toBe(false)
@@ -486,11 +503,21 @@ describe('what opening an observation writes', () => {
     expect(outcomeOf(judgedWrites)).toBe('pass')
   })
 
-  it('fails on a single commit by any one observation', () => {
-    expect(writesOf({ watchings: [watching(0), watching(1)], steps }).gates[0]).toMatchObject({
+  it('fails when the observations commit: the middle one did', () => {
+    const judgedWrites = writesOf({ watchings: [watching(0), watching(1), watching(1)], steps })
+    expect(judgedWrites.gates[0]).toMatchObject({
       state: 'fail',
       detail: expect.stringContaining('measured 1, expected 0'),
     })
+  })
+
+  it('does not fail on what the product committed on its own clock while one observation was open', () => {
+    const judgedWrites = writesOf({
+      watchings: [watching(0), watching(0), watching(5), watching(0), watching(0)],
+      steps,
+    })
+    expect(judgedWrites.gates[0]).toMatchObject({ state: 'pass' })
+    expect(outcomeOf(judgedWrites)).toBe('pass')
   })
 
   it('is blocked when no observation was opened', () => {

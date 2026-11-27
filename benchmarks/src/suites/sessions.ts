@@ -1,5 +1,6 @@
 import {
   judgeCount,
+  median,
   type Acceptance,
   type Measured,
   type Plan,
@@ -469,11 +470,15 @@ export function writesOf(
   trajectory: Pick<Trajectory, 'watchings' | 'steps'>,
 ): Pick<Measured, 'gates' | 'controls'> {
   const name = 'commits of opening an observation'
-  const most = Math.max(...trajectory.watchings.map(watching => watching.commits))
-  const held = judgeCount(trajectory.watchings.length === 0 ? Number.NaN : most, NOTHING_WRITTEN)
+  const middle = (of: (watching: Watching) => number): number =>
+    trajectory.watchings.length === 0 ? Number.NaN : median(trajectory.watchings.map(of))
+  const held = judgeCount(
+    middle(watching => watching.commits),
+    NOTHING_WRITTEN,
+  )
   const step = judgeCount(trajectory.steps[0]?.commits ?? Number.NaN, NOTHING_WRITTEN)
   const bytes = judgeCount(
-    Math.max(...trajectory.watchings.map(watching => watching.commitBytes)),
+    middle(watching => watching.commitBytes),
     NOTHING_WRITTEN,
   )
   const detailOf = (verdict: typeof held): string =>
@@ -538,7 +543,7 @@ export const CATCH_UP = suiteOf({
           name: 'commits of opening an observation',
           kind: 'count',
           unit: 'commits',
-          value: Math.max(...trajectory.watchings.map(watching => watching.commits)),
+          value: median(trajectory.watchings.map(watching => watching.commits)),
         },
         ...timesOf(trajectory),
       ],

@@ -184,21 +184,24 @@ export function readingsOf<T extends Span>(spans: readonly T[], axis: Axis<T>): 
     })
   const top = rungs.at(-1)
   if (top === undefined) return readings
-  const names = (pick: (span: T) => Readonly<Record<string, number>> | undefined): string[] =>
-    [...new Set(top.steps.flatMap(span => Object.keys(pick(span) ?? {})))].sort()
-  for (const participant of names(span => span.byParticipant))
+  const shares = (pick: (span: T) => Readonly<Record<string, number>> | undefined) =>
+    [...new Set(top.steps.flatMap(span => Object.keys(pick(span) ?? {})))]
+      .sort()
+      .map(name => ({ name, value: valueOf(top, span => pick(span)?.[name] ?? 0) }))
+      .filter(share => share.value > 0)
+  for (const share of shares(span => span.byParticipant))
     readings.push({
-      name: `commits of ${spanOf(axis)} by ${participant} ${at(top)}`,
+      name: `commits of ${spanOf(axis)} by ${share.name} ${at(top)}`,
       kind: 'count',
       unit: 'commits',
-      value: valueOf(top, span => span.byParticipant?.[participant] ?? 0),
+      value: share.value,
     })
-  for (const handler of names(span => span.byHandler))
+  for (const share of shares(span => span.byHandler))
     readings.push({
-      name: `reads of ${spanOf(axis)} by ${handler} ${at(top)}`,
+      name: `reads of ${spanOf(axis)} by ${share.name} ${at(top)}`,
       kind: 'clocked',
       unit: 'reads',
-      value: valueOf(top, span => span.byHandler?.[handler] ?? 0),
+      value: share.value,
     })
   return readings
 }

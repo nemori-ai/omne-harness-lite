@@ -406,6 +406,55 @@ describe('the command line', () => {
     expect(lines.join('\n')).toContain('Comparable. All 2 counts equal those of')
   })
 
+  it('measures a candidate that differs once more, and does not call a count it does not keep a difference', async () => {
+    const places: string[] = []
+    const at = (measuredAt: (root: string, nth: number) => Measured): Suite => ({
+      ...suiteOf('a', () => counts(10)),
+      measure: (_tier, place) => {
+        places.push(place.root)
+        return Promise.resolve(
+          measuredAt(place.root, places.filter(root => root === place.root).length),
+        )
+      },
+    })
+    const prepare = (commit: string) => Promise.resolve(`/at/${commit}`)
+    const once = at((root, nth) => counts(root === '/at/cand' && nth === 1 ? 12 : 10))
+    expect(
+      await perf(
+        ['compare', 'base', 'cand', 'a', '--counts-only'],
+        setting([once], { prepare }),
+        io,
+      ),
+    ).toBe(2)
+    expect(places).toEqual(['/at/base', '/at/base', '/at/cand', '/at/cand'])
+    expect(lines.join('\n')).toContain(
+      'Blocked: the candidate differs from itself in reads of one step: what moves between two runs of one commit is not a count of steps.',
+    )
+    lines.length = 0
+    places.length = 0
+    const always = at(root => counts(root === '/at/cand' ? 12 : 10))
+    expect(
+      await perf(
+        ['compare', 'base', 'cand', 'a', '--counts-only'],
+        setting([always], { prepare }),
+        io,
+      ),
+    ).toBe(1)
+    expect(places).toHaveLength(4)
+    expect(lines.join('\n')).toContain('| reads of one step | 10 | 12 |')
+    lines.length = 0
+    places.length = 0
+    const same = at(() => counts(10))
+    expect(
+      await perf(
+        ['compare', 'base', 'cand', 'a', '--counts-only'],
+        setting([same], { prepare }),
+        io,
+      ),
+    ).toBe(0)
+    expect(places).toHaveLength(3)
+  })
+
   it('compares the counts of two results, and refuses two that asked different questions', async () => {
     const one = join(scratch, 'one')
     const two = join(scratch, 'two')
