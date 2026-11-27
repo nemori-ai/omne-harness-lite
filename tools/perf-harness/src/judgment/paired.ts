@@ -11,7 +11,6 @@ const ORDERS: readonly (readonly Side[])[] = [
   ['self', 'base', 'candidate'],
 ]
 
-/** The order the three sides run in a round: every side takes every place as the rounds go on. */
 export const orderOf = (round: number): readonly Side[] =>
   ORDERS[round % ORDERS.length] ?? ORDERS[0]!
 
@@ -19,7 +18,6 @@ export type Round = Readonly<Record<Side, number>>
 
 export const MIN_ROUNDS = 10
 export const MAX_ROUNDS = 30
-/** The smallest change of a time reading worth acting on, as a share of the base. */
 export const MINIMUM_CHANGE = 0.05
 
 export type Band = Readonly<{ low: number; high: number }>
@@ -27,13 +25,9 @@ export type Band = Readonly<{ low: number; high: number }>
 export type PairedVerdict = Readonly<{
   state: 'faster' | 'slower' | 'unchanged' | 'insufficient'
   rounds: number
-  /** the middle half of what the base did against itself: the noise of this machine now */
   noise: Band | null
-  /** the middle half of what the candidate did against the base */
   change: Band | null
-  /** the median change of the candidate, as a share of the base */
   median: number | null
-  /** the least time each side took, beside the medians */
   least: Readonly<Record<Side, number>> | null
   reason: string
 }>
@@ -54,11 +48,6 @@ function quartiles(values: readonly number[]): Band {
 
 const within = (band: Band, change: number): boolean => band.low >= -change && band.high <= change
 
-/**
- * Two gates and four answers. Slower or faster needs both: the middle half of the candidate lies wholly
- * outside the noise, and its median change is at least the minimum worth acting on. Unchanged needs both
- * bands inside that minimum. Anything else is not enough evidence, which blocks.
- */
 export function judgePaired(
   rounds: readonly Round[],
   minimumChange: number = MINIMUM_CHANGE,
@@ -104,6 +93,5 @@ export function judgePaired(
   }
 }
 
-/** Whether more rounds are worth running: the verdict is still open and the limit is not reached. */
 export const wantsMore = (verdict: PairedVerdict, limit: number = MAX_ROUNDS): boolean =>
   verdict.state === 'insufficient' && verdict.rounds < limit

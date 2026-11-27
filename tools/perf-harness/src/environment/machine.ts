@@ -6,12 +6,10 @@ export type Runtime = Readonly<{
   v8: string
   sqlite: Field<string>
   sqliteOptions: Field<string>
-  /** the heap options the process was started with, by name; no other option is recorded */
   heapOptions: readonly string[]
   threadPool: number
 }>
 
-/** What decides the cost of the work on this machine. Nothing here names the machine or who runs on it. */
 export type Machine = Readonly<{
   cpu: Readonly<{
     model: Field<string>
@@ -194,7 +192,6 @@ function deviceOf(sources: Sources, mount: Mount): Pick<Storage, 'deviceClass' |
   }
 }
 
-/** The filesystem and the device under one directory: the one the data of the measured object lives on. */
 export function storageOf(sources: Sources, directory: string): Storage {
   const none = (reason: string): Storage => ({
     filesystem: unknown(reason),
@@ -237,6 +234,5 @@ export function machineOf(
   }
 }
 
-/** Whether the data lives in memory, where a synchronous write costs nothing. */
 export const onMemoryFilesystem = (machine: Machine): boolean =>
   machine.storage.deviceClass === 'memory'

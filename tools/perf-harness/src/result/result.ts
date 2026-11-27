@@ -19,15 +19,12 @@ export type GateState = 'pass' | 'fail' | 'blocked'
 
 export type Gate = Readonly<{
   name: string
-  /** the column of the cost model the gate holds the readings against */
   from: string
   state: GateState
   detail: string
-  /** a gate that is known to fail today, and who accepted that */
   known?: Acceptance
 }>
 
-/** A sample a gate has to judge one way: a gate that lets its must-fail sample through decides nothing. */
 export type Control = Readonly<{
   gate: string
   expected: 'pass' | 'fail'
@@ -46,9 +43,7 @@ export type Result = Readonly<{
   readings: readonly Reading[]
   gates: readonly Gate[]
   controls: readonly Control[]
-  /** what the run left at the edge of the measurement, in order: the evidence two runs did the same work */
   digests: readonly string[]
-  /** what the readings of this suite do not cover */
   limits: readonly string[]
 }>
 
@@ -80,18 +75,19 @@ const gateOutcome = (
   return gate.state === 'fail'
     ? {
         outcome: 'pass',
-        note: `known failure, accepted in ${gate.known.card}: ${gate.known.reason}`,
+        note: `known failure, accepted in ${gate.known.card}: ${gate.known.reason} (${gate.detail})`,
       }
-    : { outcome: 'fail', note: `no longer fails: remove the acceptance of ${gate.known.card}` }
+    : {
+        outcome: 'fail',
+        note: `no longer fails: remove the acceptance of ${gate.known.card} (${gate.detail})`,
+      }
 }
 
 export type Judged = Readonly<{ gate: Gate; outcome: Outcome; note: string }>
 
-/** Every gate with what it comes to once its samples and its acceptance are taken into account. */
 export const judged = (result: Pick<Result, 'gates' | 'controls'>): readonly Judged[] =>
   result.gates.map(gate => ({ gate, ...gateOutcome(gate, result.controls) }))
 
-/** A failure outranks a block; a block is never a pass. A result with no gate decides nothing. */
 export function outcomeOf(result: Pick<Result, 'gates' | 'controls'>): Outcome {
   const outcomes = judged(result).map(item => item.outcome)
   if (outcomes.includes('fail')) return 'fail'

@@ -60,11 +60,15 @@ function times(result: Result): string[] {
     : [...lines, ...fitness.reasons.map(reason => `- ${reason}`)]
 }
 
-/** One page a reader can act on: the verdict, whether it can be compared, and what it does not cover. */
+const accepted = (count: number): string =>
+  count === 0
+    ? ''
+    : `, with ${String(count)} known ${count === 1 ? 'failure' : 'failures'} accepted`
+
 export function reportOf(result: Result, compared: CountComparison): string {
   const gates = judged(result)
   return [
-    `# ${result.suite} (${result.tier}): ${outcomeOf(result)}`,
+    `# ${result.suite} (${result.tier}): ${outcomeOf(result)}${accepted(gates.filter(item => item.gate.known !== undefined && item.outcome === 'pass').length)}`,
     '',
     '## Gates',
     '',

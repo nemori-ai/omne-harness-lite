@@ -13,7 +13,7 @@ const head = (over: Partial<ResultHead> = {}): ResultHead => ({
 
 describe('whether two results may be compared', () => {
   it('refuses any kind of reading across workloads, assemblies or major versions of the facility', () => {
-    for (const kind of ['count', 'time', 'ratio'] as const) {
+    for (const kind of ['count', 'clocked', 'time', 'ratio'] as const) {
       expect(comparable(kind, head(), head({ workload: 'w2' })).verdict).toBe('refused')
       expect(comparable(kind, head(), head({ assembly: 'a2' })).verdict).toBe('refused')
       expect(comparable(kind, head(), head({ facilityMajor: 2 })).verdict).toBe('refused')
@@ -33,6 +33,12 @@ describe('whether two results may be compared', () => {
   it('blocks ratios and times when the state of a machine did not qualify', () => {
     expect(comparable('ratio', head(), head({ stateQualified: false })).verdict).toBe('blocked')
     expect(comparable('time', head({ stateQualified: false }), head()).verdict).toBe('blocked')
+  })
+
+  it('treats a count that follows the clock as a time, not as a count', () => {
+    expect(comparable('clocked', head(), head({ machine: 'm2' })).verdict).toBe('blocked')
+    expect(comparable('clocked', head(), head({ stateQualified: false })).verdict).toBe('blocked')
+    expect(comparable('clocked', head(), head()).verdict).toBe('side-by-side')
   })
 
   it('blocks absolute times across machines and when the probes drifted', () => {

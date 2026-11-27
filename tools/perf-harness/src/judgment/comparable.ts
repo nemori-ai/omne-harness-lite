@@ -1,20 +1,16 @@
-export type ReadingKind = 'count' | 'time' | 'ratio'
+export type ReadingKind = 'count' | 'clocked' | 'time' | 'ratio'
 
-/** What a result says of itself, as far as comparing it with another goes. */
 export type ResultHead = Readonly<{
   workload: string
   assembly: string
   facilityMajor: number
   machine: string
-  /** whether the state of the machine during the run met every line */
   stateQualified: boolean
-  /** whether the probes stayed where the baseline of this machine has them */
   probesHold: boolean
 }>
 
 export type Comparison =
   | Readonly<{ verdict: 'comparable' }>
-  /** the readings may stand beside each other, labelled; they are not one number and gate nothing */
   | Readonly<{ verdict: 'side-by-side'; reason: string }>
   | Readonly<{ verdict: 'refused'; reason: string }>
   | Readonly<{ verdict: 'blocked'; reason: string }>
@@ -26,7 +22,6 @@ const sameQuestion = (a: ResultHead, b: ResultHead): string | null => {
   return null
 }
 
-/** Whether two results may be compared, by the kind of reading: decided here, not by whoever reads the numbers. */
 export function comparable(kind: ReadingKind, a: ResultHead, b: ResultHead): Comparison {
   const differs = sameQuestion(a, b)
   if (differs !== null) return { verdict: 'refused', reason: differs }

@@ -4,7 +4,6 @@ import { onMemoryFilesystem, type Machine } from './machine.ts'
 import type { Probe, Spread } from './probes.ts'
 import type { State } from './state.ts'
 
-/** What was measured: which code, put together how, asked what. */
 export type Subject = Readonly<{
   commit: Field<string>
   dirty: Field<boolean>
@@ -13,10 +12,8 @@ export type Subject = Readonly<{
   workload: Json
 }>
 
-/** The four blocks every result carries. */
 export type Environment = Readonly<{
   machine: Machine
-  /** recorded for the reader; no part of any identifier */
   beside: Readonly<Record<string, Field>>
   subject: Subject
   state: State
@@ -31,25 +28,17 @@ export const idsOf = (environment: Pick<Environment, 'machine' | 'subject'>): Id
   config: configIdOf(environment.machine),
 })
 
-/** The lines a state has to stay inside for its times to be trusted. Candidates until the calibration of the line. */
 export const LINES = {
-  /** the first and the last probe of one run may differ by this share */
   probeDrift: 0.1,
-  /** a probe may differ from the baseline of this machine by this share */
   baselineDrift: 0.15,
-  /** the load of the minute before the run, per usable core */
   loadPerCore: 0.25,
-  /** the share of processor time the host took away */
   stolen: 0.02,
 } as const
 
 export type Fitness = Readonly<{
-  /** whether the times of this result may be read at all */
   times: 'fit' | 'blocked'
-  /** whether the times may become a baseline */
   baseline: 'fit' | 'blocked'
   stateQualified: boolean
-  /** null when there is no baseline of this machine to hold the probes against */
   probesHold: boolean | null
   reasons: readonly string[]
 }>
@@ -71,7 +60,6 @@ const drifted = (first: Probe, last: Probe, line: number): string[] =>
     .filter(([, a, b]) => drift(a, b) > line)
     .map(([name]) => name)
 
-/** Whether the times of a result can be trusted, decided from its own record. Counts do not depend on any of this. */
 export function fitnessOf(environment: Environment, pinnedNode: string, baseline?: Probe): Fitness {
   const { machine, state, probes, subject } = environment
   const node = machine.runtime.node

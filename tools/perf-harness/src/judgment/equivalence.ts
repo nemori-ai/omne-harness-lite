@@ -9,10 +9,6 @@ function firstDifference(a: readonly string[], b: readonly string[]): number | n
   return null
 }
 
-/**
- * Sameness before speed. The digests each side left at the edge of the measurement, in order: the base
- * that differs from itself cannot be judged; a candidate that differs from the base is not compared for speed.
- */
 export function judgeEquivalence(
   base: readonly string[],
   self: readonly string[],

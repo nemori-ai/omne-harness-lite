@@ -22,21 +22,15 @@ import { affected, select, type Measured, type Plan, type Suite } from './suite/
 export type Io = Readonly<{ out: (line: string) => void; err: (line: string) => void }>
 
 export type Setting = Readonly<{
-  /** the checkout the measured object is built in */
   root: string
   suites: readonly Suite[]
-  /** where the baselines are kept: counts per suite and tier, times per machine */
   baselines: string
-  /** where results go unless the caller says otherwise */
   results: string
-  /** data directories are made under this one: it has to be on the device the readings are meant for */
   scratch: string
   pinnedNode: string
   sources: Sources
-  /** replaces the probe that writes under the data directory */
   probe?: (dataDirectory: string, settings: CommitSettings) => Probe
   now: () => Date
-  /** a checkout of a commit with the measured object built in it; without it only results can be compared */
   prepare?: (commit: string) => Promise<string | Blocked>
 }>
 
@@ -114,7 +108,6 @@ const NO_PLAN: Plan = {
 
 const NOTHING: Measured = { readings: [], gates: [], controls: [], digests: [] }
 
-/** The record of one piece of work: probed and watched from before it starts until it is over. */
 async function recorded(
   setting: Setting,
   root: string,
@@ -263,28 +256,30 @@ const band = (verdict: PairedVerdict): string => {
   const share = (value: number): string => `${(value * 100).toFixed(1)}%`
   if (verdict.noise === null || verdict.change === null || verdict.median === null)
     return verdict.reason
-  return `median ${share(verdict.median)}, middle half ${share(verdict.change.low)} to ${share(verdict.change.high)}, noise ${share(verdict.noise.low)} to ${share(verdict.noise.high)}, least ${verdict.least?.base.toFixed(0) ?? '?'} ms against ${verdict.least?.candidate.toFixed(0) ?? '?'} ms`
+  return `median ${share(verdict.median)}, middle half ${share(verdict.change.low)} to ${share(verdict.change.high)}, noise ${share(verdict.noise.low)} to ${share(verdict.noise.high)}, least ${verdict.least?.base.toFixed(0) ?? '?'} against ${verdict.least?.candidate.toFixed(0) ?? '?'}`
 }
 
 function timed(suite: string, paired: PairedRun, io: Io): number {
   if (paired.equivalence.state === 'unstable') {
     io.out(
-      `${suite}: the output of the base differs between two of its own runs, first at item ${String(paired.equivalence.first)}: speed cannot be judged`,
+      `${suite}: the output of the base differs between two of its own runs, first at item ${String(paired.equivalence.first)}: nothing can be judged`,
     )
     return 2
   }
-  if (paired.equivalence.state === 'different' || paired.wall === null || paired.cpu === null) {
+  if (paired.equivalence.state === 'different' || paired.verdicts === null) {
     const first = paired.equivalence.state === 'different' ? paired.equivalence.first : 0
     io.out(
       `${suite}: the candidate does not do the same work as the base, first at item ${String(first)}: speed is not judged`,
     )
     return 1
   }
-  io.out(
-    `${suite}: wall time ${paired.wall.state} after ${String(paired.rounds)} rounds (${band(paired.wall)})`,
-  )
-  io.out(`${suite}: processor time ${paired.cpu.state} (${band(paired.cpu)})`)
-  return paired.wall.state === 'slower' ? 1 : paired.wall.state === 'insufficient' ? 2 : 0
+  const verdicts = Object.entries(paired.verdicts)
+  for (const [measure, verdict] of verdicts)
+    io.out(
+      `${suite}: ${measure} ${verdict.state} after ${String(paired.rounds)} rounds (${band(verdict)})`,
+    )
+  const decisive = verdicts[0]?.[1].state
+  return decisive === 'slower' ? 1 : decisive === 'insufficient' || decisive === undefined ? 2 : 0
 }
 
 async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise<number> {
@@ -376,7 +371,6 @@ function report(setting: Setting, parsed: Parsed, io: Io): number {
   return EXIT[outcomeOf(result)]
 }
 
-/** The commands of the facility over the suites of whoever calls it. Answers the exit code. */
 export async function perf(args: readonly string[], setting: Setting, io: Io): Promise<number> {
   const [command, ...rest] = args
   const parsed = parse(rest)

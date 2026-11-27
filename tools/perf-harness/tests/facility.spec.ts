@@ -70,11 +70,11 @@ describe('what the gates of a result come to', () => {
     const known = { card: '#1752', reason: 'the fix belongs to the next run' }
     expect(judged({ gates: [gate({ state: 'fail', known })], controls: [] })[0]).toMatchObject({
       outcome: 'pass',
-      note: 'known failure, accepted in #1752: the fix belongs to the next run',
+      note: 'known failure, accepted in #1752: the fix belongs to the next run (ratios 1, 1, 1)',
     })
     expect(judged({ gates: [gate({ state: 'pass', known })], controls: [] })[0]).toMatchObject({
       outcome: 'fail',
-      note: 'no longer fails: remove the acceptance of #1752',
+      note: 'no longer fails: remove the acceptance of #1752 (ratios 1, 1, 1)',
     })
     expect(outcomeOf({ gates: [gate({ state: 'blocked', known })], controls: [] })).toBe('blocked')
   })
@@ -93,7 +93,7 @@ const suiteOf = (id: string, measured: () => Measured, sample?: Suite['sample'])
     release: true,
   }),
   measure: () => Promise.resolve(measured()),
-  sample: sample ?? (() => Promise.resolve({ wallMs: 100, cpuMs: 50, digests: ['a'] })),
+  sample: sample ?? (() => Promise.resolve({ measures: { wall: 100, cpu: 50 }, digests: ['a'] })),
 })
 
 const counts = (reads: number): Measured => ({
@@ -125,15 +125,17 @@ describe('suites', () => {
 
 describe('a paired run', () => {
   const flat = (side: Side): Promise<Sample> =>
-    Promise.resolve({ wallMs: side === 'candidate' ? 130 : 100, cpuMs: 90, digests: ['a'] })
+    Promise.resolve({
+      measures: { wall: side === 'candidate' ? 130 : 100, cpu: 90 },
+      digests: ['a'],
+    })
 
-  it('stops as soon as the wall time can be judged, at ten rounds, and judges the processor time too', async () => {
+  it('stops as soon as the first measure can be judged, at ten rounds, and judges every other measure too', async () => {
     const paired = await runPaired(flat)
     expect(paired).toMatchObject({
       rounds: 10,
       equivalence: { state: 'equivalent' },
-      wall: { state: 'slower' },
-      cpu: { state: 'unchanged' },
+      verdicts: { wall: { state: 'slower' }, cpu: { state: 'unchanged' } },
     })
   })
 
@@ -142,33 +144,45 @@ describe('a paired run', () => {
     const noisy = (side: Side, round: number): Promise<Sample> => {
       calls += 1
       const swing = ((round * 7 + (side === 'self' ? 3 : 0)) % 5) * 20
-      return Promise.resolve({ wallMs: 100 + swing, cpuMs: 100, digests: [] })
+      return Promise.resolve({ measures: { wall: 100 + swing }, digests: [] })
     }
     const paired = await runPaired(noisy, { limit: 14 })
     expect(paired.rounds).toBe(14)
-    expect(paired.wall?.state).toBe('insufficient')
+    expect(paired.verdicts?.['wall']?.state).toBe('insufficient')
     expect(calls).toBe(14 * 3)
   })
 
-  it('does not judge speed once the candidate did other work, and says where', async () => {
+  it('holds each measure to its own smallest change worth acting on', async () => {
+    const reads = (side: Side): Promise<Sample> =>
+      Promise.resolve({ measures: { reads: side === 'candidate' ? 1020 : 1000 }, digests: [] })
+    expect((await runPaired(reads)).verdicts?.['reads']?.state).toBe('unchanged')
+    const strict = await runPaired(reads, { minimumChange: { reads: 0.01 } })
+    expect(strict.verdicts?.['reads']?.state).toBe('slower')
+  })
+
+  it('does not judge anything once the candidate did other work, and says where', async () => {
     const other = (side: Side): Promise<Sample> =>
       Promise.resolve({
-        wallMs: 1,
-        cpuMs: 1,
+        measures: { wall: 1 },
         digests: side === 'candidate' ? ['a', 'x'] : ['a', 'b'],
       })
     expect(await runPaired(other)).toEqual({
       equivalence: { state: 'different', first: 1 },
-      wall: null,
-      cpu: null,
+      verdicts: null,
       rounds: 1,
     })
   })
 
   it('cannot judge a base whose own two runs differ', async () => {
     const unstable = (side: Side): Promise<Sample> =>
-      Promise.resolve({ wallMs: 1, cpuMs: 1, digests: [side] })
+      Promise.resolve({ measures: { wall: 1 }, digests: [side] })
     expect((await runPaired(unstable)).equivalence).toEqual({ state: 'unstable', first: 0 })
+  })
+
+  it('refuses a sample that carries no measure', async () => {
+    await expect(runPaired(() => Promise.resolve({ measures: {}, digests: [] }))).rejects.toThrow(
+      'a sample carries no measure',
+    )
   })
 
   it('does not take the place a side runs in for a change: that is what rotation is for', async () => {
@@ -177,15 +191,15 @@ describe('a paired run', () => {
     const byPlace = (): Promise<Sample> => {
       const factor = warming[place % 3] ?? 1
       place += 1
-      return Promise.resolve({ wallMs: 100 * factor, cpuMs: 100 * factor, digests: [] })
+      return Promise.resolve({ measures: { wall: 100 * factor }, digests: [] })
     }
-    expect((await runPaired(byPlace, { limit: 12 })).wall?.state).toBe('insufficient')
+    expect((await runPaired(byPlace, { limit: 12 })).verdicts?.['wall']?.state).toBe('insufficient')
     place = 0
     const fixed = await runPaired(byPlace, {
       limit: 12,
       order: () => ['base', 'self', 'candidate'],
     })
-    expect(fixed.wall?.state).toBe('faster')
+    expect(fixed.verdicts?.['wall']?.state).toBe('faster')
   })
 })
 
@@ -372,8 +386,7 @@ describe('the command line', () => {
         sides.push(place.root)
         expect(existsSync(place.dataDirectory)).toBe(true)
         return Promise.resolve({
-          wallMs: place.root === '/at/cand' ? 80 : 100,
-          cpuMs: 60,
+          measures: { 'wall ms': place.root === '/at/cand' ? 80 : 100, 'processor ms': 60 },
           digests: ['a'],
         })
       },
@@ -382,8 +395,8 @@ describe('the command line', () => {
     expect(await perf(['compare', 'base', 'cand', 'a'], prepared, io)).toBe(1)
     const printed = lines.join('\n')
     expect(printed).toContain('| reads of one step | 10 | 12 |')
-    expect(printed).toContain('a: wall time faster after 10 rounds (median -20.0%')
-    expect(printed).toContain('a: processor time unchanged')
+    expect(printed).toContain('a: wall ms faster after 10 rounds (median -20.0%')
+    expect(printed).toContain('a: processor ms unchanged after 10 rounds')
     expect(sides.slice(0, 3)).toEqual(['/at/base', '/at/base', '/at/cand'])
     expect(sides).toHaveLength(30)
     sides.length = 0

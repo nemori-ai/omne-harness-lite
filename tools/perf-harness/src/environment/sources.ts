@@ -10,7 +10,6 @@ const orNull = <T>(take: () => T): T | null => {
   }
 }
 
-/** The machine this process runs on. */
 export const hostSources: Sources = {
   platform: process.platform,
   architecture: process.arch,

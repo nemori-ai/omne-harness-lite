@@ -1,6 +1,5 @@
 export type Blocked = Readonly<{ state: 'blocked'; reason: string }>
 
-/** The rounds a growth verdict reads and the three conditions that together say a series grows. */
 export const GROWTH = {
   firstRound: 11,
   lastRound: 200,
@@ -10,7 +9,6 @@ export const GROWTH = {
   span: 180,
 } as const
 
-/** The later window may be this many times the earlier one before the median gate fails. */
 export const MEDIAN_THRESHOLD = 1.5
 
 const ROUNDS = GROWTH.lastRound
@@ -35,7 +33,6 @@ export type GrowthVerdict =
       predictedGrowth: number
     }>
 
-/** Whether rounds 11 to 200 grow: a positive slope over the block medians, a close fit, and a rise well above the scatter. */
 export function judgeGrowth(values: readonly number[]): GrowthVerdict {
   const expected = BLOCKS * GROWTH.blockSize
   if (values.length !== expected || values.some(value => !Number.isFinite(value)))
@@ -85,7 +82,6 @@ export type MedianVerdict =
       threshold: number
     }>
 
-/** The two gates a series of 200 rounds passes: the late window against the early one, and growth. */
 export function judgeSeries(
   values: readonly number[],
   threshold: number = MEDIAN_THRESHOLD,

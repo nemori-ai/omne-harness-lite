@@ -6,10 +6,8 @@ export type ScaleVerdict =
   | Blocked
   | Readonly<{
       state: 'pass' | 'fail'
-      /** value at each rung over the value at the rung before it */
       ratios: readonly number[]
       allowance: number
-      /** how much the value rises each time the scale doubles, fitted over all rungs; reported, never judged */
       perDoubling: number
     }>
 
@@ -27,10 +25,6 @@ function slopePerDoubling(points: readonly ScalePoint[]): number {
   )
 }
 
-/**
- * A reading that should not depend on a scale, taken at rungs that double: each rung may be at most
- * `1 + allowance` times the rung before it. With an allowance of zero the reading may not rise at all.
- */
 export function judgeScale(points: readonly ScalePoint[], allowance: number): ScaleVerdict {
   if (!Number.isFinite(allowance) || allowance < 0)
     throw new Error('allowance must be a finite number, zero or more')
@@ -51,12 +45,9 @@ export function judgeScale(points: readonly ScalePoint[], allowance: number): Sc
   }
 }
 
-/** Where an expectation comes from, and what lets it stand above the budget of the cost model. */
 export type Expectation = Readonly<{
   value: number
-  /** the column of the cost model this number is taken from */
   from: string
-  /** the budget the cost model designs for; an expectation above it needs an acceptance */
   budget: number
   accepted?: Readonly<{ card: string; reason: string }>
 }>
@@ -66,7 +57,6 @@ export type CountVerdict =
   | Readonly<{ state: 'pass'; measured: number; expected: number }>
   | Readonly<{ state: 'fail'; measured: number; expected: number; reason: string }>
 
-/** A count a step decides: it equals the expectation, or the gate fails. No expectation is a blocked gate, not a pass. */
 export function judgeCount(measured: number, expectation: Expectation | undefined): CountVerdict {
   if (expectation === undefined)
     return { state: 'blocked', reason: 'no expectation to compare with' }

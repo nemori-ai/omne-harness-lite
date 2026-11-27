@@ -5,7 +5,6 @@ import { comparable } from '../judgment/comparable.ts'
 import type { Blocked } from '../judgment/growth.ts'
 import { FACILITY, headOf, type Reading, type Result } from './result.ts'
 
-/** The counts of one suite at one tier, as a commit left them: what a later run is held against, item by item. */
 export type Baseline = Readonly<{
   schema: 1
   facilityMajor: number
@@ -29,7 +28,6 @@ const countsOf = (readings: readonly Reading[]): Record<string, number> =>
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
   )
 
-/** The baseline a result would make, or why it cannot be one. */
 export function baselineOf(result: Result): Baseline | Blocked {
   const { commit, dirty } = result.environment.subject
   if (isUnknown(commit))
@@ -78,7 +76,6 @@ export type CountComparison =
   | Readonly<{ state: 'equal'; against: string; compared: number }>
   | Readonly<{ state: 'different'; against: string; differences: readonly Difference[] }>
 
-/** Counts a step decides are compared item by item, and only when the two sides asked the same question of the same assembly. */
 export function compareCounts(baseline: Baseline | null, result: Result): CountComparison {
   if (baseline === null) return { state: 'blocked', reason: 'no baseline to compare with' }
   const head = headOf(result)

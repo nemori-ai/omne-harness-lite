@@ -2,12 +2,10 @@ import { isUnknown, unknown, type Field, type Sources } from './field.ts'
 
 type Processor = Readonly<{ total: number; busy: number; steal: number; waiting: number }>
 
-/** What the machine showed at one instant. Two of them, one before the work and one after, make a state. */
 export type Moment = Readonly<{
   at: string
   load: readonly [number, number, number]
   processor: Field<Processor>
-  /** processor time of this process and of the children it has waited for, in ticks */
   own: Field<number>
   availableMiB: Field<number>
   swapped: Field<number>
@@ -26,7 +24,6 @@ function processorOf(sources: Sources): Field<Processor> {
   return { total: busy + idle + waiting + steal, busy, steal, waiting }
 }
 
-/** The fields of `/proc/<pid>/stat` after the name, which may itself hold spaces and brackets. */
 function statOf(text: string): Readonly<{ name: string; rest: number[] }> | null {
   const open = text.indexOf('(')
   const close = text.lastIndexOf(')')
@@ -113,7 +110,6 @@ export type State = Readonly<{
   endedAt: string
   loadBefore: readonly [number, number, number]
   loadAfter: readonly [number, number, number]
-  /** the share of all processor time that went to processes that are not this run */
   othersShare: Field<number>
   stolenShare: Field<number>
   waitingShare: Field<number>
@@ -122,9 +118,7 @@ export type State = Readonly<{
   swappedPages: Field<number>
   throttles: Field<number>
   diskUsedShare: Field<number>
-  /** whether the run held tokens of the pool the heavy work of this machine queues on */
   heldSlot: boolean
-  /** the other commands that used the processor most, by name alone */
   busiest: readonly string[]
 }>
 
@@ -153,7 +147,6 @@ function busiestOf(first: Moment, last: Moment, self: number): string[] {
 const between = <T>(a: Field<T>, b: Field<T>, of: (a: T, b: T) => Field<number>): Field<number> =>
   isUnknown(a) ? a : isUnknown(b) ? b : of(a, b)
 
-/** What went on between two moments, as far as it bears on trusting the times taken between them. */
 export function stateBetween(
   first: Moment,
   last: Moment,

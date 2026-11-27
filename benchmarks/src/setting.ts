@@ -5,7 +5,6 @@ import { hostSources, type Setting, type Suite } from '@omne-harness/perf-harnes
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 
-/** The Node version the repository pins for development: times taken on another one enter no baseline. */
 export function pinnedNode(root: string): string {
   const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
     devEngines?: { runtime?: { version?: string } }

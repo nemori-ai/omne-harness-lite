@@ -6,7 +6,6 @@ import { unknown, type Field } from './field.ts'
 
 export type Spread = Readonly<{ medianMs: number; highMs: number }>
 
-/** Three fixed pieces of work, timed: what the machine gives right now for the costs the object pays. */
 export type Probe = Readonly<{
   computeMs: number
   syncWrite: Field<Spread>
@@ -95,7 +94,6 @@ function commits(scratch: string, settings: CommitSettings): Spread {
   }
 }
 
-/** Runs for a second or so. The scratch files live under the data directory and are removed. */
 export function probe(dataDirectory: string, settings: CommitSettings): Probe {
   return {
     computeMs: median(Array.from({ length: REPEATS }, () => elapsed(compute))),
