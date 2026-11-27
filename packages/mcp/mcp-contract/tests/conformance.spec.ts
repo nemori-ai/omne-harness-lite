@@ -35,6 +35,8 @@ import {
   mcpCatalogStoreConformance,
   mcpContinuationRecordsConformance,
   mcpTaskRecordsConformance,
+  createMemoryAuthorizationRecords,
+  mcpAuthorizationRecordsConformance,
   mcpCredentialUseConformance,
   mcpUseEligibilityConformance,
   mergeListingCases,
@@ -239,6 +241,13 @@ describe('TaskRecords conformance on the memory double', () => {
   register(mcpTaskRecordsConformance(), () => {
     const records = createMemoryTaskRecords()
     return { records, tenant: home, otherTenant: away, unavailable: async () => records.cut() }
+  })
+})
+
+describe('AuthorizationRecords conformance on the memory double', () => {
+  register(mcpAuthorizationRecordsConformance(), () => {
+    const records = createMemoryAuthorizationRecords()
+    return { records, tenant: home, otherTenant: away, unavailable: async () => records.blind() }
   })
 })
 

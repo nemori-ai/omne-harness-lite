@@ -29,3 +29,18 @@ export type {
   TransportMaterial,
   WithheldReason,
 } from './transport.ts'
+export type {
+  AuthorizationRecords,
+  ClientAuthMethod,
+  ClientRegistration,
+  GrantFacts,
+  GrantKey,
+  GrantSecrets,
+  GrantState,
+  OAuthAnswer,
+  OAuthBody,
+  OAuthFetch,
+  PendingAuthorization,
+  RegistrationWay,
+  SecretSlot,
+} from './grant.ts'
