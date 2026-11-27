@@ -118,7 +118,7 @@ describe('how a judging of this release is asked', () => {
       value: { maxExaminations: 5, job: 'all' },
     })
     expect(await examinationSettingsFor(() => service, 'tenant-1')).toMatchObject({
-      examiner: { definition: 'examiner', model: 'openai/gpt-6.1-sol' },
+      examiner: { definition: 'examiner', model: 'anthropic/claude-haiku-5.5' },
       minutes: 10,
     })
     more = [{ itemId: goalJudgeItems.maxExaminations, value: '4' }]

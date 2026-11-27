@@ -54,7 +54,10 @@ it('a login principal lists the independent settings with their defaults apart f
         [
           'goal/judge/examiner',
           '目标的查验',
-          { value: { kind: 'set', value: 'examiner@openai/gpt-6.1-sol' }, source: 'default' },
+          {
+            value: { kind: 'set', value: 'examiner@anthropic/claude-haiku-5.5' },
+            source: 'default',
+          },
         ],
         [
           'goal/judge/job-awaited',

@@ -34,7 +34,7 @@ export const EXAMINE_USAGE = `  examine validate
 `
 const EXPERIMENTS = join(DATA, '..', 'experiments')
 const REPO = resolve(DATA, '..', '..', '..', '..')
-const RELEASED = 'openai/gpt-6.1-sol'
+const RELEASED = 'anthropic/claude-haiku-5.5'
 
 function validate(): number {
   const products = loadProducts()

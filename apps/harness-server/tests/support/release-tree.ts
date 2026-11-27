@@ -105,10 +105,8 @@ export function toolCallsByRequest(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
   return ({ body }) => {
-    const serving = {
-      model: (JSON.parse(body) as { model?: string }).model ?? 'm',
-      provider: 'OpenAI',
-    }
+    const model = (JSON.parse(body) as { model?: string }).model ?? 'm'
+    const serving = { model, provider: model.startsWith('anthropic/') ? 'Anthropic' : 'OpenAI' }
     const calls = pick(body)
     return {
       status: 200,
