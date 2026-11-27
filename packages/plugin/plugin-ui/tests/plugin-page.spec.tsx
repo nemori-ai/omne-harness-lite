@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PluginPage } from '../src/view/plugin-page.tsx'
 import type {
   PluginDetail,
@@ -9,6 +9,7 @@ import type {
   PluginSnapshot,
   PluginView,
 } from '../src/view/plugin-port.ts'
+import { stubAnimation } from './support/dom-stubs.ts'
 
 const EFFECT: PluginEffect = {
   places: [
@@ -77,6 +78,7 @@ const shown = (detail: PluginDetail | null, enabled = true) => {
   return fake
 }
 
+beforeAll(stubAnimation)
 afterEach(cleanup)
 
 describe('the page of one plugin', () => {
