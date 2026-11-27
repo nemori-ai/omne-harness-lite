@@ -19,6 +19,7 @@ export interface SizeControllerInput {
 export interface SizeController {
   current(): SizeTier
   set(tier: SizeTier): void
+  adopt(tier: SizeTier): void
   subscribe(listener: (tier: SizeTier) => void): () => void
 }
 
@@ -51,11 +52,15 @@ class PageSizeController implements SizeController {
   }
 
   public set(tier: SizeTier): void {
+    this.adopt(tier)
+    this.write(tier)
+  }
+
+  public adopt(tier: SizeTier): void {
     const changed = tier !== this.tier
     this.tier = tier
     this.paint()
     if (changed) for (const listener of this.listeners) listener(tier)
-    this.write(tier)
   }
 
   public subscribe(listener: (tier: SizeTier) => void): () => void {

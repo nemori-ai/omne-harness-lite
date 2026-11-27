@@ -33,6 +33,7 @@ export interface ThemeControllerInput {
 export interface ThemeController {
   start(): ResolvedTheme
   select(choice: ThemeChoice): ResolvedTheme
+  adopt(choice: ThemeChoice): ResolvedTheme
   dispose(): void
 }
 
@@ -57,6 +58,10 @@ class PageThemeController implements ThemeController {
 
   public select(choice: ThemeChoice): ResolvedTheme {
     this.input.write(choice)
+    return this.apply(choice)
+  }
+
+  public adopt(choice: ThemeChoice): ResolvedTheme {
     return this.apply(choice)
   }
 

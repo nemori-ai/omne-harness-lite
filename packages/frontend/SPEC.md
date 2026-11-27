@@ -152,13 +152,13 @@
 
 ### 主题
 
-`createThemeController({ read, write, system })` 把一个主题偏好（浅色、深色、跟随系统）落到页面：`data-theme` 永远是一个具体的调色板，`data-theme-preference` 记录偏好。偏好的读与写经注入的函数，控制器自己不读写任何存储。跟随系统时才持有系统变化的监听，显式选择时放开它。切换时加 `theme-switching` 类冻结过渡，等两帧后放开。
+`createThemeController({ read, write, system })` 把一个主题偏好（浅色、深色、跟随系统）落到页面：`data-theme` 永远是一个具体的调色板，`data-theme-preference` 记录偏好。偏好的读与写经注入的函数，控制器自己不读写任何存储；偏好在别处变了时，应用调 `adopt(偏好)` 让它重新落到页面，不经 `write`。跟随系统时才持有系统变化的监听，显式选择时放开它。切换时加 `theme-switching` 类冻结过渡，等两帧后放开。
 
 ### 字号档
 
 [字号档](../../.meta_harness/design/ubiquitous_language/terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier)有四档：小楷、中楷、大楷、老花，缺省是中楷。各档的系数在 token 里。
 
-`createSizeController({ read, write })` 把一档落到页面：中楷时 `<html>` 上没有 `data-size`，别的档写 `data-size` 为 `small`、`large` 或 `reading`。`--omne-size` 随 `data-size` 变，token 里的长度都乘它，所以版式在每档下不变。偏好的读与写经注入的函数，控制器自己不读写任何存储（FE-I19）。共用件另给一档一档调的函数：大一档、小一档、回到中楷，以及判断一个按键组合是哪一种的函数。按键绑在哪里、偏好存在哪里，归应用。
+`createSizeController({ read, write })` 把一档落到页面：中楷时 `<html>` 上没有 `data-size`，别的档写 `data-size` 为 `small`、`large` 或 `reading`。`--omne-size` 随 `data-size` 变，token 里的长度都乘它，所以版式在每档下不变。偏好的读与写经注入的函数，控制器自己不读写任何存储；偏好在别处变了时，应用调 `adopt(档)` 让它重新落到页面，不经 `write`（FE-I19）。共用件另给一档一档调的函数：大一档、小一档、回到中楷，以及判断一个按键组合是哪一种的函数。按键绑在哪里、偏好存在哪里，归应用。
 
 ### 墨迹
 

@@ -99,6 +99,9 @@ const PROBE = `(async () => {
   const sawGate = await wait(() => document.body.innerText.includes('登录名'))
   const fromHost = Object.getOwnPropertyNames(window).filter(key => /omne|electron|ipc|bridge/i.test(key))
   const environment = { require: typeof require, process: typeof process, fromHost }
+  const mirror = window.omneDesktop.visual
+  const wire = '{"version":1,"stamp":{"t":1,"id":"a"},"preferences":{"size":"large"}}'
+  const visual = { seed: mirror.seed, read: mirror.read(), push: await mirror.push(wire), after: mirror.read() }
   const theme = document.documentElement.dataset.theme
   window.__control = needle
   const searchWorks = holds()
@@ -123,7 +126,7 @@ const PROBE = `(async () => {
   const observation = await ${openObservation}
   window.__abortObservation()
   const cookie = document.cookie
-  return { sawGate, environment, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
+  return { sawGate, environment, visual, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
 })()`
 
 it(
@@ -203,7 +206,6 @@ it(
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      preload: null,
       opened: [
         'https://example.invalid/',
         'https://example.invalid/',
@@ -216,7 +218,16 @@ it(
           environment: {
             require: 'undefined',
             process: 'undefined',
-            fromHost: [],
+            fromHost: ['omneDesktop', 'omneVisualBootstrap'],
+          },
+          visual: {
+            seed: { record: null, pending: false },
+            read: { record: null, pending: false },
+            push: 'ok',
+            after: {
+              record: '{"version":1,"stamp":{"t":1,"id":"a"},"preferences":{"size":"large"}}',
+              pending: false,
+            },
           },
           mail: null,
           local: null,

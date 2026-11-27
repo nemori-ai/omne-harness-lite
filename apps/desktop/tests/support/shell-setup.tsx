@@ -131,11 +131,19 @@ export async function setup(
     if (gate === undefined) await root.plugin(module)
     else gated.set(gate, [...(gated.get(gate) ?? []), module])
   }
+  let current: ThemeChoice = options.theme ?? 'system'
+  const themeListeners = new Set<() => void>()
   const theme = {
-    initial: options.theme ?? ('system' as ThemeChoice),
+    current: () => current,
     select(choice: ThemeChoice): ResolvedTheme {
       chosen.push(choice)
+      current = choice
+      for (const listener of themeListeners) listener()
       return choice === 'dark' ? 'dark' : 'light'
+    },
+    subscribe(listener: () => void) {
+      themeListeners.add(listener)
+      return () => void themeListeners.delete(listener)
     },
   }
   const sizeRoot: SizeRoot = { dataset: {} }
