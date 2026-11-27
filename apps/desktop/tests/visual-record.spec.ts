@@ -72,6 +72,48 @@ it.each([
   },
 )
 
+// Inputs are ordered upstream to downstream, the mirror then local storage. The last column lists the
+// available replicas that differ from the start record.
+it.each([
+  ['A1', '-', 0, ''],
+  ['A2', '!', 0, ''],
+  ['A3', '1', 1, ''],
+  ['A4', 'x', 0, ''],
+  ['B1', '-!', 0, ''],
+  ['B2', '1-', 1, '1'],
+  ['B3', '!1', 1, '0'],
+  ['B4', '12', 1, '1'],
+  ['B5', '21', 2, '1'],
+  ['B6', '11', 1, ''],
+  ['B7', '1x', 1, ''],
+  ['B8', 'x1', 1, ''],
+] as const)(
+  '%s starts from the first valid upstream and repairs every different replica',
+  (_, inputs, time, repair) => {
+    const sources = Array.from(
+      inputs,
+      c =>
+        kernel.decode(c === '!' ? '{}' : Number(c) ? kernel.encode(record(Number(c))) : null)
+          .record,
+    )
+    const [first, second] = sources
+    const selected =
+      inputs.length === 1
+        ? kernel.atStart({ local: first })
+        : kernel.atStart({ native: first, local: second })
+    expect(selected?.stamp.t ?? 0).toBe(time)
+    expect(
+      sources
+        .flatMap((source, i) =>
+          inputs[i] !== 'x' && selected && (!source || kernel.compare(source, selected) !== 0)
+            ? [i]
+            : [],
+        )
+        .join(''),
+    ).toBe(repair)
+  },
+)
+
 it('orders by time, code units and canonical sparse JSON, independently of key order', () => {
   const a = record(1, { size: 'large', theme: 'dark' })
   const b = record(1, { theme: 'dark', size: 'large' })

@@ -90,7 +90,7 @@ booting('首帧之前的主题与字号档（DT-20）', () => {
     expect('size' in run('throws', false)).toBe(false)
   })
 
-  it('取本机存的与镜像种子里较新的一份，把它交给视觉偏好', () => {
+  it('镜像种子有效就取它，不论戳的先后，否则取本机存的，把它交给视觉偏好', () => {
     const local = record(1, { theme: 'light', size: 'large' })
     const mirror = record(2, { theme: 'dark' })
     const newer = run({ [VISUAL_KEY]: local }, false, mirror)
@@ -100,8 +100,9 @@ booting('首帧之前的主题与字号档（DT-20）', () => {
       record: visualRecordKernel.decode(mirror).record,
     })
     const older = run({ [VISUAL_KEY]: mirror }, false, local)
-    expect(older.theme).toBe('dark')
+    expect([older.theme, older.size]).toEqual(['light', 'large'])
     expect(run({}, false, 'nonsense').handed).toEqual({ storageKey: VISUAL_KEY })
+    expect(run({ [VISUAL_KEY]: mirror }, false, 'nonsense').theme).toBe('dark')
     expect(run({ [VISUAL_KEY]: local }, false, null).size).toBe('large')
   })
 

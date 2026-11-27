@@ -36,6 +36,11 @@ function resolve(record: VisualRecord | undefined): VisualState {
     effective: Object.freeze(records.effective(record)),
   })
 }
+function needsRepair(current: VisualRecord | undefined, target: VisualRecord, start: boolean) {
+  if (!current) return true
+  const order = records.compare(current, target)
+  return start ? order !== 0 : order < 0
+}
 function subscriptions() {
   const listeners = new Set<() => void>()
   return {
@@ -66,6 +71,7 @@ class VisualRecordOwner {
     native: 'absent',
   }
   initialized = false
+  startPending = true
   status: VisualStatus
   readonly changes = subscriptions()
   readonly statusChanges = subscriptions()
@@ -119,6 +125,7 @@ class VisualRecordOwner {
   }
 
   connectNative() {
+    this.latestPush = undefined
     const { host } = this
     if (!host) return
     try {
@@ -148,11 +155,14 @@ class VisualRecordOwner {
     try {
       const mirror = this.native.read()
       const observed = records.decode(mirror.record).record
-      if (this.latestPush && !records.behind(observed, this.latestPush.record))
-        this.latestPush = undefined
+      if (this.latestPush && observed) {
+        const order = records.compare(observed, this.latestPush.record)
+        if (order > 0 || (order === 0 && !mirror.pending)) this.latestPush = undefined
+      }
       this.storage.native = mirror.pending ? 'failed' : 'ok'
       return observed
     } catch {
+      this.latestPush = undefined
       this.storage.native = 'unavailable'
       return undefined
     }
@@ -164,11 +174,13 @@ class VisualRecordOwner {
       this.latestPush = undefined
   }
 
-  observe() {
-    const local = this.storage.local === 'unavailable' ? undefined : this.readLocal()?.record
+  observe(start = false) {
     const mirror = this.readNative()
-    this.adopt(local, mirror)
-    return { local, native: mirror }
+    const local = this.available('local') ? this.readLocal()?.record : undefined
+    const observed = { native: mirror, local }
+    if (start) this.record = records.atStart(observed)
+    else this.adopt(mirror, local)
+    return observed
   }
 
   writeLocal(raw: string) {
@@ -200,6 +212,7 @@ class VisualRecordOwner {
       result = 'unavailable'
     }
     if (this.latestPush !== operation) return
+    this.latestPush = undefined
     this.storage.native = result
     this.publishStatus()
   }
@@ -208,42 +221,37 @@ class VisualRecordOwner {
     return this.storage[store] !== 'absent' && this.storage[store] !== 'unavailable'
   }
 
-  repairLocal(observed: VisualRecord | undefined, skipWrite: boolean) {
+  repairLocal(observed: VisualRecord | undefined, start: boolean) {
     const target = this.record
     if (!target || !this.available('local')) return
-    if (!records.behind(observed, target)) {
+    if (!needsRepair(observed, target, start)) {
       this.storage.local = 'ok'
       return
     }
-    if (skipWrite) return
     // Another window can update local storage between selection and repair.
     const current = this.readLocal()
     if (!current) return
-    if (!records.behind(current.record, target)) {
-      this.adopt(current.record)
+    if (!needsRepair(current.record, target, start)) {
+      if (!start) this.adopt(current.record)
       this.storage.local = 'ok'
       return
     }
     this.writeLocal(records.encode(target))
   }
 
-  reconcile(trigger: 'connect' | 'event' | 'restore' | 'retry') {
+  reconcile(trigger: 'start' | 'connect' | 'event' | 'restore' | 'retry') {
     const { storage } = this
-    const previous = { ...storage }
+    const start = trigger === 'start'
     if (trigger !== 'event') {
       if (storage.local === 'unavailable') storage.local = 'ok'
-      if (trigger === 'connect' || storage.native === 'unavailable') this.connectNative()
+      if (start || trigger === 'connect' || storage.native === 'unavailable') this.connectNative()
     }
-    const observed = this.observe()
-    const selected = this.record
+    const observed = this.observe(start)
     let beforeRepair: VisualRecord | undefined
     // A later read can reveal a newer winner after the repair was checked.
     do {
       beforeRepair = this.record
-      this.repairLocal(
-        observed.local,
-        trigger === 'retry' && this.record === selected && previous.local === 'ok',
-      )
+      this.repairLocal(observed.local, start)
     } while (this.record !== beforeRepair)
     if (
       this.record &&
@@ -267,9 +275,9 @@ class VisualRecordOwner {
       preferences: change({ ...this.record?.preferences }),
     }
     this.record = record
-    const raw = records.encode(record)
-    if (this.available('local')) this.writeLocal(raw)
+    this.startPending = false
     if (this.available('native')) void this.push(record)
+    if (this.available('local')) this.writeLocal(records.encode(record))
     this.publish()
   }
 
@@ -281,8 +289,10 @@ class VisualRecordOwner {
   }
 
   attach(window: Window) {
+    const trigger = this.startPending ? 'start' : 'connect'
+    this.startPending = false
     this.initialized = true
-    this.reconcile('connect')
+    this.reconcile(trigger)
     const onStorage = (event: StorageEvent) => {
       if (event.key === VISUAL_KEY || event.key === null) this.reconcile('event')
     }

@@ -12,7 +12,7 @@ type BootHost = Pick<Window, 'localStorage' | 'matchMedia'> & {
 }
 type BootRoot = { dataset: DOMStringMap; style: Pick<CSSStyleDeclaration, 'setProperty'> }
 
-/** The first frame's theme and size: the newer of local storage and the mirror's seed, painted the way the
+/** The first frame's theme and size: the mirror's seed when valid, else local storage, painted the way the
  two controllers paint it, and handed over to the visual manager. It writes no store. */
 export function bootVisual(
   records: typeof visualRecordKernel,
@@ -27,9 +27,12 @@ export function bootVisual(
       return undefined
     }
   }
-  const local = optional(() => records.decode(host.localStorage.getItem(storageKey)).record)
-  const seed = optional(() => records.decode(host.omneDesktop?.visual?.seed?.record ?? null).record)
-  const record = records.pick([local, seed])
+  const record = records.atStart({
+    native: optional(() => records.decode(host.omneDesktop?.visual?.seed?.record ?? null).record),
+    get local() {
+      return optional(() => records.decode(host.localStorage.getItem(storageKey)).record)
+    },
+  })
   host.omneVisualBootstrap = { storageKey, record }
   const { theme, size } = records.effective(record)
   const dark =

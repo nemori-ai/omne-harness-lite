@@ -66,14 +66,37 @@ it('recovers a busy mirror at startup and preserves the newer file on an older p
   expect(mirror.push(older)).toBe('ok')
   expect(readFileSync(file, 'utf8')).toBe(newer)
 })
-it('warns when the mirror cannot be read at startup', () => {
-  const { fs, log, start } = fixture()
-  fs.readFileSync.mockImplementationOnce(() => {
-    throw Object.assign(new Error('read error'), { code: 'EIO' })
-  })
-  expect(start().read()).toEqual({ record: null, pending: false })
-  expect(log.warn).toHaveBeenCalledOnce()
-})
+it.each(['older', 'newer'] as const)(
+  'recovers the disk record before accepting a %s push after read retries expire',
+  order => {
+    const { file, fs, log, start } = fixture()
+    writeFileSync(file, newer)
+    fs.readFileSync.mockImplementation(() => {
+      throw Object.assign(new Error('file busy'), { code: 'EBUSY' })
+    })
+    const mirror = start()
+    const applied = vi.fn<typeof mirror.theme>(() => mirror.theme())
+    mirror.onThemeChange(applied)
+    try {
+      expect(log.warn).toHaveBeenCalledOnce()
+      expect(mirror.read()).toEqual({ record: null, pending: true })
+      expect(mirror.push(older)).toBe('failed')
+      expect(readFileSync(file, 'utf8')).toBe(newer)
+      expect(fs.renameSync).not.toHaveBeenCalled()
+      expect(applied).not.toHaveBeenCalled()
+    } finally {
+      fs.readFileSync.mockReset()
+      fs.readFileSync.mockImplementation(path => readFileSync(path, 'utf8'))
+    }
+    const incoming = order === 'older' ? older : raw(3, { theme: 'light' })
+    const winner = order === 'older' ? newer : incoming
+    expect(mirror.push(incoming)).toBe('ok')
+    expect(mirror.read()).toEqual({ record: winner, pending: false })
+    expect(readFileSync(file, 'utf8')).toBe(winner)
+    expect(fs.renameSync).toHaveBeenCalledTimes(order === 'older' ? 0 : 1)
+    expect(applied).toHaveLastReturnedWith(order === 'older' ? 'dark' : 'light')
+  },
+)
 it('G10 derives missing choices from product defaults on construction and reset', () => {
   const kernel = createVisualRecordKernel({ ...VISUAL_DEFAULTS, theme: 'light' })
   const effective = vi.spyOn(visualRecordKernel, 'effective').mockImplementation(kernel.effective)

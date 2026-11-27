@@ -82,6 +82,13 @@ export function createVisualRecordKernel(defaults: Readonly<VisualPreferences>) 
   function behind(current: VisualRecord | undefined, target: VisualRecord): boolean {
     return !current || compare(current, target) < 0
   }
+  /** At start the first valid replica upstream wins, whatever its stamp: the mirror, then local storage. */
+  function atStart(sources: {
+    native?: VisualRecord | undefined
+    local?: VisualRecord | undefined
+  }): VisualRecord | undefined {
+    return sources.native ?? sources.local
+  }
   function pick(records: readonly (VisualRecord | undefined)[]): VisualRecord | undefined {
     let latest: VisualRecord | undefined
     for (const record of records) if (record && behind(latest, record)) latest = record
@@ -105,7 +112,7 @@ export function createVisualRecordKernel(defaults: Readonly<VisualPreferences>) 
       throw new RangeError('visual timestamp exceeds safe integer precision')
     return { t, id: random() }
   }
-  return { decode, encode, compare, behind, pick, effective, nextStamp }
+  return { decode, encode, compare, behind, atStart, pick, effective, nextStamp }
 }
 
 export const visualRecordKernel = createVisualRecordKernel(VISUAL_DEFAULTS)
