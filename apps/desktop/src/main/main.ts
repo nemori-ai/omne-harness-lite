@@ -196,7 +196,6 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   const stopLook = followVisualTheme(visual, nativeTheme, () => (window ? [window] : []))
   installVisualIpc(ipcMain, visual, event => isTrustedSender(event, window), log)
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
-  visual.retryPending()
   window = openAppWindow(saved, utility, log, updates.onTrial, {
     preload: fileURLToPath(new URL('../preload/preload.cjs', import.meta.url)),
     background: pageBackground(visual.theme(), nativeTheme.shouldUseDarkColors),

@@ -152,6 +152,23 @@ describe('边界', () => {
     expect([...preload.matchAll(/exposeInMainWorld\(([^,]+),/g)].map(match => match[1])).toEqual([
       "'omneDesktop'",
     ])
+    const windows = files(join(SRC, 'main'))
+      .filter(file => /windowOptions\(|openAppWindow\(/.test(readFileSync(file, 'utf8')))
+      .flatMap(file =>
+        [...readFileSync(file, 'utf8').matchAll(/(?:windowOptions|openAppWindow)\(([^)\n]*)/g)].map(
+          match => `${relative(join(SRC, 'main'), file)}: ${match[1]}`,
+        ),
+      )
+      .filter(call => !call.startsWith('window.ts: '))
+    expect(windows.toSorted()).toEqual([
+      'desk-window.ts: undefined',
+      'main.ts: saved, utility, log, updates.onTrial, {',
+      'page-candidate.ts: undefined',
+      'screen-overlay.ts: undefined',
+    ])
+    expect(readFileSync(join(SRC, 'main', 'window.ts'), 'utf8')).toContain(
+      'new BrowserWindow(windowOptions(state, process.platform, look))',
+    )
     const bad = (specifier: string) => /standalone\/(server|bin)\.ts$/.test(specifier)
     expect([...offending('main', bad), ...offending('utility', bad)]).toEqual([])
   })

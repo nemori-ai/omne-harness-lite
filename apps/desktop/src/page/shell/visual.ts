@@ -73,6 +73,10 @@ class VisualRecordOwner {
   cleanup: (() => void) | undefined
   native: ReturnType<NativeVisualSource['connect']>
   latestPush: { record: VisualRecord } | undefined
+  readonly reasons: Record<keyof VisualStatus['storage'], string> = {
+    local: 'unknown',
+    native: 'not on disk in the main process',
+  }
   readonly host: Window | undefined
   readonly nativeSource: NativeVisualSource | undefined
   readonly warn: NonNullable<VisualOptions['warn']>
@@ -100,7 +104,7 @@ class VisualRecordOwner {
       return
     for (const store of ['local', 'native'] as const)
       if (storage[store] === 'failed' && status.storage[store] !== 'failed')
-        this.warn('visual preferences were not saved', { store })
+        this.warn('visual preferences were not saved', { store, reason: this.reasons[store] })
     this.status = Object.freeze({ initialized, storage: Object.freeze({ ...storage }) })
     this.statusChanges.notify()
   }
@@ -178,7 +182,8 @@ class VisualRecordOwner {
     try {
       target.setItem(VISUAL_KEY, raw)
       this.storage.local = 'ok'
-    } catch {
+    } catch (err) {
+      this.reasons.local = err instanceof Error ? err.name : String(err)
       this.storage.local = 'failed'
     }
   }
@@ -251,8 +256,9 @@ class VisualRecordOwner {
   }
 
   commit(change: Change) {
-    // A command can come before the connection.
-    if (!this.initialized) this.connectNative()
+    // A command can come before the connection, and a copy that failed is tried again on every commit.
+    if (this.storage.local === 'unavailable') this.storage.local = 'ok'
+    if (!this.initialized || this.storage.native === 'unavailable') this.connectNative()
     this.observe()
     this.latestPush = undefined
     const record: VisualRecord = {

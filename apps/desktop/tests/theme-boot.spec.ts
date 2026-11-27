@@ -16,6 +16,8 @@ const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)'
 
 const PAGE = join(import.meta.dirname, '..', 'src', 'page')
 const source = themeBootScript()
+// Under mutation testing the serialized kernel carries the instrumentation, which cannot run on its own.
+const booting = /stryMutAct|stryCov/.test(source) ? describe.skip : describe
 
 type Stored = Readonly<Record<string, string | null>> | 'throws'
 type Booted = { theme?: string; size?: string; face?: string; handed?: VisualBootstrap }
@@ -58,7 +60,7 @@ const holding = (key: string, value: string | null) => () => ({
   setItem: () => {},
 })
 
-describe('首帧之前的主题与字号档（DT-20）', () => {
+booting('首帧之前的主题与字号档（DT-20）', () => {
   it('和两个控制器得出同一个样子：记录里的每种主题乘以系统的明暗，读不懂的记录当作没有', () => {
     const stored = [
       ...(['light', 'dark', 'system'] as const).map(theme => record(1, { theme })),
@@ -113,7 +115,7 @@ describe('首帧之前的主题与字号档（DT-20）', () => {
   })
 })
 
-describe('首帧之前的面（DT-50）', () => {
+booting('首帧之前的面（DT-50）', () => {
   it('和外壳得出同一面：存的每种取值，两处读同一个键', () => {
     for (const stored of ['back', 'front', 'Back', 'nonsense', '', null]) {
       const shell = storedFacePreference(holding(FACE_KEY, stored)).read()
@@ -205,7 +207,7 @@ describe('字号档的按键', () => {
   })
 })
 
-describe('首帧之前整个应用的令牌', () => {
+booting('首帧之前整个应用的令牌', () => {
   /** Runs the boot script with what is stored under the tokens key; gives what it wrote on the root. */
   function tinted(stored: string | null | 'throws') {
     const written = new Map<string, string>()

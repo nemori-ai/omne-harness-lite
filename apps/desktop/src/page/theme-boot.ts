@@ -72,8 +72,13 @@ export function bootLocal(host: Pick<Window, 'localStorage'>, root: BootRoot): v
 }
 
 /** theme-boot.js: the same kernel and the same functions as the page, as text. */
-export function themeBootScript(): string {
-  const kernel = `(${createVisualRecordKernel.toString()})(${JSON.stringify(VISUAL_DEFAULTS)})`
+export function themeBootScript(
+  record: { create: typeof createVisualRecordKernel; defaults: typeof VISUAL_DEFAULTS } = {
+    create: createVisualRecordKernel,
+    defaults: VISUAL_DEFAULTS,
+  },
+): string {
+  const kernel = `(${record.create.toString()})(${JSON.stringify(record.defaults)})`
   const root = 'document.documentElement'
   return [
     `;(${bootVisual.toString()})(${kernel},window,${root},${JSON.stringify(VISUAL_KEY)})`,
