@@ -27,6 +27,7 @@ function oauthWorld(
   let now = standing
   let refusal: 'no-registration' | undefined
   let receiverDown = false
+  let endFails = false
   const grants: GrantConnector = {
     async begin({ signal: _signal, ...input }) {
       begun.push(input)
@@ -36,7 +37,7 @@ function oauthWorld(
     },
     async disconnect(key) {
       ended.push(key)
-      return succeed(true)
+      return endFails ? fail('unavailable') : succeed(true)
     },
     async standing() {
       return now === 'unavailable' ? fail('unavailable') : succeed(now)
@@ -56,6 +57,7 @@ function oauthWorld(
   return {
     w,
     mcp,
+    mcpPorts: ports,
     begun,
     opened,
     ended,
@@ -67,6 +69,9 @@ function oauthWorld(
     },
     downReceiver: () => {
       receiverDown = true
+    },
+    failEnd: () => {
+      endFails = true
     },
   }
 }
@@ -148,6 +153,69 @@ describe('connecting an OAuth endpoint (C201, C206)', () => {
     adoptHttp(n, desk, { auth: 'oauth' })
     const bare = createMcp(n.ports, CONFIG)
     expect(await bare.connect.begin(alice, desk)).toEqual({
+      failure: { kind: 'refused', reason: 'unavailable' },
+    })
+  })
+})
+
+function without(
+  ports: McpPorts<Principal, string>,
+  name: 'grants' | 'callbacks',
+): McpPorts<Principal, string> {
+  const { [name]: _left, ...rest } = ports
+  return rest
+}
+
+describe('connecting at the edges (C201, C206)', () => {
+  it('an unreadable target refuses as invalid; without an operator document none is passed', async () => {
+    const bad = oauthWorld()
+    adoptHttp(bad.w, desk, { auth: 'oauth', settings: { target: INVALID } })
+    expect(await bad.mcp.connect.begin(alice, desk)).toEqual({
+      failure: { kind: 'config-invalid', item: 'target' },
+    })
+    const n = oauthWorld()
+    adoptHttp(n.w, desk, { auth: 'oauth' })
+    const plain = createMcp(n.mcpPorts, { ...CONFIG, oauth: OAUTH })
+    await plain.connect.begin(alice, desk)
+    expect(n.begun).toHaveLength(1)
+    expect(Object.keys(n.begun[0] ?? {})).not.toContain('metadataDocument')
+  })
+
+  it('without the grants, the receiver or the OAuth configuration nothing is opened or begun', async () => {
+    const cases = [
+      (o: ReturnType<typeof oauthWorld>) =>
+        createMcp(without(o.mcpPorts, 'grants'), { ...CONFIG, oauth: OAUTH }),
+      (o: ReturnType<typeof oauthWorld>) =>
+        createMcp(without(o.mcpPorts, 'callbacks'), { ...CONFIG, oauth: OAUTH }),
+      (o: ReturnType<typeof oauthWorld>) => createMcp(o.mcpPorts, CONFIG),
+    ]
+    for (const made of cases) {
+      const o = oauthWorld()
+      adoptHttp(o.w, desk, { auth: 'oauth' })
+      expect(await made(o).connect.begin(alice, desk)).toEqual({
+        failure: { kind: 'refused', reason: 'unavailable' },
+      })
+      expect([...o.opened, ...o.begun]).toEqual([])
+    }
+  })
+
+  it('disconnecting tells the change; one not available, without grants or whose grant cannot be ended is not done', async () => {
+    const o = oauthWorld()
+    adoptHttp(o.w, desk, { auth: 'oauth' })
+    const heard: string[] = []
+    o.mcp.status.subscribe({ changed: () => heard.push('changed'), closed: () => undefined })
+    expect(await o.mcp.connect.disconnect(alice, desk)).toEqual({ ok: 'disconnected' })
+    expect(heard).toEqual(['changed'])
+    expect(await o.mcp.connect.disconnect(mallory, desk)).toEqual({
+      failure: { kind: 'not-available-to-you' },
+    })
+    expect(o.ended).toHaveLength(1)
+    const bare = createMcp(without(o.mcpPorts, 'grants'), { ...CONFIG, oauth: OAUTH })
+    expect(await bare.connect.disconnect(alice, desk)).toEqual({
+      failure: { kind: 'refused', reason: 'unavailable' },
+    })
+    o.failEnd()
+    expect(await o.mcp.connect.disconnect(alice, desk)).toEqual({
       failure: { kind: 'refused', reason: 'unavailable' },
     })
   })

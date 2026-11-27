@@ -554,6 +554,46 @@ describe('step 4: begin-connect and disconnect (C201, C206)', () => {
     expect(await world.begin(alice, 'docs')).toEqual(answer)
   })
 
+  it('says every refusal of the connect face in its own sentence, and an expiry that is not an instant is unknown', async () => {
+    const refusals = [
+      { kind: 'config-invalid', item: 'target' },
+      ...(
+        [
+          'no-resource-metadata',
+          'no-authorization-server',
+          'issuer-mismatch',
+          'no-pkce',
+          'insecure-endpoint',
+          'malformed',
+          'no-registration',
+          'registration-refused',
+        ] as const
+      ).map(reason => ({ kind: 'refused', reason }) as const),
+    ] as const
+    const said: Readonly<{ reason: string; text: string }>[] = []
+    for (const failure of refusals) {
+      const world = createWorld()
+      world.define(alice, 'docs', { status: readyStatus(docs), begin: fail(failure) })
+      const answer = await world.begin(alice, 'docs')
+      if (answer.outcome !== 'not-committed') throw new Error(answer.outcome)
+      said.push(answer.body)
+    }
+    expect(said.map(({ reason }) => reason)).toEqual([
+      'target-invalid',
+      ...refusals.slice(1).map(failure => ('reason' in failure ? failure.reason : '')),
+    ])
+    expect(said.every(({ text }) => text.length > 20)).toBe(true)
+    expect(new Set(said.map(({ text }) => text)).size).toBe(said.length)
+    for (const expiresAt of [Number.NaN, 8.64e15]) {
+      const late = createWorld()
+      late.define(alice, 'docs', {
+        status: readyStatus(docs),
+        begin: succeed({ url: 'https://auth.example/authorize', expiresAt }),
+      })
+      expect(await late.begin(alice, 'docs')).toEqual({ outcome: 'unknown' })
+    }
+  })
+
   it("answers not-visible for an unknown name and for another tenant's endpoint, without asking the face", async () => {
     const world = setup()
     expect(await world.begin(alice, 'absent')).toEqual({ outcome: 'not-visible', body: {} })
