@@ -46,6 +46,31 @@ describe('whether two results may be compared', () => {
     expect(comparable('time', head(), head({ probesHold: false })).verdict).toBe('blocked')
   })
 
+  it('says what stands between two results', () => {
+    const reasonOf = (kind: 'count' | 'time' | 'ratio', other: Partial<ResultHead>) => {
+      const verdict = comparable(kind, head(), head(other))
+      return 'reason' in verdict ? `${verdict.verdict}: ${verdict.reason}` : verdict.verdict
+    }
+    expect(reasonOf('count', { workload: 'w2' })).toBe('refused: the workloads differ')
+    expect(reasonOf('count', { assembly: 'a2' })).toBe('refused: the assemblies differ')
+    expect(reasonOf('count', { facilityMajor: 2 })).toBe(
+      'refused: the major versions of the facility differ',
+    )
+    expect(reasonOf('ratio', { stateQualified: false })).toBe(
+      'blocked: the state of a machine did not qualify',
+    )
+    expect(reasonOf('ratio', { machine: 'm2' })).toBe(
+      'side-by-side: ratios of two machine configurations',
+    )
+    expect(reasonOf('time', { machine: 'm2' })).toBe(
+      'blocked: absolute times of two machine configurations',
+    )
+    expect(reasonOf('time', { probesHold: false })).toBe(
+      'blocked: the probes drifted from the baseline of this machine',
+    )
+    expect(reasonOf('time', {})).toBe('side-by-side: absolute times of two runs gate nothing')
+  })
+
   it('never makes absolute times of two runs one comparable number: they stand side by side', () => {
     expect(comparable('time', head(), head())).toMatchObject({ verdict: 'side-by-side' })
   })

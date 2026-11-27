@@ -15,13 +15,11 @@ const ratioOf = (before: number, after: number): number =>
   before === 0 ? (after === 0 ? 1 : Number.POSITIVE_INFINITY) : after / before
 
 function slopePerDoubling(points: readonly ScalePoint[]): number {
-  const xs = points.map(point => Math.log2(point.scale))
-  const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length
-  const meanY = points.reduce((sum, point) => sum + point.value, 0) / points.length
-  const spread = xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0)
+  const mean = points.reduce((sum, point) => sum + Math.log2(point.scale), 0) / points.length
+  const centred = points.map(point => ({ x: Math.log2(point.scale) - mean, y: point.value }))
   return (
-    xs.reduce((sum, x, index) => sum + (x - meanX) * ((points[index]?.value ?? 0) - meanY), 0) /
-    spread
+    centred.reduce((sum, point) => sum + point.x * point.y, 0) /
+    centred.reduce((sum, point) => sum + point.x ** 2, 0)
   )
 }
 

@@ -8,6 +8,7 @@ import {
   readRequest,
   readyProvider,
 } from './read-support.ts'
+import { Readings } from '../src/readings.ts'
 import { DOMAIN, identity, makeWorkspace, type Built, type Workspace } from './support.ts'
 
 let workspace: Workspace
@@ -41,7 +42,97 @@ function commitFrames(storageRoot: string, domain: string): number {
   return commits
 }
 
+describe('the tally of the readings', () => {
+  const outcome = (kind: string, recalled = false) => ({ kind, recalled }) as never
+
+  it('puts each outcome of a commit in its own column, and bytes and participants only under what was committed', () => {
+    const readings = new Readings()
+    readings.commit('d', ['p'], 10, outcome('committed'))
+    readings.commit('d', ['p'], 10, outcome('committed', true))
+    readings.commit('d', ['p'], 10, outcome('rolled_back'))
+    readings.commit('d', ['p'], 10, outcome('rolled_back', true))
+    readings.commit('d', ['p'], 10, outcome('unknown'))
+    readings.commit('d', ['p'], 10, outcome('unknown'))
+    readings.commit('d', ['p'], 10, outcome('unknown'))
+    readings.commit('d', ['p'], 10, outcome('identity_conflict'))
+    readings.commit('d', ['p'], 10, outcome('identity_conflict'))
+    readings.commit('d', ['p'], 10, outcome('identity_conflict'))
+    readings.commit('d', ['p'], 10, outcome('identity_conflict'))
+    readings.commit('d', ['p'], 10, outcome('rejected_before_accept'))
+    expect(readings.snapshot()).toEqual({
+      reads: [],
+      commits: [
+        {
+          domain: 'd',
+          committed: 1,
+          recalled: 2,
+          rolledBack: 1,
+          unknown: 3,
+          conflicted: 4,
+          rejected: 1,
+          bytes: 10,
+        },
+      ],
+      participants: [{ domain: 'd', participant: 'p', committed: 1 }],
+      queries: [],
+    })
+  })
+
+  it('counts a query whose answer is not known apart from one that was answered', () => {
+    const readings = new Readings()
+    readings.query('d', 'unknown')
+    readings.query('d', 'committed' as never)
+    readings.query('d', 'not_found' as never)
+    expect(readings.snapshot().queries).toEqual([{ domain: 'd', answered: 2, unknown: 1 }])
+  })
+
+  it('hands out every list in the order of its names, whatever order the work came in', () => {
+    const readings = new Readings()
+    for (const domain of ['m', 'z', 'a']) {
+      readings.read(domain, 'page', 'read')
+      readings.read('m', `handler-${domain}`, 'read')
+      readings.commit(domain, [`by-${domain}`, 'audit'], 1, outcome('committed'))
+      readings.query(domain, 'unknown')
+    }
+    const { reads, commits, participants, queries } = readings.snapshot()
+    expect(reads.map(item => `${item.domain}/${item.handler}`)).toEqual([
+      'a/page',
+      'm/handler-a',
+      'm/handler-m',
+      'm/handler-z',
+      'm/page',
+      'z/page',
+    ])
+    expect(commits.map(item => item.domain)).toEqual(['a', 'm', 'z'])
+    expect(participants.map(item => `${item.domain}/${item.participant}`)).toEqual([
+      'a/audit',
+      'a/by-a',
+      'm/audit',
+      'm/by-m',
+      'z/audit',
+      'z/by-z',
+    ])
+    expect(queries.map(item => item.domain)).toEqual(['a', 'm', 'z'])
+  })
+})
+
 describe('the readings a provider keeps of its own reads, commits and queries', () => {
+  it('counts what it cannot place under no domain: an input that is nothing, a domain that is no name', async () => {
+    const { storage, control } = await readyProvider(workspace, built)
+    expect((await storage.commit(null as never)).kind).toBe('rejected_before_accept')
+    await storage.read({ ...readRequest('page'), domain: undefined as never })
+    await storage.read(null as never)
+    await storage.query(null as never)
+    const { reads, commits, queries, participants } = control.readings()
+    expect(commits).toMatchObject([{ domain: '', rejected: 1, bytes: 0 }])
+    expect(participants).toEqual([])
+    expect(reads.map(item => [item.domain, item.handler, item.read])).toEqual([
+      ['', '', 0],
+      ['', 'page', 0],
+    ])
+    expect(queries.map(item => item.domain)).toEqual([''])
+  })
+
   it('starts with nothing counted', async () => {
     const { control } = await readyProvider(workspace, built)
     expect(control.readings()).toEqual(NONE)

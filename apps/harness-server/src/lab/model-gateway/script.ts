@@ -105,7 +105,7 @@ export function generatedText(seed: number, bytes: number): string {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0
     text += `${WORDS[state % WORDS.length] ?? 'plain'} `
   }
-  return text.slice(0, bytes - 1).padEnd(bytes - 1, 'a') + '.'
+  return `${text.slice(0, bytes - 1)}.`
 }
 
 type Step = ModelScript['steps'][number]

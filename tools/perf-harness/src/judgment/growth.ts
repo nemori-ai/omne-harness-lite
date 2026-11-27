@@ -41,35 +41,26 @@ export function judgeGrowth(values: readonly number[]): GrowthVerdict {
       reason: `requires ${String(expected)} finite values of rounds 11-200`,
     }
   const size = GROWTH.blockSize
+  const centre = (GROWTH.firstRound + GROWTH.lastRound) / 2
   const blocks = Array.from({ length: BLOCKS }, (_, index) => ({
-    x: GROWTH.firstRound + (size - 1) / 2 + index * size,
+    x: GROWTH.firstRound + (size - 1) / 2 + index * size - centre,
     y: median(values.slice(index * size, index * size + size)),
   }))
-  const scale = Math.max(...blocks.map(block => block.y)) || 1
-  const ys = blocks.map(block => block.y / scale)
-  const mean = ys.reduce((sum, value) => sum + value / BLOCKS, 0)
-  const centre = (GROWTH.firstRound + GROWTH.lastRound) / 2
-  const xs = blocks.map(block => block.x - centre)
+  const mean = blocks.reduce((sum, block) => sum + block.y, 0) / BLOCKS
   const slope =
-    xs.reduce((sum, x, index) => sum + x * ((ys[index] ?? 0) - mean), 0) /
-    xs.reduce((sum, x) => sum + x * x, 0)
-  const residuals = ys.map((y, index) => y - (mean + slope * (xs[index] ?? 0)))
-  const variance = ys.reduce((sum, y) => sum + (y - mean) ** 2, 0)
+    blocks.reduce((sum, block) => sum + block.x * block.y, 0) /
+    blocks.reduce((sum, block) => sum + block.x ** 2, 0)
+  const residuals = blocks.map(block => block.y - (mean + slope * block.x))
+  const variance = blocks.reduce((sum, block) => sum + (block.y - mean) ** 2, 0)
   const r2 =
-    variance === 0 ? 0 : 1 - residuals.reduce((sum, value) => sum + value * value, 0) / variance
+    variance === 0 ? 0 : 1 - residuals.reduce((sum, value) => sum + value ** 2, 0) / variance
   const middle = median(residuals)
-  const mad = median(residuals.map(value => Math.abs(value - middle)))
-  const predictedGrowth = slope * GROWTH.span * scale
-  if (![slope * scale, r2, mad * scale, predictedGrowth].every(Number.isFinite))
+  const residualMAD = median(residuals.map(value => Math.abs(value - middle)))
+  const predictedGrowth = slope * GROWTH.span
+  if (![slope, r2, residualMAD, predictedGrowth].every(Number.isFinite))
     return { state: 'blocked', reason: 'growth statistics exceed finite numeric range' }
-  const grows = slope > 0 && r2 >= GROWTH.minR2 && slope * GROWTH.span > GROWTH.madFactor * mad
-  return {
-    state: grows ? 'fail' : 'pass',
-    slope: slope * scale,
-    r2,
-    residualMAD: mad * scale,
-    predictedGrowth,
-  }
+  const grows = slope > 0 && r2 >= GROWTH.minR2 && predictedGrowth > GROWTH.madFactor * residualMAD
+  return { state: grows ? 'fail' : 'pass', slope, r2, residualMAD, predictedGrowth }
 }
 
 export type MedianVerdict =

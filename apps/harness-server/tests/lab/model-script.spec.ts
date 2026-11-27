@@ -57,6 +57,14 @@ describe('the text a script generates', () => {
     expect(generatedText(1, 8192)).toMatch(/^[a-z ]+\.$/u)
   })
 
+  it('is whole words of a small vocabulary with one space between them, cut where the bytes end', () => {
+    const words = generatedText(1, 8192).slice(0, -1).split(' ')
+    const whole = words.slice(0, -1)
+    expect(whole.every(word => /^[a-z]{4,6}$/u.test(word))).toBe(true)
+    expect(new Set(whole).size).toBe(24)
+    expect(generatedText(2, 1)).toBe('.')
+  })
+
   it('answers a step with generated text of the size it names, after the reasoning it names', () => {
     const script = parseModelScript(
       JSON.stringify({
@@ -112,6 +120,7 @@ describe('the text a script generates', () => {
       /one of the three/u,
     )
     expect(() => parseModelScript(step({ text: { seed: 1, bytes: 0 } }))).toThrow(/model script/u)
+    expect(() => parseModelScript(step({ call: [] }))).toThrow(/model script/u)
     expect(() => parseModelScript(step({ reasoning: { seed: 1, bytes: 10 } }))).toThrow(
       /one of the three/u,
     )
@@ -286,16 +295,26 @@ describe('the operator layer with the model route of the lab gateway', () => {
     const others = (layer: typeof local) =>
       layer.ops.filter(op => op.id !== 'model-records' && op.id !== 'model-profiles')
     expect(others(lowered)).toEqual(others(local))
-    for (const percent of ['0', '101', '2.5', 'half'])
-      expect(() => withCompactionTrigger(local, percent)).toThrow(/whole percent/u)
-    expect(() => withCompactionTrigger({ ops: [] }, '3')).toThrow(/model-records/u)
+    for (const percent of ['0', '101', '2.5', 'half', '', '05', '1000', ' 5', '5 ', '5x', 'x5'])
+      expect(() => withCompactionTrigger(local, percent)).toThrow(
+        `compaction trigger: ${percent} is not a whole percent from 1 to 100`,
+      )
+    for (const percent of ['1', '9', '10', '99', '100'])
+      expect(profilesOf(withCompactionTrigger(local, percent))['compactionTriggerPercent']).toBe(
+        percent,
+      )
+    expect(() => withCompactionTrigger({ ops: [] }, '3')).toThrow(
+      'compaction trigger: the operator layer has no send stage in model-records',
+    )
     const lone = { ops: local.ops.filter(op => op.id !== 'model-profiles') }
     expect(() => withCompactionTrigger(lone, '3')).toThrow(/model-profiles/u)
   })
 
   it('refuses a layer without the row that sends, or without its send stage: the script would never be asked', () => {
     const without = { ops: local.ops.filter(op => op.id !== 'model-records') }
-    expect(() => withModelRoute(without, 'https://x')).toThrow(/model-records/u)
+    expect(() => withModelRoute(without, 'https://x')).toThrow(
+      'model script: the operator layer has no send stage in model-records',
+    )
     const bare = {
       ops: [{ kind: 'replace' as const, id: 'model-records', config: { owners: [] } }],
     }

@@ -15,6 +15,7 @@ import {
   CHANGES,
   gatesOf,
   READ_ALLOWANCE,
+  READS,
   rungsOf,
   sampleOf,
   type Axis,
@@ -120,6 +121,15 @@ describe('the gates of an axis', () => {
       note: expect.stringMatching(/^known failure, accepted in #1: the next run \(values /u),
     })
     expect(stateOf(round(), 'commit bytes of a step', { ...AXIS, known })?.outcome).toBe('fail')
+  })
+
+  it('hold only the quantities an axis names, each with its two samples', () => {
+    const held = gatesOf(round(), { ...AXIS, gated: [READS] })
+    expect(held.gates.map(gate => gate.name)).toEqual(['reads of a step'])
+    expect(held.controls.map(control => [control.gate, control.expected])).toEqual([
+      ['reads of a step', 'fail'],
+      ['reads of a step', 'pass'],
+    ])
   })
 
   it('put a step in the rung above half its scale and up to it', () => {

@@ -25,7 +25,7 @@ const countsOf = (readings: readonly Reading[]): Record<string, number> =>
     readings
       .filter(reading => reading.kind === 'count')
       .map(reading => [reading.name, reading.value] as const)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      .sort(([a], [b]) => (a < b ? -1 : 1)),
   )
 
 export function baselineOf(result: Result): Baseline | Blocked {
@@ -89,8 +89,7 @@ export function compareCounts(baseline: Baseline | null, result: Result): CountC
     },
     head,
   )
-  if (verdict.verdict !== 'comparable')
-    return { state: 'refused', reason: 'reason' in verdict ? verdict.reason : 'not comparable' }
+  if (verdict.verdict === 'refused') return { state: 'refused', reason: verdict.reason }
   const now = countsOf(result.readings)
   const names = [...new Set([...Object.keys(baseline.counts), ...Object.keys(now)])].sort()
   const differences = names

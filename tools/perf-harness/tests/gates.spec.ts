@@ -34,8 +34,9 @@ describe('a reading that should not depend on a scale', () => {
     expect(judgeScale(rungs([0, 0, 0]), 0)).toMatchObject({ state: 'pass' })
   })
 
-  it('blocks on one rung, on rungs that do not double, and on a rung with no value', () => {
-    expect(judgeScale(rungs([5]), 0).state).toBe('blocked')
+  it('blocks on one rung, on rungs that do not double, and on a rung with no value, and says which', () => {
+    const blocked = (reason: string) => ({ state: 'blocked', reason })
+    expect(judgeScale(rungs([5]), 0)).toEqual(blocked('requires at least two rungs'))
     expect(
       judgeScale(
         [
@@ -43,15 +44,28 @@ describe('a reading that should not depend on a scale', () => {
           { scale: 30, value: 1 },
         ],
         0,
-      ).state,
-    ).toBe('blocked')
-    expect(judgeScale(rungs([1, Number.NaN]), 0).state).toBe('blocked')
-    expect(judgeScale(rungs([1, -1]), 0).state).toBe('blocked')
+      ),
+    ).toEqual(blocked('the rungs do not double'))
+    const unusable = blocked('a rung has no positive scale or no finite value')
+    expect(judgeScale(rungs([1, Number.NaN]), 0)).toEqual(unusable)
+    expect(judgeScale(rungs([1, -1]), 0)).toEqual(unusable)
+    expect(judgeScale(rungs([1, 1], 0), 0)).toEqual(unusable)
+    expect(judgeScale(rungs([1, 1], -4), 0)).toEqual(unusable)
+  })
+
+  it('judges two rungs: one doubling is enough', () => {
+    expect(judgeScale(rungs([5, 5]), 0)).toMatchObject({ state: 'pass', ratios: [1] })
+    expect(judgeScale(rungs([5, 6]), 0)).toMatchObject({ state: 'fail', perDoubling: 1 })
+  })
+
+  it('passes a rung that sits on the allowance itself', () => {
+    expect(judgeScale(rungs([1000, 1250]), 0.25)).toMatchObject({ state: 'pass', ratios: [1.25] })
   })
 
   it('refuses an allowance that is not a number, zero or more', () => {
-    expect(() => judgeScale(rungs([1, 1]), -0.1)).toThrow()
-    expect(() => judgeScale(rungs([1, 1]), Number.NaN)).toThrow()
+    const refusal = 'allowance must be a finite number, zero or more'
+    expect(() => judgeScale(rungs([1, 1]), -0.1)).toThrow(refusal)
+    expect(() => judgeScale(rungs([1, 1]), Number.NaN)).toThrow(refusal)
   })
 })
 
@@ -88,7 +102,13 @@ describe('a count a step decides', () => {
   })
 
   it('blocks when there is no expectation, or nothing was measured', () => {
-    expect(judgeCount(3, undefined).state).toBe('blocked')
-    expect(judgeCount(Number.NaN, expectation).state).toBe('blocked')
+    expect(judgeCount(3, undefined)).toEqual({
+      state: 'blocked',
+      reason: 'no expectation to compare with',
+    })
+    expect(judgeCount(Number.NaN, expectation)).toEqual({
+      state: 'blocked',
+      reason: 'the count was not measured',
+    })
   })
 })

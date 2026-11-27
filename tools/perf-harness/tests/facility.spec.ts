@@ -1,11 +1,21 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   affected,
+  baselineFile,
   baselineOf,
   compareCounts,
+  compareSteady,
   judged,
   outcomeOf,
   perf,
@@ -13,6 +23,8 @@ import {
   readResult,
   runPaired,
   select,
+  steadyOf,
+  unknown,
   type Control,
   type Gate,
   type Measured,
@@ -418,7 +430,15 @@ describe('the command line', () => {
       },
     })
     const prepare = (commit: string) => Promise.resolve(`/at/${commit}`)
-    const once = at((root, nth) => counts(root === '/at/cand' && nth === 1 ? 12 : 10))
+    const once = at((root, nth) => {
+      const first = root === '/at/cand' && nth === 1
+      return {
+        ...counts(first ? 12 : 10),
+        readings: counts(first ? 12 : 10).readings.map(reading =>
+          first && reading.kind === 'count' ? { ...reading, value: reading.value + 2 } : reading,
+        ),
+      }
+    })
     expect(
       await perf(
         ['compare', 'base', 'cand', 'a', '--counts-only'],
@@ -428,7 +448,7 @@ describe('the command line', () => {
     ).toBe(2)
     expect(places).toEqual(['/at/base', '/at/base', '/at/cand', '/at/cand'])
     expect(lines.join('\n')).toContain(
-      'Blocked: the candidate differs from itself in reads of one step: what moves between two runs of one commit is not a count of steps.',
+      'Blocked: the candidate differs from itself in commits of one step, reads of one step: what moves between two runs of one commit is not a count of steps.',
     )
     lines.length = 0
     places.length = 0
@@ -484,6 +504,68 @@ describe('the command line', () => {
       resultIn(join(full, 'a.full')),
     )
     expect(compared).toEqual({ state: 'refused', reason: 'the workloads differ' })
+  })
+
+  it('keeps the counts of a baseline by name, in one file for a suite and a tier, and reads no other schema', async () => {
+    const mixed = (): Measured => ({
+      ...counts(10),
+      readings: [
+        { name: 'z of one step', kind: 'count', unit: 'commits', value: 1 },
+        { name: 'a of one step', kind: 'count', unit: 'commits', value: 2 },
+        { name: 'k of one step', kind: 'count', unit: 'commits', value: 3 },
+        { name: 'b of one step', kind: 'clocked', unit: 'reads', value: 4 },
+      ],
+    })
+    const base = setting([suiteOf('a', mixed)])
+    const out = join(scratch, 'kept')
+    expect(await perf(['run', 'a', '--out', out, '--write-baseline'], base, io)).toBe(0)
+    const result = resultIn(join(out, 'a.short'))
+    const baseline = baselineOf(result)
+    if ('state' in baseline) throw new Error(baseline.reason)
+    expect(Object.keys(baseline.counts)).toEqual([
+      'a of one step',
+      'k of one step',
+      'z of one step',
+    ])
+    const file = baselineFile(base.baselines, 'a', 'short')
+    expect(file).toBe(join(base.baselines, 'a.short.json'))
+    expect(readBaseline(base.baselines, 'a', 'short')).toEqual(baseline)
+    const later = {
+      ...result,
+      readings: result.readings.map(reading => ({ ...reading, value: reading.value + 1 })),
+    }
+    expect(compareCounts(baseline, later)).toMatchObject({
+      state: 'different',
+      differences: [
+        { name: 'a of one step', base: 2, now: 3 },
+        { name: 'k of one step', base: 3, now: 4 },
+        { name: 'z of one step', base: 1, now: 2 },
+      ],
+    })
+    writeFileSync(file, JSON.stringify({ ...baseline, schema: 2 }))
+    expect(readBaseline(base.baselines, 'a', 'short')).toBeNull()
+  })
+
+  it('makes no baseline of a result whose commit is not known or whose tree was not clean, and says which', async () => {
+    const out = join(scratch, 'unfit')
+    await perf(['run', 'a', '--out', out], setting([suiteOf('a', () => counts(10))]), io)
+    const result = resultIn(join(out, 'a.short'))
+    const subject = result.environment.subject
+    const withSubject = (over: Partial<typeof subject>): Result => ({
+      ...result,
+      environment: { ...result.environment, subject: { ...subject, ...over } },
+    })
+    expect(baselineOf(withSubject({ commit: unknown('not a checkout') }))).toEqual({
+      state: 'blocked',
+      reason: 'the commit of the result is not known',
+    })
+    const unclean = {
+      state: 'blocked',
+      reason: 'the working tree was not clean: the result cannot be a baseline',
+    }
+    expect(baselineOf(withSubject({ dirty: true }))).toEqual(unclean)
+    expect(steadyOf('base', withSubject({ dirty: true }), result)).toEqual(unclean)
+    expect(compareSteady(withSubject({ dirty: true }), result, result)).toEqual(unclean)
   })
 
   it('compares two commits: the counts of each side, then timed rounds over the three sides', async () => {

@@ -88,6 +88,67 @@ describe('the verdict of a paired comparison', () => {
     expect(judgePaired(broken).state).toBe('insufficient')
   })
 
+  const steady = (self: number, candidate: number, base = 2): Round[] =>
+    Array.from({ length: MIN_ROUNDS }, () => ({ base, self, candidate }))
+
+  it('reads the middle half of each side against the base, the middle change and the least of each side', () => {
+    const measured = Array.from({ length: MIN_ROUNDS }, (_, round) => ({
+      base: 100,
+      self: 100 + round,
+      candidate: 120 + 2 * round,
+    }))
+    const verdict = judgePaired(measured)
+    expect(verdict.state).toBe('slower')
+    expect(verdict.reason).toBe('outside the noise and above the minimum change')
+    expect(verdict.noise?.low).toBeCloseTo(0.0225, 12)
+    expect(verdict.noise?.high).toBeCloseTo(0.0675, 12)
+    expect(verdict.change?.low).toBeCloseTo(0.245, 12)
+    expect(verdict.change?.high).toBeCloseTo(0.335, 12)
+    expect(verdict.median).toBeCloseTo(0.29, 12)
+    expect(verdict.least).toEqual({ base: 100, self: 100, candidate: 120 })
+    const quicker = measured.map(round => ({ ...round, base: 200, self: 200 - round.self + 100 }))
+    expect(judgePaired(quicker).least).toEqual({ base: 200, self: 191, candidate: 120 })
+    expect(judgePaired(quicker)).toMatchObject({
+      state: 'faster',
+      reason: 'outside the noise and above the minimum change',
+    })
+  })
+
+  it('calls a change that is exactly the minimum a change, and one that only touches the noise none', () => {
+    expect(judgePaired(steady(2, 3), 0.5)).toMatchObject({ state: 'slower', median: 0.5 })
+    expect(judgePaired(steady(2, 1), 0.5)).toMatchObject({ state: 'faster', median: -0.5 })
+    expect(judgePaired(steady(3, 3), 0.1)).toMatchObject({ state: 'insufficient' })
+    expect(judgePaired(steady(1, 1), 0.1)).toMatchObject({ state: 'insufficient' })
+  })
+
+  it('says unchanged with a band on the minimum change itself, and not with one beyond it on either side', () => {
+    const unchanged = {
+      state: 'unchanged',
+      reason: 'both bands lie inside the minimum change',
+    }
+    expect(judgePaired(steady(1, 2), 0.5)).toMatchObject(unchanged)
+    expect(judgePaired(steady(3, 2), 0.5)).toMatchObject(unchanged)
+    const lopsided = (self: number): Round[] =>
+      Array.from({ length: MIN_ROUNDS }, (_, round) => ({
+        base: 100,
+        self: round < 5 ? self : 100,
+        candidate: 100,
+      }))
+    const open = {
+      state: 'insufficient',
+      reason: 'the bands neither separate nor lie inside the minimum change',
+    }
+    expect(judgePaired(lopsided(10), 0.5)).toMatchObject(open)
+    expect(judgePaired(lopsided(190), 0.5)).toMatchObject(open)
+  })
+
+  it('says why the evidence is not enough before it reads anything', () => {
+    expect(judgePaired(rounds(MIN_ROUNDS - 1, 2, 0.001)).reason).toBe('fewer than 10 rounds')
+    expect(judgePaired([...steady(2, 2), { base: 0, self: 1, candidate: 1 }]).reason).toBe(
+      'a round has no positive time',
+    )
+  })
+
   it('asks for more rounds only while the verdict is open and the limit is not reached', () => {
     expect(wantsMore(judgePaired(rounds(MIN_ROUNDS, 1.06, 0.2)))).toBe(true)
     expect(wantsMore(judgePaired(rounds(MAX_ROUNDS, 1.06, 0.2)))).toBe(false)

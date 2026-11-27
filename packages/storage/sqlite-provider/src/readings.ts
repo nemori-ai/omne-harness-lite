@@ -37,7 +37,7 @@ function slotOf<T>(slots: Map<string, T>, key: string, empty: () => T): T {
 }
 
 const byKey = ([a]: readonly [string, unknown], [b]: readonly [string, unknown]): number =>
-  a < b ? -1 : a > b ? 1 : 0
+  a < b ? -1 : 1
 
 /** What the provider counted at its own port since it was created: only ever growing, read by taking a copy. */
 export class Readings {
