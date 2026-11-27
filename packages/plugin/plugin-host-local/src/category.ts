@@ -37,7 +37,8 @@ export const pluginCategoryDisplay: CategoryDisplay = Object.freeze({
   creation: '一个目录，根下有 plugin.json；清单里写到的文件与目录放在它旁边。',
   authoring: [
     'plugin.json, whole and minimal:',
-    '{"schema":1,"name":"brand-green","summary":"One sentence on what it does.","client":{"members":[{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"#0a7a4a"}}]}}',
+    '{"schema":1,"name":"brand-green","summary":"One sentence on what it does.","client":{"members":[{"point":"<point>","key":"<key>","data":{}}]}}',
+    'Fill <point>, <key> and the data from OmneExtensionPoints show <point>: it says whether plugins may put there and gives a member to copy.',
     'A manifest reads schema (always 1), name (lower-case letters, digits and hyphens), summary, client and server; kind is written by a skin alone (category skin). Other fields are not read.',
     'A member names a point and a key and gives exactly one of: data (a JSON value); module with export (a .js file in this directory and the name it exports); directory (a directory in this directory).',
     'Members of the interface go under client, members of the server under server. OmneExtensionPoints show with the name of a point says what that point takes and gives a member to copy.',
@@ -103,6 +104,14 @@ function judgeData(contract: BodyContract, data: unknown, key: string): Verdict 
   return judged.ok ? FIT : { unfit: `the category ${contract.category} says ${judged.rejected}` }
 }
 
+export function noMemberOf(category: string, creation: string): string | undefined {
+  if (category === PLUGIN_CATEGORY || category === SKIN_CATEGORY)
+    return `a plugin does not hold a ${category}`
+  if (creation === 'none')
+    return `the category ${category} is not created through the general entry`
+  return undefined
+}
+
 /** Judges one member that points at the point of a usable category, by the contract of that category. */
 async function judgeByCategory(
   listing: CategoryListing,
@@ -111,10 +120,8 @@ async function judgeByCategory(
   pkg: PackageReader,
 ): Promise<Verdict> {
   const { category, creation } = listing
-  if (category === PLUGIN_CATEGORY || category === SKIN_CATEGORY)
-    return { unfit: `a plugin does not hold a ${category}` }
-  if (creation === 'none')
-    return { unfit: `the category ${category} is not created through the general entry` }
+  const none = noMemberOf(category, creation)
+  if (none !== undefined) return { unfit: none }
   if (side === 'client')
     return {
       unfit: `the point of the category ${category} is on the server; write the member on the server side`,

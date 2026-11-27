@@ -93,9 +93,10 @@ export function createPluginContribution(
         const tenant = tenantText(body.tenant)
         const principal = await actingFor(principals, call.principal, tenant)
         if ('outcome' in principal) return principal
-        const { plugins, points, parts } = body
+        const { plugins, points, parts, handed } = body
         try {
-          const kept = reports.record(tenant, body.client, { plugins, points, parts })
+          const told = { plugins, points, parts, ...(handed !== undefined && { handed }) }
+          const kept = reports.record(tenant, body.client, told)
           return kept === 'kept' ? { outcome: 'succeeded', body: {} } : UNAVAILABLE
         } catch {
           return UNKNOWN

@@ -45,10 +45,34 @@ async function shown() {
   return t
 }
 
+/** A point a plugin draws on: one item for a key, the most specific counts, and the item is a drawing. */
+const takesDrawing = (
+  shell: {
+    described(): {
+      points: readonly {
+        name: string
+        contract: {
+          arity: string
+          resolve: string
+          item: { fields: Readonly<Record<string, string>> }
+        }
+      }[]
+    }
+  },
+  point: string,
+): boolean => {
+  const contract = shell.described().points.find(each => each.name === point)?.contract
+  return (
+    contract?.arity === 'keyed-one' &&
+    contract.resolve === 'most-specific' &&
+    contract.item.fields['render'] === 'function'
+  )
+}
+
 describe('the icons of the kit in the desktop shell', () => {
   it('the shell declares the point, takes drawings on it, and lists the names of the icons as its keys', async () => {
     const t = await setup({ login: 'signed-in' })
-    expect(t.service.takesDrawing('shell.icon')).toBe(true)
+    expect(takesDrawing(t.service, 'shell.icon')).toBe(true)
     const told = t.service.described().points.find(point => point.name === 'shell.icon')
     expect(told?.dataKeys?.map(key => key.name)).toEqual(iconNames())
     expect(told?.contract.example).toContain('"point":"shell.icon"')
@@ -137,7 +161,7 @@ describe('the icons of the kit in the desktop shell', () => {
 describe('the shared pieces of the kit in the desktop shell', () => {
   it('the shell declares the point and lists the pieces as its keys', async () => {
     const t = await setup({ login: 'signed-in' })
-    expect(t.service.takesDrawing('shell.piece')).toBe(true)
+    expect(takesDrawing(t.service, 'shell.piece')).toBe(true)
     const told = t.service.described().points.find(point => point.name === 'shell.piece')
     expect(told?.dataKeys?.map(key => key.name)).toEqual([...PIECES])
     expect(told?.contract.example).toContain('"point":"shell.piece"')

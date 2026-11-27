@@ -2,6 +2,7 @@ import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/co
 import {
   CATALOG,
   adopt,
+  ask,
   declare,
   list,
   standingOf,
@@ -16,9 +17,12 @@ import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import {
   changesOn,
+  GUEST_FORMS_POINT,
+  itemEntry,
   laidOut,
   layoutContract,
   layoutEntry,
+  pluginContracts,
   lookScope,
   RENDER_POINT,
   renderContract,
@@ -28,11 +32,14 @@ import {
   TOKENS_POINT,
   tokensContract,
   tokensEntry,
+  shellGuestForms,
   type Changes,
+  type ClientGuestForm,
   type Known,
   type Names,
   type PartStyle,
 } from './change.ts'
+import { GRANTS_ITSELF } from './closed.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
@@ -92,6 +99,7 @@ const offered = (name: string): Contract => ({
   key: 'none',
   gives: 'what the view module that declares it provides to other view modules',
   item: { kind: 'pure', fields: {} },
+  scopes: GRANTS_ITSELF,
   resolve: 'conflict',
   binding: 'run',
   onError: 'a module that needs it does without it, or is drawn as lacking it',
@@ -125,6 +133,7 @@ const CONTRACTS = [
   styleContract,
   renderContract,
   layoutContract,
+  ...pluginContracts,
 ]
 
 function checkedPart(declaration: PartDeclaration, host: string): Entry {
@@ -170,6 +179,11 @@ export abstract class ShellService extends Service implements ShellSlots {
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
     dynamis.put(CONTRACTS.map(contract => declare(contract)))
+    dynamis.put(
+      Object.entries(shellGuestForms).map(([point, item]) =>
+        itemEntry({ point: GUEST_FORMS_POINT, key: point }, item, [], 'shell'),
+      ),
+    )
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
@@ -238,8 +252,13 @@ export abstract class ShellService extends Service implements ShellSlots {
       points: declared
         .map(({ entry }) => {
           const dataKeys = this.dataKeysOf(entry.key)
+          const form = this.guestForm(entry.key)
           const told = { name: entry.key, summary: entry.item.summary, contract: entry.item }
-          return dataKeys === undefined ? told : { ...told, dataKeys }
+          return {
+            ...told,
+            ...(dataKeys !== undefined && { dataKeys }),
+            ...(form !== undefined && { form: { gives: form.gives, example: form.example } }),
+          }
         })
         .sort((left, right) => (left.name < right.name ? -1 : 1)),
       parts: (parts.kind === 'read' ? parts.parts : [])
@@ -254,13 +273,20 @@ export abstract class ShellService extends Service implements ShellSlots {
     }
   }
 
-  takesDrawing(point: string): boolean {
-    const standing = standingOf(this.registry(), point, [])
-    if (standing.kind !== 'declared') return false
-    const { arity, resolve, item } = standing.contract
-    return (
-      arity === 'keyed-one' && resolve === 'most-specific' && item.fields['render'] === 'function'
-    )
+  guestForm(point: string): ClientGuestForm | undefined {
+    const answer = ask<ClientGuestForm>(this.registry(), GUEST_FORMS_POINT, point, [])
+    return answer.kind === 'one' ? answer.entry.item : undefined
+  }
+
+  putItem(
+    spot: Readonly<{ point: string; key: string; id?: string; rank?: number }>,
+    item: object,
+    scope: Scope = [],
+    code = false,
+  ): () => unknown {
+    return this.ctx.dynamis.put(instance => [
+      itemEntry(spot, item, scope, code ? `${instance.fiber}#${instance.generation}` : undefined),
+    ])
   }
 
   putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {

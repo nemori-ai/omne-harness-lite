@@ -21,13 +21,19 @@ export type PointRules = Readonly<{
   version: number
   revision: number
   example: string | null
+  scopes?: Readonly<{ only: 'deployment'; why: string; note: string }>
 }>
+
+export type Admission =
+  | Readonly<{ open: true; way: 'data' | 'directory' | 'code'; category?: string }>
+  | Readonly<{ open: false; reason: string }>
 
 export type ClientPoint = Readonly<{
   name: string
   summary: string
   contract?: PointRules
   dataKeys?: readonly Readonly<{ name: string; now: string | null }>[]
+  form?: Readonly<{ gives: string; example: string }>
 }>
 
 export type ClientTree = Readonly<{
@@ -45,7 +51,9 @@ export type ClientTree = Readonly<{
     version: string
     state: 'loaded' | 'failed' | 'held'
     reason: string | null
+    waiting?: readonly string[]
   }>[]
+  handed?: readonly string[]
 }>
 
 /** The extension trees one call can see. The scope of the asker comes from the binding, for the acting tenant; the model cannot give it. */
@@ -56,6 +64,7 @@ export type ExtensionSight = Readonly<{
   /** The clients of this tenant connected now: empty when none is; unavailable when they cannot be read. */
   clients(): readonly ClientTree[] | 'unavailable'
   revisions: Revisions
+  admission?(side: 'server' | 'client', name: string, rules: PointRules, form: boolean): Admission
 }>
 
 /** Keyed by the call's abort signal: a checkpoint segment gets a narrowed context that keeps it. */

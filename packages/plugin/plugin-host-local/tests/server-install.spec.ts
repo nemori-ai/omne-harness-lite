@@ -4,17 +4,31 @@ import {
   type ServerInstallPorts,
   type ServerPoint,
 } from '@omne-harness/plugin-host-local'
-import { memberDigest, type Member, type Wanted } from '@omne-harness/plugin-protocol'
+import {
+  memberDigest,
+  type Member,
+  type PointRules,
+  type Wanted,
+} from '@omne-harness/plugin-protocol'
 import { describe, expect, it } from 'vitest'
 
 const SCOPE = ['tenant', 'alice'] as const
-const DATA: ServerPoint = { kind: 'takes', takes: 'data', when: 'running' }
-const CODE: ServerPoint = { kind: 'takes', takes: 'code', when: 'running' }
+const rules = (kind: 'data' | 'pure', binding: 'run' | 'build' = 'run'): PointRules => ({
+  binding,
+  item: { kind, fields: kind === 'data' ? { colour: 'string' } : { greet: 'function' } },
+})
+const DATA: ServerPoint = { kind: 'point', rules: rules('data') }
+const CODE: ServerPoint = { kind: 'point', rules: rules('pure') }
 const POINTS: Readonly<Record<string, ServerPoint>> = {
   'notes.labels': DATA,
   'notes.greeters': CODE,
-  'notes.pages': { kind: 'takes', takes: 'data', when: 'build' },
-  'skill.skills': { kind: 'category', place: directory => ({ within: directory }) },
+  'notes.pages': { kind: 'point', rules: rules('data', 'build') },
+  'skill.skills': {
+    kind: 'category',
+    category: 'skill',
+    takes: 'directory',
+    place: directory => ({ within: directory }),
+  },
 }
 const FILES = [{ path: 'greet.js', digest: 'sha256:g' }]
 const LABEL: Member = { point: 'notes.labels', key: 'urgent', data: { colour: 'red' } }
@@ -145,7 +159,7 @@ describe('the members a plugin writes for the server, put by the loader', () => 
     [
       'data on the point of a category',
       { point: 'skill.skills', key: 'k', data: 1 },
-      'member 1 (skill.skills k): the point of a category takes a directory; this member gives data',
+      'member 1 (skill.skills k): the point takes a directory; this member gives data',
     ],
     [
       'a file the package does not have',
@@ -183,6 +197,8 @@ describe('the members a plugin writes for the server, put by the loader', () => 
         name === 'skill.skills'
           ? {
               kind: 'category',
+              category: 'skill',
+              takes: 'directory',
               place: () => {
                 throw new Error('skill is not there now')
               },
@@ -195,12 +211,18 @@ describe('the members a plugin writes for the server, put by the loader', () => 
     expect(w.placed).toEqual([])
   })
 
-  it('refuses code for a point that takes no code from a plugin', async () => {
+  it('without a guest form, code goes the generic way: a function fills the one field that is a function', async () => {
+    const greet = () => 'hello'
+    const w = world({ guestForm: () => undefined, load: async () => ({ make: () => greet }) })
+    expect(await w.install(wanted(GREETER))).toMatchObject({ kind: 'installed' })
+    expect(w.placed[0]?.[0]?.item).toEqual({ greet })
+  })
+
+  it('without a guest form, what the code gave that is no item of the point fails the plugin, saying what it asks for', async () => {
     const w = world({ guestForm: () => undefined })
     expect(await reasonOf(w, GREETER)).toBe(
-      'member 1 (notes.greeters hello): the point takes no code from a plugin',
+      'member 1 (notes.greeters hello): what was given is not an item of the point, which asks for greet',
     )
-    expect(w.loaded).toEqual([])
   })
 
   it('refuses two members at one place', async () => {
@@ -267,7 +289,7 @@ describe('the members a plugin writes for the server, put by the loader', () => 
       ...wanted(LABEL, GREETER),
       needs: ['notifications', 'store'],
     })
-    expect(outcome).toEqual({ kind: 'waiting', lacks: ['port store'] })
+    expect(outcome).toEqual({ kind: 'waiting', lacks: [{ kind: 'port', name: 'store' }] })
     expect(asked).toEqual([['notifications', 'store']])
     expect(w.loaded).toEqual([])
     expect(w.placed).toEqual([])
@@ -343,7 +365,7 @@ describe('a plugin that lacks only what is not there now waits; anything else wr
     const w = world()
     expect(await w.install(wanted(GREETER, ABSENT))).toEqual({
       kind: 'waiting',
-      lacks: ['point notes.none'],
+      lacks: [{ kind: 'point', name: 'notes.none' }],
     })
     expect(w.loaded).toEqual([])
     expect(w.placed).toEqual([])
@@ -354,7 +376,10 @@ describe('a plugin that lacks only what is not there now waits; anything else wr
     const twice: Member = { point: 'notes.none', key: 'other', data: 2 }
     expect(await w.install({ ...wanted(ABSENT, twice), needs: ['store'] })).toEqual({
       kind: 'waiting',
-      lacks: ['port store', 'point notes.none'],
+      lacks: [
+        { kind: 'port', name: 'store' },
+        { kind: 'point', name: 'notes.none' },
+      ],
     })
   })
 

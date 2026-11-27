@@ -112,7 +112,7 @@ describe('what the release brings is on the points of the categories', () => {
           named('AgentDefinition', ['assistant', 'coding', 'examiner']),
         )
         expect(official('skill').sort()).toEqual(
-          named('skill', ['skill-authoring', 'skin-authoring']),
+          named('skill', ['extending-the-app', 'skill-authoring', 'skin-authoring']),
         )
         const tools = official('tool')
         expect(tools).toHaveLength(21)

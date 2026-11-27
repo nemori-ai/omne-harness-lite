@@ -4,9 +4,8 @@ export {
   extensionPointsExecutor,
   extensionPointsToolModule,
 } from './author.ts'
-export { SHELL_MEMBERS } from './client.ts'
 export { attachExtensionSight, extensionSightOf } from './port.ts'
-export type { ClientTree, ExtensionSight } from './port.ts'
+export type { Admission, ClientTree, ExtensionSight, PointRules } from './port.ts'
 export {
   extensionPointsAdoption,
   extensionPointsCommandNames,

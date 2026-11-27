@@ -489,6 +489,11 @@ const entrySourcesContract: Contract = Object.freeze({
   revision: 2,
   keys: 'public',
   conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The tool catalog asks this point for the whole deployment, not for the tenant who calls, so a source a tenant put here would not be offered.',
+  } as const,
   summary:
     'The sources of tool entries besides the binding registry: each item lists, selects and executes the entries under one name prefix.',
 })

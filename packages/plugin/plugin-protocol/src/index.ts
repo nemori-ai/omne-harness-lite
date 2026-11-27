@@ -37,7 +37,9 @@ export {
 } from './plugin-protocol.ts'
 export {
   UNWANTED,
+  lacksText,
   stepSide,
+  type Absent,
   type SideEffect,
   type SideEvent,
   type SideState,
@@ -60,6 +62,17 @@ export {
   type Outcome,
 } from './loader.ts'
 export { wantedOf, type Offered, type Wanted } from './wanted.ts'
+export {
+  genericItem,
+  judgeMember,
+  reasonText,
+  wayOf,
+  type Judgment,
+  type PointRules,
+  type Reason,
+  type Target,
+  type Way,
+} from './judge-member.ts'
 export {
   bindPorts,
   type Bound,

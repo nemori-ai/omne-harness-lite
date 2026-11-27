@@ -2,6 +2,7 @@ import type { CategoryEffect, PublishContent } from '@omne-harness/assets'
 import {
   IMAGE_SUFFIXES,
   MANIFEST_FILE,
+  lacksText,
   readManifest,
   type Kept,
   type PluginManifest,
@@ -23,6 +24,7 @@ export type ToldByClient = Readonly<{
     version: string
     state: 'loaded' | 'failed' | 'held'
     reason: string | null
+    waiting?: readonly string[]
   }>[]
 }>
 
@@ -33,12 +35,12 @@ export type PluginEffectPorts = Readonly<{
   clients(tenant: string): readonly ToldByClient[] | undefined
   /** How the server stands with each plugin of one tenant, by name; null when this tree loads no plugin on the server. */
   server(tenant: string): ReadonlyMap<string, Kept> | null
-  lockedBy?(tenant: string, point: string, key: string): string | undefined
+  lockedBy?(tenant: string, point: string, key: string, id: string): string | undefined
 }>
 
 function serverTold(kept: Kept | undefined, held: string): ServerTold {
   if (kept === undefined || `sha256:${kept.version}` !== held) return { state: null, reason: null }
-  if (kept.kind === 'waiting') return { state: 'waiting', reason: kept.lacks.join(', ') }
+  if (kept.kind === 'waiting') return { state: 'waiting', reason: lacksText(kept.lacks) }
   return { state: kept.kind, reason: kept.kind === 'failed' ? kept.reason : null }
 }
 
@@ -121,6 +123,8 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
 function toldOf(clients: readonly ToldByClient[], name: string, version: string) {
   return clients.map(({ client, plugins }) => {
     const one = plugins.find(each => each.name === name && `sha256:${each.version}` === version)
+    if (one?.waiting !== undefined)
+      return { client, state: 'waiting' as const, reason: one.waiting.join(', ') }
     return { client, state: one?.state ?? null, reason: one?.reason ?? null }
   })
 }
@@ -152,7 +156,7 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           serverLoads: ports.server(tenant) !== null,
           ...(ports.lockedBy === undefined
             ? {}
-            : { lockedBy: (point, key) => ports.lockedBy?.(tenant, point, key) }),
+            : { lockedBy: (point, key, id) => ports.lockedBy?.(tenant, point, key, id) }),
         })
         const advice = joined([
           unreadAdvice(unread),

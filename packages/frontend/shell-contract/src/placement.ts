@@ -8,7 +8,9 @@ import {
   type Instance,
   type Placed,
   type Registry,
+  type Scopes,
 } from '@omne-harness/dynamis'
+import { NO_TENANT, READ_FOR_ALL } from './closed.ts'
 import type { AttachedItem, ItemOf, SlotConflict, SlotName } from './slots.ts'
 
 const POINT = {
@@ -37,7 +39,7 @@ const SHARED = {
 } as const
 
 /** The six places of the shell itself. What they hold is fixed when the application is built. */
-export const shellContracts: readonly Contract[] = [
+const places: readonly Contract[] = [
   {
     ...SHARED,
     name: POINT.gate,
@@ -107,6 +109,11 @@ export const shellContracts: readonly Contract[] = [
   },
 ]
 
+export const shellContracts: readonly Contract[] = places.map(contract => ({
+  ...contract,
+  scopes: contract.name === POINT.gate ? NO_TENANT : READ_FOR_ALL,
+}))
+
 export const actionsContract: Contract = {
   ...SHARED,
   name: POINT.actions,
@@ -114,6 +121,7 @@ export const actionsContract: Contract = {
   item: { kind: 'pure', fields: { available: 'function', run: 'function' } },
   gives: 'nothing: an action asks what it needs when it runs',
   binding: 'run',
+  scopes: READ_FOR_ALL,
   onError: 'the action is not run, and the person is told why',
   summary:
     'The shell actions by name: what a key, the palette and a button run. A module puts its own; they leave with it.',
@@ -126,6 +134,7 @@ export const keymapContract: Contract = {
   item: { kind: 'pure', fields: { changes: 'function', subscribe: 'function' } },
   gives: 'nothing',
   binding: 'run',
+  scopes: READ_FOR_ALL,
   onError: 'the keys are the ones the actions come with',
   summary:
     "The account's changes to the keys of the actions: what the dispatcher and the palette read.",
@@ -144,6 +153,7 @@ export function pointContract(
     key: keyed ? (words.key ?? 'the key the host shows') : SHARED.key,
     gives: 'the tenant scope and the subject the host shows',
     binding: 'run',
+    scopes: READ_FOR_ALL,
     onError: 'only this item shows that it cannot be read',
     summary: words.summary ?? `The point ${name}.`,
   }
@@ -155,6 +165,7 @@ export type DrawingWords = Readonly<{
   summary: string
   subject?: string
   example?: string
+  scopes?: Scopes
 }>
 
 export function drawingContract(words: DrawingWords): Contract {
