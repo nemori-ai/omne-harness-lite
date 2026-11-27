@@ -1,4 +1,10 @@
 import type { Answer, Contract, Entry } from '@omne-harness/dynamis'
+/** What the connection lends the modules of this tree: a plugin cannot grant itself a protocol or a view of the server. */
+const GRANTS_ITSELF = Object.freeze({
+  only: 'deployment',
+  why: 'grants-itself',
+  note: 'The connection lends these to the modules of this tree; a plugin cannot put what decides what it may call.',
+} as const)
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { keyText, type ProtocolKey, type ProtocolStanding } from './availability.ts'
@@ -24,6 +30,7 @@ export const protocolsContract: Contract = Object.freeze({
   revision: 1,
   keys: 'private',
   conformance: null,
+  scopes: GRANTS_ITSELF,
   summary: 'The protocols this client can call now: served by the server, and held by this client.',
 })
 
@@ -53,6 +60,7 @@ export const serverPointsContract: Contract = Object.freeze({
   revision: 1,
   keys: 'private',
   conformance: null,
+  scopes: GRANTS_ITSELF,
   summary:
     'What the server tells of its own tree: the keys now on each point that makes them public.',
 })

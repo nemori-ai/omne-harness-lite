@@ -110,17 +110,32 @@ describe('putting the members of one plugin on the points', () => {
   })
 
   it('fails as a whole when the rules of a point do not take one member, and says which and why', async () => {
-    const nowhere: Member = { ...red, key: 'notes.nowhere' }
-    expect(await failure(brand(red, nowhere))).toBe(
-      `${STYLE_POINT} notes.nowhere: no part is declared as notes.nowhere`,
+    const lone: Member = { point: STYLE_POINT, key: 'shell.app', data: { base: { color: 'red' } } }
+    expect(await failure(brand(red, lone))).toBe(
+      `${STYLE_POINT} shell.app: the part shell.app does not open style`,
     )
+  })
+
+  it('waits, and puts nothing, when what it lacks is only parts and points not declared now', async () => {
+    const t = await world()
+    const nowhere: Member = { ...red, key: 'notes.nowhere' }
+    const board: Member = { point: 'notes.board', key: 'pins', data: {} }
+    expect(await t.install(brand(red, nowhere))).toEqual({
+      kind: 'waiting',
+      lacks: [{ kind: 'reference', name: 'notes.nowhere' }],
+    })
+    expect(await t.install(brand(red, board))).toEqual({
+      kind: 'waiting',
+      lacks: [{ kind: 'point', name: 'notes.board' }],
+    })
+    expect(t.standing()).toEqual([])
   })
 
   it.each([
     [
-      'a point that takes no data from a plugin',
-      { point: 'session.tool-call', key: 'web', data: {} },
-      'member 2 (session.tool-call web): the point takes no data from a plugin',
+      'data on a point that takes code',
+      { point: 'shell.part-render', key: 'notes.send', data: {} },
+      'member 2 (shell.part-render notes.send): the point takes code; this member gives data',
     ],
     [
       'tokens that are not a record',

@@ -49,6 +49,11 @@ export const canvasKindsContract: Contract = Object.freeze({
   revision: 1,
   keys: 'public',
   conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The canvas asks this point for the whole deployment, not for the tenant who draws, so a kind a tenant put here would not be drawn.',
+  } as const,
   summary:
     'The kinds that may be put on the canvas: each item is the one declaration of a kind, with an optional admit asked before a reference of it is put on.',
 })

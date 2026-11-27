@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { heldPoint } from '@omne-harness/assets'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
-import { pluginProtocol } from '@omne-harness/plugin-protocol'
+import { pluginProtocol, type ReportedPoint } from '@omne-harness/plugin-protocol'
 import { createClient } from '@omne-harness/sdk/core'
 import { describe, expect, it } from 'vitest'
 import { savedTenant } from '../../r9/support.ts'
@@ -25,9 +25,54 @@ import {
 
 const call = (command: string, params: unknown) => JSON.stringify({ command, params })
 
+/** A point of a client that opens one depth of the parts, told the way a client tells its rules. */
+const depth = (
+  name: string,
+  field: string,
+  kind: 'data' | 'pure',
+  example: string,
+): ReportedPoint => ({
+  name,
+  summary: `The ${field} of one part.`,
+  contract: {
+    arity: 'keyed-one',
+    keyFrom: 'shell.parts',
+    key: 'the name of a part',
+    gives: `the ${field} of the part`,
+    item: { kind, fields: [{ name: field, kind: kind === 'data' ? 'object' : 'function' }] },
+    resolve: 'most-specific',
+    binding: 'run',
+    onError: 'the part is drawn as it shipped',
+    version: 1,
+    revision: 1,
+    example,
+  },
+})
+
 const REPORT = {
   plugins: [],
-  points: [{ name: 'session.tool-call', summary: 'How one tool call is drawn.' }],
+  handed: ['React', 'React.createElement', 'ui', 'ui.Button', 'shell', 'shell.tenant'],
+  points: [
+    { name: 'session.tool-call', summary: 'How one tool call is drawn.' },
+    depth(
+      'shell.tokens',
+      'tokens',
+      'data',
+      '{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"#0a7a4a"}}',
+    ),
+    depth(
+      'shell.part-style',
+      'style',
+      'data',
+      '{"point":"shell.part-style","key":"session.composer","data":{"base":{"opacity":"0.9"}}}',
+    ),
+    depth(
+      'shell.part-render',
+      'render',
+      'pure',
+      '{"point":"shell.part-render","key":"session.composer","module":"draw.js","export":"draw"}',
+    ),
+  ],
   parts: [
     {
       name: 'session.composer',
@@ -52,6 +97,7 @@ const STEPS: Readonly<Record<string, readonly [string, unknown]>> = {
   'points: client tree': ['tree', { side: 'client' }],
   'points: find': ['find', { query: '发送按钮' }],
   'points: show part': ['show', { name: 'session.composer.send' }],
+  'points: show render': ['show', { name: 'shell.part-render' }],
   'points: show point': ['show', { name: 'plugin.plugins' }],
   'points: show nothing': ['show', { name: 'session.composer.sned' }],
   'points: changes': ['changes', {}],
@@ -122,6 +168,11 @@ describe('OmneExtensionPoints on the release tree', () => {
         expect(part).toContain('"point":"shell.part-style","key":"session.composer.send"')
         expect(part).toContain('"point":"shell.part-render","key":"session.composer.send"')
         expect(part).toContain('输入区')
+
+        const render = await ask('points: show render')
+        expect(render).toContain(
+          'your code is called with one object: React (createElement); ui (Button); shell (tenant)',
+        )
 
         const before = await ask('points: show point')
         expect(before).toContain('plugin.plugins')

@@ -47,6 +47,7 @@ export type LoadReport = Readonly<{
   version: string
   state: 'loaded' | 'failed' | 'held'
   reason: string | null
+  waiting?: readonly string[]
 }>
 
 export type ClientReport = Readonly<{
@@ -59,6 +60,7 @@ export type ClientReport = Readonly<{
     depths: readonly ('tokens' | 'style' | 'render')[]
     within: string | null
   }>[]
+  handed?: readonly string[]
 }>
 
 export type ReportedClient = ClientReport & Readonly<{ client: string }>

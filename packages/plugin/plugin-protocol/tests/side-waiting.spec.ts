@@ -5,12 +5,13 @@ import {
   standingOf,
   stepSide,
   UNWANTED,
+  type Absent,
   type Outcome,
   type SideEvent,
   type SideState,
 } from '@omne-harness/plugin-protocol'
 
-const LACKS = ['port store']
+const LACKS: readonly Absent[] = [{ kind: 'port', name: 'store' }]
 const waiting = (version: string): SideState => ({ kind: 'waiting', version, lacks: LACKS })
 const loading = (version: string, more: object = {}): SideState => ({
   kind: 'loading',

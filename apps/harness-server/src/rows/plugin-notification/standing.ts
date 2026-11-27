@@ -55,7 +55,7 @@ export function createFirstSeen(now: () => string): FirstSeen {
 
 type Failed = Readonly<{ plugin: string; clients: number; held: boolean; reason: string | null }>
 
-/** A plugin counts as failed where a client says so of the version the tenant holds now. */
+/** A plugin counts as failed where a client says so of the version the tenant holds now; one that waits is not failed. */
 function failedOf(plugins: readonly ListedPlugin[], clients: readonly ReportedClient[]): Failed[] {
   return plugins
     .filter(plugin => plugin.enabled)
@@ -65,7 +65,8 @@ function failedOf(plugins: readonly ListedPlugin[], clients: readonly ReportedCl
           report =>
             report.name === plugin.name &&
             `sha256:${report.version}` === plugin.held.version &&
-            report.state !== 'loaded',
+            report.state !== 'loaded' &&
+            report.waiting === undefined,
         ),
       )
       const [first] = told

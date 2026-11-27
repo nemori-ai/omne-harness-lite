@@ -8,6 +8,7 @@ import {
   type Scope,
 } from '@omne-harness/dynamis'
 import { PART_ATTRIBUTE, PARTS_POINT, partsOn, type DeclaredPart, type PartRender } from './part.ts'
+import { GRANTS_ITSELF } from './closed.ts'
 import type { DrawingSource } from './point.ts'
 
 export const TOKENS_POINT = 'shell.tokens'
@@ -54,6 +55,7 @@ export type Refused = Readonly<{
   by: string
   scope: Scope
   reason: string
+  absent?: string
 }>
 
 export type Conflict = Readonly<{ point: string; key: string; by: readonly string[] }>
@@ -306,6 +308,7 @@ type Kind<I> = Readonly<{
   point: string
   fault: (key: string, item: I, parts: readonly DeclaredPart[], tokens: Tokens) => string | null
   builtIn?: (item: I) => boolean
+  onParts?: true
 }>
 
 function partFaultOf(key: string, depth: string, parts: readonly DeclaredPart[]): string | null {
@@ -435,28 +438,32 @@ function layoutFault(key: string, item: LayoutItem): string | null {
 
 const TOKENS: Kind<TokensItem> = {
   point: TOKENS_POINT,
+  onParts: true,
   fault: (key, item, parts, tokens) =>
     partFaultOf(key, 'tokens', parts) ?? tokensFault(item, tokens),
   builtIn: item => item.builtIn === true,
 }
 const STYLE: Kind<StyleItem> = {
   point: STYLE_POINT,
+  onParts: true,
   fault: (key, item, parts) => partFaultOf(key, 'style', parts) ?? styleFault(item),
 }
 const RENDER: Kind<RenderItem> = {
   point: RENDER_POINT,
+  onParts: true,
   fault: (key, _item, parts) => partFaultOf(key, 'render', parts),
 }
 const LAYOUT: Kind<LayoutItem> = { point: LAYOUT_POINT, fault: layoutFault }
 
 const placeOf = (out: Refused): string => `${out.point}\n${out.key}\n${out.by}`
 
-const refusal = (entry: Placed, reason: string): Refused => ({
+const refusal = (entry: Placed, reason: string, absent?: string): Refused => ({
   point: entry.point,
   key: entry.key,
   by: entry.instance.fiber,
   scope: entry.scope,
   reason,
+  ...(absent !== undefined && { absent }),
 })
 
 type Found = { standing: Standing[]; refused: Refused[]; conflicts: Conflict[] }
@@ -478,7 +485,8 @@ function standingOn<I>(kind: Kind<I>, asked: Asked): Map<string, I> {
   found.refused.push(...read.filtered.map(out => refusal(out.entry, out.detail)))
   const sound = read.entries.filter(entry => {
     const fault = kind.fault(entry.key, entry.item, asked.parts, asked.tokens)
-    if (fault !== null) found.refused.push(refusal(entry, fault))
+    const absent = kind.onParts && !asked.parts.some(part => part.name === entry.key)
+    if (fault !== null) found.refused.push(refusal(entry, fault, absent ? entry.key : undefined))
     return fault === null
   })
   for (const key of new Set(sound.map(entry => entry.key))) {
@@ -549,4 +557,90 @@ export function laidOut<T extends Readonly<{ id: string }>>(
   if (order === undefined) return items
   const named = order.flatMap(id => items.filter(item => item.id === id))
   return [...named, ...items.filter(item => !order.includes(item.id))]
+}
+
+export const GUEST_FORMS_POINT = 'plugin.guest-forms'
+
+const lent = (name: string, key: string, field: string, summary: string): Contract => ({
+  name,
+  tree: 'client',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key,
+  gives: 'nothing',
+  item: { kind: 'pure', fields: { [field]: 'function' } },
+  resolve: 'conflict',
+  binding: 'build',
+  onError: 'what is not there is not lent',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  scopes: GRANTS_ITSELF,
+  summary,
+})
+
+export const pluginContracts: readonly Contract[] = [
+  lent(
+    'plugin.ports',
+    'the name of a port, as a plugin writes it in needs',
+    'make',
+    'The ports this tree lends to the code of plugins. A plugin names the ones it uses in needs.',
+  ),
+  lent(
+    GUEST_FORMS_POINT,
+    'the name of the point whose items its host makes from what a member gives',
+    'form',
+    'How the host of a point makes one item of it from what a member of a plugin gives: data or what the code gave.',
+  ),
+]
+
+export type GuestFormContext = Readonly<{ key: string; files?: string }>
+
+export type ClientGuestForm = Readonly<{
+  form: (given: unknown, context: GuestFormContext) => object
+  gives: string
+  example: string
+}>
+
+const isEntries = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function recordUnder(field: string, refusal: string): ClientGuestForm['form'] {
+  return (given, { files }) => {
+    if (!isEntries(given)) throw new Error(refusal)
+    return { [field]: given, ...(files !== undefined && { files }) }
+  }
+}
+
+export const shellGuestForms: Readonly<Record<string, ClientGuestForm>> = {
+  [TOKENS_POINT]: {
+    form: recordUnder('tokens', 'the data is not a record of names and values'),
+    gives: 'data: a record of token names and their values',
+    example: tokensContract.example ?? '',
+  },
+  [STYLE_POINT]: {
+    form: recordUnder('style', 'the data is not a record of states and declarations'),
+    gives: 'data: a record of states (base, hover, …) and their declarations',
+    example: styleContract.example ?? '',
+  },
+  [LAYOUT_POINT]: {
+    form: given => {
+      if (!Array.isArray(given)) throw new Error('the data is not a list of ids')
+      return { order: given }
+    },
+    gives: 'data: the ids of the pages, the first ones first',
+    example: layoutContract.example ?? '',
+  },
+}
+
+export function itemEntry(
+  spot: Readonly<{ point: string; key: string; id?: string; rank?: number }>,
+  item: object,
+  scope: Scope,
+  by: string | undefined,
+): Entry {
+  const { point, key, id = '', rank = 0 } = spot
+  const digest = by ?? JSON.stringify(ordered(item))
+  return { point, key, id, scope, rank, digest, item }
 }

@@ -3,6 +3,7 @@ import {
   fiberOf,
   heldOf,
   standingOf,
+  type Absent,
   type FloorPort,
   type Kept,
   type Loader,
@@ -14,7 +15,7 @@ export type ServerSidePorts = Readonly<{
   floor: FloorPort
   /** Loads one plugin of one tenant: the outcome takes it back when it is loaded. */
   install(tenant: string, wanted: Wanted): Promise<Outcome>
-  present?(tenant: string, lacks: readonly string[]): boolean
+  present?(tenant: string, lacks: readonly Absent[]): boolean
 }>
 
 export type ServerSide = Readonly<{

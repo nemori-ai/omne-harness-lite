@@ -50,10 +50,10 @@ export function pluginEffectPorts(ctx: Context): PluginEffectPorts {
       const loading = ctx.get(pluginServerKey) as PluginServerService | undefined
       return loading === undefined ? null : (loading.states(tenant) ?? new Map())
     },
-    lockedBy: (tenant, point, key) => {
+    lockedBy: (tenant, point, key, id) => {
       const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
       if (registry === undefined) return undefined
-      return lockOver(registry, point, key, scopeOfLayer('tenant', tenant))?.fiber
+      return lockOver(registry, point, key, id, scopeOfLayer('tenant', tenant))?.fiber
     },
   }
 }
