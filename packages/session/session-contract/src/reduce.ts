@@ -257,8 +257,12 @@ function applyRunTerminal(
   if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
   if (hasUnansweredCalls(draft))
     return 'a terminal while a tool call of the Run has no tool message'
+  const closed = {
+    terminal: entry.terminal,
+    ...(entry.bounded?.kind === 'uninterpretable' ? { uninterpretable: true as const } : {}),
+  }
   draft.executions = (draft.executions ?? []).map(item =>
-    item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+    item.run === entry.terminal.run ? { ...item, ...closed } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
   if (draft.deferredInputs !== undefined) {

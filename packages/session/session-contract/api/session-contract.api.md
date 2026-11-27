@@ -4217,8 +4217,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b3e7b4b95fb7f9215ad26a8cf985bae945c27f7cd14f925c871e28c863655a7f";
-export declare const SESSION_RELEASE_DIGEST = "sha256:b3e7b4b95fb7f9215ad26a8cf985bae945c27f7cd14f925c871e28c863655a7f";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:68b63f3076d12dd7f1b4f01a62896d71fb0937ca6effc5dd687aa5033180c15e";
+export declare const SESSION_RELEASE_DIGEST = "sha256:68b63f3076d12dd7f1b4f01a62896d71fb0937ca6effc5dd687aa5033180c15e";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5931,6 +5931,7 @@ export type RunExecution = Readonly<{
     run: RunId;
     execution: ExecutionRef;
     terminal: RunTerminal | null;
+    uninterpretable?: true;
 }>;
 export type ContextScopeBinding = Readonly<{
     generation: string;

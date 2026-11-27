@@ -634,7 +634,7 @@ async function forkSource(port: ScenePort, child: SessionAccess<string>) {
 
 export type SqlScene = Awaited<ReturnType<typeof sqlScene>>
 
-export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
+export function handed(s: SqlScene, id: string, receipt: DurableEvidence, label = id) {
   return s.port.commit({
     access: s.sessionAccess,
     command: {
@@ -642,7 +642,7 @@ export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
       input: {
         tenant: s.access.tenant,
         session: s.access.session,
-        operation: operationId(`handed-${id}`),
+        operation: operationId(`handed-${label}`),
         fact: {
           kind: 'input-handover',
           input: id as never,

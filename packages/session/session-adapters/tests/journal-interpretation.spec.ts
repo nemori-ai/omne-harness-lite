@@ -641,6 +641,27 @@ describe('an event that Session can never take', () => {
     expect(f.sent).toHaveLength(1)
   })
 
+  it('the next Run starts and takes the input along: Session owes no reading to the execution it closed', async () => {
+    const f = await interpreted('ad02-uninterpretable-successor')
+    f.script.push(async () => fail(gone))
+    await started(f.s, f.c.journal())
+    await vi.waitFor(async () => expect(await terminalOf(f.s)).not.toBeNull(), { timeout: 5000 })
+    const left = (await work(f.s)).pending
+    expect(left).toHaveLength(1)
+    const next = await nextRun(f.s, 2)
+    expect(next.execution).not.toBe(f.s.execution)
+    const { run } = await work(f.s)
+    expect(run.kind === 'active' ? run.initial.slice(0, 1) : null).toEqual(left)
+    const journal = f.c.journal()
+    const opened = ok(await journal.open(next.openInput))
+    ok(await handed(next, String(next.initial.id), opened.receipt.evidence, 'again'))
+    await take(next, journal)
+    await vi.waitFor(async () => expect(await readThroughOf2(f.s, next.execution)).toBe('1'), {
+      timeout: 5000,
+    })
+    expect((await work(f.s)).taken).toEqual(left)
+  })
+
   it('the close that meets a change comes again: the event is sent once more and the Run closes', async () => {
     const f = await interpreted('ad02-uninterpretable-changed')
     for (let n = 0; n < 4; n += 1) f.script.push(async () => fail(gone))

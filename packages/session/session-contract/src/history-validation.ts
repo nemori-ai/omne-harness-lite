@@ -272,7 +272,8 @@ export function requirePrepared(context: HistoryContext, scope: SessionInputScop
       boundary.ended === null
         ? BigInt(boundary.emittedThrough)
         : BigInt(boundary.ended.sequence) - 1n
-    if (BigInt(boundary.readThrough) < upper) requireObservedTail(context, boundary, upper)
+    if (BigInt(boundary.readThrough) < upper && !readNoMore(context.snapshot, boundary.run))
+      requireObservedTail(context, boundary, upper)
     for (const batch of context.index.batches.filter(
       item =>
         item.execution === execution &&
@@ -341,6 +342,10 @@ export function originalBatch(
 
 function failedRun(snapshot: WorkSnapshot, run: RunId): boolean {
   return snapshot.executions?.find(item => item.run === run)?.terminal?.outcome === 'failed'
+}
+
+function readNoMore(snapshot: WorkSnapshot, run: RunId): boolean {
+  return snapshot.executions?.find(item => item.run === run)?.uninterpretable === true
 }
 
 function retakenAfterFailure(snapshot: WorkSnapshot, one: RunId, other: RunId): boolean {
