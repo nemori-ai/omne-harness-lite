@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { StepLine } from '../src/driver/lab.ts'
 import { callId, LIST, requestsOf, roundMark, scriptOf, type RoundShape } from '../src/script.ts'
 import { SUITES } from '../src/suites.ts'
-import { measuredOf, MULTI_ROUND, MULTI_STEP } from '../src/suites/sessions.ts'
+import { measuredOf, MULTI_ROUND, MULTI_STEP, writesOf } from '../src/suites/sessions.ts'
 import { gatesOf, READ_ALLOWANCE, rungsOf, type Axis } from '../src/suites/scale.ts'
 import { digestsOf, stepsOf, type Step, type Trajectory } from '../src/trajectory.ts'
 
@@ -110,6 +110,7 @@ describe('what a trajectory comes to', () => {
   const trajectory: Trajectory = {
     steps: round(),
     openings: [],
+    watchings: [],
     rounds: [],
     digests: ['a', 'b'],
     kinds: { 'message.user': 1 },
@@ -325,6 +326,7 @@ describe('the session suites', () => {
       'multi-step',
       'multi-round',
       'cold-open',
+      'catch-up',
       'compaction',
       'tool-result',
       'background-calls',
@@ -360,5 +362,41 @@ describe('the session suites', () => {
     expect(byId('attachments').workload).toMatchObject({
       rounds: expect.arrayContaining([expect.objectContaining({ attachBytes: 65536 })]),
     })
+  })
+})
+
+describe('what opening an observation writes', () => {
+  const watching = (commits: number) => ({
+    round: 2,
+    reads: 30,
+    commits,
+    commitBytes: commits * 100,
+    requestBytes: 1,
+    byHandler: {},
+    byParticipant: {},
+  })
+  const steps = [step(1, 1)]
+
+  it('passes when no observation committed anything: the expectation is nothing, from the cost model', () => {
+    const judgedWrites = writesOf({ watchings: [watching(0), watching(0)], steps })
+    expect(judgedWrites.gates).toMatchObject([
+      { state: 'pass', from: expect.stringContaining('writes nothing') },
+    ])
+    expect(judgedWrites.controls.map(control => [control.expected, control.state])).toEqual([
+      ['fail', 'fail'],
+      ['pass', 'pass'],
+    ])
+    expect(outcomeOf(judgedWrites)).toBe('pass')
+  })
+
+  it('fails on a single commit by any one observation', () => {
+    expect(writesOf({ watchings: [watching(0), watching(1)], steps }).gates[0]).toMatchObject({
+      state: 'fail',
+      detail: expect.stringContaining('measured 1, expected 0'),
+    })
+  })
+
+  it('is blocked when no observation was opened', () => {
+    expect(outcomeOf(writesOf({ watchings: [], steps }))).toBe('blocked')
   })
 })

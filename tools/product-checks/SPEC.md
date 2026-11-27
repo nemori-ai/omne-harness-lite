@@ -114,7 +114,7 @@ product-checks 是本仓库的产品规则检查器。规则写死本仓库的�
 
 `asset-category-names` 登记在 `REPOSITORY_RULES`，守资产规格[不变式](../../packages/assets/SPEC.md#不变式)里的 AS-22。
 
-`evaluation-not-product-source` 登记在 `REPOSITORY_RULES`，守评测的两个成员：顶层 `benchmarks/` 的模块只许导入 Node 内建、设施 `@omne-harness/perf-harness`、vitest 与本目录之内的文件；`tools/perf-harness/` 的模块只许导入 Node 内建、vitest 与本目录之内的文件。别的导入，不论写成包名还是相对路径，都报违例。它替 `lint:deps` 守「评测不导入产品源码」：依赖方向检查的扫描根看不到顶层的 `benchmarks/`。
+`evaluation-not-product-source` 登记在 `REPOSITORY_RULES`，守评测的两个成员：顶层 `benchmarks/` 的模块只许导入 Node 内建、设施 `@omne-harness/perf-harness`、产品给客户端的 `@omne-harness/sdk`、`@omne-harness/public-contract` 与 `@omne-harness/session-protocol`、vitest 与本目录之内的文件；`tools/perf-harness/` 的模块只许导入 Node 内建、vitest 与本目录之内的文件。别的导入，不论写成包名还是相对路径，都报违例。它替 `lint:deps` 守「评测不导入产品源码」：依赖方向检查的扫描根看不到顶层的 `benchmarks/`。
 
 - 扫描资产的协议契约、接入插件与界面模块三个成员的 `src/`，以及命令行的两条资产命令 `apps/cli/src/asset-command.ts`、`apps/cli/src/setting-command.ts`。测试路径不扫。
 - 报出：引号或反引号里恰好是一个类别名的字符串。类别名的清单在规则源码里：本仓库贡献的类别，加上服务端的测试加的两个测试类别。

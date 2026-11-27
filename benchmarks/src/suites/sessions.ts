@@ -1,7 +1,20 @@
-import type { Acceptance, Measured, Plan, Suite } from '@omne-harness/perf-harness'
+import {
+  judgeCount,
+  type Acceptance,
+  type Measured,
+  type Plan,
+  type Suite,
+} from '@omne-harness/perf-harness'
 import { coverageGate } from '../coverage.ts'
 import { BACKGROUND, LIST, readOf, SUMMARY_WORDS, type RoundShape } from '../script.ts'
-import { runRounds, type Opening, type Setup, type Step, type Trajectory } from '../trajectory.ts'
+import {
+  runRounds,
+  type Opening,
+  type Setup,
+  type Step,
+  type Trajectory,
+  type Watching,
+} from '../trajectory.ts'
 import {
   clocked,
   COMMIT_BYTES,
@@ -74,6 +87,7 @@ const planOf = (definition: Definition, name: string, tier: Tier): Plan => ({
     scales: [...tier.scales],
     files: tier.setup?.files ?? null,
     restartBefore: [...(tier.setup?.restartBefore ?? [])],
+    watchAfter: [...(tier.setup?.watchAfter ?? [])],
   },
   assembly: { ...ASSEMBLY, compactionTrigger: tier.setup?.compactionTrigger ?? 'release' },
   settings: SETTINGS,
@@ -432,4 +446,94 @@ export const COLD_OPEN = suiteOf({
       },
       opening => opening.cold,
     ),
+})
+
+const WATCH_AFTER = [2, 4, 8, 16]
+const NOTHING_WRITTEN = {
+  value: 0,
+  from: 'catch-up: opening an observation writes nothing',
+  budget: 0,
+}
+
+export function writesOf(
+  trajectory: Pick<Trajectory, 'watchings' | 'steps'>,
+): Pick<Measured, 'gates' | 'controls'> {
+  const name = 'commits of opening an observation'
+  const most = Math.max(...trajectory.watchings.map(watching => watching.commits))
+  const held = judgeCount(trajectory.watchings.length === 0 ? Number.NaN : most, NOTHING_WRITTEN)
+  const step = judgeCount(trajectory.steps[0]?.commits ?? Number.NaN, NOTHING_WRITTEN)
+  const bytes = judgeCount(
+    Math.max(...trajectory.watchings.map(watching => watching.commitBytes)),
+    NOTHING_WRITTEN,
+  )
+  const detailOf = (verdict: typeof held): string =>
+    verdict.state === 'blocked'
+      ? verdict.reason
+      : verdict.state === 'fail'
+        ? verdict.reason
+        : `measured ${String(verdict.measured)}, expected ${String(verdict.expected)}`
+  return {
+    gates: [{ name, from: NOTHING_WRITTEN.from, state: held.state, detail: detailOf(held) }],
+    controls: [
+      {
+        gate: name,
+        expected: 'fail',
+        state: step.state,
+        detail: `the commits of a step of the same run, which writes: ${detailOf(step)}`,
+      },
+      {
+        gate: name,
+        expected: 'pass',
+        state: bytes.state,
+        detail: 'the bytes committed while the observations opened',
+      },
+    ],
+  }
+}
+
+export const CATCH_UP = suiteOf({
+  id: 'catch-up',
+  title:
+    'a client that comes back to a session: what opening an observation costs as the session is longer',
+  limits: [
+    'The client opens an observation and leaves at its first frame. Reading the history it missed, page by page, is not in this workload.',
+    'No round runs while the client comes back: a stream of a reply in progress is not opened.',
+    SMALL_TOOL,
+  ],
+  tiers: {
+    short: { rounds: rounds(16), scales: WATCH_AFTER, setup: { watchAfter: WATCH_AFTER } },
+    full: {
+      rounds: rounds(64),
+      scales: [8, 16, 32, 64],
+      setup: { watchAfter: [8, 16, 32, 64] },
+    },
+  },
+  judge: (trajectory, tier) => {
+    const axis: Axis<Watching> = {
+      name: 'rounds before',
+      span: 'opening an observation',
+      from: 'catch-up: opening an observation reads as often however long the session is',
+      scales: tier.scales,
+      placeOf: watching => watching.round,
+      gated: [READS],
+      read: [READS],
+      known: {},
+    }
+    const reads = gatesOf(trajectory.watchings, axis)
+    const writes = writesOf(trajectory)
+    return {
+      readings: [
+        ...readingsOf(trajectory.watchings, axis),
+        {
+          name: 'commits of opening an observation',
+          kind: 'count',
+          unit: 'commits',
+          value: Math.max(...trajectory.watchings.map(watching => watching.commits)),
+        },
+        ...timesOf(trajectory),
+      ],
+      gates: [...reads.gates, ...writes.gates],
+      controls: [...reads.controls, ...writes.controls],
+    }
+  },
 })

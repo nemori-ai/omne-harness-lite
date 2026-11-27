@@ -10,6 +10,11 @@ test.each([
   ['benchmarks/src/trajectory.ts', "import { spawn } from 'node:child_process'"],
   ['benchmarks/src/trajectory.ts', "import type { Suite } from '@omne-harness/perf-harness'"],
   ['benchmarks/src/suites/sessions.ts', "import { runRounds } from '../trajectory.ts'"],
+  ['benchmarks/src/driver/observe.ts', "import { createClient } from '@omne-harness/sdk'"],
+  [
+    'benchmarks/src/driver/observe.ts',
+    "import { sessionProtocol } from '@omne-harness/session-protocol'",
+  ],
   ['benchmarks/tests/suites.spec.ts', "import { expect } from 'vitest'"],
   ['benchmarks/vitest.config.ts', "import { testTiers } from '../vitest.tiers.mts'"],
   ['benchmarks/vitest.config.ts', "import { defineConfig } from 'vitest/config'"],
@@ -23,6 +28,7 @@ test.each([
 test.each([
   ['benchmarks/src/x.ts', "import { x } from '@omne-harness/session-contract'"],
   ['benchmarks/src/x.ts', "import { x } from '@omne-harness/sqlite-provider'"],
+  ['tools/perf-harness/src/x.ts', "import { createClient } from '@omne-harness/sdk'"],
   ['benchmarks/src/x.ts', "import { x } from '../../apps/harness-server/src/lab/readings.ts'"],
   [
     'benchmarks/src/x.ts',

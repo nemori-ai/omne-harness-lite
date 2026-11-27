@@ -114,6 +114,10 @@
       ],
       "project": [
         "src/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@omne-harness/harness-server",
+        "@omne-harness/cli"
       ]
     }
   }

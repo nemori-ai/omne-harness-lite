@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hostSources, type Setting, type Suite } from '@omne-harness/perf-harness'
+import { prepare } from './prepare.ts'
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 
@@ -23,4 +24,5 @@ export const settingOf = (root: string, suites: readonly Suite[]): Setting => ({
   pinnedNode: pinnedNode(root),
   sources: hostSources,
   now: () => new Date(),
+  prepare: commit => prepare(root, commit, line => process.stderr.write(`${line}\n`)),
 })

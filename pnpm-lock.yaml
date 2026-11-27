@@ -1331,7 +1331,22 @@ importers:
       '@omne-harness/perf-harness':
         specifier: workspace:*
         version: link:../tools/perf-harness
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../packages/access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../packages/access/sdk
+      '@omne-harness/session-protocol':
+        specifier: workspace:*
+        version: link:../packages/session/session-protocol
     devDependencies:
+      '@omne-harness/cli':
+        specifier: workspace:*
+        version: link:../apps/cli
+      '@omne-harness/harness-server':
+        specifier: workspace:*
+        version: link:../apps/harness-server
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
         version: 0.0.21(vitest@4.1.11)

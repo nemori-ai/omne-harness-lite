@@ -54,7 +54,7 @@
     "metrics": "./scripts/metrics.sh",
     "closeout:metrics": "node scripts/with-test-slot.mjs node --experimental-strip-types tools/pqw-adapter/src/cli.ts metrics",
     "closeout:mutation": "node scripts/with-test-slot.mjs --unless-plan-only node --experimental-strip-types tools/pqw-adapter/src/cli.ts mutation",
-    "perf": "node --conditions=source --experimental-strip-types benchmarks/src/cli.ts",
+    "perf": "node --experimental-strip-types benchmarks/src/cli.ts",
     "risk": "node --experimental-strip-types tools/pqw-adapter/src/cli.ts risk",
     "loop:status": "omne-loop-status",
     "loop:health": "omne-loop-health",

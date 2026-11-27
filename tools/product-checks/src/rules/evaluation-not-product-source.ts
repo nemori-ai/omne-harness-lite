@@ -4,7 +4,14 @@ import { lineAt } from '@omne-harness/repo-toolchain/core/source-text'
 import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/syntax'
 
 const MEMBERS: Readonly<Record<string, readonly string[]>> = {
-  'benchmarks/': ['@omne-harness/perf-harness', 'vitest', 'vitest/config'],
+  'benchmarks/': [
+    '@omne-harness/perf-harness',
+    '@omne-harness/public-contract',
+    '@omne-harness/sdk',
+    '@omne-harness/session-protocol',
+    'vitest',
+    'vitest/config',
+  ],
   'tools/perf-harness/': ['vitest', 'vitest/config'],
 }
 

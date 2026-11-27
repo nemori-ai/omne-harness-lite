@@ -108,6 +108,7 @@ describe('a suite that asks for the gates over the rounds', () => {
   const trajectory = (count: number): Trajectory => ({
     steps: Array.from({ length: count }, (_, index) => step(index + 1)),
     openings: [],
+    watchings: [],
     rounds: rounds().slice(0, count),
     digests: [],
     kinds: {},

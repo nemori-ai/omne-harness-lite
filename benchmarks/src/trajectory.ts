@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Place as Location } from '@omne-harness/perf-harness'
 import { clientOf } from './driver/client.ts'
+import { firstFrame } from './driver/observe.ts'
 import { startLab, type Lab, type Readings, type StepLine } from './driver/lab.ts'
 import { until } from './driver/process.ts'
 import { filled, inputOf, scriptOf, type Place, type RoundShape } from './script.ts'
@@ -40,6 +41,7 @@ export type RoundEnd = Readonly<{
 export type Trajectory = Readonly<{
   steps: readonly Step[]
   openings: readonly Opening[]
+  watchings: readonly Watching[]
   rounds: readonly RoundEnd[]
   digests: readonly string[]
   kinds: Readonly<Record<string, number>>
@@ -187,7 +189,68 @@ export type Setup = Readonly<{
   compactionTrigger?: string
   rules?: readonly object[]
   restartBefore?: readonly number[]
+  watchAfter?: readonly number[]
 }>
+
+export type Watching = Readonly<{
+  round: number
+  reads: number
+  commits: number
+  commitBytes: number
+  requestBytes: number
+  byHandler: Readonly<Record<string, number>>
+  byParticipant: Readonly<Record<string, number>>
+}>
+
+const WATCHES = 5
+const SETTLE_MS = 500
+const SETTLE_LIMIT_MS = 60_000
+
+async function settled(lab: Lab): Promise<void> {
+  const commits = async (): Promise<number> =>
+    (await lab.readings()).commits.reduce((sum, item) => sum + item.committed, 0)
+  let last = await commits()
+  await until(
+    async () => {
+      await new Promise(done => setTimeout(done, SETTLE_MS))
+      const now = await commits()
+      if (now === last) return true
+      last = now
+      return undefined
+    },
+    'the server to stop committing after the round',
+    SETTLE_LIMIT_MS,
+  )
+}
+
+async function watchingsOf(
+  lab: Lab,
+  round: number,
+  requestBytes: number,
+  open: () => Promise<string>,
+): Promise<Watching[]> {
+  const taken: Watching[] = []
+  await settled(lab)
+  for (let index = 0; index < WATCHES; index += 1) {
+    const before = await lab.readings()
+    const kind = await open()
+    if (kind !== 'state') throw new Error(`the first frame of an observation was ${kind}`)
+    const after = await lab.readings()
+    const names = domainNames(after)
+    const a = flat(before, names)
+    const b = flat(after, names)
+    taken.push({
+      round,
+      reads: b.reads - a.reads,
+      commits: b.commits - a.commits,
+      commitBytes: b.bytes - a.bytes,
+      requestBytes,
+      byHandler: gained(a.handlers, b.handlers),
+      byParticipant: gained(a.participants, b.participants),
+    })
+  }
+  return taken
+}
 
 const PDF_HEAD = '%PDF-1.4\n'
 const PDF_TAIL = '\n%%EOF\n'
@@ -250,9 +313,15 @@ export async function runRounds(
   const steps: Step[] = []
   const openings: Opening[] = []
   const ends: RoundEnd[] = []
+  const watchings: Watching[] = []
   let processorMs: number | null = 0
   let requests = 0
   const close = async (): Promise<void> => {
+    const unanswered = lab.steps().filter(line => line.step === null).length
+    if (unanswered > 0)
+      throw new Error(
+        `${String(unanswered)} model requests found no step of the script: the trajectory is not the one asked for`,
+      )
     const used = lab.processorMs()
     processorMs = processorMs === null || used === null ? null : processorMs + used
     requests += lab.steps().length
@@ -294,6 +363,12 @@ export async function runRounds(
         stateBytes: current.stateBytes(),
       })
       openings.push(openingOf(round, cold, before, current.steps(), places))
+      if (setup.watchAfter?.includes(round) === true)
+        watchings.push(
+          ...(await watchingsOf(current, round, current.steps().at(-1)?.requestBytes ?? 0, () =>
+            firstFrame({ directory: place.dataDirectory, server: current.server, session }),
+          )),
+        )
     }
     const wallMs = Number(process.hrtime.bigint() - from) / 1e6
     const entryKinds = await lab.entryKinds()
@@ -306,6 +381,7 @@ export async function runRounds(
     return {
       steps,
       openings,
+      watchings,
       rounds: ends,
       ...digestsOf(history),
       entryKinds,
