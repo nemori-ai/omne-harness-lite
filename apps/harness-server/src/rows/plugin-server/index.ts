@@ -5,7 +5,16 @@ import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { adopt, ask, declare, lockOver, type Binding, type Scope } from '@omne-harness/dynamis'
+import {
+  adopt,
+  ask,
+  CATALOG,
+  declare,
+  lockOver,
+  standingOf,
+  type Binding,
+  type Scope,
+} from '@omne-harness/dynamis'
 import {
   GUEST_FORMS_POINT,
   PORTS_POINT,
@@ -37,7 +46,6 @@ import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-s
 import { LAST_FALL_KEY, type Fall } from '../../process-fall.ts'
 import { defineRow } from '../../row.ts'
 import { heldPluginPorts } from '../plugin-host/held-ports.ts'
-import { serverPointsOf } from '../plugin-host/effect-ports.ts'
 import { openRegisteredTenants } from '../registered-tenants.ts'
 import { tenantAssetsKey, type TenantAssetsService } from '../tenant-assets/service.ts'
 import { fileFloor } from './floor-file.ts'
@@ -122,18 +130,27 @@ const heldWithin =
     }
   }
 
+const DATA_HELD = 'this tree does not yet make a held item of a category from data'
+
 function pointOf(
   ctx: Context,
   name: string,
   place: (directory: string) => unknown,
 ): ServerPoint | undefined {
-  const categories = ctx.get(assetCategoriesKey)?.view
   const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
-  const known = serverPointsOf(registry, categories).find(point => point.name === name)
-  if (known === undefined) return undefined
-  if (categories?.atPoint(name) !== undefined) return { kind: 'category', place }
-  const takes = known.takes === 'data' ? 'data' : 'code'
-  return { kind: 'takes', takes, when: known.when === 'running' ? 'running' : 'build' }
+  const declared = registry === undefined ? undefined : standingOf(registry, name, [])
+  if (declared?.kind !== 'declared' || name === CATALOG) return undefined
+  const category = ctx.get(assetCategoriesKey)?.view.atPoint(name)
+  if (category === undefined) return { kind: 'point', rules: declared.contract }
+  if ('creation' in category && category.creation === 'data')
+    return {
+      kind: 'category',
+      takes: 'data',
+      place: () => {
+        throw new Error(DATA_HELD)
+      },
+    }
+  return { kind: 'category', takes: 'directory', place: what => place(String(what)) }
 }
 
 /** Where the fibers of plugins grow: below this row, with the one trusted name it sees isolated away. */

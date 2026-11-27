@@ -1,25 +1,23 @@
 import {
   fiberOf,
+  genericItem,
   insidePackage,
+  judgeMember,
+  reasonText,
   type Absent,
-  type JsonValue,
   type Listed,
   type Member,
   type ModuleMember,
   type Outcome,
+  type PointRules,
 } from '@omne-harness/plugin-protocol'
-import {
-  LAYOUT_POINT,
-  STYLE_POINT,
-  TOKENS_POINT,
-  type Changes,
-  type Described,
-  type DrawingSource,
-  type Hosted,
-  type KeyRender,
-  type PartStyle,
-  type ScopeSource,
-  type Toast,
+import type {
+  Changes,
+  ClientGuestForm,
+  Described,
+  Hosted,
+  ScopeSource,
+  Toast,
 } from '@omne-harness/shell-contract'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
@@ -33,23 +31,14 @@ type Scope = readonly string[]
 
 export type InstallShell = Readonly<{
   described(): Described
-  takesDrawing(point: string): boolean
+  guestForm(point: string): ClientGuestForm | undefined
   changesFor(asker: Scope): Changes
   host(name: string, apply: (inside: InstallShell) => void): Promise<Hosted>
-  putTokens(
-    part: string,
-    tokens: Readonly<Record<string, string>>,
+  putItem(
+    spot: Readonly<{ point: string; key: string; id?: string; rank?: number }>,
+    item: object,
     scope?: Scope,
-    files?: string,
-  ): () => unknown
-  putStyle(part: string, style: PartStyle, scope?: Scope, files?: string): () => unknown
-  putLayout(key: string, order: readonly string[], scope?: Scope): () => unknown
-  putDrawing(
-    point: string,
-    key: string,
-    render: KeyRender,
-    scope?: Scope,
-    source?: DrawingSource,
+    code?: boolean,
   ): () => unknown
   navigate(page: string, subject?: string): void
   toast(toast: Toast): void
@@ -57,32 +46,9 @@ export type InstallShell = Readonly<{
 }>
 
 type Put = (shell: InstallShell) => void
-type Entries = Readonly<Record<string, JsonValue>>
-
 type Fault = Readonly<{ reason: string; absent?: Absent }>
 
 const ONE_ITEM = 'the point holds one item for a key, so a member writes no id and no rank'
-
-const isRecord = (data: JsonValue): data is Entries =>
-  typeof data === 'object' && data !== null && !Array.isArray(data)
-
-/** The points that take data from a plugin: what the data must be, and how it is put. */
-type Taken = (key: string, data: JsonValue, scope: Scope, files: string | undefined) => Put | string
-
-const DATA: Readonly<Record<string, Taken>> = {
-  [TOKENS_POINT]: (key, data, scope, files) =>
-    isRecord(data)
-      ? shell => shell.putTokens(key, data as Readonly<Record<string, string>>, scope, files)
-      : 'the data is not a record of names and values',
-  [STYLE_POINT]: (key, data, scope, files) =>
-    isRecord(data)
-      ? shell => shell.putStyle(key, data as PartStyle, scope, files)
-      : 'the data is not a record of states and declarations',
-  [LAYOUT_POINT]: (key, data, scope) =>
-    Array.isArray(data)
-      ? shell => shell.putLayout(key, data as readonly string[], scope)
-      : 'the data is not a list of ids',
-}
 
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -98,7 +64,12 @@ const guestOf = (shell: InstallShell): object =>
     }),
   })
 
-type Pending = Readonly<{ member: ModuleMember; code: Code }>
+type Pending = Readonly<{
+  member: ModuleMember
+  code: Code
+  rules: PointRules
+  form?: ClientGuestForm
+}>
 
 type Step =
   | Readonly<{ kind: 'put'; put: Put }>
@@ -106,35 +77,66 @@ type Step =
   | Readonly<{ kind: 'fault'; fault: Fault }>
 
 const refused = (reason: string): Step => ({ kind: 'fault', fault: { reason } })
-const put = (made: Put | string): Step =>
-  typeof made === 'string' ? refused(made) : { kind: 'put', put: made }
 
 type Asked = Readonly<{
   shell: InstallShell
-  declared: ReadonlySet<string>
+  points: ReadonlyMap<string, PointRules & Readonly<{ arity: string; resolve: string }>>
+  skin: boolean
   scope: Scope
   code: Code | undefined
   files: string | undefined
 }>
 
+const spotOf = ({ point, key, id, rank }: Member) => ({
+  point,
+  key,
+  ...(id !== undefined && { id }),
+  ...(rank !== undefined && { rank }),
+})
+
 /** One member before anything of the plugin is loaded: how to put it, the code still to load, or why it cannot be put. */
-function stepOf({ shell, declared, scope, code, files }: Asked, member: Member): Step {
+const SKIN_ONLY =
+  'a skin puts only on a point that holds one item for a key, where the most specific counts'
+
+function stepOf({ shell, points, scope, code, files, skin }: Asked, member: Member): Step {
   if ('directory' in member) return refused('this side takes no directory')
-  if (!declared.has(member.point)) {
-    const absent: Absent = { kind: 'point', name: member.point }
-    return { kind: 'fault', fault: { reason: `${member.point} is not a point now`, absent } }
+  const rules = points.get(member.point)
+  if (
+    skin &&
+    rules !== undefined &&
+    !(rules.arity === 'keyed-one' && rules.resolve === 'most-specific')
+  )
+    return refused(SKIN_ONLY)
+  const form = rules === undefined ? undefined : shell.guestForm(member.point)
+  const target =
+    rules === undefined
+      ? ({ kind: 'absent' } as const)
+      : ({ kind: 'point', rules, form: form !== undefined } as const)
+  const judged = judgeMember(target, member)
+  if (judged.kind === 'not') {
+    const { reason } = judged
+    const absent = reason.kind === 'absent' ? { absent: reason.absent } : {}
+    return { kind: 'fault', fault: { reason: reasonText(reason), ...absent } }
   }
-  const single = member.id === undefined && member.rank === undefined
-  if ('module' in member) {
-    if (!shell.takesDrawing(member.point)) return refused('the point takes no drawing')
-    if (!single) return refused(ONE_ITEM)
-    return code === undefined
+  if (rules?.arity.startsWith('keyed-one') === true || rules?.arity === 'one')
+    if (member.id !== undefined || member.rank !== undefined) return refused(ONE_ITEM)
+  if (rules === undefined || judged.kind === 'held') return refused('this side holds no category')
+  if (judged.kind === 'code')
+    return code === undefined || !('module' in member)
       ? refused('this application loads no code')
-      : { kind: 'code', pending: { member, code } }
+      : { kind: 'code', pending: { member, code, rules, ...(form !== undefined && { form }) } }
+  const data = 'data' in member ? member.data : undefined
+  try {
+    const item =
+      form === undefined
+        ? data
+        : form.form(data, { key: member.key, ...(files !== undefined && { files }) })
+    if (typeof item !== 'object' || item === null)
+      return refused('the data is not an item of the point')
+    return { kind: 'put', put: shell => void shell.putItem(spotOf(member), item, scope) }
+  } catch (error) {
+    return refused(reasonOf(error))
   }
-  const taken = DATA[member.point]
-  if (taken === undefined) return refused('the point takes no data from a plugin')
-  return single ? put(taken(member.key, member.data, scope, files)) : refused(ONE_ITEM)
 }
 
 const filesAt = (place: string): object =>
@@ -145,8 +147,8 @@ const filesAt = (place: string): object =>
 
 /** Loads the file of a member of code and takes its export: how to put its drawing, or why it cannot be. */
 async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promise<Put | string> {
-  const { code, member } = pending
-  const { module: path, export: name, point, key } = member
+  const { code, member, rules, form } = pending
+  const { module: path, export: name } = member
   const loaded = await code
     .load(listed.name, listed.version, path)
     .then(file => ({ file }))
@@ -161,11 +163,20 @@ async function drawingOf(listed: Listed, pending: Pending, scope: Scope): Promis
       shell: guestOf(shell),
       ...(files !== undefined && { files: filesAt(files) }),
     }
-    const drawing = called(name, () => made(Object.freeze(handed)))
-    if (typeof drawing !== 'function') throw new Error(`${name} gave no drawing`)
+    const given = called(name, () => made(Object.freeze(handed)))
     const source =
       files === undefined ? undefined : { module: `${files}${path}`, export: name, files }
-    shell.putDrawing(point, key, drawing as KeyRender, scope, source)
+    const item =
+      form === undefined
+        ? genericItem(rules, given)
+        : { item: form.form(given, { key: member.key }) }
+    if ('kind' in item) throw new Error(reasonText(item))
+    shell.putItem(
+      spotOf(member),
+      { ...item.item, ...(source !== undefined && { source }) },
+      scope,
+      true,
+    )
   }
 }
 
@@ -198,12 +209,15 @@ type Ready = Readonly<{ label: string; step: Exclude<Step, { kind: 'fault' }> }>
 
 function stepsOf(
   shell: InstallShell,
-  { name, version, members }: Listed,
+  { name, version, members, kind }: Listed,
   scope: Scope,
   code?: Code,
 ): readonly Ready[] | Outcome {
-  const declared = new Set(shell.described().points.map(point => point.name))
-  const asked: Asked = { shell, declared, scope, code, files: code?.files?.(name, version) }
+  const points = new Map(
+    shell.described().points.map(point => [point.name, point.contract] as const),
+  )
+  const files = code?.files?.(name, version)
+  const asked: Asked = { shell, points, scope, code, files, skin: kind === 'skin' }
   const places = members.map(member => `${member.point}\n${member.key}`)
   const ready: Ready[] = []
   const faults: Labelled[] = []

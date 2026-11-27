@@ -14,9 +14,11 @@ it('the root entry gives the plugin/v1 contract, the manifest, the judgment of a
     'createLoader',
     'fiberOf',
     'fileRefs',
+    'genericItem',
     'heldOf',
     'imageFault',
     'insidePackage',
+    'judgeMember',
     'judgePackage',
     'lacksText',
     'memberDigest',
@@ -24,8 +26,10 @@ it('the root entry gives the plugin/v1 contract, the manifest, the judgment of a
     'membersOf',
     'pluginProtocol',
     'readManifest',
+    'reasonText',
     'standingOf',
     'stepSide',
     'wantedOf',
+    'wayOf',
   ])
 })

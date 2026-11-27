@@ -28,6 +28,11 @@ const point = (
     revision: 1,
     keys: 'public',
     conformance: null,
+    scopes: {
+      only: 'deployment',
+      why: 'grants-itself',
+      note: 'What a plugin may use and how its code becomes an item is lent by the hosts; a plugin cannot put it.',
+    } as const,
     ...over,
   })
 

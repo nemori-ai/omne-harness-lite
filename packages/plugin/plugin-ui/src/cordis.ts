@@ -14,12 +14,7 @@ import {
 } from '@omne-harness/plugin-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import {
-  defineKeyedPoint,
-  lookScope,
-  needProtocol,
-  tenantScope,
-} from '@omne-harness/shell-contract'
+import { lookScope, needProtocol, tenantScope, type KeyedPoint } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
 import { installOn, presentIn, type Code } from './install.ts'
@@ -36,17 +31,13 @@ export type PluginUiOptions = Readonly<{
   looks?: LookStore
   /** The name this client goes by on the server; one of its own making when none is given. */
   clientId?: () => string
+  /** Where the choice of skins is drawn: the place above the list of one category of the assets page. */
+  skinsAbove?: KeyedPoint<Readonly<{ category: string }>>
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
 
 const SKIN_CATEGORY = 'skin'
-
-/** The place the assets page keeps above the list of one category. The page declares it; this module only puts on it. */
-const aboveCategory = defineKeyedPoint<Readonly<{ category: string }>>({
-  name: 'assets.category',
-  subject: { encode: value => value.category, decode: text => ({ category: text }) },
-})
 
 const isSkin = (listed: Listed): boolean => listed.kind === 'skin'
 
@@ -167,7 +158,7 @@ export function createPluginUiModule(options: PluginUiOptions = {}): Plugin.Obje
         wear: look => shell.wear(look),
         store: options.looks ?? memoryLookStore(),
       })
-      aboveCategory.contribute(shell, SKIN_CATEGORY, {
+      options.skinsAbove?.contribute(shell, SKIN_CATEGORY, {
         id: 'plugin-ui.skins',
         order: 0,
         render: () => createElement(SkinChoice, { wear }),

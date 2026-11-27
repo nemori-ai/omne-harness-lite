@@ -16,6 +16,7 @@
 - `IMAGE_HEAD_BYTES` · `package.d.ts`
 - `IMAGE_SUFFIXES` · `package.d.ts`
 - `JsonValue` · `manifest.d.ts`
+- `Judgment` · `judge-member.d.ts`
 - `Kept` · `loader.d.ts`
 - `Listed` · `loader.d.ts`
 - `Loader` · `loader.d.ts`
@@ -35,10 +36,12 @@
 - `PluginKind` · `manifest.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
+- `PointRules` · `judge-member.d.ts`
 - `Port` · `ports.d.ts`
 - `PortAnswer` · `ports.d.ts`
 - `PortData` · `ports.d.ts`
 - `PortFactory` · `ports.d.ts`
+- `Reason` · `judge-member.d.ts`
 - `ReportedPoint` · `plugin-protocol.d.ts`
 - `ReportedPointContract` · `plugin-protocol.d.ts`
 - `Side` · `manifest.d.ts`
@@ -47,15 +50,19 @@
 - `SideName` · `manifest.d.ts`
 - `SideState` · `side-state.d.ts`
 - `SideStep` · `side-state.d.ts`
+- `Target` · `judge-member.d.ts`
 - `UNWANTED` · `side-state.d.ts`
 - `Wanted` · `wanted.d.ts`
+- `Way` · `judge-member.d.ts`
 - `bindPorts` · `ports.d.ts`
 - `createLoader` · `loader.d.ts`
 - `fiberOf` · `floor.d.ts`
 - `fileRefs` · `package.d.ts`
+- `genericItem` · `judge-member.d.ts`
 - `heldOf` · `floor.d.ts`
 - `imageFault` · `package.d.ts`
 - `insidePackage` · `manifest.d.ts`
+- `judgeMember` · `judge-member.d.ts`
 - `judgePackage` · `package.d.ts`
 - `lacksText` · `side-state.d.ts`
 - `memberDigest` · `package.d.ts`
@@ -63,9 +70,11 @@
 - `membersOf` · `package.d.ts`
 - `pluginProtocol` · `plugin-protocol.d.ts`
 - `readManifest` · `manifest.d.ts`
+- `reasonText` · `judge-member.d.ts`
 - `standingOf` · `floor.d.ts`
 - `stepSide` · `side-state.d.ts`
 - `wantedOf` · `wanted.d.ts`
+- `wayOf` · `judge-member.d.ts`
 
 ## 声明文件 `floor.d.ts`
 
@@ -102,7 +111,78 @@ export { UNWANTED, lacksText, stepSide, type Absent, type SideEffect, type SideE
 export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
 export { createLoader, type Kept, type Listed, type Loader, type LoaderDeps, type Outcome, } from './loader.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
+export { genericItem, judgeMember, reasonText, wayOf, type Judgment, type PointRules, type Reason, type Target, type Way, } from './judge-member.ts';
 export { bindPorts, type Bound, type Port, type PortAnswer, type PortData, type PortFactory, } from './ports.ts';
+```
+
+## 声明文件 `judge-member.d.ts`
+
+```ts
+import type { Member } from './manifest.ts';
+import type { Absent } from './side-state.ts';
+type FieldKind = 'string' | 'number' | 'boolean' | 'function' | 'object' | 'array';
+export type PointRules = Readonly<{
+    binding: 'build' | 'run';
+    item: Readonly<{
+        kind: 'data' | 'pure' | 'effect';
+        fields: Readonly<Record<string, FieldKind>>;
+    }>;
+    scopes?: 'all' | Readonly<{
+        only: 'deployment';
+        why: string;
+        note: string;
+    }>;
+}>;
+export type Target = Readonly<{
+    kind: 'absent';
+}> | Readonly<{
+    kind: 'point';
+    rules: PointRules;
+    form: boolean;
+}> | Readonly<{
+    kind: 'category';
+    takes: 'data' | 'directory';
+}>;
+export type Way = 'data' | 'directory' | 'code';
+export type Reason = Readonly<{
+    kind: 'absent';
+    absent: Absent;
+}> | Readonly<{
+    kind: 'closed';
+    why: string;
+    note: string;
+}> | Readonly<{
+    kind: 'fixed';
+}> | Readonly<{
+    kind: 'wrong-way';
+    takes: Way;
+    gives: Way;
+}> | Readonly<{
+    kind: 'threw';
+    detail: string;
+}> | Readonly<{
+    kind: 'refused';
+    detail: string;
+}>;
+export type Judgment = Readonly<{
+    kind: 'data';
+}> | Readonly<{
+    kind: 'held';
+    way: 'data' | 'directory';
+}> | Readonly<{
+    kind: 'code';
+    form: 'special' | 'generic';
+}> | Readonly<{
+    kind: 'not';
+    reason: Reason;
+}>;
+export declare const wayOf: (member: Member) => Way;
+export declare function judgeMember(target: Target, member: Member): Judgment;
+export declare function reasonText(reason: Reason): string;
+export declare function genericItem(rules: PointRules, given: unknown): Readonly<{
+    item: object;
+}> | Reason;
+export {};
 ```
 
 ## 声明文件 `loader.d.ts`

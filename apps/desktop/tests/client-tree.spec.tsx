@@ -83,6 +83,8 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'model.choices',
     'notification.entry',
     'notification.inbox-sections',
+    'plugin.guest-forms',
+    'plugin.ports',
     'session.block-reads-source',
     'session.block-render',
     'session.call-detail',

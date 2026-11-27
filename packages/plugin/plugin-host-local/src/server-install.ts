@@ -1,6 +1,10 @@
 import {
+  genericItem,
+  judgeMember,
   memberDigest,
+  reasonText,
   type Absent,
+  type PointRules,
   type Bound,
   type Member,
   type ModuleMember,
@@ -21,8 +25,8 @@ export type ServerEntry = Readonly<{
 
 /** What a point of the server tree is to a plugin: how a member of it is written and when, or that a category owns it. */
 export type ServerPoint =
-  | Readonly<{ kind: 'takes'; takes: 'data' | 'code'; when: 'running' | 'build' }>
-  | Readonly<{ kind: 'category'; place(directory: string): unknown }>
+  | Readonly<{ kind: 'point'; rules: PointRules }>
+  | Readonly<{ kind: 'category'; takes: 'data' | 'directory'; place(what: unknown): unknown }>
 
 export type GuestContext = Readonly<{
   key: string
@@ -53,11 +57,13 @@ export type ServerInstallPorts = Readonly<{
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
-const WAY = { data: 'data', directory: 'a directory', module: 'code' } as const
-const wayOf = (member: Member): keyof typeof WAY =>
-  'module' in member ? 'module' : 'directory' in member ? 'directory' : 'data'
 
-type Pending = Readonly<{ member: ModuleMember; file: PackageFile; form: GuestForm }>
+type Pending = Readonly<{
+  member: ModuleMember
+  file: PackageFile
+  form: GuestForm | undefined
+  rules: PointRules
+}>
 
 type Step =
   | Readonly<{ kind: 'item'; item: unknown }>
@@ -67,29 +73,39 @@ type Step =
 
 const refused = (reason: string): Step => ({ kind: 'refused', reason })
 
+function placed(place: (what: unknown) => unknown, what: unknown): Step {
+  try {
+    return { kind: 'item', item: place(what) }
+  } catch (error) {
+    return refused(reasonOf(error))
+  }
+}
+
 function stepOf(ports: ServerInstallPorts, member: Member, files: readonly PackageFile[]): Step {
   const point = ports.point(member.point)
-  if (point === undefined) return { kind: 'absent', absent: { kind: 'point', name: member.point } }
-  const way = wayOf(member)
-  if (point.kind === 'category') {
-    if (!('directory' in member))
-      return refused(`the point of a category takes a directory; this member gives ${WAY[way]}`)
-    try {
-      return { kind: 'item', item: point.place(member.directory) }
-    } catch (error) {
-      return refused(reasonOf(error))
-    }
-  }
-  const taken = point.takes === 'code' ? 'module' : 'data'
-  if (way !== taken) return refused(`the point takes ${WAY[taken]}; this member gives ${WAY[way]}`)
-  if (point.when === 'build') return refused('the point is fixed when the application is built')
-  if (!('module' in member))
+  const form = point?.kind === 'point' ? ports.guestForm(member.point) : undefined
+  const judged = judgeMember(
+    point === undefined
+      ? { kind: 'absent' }
+      : point.kind === 'category'
+        ? { kind: 'category', takes: point.takes }
+        : { kind: 'point', rules: point.rules, form: form !== undefined },
+    member,
+  )
+  if (judged.kind === 'not')
+    return judged.reason.kind === 'absent'
+      ? { kind: 'absent', absent: judged.reason.absent }
+      : refused(reasonText(judged.reason))
+  if (point?.kind === 'category')
+    return placed(
+      point.place,
+      'directory' in member ? member.directory : 'data' in member ? member.data : undefined,
+    )
+  if (point === undefined || !('module' in member))
     return { kind: 'item', item: 'data' in member ? member.data : undefined }
-  const form = ports.guestForm(member.point)
-  if (form === undefined) return refused('the point takes no code from a plugin')
   const file = files.find(each => each.path === member.module)
   if (file === undefined) return refused(`the package has no file ${member.module}`)
-  return { kind: 'code', pending: { member, file, form } }
+  return { kind: 'code', pending: { member, file, form, rules: point.rules } }
 }
 
 const lockedStep = (lock: string): Step =>
@@ -105,7 +121,7 @@ async function madeBy(
   pending: Pending,
   bind: GuestContext['bind'],
 ): Promise<unknown> {
-  const { member, file, form } = pending
+  const { member, file, form, rules } = pending
   const within = ports.within === undefined ? undefined : ports.within.bind(ports)
   const traced = <T>(run: () => T): T => (within === undefined ? run() : within(run))
   const loaded = await traced(() => ports.load(file)).catch((error: unknown) => {
@@ -119,6 +135,11 @@ async function madeBy(
     given = traced(() => (made as (host: typeof HOST) => unknown)(HOST))
   } catch (error) {
     throw new Error(`${member.export} threw: ${reasonOf(error)}`)
+  }
+  if (form === undefined) {
+    const made = genericItem(rules, given)
+    if ('kind' in made) throw new Error(reasonText(made))
+    return made.item
   }
   try {
     return form(given, { key: member.key, bind, ...(within !== undefined && { within }) })

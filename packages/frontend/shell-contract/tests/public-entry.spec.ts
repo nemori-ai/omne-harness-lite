@@ -5,12 +5,16 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FLOAT_GRIP_ATTRIBUTE',
+    'GRANTS_ITSELF',
     'LAYOUT_POINT',
+    'NO_TENANT',
     'PARTS_POINT',
     'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
+    'READ_FOR_ALL',
     'RENDER_POINT',
     'RESERVED_CHORDS',
+    'SPEAKS_AS_SYSTEM',
     'STYLE_POINT',
     'ShellAssemblyError',
     'TOKENS_POINT',
@@ -77,7 +81,7 @@ it('declares the six points of the shell itself as fixed when the application is
     keys: 'private',
     conformance: null,
   }
-  expect(shellContracts).toEqual([
+  expect(shellContracts.map(({ scopes: _scopes, ...rest }) => rest)).toEqual([
     {
       ...shared,
       name: 'shell.gate',
@@ -145,5 +149,12 @@ it('declares the six points of the shell itself as fixed when the application is
       summary:
         'Where the words a person says to the figure go: the item draws nothing, and the shell asks it afresh each time. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
+  ]) // Until the shell reads them for the tenant who asks, they are closed to plugins; the gate for good.
+  expect(shellContracts.map(contract => [contract.name, contract.scopes])).toEqual([
+    ['shell.gate', expect.objectContaining({ why: 'no-tenant' })],
+    ...['shell.pages', 'shell.sidebar', 'shell.float', 'shell.back', 'shell.say'].map(name => [
+      name,
+      expect.objectContaining({ why: 'one-per-process' }),
+    ]),
   ])
 })

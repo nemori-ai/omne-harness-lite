@@ -11,6 +11,12 @@ import type { Wear, WearView } from '../src/looks.ts'
 import { SkinChoice, noteOf } from '../src/view/skin-choice.tsx'
 import { fakeSource, given, givenSkin } from './support/fake-source.ts'
 
+/** The place above the list of one category of the assets page, as the application hands it to the loader. */
+const skinsAbove = defineKeyedPoint<Readonly<{ category: string }>>({
+  name: 'assets.category',
+  subject: { encode: value => value.category, decode: text => ({ category: text }) },
+})
+
 const ALICE =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const named = (name: string): LookChoice => ({ kind: 'named', name })
@@ -71,7 +77,9 @@ async function world(kept?: LookChoice) {
     read: tenant => texts.get(tenant) ?? null,
     write: (tenant, text) => void texts.set(tenant, text),
   }
-  await started.root.plugin(createPluginUiModule({ backoff: { delayMs: () => 1 }, looks }))
+  await started.root.plugin(
+    createPluginUiModule({ backoff: { delayMs: () => 1 }, looks, skinsAbove }),
+  )
   const above = (key: string) =>
     aboveCategory.slot(started.shell, key, { category: key }, items => items.map(item => item.node))
   const show = () => render(<div>{above('skin')}</div>)

@@ -8,6 +8,7 @@ import {
   type Scope,
 } from '@omne-harness/dynamis'
 import { PART_ATTRIBUTE, PARTS_POINT, partsOn, type DeclaredPart, type PartRender } from './part.ts'
+import { GRANTS_ITSELF } from './closed.ts'
 import type { DrawingSource } from './point.ts'
 
 export const TOKENS_POINT = 'shell.tokens'
@@ -556,4 +557,90 @@ export function laidOut<T extends Readonly<{ id: string }>>(
   if (order === undefined) return items
   const named = order.flatMap(id => items.filter(item => item.id === id))
   return [...named, ...items.filter(item => !order.includes(item.id))]
+}
+
+export const GUEST_FORMS_POINT = 'plugin.guest-forms'
+
+const lent = (name: string, key: string, field: string, summary: string): Contract => ({
+  name,
+  tree: 'client',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key,
+  gives: 'nothing',
+  item: { kind: 'pure', fields: { [field]: 'function' } },
+  resolve: 'conflict',
+  binding: 'build',
+  onError: 'what is not there is not lent',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  scopes: GRANTS_ITSELF,
+  summary,
+})
+
+export const pluginContracts: readonly Contract[] = [
+  lent(
+    'plugin.ports',
+    'the name of a port, as a plugin writes it in needs',
+    'make',
+    'The ports this tree lends to the code of plugins. A plugin names the ones it uses in needs.',
+  ),
+  lent(
+    GUEST_FORMS_POINT,
+    'the name of the point whose items its host makes from what a member gives',
+    'form',
+    'How the host of a point makes one item of it from what a member of a plugin gives: data or what the code gave.',
+  ),
+]
+
+export type GuestFormContext = Readonly<{ key: string; files?: string }>
+
+export type ClientGuestForm = Readonly<{
+  form: (given: unknown, context: GuestFormContext) => object
+  gives: string
+  example: string
+}>
+
+const isEntries = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function recordUnder(field: string, refusal: string): ClientGuestForm['form'] {
+  return (given, { files }) => {
+    if (!isEntries(given)) throw new Error(refusal)
+    return { [field]: given, ...(files !== undefined && { files }) }
+  }
+}
+
+export const shellGuestForms: Readonly<Record<string, ClientGuestForm>> = {
+  [TOKENS_POINT]: {
+    form: recordUnder('tokens', 'the data is not a record of names and values'),
+    gives: 'data: a record of token names and their values',
+    example: tokensContract.example ?? '',
+  },
+  [STYLE_POINT]: {
+    form: recordUnder('style', 'the data is not a record of states and declarations'),
+    gives: 'data: a record of states (base, hover, …) and their declarations',
+    example: styleContract.example ?? '',
+  },
+  [LAYOUT_POINT]: {
+    form: given => {
+      if (!Array.isArray(given)) throw new Error('the data is not a list of ids')
+      return { order: given }
+    },
+    gives: 'data: the ids of the pages, the first ones first',
+    example: layoutContract.example ?? '',
+  },
+}
+
+export function itemEntry(
+  spot: Readonly<{ point: string; key: string; id?: string; rank?: number }>,
+  item: object,
+  scope: Scope,
+  by: string | undefined,
+): Entry {
+  const { point, key, id = '', rank = 0 } = spot
+  const digest = by ?? JSON.stringify(ordered(item))
+  return { point, key, id, scope, rank, digest, item }
 }

@@ -34,6 +34,11 @@ const entrySourcesContract: Contract = Object.freeze({
   revision: 1,
   keys: 'public',
   conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The command catalog asks this point for the whole deployment, not for the tenant who asks, so a source a tenant put here would not be seen.',
+  } as const,
   summary:
     'The sources of command entries: each lists and hands over the entries of one namespace.',
 })

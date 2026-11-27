@@ -133,9 +133,9 @@ describe('putting the members of one plugin on the points', () => {
 
   it.each([
     [
-      'a point that takes no data from a plugin',
-      { point: 'shell.pages', key: 'web', data: {} },
-      'member 2 (shell.pages web): the point takes no data from a plugin',
+      'data on a point that takes code',
+      { point: 'shell.part-render', key: 'notes.send', data: {} },
+      'member 2 (shell.part-render notes.send): the point takes code; this member gives data',
     ],
     [
       'tokens that are not a record',

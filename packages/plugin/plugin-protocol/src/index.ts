@@ -63,6 +63,17 @@ export {
 } from './loader.ts'
 export { wantedOf, type Offered, type Wanted } from './wanted.ts'
 export {
+  genericItem,
+  judgeMember,
+  reasonText,
+  wayOf,
+  type Judgment,
+  type PointRules,
+  type Reason,
+  type Target,
+  type Way,
+} from './judge-member.ts'
+export {
   bindPorts,
   type Bound,
   type Port,

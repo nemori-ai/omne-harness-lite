@@ -279,7 +279,7 @@ describe('a member that is code', () => {
     [
       'its export gives something that is not a drawing',
       { 'send.js': { send: () => ({ render: 'later' }) } },
-      'member 1 (shell.part-render notes.send): send gave no drawing',
+      'shell.part-render notes.send: the item lacks render (function)',
     ],
   ] as const)('fails the whole plugin when %s', async (_name, files, reason) => {
     const other = { 'cards/todo.js': { todo: () => () => null } }
@@ -293,7 +293,7 @@ describe('a member that is code', () => {
     const outcome = await t.install(brand(member))
     expect(outcome).toEqual({
       kind: 'failed',
-      reason: `member 1 (${member.point} ${member.key}): the point takes no drawing`,
+      reason: `member 1 (${member.point} ${member.key}): the point takes data; this member gives code`,
     })
     expect(t.loaded).toEqual([])
   })
