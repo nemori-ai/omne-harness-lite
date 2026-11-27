@@ -78,7 +78,7 @@
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1040,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
-      "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
+      "packages/mcp/mcp-contract/src/testing-transport.ts": 2353,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1603,
@@ -377,13 +377,9 @@
         "count": 3,
         "longest": 368
       },
-      "packages/mcp/mcp/src/calls.ts": {
-        "count": 1,
-        "longest": 170
-      },
       "packages/mcp/mcp/src/discovery.ts": {
         "count": 1,
-        "longest": 197
+        "longest": 195
       },
       "packages/mcp/mcp/src/internal/build.ts": {
         "count": 1,
@@ -639,7 +635,7 @@
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 436
+        "longest": 433
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
@@ -683,7 +679,7 @@
       },
       "packages/tool/tool-host-local/src/tool-forwarding.ts": {
         "count": 2,
-        "longest": 302
+        "longest": 300
       },
       "packages/tool/tool/src/driver-facts.ts": {
         "count": 1,

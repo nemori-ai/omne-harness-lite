@@ -32,11 +32,9 @@ export function blockedText(use: Extract<EndpointStatusView['use'], { kind: 'blo
 export function connectionText(connection: ConnectionState): string | null {
   if (connection.kind === 'degraded') return LISTING_FAILED
   if (connection.kind !== 'lost') return null
-  return unavailableText(
-    connection.reason === 'authorization-required'
-      ? 'authorization-required'
-      : 'connection-unavailable',
-  )
+  if (connection.reason === 'authorization-required' || connection.reason === 'credential-rejected')
+    return unavailableText(connection.reason)
+  return unavailableText('connection-unavailable')
 }
 
 /** Why no actions are known, from what the endpoint is now; asking for them is not done here. */

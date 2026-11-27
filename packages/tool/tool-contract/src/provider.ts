@@ -309,13 +309,18 @@ export {
 export {
   TOOL_ENTRY_SOURCES_POINT,
   isToolSourcePrefix,
+  isToolSourceSuspension,
   judgeToolSourceListing,
   type ToolCapabilityIdentity,
   type ToolEntrySource,
+  type ToolSourceAnswer,
   type ToolSourceBreach,
   type ToolSourceCall,
+  type ToolSourceCheckpoint,
   type ToolSourceEntry,
   type ToolSourceListing,
+  type ToolSourceResume,
+  type ToolSourceSuspension,
   type ToolSourceWithheld,
 } from './entry-source.ts'
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'

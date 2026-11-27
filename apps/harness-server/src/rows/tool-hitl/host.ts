@@ -24,6 +24,7 @@ import type {
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
+import { toolWaitOpenGuardFacts } from '@omne-harness/tool-storage-sql'
 
 export const HITL_DESTINATION = 'harness.hitl'
 export const HITL_LOCATION = 'local'
@@ -31,11 +32,15 @@ const HITL_RESERVATION_OWNER = 'human-intervention'
 
 export type HitlApplication = ReturnType<typeof createIndependentHitlApplication>
 
+// A card of a Run holds while that Run is live; a card of a call that outlives its Run holds while the call still waits.
 export function toolOriginGuards(tenant: string): (origin: Origin) => readonly FactCommandV2[] {
-  return origin =>
-    origin.sessionRef === undefined || origin.runRef === undefined
-      ? []
-      : [runLiveGuardFacts({ tenant, session: origin.sessionRef, run: origin.runRef })]
+  return origin => {
+    if (origin.sessionRef === undefined) return []
+    if (origin.runRef !== undefined)
+      return [runLiveGuardFacts({ tenant, session: origin.sessionRef, run: origin.runRef })]
+    if (origin.kind !== 'tool') return []
+    return [toolWaitOpenGuardFacts({ tenant, call: origin.toolCallRef, wait: origin.positionRef })]
+  }
 }
 
 export type ToolHitlHostInput = Readonly<{

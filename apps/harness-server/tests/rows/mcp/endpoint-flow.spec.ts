@@ -5,10 +5,24 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ActionDiscovery, EndpointRef, Millis } from '@omne-harness/mcp-contract'
 import { mcpActionDiscoveryKey } from '@omne-harness/mcp-cordis-contract/cordis'
+import { mcpProtocol } from '@omne-harness/mcp-protocol'
+import { createClient } from '@omne-harness/sdk/core'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import { savedTenant } from '../../r9/support.ts'
-import { tenantOf, type ProtocolClients } from '../../support/protocol-clients.ts'
-import { onReleaseTree, toolCallsByRequest, type ReleaseTree } from '../../support/release-tree.ts'
+import {
+  originOf,
+  protocolTransport,
+  savedCredentials,
+  tenantOf,
+  type ProtocolClients,
+} from '../../support/protocol-clients.ts'
+import {
+  onReleaseTree,
+  onReleaseTreeRuns,
+  toolCallsByRequest,
+  toolLedger,
+  type ReleaseTree,
+} from '../../support/release-tree.ts'
 import {
   journey,
   lastMessageOf,
@@ -25,7 +39,14 @@ import {
   pendingCard,
   sendInput,
 } from '../authorization/release-flow-support.ts'
-import { testPeer, type PeerAction, type PeerOptions, type TestPeer } from './peer.ts'
+import {
+  modernPeer,
+  testPeer,
+  type ModernPeer,
+  type PeerAction,
+  type PeerOptions,
+  type TestPeer,
+} from './peer.ts'
 
 type Assets = ProtocolClients['assets']
 
@@ -71,7 +92,7 @@ const PROGRAMS: Readonly<Record<string, string>> = {
 
 const ownerOf = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
 const text = (value: string): JsonValue => ({ kind: 'string', value })
-const bodyOf = (name: string, auth: 'none' | 'static'): JsonValue => ({
+const bodyOf = (name: string, auth: 'none' | 'static' | 'oauth'): JsonValue => ({
   kind: 'object',
   entries: [
     { key: 'name', value: text(name) },
@@ -80,7 +101,7 @@ const bodyOf = (name: string, auth: 'none' | 'static'): JsonValue => ({
   ],
 })
 
-const peers: TestPeer[] = []
+const peers: (TestPeer | ModernPeer)[] = []
 async function peerOf(actions: PeerAction[], options?: PeerOptions): Promise<TestPeer> {
   const peer = await testPeer(actions, options)
   peers.push(peer)
@@ -92,6 +113,18 @@ afterEach(async () => {
 })
 
 // Each new user message asks for one call of Tools; a pending answer is followed by its recovery call.
+type Message = NonNullable<Parameters<typeof recoveryOf>[0]>
+
+/** The last recovery call any pending answer of Tools named in the conversation. */
+function pendingIn(body: string) {
+  const messages = (JSON.parse(body) as { messages?: Message[] }).messages ?? []
+  for (const message of messages.toReversed()) {
+    const next = recoveryOf(message)
+    if (next !== undefined) return next
+  }
+  return undefined
+}
+
 function scripted() {
   const bodies: string[] = []
   const script = toolCallsByRequest(body => {
@@ -102,6 +135,13 @@ function scripted() {
       return [toolsCall(`read_${String(bodies.length)}`, recovery.command, recovery.params)]
     if (last?.role !== 'user') return []
     const said = JSON.stringify(last.content)
+    // A person who answered a card asks the agent to read the call it left pending.
+    if (said.includes('start: read again')) {
+      const next = pendingIn(body)
+      return next === undefined
+        ? []
+        : [toolsCall(`again_${String(bodies.length)}`, next.command, next.params)]
+    }
     const call = /start: call ([a-z]+) ([a-z]+) ([a-z0-9-]+)/.exec(said)
     const inspect = /start: inspect ([a-z]+) ([a-z]+)/.exec(said)
     const code = PROGRAMS[/start: code ([a-z]+)/.exec(said)?.[1] ?? '']
@@ -530,7 +570,7 @@ async function keyed(
 }
 
 it(
-  'a secured endpoint is named with its reason until its credential is set, is then called with it, and the value shows in no answer and no model request',
+  'a secured endpoint is named with its reason until its credential is set; a wrong one is rejected and says so; the right one is then called with, and the value shows in no answer and no model request',
   { tags: ['slow'], timeout: 600_000 },
   async () => {
     const { bodies, script } = scripted()
@@ -553,6 +593,39 @@ it(
           { name: 'mcp__secured', reason: expect.stringContaining('credential') },
         ])
 
+        at(
+          'a wrong credential: the endpoint rejects it, the person and the agent are told so (C101)',
+        )
+        expect(await keyed(w, ownerOf('secured'), 'credential', 'not-the-key')).toMatchObject({
+          outcome: 'succeeded',
+        })
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'secured' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { refreshed: 'failed' },
+        })
+        const rejected = await settled(
+          tree,
+          'the endpoint to show its credential rejected',
+          () => mcp['read-endpoint']({ tenant: w.tenant, name: 'secured' }),
+          read => read.outcome === 'succeeded' && read.body.endpoint.credentialState === 'rejected',
+        )
+        expect(rejected).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { credential: 'present', credentialState: 'rejected' } },
+        })
+        await sendInput(tree, session, 'start: search')
+        expect((await searched(tree, session, 3)).withheld).toEqual([
+          {
+            name: 'mcp__secured',
+            reason: expect.stringContaining('was rejected by the endpoint'),
+          },
+        ])
+        expect(peer.calls).toEqual([])
+
         at('the credential is written as a secret')
         expect(await keyed(w, ownerOf('secured'), 'credential', CREDENTIAL)).toMatchObject({
           outcome: 'succeeded',
@@ -560,13 +633,13 @@ it(
 
         at('offered once the credential is set')
         await sendInput(tree, session, 'start: search')
-        const after = await searched(tree, session, 3)
+        const after = await searched(tree, session, 4)
         expect(mcpOf(after).map(entry => entry.name)).toEqual(['mcp__secured'])
         expect(after.withheld ?? []).toEqual([])
 
         at('called with the credential')
         await sendInput(tree, session, 'start: call secured echo keyed')
-        expect(await lastResult(tree, session, 4)).toContain('echo answered keyed')
+        expect(await lastResult(tree, session, 5)).toContain('echo answered keyed')
         expect(peer.calls).toEqual([{ action: 'echo', text: 'keyed' }])
 
         at('the value shows in no answer and no model request')
@@ -730,5 +803,378 @@ it(
       }),
     )
     expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C105 publishing a new body of an endpoint keeps the settings it had: the address, the gate and the credential',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(ECHO)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        at('register docs and set its three settings')
+        await registered(w, 'docs', 'static')
+        await configured(w, 'docs', 'target', peer.target, 'docs-target')
+        await configured(w, 'docs', 'invoke', 'auto', 'docs-auto')
+        expect(await keyed(w, ownerOf('docs'), 'credential', CREDENTIAL)).toMatchObject({
+          outcome: 'succeeded',
+        })
+        const effectiveOf = async (item: string) =>
+          ((await described(w, 'docs', item)) as Readonly<{ effective?: unknown }>).effective
+        const before = { target: await effectiveOf('target'), invoke: await effectiveOf('invoke') }
+        expect(before.target).toMatchObject({
+          value: { kind: 'set', value: { kind: 'string', value: peer.target } },
+        })
+
+        at('publish a new body under the same name')
+        const replaced = await w.assets['create-asset']({
+          tenant: w.tenant,
+          operation: 'replace-docs',
+          category: 'mcp',
+          name: 'docs',
+          body: bodyOf('docs', 'oauth') as never,
+        })
+        expect(replaced, JSON.stringify(replaced)).toMatchObject({ outcome: 'succeeded' })
+
+        at('the three settings are as they were')
+        await settled(
+          tree,
+          'the gate of docs to be a permission again',
+          () => settingOf(w.assets, w.tenant, 'docs', 'invoke'),
+          value => value.outcome === 'succeeded' && value.body.item.kind === 'permission',
+        )
+        expect(await effectiveOf('target')).toEqual(before.target)
+        expect(await effectiveOf('invoke')).toEqual(before.invoke)
+        expect(await described(w, 'docs', 'credential')).toMatchObject({ own: 'available' })
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C106 MC-31 after a restart the catalog of an endpoint is read from storage with the freshness it was acquired with, not listed again; an endpoint disabled or removed before the restart is not usable after it',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(ECHO, FAIL)
+    const ref = (name: string, holding: string) => ({ name, holding }) as unknown as EndpointRef
+    const holdings: Record<string, string> = {}
+    let before: unknown
+    const discoveryOf = (tree: ReleaseTree) =>
+      tree.scope.get(mcpActionDiscoveryKey) as ActionDiscovery<unknown>
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        const w = world(tree)
+        const login = await loginAccess(tree)
+        for (const name of ['docs', 'off', 'gone']) {
+          holdings[name] = await registered(w, name)
+          await configured(w, name, 'target', peer.target, `${name}-target`)
+          const published = await settled(
+            tree,
+            `the catalog of ${name} to be published`,
+            () =>
+              discoveryOf(tree).refresh(login, {
+                ref: ref(name, holdings[name] ?? ''),
+                connectBound: 10_000 as Millis,
+              }),
+            answer => 'ok' in answer && answer.ok.kind === 'published',
+          )
+          expect(published).toMatchObject({ ok: { kind: 'published' } })
+        }
+        before = await discoveryOf(tree).current(login, ref('docs', holdings['docs'] ?? ''))
+        expect(before).toMatchObject({ ok: { kind: 'acquired' } })
+        const disabled = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'off-off',
+          holding: holdings['off'] ?? '',
+          enabled: false,
+        })
+        expect(disabled).toMatchObject({ outcome: 'succeeded' })
+        const removed = await w.assets['remove-asset']({
+          tenant: w.tenant,
+          operation: 'gone-gone',
+          holding: holdings['gone'] ?? '',
+        })
+        expect(removed).toMatchObject({ outcome: 'succeeded' })
+      },
+      async tree => {
+        const login = await loginAccess(tree)
+        const after = await settled(
+          tree,
+          'the stored catalog of docs to be read after the restart',
+          () => discoveryOf(tree).current(login, ref('docs', holdings['docs'] ?? '')),
+          answer => 'ok' in answer,
+        )
+        // The same revision and the same moment it was acquired: read from storage, not listed again;
+        // there is no connection yet after the restart.
+        const was = (before as { ok: Readonly<Record<string, unknown>> }).ok
+        expect(after).toEqual({ ok: { ...was, basisCurrent: 'no-connection' } })
+        expect(
+          await discoveryOf(tree).current(login, ref('off', holdings['off'] ?? '')),
+        ).toMatchObject({ failure: { kind: 'blocked' } })
+        expect(
+          await discoveryOf(tree).current(login, ref('gone', holdings['gone'] ?? '')),
+        ).toMatchObject({ failure: { kind: 'not-available-to-you' } })
+      },
+    ])
+    expect(exits).toEqual([0, 0])
+  },
+)
+
+it(
+  'C107 C112 a peer that adds an action and says so: the catalog follows without a refresh, and mcp/v1 tells the page',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const names = async () => {
+          const read = await mcp['read-endpoint']({ tenant: w.tenant, name: 'live' })
+          return read.outcome === 'succeeded' ? (read.body.actions?.map(a => a.name) ?? null) : null
+        }
+        at('register live, point it at the peer and fetch its actions once')
+        await registered(w, 'live')
+        await configured(w, 'live', 'target', peer.target, 'live-target')
+        expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { refreshed: 'published' },
+        })
+        expect(await names()).toEqual(['book', 'echo', 'report'])
+
+        at('observe the endpoints: the first frame comes at once')
+        const controller = new AbortController()
+        const frames = mcp.observe['observe-endpoints'](
+          { tenant: w.tenant },
+          { signal: controller.signal },
+        )
+        expect(await frames.next()).toEqual({
+          done: false,
+          value: { kind: 'changed', about: 'endpoints' },
+        })
+        await settled(
+          tree,
+          'the long request to be open',
+          async () => peer.asked.get('subscriptions/listen') ?? 0,
+          count => count === 1,
+        )
+        const listed = peer.asked.get('tools/list') ?? 0
+
+        at('the peer adds an action and says so; nobody refreshes')
+        peer.offer([ECHO, { name: 'write', description: 'Writes the text.', answer: 'echo' }])
+        await settled(
+          tree,
+          'the peer to be listed once more',
+          async () => Object.fromEntries(peer.asked),
+          asked => asked['tools/list'] === listed + 1,
+        )
+        expect(await frames.next()).toEqual({
+          done: false,
+          value: { kind: 'changed', about: 'endpoints' },
+        })
+        expect(await names()).toEqual(['book', 'echo', 'report', 'write'])
+        expect(peer.asked.get('tools/list')).toBe(listed + 1)
+        expect(peer.asked.get('subscriptions/listen')).toBe(1)
+        expect(peer.asked.get('tools/call') ?? 0).toBe(0)
+        controller.abort()
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+// An endpoint `desk` on a 2026-07-28 peer whose `book` asks a person which day; calls run without a release card.
+async function asking(tree: ReleaseTree, peer: ModernPeer) {
+  const w = world(tree)
+  await registered(w, 'desk')
+  await configured(w, 'desk', 'target', peer.target, 'desk-target')
+  await configured(w, 'desk', 'invoke', 'auto', 'desk-auto')
+}
+
+const DAY_CARD = 'the question of desk'
+
+it(
+  'C109 MC-30 a peer that asks for input: the person gets a card that names the endpoint and marks its words, the answer goes back once, and the call ends with what the peer answers',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        await asking(tree, peer)
+        at('the agent calls book: a card asks which day, and nothing more goes to the peer')
+        const session = await tree.startSession('start: call desk book a')
+        const card = await pendingCard(tree, session, DAY_CARD)
+        const question = JSON.stringify(card.question)
+        expect(question).toContain('desk')
+        expect(question).toContain('Which day for room a?')
+        expect(question).toContain('[external data begins')
+        expect(peer.answers).toEqual([])
+        expect(peer.asked.get('tools/call')).toBe(1)
+        expect(await lastResult(tree, session, 1)).toContain('"reason":"waiting"')
+
+        at(
+          'the person answers after the turn ended: the call goes on once and ends with the booking',
+        )
+        await answerCard(tree, card, ['--text', 'Tuesday'], 'reply-day')
+        await settled(
+          tree,
+          'the answer to reach the peer',
+          async () => peer.answers.length,
+          n => n === 1,
+        )
+        await sendInput(tree, session, 'start: read again')
+        expect(await lastResult(tree, session, 2)).toContain('booked room a on Tuesday')
+        expect(peer.answers).toHaveLength(1)
+        expect(peer.asked.get('tools/call')).toBe(2)
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C110 a call parked on its question across a restart: the card is still there, and after the answer the call ends with what the peer answers, sent once',
+  { tags: ['slow'], timeout: 900_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    let parked = ''
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        await asking(tree, peer)
+        parked = await tree.startSession('start: call desk book a')
+        await pendingCard(tree, parked, DAY_CARD)
+        await endedRuns(tree, parked, 1)
+      },
+      async tree => {
+        const card = await pendingCard(tree, parked, `${DAY_CARD} after the restart`)
+        expect(JSON.stringify(card.question)).toContain('Which day for room a?')
+        expect(peer.answers).toEqual([])
+        await answerCard(tree, card, ['--text', 'Tuesday'], 'reply-a')
+        await settled(
+          tree,
+          'the answer for a to reach the peer',
+          async () => peer.answers.length,
+          n => n === 1,
+        )
+        await sendInput(tree, parked, 'start: read again')
+        expect(await lastResult(tree, parked, 2)).toContain('booked room a on Tuesday')
+        expect(peer.asked.get('tools/call')).toBe(2)
+      },
+    ])
+    expect(exits).toEqual([0, 0])
+  },
+)
+
+// The call of `report` on desk, as the Tool ledger has it.
+const reportCall = (tree: ReleaseTree) =>
+  toolLedger(tree.storageRoot).find(row => row.tool === 'mcp__desk')
+
+async function reportSettled(tree: ReleaseTree, what: string) {
+  return settled(
+    tree,
+    what,
+    async () => reportCall(tree),
+    row => row?.phase === 'settled',
+  )
+}
+
+it(
+  'C111 MC-28 MC-29 a peer that makes the call a task: the call waits for it, a question of the task goes to a person and back by tasks/update, and the call ends with the result; tools/call is sent once',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        await asking(tree, peer)
+        at('the agent calls report: the peer makes a task, and the call waits for it')
+        const session = await tree.startSession('start: call desk report a')
+        await settled(
+          tree,
+          'the task to be made',
+          async () => peer.tasks.list().length,
+          n => n === 1,
+        )
+        expect(await lastResult(tree, session, 1)).toContain('"reason":"waiting"')
+        expect(reportCall(tree)?.phase).not.toBe('settled')
+
+        at('the task asks which format: a card names the endpoint, the answer goes back once')
+        peer.tasks.ask()
+        const card = await pendingCard(tree, session, 'the question of the task')
+        expect(JSON.stringify(card.question)).toContain('Which format should the report have?')
+        await answerCard(tree, card, ['--text', 'pdf'], 'reply-format')
+        await settled(
+          tree,
+          'the answer to reach the task',
+          async () => peer.tasks.list()[0]?.updates.length,
+          n => n === 1,
+        )
+
+        at('the task finishes: the call ends with its result, and nothing was sent twice')
+        peer.tasks.finish()
+        await reportSettled(tree, 'the call of report to end')
+        await sendInput(tree, session, 'start: read again')
+        expect(await lastResult(tree, session, 2)).toContain('report on a as pdf')
+        expect(peer.asked.get('tools/call')).toBe(1)
+        expect(peer.asked.get('tasks/update')).toBe(1)
+        expect(peer.asked.get('tasks/cancel')).toBeUndefined()
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C111 a call waiting for its task across a restart goes on waiting, and ends with the result; tools/call is sent once',
+  { tags: ['slow'], timeout: 900_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO])
+    peers.push(peer)
+    let waiting = ''
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        await asking(tree, peer)
+        waiting = await tree.startSession('start: call desk report a')
+        await settled(
+          tree,
+          'the task to be made',
+          async () => peer.tasks.list().length,
+          n => n === 1,
+        )
+        await endedRuns(tree, waiting, 1)
+      },
+      async tree => {
+        const before = peer.asked.get('tasks/get') ?? 0
+        await settled(
+          tree,
+          'the watcher to look at the working task again after the restart',
+          async () => (peer.asked.get('tasks/get') ?? 0) - before,
+          n => n >= 2,
+        )
+        peer.tasks.finish()
+        await reportSettled(tree, 'the call of report to end after the restart')
+        expect(peer.asked.get('tasks/get') ?? 0).toBeGreaterThan(before)
+        await sendInput(tree, waiting, 'start: read again')
+        expect(await lastResult(tree, waiting, 2)).toContain('report on a')
+        expect(peer.asked.get('tools/call')).toBe(1)
+      },
+    ])
+    expect(exits).toEqual([0, 0])
   },
 )

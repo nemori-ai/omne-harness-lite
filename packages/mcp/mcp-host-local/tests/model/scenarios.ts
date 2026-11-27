@@ -26,7 +26,6 @@ export const HTTP_CALL: Scenario = {
     'stream.next': ['end', 'break'],
     'credential.authorize': ['fail', 'reject', 'hang'],
     'credential.reportRejection': ['reject', 'hang'],
-    fetchMetadata: ['none', 'reject', 'hang'],
   },
   breaches: 1,
   wireFaults: 1,
@@ -74,9 +73,9 @@ export const HTTP_BARE: Scenario = {
   answers: {
     'line.send': ['401', '403+scope', '403', 'stream'],
     'stream.next': ['end', 'break'],
-    fetchMetadata: ['none'],
+    fetchMetadata: ['none', 'reject', 'hang'],
   },
-  breaches: 0,
+  breaches: 1,
   wireFaults: 1,
 }
 

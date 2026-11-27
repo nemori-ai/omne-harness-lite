@@ -15,6 +15,7 @@ import { completeListing, mergeListing } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryCatalogStore,
+  createMemoryTaskRecords,
   type MemoryCatalogStore,
 } from '@omne-harness/mcp-contract/testing'
 import {
@@ -84,6 +85,7 @@ export function world(
       eligibility,
       credentials,
       store,
+      tasks: createMemoryTaskRecords(),
       transports,
       checkOutput: checks.check,
       clock: { now: () => new Date('2026-11-03T12:00:00Z') },

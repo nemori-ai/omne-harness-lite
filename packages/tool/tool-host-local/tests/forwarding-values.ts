@@ -86,6 +86,10 @@ export async function forwardingFixture(
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
+  /** Whether the subject check can answer now; the next check then answers unavailable. */
+  let subjectKnown = true
+  /** A call whose records reads no longer find: its records were deleted. */
+  let deleted: string | null = null
   /** The read that fails next: the n-th one of its kind from now, once. */
   let blind: { kind: 'read' | 'record'; left: number } | null = null
   const blinded = (kind: 'read' | 'record') => {
@@ -99,7 +103,12 @@ export async function forwardingFixture(
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
     usage: query => memory.usage(query),
-    read: input => (blinded('read') ? away() : memory.read(input)),
+    read: async input => {
+      if (blinded('read')) return away()
+      const read = await memory.read(input)
+      if (read.kind !== 'complete' || input.kind !== 'call' || input.call !== deleted) return read
+      return { ...read, records: read.records.filter(row => row.kind !== 'call') }
+    },
     readRecord: (domain, key) => (blinded('record') ? away() : memory.readRecord(domain, key)),
     due: memory.due,
     definition: memory.definition,
@@ -139,9 +148,11 @@ export async function forwardingFixture(
       qualify: async () =>
         allowed ? { kind: 'allowed' as const } : { kind: 'denied' as const, reason: 'revoked' },
       samePrincipal: async ({ current, original }: { current: string; original: string }) =>
-        current === original
-          ? { kind: 'allowed' as const }
-          : { kind: 'denied' as const, reason: 'other' },
+        !subjectKnown
+          ? { kind: 'unavailable' as const, diagnostic: 'offline' }
+          : current === original
+            ? { kind: 'allowed' as const }
+            : { kind: 'denied' as const, reason: 'other' },
     },
     principalCodec: {
       encode: (principal: string) => principal,
@@ -247,6 +258,12 @@ export async function forwardingFixture(
     },
     revoke: () => {
       allowed = false
+    },
+    deleteParent: () => {
+      deleted = parent.call
+    },
+    loseSubject: () => {
+      subjectKnown = false
     },
     blind: (kind: 'read' | 'record', nth: number) => {
       blind = { kind, left: nth }

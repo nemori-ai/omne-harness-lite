@@ -4,7 +4,11 @@ import { toContentBlocks, type InvokeResult } from '@omne-harness/mcp-contract'
 import { generationOf, jsonOf, revisionOf, taskIdOf } from '@omne-harness/mcp-contract/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolCommandDeclaration } from '@omne-harness/tool-contract'
-import type { ToolSourceCall, ToolSourceListing } from '@omne-harness/tool-contract/provider'
+import {
+  isToolSourceSuspension,
+  type ToolSourceCall,
+  type ToolSourceListing,
+} from '@omne-harness/tool-contract/provider'
 import { runConformanceCase, toolEntrySourceConformance } from '@omne-harness/tool-contract/testing'
 import { describe, expect, it } from 'vitest'
 import { action, ref } from './support.ts'
@@ -21,6 +25,15 @@ import {
   type Principal,
   type World,
 } from './world.ts'
+
+type Answer = Awaited<ReturnType<ReturnType<typeof world>['source']['execute']>>
+
+// This source does not suspend: every answer it gives is a result.
+async function rendered(answer: Promise<Answer>) {
+  const given = await answer
+  if (isToolSourceSuspension(given)) throw new Error('the source suspended the call')
+  return given
+}
 
 async function listing(w: World, asker: Access<Principal>): Promise<ToolSourceListing> {
   const answer = await w.source.list(asker)
@@ -285,7 +298,7 @@ describe('a call of a command', () => {
     w.answers(() => done)
     const declared = commandNamed(w, alice, 'mcp__docs', 'search')
     const args = jsonOf({ query: 'answer' })
-    const result = await w.source.execute(callOf(alice, 'mcp__docs', declared, args))
+    const result = await rendered(w.source.execute(callOf(alice, 'mcp__docs', declared, args)))
     expect(w.invoked).toHaveLength(1)
     expect(w.invoked[0]?.asker).toEqual(alice)
     expect(w.invoked[0]?.request).toMatchObject({
@@ -528,8 +541,8 @@ describe('an endpoint and the programs of an agent', () => {
     w.answers(() => summed)
     const declared = commandNamed(w, alice, 'mcp__docs', 'total')
     if (declared.returns.program.kind !== 'json') throw new Error('the command is not open')
-    const fromProgram = await w.source.execute(
-      callOf(alice, 'mcp__docs', declared, undefined, true),
+    const fromProgram = await rendered(
+      w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true)),
     )
     expect(fromProgram.data).toEqual({
       kind: 'json',
@@ -537,7 +550,7 @@ describe('an endpoint and the programs of an agent', () => {
       schema: declared.returns.program.schema,
       value: jsonOf({ sum: 3 }),
     })
-    const direct = await w.source.execute(callOf(alice, 'mcp__docs', declared))
+    const direct = await rendered(w.source.execute(callOf(alice, 'mcp__docs', declared)))
     expect(direct.data).toEqual({ kind: 'none' })
     expect(direct.content).toEqual(fromProgram.content)
   })
@@ -550,7 +563,9 @@ describe('an endpoint and the programs of an agent', () => {
     w.answers(() => summed)
     const declared = commandNamed(w, alice, 'mcp__docs', 'total')
     expect(declared.returns.program).toEqual({ kind: 'none' })
-    const answer = await w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true))
+    const answer = await rendered(
+      w.source.execute(callOf(alice, 'mcp__docs', declared, undefined, true)),
+    )
     expect(answer.data).toEqual({ kind: 'none' })
   })
 

@@ -172,3 +172,52 @@ it('reads a forwarded subject projection without granting current authority', as
     failure: { kind: 'unavailable' },
   })
 })
+
+it('a forwarded child whose parent records were deleted is still verified by the binding stored when it was forwarded, for the same subject only', async () => {
+  const f = await forwardingFixture()
+  const issued = await f.source.forwarding.resolve({
+    ...f.parent,
+    intent: f.intent,
+    target: f.target,
+  })
+  if (issued.kind !== 'bound') throw new Error('expected bound')
+  const access = {
+    tenant: f.parent.tenant,
+    call: issued.call,
+    admission: issued.admission,
+    request: issued.request,
+  }
+  const asked = { ...access, operation: issued.admission }
+  expect(await f.source.guard.verify({ ...asked, principal: 'alice' })).toEqual({ kind: 'trusted' })
+  f.deleteParent()
+  expect(await f.source.guard.verify({ ...asked, principal: 'alice' })).toEqual({ kind: 'trusted' })
+  expect(await f.source.guard.verify({ ...asked, principal: 'mallory' })).toMatchObject({
+    kind: 'forged',
+  })
+  f.loseSubject()
+  expect(await f.source.guard.verify({ ...asked, principal: 'alice' })).toMatchObject({
+    kind: 'unavailable',
+  })
+})
+
+it('a parent that is still there but cannot be read for a moment does not let the stored binding stand', async () => {
+  const f = await forwardingFixture()
+  const issued = await f.source.forwarding.resolve({
+    ...f.parent,
+    intent: f.intent,
+    target: f.target,
+  })
+  if (issued.kind !== 'bound') throw new Error('expected bound')
+  const asked = {
+    tenant: f.parent.tenant,
+    call: issued.call,
+    admission: issued.admission,
+    request: issued.request,
+    operation: issued.admission,
+    principal: 'alice',
+  }
+  f.blind('read', 0)
+  expect(await f.source.guard.verify(asked)).toMatchObject({ kind: 'unavailable' })
+  expect(f.sighted()).toBe(false)
+  expect(await f.source.guard.verify(asked)).toEqual({ kind: 'trusted' })
+})

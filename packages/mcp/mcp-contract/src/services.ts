@@ -1,6 +1,6 @@
 import type { BodyContract } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Access } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   ActionName,
@@ -30,6 +30,9 @@ import type {
   CatalogStore,
   CredentialUse,
   McpClock,
+  TaskArrival,
+  TaskRecords,
+  TaskRowState,
   UseEligibility,
 } from './ports.ts'
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
@@ -87,13 +90,14 @@ export type InvokeRequest = Readonly<{
   observe?: (notification: PeerNotification) => void
 }>
 
+/** A call taken up again from the values its suspension handed out; it may come on another connection. */
 export type ContinueRequest = Readonly<{
   ref: EndpointRef
   action: ActionName
   args: JsonValue
   requestState?: RequestState
   inputResponses?: JsonValue
-  issuedAt: Generation
+  expectedDefinition: DefinitionDigest
   correlationKey: CorrelationKey
   signal: AbortSignal
   connectBound?: Millis
@@ -134,12 +138,29 @@ export interface TaskControl<P> {
 
 export type ActionInvoker<P> = ActionCalls<P> & TaskControl<P>
 
+export type FollowedTask = Readonly<{ state: TaskRowState; round: number; arrival?: TaskArrival }>
+
+/** The task watcher: follows a task as the principal that gives it, while this process lives, and says when it got somewhere. */
+export interface TaskWatch<P> {
+  follow(access: Access<P>, task: TaskRef): Promise<Outcome<FollowedTask, OperationFailure>>
+  drop(
+    access: Access<P>,
+    task: TaskRef,
+    cancel: boolean,
+  ): Promise<Outcome<'dropped' | 'already', OperationFailure>>
+  following(tenant: TenantId): Promise<Outcome<readonly CorrelationKey[], 'unavailable'>>
+  subscribe(arrived: (tenant: TenantId, call: CorrelationKey) => void): () => void
+}
+
+export type TaskWatchConfig = Readonly<{ pollFloorMs: number; backoffCapMs: number }>
+
 export type DegradedReason = 'discover-failed' | 'list-failed'
 
 export type LostReason =
   | 'preparation-failed'
   | 'discover-failed'
   | 'authorization-required'
+  | 'credential-rejected'
   | 'stream-broken'
   | 'negotiation-invalid'
   | 'session-ended'
@@ -156,6 +177,17 @@ export type EndpointStatusView = Readonly<{
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
 }>
 
+export type EndpointChangeListener = Readonly<{
+  /** The endpoints of this tenant may have changed; the subscriber reads them again. */
+  changed(tenant: TenantId): void
+  /** The feed is gone with the MCP it belonged to. Nothing more arrives; the subscriber subscribes again. */
+  closed(): void
+}>
+
+export interface EndpointChanges {
+  subscribe(listener: EndpointChangeListener): () => void
+}
+
 export interface EndpointStatus<P, S> {
   inspect(
     access: Access<P>,
@@ -164,6 +196,7 @@ export interface EndpointStatus<P, S> {
     Outcome<EndpointStatusView, Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>>
   >
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
+  subscribe: EndpointChanges['subscribe']
 }
 
 export type ReleaseReport = Readonly<{ kind: 'released' }> | Readonly<{ kind: 'no-connection' }>
@@ -186,6 +219,7 @@ export type McpPorts<P, S> = Readonly<{
   eligibility: UseEligibility<P>
   credentials: CredentialUse<P>
   store: CatalogStore
+  tasks: TaskRecords
   transports: McpTransportFactory
   checkOutput: OutputValidator
   clock?: McpClock
@@ -196,12 +230,14 @@ export type McpConfig<P> = Readonly<{
   maxListingPages: number
   maxActions: number
   instructionsByteLimit: number
+  taskWatch?: TaskWatchConfig
 }>
 
 export type McpServices<P, S> = Readonly<{
   inspection: EndpointInspection
   discovery: ActionDiscovery<P>
   invoker: ActionInvoker<P>
+  tasks?: TaskWatch<P>
   status: EndpointStatus<P, S>
   connections: Connections<P>
 }>
