@@ -4,8 +4,9 @@ import type { ShellLogin } from '@omne-harness/shell-contract'
 import { colorSchemeQuery, createSizeController, createThemeController } from '@omne-harness/ui-kit'
 import type { ForwardingBridge } from '../shared/channel.ts'
 import { PAGE_VERSION_EVENT } from '../shared/page-version.ts'
+import { VIEW_MARK, viewOfQuery, type ViewAsked } from '../shared/view.ts'
 import { missingAtForwarding } from '../shared/wire.ts'
-import { assembly, pageFloor } from './assembly.tsx'
+import { assembly, pageAssembly } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { keepBootTokens } from './shell/boot-tokens.ts'
@@ -19,6 +20,8 @@ import { createVisualManager, desktopVisualSource } from './shell/visual.ts'
 import { tellPageVersion } from './shell/page-version.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { markWindowChrome } from './shell/window-chrome.ts'
+import { memoryStorage, viewLooks, viewWatch } from './shell/view.ts'
+import { ViewPage } from './shell/view-page.tsx'
 import { startClientTree } from './tree.ts'
 import './styles.css'
 
@@ -29,9 +32,56 @@ const shellLogin = (bridge: ForwardingBridge): ShellLogin => ({
   logout: bridge.logout,
 })
 
+/** A page drawn only to be looked at: the mode it is given, nothing remembered on this device, nothing told of itself. */
+async function viewMain(element: HTMLElement, view: ViewAsked): Promise<void> {
+  const store = memoryStorage()
+  const local = () => store
+  createThemeController({
+    read: () => view.theme,
+    write: () => undefined,
+    system: colorSchemeQuery(),
+    frame: run => void setTimeout(run, 0),
+  }).start()
+  createSizeController({ read: () => view.size, write: () => undefined })
+  const bridge = await connectPageBridge(httpChannel(window.location.origin))
+  const state = createShellState(shellLogin(bridge), {
+    notices: () => () => undefined,
+    knowsToken: tokenOf(document),
+    tokens: tokensOf(document),
+    faces: storedFacePreference(local),
+  })
+  let fellBack = false
+  const looks = viewLooks(view.look, () => {
+    fellBack = true
+  })
+  const page = pageAssembly({ store: local, looks, viewing: true })
+  const tree = await startClientTree({
+    transport: bridge.transport,
+    login: bridge.loginState,
+    protocols: page.protocols,
+  })
+  await tree.install(shellPlugin(state))
+  adoptChanges(document, state.sheet)
+  for (const module of page.modules) await tree.install(module)
+  const root = document.documentElement
+  await tree.install(viewWatch({ view, state, floor: page.floor, fellBack: () => fellBack, root }))
+  createRoot(element).render(
+    <StrictMode>
+      <ViewPage state={state} view={view} />
+    </StrictMode>,
+  )
+}
+
 async function main(): Promise<void> {
   const element = document.getElementById('root')
   if (element === null) return
+  const view = viewOfQuery(window.location.search)
+  if (view === 'bad-mode') {
+    createRoot(element).render(<main className="shell-view" />)
+    document.documentElement.setAttribute(VIEW_MARK, 'bad-mode')
+    return
+  }
+  if (view !== undefined) return viewMain(element, view)
   markWindowChrome(document.documentElement, navigator.userAgent)
   const visual = createVisualManager({ host: window, nativeSource: desktopVisualSource })
   const size = createSizeController({
@@ -62,7 +112,7 @@ async function main(): Promise<void> {
     root: document.documentElement,
     app: state.appTokens,
     login: bridge.loginState,
-    outcomes: pageFloor.outcomes,
+    outcomes: assembly.floor.outcomes,
   })
   for (const module of assembly.modules) await tree.install(module)
   const theme = createThemeController({

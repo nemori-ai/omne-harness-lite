@@ -39,6 +39,8 @@ export type PluginUiOptions = Readonly<{
   clientId?: () => string
   /** Where the choice of skins is drawn: the place above the list of one category of the assets page. */
   skinsAbove?: KeyedPoint<Readonly<{ category: string }>>
+  /** Whether this client tells the server what it loaded; a page drawn only to be looked at does not. */
+  reports?: boolean
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
@@ -46,6 +48,8 @@ type Running = Readonly<{ stop: () => Promise<void> }>
 const SKIN_CATEGORY = 'skin'
 
 const isSkin = (listed: Listed): boolean => listed.kind === 'skin'
+
+const SILENT = Object.freeze({ touch: () => undefined, stop: () => undefined })
 
 /** Loads what one tenant is to load for as long as it is the one signed in: a skin in the scope of its own look, the rest in the scope of the tenant. */
 function loadFor(
@@ -64,6 +68,7 @@ function loadFor(
     floor = NO_FLOOR,
     clientId = () => crypto.randomUUID(),
     looks: _looks,
+    reports = true,
     ...pace
   } = options
   let skins: ReadonlySet<string> | undefined
@@ -105,19 +110,21 @@ function loadFor(
     if (skins !== undefined) wear.settle(skins, loader.states())
     reporter.touch()
   }
-  const reporter = createReporter(
-    () => ({
-      plugins: reportsOf(loader.states(), shell.changes().conflicts),
-      ...describedOf(shell.described()),
-      handed: handedNames(code, shell),
-    }),
-    async reported => {
-      const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
-      const answer = await send(reported)
-      if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
-      return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
-    },
-  )
+  const reporter = !reports
+    ? SILENT
+    : createReporter(
+        () => ({
+          plugins: reportsOf(loader.states(), shell.changes().conflicts),
+          ...describedOf(shell.described()),
+          handed: handedNames(code, shell),
+        }),
+        async reported => {
+          const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
+          const answer = await send(reported)
+          if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
+        },
+      )
   let listed = false
   /** The tree changed: a waiting plugin whose lacks are all declared now is loaded again in the same version. */
   const recheck = (): void => {

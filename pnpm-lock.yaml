@@ -540,6 +540,12 @@ importers:
       '@omne-harness/identity-ui':
         specifier: workspace:*
         version: link:../../packages/identity/identity-ui
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-protocol
+      '@omne-harness/interface-ui':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-ui
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../packages/common/json-text
@@ -4644,6 +4650,37 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/interface/interface-ui:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../interface-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
