@@ -731,7 +731,7 @@
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
   [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
-  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 13）
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 14）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -883,9 +883,26 @@
 > at and what the agent changes are named by this name.
 
 - **形态**：位置
-- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 13）
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 14）
 - **别混**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)。界面插入位置是界面模块往里放东西的地方；界面部位是画出来、能被指认的东西。
 - **注意**：屏幕上的一处是它此刻的一个实例，没有名字，也没有跨时间的身份。一个没有声明名字的页面元素不是界面部位。
+
+---
+
+### UL-interface-inspection · 界面检视 · Interface Inspection
+
+> **中**：**agent 向一个连着的客户端要「点名的一页在点名的模式下的一张图」的那一次问答。**
+> 模式是明暗、字号档、皮肤与内容区的宽高。它没有效果：人正在看的页面与本机记着的选择都不变。
+> 没有客户端连着时，答案是客户端不在。
+>
+> **EN**: **One question an agent puts to a connected client: draw the named page in the named mode and give one image.**
+> The mode is the theme, the type scale, the skin, and the width and height of the content area.
+> It has no effect: the page the person is looking at and the choices kept on the device do not change.
+> With no client connected, the answer is that no client is there.
+
+- **形态**：过程
+- **出处**：[桌面应用：agent 给应用加东西](../../product/desktop-application/design.md#agent-给应用加东西)（rev 14）
+- **别混**：不是执行环境的屏幕截取（那是服务端那台机器的屏幕）；不是「人此刻正在看什么」；不是[界面开发模式](#ul-ui-developer-mode--界面开发模式--ui-developer-mode)里人的选取。
 
 ---
 
@@ -900,7 +917,7 @@
 > behaves as if the switch did not exist.
 
 - **形态**：状态
-- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 13）
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 14）
 - **别混**：不是应用的开发构建，也不是给开发者调试用的检查器。它是给使用者的。
 
 ---
@@ -915,7 +932,7 @@
 > kind it is, and what it draws. It does not change after the input is accepted.
 
 - **形态**：属性
-- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 13）
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 14）
 - **别混**：不是人写的字里的引用。它和人写的字分开，标题与搜索不含它。
 - **注意**：它是选中那一刻的记录。之后界面变了，它不变。还没随消息发出去的那一份只在交付面里，不是输入的一部分。
 
@@ -934,7 +951,7 @@
 > settings of an asset here, not in the Settings part.
 
 - **形态**：位置
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14）
 - **别混**：不是「设置」那一部分：设置只放不属于任何一份资产的设置项。
   不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：它是资产的界面模块放进外壳「页面」这个位置里的一项。
 
@@ -954,7 +971,7 @@
 > has at most one page.
 
 - **形态**：视图
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14）
 - **别混**：不是资产本身，也不存任何事实：页面上的每个值取自服务端此刻的答复。
   有没有这一页只说明这次部署装没装这一类的界面，不说明这个人许不许用这一类资产。
 - **注意**：它是放进资产页的[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一项[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)。
@@ -1004,7 +1021,7 @@
 > stands for and what it shows of the work stay the same.
 
 - **形态**：视图
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 13）
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 14）
 - **别混**：不是图标、头像或产品标志。不是 agent 本身：形只是 agent 在桌面应用里的样子，不带 agent 的任何事实。
   在桌面上的形不是另一个东西：它离开的座位空着，回去时还是坐那个座位。
 
@@ -1027,7 +1044,7 @@
 > the figure left shows nothing.
 
 - **形态**：位置
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 13） ·
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 14） ·
   [画布「应用的两面」](../../product/canvas/design.md#应用的两面)（rev 2）
 - **别混 ①**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：插入位置里放的是界面模块的一项；座位上只坐形。
 - **别混 ②**：画布中间的座位不叫家。家只指正面侧栏左上角的那一个座位。
@@ -1048,7 +1065,7 @@
 > and has no result.
 
 - **形态**：位置
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 13）
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 14）
 - **别混**：不是[资产治理口](#ul-asset-governance-port--资产治理口--asset-governance-port)：那个口让宿主的事实与操作流向贡献方；形口让贡献方的数据流向外壳。
   报了一条不表示人看到了。
 - **注意**：它是[宿主交给贡献方的口](../../../../docs/architecture/cross-cutting-concepts.md#宿主交给贡献方的口)的一个，宿主是界面外壳。
@@ -1067,7 +1084,7 @@
 > Unresolved notifications and told notes do not count.
 
 - **形态**：视图
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 13）
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 14）
 - **别混**：不是通知的未了结条数：那个数不要人回答，界面上用中性的样子显示。
 
 ---
@@ -1085,7 +1102,7 @@
 > two sentences, light for a large block of content.
 
 - **形态**：视图
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 13）
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 14）
 - **别混**：应用自己的菜单、下拉、提示、确认与常驻在版面里的东西都不是墨框，它们用应用的平样式。
 
 ---
@@ -1107,7 +1124,7 @@
 > told note written does not mean that the person saw it, and closing the window removes it.
 
 - **形态**：视图
-- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 13）
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 14）
 - **别混**：不是[通知](#ul-notification--通知--notification)：通知在收件箱里有记录，告知笺只是一次提醒的样子。
 
 ---
@@ -1127,7 +1144,7 @@
 > page. Its default look is the ink motes, and a plugin can replace the look.
 
 - **形态**：视图
-- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 13）
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 14）
 - **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：形是 agent 本身，屏幕上只有一个；随身入口是人对 agent 说话的地方，不坐[形座位](#ul-figure-seat--形座位--figure-seat)，不写[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)。
 
 ---
@@ -1145,7 +1162,7 @@
 > While it is dragged, one dab stays.
 
 - **形态**：视图
-- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 13）
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 14）
 - **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：没有那一笔圆，不算进「屏幕上只有一个形」。不是活动标记：活动标记说某一处在加载，墨点说这里可以对 agent 说话。
 
 ---
@@ -1166,7 +1183,7 @@
 > returns to its seat.
 
 - **形态**：位置
-- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 13）
+- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 14）
 - **别混 ①**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：界面模块不能往它里面放东西。皮肤与 plugin 改的样子到得了它，那是外壳把同一份样子交给了它。
 - **别混 ②**：不是[应用的面](#ul-application-face--应用的面--application-face)，也不是[画布](#ul-canvas--画布--canvas)。两面都在应用的窗口里。
 - **别混 ③**：不是截图时盖住屏幕的遮罩。遮罩只在人框选的那一会儿在，接走整块屏的指针。
@@ -1192,7 +1209,7 @@
 > stays in front.
 
 - **形态**：视图
-- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 13）
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 14）
 - **别混 ①**：不是[告知笺](#ul-told-note--告知笺--told-note)。告知笺是界面告诉人一件事；说话笺是人对 agent 说话。
 - **别混 ②**：不是随身入口。随身入口是窗口里人按的那一处，一直在窗口里；说话笺是写出来的那张笺。在桌面上，笺由形写出，不由随身入口写出。
 
@@ -1211,7 +1228,7 @@
 > next to it gives the application name and the window title.
 
 - **形态**：视图
-- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 13）
+- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 14）
 - **别混 ①**：不是[界面选择](#ul-ui-selection--界面选择--ui-selection)。界面选择选的是应用自己界面上的部位；观测框围的是别的应用的窗口。
 - **别混 ②**：不是 agent 自己看屏幕。读是人松手的那一下做的，图由人发给自己的会话。
 
@@ -1228,7 +1245,7 @@
 > that the person chose is a look-and-feel preference.
 
 - **形态**：属性
-- **出处**：[桌面应用「观感」](../../product/desktop-application/design.md#观感)（rev 13）
+- **出处**：[桌面应用「观感」](../../product/desktop-application/design.md#观感)（rev 14）
 - **别混**：不是窗口或浏览器的缩放：那会把整页当一张图放大，形与版式的规则都不再成立。
 
 ---
@@ -1249,7 +1266,7 @@
 > the front face. Before sign-in there is no face, only the sign-in gate.
 
 - **形态**：位置
-- **出处**：[桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 13） ·
+- **出处**：[桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 14） ·
   [画布「应用的两面」](../../product/canvas/design.md#应用的两面)（rev 2）
 - **别混 ①**：不是[交付面](#ul-delivery-surface--交付面--delivery-surface)。交付面是桌面应用、命令行应用这一类东西本身；应用的面是桌面应用窗口里的一面。
 - **别混 ②**：不是[共用界面件](../../../../packages/frontend/SPEC.md#纸的面)里的「纸面」。纸面是一张可以平移、缩放的纸，画布用它画出反面上的那张纸。

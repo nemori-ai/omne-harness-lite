@@ -551,7 +551,7 @@
 > Skins are a category of their own among the assets. They are not listed with the plugins.
 
 - **形态**：变体（父：[插件](#ul-plugin--插件--plugin)）
-- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 13）
+- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 14）
 - **别混 ①**：不是主题。主题是浅色、深色、跟随系统三选一，由应用自带；皮肤是持有的资产，一套皮肤自己要顾到浅色与深色
 - **别混 ②**：启用不等于在用。启用是这一套装着、可以用；界面此刻用哪一套是人在这台设备上的[观感偏好](interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)
 - **别混 ③**：一份只改几处样子的普通 plugin 不是皮肤：它没有在清单里写明，不进皮肤这一类，也不受「至多用一套」的约束
@@ -729,7 +729,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -748,7 +748,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
