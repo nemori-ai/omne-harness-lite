@@ -1,0 +1,65 @@
+{
+  "name": "examiner-dsflash-1",
+  "examiner": "real",
+  "definition": "examiner@deepseek/deepseek-v4.1-flash",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [],
+    "batches": 56,
+    "falseHolds": {
+      "errors": 0,
+      "n": 40,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.08762160245846368
+      }
+    },
+    "timid": {
+      "errors": 0,
+      "n": 184,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.020450537938611096
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 0,
+    "parroted": {
+      "errors": 0,
+      "n": 24,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.13797620655132792
+      }
+    },
+    "usd": {
+      "n": 56,
+      "mean": 0.0027201914999999996,
+      "interval": {
+        "low": 0.00245145333386732,
+        "high": 0.002988929666132679
+      },
+      "median": 0.0026107368,
+      "max": 0.005936784
+    },
+    "seconds": {
+      "n": 56,
+      "mean": 39.42857142857143,
+      "interval": {
+        "low": 35.6545848154423,
+        "high": 43.20255804170056
+      },
+      "median": 39,
+      "max": 78
+    },
+    "totalUsd": 0.15233072399999997,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": []
+  }
+}

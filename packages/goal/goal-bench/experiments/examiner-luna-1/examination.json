@@ -1,0 +1,102 @@
+{
+  "name": "examiner-luna-1",
+  "examiner": "real",
+  "definition": "examiner@openai/gpt-6-luna",
+  "products": 8,
+  "score": {
+    "cases": 40,
+    "failed": [],
+    "cutShort": [],
+    "batches": 56,
+    "falseHolds": {
+      "errors": 0,
+      "n": 40,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.08762160245846368
+      }
+    },
+    "timid": {
+      "errors": 3,
+      "n": 184,
+      "rate": 0.016304347826086956,
+      "interval": {
+        "low": 0.005560179013037425,
+        "high": 0.04683218921018418
+      }
+    },
+    "timidFails": 0,
+    "timidCannotTell": 3,
+    "parroted": {
+      "errors": 0,
+      "n": 24,
+      "rate": 0,
+      "interval": {
+        "low": 0,
+        "high": 0.13797620655132792
+      }
+    },
+    "usd": {
+      "n": 56,
+      "mean": 0.0017614612499999998,
+      "interval": {
+        "low": 0.0016339267722197902,
+        "high": 0.0018889957277802094
+      },
+      "median": 0.00193231,
+      "max": 0.00261267
+    },
+    "seconds": {
+      "n": 56,
+      "mean": 25.607142857142858,
+      "interval": {
+        "low": 23.586593646404914,
+        "high": 27.6276920678808
+      },
+      "median": 29,
+      "max": 39
+    },
+    "totalUsd": 0.09864182999999999,
+    "changedWork": [],
+    "addedToWork": [],
+    "wrong": [
+      {
+        "case": "x02-slug/edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A1",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "before": null
+      },
+      {
+        "case": "x02-slug/edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A2",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "before": null
+      },
+      {
+        "case": "x02-slug/edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A3",
+        "truth": "fails",
+        "said": "cannot-tell",
+        "before": null
+      },
+      {
+        "case": "x02-slug/edge-dashes-kept",
+        "step": 0,
+        "kind": "broken",
+        "criterion": "A4",
+        "truth": "holds",
+        "said": "cannot-tell",
+        "before": null
+      }
+    ]
+  }
+}
