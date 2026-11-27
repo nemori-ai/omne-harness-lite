@@ -288,8 +288,9 @@ function timed(suite: string, paired: PairedRun, io: Io): number {
     io.out(
       `${suite}: ${measure} ${verdict.state} after ${String(paired.rounds)} rounds (${band(verdict)})`,
     )
+  if (verdicts.some(([, verdict]) => verdict.state === 'slower')) return 1
   const decisive = verdicts[0]?.[1].state
-  return decisive === 'slower' ? 1 : decisive === 'insufficient' || decisive === undefined ? 2 : 0
+  return decisive === 'insufficient' || decisive === undefined ? 2 : 0
 }
 
 async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise<number> {
@@ -309,13 +310,20 @@ async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise
     return 2
   }
   const rootOf = { base: roots.base, self: roots.base, candidate: roots.candidate }
+  const out = text(parsed.options, '--out') ?? join(setting.results, stamp(setting.now()))
   let worst = 0
   for (const one of chosen) {
     const from = await measured(setting, roots.base, one)
     const to = await measured(setting, roots.candidate, one)
+    const kept = [from, to].map((result, index) => {
+      const directory = join(out, index === 0 ? 'base' : 'candidate', `${one.suite.id}.${one.tier}`)
+      writeResult(directory, result)
+      return directory
+    })
     const baseline = baselineOf(from)
     const compared = 'state' in baseline ? baseline : compareCounts(baseline, to)
     io.out(reportOf(to, compared))
+    io.out(`Results: ${kept.join(' ')}`)
     worst = Math.max(
       worst,
       compared.state === 'equal' ? EXIT[outcomeOf(to)] : compared.state === 'different' ? 1 : 2,
@@ -326,15 +334,18 @@ async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise
       worst = Math.max(worst, 2)
       continue
     }
-    const paired = await runPaired(async side => {
-      mkdirSync(setting.scratch, { recursive: true })
-      const dataDirectory = mkdtempSync(join(setting.scratch, 'perf-'))
-      try {
-        return await one.suite.sample(one.tier, { root: rootOf[side], dataDirectory })
-      } finally {
-        rmSync(dataDirectory, { recursive: true, force: true })
-      }
-    })
+    const paired = await runPaired(
+      async side => {
+        mkdirSync(setting.scratch, { recursive: true })
+        const dataDirectory = mkdtempSync(join(setting.scratch, 'perf-'))
+        try {
+          return await one.suite.sample(one.tier, { root: rootOf[side], dataDirectory })
+        } finally {
+          rmSync(dataDirectory, { recursive: true, force: true })
+        }
+      },
+      one.suite.changes === undefined ? {} : { minimumChange: one.suite.changes },
+    )
     worst = Math.max(worst, timed(one.suite.id, paired, io))
   }
   return worst

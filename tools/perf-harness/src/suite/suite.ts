@@ -23,6 +23,7 @@ export type Suite = Readonly<{
   tiers: readonly string[]
   paths: readonly string[]
   limits: readonly string[]
+  changes?: Readonly<Record<string, number>>
   plan: (tier: string) => Plan
   measure: (tier: string, input: Place) => Promise<Measured>
   sample: (tier: string, input: Place) => Promise<Sample>

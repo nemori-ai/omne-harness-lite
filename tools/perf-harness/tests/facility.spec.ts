@@ -418,6 +418,49 @@ describe('the command line', () => {
     expect(sides).toEqual([])
   })
 
+  it('keeps the result of each side of two commits, so the two can be read and compared again', async () => {
+    const suite: Suite = {
+      ...suiteOf('a', () => counts(10)),
+      measure: (_tier, place) => Promise.resolve(counts(place.root === '/at/cand' ? 12 : 10)),
+    }
+    const prepared = setting([suite], { prepare: commit => Promise.resolve(`/at/${commit}`) })
+    await perf(['compare', 'base', 'cand', 'a', '--counts-only'], prepared, io)
+    const kept = join(scratch, 'results', '2026-11-27T12-00-00-000Z')
+    expect(lines).toContain(
+      `Results: ${join(kept, 'base', 'a.short')} ${join(kept, 'candidate', 'a.short')}`,
+    )
+    expect(resultIn(join(kept, 'base', 'a.short')).readings[0]?.value).toBe(10)
+    expect(resultIn(join(kept, 'candidate', 'a.short')).readings[0]?.value).toBe(12)
+    lines.length = 0
+    expect(
+      await perf(
+        ['compare', join(kept, 'base', 'a.short'), join(kept, 'candidate', 'a.short')],
+        setting([]),
+        io,
+      ),
+    ).toBe(1)
+    expect(lines.join('\n')).toContain('| reads of one step | 10 | 12 |')
+  })
+
+  it('holds a measure to the smallest change its suite names, and answers 1 when any measure got worse', async () => {
+    const sample: Suite['sample'] = (_tier, place) =>
+      Promise.resolve({
+        measures: { 'wall ms': 100, 'bytes of a step': place.root === '/at/cand' ? 1010 : 1000 },
+        digests: ['a'],
+      })
+    const coarse = suiteOf('a', () => counts(10), sample)
+    const prepared = (suite: Suite): Setting =>
+      setting([suite], { prepare: commit => Promise.resolve(`/at/${commit}`) })
+    expect(await perf(['compare', 'base', 'cand', 'a'], prepared(coarse), io)).toBe(0)
+    expect(lines.join('\n')).toContain('a: bytes of a step unchanged after 10 rounds')
+    lines.length = 0
+    const fine: Suite = { ...coarse, changes: { 'bytes of a step': 0.001 } }
+    expect(await perf(['compare', 'base', 'cand', 'a'], prepared(fine), io)).toBe(1)
+    const printed = lines.join('\n')
+    expect(printed).toContain('a: wall ms unchanged after 10 rounds')
+    expect(printed).toContain('a: bytes of a step slower after 10 rounds (median 1.0%')
+  })
+
   it('does not time anything on a runtime that is not the pinned one, and says why', async () => {
     const suite = suiteOf('a', () => counts(10))
     const off = setting([suite], {

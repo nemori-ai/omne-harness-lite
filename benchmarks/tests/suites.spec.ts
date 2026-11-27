@@ -4,7 +4,15 @@ import type { StepLine } from '../src/driver/lab.ts'
 import { callId, LIST, requestsOf, roundMark, scriptOf, type RoundShape } from '../src/script.ts'
 import { SUITES } from '../src/suites.ts'
 import { measuredOf, MULTI_ROUND, MULTI_STEP, writesOf } from '../src/suites/sessions.ts'
-import { gatesOf, READ_ALLOWANCE, rungsOf, type Axis } from '../src/suites/scale.ts'
+import {
+  BYTE_ALLOWANCE,
+  CHANGES,
+  gatesOf,
+  READ_ALLOWANCE,
+  rungsOf,
+  sampleOf,
+  type Axis,
+} from '../src/suites/scale.ts'
 import { digestsOf, stepsOf, type Step, type Trajectory } from '../src/trajectory.ts'
 
 const step = (round: number, at: number, over: Partial<Step> = {}): Step => ({
@@ -56,6 +64,15 @@ describe('the gates of an axis', () => {
     const grown = round(at => ({ commitBytes: 1_000_000 + at * 4000 }))
     expect(stateOf(grown, 'commit bytes of a step')?.outcome).toBe('fail')
     expect(stateOf(grown, 'commits of a step')?.outcome).toBe('pass')
+  })
+
+  it('let the commit bytes of a step move by the few bytes the clock writes, and fail them beyond that', () => {
+    const wobbling = round(at => ({ commitBytes: at === 4 ? 1_000_002 : 1_000_000 }))
+    expect(stateOf(wobbling, 'commit bytes of a step')?.outcome).toBe('pass')
+    const beyond = round(at => ({
+      commitBytes: at > 8 ? 1_000_000 * (1 + BYTE_ALLOWANCE * 2) : 1_000_000,
+    }))
+    expect(stateOf(beyond, 'commit bytes of a step')?.outcome).toBe('fail')
   })
 
   it('let the reads of a step move inside the allowance, and fail them beyond it', () => {
@@ -125,6 +142,8 @@ describe('what a trajectory comes to', () => {
     const named = (name: string) => readings.find(reading => reading.name === name)
     expect(named('commits of a step at step 16')).toMatchObject({ kind: 'count', value: 81 })
     expect(named('reads of a step at step 2')).toMatchObject({ kind: 'clocked', value: 900 })
+    expect(named('commit bytes of a step at step 4')).toMatchObject({ kind: 'clocked' })
+    expect(named('commit bytes of a step on an empty session')).toMatchObject({ kind: 'clocked' })
     expect(named('request bytes after a step at step 4')).toMatchObject({ kind: 'count' })
     expect(named('commits of a step by tenant-1/tool at step 16')).toMatchObject({
       kind: 'count',
@@ -137,6 +156,23 @@ describe('what a trajectory comes to', () => {
     expect(named('commits of a step on an empty session')).toMatchObject({ value: 81 })
     expect(named('wall time of the trajectory')).toMatchObject({ kind: 'time', value: 1235 })
     expect(named('processor time of the server')).toMatchObject({ kind: 'time', value: 2000 })
+  })
+
+  it('gives a timed round the wall and processor times and what a step reads and commits in bytes, each with its smallest change', () => {
+    expect(sampleOf(trajectory)).toEqual({
+      digests: ['a', 'b'],
+      measures: {
+        'wall ms': 1234.5,
+        'server processor ms': 2000,
+        'reads of a step': 900,
+        'commit bytes of a step': 1_000_000,
+      },
+    })
+    expect(CHANGES).toEqual({
+      'reads of a step': READ_ALLOWANCE,
+      'commit bytes of a step': BYTE_ALLOWANCE,
+    })
+    for (const suite of SUITES) expect(suite.changes).toBe(CHANGES)
   })
 
   it('leaves out the processor time where it cannot be read', () => {

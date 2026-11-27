@@ -11,6 +11,7 @@ import {
 import type { Step, Trajectory } from '../trajectory.ts'
 
 export const READ_ALLOWANCE = 0.02
+export const BYTE_ALLOWANCE = 0.001
 
 export type Span = Readonly<{
   reads: number
@@ -50,9 +51,9 @@ export const COMMITS: Quantity = {
 }
 export const COMMIT_BYTES: Quantity = {
   what: 'commit bytes',
-  kind: 'count',
+  kind: 'clocked',
   unit: 'bytes',
-  allowance: 0,
+  allowance: BYTE_ALLOWANCE,
   of: span => span.commitBytes,
 }
 export const READS: Quantity = {
@@ -238,5 +239,11 @@ export const sampleOf = (trajectory: Trajectory) => ({
     'wall ms': trajectory.wallMs,
     ...(trajectory.processorMs === null ? {} : { 'server processor ms': trajectory.processorMs }),
     'reads of a step': median(trajectory.steps.map(step => step.reads)),
+    'commit bytes of a step': median(trajectory.steps.map(step => step.commitBytes)),
   },
 })
+
+export const CHANGES: Readonly<Record<string, number>> = {
+  'reads of a step': READ_ALLOWANCE,
+  'commit bytes of a step': BYTE_ALLOWANCE,
+}

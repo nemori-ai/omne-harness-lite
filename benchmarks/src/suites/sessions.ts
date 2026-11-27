@@ -16,6 +16,7 @@ import {
   type Watching,
 } from '../trajectory.ts'
 import {
+  CHANGES,
   clocked,
   COMMIT_BYTES,
   COMMITS,
@@ -109,6 +110,7 @@ function suiteOf(definition: Definition): Suite {
     tiers: Object.keys(definition.tiers),
     paths: PATHS,
     limits: [...definition.limits, ...LIMITS],
+    changes: CHANGES,
     plan: tier => planOf(definition, tier, tierOf(tier)),
     measure: async (name, place) => {
       const tier = tierOf(name)
