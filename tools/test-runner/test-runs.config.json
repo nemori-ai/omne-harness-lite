@@ -127,11 +127,6 @@
         ],
         "members": ["tools/dev-flow", "tools/product-checks"],
         "why": "dev-flow 的 gate 读交付配置的仓库名；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
-      },
-      {
-        "paths": ["tools/e9/metrics.mjs"],
-        "members": ["apps/harness-server", "packages/agent/agent-host-local"],
-        "why": "harness-server 的 tests/long-session/judge.ts 导入 tools/e9/metrics.mjs 的 evaluateSeries；agent-host-local 的 tests/line-through/growth.spec.ts 读它，核对 METHOD.growth 的常量。tools/e9 不是工作区成员，没有这条就没有规则认得它"
       }
     ],
     "memberDocuments": [
@@ -179,7 +174,6 @@
       "apps/**/*.md",
       "tools/*.md",
       "tools/model-probe/**",
-      "tools/e9/**",
       "tools/joint-a/**",
       "tools/joint-b/**"
     ],
