@@ -6,6 +6,7 @@ const ALWAYS: readonly RegExp[] = [
   /^docs\/architecture\/.+/u,
   /^docs\/domains\/.+/u,
   /^(packages|apps|tools)\/[^/]+\/SPEC\.md$/u,
+  /^benchmarks\/SPEC\.md$/u,
   /(^|\/)api\/[^/]+\.api\.md$/u,
   /(^|\/)verification\/(.+\/)?formal-mapping\.md$/u,
   /(^|\/)verification\/(.+\/)?proofs\/(?!README\.md$|index\.md$)[^/]+\.md$/u,

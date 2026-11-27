@@ -53,7 +53,7 @@ const serveManifests: ReadonlyMap<RowId, RowManifest> = new Map(
   ]),
 )
 
-const serveVisibility: Visibility = new Map(
+export const serveVisibility: Visibility = new Map(
   trustedScopes.map(scope => [scope.row, [...scope.names]]),
 )
 

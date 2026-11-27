@@ -565,7 +565,7 @@ export type DecodedEntry =
   | Readonly<{ unknown: string }>
   | Readonly<{ malformed: string }>
 
-const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
+export const SESSION_ENTRY_KINDS: readonly SessionEntryKind[] = Object.freeze([
   'session.model-projected',
   'session.todo-added',
   'session.todo-completed',
@@ -621,6 +621,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'history.annotated',
   'entries.interpreted',
 ])
+
+const KNOWN_KINDS: ReadonlySet<string> = new Set<string>(SESSION_ENTRY_KINDS)
 
 export type StoredEntry = Pick<HistoryEntry, 'kind' | 'payload'> &
   Partial<Pick<HistoryEntry, 'schema' | 'origin'>>

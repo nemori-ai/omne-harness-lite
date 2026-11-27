@@ -251,7 +251,7 @@ export {
   projectCompactionCommit,
   type CompactionCommitState,
 } from './compaction-commit.ts'
-export { expandHistoryEntries } from './entries.ts'
+export { expandHistoryEntries, SESSION_ENTRY_KINDS } from './entries.ts'
 export {
   CONTEXT_SCOPE_KINDS,
   contextScopeOf,

@@ -191,6 +191,7 @@
 - `RunStartJudgment` · 包 `@omne-harness/session-contract`
 - `RunState` · 包 `@omne-harness/session-contract`
 - `RunTerminal` · 包 `@omne-harness/session-contract`
+- `SESSION_ENTRY_KINDS` · 包 `@omne-harness/session-contract`
 - `SavedModelSelection` · 包 `@omne-harness/session-contract`
 - `ScopeReleaseDisposition` · 包 `@omne-harness/session-contract`
 - `ScopeReleasePort` · 包 `@omne-harness/session-contract`

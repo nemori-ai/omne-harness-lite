@@ -760,6 +760,7 @@ export async function createMemorySqlStorage(
       return { kind: 'closed' }
     },
     assemblyReportSettled() {},
+    readings: () => ({ reads: [], commits: [], participants: [], queries: [] }),
   }
   return { storage, control }
 }

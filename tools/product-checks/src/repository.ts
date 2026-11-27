@@ -14,6 +14,7 @@ import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/synta
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 import { testTempPhysicalPath } from './rules/test-temp-physical-path.ts'
 import { assetCategoryNames } from './rules/asset-category-names.ts'
+import { evaluationNotProductSource } from './rules/evaluation-not-product-source.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -26,6 +27,7 @@ export const REPOSITORY_RULES = [
   modelCredentialBoundary,
   testTempPhysicalPath,
   assetCategoryNames,
+  evaluationNotProductSource,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   root = resolve(root)
@@ -116,7 +118,7 @@ export function collectRepositorySources(root: string): SourceFile[] {
       }
     }
   }
-  for (const directory of ['packages', 'apps', 'examples', 'tools', 'scripts']) {
+  for (const directory of ['packages', 'apps', 'examples', 'tools', 'scripts', 'benchmarks']) {
     const full = join(root, directory)
     try {
       if (statSync(full).isDirectory()) {

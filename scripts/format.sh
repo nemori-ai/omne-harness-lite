@@ -33,7 +33,7 @@ is_format_target() {
         .oxfmtrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
             return 0
             ;;
-        examples/*|tools/*|scripts/*|packages/*|apps/*)
+        examples/*|tools/*|scripts/*|packages/*|apps/*|benchmarks/*)
             case "$name" in
                 *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|*.mts|*.cts|package.json|tsconfig*.json|vitest.config.*)
                     return 0

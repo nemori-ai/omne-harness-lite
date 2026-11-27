@@ -11,6 +11,7 @@ import type {
   StorageCloseResult,
   StorageControl,
   StorageHost,
+  StorageReadings,
 } from '@omne-harness/sql-contract'
 import { StorageHostService, storageHostKey } from '@omne-harness/sql-contract/cordis'
 import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../row.ts'
@@ -108,11 +109,53 @@ async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promi
   }
 }
 
+type Counted = Readonly<Record<string, string | number>>
+
+/** The lists of several providers as one: rows of the same names add up. */
+function summed<T extends Counted>(
+  lists: readonly (readonly T[])[],
+  names: readonly string[],
+): T[] {
+  const rows = new Map<string, Record<string, string | number>>()
+  for (const row of lists.flat()) {
+    const key = JSON.stringify(names.map(name => row[name]))
+    const kept = rows.get(key)
+    if (kept === undefined) rows.set(key, { ...row })
+    else
+      for (const [name, value] of Object.entries(row))
+        if (typeof value === 'number') kept[name] = Number(kept[name]) + value
+  }
+  return [...rows.values()] as T[]
+}
+
 export class StorageHostAdapter extends StorageHostService {
   readonly materials: SqlMaterialCatalog
   readonly closeLeases: CloseLeasePort
   readonly attachControl: StorageHost['attachControl']
   private readonly state: AdapterState
+
+  /** What the providers attached to this host counted so far. */
+  readings(): StorageReadings {
+    const all = this.state.controls.map(control => control.readings())
+    return {
+      reads: summed(
+        all.map(one => one.reads),
+        ['domain', 'handler'],
+      ),
+      commits: summed(
+        all.map(one => one.commits),
+        ['domain'],
+      ),
+      participants: summed(
+        all.map(one => one.participants),
+        ['domain', 'participant'],
+      ),
+      queries: summed(
+        all.map(one => one.queries),
+        ['domain'],
+      ),
+    }
+  }
 
   constructor(ctx: Context, materials: SqlMaterialCatalog) {
     super(ctx)

@@ -63,9 +63,14 @@
 - `StoppingEntry` · `types.d.ts`
 - `StoppingReply` · `types.d.ts`
 - `StorageCloseResult` · `types.d.ts`
+- `StorageCommitCount` · `types.d.ts`
 - `StorageControl` · `types.d.ts`
 - `StorageDiagnostic` · `types.d.ts`
 - `StorageHost` · `types.d.ts`
+- `StorageParticipantCount` · `types.d.ts`
+- `StorageQueryCount` · `types.d.ts`
+- `StorageReadCount` · `types.d.ts`
+- `StorageReadings` · `types.d.ts`
 - `StorageResidual` · `types.d.ts`
 - `StorageScope` · `types.d.ts`
 - `TenantDomain` · `types.d.ts`
@@ -708,11 +713,45 @@ export type StorageCloseResult = Readonly<{
     kind: 'incomplete';
     residuals: readonly StorageResidual[];
 }>;
+export type StorageReadCount = Readonly<{
+    domain: string;
+    handler: string;
+    read: number;
+    unavailable: number;
+    cancelled: number;
+}>;
+export type StorageCommitCount = Readonly<{
+    domain: string;
+    committed: number;
+    recalled: number;
+    rolledBack: number;
+    unknown: number;
+    conflicted: number;
+    rejected: number;
+    bytes: number;
+}>;
+export type StorageParticipantCount = Readonly<{
+    domain: string;
+    participant: string;
+    committed: number;
+}>;
+export type StorageQueryCount = Readonly<{
+    domain: string;
+    answered: number;
+    unknown: number;
+}>;
+export type StorageReadings = Readonly<{
+    reads: readonly StorageReadCount[];
+    commits: readonly StorageCommitCount[];
+    participants: readonly StorageParticipantCount[];
+    queries: readonly StorageQueryCount[];
+}>;
 export interface StorageControl {
     close(input: Readonly<{
         initiator: CloseInitiator;
     }>): Promise<StorageCloseResult>;
     assemblyReportSettled(): void;
+    readings(): StorageReadings;
 }
 export interface StorageHost {
     readonly materials: SqlMaterialCatalog;

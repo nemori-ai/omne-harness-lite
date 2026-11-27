@@ -357,9 +357,45 @@ export type StorageCloseResult =
   | Readonly<{ kind: 'closed' }>
   | Readonly<{ kind: 'incomplete'; residuals: readonly StorageResidual[] }>
 
+export type StorageReadCount = Readonly<{
+  domain: string
+  handler: string
+  read: number
+  unavailable: number
+  cancelled: number
+}>
+
+export type StorageCommitCount = Readonly<{
+  domain: string
+  committed: number
+  recalled: number
+  rolledBack: number
+  unknown: number
+  conflicted: number
+  rejected: number
+  bytes: number
+}>
+
+export type StorageParticipantCount = Readonly<{
+  domain: string
+  participant: string
+  committed: number
+}>
+
+export type StorageQueryCount = Readonly<{ domain: string; answered: number; unknown: number }>
+
+/** What a provider counted at its port since it was created. The counts only grow; a reader takes two and subtracts. */
+export type StorageReadings = Readonly<{
+  reads: readonly StorageReadCount[]
+  commits: readonly StorageCommitCount[]
+  participants: readonly StorageParticipantCount[]
+  queries: readonly StorageQueryCount[]
+}>
+
 export interface StorageControl {
   close(input: Readonly<{ initiator: CloseInitiator }>): Promise<StorageCloseResult>
   assemblyReportSettled(): void
+  readings(): StorageReadings
 }
 
 export interface StorageHost {
