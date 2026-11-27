@@ -20,6 +20,14 @@ type Run = (
   cwd: string,
 ) => Promise<Readonly<{ status: number | null; stdout: string; stderr: string }>>
 
+type Step = Readonly<{
+  what: string
+  command: string
+  args: readonly string[]
+  cwd: string
+  hint?: string
+}>
+
 const run: Run = (command, args, cwd) => ran(command, args, { cwd, env: process.env })
 
 export async function prepare(
@@ -44,31 +52,49 @@ export async function prepare(
     return built(root) ? root : blocked('this checkout is not built: run pnpm run build first')
   const directory = checkoutOf(root, commit)
   if (existsSync(join(directory, MARK)) && built(directory)) return directory
-  const steps: readonly (readonly [string, string, readonly string[], string])[] = [
-    ['checking out', 'git', ['-C', root, 'worktree', 'add', '--detach', directory, commit], root],
-    ['installing', 'pnpm', ['install', '--frozen-lockfile', '--prefer-offline'], directory],
-    [
-      'building',
-      'pnpm',
-      [
+  const short = commit.slice(0, 12)
+  const steps: readonly Step[] = [
+    {
+      what: `checking out ${short}`,
+      command: 'git',
+      args: ['-C', root, 'worktree', 'add', '--detach', directory, commit],
+      cwd: root,
+    },
+    {
+      what: `installing ${short}`,
+      command: 'pnpm',
+      args: ['install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'],
+      cwd: directory,
+    },
+    {
+      what: `building the native dependency of ${short}`,
+      command: 'pnpm',
+      args: ['run', 'prepare:native'],
+      cwd: directory,
+      hint: ' (a system compiler too old for it needs CC and CXX set: CONTRIBUTING.md)',
+    },
+    {
+      what: `building ${short}`,
+      command: 'pnpm',
+      args: [
         '--workspace-concurrency=1',
         ...MEMBERS.flatMap(member => ['--filter', member]),
         '-r',
         'run',
         'build',
       ],
-      directory,
-    ],
+      cwd: directory,
+    },
   ]
   mkdirSync(join(root, 'tmp', 'perf', 'checkouts'), { recursive: true })
-  for (const [what, command, args, cwd] of existsSync(directory) ? steps.slice(1) : steps) {
-    say(`${what} ${commit.slice(0, 12)}`)
-    const done = await exec(command, args, cwd)
+  for (const step of existsSync(directory) ? steps.slice(1) : steps) {
+    say(step.what)
+    const done = await exec(step.command, step.args, step.cwd)
     if (done.status !== 0)
-      return blocked(`${what} ${commit.slice(0, 12)} failed: ${done.stderr.trim().slice(-600)}`)
+      return blocked(`${step.what} failed: ${done.stderr.trim().slice(-600)}${step.hint ?? ''}`)
   }
   if (!built(directory))
-    return blocked(`${commit.slice(0, 12)} has no lab server to run: it is older than the suites`)
+    return blocked(`${short} has no lab server to run: it is older than the suites`)
   writeFileSync(join(directory, MARK), `${commit}\n`)
   return directory
 }

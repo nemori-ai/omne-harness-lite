@@ -78,8 +78,13 @@ describe('preparing a checkout of a commit', () => {
     expect(said).toEqual([
       `checking out ${OTHER.slice(0, 12)}`,
       `installing ${OTHER.slice(0, 12)}`,
+      `building the native dependency of ${OTHER.slice(0, 12)}`,
       `building ${OTHER.slice(0, 12)}`,
     ])
+    expect(calls).toContain('pnpm install --frozen-lockfile --ignore-scripts --prefer-offline')
+    expect(calls.indexOf('pnpm run prepare:native')).toBeGreaterThan(
+      calls.indexOf('pnpm install --frozen-lockfile --ignore-scripts --prefer-offline'),
+    )
     expect(calls.some(line => line.includes(`worktree add --detach ${directory} ${OTHER}`))).toBe(
       true,
     )
@@ -112,6 +117,13 @@ describe('preparing a checkout of a commit', () => {
     expect(await prepare(root, 'feature', say, failing)).toEqual({
       state: 'blocked',
       reason: `installing ${OTHER.slice(0, 12)} failed: no such package`,
+    })
+    const compiler = exec(line =>
+      line.includes('prepare:native') ? { status: 1, stderr: 'g++: error: -std=c++20' } : undefined,
+    )
+    expect(await prepare(root, 'feature', say, compiler)).toEqual({
+      state: 'blocked',
+      reason: `building the native dependency of ${OTHER.slice(0, 12)} failed: g++: error: -std=c++20 (a system compiler too old for it needs CC and CXX set: CONTRIBUTING.md)`,
     })
     expect(await prepare(root, 'feature', say, exec())).toEqual({
       state: 'blocked',
