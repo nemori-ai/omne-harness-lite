@@ -333,7 +333,7 @@ export function createWorld(options: WorldOptions = {}) {
     feed: {
       listeners,
       changed: (login: FixtureLogin) => {
-        for (const listener of listeners) listener.changed(login.tenant)
+        for (const listener of listeners) listener.changed(login.tenant, 'endpoints')
       },
       close: () => {
         for (const listener of listeners) listener.closed()

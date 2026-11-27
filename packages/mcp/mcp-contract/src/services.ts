@@ -14,6 +14,12 @@ import type {
 } from './brands.ts'
 import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
 import type { EventCatalogRecord, EventType } from './events.ts'
+import type {
+  EventRecords,
+  StoredOccurrence,
+  SubscriptionState,
+  TerminationReason,
+} from './subscriptions.ts'
 import type { ListingDefect } from './listing.ts'
 import type { EndpointBodyRejection } from './endpoint.ts'
 import type { CallbackReceiver, ConnectRefusal, GrantConnector } from './grant.ts'
@@ -191,9 +197,11 @@ export type EndpointStatusView = Readonly<{
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
 }>
 
+export type ChangeAbout = 'endpoints' | 'events'
+
 export type EndpointChangeListener = Readonly<{
-  /** The endpoints of this tenant may have changed; the subscriber reads them again. */
-  changed(tenant: TenantId): void
+  /** The endpoints of this tenant, or the events of one of them, may have changed; the subscriber reads them again. */
+  changed(tenant: TenantId, about: ChangeAbout): void
   /** The feed is gone with the MCP it belonged to. Nothing more arrives; the subscriber subscribes again. */
   closed(): void
 }>
@@ -234,6 +242,7 @@ export type McpPorts<P, S> = Readonly<{
   credentials: CredentialUse<P>
   store: CatalogStore
   eventStore?: CatalogStore<EventCatalogRecord>
+  eventRecords?: EventRecords
   tasks: TaskRecords
   transports: McpTransportFactory
   checkOutput: OutputValidator
@@ -249,6 +258,13 @@ export type OAuthConfig = Readonly<{
   metadataDocument?: string
 }>
 
+export type EventsConfig = Readonly<{
+  maxEvents: number
+  maxAgeMs: number
+  pollFloorMs: number
+  backoffCapMs: number
+}>
+
 export type McpConfig<P> = Readonly<{
   principalKey: (principal: P) => string
   maxListingPages: number
@@ -256,6 +272,7 @@ export type McpConfig<P> = Readonly<{
   instructionsByteLimit: number
   taskWatch?: TaskWatchConfig
   oauth?: OAuthConfig
+  events?: EventsConfig
 }>
 
 export type ConnectFailure =
@@ -273,6 +290,52 @@ export type EndpointConnect<P> = Readonly<{
   disconnect(access: Access<P>, ref: EndpointRef): Promise<Outcome<'disconnected', ConnectFailure>>
 }>
 
+export type SubscriptionView = Readonly<{
+  name: string
+  arguments: JsonValue
+  delivery: 'poll' | 'push'
+  state: SubscriptionState
+  reason: TerminationReason | null
+  subscribers: number
+}>
+
+export type SubscribeFailure =
+  | ReadFailure
+  | Readonly<{ kind: 'not-subscribable'; reason: 'no-events' | 'no-such-type' | 'webhook-only' }>
+
+export type EventSubscriptionRequest = Readonly<{
+  name: string
+  arguments: JsonValue
+  subscriber: string
+}>
+
+export interface EventSubscriptions<P> {
+  subscribe(
+    access: Access<P>,
+    ref: EndpointRef,
+    request: EventSubscriptionRequest,
+  ): Promise<Outcome<SubscriptionView, SubscribeFailure>>
+  unsubscribe(
+    access: Access<P>,
+    ref: EndpointRef,
+    request: EventSubscriptionRequest,
+  ): Promise<Outcome<'unsubscribed' | 'not-subscribed', ReadFailure>>
+  list(
+    access: Access<P>,
+    ref: EndpointRef,
+  ): Promise<Outcome<readonly SubscriptionView[], ReadFailure>>
+  read(
+    access: Access<P>,
+    ref: EndpointRef,
+    request: Readonly<{ name: string; arguments: JsonValue; after: number; limit: number }>,
+  ): Promise<
+    Outcome<
+      Readonly<{ subscription: SubscriptionView; items: readonly StoredOccurrence[] }>,
+      ReadFailure | Readonly<{ kind: 'not-subscribed' }>
+    >
+  >
+}
+
 export type McpServices<P, S> = Readonly<{
   inspection: EndpointInspection
   discovery: ActionDiscovery<P>
@@ -281,4 +344,5 @@ export type McpServices<P, S> = Readonly<{
   status: EndpointStatus<P, S>
   connections: Connections<P>
   connect: EndpointConnect<P>
+  subscriptions: EventSubscriptions<P>
 }>

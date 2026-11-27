@@ -23,6 +23,8 @@ import {
   lineGoneAnswerOf,
   listActionsRequest,
   listEventTypesRequest,
+  pollEventsRequest,
+  eventStreamMessageOf,
   mcpRequestHeadersOf,
   notSentFailureOf,
   notificationTextOf,
@@ -70,6 +72,9 @@ import type {
   ListenEvent,
   ListenFilter,
   EventListingPage,
+  EventPollAnswer,
+  EventRequest,
+  EventStreamMessage,
   ListingPage,
   McpTransport,
   SentCall,
@@ -97,7 +102,11 @@ type Connection =
 type Sending =
   | Readonly<{ kind: 'probe'; version: string; request: 'discover' | 'discover-retry' }>
   | Readonly<{ kind: 'legacy-initialize' }>
-  | Readonly<{ kind: 'operation'; values?: RequestValues }>
+  | Readonly<{
+      kind: 'operation'
+      values?: RequestValues
+      headers?: Readonly<Record<string, string>>
+    }>
   | Readonly<{
       kind: 'call'
       values: RequestValues
@@ -105,6 +114,13 @@ type Sending =
       observe?: (notification: PeerNotification) => void
     }>
   | Readonly<{ kind: 'listen'; signal: AbortSignal; listen: (event: ListenEvent) => void }>
+  | Readonly<{
+      kind: 'events'
+      signal: AbortSignal
+      stream: (method: string, params: JsonValue | undefined) => void
+      values: RequestValues
+      headers: Readonly<Record<string, string>>
+    }>
 
 type Refusal = Readonly<{ soFar(): AuthorizationDiscovery; done: Promise<AuthorizationDiscovery> }>
 
@@ -128,6 +144,7 @@ type Pending = {
   readonly depart: () => void
   readonly observe?: (notification: PeerNotification) => void
   readonly listen?: (event: ListenEvent) => void
+  readonly stream?: (method: string, params: JsonValue | undefined) => void
   phase: Phase
 }
 
@@ -392,6 +409,7 @@ export class Session implements McpTransport {
       case 'operation':
       case 'call':
       case 'listen':
+      case 'events':
         return this.connection.version ?? this.options.versions[0]
       default: {
         const exhaustive: never = sending
@@ -405,6 +423,7 @@ export class Session implements McpTransport {
     const departed = Promise.withResolvers<void>()
     const observe = sending.kind === 'call' ? sending.observe : undefined
     const listen = sending.kind === 'listen' ? sending.listen : undefined
+    const stream = sending.kind === 'events' ? sending.stream : undefined
     return {
       id,
       context,
@@ -415,6 +434,7 @@ export class Session implements McpTransport {
       depart: departed.resolve,
       ...(observe === undefined ? {} : { observe }),
       ...(listen === undefined ? {} : { listen }),
+      ...(stream === undefined ? {} : { stream }),
       phase: AUTHORIZING,
     }
   }
@@ -432,7 +452,8 @@ export class Session implements McpTransport {
     }
     const entry = this.makeEntry(id, context, sending)
     this.pending.set(id, entry)
-    if (sending.kind === 'call' || sending.kind === 'listen') this.wireSignal(entry, sending.signal)
+    if (sending.kind === 'call' || sending.kind === 'listen' || sending.kind === 'events')
+      this.wireSignal(entry, sending.signal)
     this.work(() => this.sendOut(entry, method, params, sending), entry)
     return entry
   }
@@ -455,8 +476,13 @@ export class Session implements McpTransport {
     if (!this.inFlight(entry)) return
     const version = this.versionOf(sending)
     this.setMcpHeaders(headers, method, params, version)
+    const extra =
+      sending.kind === 'operation' || sending.kind === 'events' ? sending.headers : undefined
+    for (const [name, value] of Object.entries(extra ?? {})) headers.set(name, value)
     const values =
-      sending.kind === 'operation' || sending.kind === 'call' ? sending.values : undefined
+      sending.kind === 'operation' || sending.kind === 'call' || sending.kind === 'events'
+        ? sending.values
+        : undefined
     const text = requestTextOf({
       id: entry.id,
       method,
@@ -603,10 +629,11 @@ export class Session implements McpTransport {
   }
 
   private async perform<T>(composed: ComposedRequest<T>): Promise<Outcome<T, TransportFailure>> {
-    const sending: Sending =
-      composed.values === undefined
-        ? { kind: 'operation' }
-        : { kind: 'operation', values: composed.values }
+    const sending: Sending = {
+      kind: 'operation',
+      ...(composed.values === undefined ? {} : { values: composed.values }),
+      ...(composed.headers === undefined ? {} : { headers: composed.headers }),
+    }
     return composed.read((await this.request(composed.method, composed.params, sending)).wire)
   }
 
@@ -800,11 +827,53 @@ export class Session implements McpTransport {
   private onListened(message: Extract<PeerMessage, { kind: 'notification' }>): void {
     const entry =
       message.subscriptionId === undefined ? undefined : this.pending.get(message.subscriptionId)
+    if (entry?.stream !== undefined) {
+      try {
+        entry.stream(message.method, message.params)
+      } catch {}
+      return
+    }
     const event = listenEventOf(message.method, message.params)
     if (entry?.listen === undefined || event === undefined) return
     try {
       entry.listen(event)
     } catch {}
+  }
+
+  pollEvents(request: EventRequest): Promise<Outcome<EventPollAnswer, TransportFailure>> {
+    return this.perform(pollEventsRequest(request))
+  }
+
+  // A stream of one subscription is a long request too: it counts against the same bound.
+  async streamEvents(
+    request: EventRequest,
+    signal: AbortSignal,
+    observe: (message: EventStreamMessage) => void,
+  ): Promise<ListenEnd> {
+    if (signal.aborted) return { kind: 'stopped' }
+    if (this.connection.kind !== 'modern' || this.listening >= (this.options.maxLongRequests ?? 0))
+      return { kind: 'refused', failure: NOT_SENT_FAILURE }
+    this.listening += 1
+    try {
+      const entry = this.begin(
+        'events/stream',
+        { name: request.name, cursor: request.cursor },
+        {
+          kind: 'events',
+          signal,
+          values: { arguments: request.arguments },
+          headers: request.headers,
+          stream: (method, params) => {
+            const message = eventStreamMessageOf(method, params)
+            if (message !== undefined) observe(message)
+          },
+        },
+      )
+      if (entry === undefined) return { kind: 'refused', failure: this.refused }
+      return listenEndOf((await entry.answered).wire)
+    } finally {
+      this.listening -= 1
+    }
   }
 
   cancelRequest(requestId: string): Promise<void> {

@@ -30,6 +30,7 @@ describe('createMcp', () => {
       'inspection',
       'invoker',
       'status',
+      'subscriptions',
     ])
     expect(await mcp.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },

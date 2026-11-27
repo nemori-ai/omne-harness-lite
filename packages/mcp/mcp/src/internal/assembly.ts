@@ -5,6 +5,7 @@ import { createDiscovery } from '../discovery.ts'
 import { createInspection } from '../inspection.ts'
 import { createInvoker } from '../invoker.ts'
 import { createStatus } from '../status.ts'
+import { createEventSubscriptions } from '../subscriptions.ts'
 import { createTasks } from '../tasks.ts'
 import { createTaskWatch, type TaskTimer } from '../watch.ts'
 import { createChangeFeed } from './changes.ts'
@@ -64,19 +65,23 @@ export function assemble<P, S>(
       ? undefined
       : createTaskWatch({ ports, config, clock, control: createTasks(deps), settings, timer })
   const connections = createConnections(deps)
+  const eventTypes = createEventTypes(deps)
+  const subscriptions = createEventSubscriptions({ ...deps, eventTypes, pause, timer })
   return {
     table,
     services: {
       inspection: createInspection(),
-      discovery: createDiscovery({ ...deps, eventTypes: createEventTypes(deps) }),
+      discovery: createDiscovery({ ...deps, eventTypes }),
       invoker,
       ...(watch === undefined ? {} : { tasks: watch }),
       status: createStatus(deps),
+      subscriptions,
       connect: createConnect(deps),
       connections: {
         ...connections,
         closeAll: async () => {
           watch?.close()
+          subscriptions.close()
           return connections.closeAll()
         },
       },

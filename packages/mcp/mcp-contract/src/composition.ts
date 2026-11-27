@@ -2,6 +2,7 @@ import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   eventListingPageOf,
+  eventPollAnswerOf,
   interpretAnswer,
   listingPageOf,
   taskAnswerOf,
@@ -11,7 +12,7 @@ import type { TaskId } from './brands.ts'
 import { checksListingHeaders, type ConnectionView } from './connection.ts'
 import type { WireAnswer } from './decisions.ts'
 import { clientEnvelopeOf, type ClientInfo } from './envelope.ts'
-import type { EventListingPage } from './events.ts'
+import type { EventListingPage, EventPollAnswer, EventRequest } from './events.ts'
 import type { TaskReport } from './outcomes.ts'
 import type { PlainJson, PlainRecord } from './plain.ts'
 import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
@@ -23,6 +24,8 @@ export type RequestMethod =
   | 'initialize'
   | 'tools/list'
   | 'events/list'
+  | 'events/poll'
+  | 'events/stream'
   | 'tools/call'
   | 'tasks/get'
   | 'tasks/update'
@@ -133,6 +136,7 @@ export type ComposedRequest<T> = Readonly<{
   method: RequestMethod
   params: PlainRecord
   values?: RequestValues
+  headers?: Readonly<Record<string, string>>
   read: (wire: WireAnswer) => Outcome<T, TransportFailure>
 }>
 
@@ -176,6 +180,16 @@ export function listEventTypesRequest(
     method: 'events/list',
     params: cursor === undefined ? {} : { cursor },
     read: eventListingPageOf,
+  }
+}
+
+export function pollEventsRequest(request: EventRequest): ComposedRequest<EventPollAnswer> {
+  return {
+    method: 'events/poll',
+    params: { name: request.name, cursor: request.cursor },
+    values: { arguments: request.arguments },
+    headers: request.headers,
+    read: eventPollAnswerOf,
   }
 }
 

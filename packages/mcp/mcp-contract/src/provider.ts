@@ -51,7 +51,12 @@ export type {
   SecretSlot,
 } from './grant.ts'
 export type { HoldingRows, KeptHolding } from './holdings.ts'
-export type { EventListingPage } from './events.ts'
+export type {
+  EventListingPage,
+  EventPollAnswer,
+  EventRequest,
+  EventStreamMessage,
+} from './events.ts'
 export type {
   EventRecords,
   GapReason,

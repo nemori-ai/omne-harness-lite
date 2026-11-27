@@ -83,6 +83,12 @@ export const mcpRowConfig = z.strictObject({
     instructionsByteLimit: positive,
     maxLongRequests: positive,
     taskWatch: z.strictObject({ pollFloorMs: positive, backoffCapMs: positive }),
+    events: z.strictObject({
+      maxEvents: positive,
+      maxAgeMs: positive,
+      pollFloorMs: positive,
+      backoffCapMs: positive,
+    }),
     clientInfo: z.strictObject({ name: z.string().min(1), version: z.string().min(1) }),
   }),
   oauth: z.strictObject({

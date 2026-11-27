@@ -1,4 +1,4 @@
-import type { JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type { EndpointHolding, EndpointName } from './brands.ts'
@@ -75,4 +75,18 @@ export interface EventRecords {
     after: number,
     limit: number,
   ): Promise<Outcome<readonly StoredOccurrence[], 'unavailable'>>
+}
+
+const sorted = (value: JsonValue): JsonValue => {
+  if (value.kind === 'array') return { kind: 'array', items: value.items.map(sorted) }
+  if (value.kind !== 'object') return value
+  const entries = [...value.entries]
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .map(entry => ({ key: entry.key, value: sorted(entry.value) }))
+  return { kind: 'object', entries }
+}
+
+/** The arguments of a subscription as one text: members sorted by name, numbers as written. */
+export function subscriptionArgumentsText(args: JsonValue): string {
+  return writeJsonText(sorted(args))
 }

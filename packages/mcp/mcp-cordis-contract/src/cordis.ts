@@ -6,6 +6,7 @@ import type {
   EndpointConnect,
   EndpointStatus,
   EventCatalogRecord,
+  EventSubscriptions,
   TaskWatch,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -15,6 +16,7 @@ import type {
   CatalogStore,
   ContinuationRecords,
   CredentialUse,
+  EventRecords,
   GrantConnector,
   HoldingRows,
   TaskRecords,
@@ -312,6 +314,37 @@ export abstract class EndpointConnectService<P> extends Service implements Endpo
 
 export const mcpEndpointConnectKey = EndpointConnectService.provide
 
+export abstract class EventRecordsService extends Service implements EventRecords {
+  static readonly provide = 'mcpEventRecords'
+  constructor(ctx: Context) {
+    super(ctx, EventRecordsService.provide)
+  }
+  abstract readonly list: EventRecords['list']
+  abstract readonly read: EventRecords['read']
+  abstract readonly write: EventRecords['write']
+  abstract readonly remove: EventRecords['remove']
+  abstract readonly receive: EventRecords['receive']
+  abstract readonly occurrences: EventRecords['occurrences']
+}
+
+export const mcpEventRecordsKey = EventRecordsService.provide
+
+export abstract class EventSubscriptionsService<P>
+  extends Service
+  implements EventSubscriptions<P>
+{
+  static readonly provide = 'mcpEventSubscriptions'
+  constructor(ctx: Context) {
+    super(ctx, EventSubscriptionsService.provide)
+  }
+  abstract readonly subscribe: EventSubscriptions<P>['subscribe']
+  abstract readonly unsubscribe: EventSubscriptions<P>['unsubscribe']
+  abstract readonly list: EventSubscriptions<P>['list']
+  abstract readonly read: EventSubscriptions<P>['read']
+}
+
+export const mcpEventSubscriptionsKey = EventSubscriptionsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -330,6 +363,8 @@ declare module '@deepseek-ai/cordis' {
     mcpGrantConnector: GrantConnectorService
     mcpCallbackReceiver: CallbackReceiverService
     mcpEndpointConnect: EndpointConnectService<unknown>
+    mcpEventRecords: EventRecordsService
+    mcpEventSubscriptions: EventSubscriptionsService<unknown>
   }
 }
 

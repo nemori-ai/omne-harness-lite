@@ -28,6 +28,8 @@ export function clientEnvelopeOf(version: string, clientInfo: ClientInfo): Plain
 
 const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
   'tools/call': 'name',
+  'events/poll': 'name',
+  'events/stream': 'name',
   'tasks/get': 'taskId',
   'tasks/update': 'taskId',
   'tasks/cancel': 'taskId',

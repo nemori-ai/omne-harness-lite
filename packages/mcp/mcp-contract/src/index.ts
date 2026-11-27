@@ -92,7 +92,11 @@ export { withheldTools } from './withheld.ts'
 export {
   EVENTS_EXTENSION,
   declaresEvents,
+  eventParamHeadersOf,
+  eventStreamMessageOf,
+  readEventPollAnswer,
   readEventType,
+  readOccurrence,
   type EventCatalogRecord,
   type EventDelivery,
   type EventType,
@@ -168,6 +172,7 @@ export {
   callAnswerOf,
   interpretAnswer,
   legacyIdentityOf,
+  eventPollAnswerOf,
   listingPageOf,
   readerOf,
   taskAnswerOf,
@@ -183,6 +188,7 @@ export {
   legacyInitializeParamsOf,
   listActionsRequest,
   listEventTypesRequest,
+  pollEventsRequest,
   notificationTextOf,
   peerRequestAnswerOf,
   requestMetaOf,
@@ -229,6 +235,12 @@ export type {
   CancelAnswer,
   CatalogView,
   EventCatalogView,
+  ChangeAbout,
+  EventsConfig,
+  EventSubscriptionRequest,
+  EventSubscriptions,
+  SubscribeFailure,
+  SubscriptionView,
   ConnectFailure,
   ConnectionState,
   Connections,
@@ -257,3 +269,10 @@ export type {
 } from './services.ts'
 export type { McpClock, TaskArrival, TaskRowState } from './ports.ts'
 export type { PeerNotification } from './transport.ts'
+export type {
+  GapReason,
+  StoredOccurrence,
+  SubscriptionState,
+  TerminationReason,
+} from './subscriptions.ts'
+export { subscriptionArgumentsText } from './subscriptions.ts'

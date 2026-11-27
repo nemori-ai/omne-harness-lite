@@ -116,7 +116,7 @@ export function mcpEventRecordsConformance(): readonly ConformanceCase<EventReco
         assert.deepEqual(ids(read.ok), ['a', 'b', 'c'])
         assert.deepEqual(
           read.ok.map(item => item.seq),
-          [...read.ok.map(item => item.seq)].sort((x, y) => x - y),
+          read.ok.map(item => item.seq).sort((x, y) => x - y),
         )
         assert.deepEqual(
           await f.records.read(key),
