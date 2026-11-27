@@ -54,7 +54,7 @@ const notes = {
   catalog: { kind: 'not-acquired', reason: 'the address of the endpoint is not set' },
 }
 const REJECTED_TEXT =
-  'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one'
+  'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one, or connect again if the endpoint signs in with OAuth'
 const vault = {
   name: 'vault',
   connection: { state: 'lost', reason: REJECTED_TEXT },

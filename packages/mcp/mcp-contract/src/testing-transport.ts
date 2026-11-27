@@ -13,6 +13,7 @@ import { boundInstructions } from './instructions.ts'
 import type { UnusableCause } from './outcomes.ts'
 import type { PlainJson } from './plain.ts'
 import type { HttpCredentialHandle } from './ports.ts'
+import { countingCredential, heldCredential } from './testing-handles.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
   TRANSPORT_TABLE,
@@ -343,42 +344,6 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
     [],
     'subscriptions/listen was sent',
   )
-}
-
-function countingCredential(
-  gate: Promise<void> = Promise.resolve(),
-): HttpCredentialHandle & Readonly<{ rejections(): number }> {
-  let rejections = 0
-  return {
-    purpose: 'http-authorization',
-    async authorize(headers) {
-      await gate
-      headers.set('authorization', 'Bearer suite-token')
-      return { ok: true }
-    },
-    async reportRejection() {
-      rejections += 1
-    },
-    async release() {},
-    rejections: () => rejections,
-  }
-}
-
-function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> {
-  let asked = (): void => undefined
-  const reached = new Promise<void>(resolve => {
-    asked = resolve
-  })
-  return {
-    purpose: 'http-authorization',
-    authorize() {
-      asked()
-      return new Promise(() => undefined)
-    },
-    async reportRejection() {},
-    async release() {},
-    reached,
-  }
 }
 
 const bearer = (parameters: string) => `Bearer ${parameters}`
@@ -826,6 +791,16 @@ async function checkCell(
       conclusion.rejection === true ? 1 : 0,
       'reportRejection was not called as the row says',
     )
+    if (conclusion.rejection === true)
+      assert.deepStrictEqual(
+        credential.refusals,
+        [
+          cell.answer === 'http:403+scope'
+            ? { kind: 'insufficient-scope', scopes: ['files:write'] }
+            : { kind: 'unauthorized' },
+        ],
+        'reportRejection was not told how the peer refused',
+      )
   }
   const afterwards = async (transport: McpTransport) => {
     if (conclusion.unusable === true)

@@ -126,7 +126,7 @@ it('E2 it cannot be used: the status line says why, the credential that is missi
 
 it('E2b a credential the endpoint rejected: the status line says so and where to change it (C101)', async () => {
   const reason =
-    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one'
+    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one, or connect again if the endpoint signs in with OAuth'
   const rejected = stood({
     connection: { state: 'lost', reason },
     credential: 'present',

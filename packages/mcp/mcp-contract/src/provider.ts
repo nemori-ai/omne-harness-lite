@@ -7,6 +7,7 @@ export type {
   CredentialFailure,
   CredentialUse,
   EligibilityVerdict,
+  CredentialRefusal,
   HttpCredentialHandle,
   HttpPurpose,
   TaskRecords,

@@ -96,11 +96,12 @@ function credentialOf(status: EndpointStatusView): Endpoint['credential'] {
   return status.credential === 'reconnect-required' ? 'present' : status.credential
 }
 
-// A present credential the endpoint refused is rejected until the connection is ready again.
+// A present static credential the endpoint refused is rejected until the connection is ready again; an OAuth grant says how it stands itself.
 function credentialStateOf(status: EndpointStatusView): NonNullable<Endpoint['credentialState']> {
   const refused =
     status.connection.kind === 'lost' && status.connection.reason === 'credential-rejected'
-  return status.credential === 'present' && refused ? 'rejected' : status.credential
+  const oauth = status.connect !== undefined
+  return status.credential === 'present' && refused && !oauth ? 'rejected' : status.credential
 }
 
 function endpointOf(

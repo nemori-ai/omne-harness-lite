@@ -282,7 +282,10 @@ const mcpPlugin: Plugin.Object = {
     new Eligibility(ctx, createEndpointEligibility(facts))
     new Credentials(
       ctx,
-      createCredentialUse(() => ctx.get(settingsSecretCustodyKey, false)),
+      createCredentialUse(
+        () => ctx.get(settingsSecretCustodyKey, false),
+        (key, target) => grants.acquire(key, target, AbortSignal.timeout(config.oauth.requestMs)),
+      ),
     )
     const { pendingMs, requestMs, metadataDocument } = config.oauth
     ctx.plugin(createMcpPlugin({ principalKey, checkOutput: createOutputCheck() }), {

@@ -199,7 +199,7 @@ describe('step 4: list-endpoints', () => {
     ],
     [
       { kind: 'lost', reason: 'credential-rejected' },
-      'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one',
+      'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one, or connect again if the endpoint signs in with OAuth',
     ],
   ] as const)('says of the connection %j: %j', async (connection, reason) => {
     const world = createWorld()
@@ -228,6 +228,29 @@ describe('step 4: list-endpoints', () => {
       })
     },
   )
+
+  it('an OAuth grant the endpoint refused stays present: it is refreshed on the next use, and only the grant says to connect again (C204)', async () => {
+    const world = createWorld()
+    const connection = { kind: 'lost', reason: 'credential-rejected' } as const
+    world.define(alice, 'docs', {
+      status: readyStatus(docs, { connection, credential: 'present', connect: 'available' }),
+    })
+    expect(bodyOf(await world.read(alice, 'docs'))['endpoint']).toMatchObject({
+      credential: 'present',
+      credentialState: 'present',
+    })
+    world.define(alice, 'docs', {
+      status: readyStatus(docs, {
+        connection,
+        credential: 'reconnect-required',
+        connect: 'available',
+      }),
+    })
+    expect(bodyOf(await world.read(alice, 'docs'))['endpoint']).toMatchObject({
+      credential: 'present',
+      credentialState: 'reconnect-required',
+    })
+  })
 
   it('writes the reason of a failed catalog read as the bridge does', async () => {
     const world = createWorld()

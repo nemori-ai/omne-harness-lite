@@ -50,7 +50,7 @@ describe('one grant, every state against every operation that reaches it (design
     if (!('ok' in held)) throw new Error('no handle')
     await w.authorization.requireScopes(keyOf(), ['write'])
     expect(await use(w)).toEqual({ failure: 'rejected' })
-    await held.ok.reportRejection()
+    await held.ok.reportRejection({ kind: 'unauthorized' })
     expect(await w.records.read(keyOf())).toMatchObject({ ok: { state: 'reconnect', revision: 2 } })
     expect(w.server.tokenRequests()).toHaveLength(1)
     const { state } = await beginOn(w)

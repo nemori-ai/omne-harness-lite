@@ -1,6 +1,7 @@
 import { fail, succeed, type Ack, type Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialFailure,
+  CredentialRefusal,
   GrantFacts,
   GrantKey,
   HttpCredentialHandle,
@@ -149,7 +150,33 @@ async function tokenOf(
   return held.ok === 'absent' ? fail('missing') : succeed(held.ok)
 }
 
-/** A token is given only to a request for the resource it was granted for. */
+type Shown = Readonly<{ token: string; expiresAt: number | null }>
+
+const isDue = (deps: Deps, expiresAt: number | null): boolean =>
+  expiresAt !== null && deps.now() >= expiresAt - deps.refreshLeadMs
+
+async function shownOf(
+  deps: Deps,
+  flights: Flights,
+  key: GrantKey,
+  target: string,
+  signal: AbortSignal,
+): Promise<Outcome<Shown, CredentialFailure>> {
+  const read = await deps.records.read(key)
+  if ('failure' in read) return fail('unknown')
+  if (read.ok === 'absent') return fail('missing')
+  const facts = read.ok
+  if (facts.state === 'reconnect' || facts.resource !== target) return fail('rejected')
+  const due = isDue(deps, facts.expiresAt)
+  const token = await tokenOf(deps, flights, key, due, signal)
+  if ('failure' in token) return token
+  if (!due) return succeed({ token: token.ok, expiresAt: facts.expiresAt })
+  const after = await deps.records.read(key)
+  const fresh = 'ok' in after && after.ok !== 'absent' ? after.ok.expiresAt : facts.expiresAt
+  return succeed({ token: token.ok, expiresAt: fresh })
+}
+
+/** A token is given only to a request for the resource it was granted for; each request is shown one that is not due, refreshed first when it is. */
 export async function acquire(
   deps: Deps,
   flights: Flights,
@@ -157,48 +184,47 @@ export async function acquire(
   target: string,
   signal: AbortSignal,
 ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>> {
-  const read = await deps.records.read(key)
-  if ('failure' in read) return fail('unknown')
-  if (read.ok === 'absent') return fail('missing')
-  const facts = read.ok
-  if (facts.state === 'reconnect' || facts.resource !== target) return fail('rejected')
-  const due = facts.expiresAt !== null && deps.now() >= facts.expiresAt - deps.refreshLeadMs
-  const token = await tokenOf(deps, flights, key, due, signal)
-  if ('failure' in token) return token
-  return succeed(handleOf(deps, flights, key, token.ok))
-}
-
-function handleOf(
-  deps: Deps,
-  flights: Flights,
-  key: GrantKey,
-  token: string,
-): HttpCredentialHandle {
-  return {
+  const first = await shownOf(deps, flights, key, target, signal)
+  if ('failure' in first) return first
+  let current = first.ok
+  let fresh = true
+  return succeed({
     purpose: 'http-authorization',
     async authorize(headers) {
-      headers.set('authorization', `Bearer ${token}`)
+      if (!fresh && isDue(deps, current.expiresAt)) {
+        const bound = AbortSignal.timeout(deps.requestMs)
+        const next = await shownOf(deps, flights, key, target, bound)
+        if ('failure' in next) return fail(next.failure === 'unknown' ? 'unknown' : 'rejected')
+        current = next.ok
+      }
+      fresh = false
+      headers.set('authorization', `Bearer ${current.token}`)
       return succeed(true)
     },
-    async reportRejection() {
-      await rejected(deps, flights, key, token)
+    async reportRejection(refusal) {
+      await rejected(deps, flights, key, current.token, refusal)
     },
     async release() {},
-  }
+  })
 }
 
-/** The resource refused a token: refresh once; a token that a refresh for a refusal gave, refused again, asks for a new connection. */
+/** The resource refused a token: wanting scopes asks for a new connection with them; else refresh once, and a token that a refresh for a refusal gave, refused again, asks for a new connection. */
 export async function rejected(
   deps: Deps,
   flights: Flights,
   key: GrantKey,
   token: string,
+  refusal: CredentialRefusal,
 ): Promise<void> {
   const read = await deps.records.read(key)
   if ('failure' in read || read.ok === 'absent' || read.ok.state !== 'valid') return
   const facts = read.ok
   const current = await deps.secrets.read({ kind: 'access', key })
   if ('failure' in current || current.ok !== token) return
+  if (refusal.kind === 'insufficient-scope') {
+    await toReconnect(deps, key, facts, union(facts.scopes, facts.wanted ?? [], refusal.scopes))
+    return
+  }
   if (facts.minted === 'retry') {
     await toReconnect(deps, key, facts)
     return

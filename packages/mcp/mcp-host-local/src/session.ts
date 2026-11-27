@@ -4,6 +4,7 @@ import {
   NOT_SENT_FAILURE,
   OFFERED_LEGACY_VERSION,
   authorizationChallengeOf,
+  credentialRefusalOf,
   authorizationRequiredAnswerOf,
   credentialRejectedAnswerOf,
   callAnswerOf,
@@ -547,7 +548,7 @@ export class Session implements McpTransport {
         return this.enterDiscovery(entry, headers)
       case 'credential-rejected':
         this.settle(entry, { wire: credentialRejectedAnswerOf(), headers })
-        return this.rejectCredential()
+        return this.rejectCredential(headers)
       default: {
         const exhaustive: never = conclusion
         return exhaustive
@@ -556,11 +557,12 @@ export class Session implements McpTransport {
   }
 
   // The peer refused the credential: the handle hears it once (V3), and the connection is not usable.
-  private rejectCredential(): void {
+  private rejectCredential(headers: AnswerHeaders): void {
     const credential = this.material.credential
     if (credential !== undefined && !this.rejectionReported) {
       this.rejectionReported = true
-      void this.callHandle(() => credential.reportRejection())
+      const refusal = credentialRefusalOf(headers['www-authenticate'])
+      void this.callHandle(() => credential.reportRejection(refusal))
     }
     this.die('credential-rejected')
   }
@@ -720,7 +722,7 @@ export class Session implements McpTransport {
     )
     if (conclusion.kind === 'settle') return { wire: conclusion.wire }
     if (conclusion.kind === 'credential-rejected') {
-      this.rejectCredential()
+      this.rejectCredential(opened.headers)
       return { wire: credentialRejectedAnswerOf() }
     }
     const refusal = this.refusalOf(this.material.target, opened.headers, this.teardown.signal)

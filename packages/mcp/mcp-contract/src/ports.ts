@@ -40,10 +40,15 @@ export interface UseEligibility<P> {
 
 export type HttpPurpose = Readonly<{ kind: 'http-authorization'; target: ConnectionTarget }>
 
+/** How the peer refused a credential it was shown: a 401, or a 403 that names the scopes it wants. */
+export type CredentialRefusal =
+  | Readonly<{ kind: 'unauthorized' }>
+  | Readonly<{ kind: 'insufficient-scope'; scopes: readonly string[] }>
+
 export interface HttpCredentialHandle {
   readonly purpose: 'http-authorization'
   authorize(headers: Headers): Promise<Ack<'rejected' | 'unknown'>>
-  reportRejection(): Promise<void>
+  reportRejection(refusal: CredentialRefusal): Promise<void>
   release(): Promise<void>
 }
 

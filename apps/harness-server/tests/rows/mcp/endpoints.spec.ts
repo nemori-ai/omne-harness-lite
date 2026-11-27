@@ -26,7 +26,10 @@ const home = tenantOf('s')
 const text = (value: string) => ({ kind: 'string', value })
 const ref = { name: 'docs', holding: 'held-docs' } as unknown as EndpointRef
 
-function factsWith(presence: () => Outcome<CredentialPresence, 'unknown'>): EndpointFacts {
+function factsWith(
+  presence: () => Outcome<CredentialPresence, 'unknown'>,
+  auth: 'static' | 'oauth' = 'static',
+): EndpointFacts {
   const held = {
     kind: 'holding',
     holding: {
@@ -45,7 +48,7 @@ function factsWith(presence: () => Outcome<CredentialPresence, 'unknown'>): Endp
         entries: [
           { key: 'name', value: text('docs') },
           { key: 'transport', value: text('streamable-http') },
-          { key: 'auth', value: text('static') },
+          { key: 'auth', value: text(auth) },
         ],
       },
     },
@@ -61,6 +64,7 @@ function factsWith(presence: () => Outcome<CredentialPresence, 'unknown'>): Endp
         ['target', { kind: 'set', value: 'https://peer.example/mcp', revision: '2' }],
         ['connect-timeout', { kind: 'unset', revision: '0' }],
         ['credential', { kind: 'secret', revision: '0' }],
+        ['client-id', { kind: 'unset', revision: '0' }],
       ]),
     credential: async () => presence(),
   }
@@ -82,6 +86,20 @@ it('a secured endpoint adopts its credential once one is kept, and its revision 
     value: credentialBinding('held-docs', 'docs'),
   })
   expect(after.ok.revision).not.toBe(before.ok.revision)
+})
+
+it('an OAuth endpoint always hands MCP the binding of its grant; the credential a person types is not asked (C204)', async () => {
+  const adoption = createEndpointAdoption(
+    factsWith(() => {
+      throw new Error('the typed credential is not asked')
+    }, 'oauth'),
+  )
+  const adopted = await adoption.endpoint({ principal: null, tenant: home }, ref)
+  if (!('ok' in adopted) || adopted.ok === 'not-adopted') throw new Error(JSON.stringify(adopted))
+  expect(adopted.ok.settings.credential).toEqual({
+    kind: 'value',
+    value: credentialBinding('held-docs', 'docs', 'oauth'),
+  })
 })
 
 it('an endpoint whose credential cannot be told is not known, not adopted without it', async () => {

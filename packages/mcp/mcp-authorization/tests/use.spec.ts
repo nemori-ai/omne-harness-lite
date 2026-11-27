@@ -33,6 +33,31 @@ describe('using a grant (C204)', () => {
     })
   })
 
+  it('a handle kept on a connection shows each request a token in time: one that became due is refreshed once for the requests at that moment', async () => {
+    const w = world()
+    await connected(w)
+    const first = await bearerOf(w)
+    if (!('handle' in first)) throw new Error('no handle')
+    const shown = async () => {
+      const headers = new Headers()
+      const answer = await first.handle.authorize(headers)
+      return { answer, header: headers.get('authorization') }
+    }
+    expect(await shown()).toEqual({ answer: { ok: true }, header: 'Bearer at-1' })
+    expect(w.server.tokenRequests()).toHaveLength(1)
+    w.advance(3600_000)
+    w.server.answer(issued('at-2', 'rt-2'))
+    expect(await Promise.all([shown(), shown()])).toEqual([
+      { answer: { ok: true }, header: 'Bearer at-2' },
+      { answer: { ok: true }, header: 'Bearer at-2' },
+    ])
+    expect(await shown()).toEqual({ answer: { ok: true }, header: 'Bearer at-2' })
+    expect(w.server.tokenRequests()).toHaveLength(2)
+    w.advance(3600_000)
+    w.server.answer(refused())
+    expect(await shown()).toEqual({ answer: { failure: 'rejected' }, header: null })
+  })
+
   it('requests that need a refresh at the same time send one refresh and all get its token (I10)', async () => {
     const w = world()
     await connected(w)
@@ -118,15 +143,33 @@ describe('using a grant (C204)', () => {
     const first = await bearerOf(w)
     if (!('handle' in first)) throw new Error('no handle')
     w.server.answer(issued('at-2', 'rt-2'))
-    await first.handle.reportRejection()
+    await first.handle.reportRejection({ kind: 'unauthorized' })
     expect(await w.records.read(keyOf())).toMatchObject({ ok: { state: 'valid', minted: 'retry' } })
     const second = await bearerOf(w)
     if (!('handle' in second)) throw new Error('no handle')
     expect(second.ok).toBe('Bearer at-2')
-    await first.handle.reportRejection()
+    await first.handle.reportRejection({ kind: 'unauthorized' })
     expect(await w.records.read(keyOf())).toMatchObject({ ok: { state: 'valid' } })
-    await second.handle.reportRejection()
+    await second.handle.reportRejection({ kind: 'unauthorized' })
     expect(await w.records.read(keyOf())).toMatchObject({ ok: { state: 'reconnect' } })
+    expect(w.server.tokenRequests()).toHaveLength(2)
+  })
+
+  it('a refusal that wants scopes, reported through the handle, asks for a new connection with them; one about a replaced token changes nothing', async () => {
+    const w = world()
+    await connected(w)
+    const first = await bearerOf(w)
+    if (!('handle' in first)) throw new Error('no handle')
+    w.server.answer(issued('at-2', 'rt-2'))
+    await first.handle.reportRejection({ kind: 'unauthorized' })
+    await first.handle.reportRejection({ kind: 'insufficient-scope', scopes: ['admin'] })
+    expect(await w.records.read(keyOf())).toMatchObject({ ok: { state: 'valid' } })
+    const second = await bearerOf(w)
+    if (!('handle' in second)) throw new Error('no handle')
+    await second.handle.reportRejection({ kind: 'insufficient-scope', scopes: ['write'] })
+    expect(await w.records.read(keyOf())).toMatchObject({
+      ok: { state: 'reconnect', wanted: ['read', 'write'] },
+    })
     expect(w.server.tokenRequests()).toHaveLength(2)
   })
 

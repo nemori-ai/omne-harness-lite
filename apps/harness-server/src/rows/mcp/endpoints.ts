@@ -129,9 +129,13 @@ async function settingsOf(
   if (timeout === undefined || timeout.kind === 'secret') return fail('unknown')
   if (secured && credential?.kind !== 'secret') return fail('unknown')
   if (oauth && (clientId === undefined || clientId.kind === 'secret')) return fail('unknown')
-  const kept = secured ? await facts.credential(tenant, name) : succeed(undefined)
+  const kept = secured && !oauth ? await facts.credential(tenant, name) : succeed(undefined)
   if ('failure' in kept) return kept
-  const binding = kept.ok?.bound === true ? credentialBinding(holdingRef, name) : undefined
+  const binding = oauth
+    ? credentialBinding(holdingRef, name, 'oauth')
+    : kept.ok?.bound === true
+      ? credentialBinding(holdingRef, name)
+      : undefined
   return succeed({
     settings: {
       target: valueOf(target, isConnectionTarget),

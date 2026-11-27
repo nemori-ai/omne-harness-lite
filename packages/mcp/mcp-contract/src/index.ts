@@ -92,6 +92,7 @@ export { withheldTools } from './withheld.ts'
 export {
   authorizationChallengeOf,
   authorizationDiscoveryOf,
+  credentialRefusalOf,
   discoverAuthorization,
   metadataCandidatesOf,
   startAuthorizationDiscovery,

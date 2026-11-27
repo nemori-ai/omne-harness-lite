@@ -112,6 +112,8 @@ export async function testAuthServer(options: AuthServerOptions = {}) {
     target: `${base}/mcp`,
     counts,
     holds: (token: string) => accessTokens.has(token),
+    /** The access token it issued last. */
+    latest: () => `at-${String(serial)}`,
     refuseRefresh: () => {
       refuseRefresh = true
     },

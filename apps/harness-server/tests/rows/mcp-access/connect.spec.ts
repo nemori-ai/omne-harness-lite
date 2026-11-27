@@ -15,6 +15,7 @@ import {
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
 import { settled } from '../../support/tools-flow.ts'
 import { freePort, testAuthServer } from '../mcp/auth-server.ts'
+import { testPeer, type BearerVerdict } from '../mcp/peer.ts'
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
 const body = (name: string, auth: string): JsonValue => ({
@@ -62,12 +63,12 @@ async function registered(tree: ReleaseTree, name: string, auth: string, target:
   return { tenant, holding: created.body.holding as EndpointHolding }
 }
 
-const oauthConfig = (callbackPort: number) => ({
+const oauthConfig = (callbackPort: number, refreshLeadMs = 60_000) => ({
   mcp: {
     oauth: {
       callbackPort,
       pendingMs: 600_000,
-      refreshLeadMs: 60_000,
+      refreshLeadMs,
       requestMs: 10_000,
       metadataDocument: null,
     },
@@ -214,6 +215,111 @@ it(
           async () => (await mcp['list-endpoints']({ tenant }), rows.kept(tenant)),
           value => 'ok' in value && value.ok.length === 0,
         )
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+const TOKENS = /\b(?:at|rt|code)-\d+\b/u
+
+it(
+  'C204 C205 a connected endpoint is used with its token: refreshed when due, once after a 401; refused again or wanting scopes asks to connect again; no token is ever shown',
+  { tags: ['slow'], timeout: 300_000 },
+  async () => {
+    const server = await testAuthServer({ expiresIn: 4 })
+    servers.push(server)
+    let verdict: BearerVerdict | 'check' = 'check'
+    const peer = await testPeer([{ name: 'echo', description: 'echoes', answer: 'echo' }], {
+      oauth: {
+        authorizationServer: server.base,
+        check: header => {
+          if (verdict !== 'check') return verdict
+          const token = header?.replace(/^Bearer /u, '')
+          return token === server.latest() ? 'ok' : 'unauthorized'
+        },
+      },
+    })
+    servers.push(peer)
+    const port = await freePort()
+    const said: unknown[] = []
+    const exit = await onReleaseTree(
+      { script: toolCallsThenText(() => []), rowConfig: oauthConfig(port, 500) },
+      async tree => {
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const { tenant } = await registered(tree, 'desk', 'oauth', peer.target)
+        const connect = async () => {
+          const begun = await mcp['begin-connect']({ tenant, name: 'desk' })
+          if (begun.outcome !== 'succeeded') throw new Error(begun.outcome)
+          said.push(begun.body.url)
+          const consent = await fetch(new URL(begun.body.url), { redirect: 'manual' })
+          const page = await (await fetch(consent.headers.get('location') ?? '')).text()
+          expect(page).toContain('连上了')
+          return new URL(begun.body.url)
+        }
+        const refresh = async () => {
+          const answer = await mcp['refresh-endpoint']({ tenant, name: 'desk' })
+          said.push(answer)
+          return answer
+        }
+        const stateOf = async () => {
+          const read = await mcp['read-endpoint']({ tenant, name: 'desk' })
+          said.push(read)
+          return read.outcome === 'succeeded' ? read.body.endpoint.credentialState : read.outcome
+        }
+        const published = { outcome: 'succeeded', body: { refreshed: 'published' } }
+
+        await connect()
+        expect(await refresh()).toMatchObject(published)
+        expect(peer.authorizations.at(-1)?.header).toBe('Bearer at-1')
+        expect(
+          peer.authorizations.filter(({ header }) => !header?.startsWith('Bearer at-')),
+        ).toEqual([])
+
+        await new Promise(resolve => setTimeout(resolve, 4_000))
+        expect(await refresh()).toMatchObject(published)
+        expect(server.counts.refreshes).toBe(1)
+        expect(peer.authorizations.at(-1)?.header).toBe('Bearer at-2')
+
+        verdict = 'unauthorized'
+        expect(await refresh()).not.toMatchObject(published)
+        verdict = 'check'
+        await settled(tree, 'a use after the 401 to go through', refresh, answer =>
+          JSON.stringify(answer).includes('published'),
+        )
+        expect(server.counts.refreshes).toBe(2)
+        expect(await stateOf()).toBe('present')
+
+        verdict = 'unauthorized'
+        expect(await refresh()).not.toMatchObject(published)
+        await settled(
+          tree,
+          'the grant to want a new connection',
+          stateOf,
+          state => state === 'reconnect-required',
+        )
+        expect(server.counts.refreshes).toBe(2)
+
+        verdict = 'check'
+        await connect()
+        expect(await refresh()).toMatchObject(published)
+        verdict = 'insufficient-scope'
+        expect(await refresh()).not.toMatchObject(published)
+        await settled(
+          tree,
+          'the grant to want the scope',
+          stateOf,
+          state => state === 'reconnect-required',
+        )
+        verdict = 'check'
+        const asked = await connect()
+        expect(asked.searchParams.get('scope')).toBe('read write')
+
+        expect(said.filter(answer => TOKENS.test(JSON.stringify(answer)))).toEqual([])
+        expect(tree.serverOutput().filter(line => TOKENS.test(line))).toEqual([])
       },
     )
     expect(exit).toBe(0)
