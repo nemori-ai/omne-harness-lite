@@ -58,7 +58,7 @@ function stream(frames: readonly object[]): GatewayAnswer {
 }
 
 function chatAnswer(found: ModelScript['steps'][number] | undefined, model: string): GatewayAnswer {
-  const serving = { model, provider: 'OpenAI' }
+  const serving = { model, provider: model.startsWith('anthropic/') ? 'Anthropic' : 'OpenAI' }
   if (found?.call === undefined)
     return stream([
       { ...serving, choices: [{ delta: { content: found?.say ?? NO_STEP } }] },
