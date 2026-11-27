@@ -292,6 +292,12 @@ describe('what a run leaves at the edge of the measurement', () => {
     '#75 run.terminal: Run run_abc ended: completed',
   ].join('\n')
 
+  it('does not move with the order two entries landed in: a run and its repeat may interleave them differently', () => {
+    const lines = history.split('\n')
+    const swapped = [lines[0], lines[1], lines[3], lines[4], lines[2], ...lines.slice(5)].join('\n')
+    expect(digestsOf(swapped).digests).toEqual(digestsOf(history).digests)
+  })
+
   it('is one digest for each visible entry, and does not move with identifiers the product made up', () => {
     const { digests, kinds } = digestsOf(history)
     expect(digests).toHaveLength(6)
@@ -314,8 +320,8 @@ describe('what a run leaves at the edge of the measurement', () => {
     expect(
       digestsOf(history.replace('call_r0001_s0001_c0001]', 'call_r0001_s0009_c0001]')).digests,
     ).not.toEqual(digests)
-    expect(digestsOf(history.replace('mk-round-0001', 'mk-round-0002')).digests[0]).not.toBe(
-      digests[0],
+    expect(digestsOf(history.replace('mk-round-0001', 'mk-round-0002')).digests).not.toEqual(
+      digests,
     )
   })
 })

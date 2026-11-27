@@ -148,7 +148,7 @@ export function digestsOf(
     const said = kind === 'message.user' ? rest : (CALL.exec(rest)?.[1] ?? '')
     digests.push(createHash('sha256').update(`${kind}\n${said}`).digest('hex').slice(0, 16))
   }
-  return { digests, kinds }
+  return { digests: digests.sort(), kinds }
 }
 
 const ROUND_MS = 900_000

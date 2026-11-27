@@ -280,6 +280,7 @@ export const BACKGROUND_CALLS = suiteOf({
   title: 'commands left running in the background: what a step costs as more of them are open',
   limits: [
     'The commands sleep: none of them ends, writes output or wakes the session while the suite runs.',
+    'What a command leaves in the log carries process facts that differ from run to run, so the bytes a step commits move by a fraction of a percent and are read with the clocked readings.',
   ],
   tiers: {
     short: { rounds: [launching(16)], scales: [2, 4, 8, 16] },
@@ -292,6 +293,7 @@ export const BACKGROUND_CALLS = suiteOf({
       scales: tier.scales,
       placeOf: step => step.step,
       gated: [COMMITS, READS],
+      read: [COMMITS, clocked(COMMIT_BYTES), READS],
       known: {},
     }),
 })
