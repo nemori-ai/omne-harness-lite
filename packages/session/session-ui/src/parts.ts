@@ -2,6 +2,7 @@ import {
   definePart,
   type FigureDoing,
   type FloatCorner,
+  type FloatNote,
   type FloatProps,
 } from '@omne-harness/shell-contract'
 import type { ReactNode } from 'react'
@@ -31,14 +32,13 @@ export type CompanionFigureDrawing = Readonly<{
   dragging: boolean
 }>
 
-export type CompanionPanelDrawing = CompanionPort & Readonly<{ close: () => void }>
-
 export type CompanionDrawing = CompanionPort &
   Readonly<{
     doing: FigureDoing
     grip: FloatProps['grip']
     corner: FloatCorner
     dragging: boolean
+    note: FloatNote
   }>
 
 export const sessionCompanion = definePart<CompanionDrawing>({
@@ -52,19 +52,10 @@ export const sessionCompanion = definePart<CompanionDrawing>({
 export const sessionCompanionFigure = definePart<CompanionFigureDrawing>({
   name: 'session.companion.figure',
   label: '随身入口的形象',
-  summary: '随身入口长什么样，按它展开小框，按住它拖；自带的是几粒墨点',
+  summary: '随身入口长什么样，按它开说话笺，按住它拖；自带的是几粒墨点',
   within: 'session.companion',
   depths: ['tokens', 'style', 'render'],
   when: '登录之后',
-})
-
-export const sessionCompanionPanel = definePart<CompanionPanelDrawing>({
-  name: 'session.companion.panel',
-  label: '随身入口的小框',
-  summary: '写一句话、选说给谁、发出去的地方',
-  within: 'session.companion',
-  depths: ['tokens', 'style', 'render'],
-  when: '小框展开时',
 })
 
 export const sessionList = definePart({
@@ -329,7 +320,6 @@ export const sessionPaperPick = definePart({
 export const sessionParts = [
   sessionCompanion,
   sessionCompanionFigure,
-  sessionCompanionPanel,
   sessionList,
   sessionListNew,
   sessionListItem,

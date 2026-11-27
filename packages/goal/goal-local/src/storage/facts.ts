@@ -1,5 +1,5 @@
 import type { GoalTxn } from '@omne-harness/goal'
-import { GoalRecordSchema, type GoalRecord } from '@omne-harness/goal-contract'
+import { GoalRecordSchema, owesExamination, type GoalRecord } from '@omne-harness/goal-contract'
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 import { ROW_LIMIT } from './schema.ts'
 
@@ -12,11 +12,14 @@ const parsed = (rows: QueryRows['rows']): GoalRecord[] =>
 
 const flag = (on: boolean) => (on ? 1 : 0)
 const generationOf = (record: GoalRecord) => record.state.generation
+const owes = ({ wake, examination }: GoalRecord): boolean =>
+  wake !== null || owesExamination(examination)
 const columns = (record: GoalRecord) =>
   [
     record.version,
     flag(record.state.status !== 'settled'),
-    flag(record.wake !== null),
+    flag(owes(record)),
+    record.examination.examiner,
     JSON.stringify(record),
   ] as const
 
@@ -31,20 +34,42 @@ export function sqlTxn(port: SqlPort): GoalTxn {
       )[0] ?? null,
     insert(record) {
       port.execute(
-        'INSERT INTO gl_goals (session, generation, version, live, owing, record) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO gl_goals (session, generation, version, live, owing, examiner, record) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [record.session, generationOf(record), ...columns(record)],
       )
     },
     replace(record) {
       port.execute(
-        'UPDATE gl_goals SET version = ?, live = ?, owing = ?, record = ? WHERE session = ? AND generation = ?',
+        'UPDATE gl_goals SET version = ?, live = ?, owing = ?, examiner = ?, record = ? WHERE session = ? AND generation = ?',
         [...columns(record), record.session, generationOf(record)],
       )
     },
   }
 }
 
-/** The goals that owe their session a reminder. A result that reaches past the limit fails instead of being cut. */
+/** The decision model a session chose for its judging, or null. */
+export function chosenBy(port: SqlPort, session: string): string | null {
+  const sql = 'SELECT judge FROM gl_session_choices WHERE session = ? LIMIT 1'
+  const found = port.execute(sql, [session])
+  const judge = found.rows[0]?.[0]
+  return typeof judge === 'string' ? judge : null
+}
+
+/** Writes the choice of a session over the one before; null takes it away. */
+export function choose(port: SqlPort, session: string, judge: string | null): void {
+  port.execute('DELETE FROM gl_session_choices WHERE session = ?', [session])
+  if (judge !== null)
+    port.execute('INSERT INTO gl_session_choices (session, judge) VALUES (?, ?)', [session, judge])
+}
+
+/** The live goal a session examines for, or null. */
+export function examinedBy(port: SqlPort, examiner: string): GoalRecord | null {
+  const sql =
+    'SELECT record FROM gl_goals WHERE examiner = ? AND live = 1 ORDER BY generation DESC LIMIT 1'
+  return parsed(port.execute(sql, [examiner]).rows)[0] ?? null
+}
+
+/** The goals that owe their session a reminder or the examining side a batch. A result that reaches past the limit fails instead of being cut. */
 export function owingGoals(port: SqlPort): GoalRecord[] {
   const sql = `SELECT record FROM gl_goals WHERE owing = 1 ORDER BY session, generation LIMIT ${String(ROW_LIMIT + 1)}`
   const found = port.execute(sql, []).rows

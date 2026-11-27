@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, createPrivateKey, sign, type KeyObject } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { link, lstat, mkdtemp, readdir, readlink, realpath, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
@@ -152,4 +152,32 @@ export async function runPackaging(
   })
   if (version !== pnpmVersion) throw new Error('pnpm-version-mismatch')
   await packageArtifact(root, args[0]!, definition)
+}
+
+export const versionManifestFile = 'manifest.json'
+export const versionSignatureFile = 'manifest.sig'
+
+/** Writes the manifest of a version directory and its Ed25519 signature. The key is the caller's. */
+export async function signVersion(
+  directory: string,
+  options: { readonly entry: string; readonly privateKey: string | KeyObject },
+): Promise<{ manifest: string; signature: string }> {
+  const listed = (await inventory(directory)).filter(
+    entry => entry.path !== versionManifestFile && entry.path !== versionSignatureFile,
+  )
+  const files: Record<string, string> = {}
+  for (const entry of listed) {
+    if (entry.kind !== 'file') throw new Error('version-directory-has-link')
+    files[entry.path] = entry.sha256
+  }
+  if (!Object.hasOwn(files, options.entry)) throw new Error('version-entry-not-a-file')
+  const manifest = `${JSON.stringify({ format: 1, entry: options.entry, files }, null, 2)}\n`
+  const key =
+    typeof options.privateKey === 'string'
+      ? createPrivateKey(options.privateKey)
+      : options.privateKey
+  const signature = sign(null, Buffer.from(manifest), key).toString('base64')
+  await writeFile(join(directory, versionManifestFile), manifest)
+  await writeFile(join(directory, versionSignatureFile), `${signature}\n`)
+  return { manifest, signature }
 }

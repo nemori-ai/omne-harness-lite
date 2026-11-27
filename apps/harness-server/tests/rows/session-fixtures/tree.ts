@@ -11,13 +11,20 @@ import {
 } from '../../../src/entry/principals.ts'
 import { sessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../../../src/row.ts'
+import type { RowSupervision } from '../../../src/shutdown.ts'
+import { rowSupervision } from '../../support/row-supervision.ts'
 import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { disposeTree, startTree, type EntryObject, type RowSpec } from '../../../src/loader.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
-import { monotonicClock, runShutdown, type ShutdownReport } from '../../../src/shutdown.ts'
+import {
+  monotonicClock,
+  runShutdown,
+  stopPredecessors,
+  type ShutdownReport,
+} from '../../../src/shutdown.ts'
 import { prepareStartupDirectory } from '../../../src/startup-directory.ts'
 import { createTrust } from '../../../src/trust.ts'
 import type {
@@ -94,7 +101,7 @@ export type TreeOptions = Readonly<{
 export type LoadedTree = Readonly<{
   root: Context
   allActive: boolean
-  registry: LifecycleRegistry
+  registry: RowSupervision
   service<T>(name: ServiceName): T | undefined
   state(id: string): RowState
   shutdown(deadlineMs?: number): Promise<ShutdownReport>
@@ -115,7 +122,7 @@ export async function loadTree(options: TreeOptions): Promise<LoadedTree> {
   for (const spec of options.rows) {
     if (spec.manifest.phase !== null) expected.set(spec.row.id, spec.manifest.phase)
   }
-  const registry = new LifecycleRegistry({ expected, clock: monotonicClock, requestStop: () => {} })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const made = new Map<symbol, unknown>()
   const env: EntryEnv = {
@@ -159,7 +166,10 @@ export async function loadTree(options: TreeOptions): Promise<LoadedTree> {
       return found
     },
     shutdown: (deadlineMs = 5000) =>
-      runShutdown(registry, expected, deadlineMs, monotonicClock, { disposeRoot: dispose }),
+      runShutdown(registry, expected, deadlineMs, monotonicClock, {
+        stopsFirst: stopPredecessors(options.rows),
+        disposeRoot: dispose,
+      }),
     dispose,
   }
 }

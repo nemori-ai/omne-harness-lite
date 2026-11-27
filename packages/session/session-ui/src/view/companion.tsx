@@ -1,6 +1,6 @@
 import type { FloatProps, PartDrawer } from '@omne-harness/shell-contract'
 import { Button, InkMotes } from '@omne-harness/ui-kit'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { BackgroundCallsStore } from '../model/background-calls.ts'
 import { companionFacts, type CompanionFacts } from '../model/companion.ts'
 import type { SayTarget } from '../model/say.ts'
@@ -13,7 +13,6 @@ import {
   type CompanionFigureDrawing,
   type CompanionPort,
 } from '../parts.ts'
-import { CompanionPanel } from './companion-panel.tsx'
 import { useInBackground } from './figure-report.tsx'
 import { useSession } from './use-session.ts'
 
@@ -52,8 +51,8 @@ function Held({ driver, tenant, background, shell, float, onShow }: HeldProps) {
     () => ({ sessions, current, say, show: onShow }),
     [sessions, current, say, onShow],
   )
-  const { grip, corner, dragging } = float
-  const given: CompanionDrawing = { ...port, doing, grip, corner, dragging }
+  const { grip, corner, dragging, note } = float
+  const given: CompanionDrawing = { ...port, doing, grip, corner, dragging, note }
   return sessionCompanion.draw(shell, () => <BuiltIn shell={shell} given={given} />, given)
 }
 
@@ -73,6 +72,7 @@ function Figure({
   )
 }
 
+/** The companion as it ships: its figure is a button that opens and closes the shell's say note beside it. */
 function BuiltIn({
   shell,
   given,
@@ -80,38 +80,21 @@ function BuiltIn({
   readonly shell: PartDrawer
   readonly given: CompanionDrawing
 }) {
-  const { doing, grip, corner, dragging, ...port } = given
-  const [unfolded, setUnfolded] = useState(false)
-  const figure = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (dragging) setUnfolded(false)
-  }, [dragging])
-  const close = useCallback((refocus: boolean) => {
-    setUnfolded(false)
-    if (refocus) figure.current?.focus({ preventScroll: true })
-  }, [])
+  const { doing, grip, dragging, note } = given
   return (
     <div className="omne-companion" {...sessionCompanion.props}>
       <Button
-        ref={figure}
         variant="ghost"
         className="omne-companion-figure"
         {...sessionCompanionFigure.props}
         {...grip}
         aria-label={COMPANION_LABEL}
-        aria-expanded={unfolded}
-        onClick={() => setUnfolded(open => !open)}
+        aria-expanded={note.open}
+        disabled={!note.there}
+        onClick={event => note.toggle(event.currentTarget)}
       >
-        <Figure shell={shell} look={{ doing, unfolded, dragging }} />
+        <Figure shell={shell} look={{ doing, unfolded: note.open, dragging }} />
       </Button>
-      <CompanionPanel
-        shell={shell}
-        port={port}
-        figure={figure}
-        corner={corner}
-        unfolded={unfolded}
-        close={close}
-      />
     </div>
   )
 }

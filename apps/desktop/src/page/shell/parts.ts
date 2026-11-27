@@ -1,4 +1,11 @@
 import { definePart } from '@omne-harness/shell-contract'
+import {
+  FIGURE_FRAME_PART,
+  FIGURE_LABEL_PART,
+  FIGURE_NOTE_PART,
+  FIGURE_PART,
+  FIGURE_TOLD_PART,
+} from '../surface/parts.ts'
 
 export const shellApp = definePart({
   name: 'shell.app',
@@ -115,6 +122,68 @@ export const shellGate = definePart({
   when: '没登录时',
 })
 
+export const shellFigure = definePart({
+  name: FIGURE_PART,
+  label: '形',
+  summary: 'Agent 的形：在窗口里，也在拿出窗口之后的桌面上',
+  within: 'shell.app',
+  depths: ['tokens', 'style'],
+})
+
+export const shellFigureLabel = definePart({
+  name: FIGURE_LABEL_PART,
+  label: '签',
+  summary: '拿着形时写在旁边的一两行：松手会去哪，按着 ⌘ 看的是哪个窗口',
+  within: 'shell.app',
+  depths: ['tokens', 'style'],
+  when: '形在桌面上被拿着时',
+})
+
+export const shellFigureNote = definePart({
+  name: FIGURE_NOTE_PART,
+  label: '说话笺',
+  summary: '对 Agent 说一句话的笺，只有一块：桌面上单击形、窗口里按随身入口，开的都是它',
+  within: 'shell.app',
+  depths: ['tokens', 'style'],
+  when: '说话笺开着时',
+})
+
+export const shellFigureTold = definePart({
+  name: FIGURE_TOLD_PART,
+  label: '告知笺',
+  summary: '形在家里说给人听的一句：一个模块的提示',
+  within: 'shell.sidebar',
+  depths: ['tokens', 'style'],
+  when: '有提示时',
+})
+
+export const shellFigureFrame = definePart({
+  name: FIGURE_FRAME_PART,
+  label: '观测框',
+  summary: '按着 ⌘ 拿着形时，圈住手下那个窗口的框',
+  within: 'shell.app',
+  depths: ['tokens', 'style'],
+  when: '按着 ⌘ 拿着形经过一个窗口时',
+})
+
+export const shellBack = definePart({
+  name: 'shell.back',
+  label: '反面',
+  summary: '应用翻过来的一面的外框，里面是放在反面的那一样',
+  within: 'shell.app',
+  depths: ['tokens', 'style'],
+  when: '有反面时',
+})
+
+export const shellSidebarTurn = definePart({
+  name: 'shell.sidebar.turn',
+  label: '翻面的记号',
+  summary: '侧栏底栏里「翻到反面」的钮',
+  within: 'shell.sidebar.footer',
+  depths: ['tokens', 'style'],
+  when: '有反面时',
+})
+
 export const shellParts = [
   shellApp,
   shellSidebar,
@@ -124,9 +193,16 @@ export const shellParts = [
   shellSidebarUtility,
   shellSidebarFooter,
   shellSidebarAppearance,
+  shellSidebarTurn,
   shellSidebarFold,
   shellSidebarMenu,
   shellWorkspace,
   shellWorkspacePage,
   shellGate,
+  shellFigure,
+  shellFigureLabel,
+  shellFigureNote,
+  shellFigureTold,
+  shellFigureFrame,
+  shellBack,
 ] as const

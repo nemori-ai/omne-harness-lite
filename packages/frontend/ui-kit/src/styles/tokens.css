@@ -416,6 +416,14 @@
   --omne-ink-wash-core: rgb(0 0 0 / 13%);
   --omne-ink-wash-rim: rgb(0 0 0 / 11%);
   --omne-ink-wash-out: rgb(0 0 0 / 0%);
+  --omne-ink-bubble-edge-full: light-dark(
+    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent),
+    color-mix(in oklab, var(--omne-ink-primary) 70%, transparent)
+  );
+  --omne-ink-bubble-edge-light: light-dark(
+    color-mix(in oklab, var(--omne-ink-primary) 26%, transparent),
+    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent)
+  );
 
   --omne-tooltip: var(--kami-tooltip-bg);
   --omne-scrollbar-thumb-rest: color-mix(in srgb, var(--omne-ink-faint) 27%, transparent);

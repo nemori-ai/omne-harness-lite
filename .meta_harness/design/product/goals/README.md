@@ -2,7 +2,7 @@
 id: PD-goals
 title: 目标
 status: draft
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on: []

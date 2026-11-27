@@ -110,12 +110,15 @@ export function world() {
   const authority = fakeAuthority()
   let tick = 0
   const sessions = new Map<string, Held>()
+  const rulesAsked: string[] = []
   const hooks: {
     handed?: (held: Held) => void
     /** Runs after the executor read the goal of a session and before it acts on what it read. */
     reading?: () => Promise<void>
     /** Runs when the executor asks who opened the run going, after the goal was set. */
     asking?: () => void
+    /** What the settings of the tenant answer; the defaults when a test sets none. */
+    rules?: Awaited<ReturnType<ExecutorCalls['goals']['rules']>> | Error
   } = {}
   /** A reminder the goal hands over is an input the session holds until a run takes it. */
   const handing: typeof goalSessions = {
@@ -216,11 +219,17 @@ export function world() {
         }),
       command: ({ session, command }) =>
         goals.command(SCHEDULE, { session, command: { kind: command } }),
+      async rules(input) {
+        rulesAsked.push(input.tenant)
+        if (hooks.rules instanceof Error) throw hooks.rules
+        return hooks.rules ?? { kind: 'read', value: { maxExaminations: 3, job: 'rerun' } }
+      },
     },
   }
   const session = (job = jobOf()) => identitiesOf(job)?.session ?? ''
   return {
     executor: createNewSessionExecutor(calls),
+    askedRules: rulesAsked,
     existing: createExistingSessionExecutor(calls),
     hooks,
     /** A session that was there before any Job: a person's, or one nobody attends. */

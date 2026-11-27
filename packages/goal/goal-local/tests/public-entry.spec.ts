@@ -3,15 +3,18 @@ import { expect, it } from 'vitest'
 it('the root exports the SQL materials, the store, the application and the policy', async () => {
   const root = (await import('@omne-harness/goal-local')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
+    'EXAMINERS',
     'GoalPolicyError',
     'createGoalLocalApplication',
     'createSqlGoalStore',
+    'examinationSettingsOf',
     'goalJudgeItems',
     'goalJudgeSettings',
     'goalPersistenceParticipant',
     'goalPolicySchema',
     'goalSqlMaterials',
     'judgeModelOf',
+    'judgeSettingOf',
   ])
 })
 

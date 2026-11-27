@@ -30,6 +30,7 @@ describe('keeping the goal of a session fresh', () => {
     expect(driver.getState()).toEqual({
       read: 'loading',
       goal: null,
+      judge: null,
       busy: null,
       notice: null,
       issues: [],
@@ -373,5 +374,76 @@ describe('a direct edit', () => {
     script.write = { outcome: 'conflict', body: { reason: 'a-reason-of-tomorrow' } }
     await driver.revise(CHANGES)
     expect(driver.getState().notice).toBe('目标现在不接受修改。')
+  })
+})
+
+describe('the decision model a session chose for itself', () => {
+  const MODELS = ['openai/gpt-6-luna-decisions', 'typesafe/jev-1.14']
+  const chosen = (model: string | null) => ({
+    outcome: 'succeeded',
+    body: { model, models: MODELS },
+  })
+  async function reading() {
+    const fake = driven()
+    fake.judge.read = chosen(null)
+    fake.driver.retain()
+    fake.streams[0]!.push()
+    await settled()
+    fake.judge.calls.length = 0
+    return fake
+  }
+
+  it('is read with the goal, and is no part of the panel while the server does not tell it', async () => {
+    const fake = driven()
+    fake.driver.retain()
+    fake.streams[0]!.push()
+    await settled()
+    expect(fake.judge.calls).toEqual([['read-judge', WHERE]])
+    expect(fake.driver.getState()).toMatchObject({ read: 'read', judge: null })
+    fake.judge.read = chosen('typesafe/jev-1.14')
+    await fake.driver.read()
+    expect(fake.driver.getState().judge).toEqual({ model: 'typesafe/jev-1.14', models: MODELS })
+    fake.judge.read = new Error('an older server has no such operation')
+    await fake.driver.read()
+    expect(fake.driver.getState().judge).toBeNull()
+  })
+
+  it('is chosen, or left to the tenant with null, and then read again: what stands is what the server says', async () => {
+    const { driver, judge } = await reading()
+    judge.read = chosen('typesafe/jev-1.14')
+    const choosing = driver.chooseJudge('typesafe/jev-1.14')
+    expect(driver.getState().busy).toBe('judge')
+    await choosing
+    expect(judge.calls).toEqual([
+      ['choose-judge', { ...WHERE, model: 'typesafe/jev-1.14' }],
+      ['read-judge', WHERE],
+    ])
+    expect(driver.getState()).toMatchObject({
+      busy: null,
+      notice: null,
+      judge: { model: 'typesafe/jev-1.14' },
+    })
+    judge.read = chosen(null)
+    await driver.chooseJudge(null)
+    expect(judge.calls[2]).toEqual(['choose-judge', { ...WHERE, model: null }])
+    expect(driver.getState().judge?.model).toBeNull()
+  })
+
+  it('says so when the server refuses the model, cannot answer, or does not know; and sends nothing while something else is going', async () => {
+    const { driver, judge, script } = await reading()
+    judge.choose = { outcome: 'invalid', body: { issues: [] } }
+    await driver.chooseJudge('some/model')
+    expect(driver.getState()).toMatchObject({ busy: null, notice: '这个型号不在可选的里面。' })
+    judge.choose = { outcome: 'basis-unavailable' }
+    await driver.chooseJudge('typesafe/jev-1.14')
+    expect(driver.getState().notice).toBe('服务端现在答不了，目标没有变。')
+    judge.choose = { outcome: 'unknown' }
+    await driver.chooseJudge('typesafe/jev-1.14')
+    expect(driver.getState().notice).toBe('结果不知道。面板重读了目标，以读到的为准。')
+    judge.calls.length = 0
+    script.command = new Promise(() => {}) as never
+    void driver.command(PAUSE)
+    await driver.chooseJudge('typesafe/jev-1.14')
+    expect(judge.calls).toEqual([])
   })
 })

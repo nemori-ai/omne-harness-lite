@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ExaminationSchema, NO_EXAMINATION } from './awaited.ts'
 import { GoalBodySchema } from './body.ts'
 import { ReadingsSchema } from './gap.ts'
 import { ProgressSchema } from './progress.ts'
@@ -43,6 +44,7 @@ export const GoalRecordSchema = z.strictObject({
   since: z.string().min(1),
   wake: WakeSchema.nullable(),
   observed: ObservedSchema.nullable(),
+  examination: ExaminationSchema.default(NO_EXAMINATION),
 })
 /** Everything kept about one goal of a session: the facts live here and nowhere in the session. */
 export type GoalRecord = z.infer<typeof GoalRecordSchema>

@@ -15,7 +15,11 @@ import type {
   GoalCalls,
   GoalCards,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
+  BatchToHand,
+  HandAnswer,
+  ExaminationRules,
   GoalJudging,
 } from '../ports.ts'
 import type { Asked, Driven, GoalSessions, SendAnswer, WakeToSend } from '../sessions-port.ts'
@@ -49,6 +53,8 @@ export type FakeSessions = GoalSessions &
     readable(on: boolean): void
     sendNext(answer: SendAnswer): void
     woken: WakeToSend[]
+    run(session: string, on: boolean): void
+    at(session: string, where: string): void
   }>
 
 /** Sessions with the one fact a goal stands on, and a record of every reminder handed over. */
@@ -61,8 +67,15 @@ export function fakeSessions(): FakeSessions {
   let canRead = true
   let moment = 0
   let next: SendAnswer = 'sent'
+  const going = new Set<string>()
+  const places = new Map<string, string>()
   return {
     woken,
+    run: (session, on) => void (on ? going.add(session) : going.delete(session)),
+    at: (session, where) => void places.set(session, where),
+    async running(_tenant, session) {
+      return canRead ? { kind: 'read', value: going.has(session) } : { kind: 'unavailable' }
+    },
     add: (session, attendance) => void known.set(session, attendance),
     drive: (session, input) =>
       void (input === null ? driven.delete(session) : driven.set(session, input)),
@@ -79,13 +92,78 @@ export function fakeSessions(): FakeSessions {
       if (attendance === undefined) return { kind: 'read', value: null }
       moment += 1
       const drive = driven.get(session) ?? null
-      return { kind: 'read', value: { attendance, moment: String(moment), drive } }
+      const where = places.get(session) ?? null
+      return { kind: 'read', value: { attendance, moment: String(moment), drive, where } }
     },
     async wake(_tenant, wake) {
       const answer = next
       next = 'sent'
       if (answer !== 'refused') woken.push(wake)
       return answer
+    },
+  }
+}
+
+export type FakeExamining = GoalExamining &
+  Readonly<{
+    handNext(answer: HandAnswer['kind']): void
+    made(examiner: string, request: string, refs: readonly string[]): void
+    readable(on: boolean): void
+    handed: BatchToHand[]
+    asked: string[]
+    seen: BatchToHand[]
+    end(request: string): void
+    cancelled: string[]
+    closed: string[]
+  }>
+
+const NO_CALL = { tool: 'Shell', path: null, exit: 0, output: '', writes: false } as const
+
+export function fakeExamining(): FakeExamining {
+  const handed: BatchToHand[] = []
+  const asked: string[] = []
+  const seen: BatchToHand[] = []
+  const over = new Set<string>()
+  const cancelled: string[] = []
+  const closed: string[] = []
+  const rounds = new Map<string, readonly string[]>()
+  let next: HandAnswer['kind'] = 'handed'
+  let canRead = true
+  return {
+    handed,
+    asked,
+    seen,
+    cancelled,
+    closed,
+    end: request => void over.add(request),
+    async ended(_tenant, batch) {
+      return over.has(batch.request) ? 'ended' : 'going'
+    },
+    async cancel(_tenant, batch) {
+      cancelled.push(batch.request)
+    },
+    async close(_tenant, goal) {
+      closed.push(goal.examiner)
+    },
+    handNext: answer => void (next = answer),
+    made: (examiner, request, refs) => void rounds.set(`${examiner}|${request}`, refs),
+    readable: on => void (canRead = on),
+    async hand(_tenant, batch) {
+      asked.push(batch.request)
+      seen.push(batch)
+      const answer = next
+      next = 'handed'
+      if (answer === 'refused') return { kind: 'refused' }
+      if (answer === 'taking') return { kind: 'taking' }
+      if (!handed.some(taken => taken.request === batch.request)) handed.push(batch)
+      const examiner = batch.examiner ?? `examiner-of-${batch.session}`
+      return answer === 'unknown' ? { kind: 'unknown' } : { kind: 'handed', examiner }
+    },
+    async calls(_tenant, examiner, request) {
+      if (!canRead) return { kind: 'unavailable' }
+      const made = rounds.get(`${examiner}|${request}`) ?? []
+      const value = made.map((ref, order) => ({ ...NO_CALL, ref, order, command: `play ${ref}` }))
+      return { kind: 'read', value }
     },
   }
 }
@@ -175,16 +253,30 @@ export function fakeDecisions(): FakeDecisions {
 }
 
 export type FakeJudging = GoalJudging &
-  Readonly<{ set(config: Partial<JudgeConfig>): void; readable(on: boolean): void }>
+  Readonly<{
+    set(config: Partial<JudgeConfig>): void
+    rule(rules: Partial<ExaminationRules>): void
+    lock(on: boolean): void
+    readable(on: boolean): void
+  }>
 
 export function fakeJudging(): FakeJudging {
   let config: JudgeConfig = DEFAULT_JUDGE_CONFIG
+  let rules: ExaminationRules = { maxExaminations: 3, job: 'rerun' }
   let canRead = true
+  let locked = false
   return {
     set: change => void (config = { ...config, ...change }),
+    rule: change => void (rules = { ...rules, ...change }),
+    lock: on => void (locked = on),
     readable: on => void (canRead = on),
-    async config() {
-      return canRead ? { kind: 'read', value: config } : { kind: 'unavailable' }
+    async config(_tenant, _session, chosen) {
+      if (!canRead) return { kind: 'unavailable' }
+      const model = locked || chosen === null ? config.model : chosen
+      return { kind: 'read', value: { ...config, model } }
+    },
+    async examination() {
+      return canRead ? { kind: 'read', value: rules } : { kind: 'unavailable' }
     },
   }
 }

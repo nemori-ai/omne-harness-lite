@@ -36,6 +36,8 @@ import type { Connectivity } from '../connectivity.ts'
 import { NO_FIGURE_DEVICE, type FigureDevice } from './desk/device.ts'
 import { useStay } from './desk/stay.ts'
 import { Float } from './float.tsx'
+import type { ShellNote } from './say-note.ts'
+import { useShellNote, useShutOnTurn } from './say-note-view.tsx'
 import { goHome, homeOf, mergedOf } from './home.ts'
 import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
@@ -44,7 +46,14 @@ import { runAction } from './dispatch.ts'
 import { bindShellKeys, shellKeys } from './keys.ts'
 import { paletteSwitch, ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
-import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
+import {
+  shellApp,
+  shellBack,
+  shellFigure,
+  shellGate,
+  shellWorkspace,
+  shellWorkspacePage,
+} from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
 import {
   NarrowNavigation,
@@ -342,6 +351,7 @@ function Back(props: {
       ref={props.element}
       id="shell-back"
       className="shell-face shell-back"
+      {...shellBack.props}
       data-face="back"
       data-flip-leaving={props.leaving ? '' : undefined}
       aria-label="反面"
@@ -404,6 +414,8 @@ function Workspace(
   props: SidebarProps & {
     missing: readonly string[]
     floats: FloatPlaces
+    note: ShellNote | null
+    settings: () => void
   },
 ) {
   const { state, pages, shown } = props
@@ -414,6 +426,8 @@ function Workspace(
   const [backConflict] = useConflicts(state.slots, 'back')
   const onBack = face === 'back'
   const { flip, leaving } = useFaceFlipFor(state)
+  const { note } = props
+  useShutOnTurn(note, flip, face)
   const front = useRef<HTMLDivElement>(null)
   const backFace = useRef<HTMLElement>(null)
   const wide = useWide()
@@ -478,7 +492,14 @@ function Workspace(
         leaving={leaving === 'back'}
         element={backFace}
       />
-      <Float state={state} scope={scope} places={props.floats} inert={!wide && covered} />
+      <Float
+        state={state}
+        scope={scope}
+        places={props.floats}
+        inert={!wide && covered}
+        note={note}
+        settings={props.settings}
+      />
       <FlipLayer
         flip={flip}
         leaving={() => (state.face.get() === 'back' ? front.current : backFace.current)}
@@ -503,8 +524,10 @@ export function Shell(props: ShellProps) {
   const homePage = homeOf(merged, pages)
   const doing = merged.doing === 'idle' ? undefined : merged.doing
   const figureControl = useRef<FigureControl>(null)
+  const device = props.figureDevice ?? NO_FIGURE_DEVICE
+  const note = useShellNote(state)
   const stay = useStay(
-    props.figureDevice ?? NO_FIGURE_DEVICE,
+    device,
     figureControl,
     login === 'signed-in',
     {
@@ -512,8 +535,9 @@ export function Shell(props: ShellProps) {
       moment: merged.moment,
       waiting: merged.waiting,
     },
-    state.slots,
     state.scope,
+    state,
+    note,
   )
   return (
     <RedrawProvider value={state.redraw.draw}>
@@ -530,6 +554,7 @@ export function Shell(props: ShellProps) {
           awayLabel={RECALL_TEXT}
           onRecall={stay.recall}
           control={figureControl}
+          {...shellFigure.props}
         >
           <a
             className="shell-skip"
@@ -550,6 +575,8 @@ export function Shell(props: ShellProps) {
               homePage={homePage}
               missing={missing}
               floats={props.floats}
+              note={note}
+              settings={device.settings}
             />
           ) : (
             <Outside state={state} login={login} connectivity={connectivity} missing={missing} />

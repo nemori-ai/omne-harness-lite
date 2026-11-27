@@ -109,7 +109,7 @@ describe('what the release brings is on the points of the categories', () => {
         )
         expect(official('model-provider')).toEqual(named('model-provider', ['openrouter']))
         expect(official('AgentDefinition').sort()).toEqual(
-          named('AgentDefinition', ['assistant', 'coding']),
+          named('AgentDefinition', ['assistant', 'coding', 'examiner']),
         )
         expect(official('skill').sort()).toEqual(
           named('skill', ['skill-authoring', 'skin-authoring']),

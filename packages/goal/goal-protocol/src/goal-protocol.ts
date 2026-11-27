@@ -58,6 +58,9 @@ const gapRow = object({
   ref: { rule: nullable(text) },
   open: { rule: flag },
   short: { rule: nullable(words) },
+  verification: { rule: text, optional: true, since: 2 },
+  reader: { rule: text, optional: true, since: 2 },
+  value: { rule: text, optional: true, since: 3 },
 })
 const provenance = object({
   revision: { rule: number },
@@ -76,6 +79,7 @@ const goal = object({
   gap: { rule: list(gapRow) },
   progress: { rule: json },
   history: { rule: list(provenance) },
+  examiner: { rule: session, optional: true, since: 3 },
 })
 
 const where = { tenant: { rule: tenant }, session: { rule: session } } as const
@@ -163,6 +167,31 @@ export const goalProtocol = defineProtocol({
       outcomes: {
         succeeded: ruleCodec(object({ goal: { rule: nullable(goal) } })),
         conflict: refused,
+        'not-found': empty,
+      },
+    },
+    'read-judge': {
+      since: 3,
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(where)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ model: { rule: nullable(text) }, models: { rule: list(text) } }),
+        ),
+        'not-found': empty,
+      },
+    },
+    'choose-judge': {
+      since: 3,
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...where, model: { rule: nullable(text) } })),
+      outcomes: {
+        succeeded: ruleCodec(object({ model: { rule: nullable(text) } })),
+        invalid: ruleCodec(object({ issues: { rule: list(issue) } })),
         'not-found': empty,
       },
     },

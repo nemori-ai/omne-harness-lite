@@ -1,10 +1,12 @@
 import type { AnswerOf, BodyOf, LoginIdentity } from '@omne-harness/access-cordis-contract'
 import {
   NO_PROGRESS,
+  NO_EXAMINATION,
   NO_READINGS,
   validateDraft,
   type GoalRecord,
   type GoalRefusal,
+  type JudgeModel,
   type Outcome,
 } from '@omne-harness/goal-contract'
 import { createGoalContribution } from '@omne-harness/goal-access'
@@ -120,6 +122,7 @@ export const RECORD: GoalRecord = {
   since: 'entry-4',
   wake: null,
   observed: null,
+  examination: NO_EXAMINATION,
 }
 export const ACTIVE: GoalRecord = {
   ...RECORD,
@@ -165,6 +168,7 @@ export function world() {
     read: done<GoalRecord | null>(RECORD) as Scripted<GoalRecord | null>,
     write: done(RECORD) as Scripted<GoalRecord>,
     command: done<GoalRecord | null>(RECORD) as Scripted<GoalRecord | null>,
+    judge: done<JudgeModel | null>(null) as Scripted<JudgeModel | null>,
     mounted: true,
     fed: true,
   }
@@ -172,6 +176,8 @@ export function world() {
     read: (...input) => (asked.push(['read', ...input]), played(script.read)),
     write: (...input) => (asked.push(['write', ...input]), played(script.write)),
     command: (...input) => (asked.push(['command', ...input]), played(script.command)),
+    judgeOf: (...input) => (asked.push(['judgeOf', ...input]), played(script.judge)),
+    chooseJudge: (...input) => (asked.push(['chooseJudge', ...input]), played(script.judge)),
   }
   const listeners = new Map<string, GoalChangeListener>()
   const contribution = createGoalContribution({

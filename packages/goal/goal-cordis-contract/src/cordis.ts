@@ -13,6 +13,11 @@ export abstract class GoalsService extends Service implements Goals {
   abstract readonly propose: Goals['propose']
   abstract readonly confirm: Goals['confirm']
   abstract readonly track: Goals['track']
+  abstract readonly brief: Goals['brief']
+  abstract readonly submit: Goals['submit']
+  abstract readonly examines: Goals['examines']
+  abstract readonly judgeOf: Goals['judgeOf']
+  abstract readonly chooseJudge: Goals['chooseJudge']
 }
 export const goalsKey = GoalsService.provide
 
@@ -23,6 +28,7 @@ export abstract class GoalCheckingService extends Service implements GoalCheckin
     super(ctx, GoalCheckingService.provide)
   }
   abstract readonly observe: GoalChecking['observe']
+  abstract readonly reran: GoalChecking['reran']
   abstract readonly compacted: GoalChecking['compacted']
 }
 export const goalCheckingKey = GoalCheckingService.provide

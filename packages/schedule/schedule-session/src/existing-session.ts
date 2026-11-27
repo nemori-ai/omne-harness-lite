@@ -5,6 +5,7 @@ import type {
 } from '@omne-harness/schedule-contract'
 import { identitiesOf, type JobIdentities } from './identities.ts'
 import {
+  acceptanceOf,
   at,
   instructionRefusal,
   jobInSession,
@@ -15,7 +16,7 @@ import {
   type Facts,
 } from './job-in-session.ts'
 import { refusalText } from './new-session.ts'
-import type { ExecutorCalls } from './ports.ts'
+import type { ExecutorCalls, JobRules } from './ports.ts'
 
 type AgentWork = Extract<ScheduleWork, { kind: 'agent' }>
 type Carried = Readonly<{ ids: JobIdentities; work: AgentWork }>
@@ -29,10 +30,10 @@ const BUSY = 'the session is busy'
 const HAS_GOAL = 'the session already has a goal in progress'
 
 /** Why this path never carries out the work as written; null when it does. */
-function refusalOf(work: ScheduleWork): string | null {
+function refusalOf(work: ScheduleWork, rules?: JobRules): string | null {
   if (work.kind !== 'agent' || work.session.mode !== 'existing')
     return 'this executor carries out agent work in an existing session only'
-  return instructionRefusal(work)
+  return instructionRefusal(work, rules)
 }
 
 function carried(job: ScheduleExecutorJob): Carried | string {
@@ -82,10 +83,7 @@ export function createExistingSessionExecutor(calls: ExecutorCalls): ScheduleJob
   }
 
   return {
-    async accepts(work) {
-      const reason = refusalOf(work)
-      return reason === null ? { kind: 'accepted' } : { kind: 'refused', reason }
-    },
+    accepts: acceptanceOf(calls, refusalOf),
 
     async describe(job) {
       const taken = carried(job)

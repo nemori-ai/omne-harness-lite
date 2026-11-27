@@ -55,11 +55,19 @@ export const FLOAT_GRIP_ATTRIBUTE = 'data-omne-float-grip'
 
 export type FloatCorner = Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>
 
+export type FloatNote = Readonly<{
+  there: boolean
+  open: boolean
+  toggle(element: Element): void
+  close(): void
+}>
+
 export type FloatProps = Readonly<{
   scope: string | undefined
   grip: Readonly<{ [FLOAT_GRIP_ATTRIBUTE]: '' }>
   corner: FloatCorner
   dragging: boolean
+  note: FloatNote
 }>
 
 export type FloatItem = Readonly<{

@@ -19,6 +19,11 @@ class LocalGoals extends GoalsService {
   readonly propose: Goals['propose']
   readonly confirm: Goals['confirm']
   readonly track: Goals['track']
+  readonly brief: Goals['brief']
+  readonly submit: Goals['submit']
+  readonly examines: Goals['examines']
+  readonly judgeOf: Goals['judgeOf']
+  readonly chooseJudge: Goals['chooseJudge']
   constructor(ctx: Context, face: Goals) {
     super(ctx)
     this.read = face.read
@@ -27,15 +32,22 @@ class LocalGoals extends GoalsService {
     this.propose = face.propose
     this.confirm = face.confirm
     this.track = face.track
+    this.brief = face.brief
+    this.submit = face.submit
+    this.examines = face.examines
+    this.judgeOf = face.judgeOf
+    this.chooseJudge = face.chooseJudge
   }
 }
 
 class LocalChecking extends GoalCheckingService {
   readonly observe: GoalChecking['observe']
+  readonly reran: GoalChecking['reran']
   readonly compacted: GoalChecking['compacted']
   constructor(ctx: Context, face: GoalChecking) {
     super(ctx)
     this.observe = face.observe
+    this.reran = face.reran
     this.compacted = face.compacted
   }
 }

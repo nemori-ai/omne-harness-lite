@@ -1,4 +1,4 @@
-import type { GoalRecord } from '@omne-harness/goal-contract'
+import { owesExamination, type GoalRecord, type JudgeModel } from '@omne-harness/goal-contract'
 import type { GoalStore, StoreAnswer, StoreRead } from '../store.ts'
 import { commitGoal, type GoalTxn } from '../txn.ts'
 
@@ -24,6 +24,10 @@ export function memoryTxn(rows: TenantGoals): GoalTxn {
   }
 }
 
+const owes = (row: GoalRecord): boolean => row.wake !== null || owesExamination(row.examination)
+const examines = (row: GoalRecord, examiner: string): boolean =>
+  row.state.status !== 'settled' && row.examination.examiner === examiner
+
 export type MemoryFault = 'unknown-after-commit' | 'unknown-before-commit' | 'rolled-back'
 
 export type MemoryGoalStore = GoalStore &
@@ -38,6 +42,7 @@ export type MemoryGoalStore = GoalStore &
 /** The goals in memory: the same script as the SQL store, with faults a test can ask for. */
 export function createMemoryGoalStore(): MemoryGoalStore {
   const tenants = new Map<string, TenantGoals>()
+  const choices = new Map<string, JudgeModel>()
   let fault: MemoryFault | null = null
   let canRead = true
   const of = (tenant: string): TenantGoals => {
@@ -66,7 +71,23 @@ export function createMemoryGoalStore(): MemoryGoalStore {
       }
     },
     latest: (tenant, session) => read(tenant, rows => memoryTxn(rows).latest(session)),
-    owing: tenant => read(tenant, rows => rows.filter(row => row.wake !== null)),
+    owing: tenant => read(tenant, rows => rows.filter(owes)),
+    examinedBy: (tenant, examiner) =>
+      read(tenant, rows => rows.findLast(row => examines(row, examiner)) ?? null),
+    chosen: (tenant, session) =>
+      read(tenant, () => choices.get(JSON.stringify([tenant, session])) ?? null),
+    async choose(tenant, session, model) {
+      const pending = fault
+      fault = null
+      if (pending === 'rolled-back') return { kind: 'rolled-back' }
+      if (pending === 'unknown-before-commit') return { kind: 'unknown' }
+      const key = JSON.stringify([tenant, session])
+      if (model === null) choices.delete(key)
+      else choices.set(key, model)
+      return pending === 'unknown-after-commit'
+        ? { kind: 'unknown' }
+        : { kind: 'committed', value: null }
+    },
     failNext: next => void (fault = next),
     readable: on => void (canRead = on),
     rows: tenant => [...of(tenant)],

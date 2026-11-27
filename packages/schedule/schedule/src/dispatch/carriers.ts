@@ -2,6 +2,7 @@ import type {
   ScheduleCarrierNeed,
   ScheduleExecutorAcceptance,
   ScheduleJobExecutor,
+  ScheduleOwner,
   SchedulePurpose,
   ScheduleWork,
   ScheduleWorkPath,
@@ -41,9 +42,10 @@ export function carriersOf(purpose: SchedulePurpose): readonly ScheduleCarrierNe
 export async function workAcceptance(
   executor: ScheduleJobExecutor | undefined,
   work: ScheduleWork,
+  owner: ScheduleOwner,
 ): Promise<ScheduleExecutorAcceptance> {
   try {
-    return (await executor?.accepts?.(work)) ?? { kind: 'accepted' }
+    return (await executor?.accepts?.(work, owner)) ?? { kind: 'accepted' }
   } catch {
     return { kind: 'unknown', reason: 'the executor failed to judge the work' }
   }

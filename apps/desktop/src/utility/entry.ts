@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createForwarding } from '../forwarding/app.ts'
 import { createForwardingRules, httpServer } from '../forwarding/rules.ts'
 import { fromElectronPort, servePort, type PortServer } from '../port-fetch/index.ts'
+import { BUNDLE_PROTOCOLS_FILE, bundleContracts } from '../shared/bundle-protocols.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 
 // The utility process: the forwarding layer over the port the main process sends. No TCP port.
@@ -14,10 +16,19 @@ if (serverOrigin === undefined || pageRoot === undefined) {
   process.exit(2)
 }
 
+// The page bundle says which protocols its page speaks: the forwarding layer serves those, read once at its start.
+function listed(root: string): string | undefined {
+  try {
+    return readFileSync(join(root, BUNDLE_PROTOCOLS_FILE), 'utf8')
+  } catch {
+    return undefined
+  }
+}
+
 const forwarding = createForwarding({
   rules: createForwardingRules({
     connect: httpServer(serverOrigin),
-    contracts: [accessProtocol, ...domainProtocols],
+    contracts: [accessProtocol, ...bundleContracts(domainProtocols, listed(pageRoot))],
   }),
   readPageFile: segments =>
     readFile(join(pageRoot, ...segments)).then(

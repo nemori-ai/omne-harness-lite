@@ -1,7 +1,8 @@
-import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { judgeStamp, parseStamp, type Stamp } from '@omne-harness/assembly'
 import { COMBINATION_VERSION } from './rows/agent-journal/config.ts'
+import { writeWhole } from '@omne-harness/assembly-cordis'
 
 export const STATE_STAMP_FILE = 'state-stamp.json'
 
@@ -38,7 +39,5 @@ export function refusedByStamp(stateRoot: string): string | null {
 
 /** Names this build as the last writer: a temporary file, then a rename, so the stamp is whole or the old one. */
 export function stampState(stateRoot: string): void {
-  const path = join(stateRoot, STATE_STAMP_FILE)
-  writeFileSync(`${path}.tmp`, `${JSON.stringify(THIS_BUILD)}\n`, { mode: 0o600 })
-  renameSync(`${path}.tmp`, path)
+  writeWhole(join(stateRoot, STATE_STAMP_FILE), `${JSON.stringify(THIS_BUILD)}\n`)
 }

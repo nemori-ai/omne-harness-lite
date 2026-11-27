@@ -1,5 +1,14 @@
-import { Inject, isConstructor, symbols, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { S0_ASSEMBLY_LIFECYCLE_KEY } from './lifecycle.ts'
+import {
+  Inject,
+  isConstructor,
+  Service,
+  symbols,
+  type Context,
+  type Plugin,
+} from '@deepseek-ai/cordis'
+import type { SwapWay } from '@omne-harness/assembly'
+import type { Entry } from '@omne-harness/assembly-cordis/cordis'
+import type { RowSupervision } from './shutdown.ts'
 import type {
   AssemblyLifecycle,
   DeclaredImplementation,
@@ -9,6 +18,27 @@ import type {
   RowManifest,
   ServiceName,
 } from './types.ts'
+
+export const S0_ASSEMBLY_LIFECYCLE_KEY = 's0.assemblyLifecycle'
+
+/**
+ * Where a row hands its handle to the supervision of the assembly. The registration is an effect of the calling
+ * fiber: when that fiber is unloaded, the handle is withdrawn.
+ *
+ * @owner apps/harness-server
+ */
+export class S0AssemblyLifecycleService extends Service implements AssemblyLifecycle {
+  private readonly supervision: RowSupervision
+
+  constructor(ctx: Context, supervision: RowSupervision) {
+    super(ctx, S0_ASSEMBLY_LIFECYCLE_KEY)
+    this.supervision = supervision
+  }
+
+  register(handle: LifecycleHandle): void {
+    this.ctx.effect(() => this.supervision.add(handle), 'assemblyLifecycle.register')
+  }
+}
 
 export type RowHandle = Omit<LifecycleHandle, 'phase' | 'row'>
 
@@ -23,7 +53,18 @@ type Common = Readonly<{
   row: string
   implementation: DeclaredImplementation
   manifest: Omit<RowManifest, 'phase'>
+  /** How this row is swapped while the process serves; a row that says nothing takes a new process. */
+  swap?: SwapWay
+  /** For each service key the row provides, the digest of its contract. */
+  contracts?: Readonly<Record<ServiceName, string>>
+  entries?: readonly RowEntry[]
+  isolates?: readonly ServiceName[]
+  /** What the row brings that no generation changes: loaded once beside the entries. */
+  fixed?: readonly Plugin.Object[]
 }>
+
+export type RowEntry = Pick<Entry<unknown>, 'key' | 'plugin' | 'offered' | 'promote'> &
+  Readonly<{ unavailable: object; offer(ctx: Context, implementation: never): void }>
 
 export type RowDefinition = Common &
   (
@@ -44,6 +85,11 @@ export type RowDeclaration = Readonly<{
   implementation: DeclaredImplementation
   manifest: RowManifest
   lifecycle: RowLifecycle
+  /** Absent: the row takes a new process. */
+  swap?: SwapWay
+  contracts?: Readonly<Record<ServiceName, string>>
+  entries?: readonly RowEntry[]
+  fixed?: readonly Plugin.Object[]
 }>
 
 const declarations = new WeakMap<object, RowDeclaration>()
@@ -96,6 +142,30 @@ function register(ctx: Context, handle: LifecycleHandle): void {
   lifecycle.register(handle)
 }
 
+/** The context a generation provides into: the keys of its entries and its private keys are its own there. */
+function privateTo(ctx: Context, definition: RowDefinition): Context {
+  const keys = [
+    ...(definition.entries ?? []).map(entry => entry.key),
+    ...(definition.isolates ?? []),
+  ]
+  return keys.reduce((scope, key) => scope.isolate(key), ctx)
+}
+
+type Method = (...args: unknown[]) => unknown
+
+/** What a generation gives an entry: each call reads the service the generation provides to itself then, so a part that comes up late is found. */
+function providedIn(scope: Context, entry: RowEntry): never {
+  const forward = ([name, none]: [string, Method]): [string, Method] => [
+    name,
+    (...args) => {
+      const service: unknown = scope.get(entry.key, false)
+      const method = service === undefined ? none : (Reflect.get(Object(service), name) as Method)
+      return Reflect.apply(method, service, args)
+    },
+  ]
+  return Object.fromEntries(Object.entries(entry.unavailable).map(forward)) as never
+}
+
 export function defineRow(definition: RowDefinition): Plugin.Object {
   const row = rowIdOf(definition.row)
   checkNames(definition.manifest)
@@ -113,7 +183,9 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
       inject,
       ...(definition.Config === undefined ? {} : { Config: definition.Config }),
       apply: async (ctx: Context, config: unknown) => {
-        const handle = await body(ctx, config)
+        const scope = privateTo(ctx, definition)
+        const handle = await body(scope, config)
+        for (const entry of definition.entries ?? []) entry.offer(ctx, providedIn(scope, entry))
         register(ctx, { ...handle, phase: bodyLifecycle.phase, row })
       },
     }
@@ -131,8 +203,33 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
       apply: (ctx: Context, config: unknown) => runWrapped(plugin, ctx, config),
     }
   }
-  declarations.set(wrapper, { row, implementation: definition.implementation, manifest, lifecycle })
+  declarations.set(wrapper, {
+    row,
+    implementation: definition.implementation,
+    manifest,
+    lifecycle,
+    ...(definition.swap === undefined ? {} : { swap: definition.swap }),
+    ...(definition.contracts === undefined ? {} : { contracts: definition.contracts }),
+    ...(definition.entries === undefined ? {} : { entries: definition.entries }),
+    ...(definition.fixed === undefined ? {} : { fixed: definition.fixed }),
+  })
   return wrapper
+}
+
+export function declaredParts(declaration: RowDeclaration) {
+  const { lifecycle, swap, contracts, entries, fixed } = declaration
+  return {
+    manifest: declaration.manifest,
+    implementation: declaration.implementation,
+    declared: {
+      row: declaration.row,
+      via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
+    },
+    ...(swap === undefined ? {} : { swap }),
+    ...(contracts === undefined ? {} : { contracts }),
+    ...(entries === undefined ? {} : { entries }),
+    ...(fixed === undefined ? {} : { fixed }),
+  }
 }
 
 export function rowDeclarationOf(plugin: unknown): RowDeclaration | undefined {

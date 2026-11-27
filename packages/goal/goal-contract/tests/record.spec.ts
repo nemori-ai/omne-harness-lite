@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  NO_EXAMINATION,
   baseOf,
   GoalRecordSchema,
   NO_PROGRESS,
@@ -80,7 +81,7 @@ describe('an answered card writes a revision only with all three credentials, an
 })
 
 describe('the record of a goal', () => {
-  it('keeps where the history of the session stood when the goal was set, as the session names it', () => {
+  it('keeps where the history of the session stood when the goal was set, as the session names it; a record kept before examinations reads in with none', () => {
     const checked = validateDraft(
       { purpose: '做完', criteria: [{ statement: '做完了', evidence: { kind: 'person' } }] },
       { attendance: 'attended' },
@@ -108,7 +109,9 @@ describe('the record of a goal', () => {
       wake: null,
       observed: null,
     }
-    expect(GoalRecordSchema.parse(record)).toEqual(record)
+    const kept = { ...record, examination: NO_EXAMINATION }
+    expect(GoalRecordSchema.parse(kept)).toEqual(kept)
+    expect(GoalRecordSchema.parse(record)).toEqual(kept)
     expect(GoalRecordSchema.safeParse({ ...record, since: '' }).success).toBe(false)
   })
 })

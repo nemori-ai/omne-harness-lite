@@ -1,4 +1,6 @@
-import { realpathSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { cpSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   _electron as electron,
   type ElectronApplication,
@@ -68,17 +70,37 @@ export type Launched = Readonly<{
 // A launch whose exit is unconfirmed takes its directory off this list, so the fixture keeps it.
 const removableProfiles = new Set<string>()
 
-async function launch(target: Target, userDataDir: string, server: string): Promise<Launched> {
+/** What a test adds to a launch: variables of its own, and a place to keep what the main process writes. */
+export type LaunchExtra = Readonly<{ env?: Record<string, string>; output?: string[] }>
+
+/** A second start of the app on the same user data: it hands its command line to the one running, and leaves. */
+export function secondInstance(target: Target, userDataDir: string, args: readonly string[]): void {
+  const spec = launchSpec(target, 'test', { userDataDir })
+  const done = spawnSync(spec.command, [...spec.args, ...args], {
+    cwd: spec.cwd,
+    env: launchEnvironment(process.env),
+    timeout: 60_000,
+  })
+  if (done.error !== undefined) throw done.error
+}
+
+async function launch(
+  target: Target,
+  userDataDir: string,
+  server: string,
+  extra: LaunchExtra = {},
+): Promise<Launched> {
   const spec = launchSpec(target, 'test', { userDataDir })
   await checkLaunchInputs(spec)
   const app = await electron.launch({
     executablePath: spec.command,
     args: spec.args,
     cwd: spec.cwd,
-    env: launchEnvironment(process.env, { OMNE_SERVER: server }),
+    env: launchEnvironment(process.env, { OMNE_SERVER: server, ...extra.env }),
     chromiumSandbox: !spec.args.includes('--no-sandbox'),
   })
   const launcher = app.process()
+  launcher.stdout?.on('data', (chunk: Buffer) => extra.output?.push(chunk.toString('utf8')))
   let main: MainProcess | undefined
   const close = () =>
     closeApplication(app, launcher, main, () => {
@@ -117,8 +139,13 @@ async function launch(target: Target, userDataDir: string, server: string): Prom
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
 export const quit = ({ close }: Launched): Promise<void> => close()
 
-/** A real server with a stand-in model gateway that answers every request with `REPLY`. */
-async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> {
+/**
+ * A real server with a stand-in model gateway that answers every request with `REPLY`. Given `pluginsFrom`, its
+ * subdirectories are copied into a fresh directory that the `plugin-access` row serves as its dev directory.
+ */
+async function startStack(
+  pluginsFrom?: string,
+): Promise<{ origin: string; stop(): Promise<void> }> {
   const scratch = newScratch('desktop-e2e-')
   let gateway: ModelGateway | undefined
   let server: ServerHandle | undefined
@@ -160,10 +187,17 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
     })
     const port = await freePort()
     const operatorPath = `${scratch.base}/operator.json`
-    writeOperator(
-      operatorPath,
-      operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url }),
-    )
+    const layer = operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url })
+    if (pluginsFrom !== undefined) {
+      const devDirectory = join(scratch.base, 'plugins')
+      cpSync(pluginsFrom, devDirectory, { recursive: true })
+      ;(layer as { ops: unknown[] }).ops.push({
+        kind: 'replace',
+        id: 'plugin-access',
+        config: { devDirectory },
+      })
+    }
+    writeOperator(operatorPath, layer)
     server = await startServer({
       stateRoot: scratch.stateRoot,
       operatorPath,
@@ -186,16 +220,16 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
   }
 }
 
-type Fixtures = { userDataDir: string; launchApp: () => Promise<Launched> }
+type Fixtures = { userDataDir: string; launchApp: (extra?: LaunchExtra) => Promise<Launched> }
 type Options = { target: Target }
-type Worker = { server: string }
+type Worker = { server: string; pluginsFrom: string | undefined }
 
 export const test = base.extend<Fixtures & Options, Worker>({
   target: ['unpackaged', { option: true }],
+  pluginsFrom: [undefined, { option: true, scope: 'worker' }],
   server: [
-    // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures destructure their dependencies
-    async ({}, provide) => {
-      const stack = await startStack()
+    async ({ pluginsFrom }, provide) => {
+      const stack = await startStack(pluginsFrom)
       await provide(stack.origin)
       await stack.stop()
     },
@@ -213,8 +247,8 @@ export const test = base.extend<Fixtures & Options, Worker>({
   },
   launchApp: async ({ target, server, userDataDir }, provide) => {
     const launched: Launched[] = []
-    await provide(async () => {
-      const app = await launch(target, userDataDir, server)
+    await provide(async extra => {
+      const app = await launch(target, userDataDir, server, extra)
       launched.push(app)
       return app
     })

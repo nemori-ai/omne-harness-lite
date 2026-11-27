@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { runS0, type S0Record } from '../src/run.ts'
 import { rowIds } from '../src/s0/rows.ts'
 import { rowManifests } from '../src/s0/stubs.ts'
+import { stopPredecessors } from '../src/shutdown.ts'
 import type { RowId, RowManifest } from '../src/types.ts'
 
 const memberDir = fileURLToPath(new URL('..', import.meta.url))
@@ -84,6 +85,23 @@ function withoutRow(id: string): Distribution {
 }
 
 const phased = [...rowManifests].filter(([, m]) => m.phase !== null).map(([id]) => id)
+const admission = phased.filter(id => rowManifests.get(id)?.phase === 'entry')
+/** For each row, the rows that need it: they stop before it and start after it. */
+const neededBy = stopPredecessors(
+  [...rowManifests].map(([id, manifest]) => ({ row: { id }, manifest })),
+)
+
+/** Every pair of rows tied by a dependency, neither of them an admission row, that are out of order in `sequence`. */
+function outOfOrder(sequence: readonly string[], providerFirst: boolean): string[] {
+  const at = (id: string): number => sequence.indexOf(id)
+  const rest = (id: string): boolean => at(id) !== -1 && !admission.includes(id as RowId)
+  return [...neededBy].flatMap(([provider, consumers]) =>
+    consumers
+      .filter(consumer => rest(provider) && rest(consumer))
+      .filter(consumer => at(provider) < at(consumer) !== providerFirst)
+      .map(consumer => `${consumer}>${provider}`),
+  )
+}
 
 function pendingClosure(enabled: readonly string[]) {
   const providedByRows = new Set([...rowManifests.values()].flatMap(m => m.provides))
@@ -122,11 +140,11 @@ describe('完整发行替身树', () => {
       barrierCalls: 1,
     })
     expect([...result['startedRows']].sort()).toEqual([...phased].sort())
-    const rank = ['storage', 'composition', 'business', 'entry']
-    const phaseOf = (id: string) => rank.indexOf(rowManifests.get(id as RowId)!.phase!)
-    const ranks = (result['startedRows'] as string[]).map(phaseOf)
-    expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
-    expect(new Set(ranks).size).toBe(rank.length)
+    // A row starts after what it needs; the rows that open admission start once every other has.
+    const started = result['startedRows'] as string[]
+    expect(outOfOrder(started, true)).toEqual([])
+    expect(started.slice(-admission.length).sort()).toEqual([...admission].sort())
+    expect([...neededBy.values()].some(consumers => consumers.length > 0)).toBe(true)
     expect(of(out, 'shutdown-result')[0]).toMatchObject({ overall: 'settled' })
   })
 })
@@ -392,9 +410,10 @@ describe('关闭', () => {
     })
     const steps = of(out, 'shutdown-step').filter(r => r['action'] === 'stop-call')
     expect(steps.length).toBe(phased.length)
-    const closing = ['entry', 'business', 'composition', 'storage']
-    const order = steps.map(r => closing.indexOf(r['phase']))
-    expect(order).toEqual([...order].sort((a, b) => a - b))
+    // Admission stops first; then a provider is asked to stop after the rows that need it.
+    const stops = steps.map(r => String(r['row']))
+    expect(stops.slice(0, admission.length).sort()).toEqual([...admission].sort())
+    expect(outOfOrder(stops, false)).toEqual([])
     expect(of(out, 'shutdown-step').some(r => r['action'] === 'dispose-root')).toBe(true)
     const report = of(out, 'shutdown-result')[0]!
     expect(report['outcomes']).toContainEqual(

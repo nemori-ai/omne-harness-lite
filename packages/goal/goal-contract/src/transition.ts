@@ -21,14 +21,29 @@ export type GoalEvent =
   | Readonly<{ kind: 'settle-by-exit'; exit: ExitId; counts: 'success' | 'failure' }>
   | Readonly<{
       kind: 'observe'
-      /** The goal, revision and round the observation began on. */
-      at: Readonly<{ generation: number; revision: number; rounds: number }>
+      /** The goal, revision and round the observation began on, and where the last write of a file stood then. */
+      at: Readonly<{ generation: number; revision: number; rounds: number; written: string }>
+      written: string
+      verdict: Verdict
+    }>
+  | Readonly<{
+      kind: 'evidence'
+      current: boolean
+      running: boolean
       verdict: Verdict
     }>
 export type GoalEventKind = GoalEvent['kind']
 
 /** What the caller does once the write stood: let the round end or not, and what to send. */
-export type Effect = 'wake' | 'pass' | 'veto' | 'continue' | 'reobserve' | 'tell-person'
+export type Effect =
+  | 'wake'
+  | 'pass'
+  | 'veto'
+  | 'continue'
+  | 'reobserve'
+  | 'tell-person'
+  | 'hand'
+  | 'record'
 export type Refusal =
   | 'no-live-goal'
   | 'goal-in-progress'
@@ -44,11 +59,7 @@ const SAME: Transition = { kind: 'unchanged', effects: [] }
 const PASS: Transition = { kind: 'unchanged', effects: ['pass'] }
 const refused = (reason: Refusal): Transition => ({ kind: 'refused', reason })
 const NO_LIVE = refused('no-live-goal')
-const to = (next: SetGoalState, ...effects: Effect[]): Transition => ({
-  kind: 'changed',
-  next,
-  effects,
-})
+const HAND: Effect = 'hand'
 
 const settle = (goal: Live, outcome: GoalOutcome): SetGoalState => ({
   status: 'settled',
@@ -76,16 +87,25 @@ function begin(state: GoalState, event: Extract<GoalEvent, { kind: 'set' }>): Tr
   return to(next, 'wake')
 }
 
-const OUTCOME_OF: Readonly<Record<6 | 7 | 8, GoalOutcome>> = {
-  6: { kind: 'unattainable' },
-  7: { kind: 'stalled' },
-  8: { kind: 'judge-unavailable' },
+const PAUSE_CAUSE = { 6: 5, 7: 6, 8: 7, 9: 8 } as const
+const OUTCOME_OF: Readonly<Record<7 | 8 | 9, GoalOutcome>> = {
+  7: { kind: 'unattainable' },
+  8: { kind: 'stalled' },
+  9: { kind: 'judge-unavailable' },
 }
 
 /** A current observation of an active goal, by the row of the verdict table it came to. */
-function ruled(goal: Active, verdict: Verdict): Transition {
+type Changed = Extract<Transition, { kind: 'changed' }>
+const to = (next: SetGoalState, ...effects: Effect[]): Changed => ({
+  kind: 'changed',
+  next,
+  effects,
+})
+
+function ruled(goal: Active, verdict: Verdict): Changed {
   if (verdict.row === 1) return to(settle(goal, { kind: 'achieved' }), 'pass')
-  if (verdict.row === 9) {
+  if (verdict.row === 2) return to(goal, 'pass', ...(verdict.hand.length > 0 ? [HAND] : []))
+  if (verdict.row === 10) {
     const { stalled, gap } = verdict
     return to({ ...goal, rounds: goal.rounds + 1, stalled, gap }, 'veto', 'continue')
   }
@@ -93,10 +113,10 @@ function ruled(goal: Active, verdict: Verdict): Transition {
     'exit' in verdict
       ? { kind: 'exit', exit: verdict.exit, counts: verdict.counts }
       : OUTCOME_OF[verdict.row]
-  if (verdict.row < 5 || goal.attendance === 'unattended') return to(settle(goal, outcome), 'pass')
+  if (verdict.row < 6 || goal.attendance === 'unattended') return to(settle(goal, outcome), 'pass')
   const pause: Pause = {
     by: 'verdict',
-    row: verdict.row as 5 | 6 | 7 | 8,
+    row: PAUSE_CAUSE[verdict.row as 6 | 7 | 8 | 9],
     exit: 'exit' in verdict ? verdict.exit : null,
   }
   return to({ ...goal, status: 'paused', pause }, 'pass', 'tell-person')
@@ -105,9 +125,27 @@ function ruled(goal: Active, verdict: Verdict): Transition {
 function observed(goal: Active, event: Extract<GoalEvent, { kind: 'observe' }>): Transition {
   const { at } = event
   const current =
-    at.generation === goal.generation && at.revision === goal.revision && at.rounds === goal.rounds
+    at.generation === goal.generation &&
+    at.revision === goal.revision &&
+    at.rounds === goal.rounds &&
+    at.written === event.written
   return current ? ruled(goal, event.verdict) : { kind: 'unchanged', effects: ['reobserve'] }
 }
+
+type Arrived = Extract<GoalEvent, { kind: 'evidence' }>
+export type Arrival = Exclude<Transition, { kind: 'refused' }>
+const DROP: Arrival = { kind: 'unchanged', effects: [] }
+const RECORD: Arrival = { kind: 'unchanged', effects: ['record'] }
+const OF_A_CANDIDATE: ReadonlySet<Effect> = new Set(['pass', 'veto'])
+
+function evidenced(goal: Active, event: Arrived): Arrival {
+  if (!event.current) return DROP
+  if (event.running) return RECORD
+  const step = ruled(goal, event.verdict)
+  return to(step.next, 'record', ...step.effects.filter(effect => !OF_A_CANDIDATE.has(effect)))
+}
+
+const kept = (_goal: Paused, event: Arrived): Arrival => (event.current ? RECORD : DROP)
 
 const abort = (goal: Live): Transition =>
   goal.attendance === 'attended' ? refused('attended') : to(settle(goal, { kind: 'aborted' }))
@@ -167,7 +205,12 @@ const TABLE: { readonly [K in GoalEventKind]: Row<K> } = {
     settled: () => NO_LIVE,
   },
   observe: { none: () => PASS, active: observed, paused: () => PASS, settled: () => PASS },
+  evidence: { none: () => DROP, active: evidenced, paused: kept, settled: () => DROP },
   abort: { none: () => SAME, active: abort, paused: abort, settled: () => SAME },
+}
+
+export function arrive(goal: Live, event: Arrived): Arrival {
+  return goal.status === 'active' ? evidenced(goal, event) : kept(goal, event)
 }
 
 /** The whole table: every state answers every event. The caller writes `next` under the revision it read. */

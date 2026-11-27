@@ -30,13 +30,14 @@ const READ: Readings = {
 }
 
 describe('the readings kept with a goal', () => {
-  it('a criterion is read as one of five things and a rule as one of three', () => {
+  it('a criterion is read as one of six things and a rule as one of three', () => {
     expect(CriterionReadingSchema.options).toEqual([
       'holds',
       'fails',
       'no-evidence',
       'stale',
       'cannot-tell',
+      'gathering',
     ])
     expect(RuleReadingSchema.options).toEqual(['kept', 'broken', 'unclear'])
   })
@@ -67,6 +68,20 @@ describe('the gap table', () => {
 - [N1] 不改公共接口。：守住（判定）
 - [N2] 每次提交前跑 \`pnpm lint\`，不带着报错提交。：违反（自述）
 - 预算 30 轮：用了 12 轮（系统），剩 18`)
+  })
+
+  it('a row of a criterion that was read carries the reading as a value, beside the words for it; a row that is no criterion, or that reads a metric, carries none', () => {
+    const rows = gapTable(home(), READ, 12)
+    expect(rows.map(row => [row.id, row.value])).toEqual([
+      ['A1', null],
+      ['A2', 'holds'],
+      ['A3', 'no-evidence'],
+      ['M1', null],
+      ['N1', null],
+      ['N2', null],
+      ['预算', null],
+    ])
+    expect(gapTable(home(), NO_READINGS, 0).every(row => row.value === null)).toBe(true)
   })
 
   it('with nothing read yet every criterion and metric is open, no rule is, and nothing is short', () => {

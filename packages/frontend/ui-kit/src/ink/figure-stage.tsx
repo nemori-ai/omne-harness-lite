@@ -9,9 +9,11 @@ import {
 } from 'react'
 
 import { useReducedMotion } from '../motion/motion.ts'
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
 import { useRedrawn } from '../redraw/redraw.ts'
 import { useSizeFactor } from '../size/use-size-factor.ts'
 import { type Doing, type FigureMoment } from './body.ts'
+import { dataApart } from './data-apart.ts'
 import { StageContext } from './seat.tsx'
 import { FigureInk } from './figure-ink.tsx'
 import { FigureJourneys } from './figure-journeys.tsx'
@@ -209,7 +211,7 @@ function Figure({
   const body = useRedrawn(
     'piece',
     'figure',
-    { size, phase, hover, doing: doing ?? 'idle', waiting },
+    { size, phase: phase === 'dropped' ? 'held' : phase, hover, doing: doing ?? 'idle', waiting },
     () => <FigureInk body={store.body} size={size} />,
   )
   const carried = useRef<HTMLDivElement>(null)
@@ -272,7 +274,8 @@ export function FigureStage({
   control,
   label,
   children,
-}: {
+  ...rest
+}: DataAttributes & {
   readonly doing?: Doing | undefined
   readonly moment?: FigureMoment | undefined
   readonly waiting?: number
@@ -306,7 +309,7 @@ export function FigureStage({
     <StageContext.Provider value={owns ? store : null}>
       {children}
       {owns && (
-        <div className="omne-figure-layer" data-figure-own="">
+        <div {...dataApart(rest)[0]} className="omne-figure-layer" data-figure-own="">
           <FigureJourneys journeys={store.journeys} />
           <Figure store={store} doing={doing} waiting={waiting} />
           <EmptySeat store={store} label={awayLabel} onRecall={onRecall} />

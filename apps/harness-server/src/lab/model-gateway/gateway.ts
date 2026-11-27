@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import type { IncomingHttpHeaders, ServerResponse } from 'node:http'
 import { createServer } from 'node:https'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -24,6 +25,26 @@ export type GatewayAnswer = Readonly<{
 export type GatewayScript = (
   request: Readonly<{ index: number; body: string; rawBody: string; path: string }>,
 ) => GatewayAnswer | Promise<GatewayAnswer>
+/** Where a request goes instead of to the script, as it came: null when the script answers it. */
+export type GatewayRoute = (request: Parameters<GatewayScript>[0]) => string | null
+
+const NOT_PASSED = new Set(['host', 'content-length', 'connection', 'accept-encoding'])
+
+async function passOn(
+  to: string,
+  headers: IncomingHttpHeaders,
+  body: string,
+  response: ServerResponse,
+): Promise<void> {
+  const kept = Object.entries(headers).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string' && !NOT_PASSED.has(entry[0]),
+  )
+  const answered = await fetch(to, { method: 'POST', headers: kept, body })
+  const contentType = answered.headers.get('content-type') ?? 'application/json'
+  response.writeHead(answered.status, { 'content-type': contentType })
+  if (answered.body !== null) for await (const chunk of answered.body) response.write(chunk)
+  response.end()
+}
 
 const refusal: GatewayScript = () => ({
   status: 400,
@@ -70,7 +91,10 @@ function certificate(directory: string): { keyPath: string; certPath: string } {
   return { keyPath, certPath }
 }
 
-export async function startModelGateway(answer: GatewayScript = refusal): Promise<ModelGateway> {
+export async function startModelGateway(
+  answer: GatewayScript = refusal,
+  route: GatewayRoute = () => null,
+): Promise<ModelGateway> {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'harness-model-gateway-')))
   const { keyPath, certPath } = certificate(directory)
   const cert = readFileSync(certPath, 'utf8')
@@ -89,9 +113,14 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
           const rawBody = Buffer.concat(chunks).toString('utf8')
           const spoken = interfacePath(path, rawBody)
           const body = chatRequestOf(spoken, rawBody)
-          return renderReply(spoken, await answer({ index, body, rawBody, path }))
+          const asked = { index, body, rawBody, path }
+          const to = route(asked)
+          if (to === null) return renderReply(spoken, await answer(asked))
+          await passOn(to, request.headers, rawBody, response)
+          return null
         })
         .then(reply => {
+          if (reply === null) return
           response.writeHead(reply.status, { 'content-type': reply.contentType })
           if (reply.rest === undefined) {
             response.end(reply.body)

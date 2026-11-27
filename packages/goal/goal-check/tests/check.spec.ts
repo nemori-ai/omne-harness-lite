@@ -102,17 +102,32 @@ describe('the two trusted system extensions of goals', () => {
 })
 
 describe('the check before a round ends', () => {
-  it('asks the goals as the check of this session, under the call of this pass, and lets the round end on a pass', async () => {
+  it('asks the goals as the check of this session, under the call of this pass of this execution, and lets the round end on a pass', async () => {
     const w = world()
     const result = await w.check.invoke(ACCESS, TERMINAL, input(COMPLETE))
     expect(result).toEqual({ kind: 'output', value: { kind: 'observed' } })
     expect(w.observed).toEqual([
       [
         { tenant: TENANT, subject: { check: WORK } },
-        { session: 'session-1', call: 'cand-1/before_terminal/call/0', candidate: 'complete' },
+        {
+          session: 'session-1',
+          call: 'exec-1/cand-1/before_terminal/call/0',
+          candidate: 'complete',
+        },
       ],
     ])
     expect(judged(TERMINAL, result)).toMatchObject({ kind: 'accepted' })
+  })
+
+  it('a pass of the same name in another execution is another observation: a pass is named within its execution only', async () => {
+    const w = world()
+    await w.check.invoke(ACCESS, TERMINAL, input(COMPLETE))
+    await w.check.invoke(ACCESS, TERMINAL, { ...input(COMPLETE), execution: 'exec-2' } as never)
+    const calls = w.observed.map(([, check]) => (check as { call: string }).call)
+    expect(calls).toEqual([
+      'exec-1/cand-1/before_terminal/call/0',
+      'exec-2/cand-1/before_terminal/call/0',
+    ])
   })
 
   it('tells the goals when the round proposes to fail', async () => {

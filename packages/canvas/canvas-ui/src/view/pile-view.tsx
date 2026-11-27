@@ -2,6 +2,7 @@ import type { CanvasItemBody, CanvasPileBody } from '@omne-harness/canvas-protoc
 import { Input, PaperPile, PaperSpot, type PaperBox } from '@omne-harness/ui-kit'
 import { useState, type JSX } from 'react'
 import type { KindStanding } from '../model/kinds.ts'
+import { canvasPile } from '../parts.ts'
 import { ThingMenu, WhoSaid } from './aside.tsx'
 import { Element, kindName, type CanvasHost } from './element.tsx'
 import { actOf } from './keys.ts'
@@ -128,6 +129,7 @@ export function PileView(props: PileViewProps): JSX.Element {
     <div
       className="canvas-thing"
       data-pile={pile.id}
+      {...canvasPile.props}
       onKeyDown={event => {
         const act = pileKeyAct(event)
         if (act === undefined) return

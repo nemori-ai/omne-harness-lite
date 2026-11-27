@@ -7,6 +7,7 @@ import {
   lookScope,
   tenantScope,
 } from '@omne-harness/shell-contract'
+import { inkLookChanged } from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adoptChanges, tokenOf, tokensOf } from '../src/page/shell/changes-sheet.ts'
 import { giveBack, heldFocus } from '../src/page/shell/kept-focus.ts'
@@ -17,6 +18,11 @@ const BOB = '{"organization":"org_1","account":"acc_bob"}'
 const EMPTY = '@layer omne-changes{}'
 const GREEN = '@layer omne-changes{:root{--omne-accent:#0a7;}}'
 const known = (name: string): boolean => name === '--omne-accent'
+
+vi.mock('@omne-harness/ui-kit', async original => {
+  const kit = await original<typeof import('@omne-harness/ui-kit')>()
+  return { ...kit, inkLookChanged: vi.fn(kit.inkLookChanged) }
+})
 
 afterEach(cleanup)
 
@@ -150,6 +156,31 @@ describe('the sheet of the changes', () => {
     stop()
     expect(document.adoptedStyleSheets).toHaveLength(before)
     expect(listeners.size).toBe(0)
+  })
+
+  it('tells the ink the look changed each time it writes the sheet, the first time too, and not once stopped', () => {
+    let text = EMPTY
+    let listener: ((css: string) => void) | undefined
+    const sheet = {
+      get: () => text,
+      set(css: string) {
+        text = css
+        listener?.(css)
+      },
+      subscribe(next: (css: string) => void) {
+        listener = next
+        return () => void (listener = undefined)
+      },
+    }
+    const told = vi.mocked(inkLookChanged)
+    told.mockClear()
+    const stop = adoptChanges(document, sheet)
+    expect(told).toHaveBeenCalledTimes(1)
+    sheet.set(GREEN)
+    expect(told).toHaveBeenCalledTimes(2)
+    stop()
+    sheet.set(EMPTY)
+    expect(told).toHaveBeenCalledTimes(2)
   })
 
   it('a token of the interface is a name under --omne- that the root of the page gives a value', () => {

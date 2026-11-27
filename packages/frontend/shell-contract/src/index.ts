@@ -24,6 +24,13 @@ export { FLOAT_GRIP_ATTRIBUTE, ShellAssemblyError, slots } from './slots.ts'
 export { actionsContract, keymapContract, shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
+  projectionOn,
+  type ProjectedDrawing,
+  type Projection,
+  type ProjectionRange,
+  type UnreachableDrawing,
+} from './projection.ts'
+export {
   LAYOUT_POINT,
   RENDER_POINT,
   STYLE_POINT,
@@ -62,6 +69,7 @@ export {
 export { serviceKey, type ServiceKey } from './service-key.ts'
 export type {
   Declared,
+  DrawingSource,
   KeyDrawing,
   KeyRender,
   KeyedPoint,
@@ -95,6 +103,7 @@ export type {
   BackProps,
   FloatCorner,
   FloatItem,
+  FloatNote,
   FloatProps,
   KeymapItem,
   GateItem,

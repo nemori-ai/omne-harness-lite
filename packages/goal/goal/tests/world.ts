@@ -5,6 +5,7 @@ import {
   fakeCalls,
   fakeCards,
   fakeDecisions,
+  fakeExamining,
   fakeHistory,
   fakeJudging,
   fakeSessions,
@@ -47,6 +48,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
   const history = fakeHistory()
   const decisions = fakeDecisions()
   const judging = fakeJudging()
+  const examining = fakeExamining()
   const hinted: string[] = []
   const changed: string[] = []
   const listening = { fails: false }
@@ -62,6 +64,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     history,
     decisions,
     judging,
+    examining,
     clock: { now: () => `2026-11-25T00:00:${String((tick += 1)).padStart(2, '0')}.000Z` },
     hints: { wake: tenant => void hinted.push(tenant) },
     changes: {
@@ -105,6 +108,7 @@ export function world(wrap: (store: GoalStore) => GoalStore = store => store) {
     store,
     authority,
     sessions,
+    examining,
     cards,
     calls,
     history,

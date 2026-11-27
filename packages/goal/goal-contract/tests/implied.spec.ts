@@ -63,14 +63,14 @@ describe('the goal a self-driving session stands on when nobody set one', () => 
     expect(impliedBody(' \n\t')).toBeNull()
   })
 
-  it('is no criterion a draft may write: what was done is evidence only for the goal the system implies', () => {
+  it('is a criterion a draft may write too: what was done in the round is evidence like any other', () => {
     const draft = {
       purpose: 'x',
       criteria: [{ statement: 'done', evidence: { kind: 'activity' } }],
     }
     const checked = validateDraft(draft, { attendance: 'attended' })
-    expect(checked).toMatchObject({ kind: 'invalid', issues: [{ entry: 'A1', field: 'evidence' }] })
-    expect(EvidenceSchema.safeParse({ kind: 'activity' }).success).toBe(false)
+    expect(checked).toMatchObject({ kind: 'valid' })
+    expect(EvidenceSchema.safeParse({ kind: 'activity' }).success).toBe(true)
   })
 })
 

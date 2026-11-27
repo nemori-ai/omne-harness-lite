@@ -26,6 +26,7 @@ export type PluginImpactInput = Readonly<{
   /** The sides whose points cannot be told now: a client tree is known only while a client is connected. */
   unknownSides?: readonly SideName[]
   serverLoads?: boolean
+  lockedBy?: (point: string, key: string) => string | undefined
 }>
 
 export type PluginImpact = Readonly<{
@@ -146,6 +147,13 @@ function arriving(input: PluginImpactInput, placed: Placed): Told {
     return one('!', '→ late: this point is fixed when the app is built. It would not show.')
   const stray = strayName(member, point)
   if (stray !== null) return one('!', stray)
+  const lock = side === 'server' ? input.lockedBy?.(member.point, member.key) : undefined
+  if (lock !== undefined)
+    return one(
+      '!',
+      `→ locked by ${lock}: the deployment holds this key and a tenant's member does not replace it. The plugin would not load.`,
+      'Leave this member out, or give it another key.',
+    )
   const [rival] = rivals(input.name, placed, input.held)
   if (rival === undefined) return one('+', '→ in effect')
   return {

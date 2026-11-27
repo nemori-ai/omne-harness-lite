@@ -55,6 +55,7 @@ import {
   shellSidebarMenu,
   shellSidebarNav,
   shellSidebarNavRow,
+  shellSidebarTurn,
   shellSidebarUtility,
 } from './parts.ts'
 import type { ShellState } from './state.ts'
@@ -327,6 +328,7 @@ function TurnMark(props: { state: ShellState; expanded: boolean }) {
       tooltipSide={props.expanded ? 'top' : 'right'}
       className="shell-turn"
       data-turn=""
+      {...shellSidebarTurn.props}
       onClick={() => props.state.face.turn()}
     >
       <TurnIcon aria-hidden="true" />

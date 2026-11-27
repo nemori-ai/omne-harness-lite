@@ -185,10 +185,23 @@ export const SOURCE_WORDS: Readonly<Record<string, string>> = {
   system: '系统读的',
   judge: '判定',
   agent: 'agent 自述',
+  examiner: '查验的一方',
 }
+export const HOW_WORDS: Readonly<Record<string, string>> = {
+  system: '系统读',
+  judge: '判定读证据',
+  rerun: '系统复跑',
+  examination: '查验动手',
+  person: '人确认',
+}
+type Row = GoalView['gap'][number]
+export const readingOf = (row: Row): string => (row.value === 'gathering' ? '在查' : row.reading)
+export const readerOf = (row: Row): string | null => row.reader ?? row.source
+export const howOf = (row: Row): string | null =>
+  row.verification === undefined ? null : (HOW_WORDS[row.verification] ?? row.verification)
 export const VIA_WORDS = { card: '在确认卡片上确认', direct: '在面板上直接改' } as const
 /** The units a limit is written in, as the body renders them; a unit the panel does not know is shown as it is kept. */
-export const UNIT_WORDS: Readonly<Record<string, string>> = { rounds: '轮' }
+export const UNIT_WORDS: Readonly<Record<string, string>> = { rounds: '轮', examinations: '次查验' }
 export const unitOf = (unit: string): string => UNIT_WORDS[unit] ?? unit
 export const DRAFTER_WORDS = {
   agent: 'agent 起草',

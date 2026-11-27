@@ -1,12 +1,16 @@
+import { inkLookChanged } from '@omne-harness/ui-kit'
 import type { ShellState } from './state.ts'
 
-/** The sheet of the changes, adopted by the page after its own sheets: its text is what the shell reads. */
+/** The sheet of the changes, adopted by the page after its own sheets: its text is what the shell reads. Each text it takes is a new look for the ink. */
 export function adoptChanges(page: Document, text: ShellState['sheet']): () => void {
   const adopted = new CSSStyleSheet()
-  const write = (css: string): void => adopted.replaceSync(css)
-  write(text.get())
+  adopted.replaceSync(text.get())
   page.adoptedStyleSheets = [...page.adoptedStyleSheets, adopted]
-  const stop = text.subscribe(write)
+  inkLookChanged()
+  const stop = text.subscribe(css => {
+    adopted.replaceSync(css)
+    inkLookChanged()
+  })
   return () => {
     stop()
     page.adoptedStyleSheets = page.adoptedStyleSheets.filter(sheet => sheet !== adopted)

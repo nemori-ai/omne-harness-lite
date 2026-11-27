@@ -6,6 +6,7 @@ import {
   fakeCards,
   fakeDecisions,
   fakeHistory,
+  fakeExamining,
   fakeJudging,
   fakeSessions,
 } from '@omne-harness/goal/testing'
@@ -46,6 +47,7 @@ export function world(session = SESSION, call = CALL) {
   const authority = fakeAuthority()
   sessions.add(SESSION, 'attended')
   sessions.add('job-1', 'unattended')
+  const examining = fakeExamining()
   const goals = createGoals({
     store,
     authority,
@@ -55,6 +57,7 @@ export function world(session = SESSION, call = CALL) {
     history: fakeHistory(),
     decisions: fakeDecisions(),
     judging: fakeJudging(),
+    examining,
     clock: { now: () => '2026-11-25T00:00:00.000Z' },
     hints: { wake: () => {} },
   })
@@ -102,7 +105,8 @@ export function world(session = SESSION, call = CALL) {
   }
 
   const first = callOf(call)
-  return { goals, store, sessions, cards, calls, authority, caller, record, callOf, ...first }
+  const parts = { goals, store, sessions, cards, calls, authority, examining }
+  return { ...parts, caller, record, callOf, ...first }
 }
 
 export const selection = (optionId: string): ToolDecision<unknown> => ({

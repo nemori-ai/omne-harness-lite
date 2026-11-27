@@ -18,7 +18,8 @@ import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { issueTenantDomainScanner } from '../../../src/entry/tenant-domain-scanner.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../../../src/row.ts'
+import { rowSupervision } from '../../support/row-supervision.ts'
 import { disposeTree, startTree, type EntryObject, type RowSpec } from '../../../src/loader.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow } from '../../../src/row.ts'
@@ -28,7 +29,6 @@ import { systemActionAuthorizationKey } from '../../../src/rows/authorization/sy
 import { prepareTenantDirectory } from '../../../src/rows/session-storage/initialize.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
-import { monotonicClock } from '../../../src/shutdown.ts'
 import { createTrust } from '../../../src/trust.ts'
 import type { EntryEnv, EntryObjectModule, LifecyclePhase, RowId } from '../../../src/types.ts'
 import { accessPolicyRow, allowAll, declared, providerConfig } from '../storage/fixtures/tree.ts'
@@ -142,10 +142,7 @@ async function load(setup: Setup) {
   const expected = new Map<RowId, LifecyclePhase>()
   for (const spec of specs)
     if (spec.manifest.phase !== null) expected.set(spec.row.id, spec.manifest.phase)
-  await root.plugin(
-    S0AssemblyLifecycleService,
-    new LifecycleRegistry({ expected, clock: monotonicClock, requestStop: () => {} }),
-  )
+  await root.plugin(S0AssemblyLifecycleService, rowSupervision())
   if (setup.withImpostor === true) await root.plugin(impostor)
   const made = new Map<symbol, unknown>()
   const env: EntryEnv = {

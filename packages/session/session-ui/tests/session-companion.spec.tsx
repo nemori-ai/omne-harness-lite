@@ -133,6 +133,60 @@ describe('随身入口：在哪、长什么样', () => {
   })
 })
 
+describe('随身入口：经外壳的笺口开说话笺', () => {
+  it('按自带的按钮：笺口收到一次 toggle，带的元素就是这个按钮；自己不画小框', async () => {
+    const made = await mounted(createFakeClient())
+    fireEvent.click(figure()!)
+    await settle()
+    expect(made.note.calls).toEqual([{ kind: 'toggle', element: figure() }])
+    expect(document.querySelector('[data-omne-part="session.companion.panel"]')).toBeNull()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('说话位上没有项：按钮按不了，按了笺口什么都没收到', async () => {
+    const made = await mounted(createFakeClient())
+    made.note.there = false
+    act(() => made.rerender(TENANT))
+    expect(figure()?.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(figure()!)
+    await settle()
+    expect(made.note.calls).toEqual([])
+    made.note.there = true
+    act(() => made.rerender(TENANT))
+    expect(figure()?.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('笺开在它身边：按钮是展开的，形象的画法收到 unfolded；收起之后回到没展开', async () => {
+    const made = await mounted(createFakeClient())
+    const seen: CompanionFigureDrawing[] = []
+    made.shell.putRender<CompanionFigureDrawing>('session.companion.figure', given => {
+      seen.push(given.props)
+      return null
+    })
+    made.note.open = true
+    act(() => made.rerender(TENANT))
+    expect(figure()?.getAttribute('aria-expanded')).toBe('true')
+    expect(seen.at(-1)).toEqual({ doing: 'idle', unfolded: true, dragging: false })
+    made.note.open = false
+    act(() => made.rerender(TENANT))
+    expect(figure()?.getAttribute('aria-expanded')).toBe('false')
+    expect(seen.at(-1)).toEqual({ doing: 'idle', unfolded: false, dragging: false })
+  })
+
+  it('整个的画法收到的笺口就是外壳给的那一个；包着自带的画时按钮照样经它开笺', async () => {
+    const made = await mounted(createFakeClient())
+    const seen: CompanionDrawing[] = []
+    made.shell.putRender<CompanionDrawing>('session.companion', given => {
+      seen.push(given.props)
+      return <div {...given.part}>{given.builtIn()}</div>
+    })
+    act(() => made.rerender(TENANT))
+    expect(seen.at(-1)?.note).toBe(made.note)
+    fireEvent.click(figure()!)
+    expect(made.note.calls).toEqual([{ kind: 'toggle', element: figure() }])
+  })
+})
+
 describe('随身入口：跟着打开着的会话', () => {
   async function opened(fake: FakeClient) {
     const made = await mounted(fake)

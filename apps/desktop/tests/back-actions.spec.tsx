@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { serverPointsContract } from '@omne-harness/client-assembly'
 import { canvasProtocol } from '@omne-harness/canvas-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
@@ -414,5 +414,33 @@ describe('on the back the keys do not act on the folded front (FE-I57)', () => {
       expect(document.activeElement).toBe(item)
       expect(onShow()).toBe('back')
     }
+  })
+})
+
+describe('the say note has one name on every surface (DT-59)', () => {
+  const windowNote = () =>
+    document.querySelector<HTMLElement>('.shell-float > [data-omne-part="shell.figure.note"]')
+  const field = () => windowNote()!.querySelector<HTMLTextAreaElement>('.omne-say-field')!
+  /** The note is closing or gone: a closing bubble stays a moment, inert. */
+  const shut = () => windowNote() === null || windowNote()!.hasAttribute('inert')
+
+  it("the companion opens the shell's say note in the window, named shell.figure.note, and draws no panel of its own; the words stay when it closes", async () => {
+    await onTheBack()
+    const companion = screen.getByRole('button', { name: '对 Agent 说一句话' })
+    act(() => void fireEvent.click(companion))
+    await settle()
+    expect(windowNote()?.classList.contains('omne-say-bubble')).toBe(true)
+    expect(shut()).toBe(false)
+    expect(companion.getAttribute('aria-expanded')).toBe('true')
+    expect(document.querySelector('[data-omne-part="session.companion.panel"]')).toBeNull()
+    act(() => void fireEvent.change(field(), { target: { value: '半句话' } }))
+    act(() => void fireEvent.click(within(windowNote()!).getByRole('button', { name: '收起' })))
+    await settle()
+    expect(shut()).toBe(true)
+    expect(companion.getAttribute('aria-expanded')).toBe('false')
+    act(() => void fireEvent.click(companion))
+    await settle()
+    expect(shut()).toBe(false)
+    expect(field().value).toBe('半句话')
   })
 })

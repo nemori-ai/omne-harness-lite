@@ -121,7 +121,12 @@ async function turns(count = 20): Promise<void> {
 
 describe('the agent-host row: declaration and configuration', () => {
   it('is the real row and equals the table row of the assembly page, in the business phase', () => {
-    const declaration = rowDeclarationOf(agentHostRow)
+    // Each row has its own entries; what they are entries of is the same.
+    const told = (row: Plugin) => {
+      const declared = rowDeclarationOf(row)
+      return { ...declared, entries: declared?.entries?.map(entry => entry.key) }
+    }
+    const declaration = told(agentHostRow)
     expect(declaration).toEqual({
       row: 'agent-host',
       implementation: 'real',
@@ -139,11 +144,21 @@ describe('the agent-host row: declaration and configuration', () => {
         sameProviderGroup: null,
       },
       lifecycle: { kind: 'body', phase: 'business' },
+      swap: 'implementation',
+      entries: [
+        'agentPublicationAuthority',
+        'agentExecutionRecovery',
+        'agentExecutionControl',
+        'agentNestedActions',
+        'agentInstanceHost',
+        'agentInstanceProvision',
+        'toolProgramAdmission',
+      ],
     })
     const table = serveProfile().stubManifests.get('agent-host' as RowId)
-    expect(declaration?.manifest).toEqual(table)
+    expect(declaration.manifest).toEqual(table)
     const withInputs = createAgentHostRow({ measure: () => {} })
-    expect(rowDeclarationOf(withInputs)).toEqual(declaration)
+    expect(told(withInputs)).toEqual(declaration)
   })
 
   it('accepts the factory configuration with `instanceIdleMs` and `jointCommits` that list `message`', () => {

@@ -92,17 +92,11 @@
 
 .omne-ink-bubble,
 .omne-paper-edge {
-  --omne-ink-bubble-edge: light-dark(
-    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent),
-    color-mix(in oklab, var(--omne-ink-primary) 70%, transparent)
-  );
+  --omne-ink-bubble-edge: var(--omne-ink-bubble-edge-full);
 }
 
 .omne-ink-bubble[data-ink-strength='light'] {
-  --omne-ink-bubble-edge: light-dark(
-    color-mix(in oklab, var(--omne-ink-primary) 26%, transparent),
-    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent)
-  );
+  --omne-ink-bubble-edge: var(--omne-ink-bubble-edge-light);
 }
 
 .omne-ink-bubble-paper {

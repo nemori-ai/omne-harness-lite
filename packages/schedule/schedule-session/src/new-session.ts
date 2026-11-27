@@ -5,9 +5,16 @@ import type {
   ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import { identitiesOf, type JobIdentities } from './identities.ts'
-import { at, instructionRefusal, jobInSession, never, unknown } from './job-in-session.ts'
+import {
+  acceptanceOf,
+  at,
+  instructionRefusal,
+  jobInSession,
+  never,
+  unknown,
+} from './job-in-session.ts'
 import { issuesText } from './outcome.ts'
-import type { ExecutorCalls } from './ports.ts'
+import type { ExecutorCalls, JobRules } from './ports.ts'
 
 type AgentWork = Extract<ScheduleWork, { kind: 'agent' }>
 type NewWork = AgentWork & Readonly<{ session: Extract<AgentWork['session'], { mode: 'new' }> }>
@@ -20,10 +27,10 @@ export const refusalText = (refusal: GoalRefusal): string =>
   refusal.kind === 'invalid' ? issuesText(refusal.issues) : refusal.kind
 
 /** Why this path never carries out the work as written; null when it does. */
-function refusalOf(work: ScheduleWork): string | null {
+function refusalOf(work: ScheduleWork, rules?: JobRules): string | null {
   if (work.kind !== 'agent' || work.session.mode !== 'new')
     return 'this executor carries out agent work in a new session only'
-  return instructionRefusal(work)
+  return instructionRefusal(work, rules)
 }
 
 function carried(job: ScheduleExecutorJob): Carried | string {
@@ -39,10 +46,7 @@ export function createNewSessionExecutor(calls: ExecutorCalls): ScheduleJobExecu
   const inSession = jobInSession(calls)
 
   return {
-    async accepts(work) {
-      const reason = refusalOf(work)
-      return reason === null ? { kind: 'accepted' } : { kind: 'refused', reason }
-    },
+    accepts: acceptanceOf(calls, refusalOf),
 
     async describe(job) {
       const taken = carried(job)

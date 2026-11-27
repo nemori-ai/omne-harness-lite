@@ -41,6 +41,7 @@ it('a login principal sets the Shell run permission to deny on the release tree 
         'Files/write:ask',
         'Goal/propose:auto',
         'Goal/read:auto',
+        'Goal/submit:auto',
         'Goal/track:auto',
         'Jobs/cancel:auto',
         'Jobs/read:auto',

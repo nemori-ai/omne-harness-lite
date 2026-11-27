@@ -21,15 +21,25 @@ export type GoalDriverDeps = Readonly<{
   retryMs?: number
 }>
 
+export type JudgeChoice = Readonly<{ model: string | null; models: readonly string[] }>
+
 export type PanelState = Readonly<{
   read: 'loading' | 'read' | 'denied' | 'not-found' | 'unavailable'
   goal: GoalView | null
-  busy: CommandKind | 'revise' | null
+  judge: JudgeChoice | null
+  busy: CommandKind | 'revise' | 'judge' | null
   notice: string | null
   issues: readonly GoalIssue[]
 }>
 
-const INITIAL: PanelState = { read: 'loading', goal: null, busy: null, notice: null, issues: [] }
+const INITIAL: PanelState = {
+  read: 'loading',
+  goal: null,
+  judge: null,
+  busy: null,
+  notice: null,
+  issues: [],
+}
 const UNSENT = '没有送到服务端，目标没有变。'
 const UNKNOWN = '结果不知道。面板重读了目标，以读到的为准。'
 const WORDS: Readonly<Record<string, string>> = {
@@ -137,8 +147,33 @@ export class GoalDriver {
     await this.read()
   }
 
+  /** Chooses the decision model of this session, or with null leaves it to what the tenant set. What stands after is what the server says. */
+  async chooseJudge(model: string | null): Promise<void> {
+    if (this.#state.busy !== null) return
+    this.#set({ busy: 'judge', notice: null, issues: [] })
+    const body = { ...this.#where, model }
+    const answer = await sent(() => this.#deps.client['choose-judge'](body as never))
+    if (answer.outcome !== 'succeeded') {
+      const invalid = answer.outcome === 'invalid'
+      await (invalid ? this.#said('这个型号不在可选的里面。') : this.#failed(answer.outcome))
+    } else this.#set({ busy: null })
+    await this.#readJudge()
+  }
+
+  async #said(notice: string): Promise<void> {
+    this.#set({ busy: null, notice })
+  }
+
+  async #readJudge(): Promise<void> {
+    const answer = await sent(() => this.#deps.client['read-judge'](this.#where as never))
+    this.#set({ judge: answer.outcome === 'succeeded' ? answer.body : null })
+  }
+
   async read(): Promise<void> {
-    const answer = await sent(() => this.#deps.client['read-goal'](this.#where as never))
+    const [answer] = await Promise.all([
+      sent(() => this.#deps.client['read-goal'](this.#where as never)),
+      this.#readJudge(),
+    ])
     if (answer.outcome === 'succeeded') this.#set({ read: 'read', goal: answer.body.goal })
     else if (answer.outcome === 'denied' || answer.outcome === 'not-found')
       this.#set({ read: answer.outcome, goal: null })

@@ -8,8 +8,9 @@ import {
   type GoalRefusal,
   type Outcome,
 } from '@omne-harness/goal-contract'
-import type { Decided } from './decide.ts'
+import type { Decided, Rules } from './decide.ts'
 import type { GoalsDependencies } from './goals.ts'
+import { createHanding } from './handing.ts'
 import { ask, type GoalAction } from './ports.ts'
 
 export type Answer<T> = Outcome<T, GoalRefusal>
@@ -23,6 +24,7 @@ const ATTEMPTS = 3
 /** What every operation of the registry is made of: asking the authority, reading the session, and the write that stands on a version. */
 export function createWriting(deps: GoalsDependencies) {
   const { store, sessions } = deps
+  const handing = createHanding(deps, (tenant, before, next) => commit(tenant, before, next))
 
   async function permitted(caller: GoalCaller, session: string, action: GoalAction) {
     const answer = await ask(deps.authority, caller, session, action)
@@ -62,15 +64,20 @@ export function createWriting(deps: GoalsDependencies) {
     }
   }
 
-  /** Writes a decision on the version it was made on. `stale`: somebody wrote meanwhile, decide again. */
-  async function commit(tenant: string, expected: number, next: GoalRecord) {
+  /** Writes a decision on the record it was made on. `stale`: somebody wrote meanwhile, decide again. */
+  async function commit(tenant: string, before: GoalRecord | null, next: GoalRecord) {
+    const expected = before?.version ?? 0
     const answer = await store.commit(tenant, { session: next.session, expected, next })
     if (answer.kind === 'unknown') return UNKNOWN
     if (answer.kind === 'rolled-back') return UNAVAILABLE
     if (answer.value.kind === 'stale') return 'stale'
+    const { record } = answer.value
     told(tenant, next.session)
-    await deliver(tenant, answer.value.record)
-    return done(answer.value.record)
+    await handing.released(tenant, before, record)
+    await deliver(tenant, record)
+    await handing.hand(tenant, record)
+    if (record.examination.arrived) deps.hints.wake(tenant)
+    return done(record)
   }
 
   /** Decides on what stands and writes on that version; a version written over meanwhile is decided again. */
@@ -87,21 +94,33 @@ export function createWriting(deps: GoalsDependencies) {
       if (decided.kind === 'recalled') return done(decided.record, true)
       if (decided.kind === 'unchanged') return done(decided.record)
       if (decided.kind !== 'next') return decided
-      const answer = await commit(tenant, read.value?.version ?? 0, decided.record)
+      const answer = await commit(tenant, read.value, decided.record)
       if (answer !== 'stale') return answer
     }
     return UNAVAILABLE
   }
 
-  /** The facts of the session, or the answer that ends the operation when there are none to stand on. */
+  /** The facts of the session and the rules a body is checked against there, or the answer that ends the operation when one of them cannot be stood on. Settings that cannot be read are no basis, never their defaults. */
   async function factsOf(tenant: string, session: string) {
-    const facts = await sessions.facts(tenant, session)
+    const unread = () => ({ kind: 'unavailable' }) as const
+    const [facts, settings, examined] = await Promise.all([
+      sessions.facts(tenant, session),
+      Promise.resolve()
+        .then(() => deps.judging.examination(tenant))
+        .catch(unread),
+      store.examinedBy(tenant, session),
+    ])
     if (facts.kind === 'unavailable') return UNAVAILABLE
-    return facts.value === null ? refused({ kind: 'no-such-session' }) : facts.value
+    if (facts.value === null) return refused({ kind: 'no-such-session' })
+    if (settings.kind === 'unavailable' || examined.kind === 'unavailable') return UNAVAILABLE
+    const rules: Rules = { ...settings.value, examining: examined.value !== null }
+    return { ...facts.value, rules }
   }
 
   const written = (answer: Answer<GoalRecord | null>): Answer<GoalRecord> =>
     answer.kind === 'done' && answer.value === null ? UNAVAILABLE : (answer as Answer<GoalRecord>)
 
-  return { permitted, settle, factsOf, written, deliver, commit }
+  const { briefOf, standingOf, hand, watch, settleOwed } = handing
+  const owed = { briefOf, standingOf, hand, watch, settleOwed }
+  return { permitted, settle, factsOf, written, deliver, commit, ...owed }
 }

@@ -1,14 +1,16 @@
 import {
   applyTrack,
   citedRefs,
-  excerptOf,
+  type GoalCaller,
   type GoalChecking,
   type GoalReconciling,
   type Goals,
-  type ObservedCall,
 } from '@omne-harness/goal-contract'
+import { uncited } from './citing.ts'
 import { decideCommand, decideWrite, describeProposal } from './decide.ts'
+import { createChoosing } from './choosing.ts'
 import { createObserving } from './observing.ts'
+import { createSubmitting } from './submitting.ts'
 import type {
   Clock,
   GoalAuthority,
@@ -16,6 +18,7 @@ import type {
   GoalCards,
   GoalChanges,
   GoalDecisions,
+  GoalExamining,
   GoalHistory,
   GoalJudging,
   PortRead,
@@ -34,6 +37,7 @@ export type GoalsDependencies = Readonly<{
   history: GoalHistory
   decisions: GoalDecisions
   judging: GoalJudging
+  examining: GoalExamining
   clock: Clock
   hints: ReconcileHints
   changes?: GoalChanges
@@ -45,30 +49,23 @@ const ask = <T>(read: () => Promise<PortRead<T>>): Promise<PortRead<T>> =>
     .then(read)
     .catch(() => ({ kind: 'unavailable' }) as const)
 
-const CITABLE_SHOWN = 12
-const COMMAND_SHOWN = 60
-
-function citable(call: ObservedCall): string {
-  const { ref, tool, command, path } = call
-  if (command !== null)
-    return `${ref} ${tool} \`${excerptOf(command.trim().replace(/\s+/gu, ' '), COMMAND_SHOWN, 'head')}\``
-  return path === null ? `${ref} ${tool}` : `${ref} ${tool} ${path}`
-}
-
-/** Why references do not stand, and the latest calls of the session that would: the agent sees no call id anywhere else. */
-function uncited(refs: readonly string[], made: readonly ObservedCall[]) {
-  const missing = `no tool call of this session since the goal was set: ${refs.join(', ')}`
-  const latest = made.toSorted((a, b) => a.order - b.order).slice(-CITABLE_SHOWN)
-  const problem =
-    latest.length === 0
-      ? missing
-      : `${missing}. Those you can cite: ${latest.map(citable).join('; ')}`
-  return { entry: null, field: 'refs', problem }
-}
-
 export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & GoalReconciling {
   const { store } = deps
-  const { permitted, settle, factsOf, written, deliver } = createWriting(deps)
+  const writing = createWriting(deps)
+  const { permitted, settle, factsOf, written, deliver, hand, watch, settleOwed } = writing
+
+  /** What the working agent asks of its own goal. A session that examines for a goal is refused it: it has two commands, and they are of that goal. */
+  async function ofTheWorker(
+    caller: GoalCaller,
+    session: string,
+    action: 'propose' | 'confirm' | 'track',
+  ) {
+    const stop = await permitted(caller, session, action)
+    if (stop !== null) return stop
+    const examined = await store.examinedBy(caller.tenant, session)
+    if (examined.kind === 'unavailable') return UNAVAILABLE
+    return examined.value === null ? null : refused({ kind: 'denied' })
+  }
 
   return {
     ...createObserving(deps),
@@ -104,19 +101,19 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
     },
 
     async propose(caller, { session, proposal }) {
-      const stop = await permitted(caller, session, 'propose')
+      const stop = await ofTheWorker(caller, session, 'propose')
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
       const read = await store.latest(caller.tenant, session)
       if (read.kind === 'unavailable') return UNAVAILABLE
-      const described = describeProposal(read.value, proposal, facts.attendance)
+      const described = describeProposal(read.value, proposal, facts.attendance, facts.rules)
       return 'refusal' in described ? refused(described.refusal) : done(described.proposed)
     },
 
     async confirm(caller, input) {
       const { session } = input
-      const stop = await permitted(caller, session, 'confirm')
+      const stop = await ofTheWorker(caller, session, 'confirm')
       if (stop !== null) return stop
       const facts = await factsOf(caller.tenant, session)
       if ('kind' in facts) return facts
@@ -136,7 +133,7 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
     },
 
     async track(caller, { session, patch }) {
-      const stop = await permitted(caller, session, 'track')
+      const stop = await ofTheWorker(caller, session, 'track')
       if (stop !== null) return stop
       return written(
         await settle(caller.tenant, session, async current => {
@@ -160,10 +157,18 @@ export function createGoals(deps: GoalsDependencies): Goals & GoalChecking & Goa
       )
     },
 
+    ...createSubmitting(deps, writing),
+    ...createChoosing(deps, writing),
+
     async reconcile(tenant) {
       const owing = await store.owing(tenant)
       if (owing.kind === 'unavailable') return
-      for (const record of owing.value) await deliver(tenant, record)
+      for (const record of owing.value) {
+        await deliver(tenant, record)
+        await hand(tenant, record)
+        await watch(tenant, record)
+        await settleOwed(tenant, record)
+      }
     },
   }
 }

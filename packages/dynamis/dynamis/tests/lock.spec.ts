@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { ask, declare, list, report, type Entry, type Registry, type Scope } from '../src/index.ts'
+import {
+  ask,
+  declare,
+  list,
+  lockOver,
+  report,
+  type Entry,
+  type Registry,
+  type Scope,
+} from '../src/index.ts'
+import { unlocked } from '../src/answer.ts'
 import { below, contract, entry, inst, pick, randomOf, registryOf } from './support.ts'
 
 const ORG: Scope = ['org-a']
@@ -101,6 +111,49 @@ describe('条目的锁：带锁的条目所在的键上，更深作用域的条�
       'org',
       'rival',
     ])
+  })
+
+  it('两层都带锁，深的那一层先放：照样取最浅的那一层，不看谁先放', () => {
+    const registry = registryOf(
+      points('most-specific'),
+      ['org', [put('org', { scope: ORG, lock: true })]],
+      ['usage', [official]],
+      ['plugin:rival', [put('rival', { scope: TENANT })]],
+    )
+    const answer = ask(registry, 'memory.stores', 'graph', TENANT)
+    expect(answer.kind === 'one' && answer.entry.digest).toBe('official')
+    expect(answer.kind === 'one' && answer.filtered.map(out => out.entry.digest).sort()).toEqual([
+      'org',
+      'rival',
+    ])
+  })
+
+  it('挑锁不靠条目排好了序：深的带锁条目排在前面，照样是最浅的那一把管着', () => {
+    const deep = { ...put('org', { scope: ORG, lock: true }), instance: inst('org') }
+    const shallow = { ...official, instance: inst('usage') }
+    const twin = { ...put('twin', { lock: true }), instance: inst('twin') }
+    const free = unlocked([deep, shallow, twin])
+    expect(free.entries).toEqual([shallow, twin])
+    expect(free.out).toEqual([{ entry: deep, reason: 'locked', detail: 'usage' }])
+  })
+
+  it('先问一声放在这一层会不会被锁挡住：答锁它的是哪一份，取最浅的；同层的、别的键的、看不见的都不算', () => {
+    const registry = registryOf(
+      points('conflict'),
+      ['org', [put('org', { scope: ORG, lock: true })]],
+      ['usage', [official]],
+    )
+    expect(lockOver(registry, 'memory.stores', 'graph', TENANT)).toEqual(inst('usage'))
+    expect(lockOver(registry, 'memory.stores', 'graph', ORG)).toEqual(inst('usage'))
+    expect(lockOver(registry, 'memory.stores', 'graph', [])).toBeUndefined()
+    expect(lockOver(registry, 'memory.stores', 'vector', TENANT)).toBeUndefined()
+    const orgOnly = registryOf(
+      points('conflict'),
+      ['org', [put('org', { scope: ORG, lock: true })]],
+      ['plain', [put('plain')]],
+    )
+    expect(lockOver(orgOnly, 'memory.stores', 'graph', TENANT)).toEqual(inst('org'))
+    expect(lockOver(orgOnly, 'memory.stores', 'graph', OTHER)).toBeUndefined()
   })
 
   it('另一个键不受这把锁管', () => {

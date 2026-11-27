@@ -38,7 +38,17 @@ export const completed = (command: GoalCommandName, text: string): Answer =>
   succeed(completedText(command, text))
 
 /** Every refusal of the domain is a failed result that names the reason and what to do about it. */
-export function refused(reason: GoalRefusal): Failed {
+const DIFFERS = 'this batch was already handed in with other readings; a batch is handed in once'
+const DENIED = {
+  worker:
+    'this call may not do that. A session that examines for a goal has brief and submit, and no goal of its own',
+  examiner:
+    'this session examines for no goal, or no batch is out. brief and submit are for the session that examines for a goal',
+} as const
+const sideOf = (command: GoalCommandName) =>
+  command === 'brief' || command === 'submit' ? 'examiner' : 'worker'
+
+export function refused(reason: GoalRefusal, side: keyof typeof DENIED = 'worker'): Failed {
   if (reason.kind === 'invalid') {
     const lines = reason.issues.map(
       issue => `${issue.entry ?? 'body'}.${issue.field}: ${issue.problem}`,
@@ -54,7 +64,8 @@ export function refused(reason: GoalRefusal): Failed {
   }
   if (reason.kind === 'card')
     return fail({ kind: 'conflict', reason: `${reason.reason}: ${CARD[reason.reason]}` })
-  const hint = reason.kind === 'denied' ? 'this call may not do that' : 'nothing to act on'
+  if (reason.kind === 'differs') return fail({ kind: 'conflict', reason: `differs: ${DIFFERS}` })
+  const hint = reason.kind === 'denied' ? DENIED[side] : 'nothing to act on'
   return fail({ kind: 'unsupported', reason: `${reason.kind}: ${hint}` })
 }
 
@@ -81,7 +92,7 @@ export function answered<T>(
     case 'done':
       return completed(command, done(outcome.value))
     case 'refused':
-      return refused(outcome.reason)
+      return refused(outcome.reason, sideOf(command))
     case 'basis-unavailable':
       return unavailable(command, NOW_UNAVAILABLE)
     case 'unknown':
