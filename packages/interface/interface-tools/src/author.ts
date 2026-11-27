@@ -1,7 +1,7 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { imageBudget, open, type ImageBudget } from '@omne-harness/image'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail } from '@omne-harness/operation-result'
 import { createToolMessageResultCodec } from '@omne-harness/tool'
 import type { ToolGate, ToolResult } from '@omne-harness/tool-contract'
 import {
@@ -207,7 +207,7 @@ export function createAppViewAuthor(
         environment: null,
         attachments: [],
         inputModalities: ['text'],
-        outputModalities: ['text', 'image'],
+        outputModalities: ['text'],
         settings: null,
       },
     },

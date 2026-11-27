@@ -7,7 +7,7 @@ import type {
 } from '@omne-harness/access-cordis-contract'
 import type { Scope } from '@omne-harness/dynamis'
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
-import { tenantActedFor } from '../acting.ts'
+import { tenantActedFor } from '../pipeline/acting.ts'
 import {
   accessProtocol,
   type AccessProtocol,

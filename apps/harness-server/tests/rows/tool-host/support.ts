@@ -94,6 +94,13 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Jobs: { resultMaxBytes: 4096 },
   Notifications: { resultMaxBytes: 4096 },
   Canvas: { resultMaxBytes: 4096 },
+  AppView: {
+    resultMaxBytes: 4096,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
   Goal: { resultMaxBytes: 4096 },

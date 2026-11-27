@@ -68,6 +68,7 @@
         "packages/calendar/calendar-protocol",
         "packages/notification/notification-protocol",
         "packages/canvas/canvas-protocol",
+        "packages/interface/interface-protocol",
         "packages/media/media-protocol",
         "packages/workspace/workspace-protocol",
         "packages/schedule/schedule-protocol",

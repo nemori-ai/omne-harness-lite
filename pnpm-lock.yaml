@@ -895,6 +895,15 @@ importers:
       '@omne-harness/identity-sql':
         specifier: workspace:*
         version: link:../../packages/identity/identity-sql
+      '@omne-harness/interface-access':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-access
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-protocol
+      '@omne-harness/interface-tools':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-tools
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../packages/common/json-text
