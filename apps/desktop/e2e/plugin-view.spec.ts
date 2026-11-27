@@ -61,5 +61,7 @@ test('a plugin has its own page in the assets: what it brought, its permission, 
     await expect(panel).toContainText('kit__')
     await panel.getByRole('button', { name: '禁用整份' }).click()
     await expect(view).toContainText('已禁用', { timeout: 30_000 })
+    await expect(view.getByText('wordcount', { exact: true })).toBeVisible()
+    await expect(view.getByText('没有生效')).toHaveCount(0)
   })
 })

@@ -27,21 +27,21 @@ const EFFECT: PluginEffect = {
   remove: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', says: '' }],
 }
 
-const entryWith = (detail: PluginDetail | null): PluginEntry => ({
-  row: { name: 'tool-kit', enabled: true, summary: null },
+const entryWith = (detail: PluginDetail | null, enabled: boolean): PluginEntry => ({
+  row: { name: 'tool-kit', enabled, summary: null },
   settings: [],
   detail,
   action: { kind: 'none' },
 })
 
 /** A view of the plugins holding one plugin whose detail the test moves along. */
-function viewOf(detail: PluginDetail | null) {
+function viewOf(detail: PluginDetail | null, enabled: boolean) {
   const listeners = new Set<() => void>()
   let snapshot: PluginSnapshot
   const hold = (next: PluginDetail | null): void => {
     snapshot = {
       kind: 'read',
-      assets: { kind: 'read', entries: [entryWith(next)], partial: false },
+      assets: { kind: 'read', entries: [entryWith(next, enabled)], partial: false },
     }
   }
   hold(detail)
@@ -69,8 +69,8 @@ function viewOf(detail: PluginDetail | null) {
   return { governance: { open: () => view }, setEnabled, move }
 }
 
-const shown = (detail: PluginDetail | null) => {
-  const fake = viewOf(detail)
+const shown = (detail: PluginDetail | null, enabled = true) => {
+  const fake = viewOf(detail, enabled)
   render(
     <PluginPage governance={fake.governance} tenant="t" pointAt="tool-kit" go={() => undefined} />,
   )
@@ -107,5 +107,22 @@ describe('the page of one plugin', () => {
     fireEvent.click(screen.getByRole('switch', { name: '启用「tool-kit」' }))
     expect(screen.getByRole('dialog').textContent).toContain('这一次说不出会收回什么。')
     expect(screen.getByRole('button', { name: '禁用整份' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('disabled, lists what it brought without a status word on each; enabled, a member not in effect says why', () => {
+    const off = (says: string): PluginEffect => ({
+      ...EFFECT,
+      places: EFFECT.places.map(place => ({ ...place, standing: 'not in effect', says })),
+    })
+    shown({ kind: 'read', asset: { effect: off('it is disabled') } }, false)
+    expect(screen.getByText('wordcount')).toBeTruthy()
+    expect(screen.queryByText('没有生效')).toBeNull()
+    expect(screen.queryByText(/it is disabled/u)).toBeNull()
+    cleanup()
+
+    shown({ kind: 'read', asset: { effect: off('the server stopped loading it') } })
+    expect(screen.getByText('没有生效')).toBeTruthy()
+    expect(screen.getByText(/the server stopped loading it/u)).toBeTruthy()
+    expect(screen.getByText('有一处没有生效，原因写在那一样下面。别的照常。')).toBeTruthy()
   })
 })

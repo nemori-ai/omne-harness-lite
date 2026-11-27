@@ -213,7 +213,12 @@ function PluginReading({
                 <h4 className="plugin-view-group-title">{group.title}</h4>
                 <ul className="plugin-view-members">
                   {members.map(member => (
-                    <Member key={`${member.point}\n${member.key}`} member={member} go={go} />
+                    <Member
+                      key={`${member.point}\n${member.key}`}
+                      member={member}
+                      enabled={row.enabled}
+                      go={go}
+                    />
                   ))}
                 </ul>
               </div>
@@ -259,13 +264,18 @@ function PluginReading({
   )
 }
 
-function Member({ member, go }: Readonly<{ member: PlacedMember; go: Go }>): JSX.Element {
+/** One member it brought; while the plugin is disabled none is in effect, and that is not written on each. */
+function Member({
+  member,
+  enabled,
+  go,
+}: Readonly<{ member: PlacedMember; enabled: boolean; go: Go }>): JSX.Element {
   const { category } = member
   return (
     <li className="plugin-view-member">
       <span>{member.key}</span>
       <span className="plugin-view-member-place">{member.categoryTitle ?? member.point}</span>
-      {member.standing !== 'in effect' && (
+      {enabled && member.standing !== 'in effect' && (
         <span className="plugin-view-member-trouble">
           <StatusPill tone="caution">{STANDING[member.standing] ?? member.standing}</StatusPill>{' '}
           {member.says}
