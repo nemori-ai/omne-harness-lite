@@ -18,6 +18,10 @@ A plugin is one directory with `plugin.json` at its root. Each member puts one i
 
 `OmneExtensions help` with name `publish` and category `plugin` gives the fields of `plugin.json`.
 
+## A page and its server side
+
+A page is drawn as soon as the plugin loads, hidden until the person opens it, so its first calls run before anyone looks. Its protocol can reach the app a moment after the page. Until then a call answers `{ outcome: 'unavailable' }`. Read that as not yet: ask again after a short wait, as `notes-page` does, and keep an error for the other outcomes.
+
 ## Examples
 
 Each directory is a whole plugin. A test of the release publishes it as it is here. Read the files with Skills `read_file`.
