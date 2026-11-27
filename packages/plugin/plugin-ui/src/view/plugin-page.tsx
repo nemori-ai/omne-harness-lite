@@ -122,10 +122,16 @@ const STANDING: Readonly<Record<string, string>> = {
 const kindOf = (places: readonly PlacedMember[], point: string, key: string): string =>
   places.find(place => place.point === point && place.key === key)?.categoryTitle ?? point
 
-const effectOf = (entry: PluginEntry): PluginEffect | undefined => {
-  const { detail } = entry
-  if (detail?.kind === 'read') return detail.asset.effect
-  return detail?.kind === 'reading' ? detail.shown?.effect : undefined
+/** What the page can tell of what the plugin brought: still being read the first time, or told (nothing when it cannot tell). */
+type Told =
+  | Readonly<{ kind: 'reading' }>
+  | Readonly<{ kind: 'told'; effect: PluginEffect | undefined }>
+
+const toldOf = ({ detail }: PluginEntry): Told => {
+  if (detail === null || (detail.kind === 'reading' && detail.shown === undefined))
+    return { kind: 'reading' }
+  if (detail.kind === 'reading') return { kind: 'told', effect: detail.shown?.effect }
+  return { kind: 'told', effect: detail.kind === 'read' ? detail.asset.effect : undefined }
 }
 
 type Asking = 'disable' | 'remove' | null
@@ -138,7 +144,8 @@ function PluginReading({
 }: Readonly<{ entry: PluginEntry; view: PluginView; go: Go; onBack: () => void }>): JSX.Element {
   const { row, settings, action } = entry
   const title = row.summary?.title ?? row.name
-  const effect = effectOf(entry)
+  const told = toldOf(entry)
+  const effect = told.kind === 'told' ? told.effect : undefined
   const [asking, setAsking] = useState<Asking>(null)
   const troubled = row.enabled && effect?.places.some(place => place.standing !== 'in effect')
   const takenBack = asking === null ? null : (effect?.[asking] ?? null)
@@ -194,8 +201,10 @@ function PluginReading({
         <p className="plugin-view-hint">
           一起生效，一起收回，不能单独启用或禁用；要停一个工具，把这份 Plugin 的权限设成「不允许」。
         </p>
-        {effect === undefined ? (
+        {told.kind === 'reading' ? (
           <LoadingState label="正在读取它带来的东西……" />
+        ) : effect === undefined ? (
+          <p className="plugin-view-hint">这一次说不出它带来了什么。</p>
         ) : (
           GROUPS.map(group => {
             const members = effect.places.filter(group.holds)
@@ -224,7 +233,13 @@ function PluginReading({
           if (!open) setAsking(null)
         }}
         title={asking === 'remove' ? `移除「${title}」` : `禁用「${title}」会一起收回这些`}
-        affected={<TakenBackList lines={takenBack} places={effect?.places ?? []} />}
+        affected={
+          told.kind === 'reading' ? (
+            <LoadingState label="正在读取会收回什么……" />
+          ) : (
+            <TakenBackList lines={takenBack} places={effect?.places ?? []} />
+          )
+        }
         kept={
           asking === 'disable'
             ? '它的设置与权限。再启用时原样回来。正在跑的一轮不受影响，下一轮起 agent 用不到它的工具。'
@@ -233,6 +248,7 @@ function PluginReading({
         confirmLabel={asking === 'remove' ? '移除整份' : '禁用整份'}
         cancelLabel={asking === 'remove' ? '不移除' : '不禁用'}
         tone={asking === 'remove' ? 'danger' : 'default'}
+        confirmDisabled={told.kind === 'reading'}
         onConfirm={() => {
           if (asking === 'remove') view.remove(row.name)
           else view.setEnabled(row.name, false)
