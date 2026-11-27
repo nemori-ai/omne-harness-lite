@@ -1,6 +1,7 @@
+import type { ContentBlock } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { ToolSourceCall } from '@omne-harness/tool-contract/provider'
-import { describedAdoption } from '@omne-harness/tool-contract/provider'
+import type { ToolSourceAnswer, ToolSourceCall } from '@omne-harness/tool-contract/provider'
+import { describedAdoption, isToolSourceSuspension } from '@omne-harness/tool-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
   GUEST_TOOL_GATE,
@@ -56,6 +57,12 @@ const forecast = {
   summary: 'Tells the weather of a city.',
   params: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
   effect: 'read',
+}
+
+/** A function of a plugin answers a result; it never suspends. */
+function resultOf<B extends ContentBlock>(answer: ToolSourceAnswer<B>) {
+  if (isToolSourceSuspension(answer)) throw new Error('a guest tool does not suspend')
+  return answer
 }
 
 describe('the form a plugin writes its tools in (TL-77)', () => {
@@ -119,7 +126,7 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
       host(log),
       SHAPE,
     )
-    const result = await source.execute(call('weather__forecast', { city: 'Oslo' }))
+    const result = resultOf(await source.execute(call('weather__forecast', { city: 'Oslo' })))
     expect(seen).toEqual([{ city: 'Oslo' }, ['ports']])
     expect(log).toEqual(['open alice-principal', 'run', 'close'])
     expect(result.content).toMatchObject([
@@ -144,7 +151,7 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
       host(log),
       SHAPE,
     )
-    const failed = await source.execute(call('weather__forecast', { city: 'Oslo' }))
+    const failed = resultOf(await source.execute(call('weather__forecast', { city: 'Oslo' })))
     expect(failed.content).toMatchObject([
       { kind: 'text', text: 'weather__forecast failed: no network' },
     ])
