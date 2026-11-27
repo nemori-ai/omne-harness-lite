@@ -65,6 +65,26 @@ it('marks enabled exactly the models the release enables', () => {
   )
 })
 
+it('lists the chat, the decisions and the live model OpenAI serves itself, each with the facts of its kind', () => {
+  const openai = decodeProviderName('openai')
+  if (!('ok' in openai)) throw new Error('provider name')
+  const catalog = officialCatalog(openai.ok, model => model === 'gpt-live-1.1')
+  expect(catalog.map(entry => [entry.kind, entry.model, entry.enabled])).toEqual([
+    ['llm', 'gpt-6-luna', false],
+    ['decisions', 'gpt-6-luna', false],
+    ['live', 'gpt-live-1.1', true],
+  ])
+  expect(catalog[1]).toMatchObject({ kind: 'decisions', maxQuestions: '400' })
+  expect(catalog[2]).toEqual({
+    kind: 'live',
+    model: 'gpt-live-1.1',
+    title: 'gpt-live-1.1',
+    input: ['voice', 'text'],
+    output: ['voice', 'text'],
+    enabled: true,
+  })
+})
+
 it('a provider with no official profile has an empty catalog', () => {
   const other = decodeProviderName('elsewhere')
   if (!('ok' in other)) throw new Error('provider name')

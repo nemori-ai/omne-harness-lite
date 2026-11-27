@@ -32,17 +32,36 @@ const official = createOfficialProfileSource<string>({
 })
 
 type Asked = Parameters<SupplierPort<string>>[0]
+// The official definitions with a live profile that only hears, or only speaks.
+const liveTaking = (input: ['text'] | ['voice', 'text'], output: ['text'] | ['voice', 'text']) =>
+  createOfficialProfileSource<string>({
+    definitions: DEFINITIONS.map(definition =>
+      definition.kind === 'live' ? { ...definition, input, output } : definition,
+    ),
+    updatedAt: '2026-11-27T00:00:00Z',
+  })
+const HEARS_ONLY = liveTaking(['voice', 'text'], ['text'])
+const SPEAKS_ONLY = liveTaking(['text'], ['voice', 'text'])
+
 type Scene = Readonly<{
   off?: readonly string[]
   locked?: readonly string[]
   profilesFailure?: ModelFailure
+  supplierFailure?: ModelFailure
+  source?: typeof official
 }>
-function scene({ off = [], locked = [], profilesFailure }: Scene = {}) {
+function scene({
+  off = [],
+  locked = [],
+  profilesFailure,
+  supplierFailure,
+  source = official,
+}: Scene = {}) {
   const asked: Asked[] = []
   const profiles = createModelProfiles<string>({
     async read(access) {
       if (profilesFailure !== undefined) return { failure: profilesFailure }
-      const read = await official.read(access)
+      const read = await source.read(access)
       if (!('ok' in read)) return read
       const candidates = read.ok.candidates.map(candidate => ({
         ...candidate,
@@ -56,17 +75,21 @@ function scene({ off = [], locked = [], profilesFailure }: Scene = {}) {
     profiles,
     supplierOf(input) {
       asked.push(input)
+      if (supplierFailure !== undefined) return { failure: supplierFailure }
       const { adoption: chosen, provider, model } = input.supplier
       return { ok: { adoption: chosen, provider, model, credential: { layer: 'tenant' } } }
     },
   })
-  const prepare = (more: Readonly<{ model?: string; voice?: string }> = {}) =>
+  const prepare = (
+    more: Readonly<{ model?: string; voice?: string; history?: readonly never[] }> = {},
+  ) =>
     preparation.prepare({
       principal: 'alice',
       tenant,
       model: more.model ?? MODEL,
       instructions: 'Answer the caller briefly.',
       ...(more.voice === undefined ? {} : { voice: more.voice }),
+      ...(more.history === undefined ? {} : { history: more.history }),
       source: SOURCE,
     })
   return { asked, prepare }
@@ -148,5 +171,30 @@ describe('the fixed request of a live call', () => {
     const { prepare, asked } = scene({ profilesFailure })
     expect(await prepare()).toEqual({ failure: profilesFailure })
     expect(asked).toEqual([])
+  })
+
+  it.each([
+    ['only hears', HEARS_ONLY],
+    ['only speaks', SPEAKS_ONLY],
+  ])('refuses a live profile that %s, before any credential is read', async (_case, source) => {
+    const { prepare, asked } = scene({ source })
+    expect(await prepare()).toEqual({
+      failure: { kind: 'invalid', field: 'model', reason: 'modality' },
+    })
+    expect(asked).toEqual([])
+  })
+
+  it('carries the failure of the supplier as it was answered', async () => {
+    const supplierFailure = { kind: 'invalid', field: 'credential', reason: 'missing' } as const
+    const { prepare, asked } = scene({ supplierFailure })
+    expect(await prepare()).toEqual({ failure: supplierFailure })
+    expect(asked).toHaveLength(1)
+  })
+
+  it('answers a history the request does not take as invalid, naming the field', async () => {
+    const { prepare } = scene()
+    expect(await prepare({ history: [{ role: 'nobody' }] as never })).toEqual({
+      failure: { kind: 'invalid', field: '/history/0', reason: 'message' },
+    })
   })
 })

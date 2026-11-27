@@ -16,11 +16,13 @@ import {
   O200K_PROXY_TOKENIZER,
   memberOf,
   obj,
+  officialLiveProfilesOf,
   officialProfilesOf,
   optionalImageBytes,
   str,
   tileImageTokens,
   type GatewayFamilyConfig,
+  type LiveRecord,
   type ProfileData,
 } from '../src/family-kit/index.ts'
 import { composeFamilies, recordAdoption } from '../src/index.ts'
@@ -139,6 +141,37 @@ describe('officialProfilesOf', () => {
           EFFORTS,
         ),
       ).toThrow('compactionTriggerPercent must be a decimal integer from 1 to 100')
+  })
+})
+
+describe('officialLiveProfilesOf', () => {
+  const live = (name: string, status: 'current' | 'frozen' = 'current'): LiveRecord => ({
+    name,
+    revision: '1',
+    route: { provider: 'openai', model: name },
+    status,
+    live: { voices: ['marin'], audioFormats: ['pcm16'], maxSessionSeconds: null },
+    profile: { input: ['voice', 'text'], output: ['voice', 'text'], evidence: 'tests' },
+  })
+
+  it('writes every current live record as a live profile with no fallback, and leaves frozen records out', () => {
+    const record = live('gpt-live-a')
+    const profiles = officialLiveProfilesOf(OWNER, [record, live('gpt-live-b', 'frozen')], INPUT)
+    expect(profiles).toEqual([
+      {
+        kind: 'live',
+        suppliers: [
+          { adoption: recordAdoption(OWNER, record), provider: 'openai', model: 'gpt-live-a' },
+        ],
+        fallback: false,
+        input: ['voice', 'text'],
+        output: ['voice', 'text'],
+        voices: ['marin'],
+        audioFormats: ['pcm16'],
+        maxSessionSeconds: null,
+        retryPolicy: INPUT.retryPolicy,
+      },
+    ])
   })
 })
 

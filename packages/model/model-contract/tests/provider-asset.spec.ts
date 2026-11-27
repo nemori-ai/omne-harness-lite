@@ -94,6 +94,16 @@ describe('modelProviderBodyContract: judge', () => {
     expect(readModelProviderBody(body(plainBody({ endpoints })))?.endpoints).toEqual(endpoints)
   })
 
+  it('accepts a wss: endpoint for a live interface and reads it', () => {
+    const endpoints = [
+      { protocol: 'responses', url: 'https://gateway.test/v1/responses' },
+      { protocol: 'live-sessions', url: 'wss://gateway.test/v1/live' },
+    ]
+    const plain = plainBody({ endpoints })
+    expect(judge(plain)).toEqual({ ok: true })
+    expect(readModelProviderBody(body(plain))?.endpoints).toEqual(endpoints)
+  })
+
   it.each([
     ['a name outside the provider alphabet', { name: 'Test Gateway' }, 'invalid-name'],
     ['an empty protocol', one({ protocol: '' }), 'invalid-protocol'],
@@ -110,6 +120,7 @@ describe('modelProviderBodyContract: judge', () => {
       'duplicate-protocol',
     ],
     ['an http endpoint', one({ url: 'http://gateway.test/v1' }), 'invalid-endpoint'],
+    ['a ws endpoint', one({ url: 'ws://gateway.test/v1' }), 'invalid-endpoint'],
     [
       'an endpoint with credentials',
       one({ url: 'https://u:p@gateway.test/v1' }),

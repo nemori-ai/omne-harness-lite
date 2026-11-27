@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { isModelKind, KIND_TRAITS, MODEL_KINDS } from '../src/index.ts'
-import { judgeFixedModelRequest } from '../src/provider/index.ts'
+import {
+  isModelKind,
+  KIND_TRAITS,
+  LIVE_REPRESENTATION,
+  MODEL_KINDS,
+  type LiveModelRequest,
+} from '../src/index.ts'
+import {
+  judgeFixedModelRequest,
+  requestHead,
+  requestRepresentation,
+} from '../src/provider/index.ts'
 import { request } from './scripted-support.ts'
 
 describe('the kinds of model', () => {
@@ -100,5 +110,34 @@ describe('the model kind of a fixed request', () => {
   it('refuses a request that states no model kind', () => {
     const { kind: _kind, ...unstated } = request
     expect(judgeFixedModelRequest(unstated)).toMatchObject({ failure: { field: '/kind' } })
+  })
+})
+
+describe('the head of a request', () => {
+  it('leaves out what a chat or a live request says, keeps which messages it names, and names its representation', () => {
+    const named = [{ id: 'm-1' }, { id: 'm-2' }] as never
+    const { system: _system, messages: _messages, tools: _tools, ...chatHead } = request
+    expect(requestHead({ ...request, messages: named })).toEqual({
+      ...chatHead,
+      messageIds: ['m-1', 'm-2'],
+    })
+    expect(requestRepresentation(request)).toBe(request.representation)
+    const { profile, suppliers, fallback, retryPolicy, source } = request
+    const live: LiveModelRequest = {
+      kind: 'live',
+      profile,
+      suppliers,
+      fallback,
+      retryPolicy,
+      source,
+      input: ['text', 'voice'],
+      instructions: 'Answer the caller briefly.',
+      history: named,
+      voice: null,
+      media: { via: 'link', audio: 'pcm16' },
+    }
+    const { instructions: _instructions, history: _history, ...liveHead } = live
+    expect(requestHead(live)).toEqual({ ...liveHead, messageIds: ['m-1', 'm-2'] })
+    expect(requestRepresentation(live)).toBe(LIVE_REPRESENTATION)
   })
 })

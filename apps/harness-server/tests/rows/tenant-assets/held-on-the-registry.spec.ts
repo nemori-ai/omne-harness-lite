@@ -107,7 +107,9 @@ describe('what the release brings is on the points of the categories', () => {
         expect(official('converter').sort()).toEqual(
           named('converter', ['voice', 'application-pdf']),
         )
-        expect(official('model-provider')).toEqual(named('model-provider', ['openrouter']))
+        expect(official('model-provider')).toEqual(
+          named('model-provider', ['openai', 'openrouter']),
+        )
         expect(official('AgentDefinition').sort()).toEqual(
           named('AgentDefinition', ['assistant', 'coding', 'examiner']),
         )

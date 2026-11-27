@@ -57,7 +57,6 @@ export function createLivePreparation<P>(
       if (reason !== undefined) return invalid('model', reason)
       const { profile } = resolution
       const { definition } = profile
-      if (definition.kind !== 'live') return invalid('model', 'not-a-live-model')
       if (voice !== undefined && !definition.voices.includes(voice))
         return invalid('voice', 'not-offered')
       const supplier = options.supplierOf({

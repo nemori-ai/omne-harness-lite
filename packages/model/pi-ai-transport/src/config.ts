@@ -167,8 +167,8 @@ function checkEndpoint(
   if (!isObject(endpoint)) throw new RangeError('each route endpoint must be an object')
   const url =
     typeof endpoint.url === 'string' && URL.canParse(endpoint.url) ? new URL(endpoint.url) : null
-  const plain = url !== null && (socket ? isPlainWssUrl(url) : isPlainHttpsUrl(url))
-  if (url === null || !plain)
+  const plain = socket ? isPlainWssUrl : isPlainHttpsUrl
+  if (!plain(url))
     throw new RangeError(
       socket
         ? 'each live route url must be a wss: URL without credentials, query or fragment'
