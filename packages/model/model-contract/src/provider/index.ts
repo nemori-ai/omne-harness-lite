@@ -91,6 +91,11 @@ export {
   resolveModelOperationRef,
 } from '../reference.ts'
 export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.ts'
-export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest } from '../judge-request.ts'
-export { requestHead } from '../request-head.ts'
+export {
+  MODEL_INPUT_LIMITS,
+  judgeAdmit,
+  judgeFixedModelRequest,
+  judgeModelRequest,
+} from '../judge-request.ts'
+export { requestHead, requestRepresentation } from '../request-head.ts'
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts'

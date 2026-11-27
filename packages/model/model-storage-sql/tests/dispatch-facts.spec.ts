@@ -6,7 +6,7 @@ import {
   type ResultVersion,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type CallAccountReport,
   type TransportFact,
   type WriteContext,
@@ -72,7 +72,7 @@ function scene(window: typeof WINDOW | null = WINDOW) {
     },
   })
   const request = unbox(
-    judgeFixedModelRequest({
+    judgeModelRequest('llm', {
       ...REQUEST,
       ...(window === null ? {} : { contextWindow: window }),
       system: [

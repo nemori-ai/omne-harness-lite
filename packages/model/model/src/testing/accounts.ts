@@ -20,6 +20,7 @@ import {
   type Termination,
 } from '@omne-harness/model-contract'
 import {
+  requestRepresentation,
   type CallAccountReport,
   type ModelCommands,
   type TransportFact,
@@ -171,7 +172,7 @@ async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<
       dispatch,
       receipt: {
         supplier: supplier.adoption,
-        representation: subject.admit.request.representation,
+        representation: requestRepresentation(subject.admit.request),
         payloadDigest: 'a'.repeat(64),
       },
       window: first,
@@ -401,7 +402,8 @@ function obligations<P>(): Readonly<Record<AccountObligation, Obligation<P>>> {
     },
 
     async 'messages-outlive-cleanup'(subject) {
-      const expected = subject.admit.request.messages.map(message => message.id)
+      const { request } = subject.admit
+      const expected = request.kind === 'llm' ? request.messages.map(message => message.id) : []
       check(expected.length > 0, 'the request of the admission holds no message to keep')
       const started = await startedDispatch(subject)
       succeeded(

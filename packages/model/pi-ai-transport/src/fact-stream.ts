@@ -15,7 +15,6 @@ import {
   type HttpExchange,
   type ResponseHeaders,
 } from './http.ts'
-import { OPENROUTER_ACCOUNTING } from './chat-completions/openrouter.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
 import { terminationOf, type SendEnd } from './termination.ts'
@@ -34,7 +33,7 @@ export type SendInput = Readonly<{
 
 /** The response header in which the place keeping the account names the request; null where none is known. */
 function requestHeaderOf(route: Pick<CheckedRoute, 'accounting'>): string | null {
-  return route.accounting.place === OPENROUTER_ACCOUNTING.place ? 'x-generation-id' : null
+  return route.accounting.generation?.requestHeader ?? null
 }
 
 /** The upstream's identity of the request: only from the response header, never from the stream. */

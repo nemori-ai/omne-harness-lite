@@ -153,7 +153,7 @@ function profilesOf(snapshot: ModelProfileSnapshot, tenant = tenantOf('1', '1'))
 
 async function resolveOf(snapshot: ModelProfileSnapshot, route: string, required = requirement()) {
   const { profiles, tenant } = profilesOf(snapshot)
-  return must(await profiles.resolve({ principal, tenant, route, required }))
+  return must(await profiles.resolve({ principal, tenant, kind: 'llm', route, required }))
 }
 
 async function listOf(
@@ -162,7 +162,7 @@ async function listOf(
   required = requirement(),
 ) {
   const { profiles, tenant } = profilesOf(snapshot)
-  return must(await profiles.list({ principal, tenant, selected, required }))
+  return must(await profiles.list({ principal, tenant, kind: 'llm', selected, required }))
 }
 
 function routesOf(choices: ModelChoices): readonly string[] {
@@ -362,7 +362,13 @@ it('refuses a snapshot with a duplicated identity instead of using half of it', 
   ])
   const { profiles, tenant } = profilesOf(snapshot)
   const failure = failureOf(
-    await profiles.resolve({ principal, tenant, route: 'alpha', required: requirement() }),
+    await profiles.resolve({
+      principal,
+      tenant,
+      kind: 'llm',
+      route: 'alpha',
+      required: requirement(),
+    }),
   )
   expect(failure).toEqual({
     kind: 'unavailable',
@@ -375,7 +381,13 @@ it('refuses a snapshot whose candidate scope is outside the precedence', async (
   const snapshot = snapshotOf([candidateOf(profileOf({ scope: organizationOf('2') }))])
   const { profiles, tenant } = profilesOf(snapshot)
   const failure = failureOf(
-    await profiles.list({ principal, tenant, selected: null, required: requirement() }),
+    await profiles.list({
+      principal,
+      tenant,
+      kind: 'llm',
+      selected: null,
+      required: requirement(),
+    }),
   )
   expect(failure).toEqual({
     kind: 'unavailable',
@@ -394,6 +406,7 @@ it('denies an unminted tenant before reading the source', async () => {
       await profiles.resolve({
         principal,
         tenant: copied,
+        kind: 'llm',
         route: 'alpha',
         required: requirement(),
       }),
@@ -401,7 +414,13 @@ it('denies an unminted tenant before reading the source', async () => {
   ).toEqual(refusal)
   expect(
     failureOf(
-      await profiles.list({ principal, tenant: copied, selected: null, required: requirement() }),
+      await profiles.list({
+        principal,
+        tenant: copied,
+        kind: 'llm',
+        selected: null,
+        required: requirement(),
+      }),
     ),
   ).toEqual(refusal)
   expect(reads).toEqual([])
@@ -421,6 +440,7 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
       await profiles.resolve({
         principal,
         tenant: tenantOf('1', '1'),
+        kind: 'llm',
         route: 'alpha',
         required: requirement(),
       }),
@@ -431,6 +451,7 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
       await profiles.list({
         principal,
         tenant: tenantOf('1', '1'),
+        kind: 'llm',
         selected: null,
         required: requirement(),
       }),
@@ -489,4 +510,67 @@ it('does not list a withdrawn route as turned off, and turns off the active prof
         : null,
     ),
   ).toEqual([['off', { kind: 'factory' }]])
+})
+
+function decisionsOf(route = 'alpha'): ModelProfile {
+  return {
+    identity: { kind: 'decisions', scope: factory, route },
+    adoption: adoption(`decisions-${route}`),
+    revision: must(decodeRevision('1')),
+    updatedAt: '2026-11-01T00:00:00Z',
+    availability: 'active',
+    definition: {
+      kind: 'decisions',
+      suppliers: [{ adoption: adoption('decisions-supplier'), provider: OPENROUTER, model: route }],
+      fallback: false,
+      input: ['text'],
+      output: ['text'],
+      maxQuestions: null,
+      retryPolicy: adoption('retry'),
+    },
+  }
+}
+
+it('keeps two profiles of one name apart by their kind of model: each kind resolves its own', async () => {
+  const snapshot = snapshotOf([candidateOf(profileOf()), candidateOf(decisionsOf())])
+  const { profiles, tenant } = profilesOf(snapshot)
+  const asked = { principal, tenant, route: 'alpha', required: requirement() }
+  expect(must(await profiles.resolve({ ...asked, kind: 'llm' }))).toMatchObject({
+    kind: 'resolved',
+    profile: { identity: { kind: 'llm' }, definition: { kind: 'llm' } },
+  })
+  expect(must(await profiles.resolve({ ...asked, kind: 'decisions' }))).toMatchObject({
+    kind: 'resolved',
+    profile: { identity: { kind: 'decisions' }, definition: { kind: 'decisions' } },
+  })
+})
+
+it('a name that only another kind of model carries is unknown to this kind, and is no choice of it', async () => {
+  const { profiles, tenant } = profilesOf(snapshotOf([candidateOf(profileOf())]))
+  const asked = { principal, tenant, kind: 'decisions', required: requirement() } as const
+  expect(must(await profiles.resolve({ ...asked, route: 'alpha' }))).toEqual({
+    kind: 'absent',
+    reason: 'unknown-name',
+  })
+  expect(must(await profiles.list({ ...asked, selected: null })).choices).toEqual([])
+})
+
+it('refuses a snapshot whose profile is of another kind than its identity says', async () => {
+  const decisions = decisionsOf()
+  const wrong = { ...decisions, identity: { ...decisions.identity, kind: 'llm' } } as ModelProfile
+  const { profiles, tenant } = profilesOf(snapshotOf([candidateOf(wrong)]))
+  const failure = failureOf(
+    await profiles.resolve({
+      principal,
+      tenant,
+      kind: 'llm',
+      route: 'alpha',
+      required: requirement(),
+    }),
+  )
+  expect(failure).toEqual({
+    kind: 'unavailable',
+    dependency: 'model-profiles',
+    diagnostic: 'profile-kind-mismatch',
+  })
 })

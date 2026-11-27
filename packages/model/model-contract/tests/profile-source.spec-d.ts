@@ -24,7 +24,7 @@ import {
   tenant,
 } from './values.ts'
 
-declare const profile: ModelProfile
+declare const profile: ModelProfile<'llm'>
 
 const snapshot: ModelProfileSnapshot = {
   precedence: [{ kind: 'factory' }, { kind: 'tenant', tenant }],

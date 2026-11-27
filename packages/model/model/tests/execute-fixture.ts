@@ -1,7 +1,7 @@
 import {
   decodeProviderName,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MaterializationReceipt,
   type TransportFailure,
 } from '@omne-harness/model-contract'
@@ -24,7 +24,7 @@ export const adoption = (name: string): Adoption => ({
   revision: '1',
   digest: `digest-${name}`,
 })
-export const request: FixedModelRequest = {
+export const request: LlmModelRequest = {
   kind: 'llm',
   profile: adoption('profile'),
   suppliers: [

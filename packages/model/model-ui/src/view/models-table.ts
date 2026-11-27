@@ -38,11 +38,14 @@ function catalogRow(item: unknown): CatalogRow | undefined {
   return { model, title, input, output, window, efforts, enabled }
 }
 
-/** The catalog a provider body carries; undefined when it has none, or one model of it does not read. */
+const isChat = (item: unknown): boolean =>
+  typeof item === 'object' && item !== null && (item as { kind?: unknown }).kind === 'llm'
+
+/** The chat models of the catalog a provider body carries; undefined when it has none, or one of them does not read. */
 export function catalogOf(body: unknown): readonly CatalogRow[] | undefined {
   const models = (body as { models?: unknown } | null | undefined)?.models
   if (!Array.isArray(models)) return undefined
-  const rows = models.map(catalogRow)
+  const rows = models.filter(isChat).map(catalogRow)
   return rows.every(row => row !== undefined) ? rows : undefined
 }
 

@@ -32,11 +32,11 @@ const source = {
 const profile = {
   adoption,
   definition: { reasoningEfforts: { low: 'low', high: 'high' } },
-} as unknown as ModelProfile
+} as unknown as ModelProfile<'llm'>
 
 function resolved(
-  changes: Partial<Extract<ProfileResolution, { kind: 'resolved' }>> = {},
-): ProfileResolution {
+  changes: Partial<Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>> = {},
+): ProfileResolution<'llm'> {
   return {
     kind: 'resolved',
     profile,
@@ -112,7 +112,11 @@ describe('the port over the profiles service', () => {
     const call = { principal: { id: 'p' } as never, tenant: 't' as never, route: adoption.name }
     expect((await port?.check(call))?.kind).toBe('selectable')
     expect(asked).toEqual([
-      { ...call, required: { modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE } },
+      {
+        ...call,
+        kind: 'llm',
+        required: { modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE },
+      },
     ])
     answer = { failure: { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'x' } }
     expect(await port?.check(call)).toEqual({ kind: 'unavailable' })
@@ -152,9 +156,9 @@ describe('a target judged for the history of a session', () => {
   }
 
   /** Profiles whose one route takes what `definition` says: it judges the requirement as Model does. */
-  function world(definition: Pick<ModelProfile['definition'], 'input' | 'fileTypes'>) {
+  function world(definition: Pick<ModelProfile<'llm'>['definition'], 'input' | 'fileTypes'>) {
     const asked: ModalityRequirement[] = []
-    const taking = { adoption, definition } as unknown as ModelProfile
+    const taking = { adoption, definition } as unknown as ModelProfile<'llm'>
     const profiles = {
       resolve: async (input: { required: ModalityRequirement }) => {
         asked.push(input.required)
@@ -279,21 +283,24 @@ describe('the list of models for a session and selecting a model in it (I-4)', (
     },
   ] as unknown as readonly Message[]
   const DEFINITIONS: Readonly<
-    Record<string, Pick<ModelProfile['definition'], 'input' | 'fileTypes'>>
+    Record<string, Pick<ModelProfile<'llm'>['definition'], 'input' | 'fileTypes'>>
   > = {
     'text-only': { input: ['text'] },
     pictures: { input: ['text', 'image'] },
     everything: { input: ['text', 'image'], fileTypes: ['application/pdf'] },
   }
-  function resolutionOf(route: string, required: ModalityRequirement): ProfileResolution {
+  function resolutionOf(route: string, required: ModalityRequirement): ProfileResolution<'llm'> {
     const definition = { ...DEFINITIONS[route], output: ['text'] }
-    const covered = profileCovers(definition as unknown as ModelProfile['definition'], required)
+    const covered = profileCovers(
+      definition as unknown as ModelProfile<'llm'>['definition'],
+      required,
+    )
     return resolved({
       profile: {
         adoption: { ...adoption, name: route },
         identity: { scope: { kind: 'factory' }, route },
         definition,
-      } as unknown as ModelProfile,
+      } as unknown as ModelProfile<'llm'>,
       selectable: covered,
       reasons: covered ? [] : ['modality'],
     })

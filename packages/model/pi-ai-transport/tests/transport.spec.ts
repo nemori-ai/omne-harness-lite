@@ -1,4 +1,7 @@
+import type { Supplier } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
+import { defineDecisionsFamily } from '../src/family-kit/index.ts'
+import { composeFamilies, recordAdoption, recordProvider } from '../src/family-table.ts'
 import type { PiFamilyContributions, PiTransportConfig } from '../src/index.ts'
 import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { createPiTransport, type PiTransport } from '../src/transport.ts'
@@ -433,13 +436,100 @@ describe('prepare', () => {
 
   it('answers unsupported for a request of another model kind than the interface of the binding, and releases the binding', async () => {
     const { transport, probe } = build()
-    const outcome = await transport.prepare({ ...REQUEST, kind: 'decisions' }, SUPPLIER, {
-      resent: [],
-    })
+    const { profile, suppliers, fallback, retryPolicy, source } = REQUEST
+    const asked = { state: 'text', questions: { Q1: { type: 'noul' } } } as const
+    const decision = {
+      kind: 'decisions',
+      profile,
+      suppliers,
+      fallback,
+      retryPolicy,
+      source,
+      ask: asked,
+    } as const
+    const outcome = await transport.prepare(decision, SUPPLIER, { resent: [] })
     expect(outcome).toEqual({
       failure: { kind: 'unsupported', field: 'request.kind', adapter: expect.anything() },
     })
     expect([probe.acquired, probe.released]).toEqual([1, 1])
+  })
+
+  it('pairs a decisions record with a decisions request only when the assembly gave the byte limit of decisions', async () => {
+    const model = 'vendor/judge'
+    const record = {
+      name: model,
+      revision: '1',
+      route: { provider: 'judges', model },
+      status: 'current',
+      decisions: { maxQuestions: null },
+      profile: { input: ['text'], output: ['text'], evidence: 'a test record' },
+    } as const
+    const supplier: Supplier = {
+      adoption: recordAdoption('test-decisions', record),
+      provider: recordProvider(record),
+      model,
+      credential: { layer: 'official' },
+    }
+    const { profile, fallback, retryPolicy, source } = REQUEST
+    const ask = { state: 'text', questions: { Q1: { type: 'noul' } } } as const
+    const decision = {
+      kind: 'decisions',
+      profile,
+      suppliers: [supplier],
+      fallback,
+      retryPolicy,
+      source,
+      ask,
+    } as const
+    const assembled = (limits: PiTransportConfig['limits']) =>
+      build({
+        families: composeFamilies([
+          defineDecisionsFamily({ owner: 'test-decisions', records: [record] }),
+        ]),
+        routes: {
+          [supplier.provider]: {
+            endpoints: { decisions: { url: ROUTE_URL, endMarker: null } },
+            accounting: { place: 'test-gateway', costUnit: 'test-credit' },
+            auth: { kind: 'bearer', item: 'apiKey' },
+          },
+        },
+        limits,
+      })
+    const limited = assembled({ ...LIMITS, maxDecisionBytes: 4096 })
+    expect(await limited.transport.prepare(decision, supplier, { resent: [] })).toHaveProperty('ok')
+    const unlimited = assembled(LIMITS)
+    expect(await unlimited.transport.prepare(decision, supplier, { resent: [] })).toEqual({
+      failure: { kind: 'unsupported', field: 'limits.decisions', adapter: supplier.adoption },
+    })
+  })
+
+  it('cannot ask the cost of a request where no route is, or where the accounting of the route states no way to ask', async () => {
+    const signal = new AbortController().signal
+    const { lookupCost } = build()
+    expect(await lookupCost(SUPPLIER, 'gen-1', signal)).toEqual({ kind: 'unsupported' })
+    const elsewhere = { ...SUPPLIER, provider: providerName('elsewhere') }
+    expect(await lookupCost(elsewhere, 'gen-1', signal)).toEqual({ kind: 'unsupported' })
+  })
+
+  it('can ask the cost where the accounting states the header and the path, and then needs the secret of the route', async () => {
+    const stated = build({
+      routes: {
+        [SUPPLIER.provider]: {
+          endpoints: { 'chat-completions': { url: ROUTE_URL, endMarker: END_MARKER } },
+          accounting: {
+            place: 'test-gateway',
+            costUnit: 'test-credit',
+            generation: { requestHeader: 'x-request-id', path: '/cost' },
+          },
+          auth: { kind: 'bearer', item: 'apiKey' },
+        },
+      },
+      credential: { read: () => undefined },
+    })
+    expect(await stated.lookupCost(SUPPLIER, 'gen-1', new AbortController().signal)).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'credential-missing',
+    })
   })
 
   it('answers invalid for a supplier that the request does not name, without acquiring a binding', async () => {

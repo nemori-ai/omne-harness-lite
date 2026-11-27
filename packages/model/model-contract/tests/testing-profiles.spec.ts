@@ -80,7 +80,7 @@ function profileOf(
     input?: readonly [ModelModality, ...ModelModality[]]
     availability?: ModelProfile['availability']
   }> = {},
-): ModelProfile {
+): ModelProfile<'llm'> {
   const upstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
   return {
     identity: {
@@ -160,8 +160,13 @@ describe('the principal and the access (M01, M02)', () => {
     scripted.setAccess(access, 'allow')
     const required = requirement()
     const answer = resolvedOf(profileOf())
-    scripted.setResolution({ ...access, route: 'default', required }, { ok: answer })
-    const outcome = await scripted.profiles.resolve({ ...access, route: 'default', required })
+    scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: answer })
+    const outcome = await scripted.profiles.resolve({
+      ...access,
+      kind: 'llm',
+      route: 'default',
+      required,
+    })
     expect(must(outcome)).toEqual(answer)
     const [call] = scripted.calls()
     expect(call?.input.principal).toBe(principal)
@@ -177,22 +182,33 @@ describe('the principal and the access (M01, M02)', () => {
     const scripted = createScriptedModelProfiles<Agent>()
     const required = requirement()
     scripted.setResolution(
-      { ...access, route: 'default', required },
+      { ...access, kind: 'llm', route: 'default', required },
       { ok: resolvedOf(profileOf()) },
     )
-    expect(await scripted.profiles.resolve({ ...access, route: 'default', required })).toEqual({
+    expect(
+      await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
+    ).toEqual({
       failure: { kind: 'denied', action: 'profiles.resolve' },
     })
     expect(
-      await scripted.profiles.list({ ...access, selected: null, required: requirement() }),
+      await scripted.profiles.list({
+        ...access,
+        kind: 'llm',
+        selected: null,
+        required: requirement(),
+      }),
     ).toEqual({ failure: { kind: 'denied', action: 'profiles.list' } })
     scripted.setAccess(access, 'allow')
     const lookalike: Access<Agent> = { tenant: access.tenant, principal: new Agent('alice') }
-    expect(await scripted.profiles.resolve({ ...lookalike, route: 'default', required })).toEqual({
+    expect(
+      await scripted.profiles.resolve({ ...lookalike, kind: 'llm', route: 'default', required }),
+    ).toEqual({
       failure: { kind: 'denied', action: 'profiles.resolve' },
     })
     scripted.setAccess(access, 'deny')
-    expect(await scripted.profiles.resolve({ ...access, route: 'default', required })).toEqual({
+    expect(
+      await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
+    ).toEqual({
       failure: { kind: 'denied', action: 'profiles.resolve' },
     })
   })
@@ -204,6 +220,7 @@ describe('the principal and the access (M01, M02)', () => {
     expect(
       await scripted.profiles.resolve({
         tenant: forged,
+        kind: 'llm',
         principal,
         route: 'default',
         required: requirement(),
@@ -224,9 +241,12 @@ describe('tenant partitions (M03)', () => {
     scripted.setAccess(first, 'allow')
     scripted.setAccess(second, 'allow')
     const own = profileOf({ scope: { kind: 'tenant', tenant: first.tenant } })
-    scripted.setResolution({ ...first, route: 'default', required }, { ok: resolvedOf(own) })
+    scripted.setResolution(
+      { ...first, kind: 'llm', route: 'default', required },
+      { ok: resolvedOf(own) },
+    )
     const error = await rejection(
-      scripted.profiles.resolve({ ...second, route: 'default', required }),
+      scripted.profiles.resolve({ ...second, kind: 'llm', route: 'default', required }),
     )
     expect(error).toBeInstanceOf(ScriptedModelError)
     expect(error).toMatchObject({
@@ -234,14 +254,14 @@ describe('tenant partitions (M03)', () => {
       message: 'no scripted profiles.resolve answer',
     })
     scripted.setResolution(
-      { ...second, route: 'default', required },
+      { ...second, kind: 'llm', route: 'default', required },
       { ok: { kind: 'absent', reason: 'unknown-name' } },
     )
-    expect(must(await scripted.profiles.resolve({ ...first, route: 'default', required }))).toEqual(
-      resolvedOf(own),
-    )
     expect(
-      must(await scripted.profiles.resolve({ ...second, route: 'default', required })),
+      must(await scripted.profiles.resolve({ ...first, kind: 'llm', route: 'default', required })),
+    ).toEqual(resolvedOf(own))
+    expect(
+      must(await scripted.profiles.resolve({ ...second, kind: 'llm', route: 'default', required })),
     ).toEqual({ kind: 'absent', reason: 'unknown-name' })
   })
 
@@ -253,7 +273,7 @@ describe('tenant partitions (M03)', () => {
     const scripted = createScriptedModelProfiles<Agent>()
     scripted.setAccess(second, 'allow')
     scripted.setResolution(
-      { ...second, route: 'default', required },
+      { ...second, kind: 'llm', route: 'default', required },
       { ok: { kind: 'absent', reason: 'excluded' } },
     )
     const foreignTenant = profileOf({ scope: { kind: 'tenant', tenant: first.tenant } })
@@ -263,18 +283,18 @@ describe('tenant partitions (M03)', () => {
     for (const profile of [foreignTenant, foreignOrganization]) {
       const error = scriptMisuse(() =>
         scripted.setResolution(
-          { ...second, route: 'default', required },
+          { ...second, kind: 'llm', route: 'default', required },
           { ok: resolvedOf(profile) },
         ),
       )
       expect(error.reason).toBe('invalid-script')
     }
     expect(
-      must(await scripted.profiles.resolve({ ...second, route: 'default', required })),
+      must(await scripted.profiles.resolve({ ...second, kind: 'llm', route: 'default', required })),
     ).toEqual({ kind: 'absent', reason: 'excluded' })
     const sibling: Access<Agent> = { tenant: sameOrganizationTenant(), principal }
     scripted.setResolution(
-      { ...sibling, route: 'default', required },
+      { ...sibling, kind: 'llm', route: 'default', required },
       { ok: resolvedOf(foreignOrganization) },
     )
   })
@@ -324,11 +344,18 @@ describe('the requirement takes part in the match (M04)', () => {
     scripted.setAccess(access, 'allow')
     const registered = requirement(['text', 'image'])
     scripted.setResolution(
-      { ...access, route: 'default', required: registered },
+      { ...access, kind: 'llm', route: 'default', required: registered },
       { ok: resolvedOf(profileOf()) },
     )
     expect(
-      must(await scripted.profiles.resolve({ ...access, route: 'default', required: registered })),
+      must(
+        await scripted.profiles.resolve({
+          ...access,
+          kind: 'llm',
+          route: 'default',
+          required: registered,
+        }),
+      ),
     ).toMatchObject({ kind: 'resolved' })
     for (const required of [
       requirement(['text', 'image'], '2'),
@@ -336,7 +363,7 @@ describe('the requirement takes part in the match (M04)', () => {
       requirement(['text', 'image', 'image']),
     ]) {
       const error = await rejection(
-        scripted.profiles.resolve({ ...access, route: 'default', required }),
+        scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
       )
       expect(error).toMatchObject({ message: 'no scripted profiles.resolve answer' })
     }
@@ -354,12 +381,17 @@ describe('the requirement takes part in the match (M04)', () => {
       selected: { route: 'default', resolution: held },
       source: evidence('choices'),
     }
-    scripted.setList({ ...access, selected: 'default', required }, { ok: answer })
+    scripted.setList({ ...access, kind: 'llm', selected: 'default', required }, { ok: answer })
     expect(
-      must(await scripted.profiles.list({ ...access, selected: 'default', required })),
+      must(await scripted.profiles.list({ ...access, kind: 'llm', selected: 'default', required })),
     ).toEqual(answer)
     const error = await rejection(
-      scripted.profiles.list({ ...access, selected: 'default', required: requirement(['text']) }),
+      scripted.profiles.list({
+        ...access,
+        kind: 'llm',
+        selected: 'default',
+        required: requirement(['text']),
+      }),
     )
     expect(error).toMatchObject({ message: 'no scripted profiles.list answer' })
   })
@@ -380,24 +412,24 @@ describe('the selection (M05)', () => {
       selected: { route: 'default', resolution: choice },
       source: evidence('choices'),
     }
-    scripted.setList({ ...access, selected: null, required }, { ok: none })
-    scripted.setList({ ...access, selected: 'default', required }, { ok: chosen })
+    scripted.setList({ ...access, kind: 'llm', selected: null, required }, { ok: none })
+    scripted.setList({ ...access, kind: 'llm', selected: 'default', required }, { ok: chosen })
     const gone = (reason: 'unknown-name' | 'withdrawn' | 'excluded'): ModelChoices => ({
       choices: [choice],
       selected: { route: 'gone', resolution: { kind: 'absent', reason } },
       source: evidence('choices'),
     })
     for (const reason of ['unknown-name', 'withdrawn', 'excluded'] as const) {
-      scripted.setList({ ...access, selected: 'gone', required }, { ok: gone(reason) })
-      expect(must(await scripted.profiles.list({ ...access, selected: 'gone', required }))).toEqual(
-        gone(reason),
-      )
+      scripted.setList({ ...access, kind: 'llm', selected: 'gone', required }, { ok: gone(reason) })
+      expect(
+        must(await scripted.profiles.list({ ...access, kind: 'llm', selected: 'gone', required })),
+      ).toEqual(gone(reason))
     }
-    expect(must(await scripted.profiles.list({ ...access, selected: null, required }))).toEqual(
-      none,
-    )
     expect(
-      must(await scripted.profiles.list({ ...access, selected: 'default', required })),
+      must(await scripted.profiles.list({ ...access, kind: 'llm', selected: null, required })),
+    ).toEqual(none)
+    expect(
+      must(await scripted.profiles.list({ ...access, kind: 'llm', selected: 'default', required })),
     ).toEqual(chosen)
   })
 
@@ -421,7 +453,7 @@ describe('the selection (M05)', () => {
     ]
     for (const [asked, answer] of cases) {
       const error = scriptMisuse(() =>
-        scripted.setList({ ...access, selected: asked, required }, { ok: answer }),
+        scripted.setList({ ...access, kind: 'llm', selected: asked, required }, { ok: answer }),
       )
       expect(error.reason).toBe('invalid-script')
     }
@@ -444,9 +476,11 @@ describe('resolutions keep reasons and credentials as scripted (M06)', () => {
       [requirement(['text'], '2'), resolvedOf(textOnly, { selectable: false, reasons: ['scope'] })],
     ]
     for (const [required, answer] of cases) {
-      scripted.setResolution({ ...access, route: 'default', required }, { ok: answer })
+      scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: answer })
       expect(
-        must(await scripted.profiles.resolve({ ...access, route: 'default', required })),
+        must(
+          await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
+        ),
       ).toEqual(answer)
     }
     for (const credential of ['available', 'missing', 'unreadable', 'unavailable'] as const) {
@@ -455,9 +489,9 @@ describe('resolutions keep reasons and credentials as scripted (M06)', () => {
         credential,
         shadowed: [adoption('outer'), adoption('inner')],
       })
-      scripted.setResolution({ ...access, route: 'default', required }, { ok: answer })
+      scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: answer })
       const resolved = must(
-        await scripted.profiles.resolve({ ...access, route: 'default', required }),
+        await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
       )
       expect(resolved).toEqual(answer)
       expect(resolved).toMatchObject({ selectable: true, profile: textOnly })
@@ -474,27 +508,40 @@ describe('failures stay what they are (M07)', () => {
     const sourceDown = {
       failure: { kind: 'unavailable', dependency: 'profile-source', diagnostic: 'store offline' },
     } as const
-    scripted.setResolution({ ...access, route: 'down', required: requirement() }, sourceDown)
     scripted.setResolution(
-      { ...access, route: 'gone', required: requirement() },
+      { ...access, kind: 'llm', route: 'down', required: requirement() },
+      sourceDown,
+    )
+    scripted.setResolution(
+      { ...access, kind: 'llm', route: 'gone', required: requirement() },
       { ok: { kind: 'absent', reason: 'unknown-name' } },
     )
     const notSettled = { failure: { kind: 'not-settled' } } as const
-    scripted.setList({ ...access, selected: null, required: requirement() }, notSettled)
+    scripted.setList(
+      { ...access, kind: 'llm', selected: null, required: requirement() },
+      notSettled,
+    )
     const down = await scripted.profiles.resolve({
       ...access,
+      kind: 'llm',
       route: 'down',
       required: requirement(),
     })
     expect(down).toEqual(sourceDown)
     const gone = await scripted.profiles.resolve({
       ...access,
+      kind: 'llm',
       route: 'gone',
       required: requirement(),
     })
     expect(gone).not.toEqual(down)
     expect(
-      await scripted.profiles.list({ ...access, selected: null, required: requirement() }),
+      await scripted.profiles.list({
+        ...access,
+        kind: 'llm',
+        selected: null,
+        required: requirement(),
+      }),
     ).toEqual(notSettled)
   })
 
@@ -503,12 +550,17 @@ describe('failures stay what they are (M07)', () => {
     const access: Access<Agent> = { tenant: tenantA(), principal }
     const scripted = createScriptedModelProfiles<Agent>()
     scripted.setResolution(
-      { ...access, route: 'default', required: requirement() },
+      { ...access, kind: 'llm', route: 'default', required: requirement() },
       { ok: resolvedOf(profileOf()) },
     )
     scripted.setAccess(access, 'unavailable')
     expect(
-      await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        kind: 'llm',
+        route: 'default',
+        required: requirement(),
+      }),
     ).toEqual({
       failure: {
         kind: 'unavailable',
@@ -533,8 +585,8 @@ describe('answers are checked before they are kept (M08)', () => {
       selected: { route: 'default', resolution: choice },
       source: evidence('choices'),
     }
-    scripted.setList({ ...access, selected: 'default', required }, { ok: good })
-    scripted.setResolution({ ...access, route: 'default', required }, { ok: choice })
+    scripted.setList({ ...access, kind: 'llm', selected: 'default', required }, { ok: good })
+    scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: choice })
     const other = resolvedOf(profileOf({ route: 'other' }))
     const locked = resolvedOf(profile, { selectable: false, reasons: ['locked'] })
     const lists: ModelChoices[] = [
@@ -546,7 +598,7 @@ describe('answers are checked before they are kept (M08)', () => {
     ]
     for (const answer of lists) {
       const error = scriptMisuse(() =>
-        scripted.setList({ ...access, selected: 'default', required }, { ok: answer }),
+        scripted.setList({ ...access, kind: 'llm', selected: 'default', required }, { ok: answer }),
       )
       expect(error.reason).toBe('invalid-script')
     }
@@ -561,16 +613,19 @@ describe('answers are checked before they are kept (M08)', () => {
     ]
     for (const answer of resolutions) {
       const error = scriptMisuse(() =>
-        scripted.setResolution({ ...access, route: 'default', required }, { ok: answer }),
+        scripted.setResolution(
+          { ...access, kind: 'llm', route: 'default', required },
+          { ok: answer },
+        ),
       )
       expect(error.reason).toBe('invalid-script')
     }
     expect(scripted.calls()).toEqual([])
     expect(
-      must(await scripted.profiles.list({ ...access, selected: 'default', required })),
+      must(await scripted.profiles.list({ ...access, kind: 'llm', selected: 'default', required })),
     ).toEqual(good)
     expect(
-      must(await scripted.profiles.resolve({ ...access, route: 'default', required })),
+      must(await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required })),
     ).toEqual(choice)
   })
 })
@@ -588,20 +643,29 @@ describe('each answer check has a case that breaks only it (M08)', () => {
       selected: { route: 'default', resolution: choice },
       source: evidence('choices'),
     }
-    scripted.setList({ ...access, selected: 'default', required }, { ok: good })
-    scripted.setResolution({ ...access, route: 'default', required }, { ok: choice })
+    scripted.setList({ ...access, kind: 'llm', selected: 'default', required }, { ok: good })
+    scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: choice })
     const refuseList = (selected: string | null, answer: ModelChoices) =>
-      scriptMisuse(() => scripted.setList({ ...access, selected, required }, { ok: answer }))
+      scriptMisuse(() =>
+        scripted.setList({ ...access, kind: 'llm', selected, required }, { ok: answer }),
+      )
     const refuseResolution = (answer: ProfileResolution) =>
       scriptMisuse(() =>
-        scripted.setResolution({ ...access, route: 'default', required }, { ok: answer }),
+        scripted.setResolution(
+          { ...access, kind: 'llm', route: 'default', required },
+          { ok: answer },
+        ),
       )
     async function keptEarlier(): Promise<void> {
       expect(
-        must(await scripted.profiles.list({ ...access, selected: 'default', required })),
+        must(
+          await scripted.profiles.list({ ...access, kind: 'llm', selected: 'default', required }),
+        ),
       ).toEqual(good)
       expect(
-        must(await scripted.profiles.resolve({ ...access, route: 'default', required })),
+        must(
+          await scripted.profiles.resolve({ ...access, kind: 'llm', route: 'default', required }),
+        ),
       ).toEqual(choice)
     }
     const listOf = (
@@ -853,13 +917,14 @@ describe('copies and minted scopes (M09)', () => {
       shadowed,
     }
     const expected = structuredClone(answer)
-    scripted.setResolution({ ...access, route: 'default', required }, { ok: answer })
+    scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: answer })
     input.push('voice')
     shadowed.push(adoption('inner'))
     resolutionSource.revision = '9'
     const resolved = must(
       await scripted.profiles.resolve({
         ...access,
+        kind: 'llm',
         route: 'default',
         required: requirement(),
       }),
@@ -869,7 +934,12 @@ describe('copies and minted scopes (M09)', () => {
     source.revision = '7'
     expect(
       must(
-        await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+        await scripted.profiles.resolve({
+          ...access,
+          kind: 'llm',
+          route: 'default',
+          required: requirement(),
+        }),
       ),
     ).toEqual(expected)
     const frozen = (value: unknown): boolean =>
@@ -895,18 +965,28 @@ describe('copies and minted scopes (M09)', () => {
       scope: { kind: 'organization', organization: own },
     })
     scripted.setResolution(
-      { ...access, route: 'default', required: requirement() },
+      { ...access, kind: 'llm', route: 'default', required: requirement() },
       { ok: resolvedOf(tenantProfile) },
     )
     scripted.setResolution(
-      { ...access, route: 'shared', required: requirement() },
+      { ...access, kind: 'llm', route: 'shared', required: requirement() },
       { ok: resolvedOf(organizationProfile) },
     )
     const byTenant = must(
-      await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        kind: 'llm',
+        route: 'default',
+        required: requirement(),
+      }),
     )
     const byOrganization = must(
-      await scripted.profiles.resolve({ ...access, route: 'shared', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        kind: 'llm',
+        route: 'shared',
+        required: requirement(),
+      }),
     )
     if (byTenant.kind !== 'resolved' || byOrganization.kind !== 'resolved')
       throw new Error('expected resolved profiles')
@@ -927,9 +1007,19 @@ describe('copies and minted scopes (M09)', () => {
     const principal = new Agent('alice')
     const access: Access<Agent> = { tenant: tenantA(), principal }
     const scripted = createScriptedModelProfiles<Agent>()
-    await scripted.profiles.list({ ...access, selected: null, required: requirement() })
+    await scripted.profiles.list({
+      ...access,
+      kind: 'llm',
+      selected: null,
+      required: requirement(),
+    })
     const before = scripted.calls()
-    await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() })
+    await scripted.profiles.resolve({
+      ...access,
+      kind: 'llm',
+      route: 'default',
+      required: requirement(),
+    })
     expect(before.map(call => [call.sequence, call.kind])).toEqual([[1, 'list']])
     expect(scripted.calls().map(call => [call.sequence, call.kind])).toEqual([
       [1, 'list'],

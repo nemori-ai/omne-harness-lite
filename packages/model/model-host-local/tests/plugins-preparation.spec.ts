@@ -13,7 +13,7 @@ import {
   type Adoption,
   type ProviderName,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelCountingBasis,
   type ModelProfile,
@@ -59,7 +59,7 @@ const SUPPLIER = {
   model: 'test',
   credential: { layer: 'official' as const },
 }
-const PROFILE: ModelProfile = {
+const PROFILE: ModelProfile<'llm'> = {
   identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption: ADOPTION,
   revision: unbox(decodeRevision('1')),
@@ -92,7 +92,7 @@ const user = (id: string, text = 'hello') => ({
   role: 'user',
   blocks: [{ kind: 'text', id: `b-${id}`, visibility: SHOWN, text }],
 })
-function requestWith(messages: readonly unknown[]): FixedModelRequest {
+function requestWith(messages: readonly unknown[]): LlmModelRequest {
   const judged = judgeFixedModelRequest({
     kind: 'llm',
     profile: ADOPTION,
@@ -115,9 +115,9 @@ function requestWith(messages: readonly unknown[]): FixedModelRequest {
     parameterAdoptions: [],
     source: ADOPTION,
   })
-  return unbox(judged as { ok: FixedModelRequest } | { failure: unknown })
+  return unbox(judged as { ok: LlmModelRequest } | { failure: unknown })
 }
-function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
+function assembledOf(fixed: LlmModelRequest): AssembledModelInput {
   return {
     system: fixed.system,
     messages: fixed.messages,
@@ -274,7 +274,7 @@ const ACCOUNT_FACT: TransportFact = {
 async function settleCall(
   commands: ModelCommands<unknown>,
   call: ModelCallId,
-  request: FixedModelRequest,
+  request: LlmModelRequest,
 ) {
   const access = { principal: PRINCIPAL, tenant: TENANT, call }
   unbox(
@@ -390,7 +390,7 @@ async function loaded(commands: ModelCommands<unknown> = memoryCommands()) {
 
 const access = { principal: PRINCIPAL, tenant: TENANT }
 
-async function measure(lease: ModelPreparationLease, request: FixedModelRequest) {
+async function measure(lease: ModelPreparationLease, request: LlmModelRequest) {
   const [binding] = lease.bindings
   const assembled = assembledOf(request)
   const planned = binding.rules.plan({ profile: PROFILE, supplier: binding.supplier, assembled })

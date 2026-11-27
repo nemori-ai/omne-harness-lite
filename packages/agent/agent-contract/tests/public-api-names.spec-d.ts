@@ -747,7 +747,7 @@ describe('the discriminants of the request chapter', () => {
     >()
     expectTypeOf<
       Extract<Preparation, { kind: 'ready' }>['request']
-    >().toEqualTypeOf<M.FixedModelRequest>()
+    >().toEqualTypeOf<M.LlmModelRequest>()
     expectTypeOf<
       Extract<Preparation, { kind: 'assembled' }>['input']
     >().toEqualTypeOf<M.AssembledModelInput>()
@@ -857,7 +857,7 @@ describe('the subject of each position', () => {
     type CallFailure = Readonly<{
       purpose: 'main'
       call: M.ModelCallId
-      request: M.FixedModelRequest
+      request: M.LlmModelRequest
       fault: M.ModelFault
       dispatches: readonly M.DispatchRecord[]
       retry: M.RetryResolution | null

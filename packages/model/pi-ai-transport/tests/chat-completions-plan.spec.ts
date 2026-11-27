@@ -10,7 +10,7 @@ import {
   type ChatCompletionsRecord,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { serializeBody } from '../src/payload.ts'
 import {
   EXTENSION,
@@ -45,7 +45,7 @@ function bind(
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
   bindingEfforts?: ReasoningEffortMapping,
-): PiFamilyBinding {
+): PiChatBinding {
   return bindChatCompletions({
     bindingEfforts,
     record,
@@ -60,7 +60,7 @@ function bind(
 }
 
 function plan(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   record: ChatCompletionsRecord,
   parts: RequestParts = {},
   profile = profileOf(record),
@@ -131,7 +131,7 @@ describe('rules.plan: the replay declaration', () => {
     const wider = profileOf(record, {
       replay: { accepts: [SCOPE, 'gateway/other'], foreignThinking: 'text' },
     })
-    const cases: readonly (readonly [ModelProfile, boolean])[] = [
+    const cases: readonly (readonly [ModelProfile<'llm'>, boolean])[] = [
       [profileOf(record), false],
       [wider, true],
     ]

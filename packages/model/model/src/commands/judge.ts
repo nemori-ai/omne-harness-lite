@@ -1,4 +1,4 @@
-import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
+import { requestRepresentation, type FixedRequestHead } from '@omne-harness/model-contract/provider'
 import { randomUUID } from 'node:crypto'
 import { judgePart, parseMessageId } from '@omne-harness/message'
 import { assembleStream } from '@omne-harness/stream-arrival'
@@ -199,7 +199,7 @@ export function receiptBinds(
 ): boolean {
   return (
     digest(receipt.supplier) === digest(supplier.adoption) &&
-    digest(receipt.representation) === digest(request.representation) &&
+    digest(receipt.representation) === digest(requestRepresentation(request)) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
     replayMarksBind(receipt) &&
     mediaBind(receipt)
@@ -512,8 +512,9 @@ function finishReplay(
       : { kind: 'none' }
   const { replayFormat: format, replayPrefix: prefix } = receipt
   const supplier = digest(dispatch.record.supplier)
+  const declarations = call.request?.kind === 'llm' ? call.request.declarations : []
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
-  const scope = call.request?.declarations[index]?.produces
+  const scope = declarations[index]?.produces
   if (scope !== undefined)
     return { kind: 'range', range: { scope, format, ...(prefix === undefined ? {} : { prefix }) } }
   if (!state) return { kind: 'none' }

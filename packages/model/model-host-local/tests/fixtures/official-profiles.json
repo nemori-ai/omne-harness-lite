@@ -5368,5 +5368,92 @@
       "revision": "1",
       "digest": "0000000000000000000000000000000000000000000000000000000000000000"
     }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/decisions",
+          "name": "openai/gpt-6-luna-decisions",
+          "revision": "1",
+          "digest": "3e6306aac111a597a18cbb596376c83d62c3a3696373ef9f968500ce4678ffca"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna-decisions"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": "200",
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-jev",
+          "name": "typesafe/jev-1.13",
+          "revision": "1",
+          "digest": "81481ac64fcab8e9b380ceaf96ac19c140ab7c1ec70b53f0a3e5c7a9cc12836d"
+        },
+        "provider": "openrouter",
+        "model": "typesafe/jev-1.13"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-jev",
+          "name": "typesafe/jev-1.14",
+          "revision": "1",
+          "digest": "69a117cf82111a599c7fb1243fbb5dadef2aebcf0030d3b4c0d79c9f4673fcb0"
+        },
+        "provider": "openrouter",
+        "model": "typesafe/jev-1.14"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
   }
 ]

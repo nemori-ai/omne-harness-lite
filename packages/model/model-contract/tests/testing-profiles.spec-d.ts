@@ -42,22 +42,22 @@ it('the controls take the inputs and replies of the port, a requirement with vid
   scripted.setAccess(access, 'unavailable')
   // @ts-expect-error a decision outside allow, deny and unavailable
   scripted.setAccess(access, 'maybe')
-  scripted.setResolution({ ...access, route: 'default', required }, { ok: absent })
+  scripted.setResolution({ ...access, kind: 'llm', route: 'default', required }, { ok: absent })
   scripted.setResolution(
-    { ...access, route: 'down', required },
+    { ...access, kind: 'llm', route: 'down', required },
     { failure: { kind: 'unavailable', dependency: 'source', diagnostic: 'down' } },
   )
   scripted.setResolution(
-    { ...access, route: 'x', required },
+    { ...access, kind: 'llm', route: 'x', required },
     // @ts-expect-error an absent reason outside the three
     { ok: { kind: 'absent', reason: 'gone' } },
   )
   // @ts-expect-error a resolution needs its requirement
-  scripted.setResolution({ ...access, route: 'default' }, { ok: absent })
+  scripted.setResolution({ ...access, kind: 'llm', route: 'default' }, { ok: absent })
   // @ts-expect-error the principal of another type
   scripted.setResolution({ tenant, principal: { id: 1 }, route: 'r', required }, { ok: absent })
   const choices: ModelChoices = { choices: [], selected: null, source: evidence }
-  scripted.setList({ ...access, selected: null, required }, { ok: choices })
+  scripted.setList({ ...access, kind: 'llm', selected: null, required }, { ok: choices })
   // @ts-expect-error a list needs its selection, even when it is null
   scripted.setList({ ...access, required }, { ok: choices })
 })

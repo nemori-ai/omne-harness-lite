@@ -1,72 +1,42 @@
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
 import {
   decisionAnswersBlock,
-  decisionAskOf,
-  type Adoption,
+  type DecisionAsk,
   type ModelFault,
-  type ProviderName,
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import type { CallAccountReport, TransportFact } from '@omne-harness/model-contract/provider'
-import type { Outcome } from '@omne-harness/operation-result'
 import { plainDecimal } from '../chat-completions/decimal.ts'
 import type { RouteAccounting } from '../config.ts'
-import type { PiResponseDecoder, PiSendBinding } from '../family.ts'
-import { recordAdoption, recordProvider, type PiModelRecordHead } from '../family-table.ts'
+import type { PiDecisionsBinding, PiResponseDecoder } from '../family.ts'
+import { recordAdoption, type PiModelRecordHead } from '../family-table.ts'
+import type { PiSend } from '../send.ts'
 import { isDecisionResponse, prepareDecision } from './codec.ts'
-import {
-  OPENROUTER_DECISION_MODELS,
-  type DecisionRequest,
-  type DecisionResponse,
-} from './contract.ts'
+import type { DecisionRequest, DecisionResponse } from './contract.ts'
 
-export const DECISIONS_OWNER = '@omne-harness/pi-ai-transport/decisions'
 const ACCOUNT_EVENT = 'usage'
 const BLOCK = '0'
 
-const RECORDS: readonly PiModelRecordHead[] = OPENROUTER_DECISION_MODELS.map(model =>
-  Object.freeze({
-    name: model,
-    revision: '1',
-    route: Object.freeze({ provider: 'openrouter', model }),
-    status: 'current',
-  }),
-)
-
-export type DecisionSupplier = Readonly<{
-  adoption: Adoption
-  provider: ProviderName
-  model: string
+/** What a decisions record states beside its head. */
+export type DecisionsRecordData = Readonly<{
+  decisions: Readonly<{ maxQuestions: string | null }>
 }>
 
-const SUPPLIERS: ReadonlyMap<string, DecisionSupplier> = new Map(
-  RECORDS.map(record => [
-    record.name,
-    Object.freeze({
-      adoption: recordAdoption(DECISIONS_OWNER, record),
-      provider: recordProvider(record),
-      model: record.route.model,
-    }),
-  ]),
-)
-
-/** The supplier of a decision model before a credential layer is chosen; undefined for any other model. */
-export function decisionSupplierOf(model: string): DecisionSupplier | undefined {
-  return SUPPLIERS.get(model)
-}
-
-export function isDecisionSupplier(supplier: Pick<Supplier, 'adoption' | 'provider' | 'model'>) {
-  const known = SUPPLIERS.get(supplier.model)
-  if (known === undefined || known.provider !== supplier.provider) return false
-  const { owner, name, revision, digest } = supplier.adoption
-  const { adoption } = known
-  return (
-    owner === adoption.owner &&
-    name === adoption.name &&
-    revision === adoption.revision &&
-    digest === adoption.digest
-  )
+/** Binds a decisions record to a supplier: the record is data, and holds nothing to release. */
+export function bindDecisions(
+  owner: string,
+  record: PiModelRecordHead & DecisionsRecordData,
+  supplier: Supplier,
+): PiDecisionsBinding {
+  const { maxQuestions } = record.decisions
+  return Object.freeze({
+    supplier,
+    adoption: recordAdoption(owner, record),
+    endpoint: 'decisions',
+    maxQuestions: maxQuestions === null ? null : Number(maxQuestions),
+    release: async () => {},
+  })
 }
 
 const NOT_A_DECISION: TransportFailure = Object.freeze({
@@ -136,39 +106,27 @@ function decoderOf(
   }
 }
 
-/** The binding of one decision dispatch: the ask of the request is its body, and the questions sent are the ones the answer is checked against. */
-export function decisionBinding(
-  supplier: Supplier,
+/** How one ask is written for the interface of a binding, and how its one answer is read back. */
+export function decisionsCodec(
+  binding: PiDecisionsBinding,
+  ask: DecisionAsk,
   limits: Readonly<{ maxRequestBytes: number; json: JsonLimits }>,
-): PiSendBinding {
-  const prepared = (request: Parameters<PiSendBinding['createDecoder']>[0]['request']) => {
-    const ask = decisionAskOf(request)
-    if (ask === null) return null
-    const candidate = { model: supplier.model, ...ask } as DecisionRequest
-    return prepareDecision(candidate, limits.maxRequestBytes)
-  }
+): Pick<PiSend, 'encode' | 'createDecoder'> {
+  const fixed = prepareDecision(
+    { model: binding.supplier.model, ...ask },
+    { maxRequestBytes: limits.maxRequestBytes, maxQuestions: binding.maxQuestions },
+  )
   return {
-    adoption: supplier.adoption,
-    endpoint: 'decisions',
-    replayFormat: null,
-    mediaLimits: () => null,
-    encode({ request }): Outcome<ReturnType<typeof encoded>, TransportFailure> {
-      const fixed = prepared(request)
+    encode() {
       if (fixed === null) return { failure: NOT_A_DECISION }
       const body = readJsonText(fixed.body.toString('utf8'), limits.json)
       if (body.kind !== 'ok') return { failure: NOT_A_DECISION }
-      return { ok: encoded(body.value) }
+      return { ok: { body: body.value, diagnostics: [], replayPrefix: '', replayCarried: false } }
     },
-    createDecoder({ request, accounting }) {
-      const fixed = prepared(request)
+    createDecoder(accounting) {
       if (fixed === null)
         throw new Error('the request of this decoder is not the decision that was encoded')
       return decoderOf(fixed.questions, accounting)
     },
-    release: async () => {},
   }
-}
-
-function encoded(body: Extract<ReturnType<typeof readJsonText>, { kind: 'ok' }>['value']) {
-  return { body, diagnostics: [], replayPrefix: '', replayCarried: false }
 }

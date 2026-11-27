@@ -629,7 +629,7 @@ export function dispatchCommands<P>(
           if (call.request === null) return invalid('supplier', 'outside-request')
           const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
-          beginDispatch(call, input, call.request.messageIds, readInstant(core.options.clock))
+          beginDispatch(call, input, readInstant(core.options.clock))
           return null
         },
       ),

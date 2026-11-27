@@ -6,12 +6,13 @@ import type {
   MaterializedMedium,
   TransportFailure,
 } from '@omne-harness/model-contract'
-import type {
-  IndependentModelFact,
-  MaterializedTransport,
-  ModelTransport,
-  PreparedTransport,
-  TransportFact,
+import {
+  requestRepresentation,
+  type IndependentModelFact,
+  type MaterializedTransport,
+  type ModelTransport,
+  type PreparedTransport,
+  type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from './adoption.ts'
@@ -137,7 +138,7 @@ async function* execute(
   const supplier = request.suppliers[0]
   const expected = {
     supplier: copyAdoption(supplier.adoption),
-    representation: copyAdoption(request.representation),
+    representation: copyAdoption(requestRepresentation(request)),
   }
   let prepared: PreparedTransport | undefined
   let materialized: MaterializedTransport | undefined

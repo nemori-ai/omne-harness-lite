@@ -2,6 +2,7 @@ import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
   supportedReasoningEfforts,
   type ModalityRequirement,
+  type ModelFailure,
   type Parameter,
   type ProfileResolution,
   type ReasoningEffort,
@@ -35,8 +36,8 @@ export type SelectionPorts = Readonly<{
     access: SessionAccess<unknown>,
   ): Promise<Outcome<SessionModelSelection, SessionFailure>> | undefined
   resolveProfile(
-    input: Parameters<ModelProfilesService<unknown>['resolve']>[0],
-  ): ReturnType<ModelProfilesService<unknown>['resolve']> | undefined
+    input: Parameters<ModelProfilesService<unknown>['resolve']>[0] & Readonly<{ kind: 'llm' }>,
+  ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
   bindings: SelectionBindings
 }>
 
@@ -108,6 +109,7 @@ export async function selectModel(
   const resolving = ports.resolveProfile({
     principal: input.principal,
     tenant: input.tenant,
+    kind: 'llm',
     route,
     required: ports.bindings.requirementOf(input),
   })

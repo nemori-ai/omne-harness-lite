@@ -67,7 +67,7 @@ export const callId = (name: string): ModelCallId => must(decodeModelCallId(`mca
 
 const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
 
-export const profile: ModelProfile = {
+export const profile: ModelProfile<'llm'> = {
   identity: { scope: { kind: 'factory' }, kind: 'llm', route: 'default' },
   adoption: adoption('profile'),
   revision: must(decodeRevision('1')),

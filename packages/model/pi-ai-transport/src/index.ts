@@ -1,4 +1,7 @@
+export { chatBindingsOf, isBindingOf } from './family.ts'
 export type {
+  PiChatBinding,
+  PiDecisionsBinding,
   PiFamilyBinding,
   PiFamilyContributions,
   PiMaterializedMedia,
@@ -20,6 +23,7 @@ export type {
   PiCredentialSlot,
   PiRoute,
   PiRouteEndpoint,
+  DecisionsEndpoint,
   EngineEndpoint,
   ProviderEndpoint,
   PiRouteAuth,

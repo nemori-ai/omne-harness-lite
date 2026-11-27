@@ -7,14 +7,20 @@ import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 import type { PiMediaReader } from './media.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
-export type RouteAccounting = Readonly<{ place: string; costUnit: string }>
+export type RouteAccounting = Readonly<{
+  place: string
+  costUnit: string
+  generation?: Readonly<{ requestHeader: string; path: string }>
+}>
 
 export type PiRouteAuth = Readonly<{ kind: 'bearer'; item: string }> | null
 
 /** The interface an engine speaks at the gateway. */
 export type EngineEndpoint = 'chat-completions' | 'messages' | 'responses'
 
-export type ProviderEndpoint = EngineEndpoint | 'decisions'
+export type DecisionsEndpoint = 'decisions'
+
+export type ProviderEndpoint = EngineEndpoint | DecisionsEndpoint
 
 export type Framing = 'events' | 'whole'
 
@@ -210,7 +216,21 @@ function checkAccounting(accounting: RouteAccounting): RouteAccounting {
     accounting.costUnit === ''
   )
     throw new RangeError('each route accounting must have a non-empty place and costUnit')
-  return { place: accounting.place, costUnit: accounting.costUnit }
+  const { place, costUnit, generation } = accounting
+  if (generation === undefined) return { place, costUnit }
+  if (
+    !isObject(generation) ||
+    typeof generation.requestHeader !== 'string' ||
+    generation.requestHeader === '' ||
+    typeof generation.path !== 'string' ||
+    !generation.path.startsWith('/')
+  )
+    throw new RangeError('a route accounting that states generation must name its header and path')
+  return {
+    place,
+    costUnit,
+    generation: { requestHeader: generation.requestHeader, path: generation.path },
+  }
 }
 
 function checkLimits(limits: PiTransportLimits): PiTransportLimits {

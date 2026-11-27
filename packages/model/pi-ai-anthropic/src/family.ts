@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import {
   byteLimitOf,
   defineGatewayFamily,
@@ -14,7 +14,7 @@ import { ANTHROPIC_RECORDS } from './records.ts'
 export type AnthropicFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
+export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: ANTHROPIC_OWNER,
     title: 'Anthropic',

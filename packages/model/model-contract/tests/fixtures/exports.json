@@ -167,6 +167,31 @@
               "pending": false
             },
             {
+              "name": "RequestCommon",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "Admit",
               "kind": "type",
               "pending": false
@@ -263,11 +288,6 @@
             },
             {
               "name": "ModelKind",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RequestKind",
               "kind": "type",
               "pending": false
             }
@@ -903,6 +923,11 @@
               "pending": false
             },
             {
+              "name": "isProfileOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "isNativeFileType",
               "kind": "value",
               "pending": false
@@ -929,6 +954,16 @@
             },
             {
               "name": "LlmProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileKind",
               "kind": "type",
               "pending": false
             },
@@ -1073,17 +1108,12 @@
               "pending": false
             },
             {
-              "name": "decisionAskMessage",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "decisionAskOf",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "decisionAnswersBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeDecisionAsk",
               "kind": "value",
               "pending": false
             },
@@ -1118,6 +1148,11 @@
             },
             {
               "name": "judgeFixedModelRequest",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeModelRequest",
               "kind": "value",
               "pending": false
             },
@@ -1293,6 +1328,11 @@
             },
             {
               "name": "requestHead",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "requestRepresentation",
               "kind": "value",
               "pending": false
             },
@@ -1983,6 +2023,16 @@
               "name": "ScriptedCredentialProvider",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "ofKind",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "resolutionOf",
+              "kind": "value",
+              "pending": false
             }
           ]
         }
@@ -2040,6 +2090,21 @@
             },
             {
               "name": "CatalogModel",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProviderAccounting",
               "kind": "type",
               "pending": false
             },

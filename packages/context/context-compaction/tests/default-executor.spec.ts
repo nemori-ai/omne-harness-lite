@@ -170,8 +170,7 @@ function fixture(
       async admit(given) {
         admissions++
         admitted.push(given.request)
-        expect(given.request.tools).toEqual([])
-        expect(given.request.toolChoice).toBe('none')
+        expect(given.request).toMatchObject({ kind: 'llm', tools: [], toolChoice: 'none' })
         calls.set(given.call, {
           call: given.call,
           revision: ok(decodeRevision('1')),

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import type { FixedModelRequest, ModelBlock } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ModelBlock } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
-import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding } from '@omne-harness/pi-ai-transport'
 import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   assembledOf,
@@ -31,7 +31,7 @@ const HISTORY = [
   message('u2', 'user', [textBlock('b2', 'and close the shell')]),
 ]
 
-function dottedRequest(): FixedModelRequest {
+function dottedRequest(): LlmModelRequest {
   return fixedRequest(SOL, {
     messages: HISTORY,
     tools: DOTTED.map(name => tool(name)),
@@ -47,7 +47,7 @@ type WireBody = Readonly<{
   }>[]
 }>
 
-async function encoded(request: FixedModelRequest) {
+async function encoded(request: LlmModelRequest) {
   const binding = await bindingOf(SOL)
   try {
     return binding.encode(encodeInput(request))
@@ -56,7 +56,7 @@ async function encoded(request: FixedModelRequest) {
   }
 }
 
-async function bodyOf(request: FixedModelRequest): Promise<WireBody> {
+async function bodyOf(request: LlmModelRequest): Promise<WireBody> {
   const outcome = await encoded(request)
   if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
   return JSON.parse(writeJsonText(outcome.ok.body))
@@ -70,9 +70,7 @@ function namesOf(body: WireBody): readonly string[] {
   ]
 }
 
-function data(
-  value: object,
-): Parameters<ReturnType<PiFamilyBinding['createDecoder']>['accept']>[0] {
+function data(value: object): Parameters<ReturnType<PiChatBinding['createDecoder']>['accept']>[0] {
   const read = readJsonText(JSON.stringify(value), {
     maxBytes: 65_536,
     maxDepth: 32,
@@ -96,7 +94,7 @@ function chunk(delta: object, finish: string | null = null): object {
 }
 
 async function decodedCalls(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   names: readonly string[],
 ): Promise<readonly ModelBlock[]> {
   const binding = await bindingOf(SOL)

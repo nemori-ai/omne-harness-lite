@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
+  requestRepresentation,
   type MaterializeFailure,
   type MaterializedTransport,
   type MediaRefusal,
@@ -26,7 +27,7 @@ import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from '.
 // A dispatch without reasoning state leaves out every reply that carries a replay mark: the
 // resend after a refusal of it, and every dispatch of the call after the resend.
 function resentOf(request: FixedModelRequest, dispatch: DispatchRecord) {
-  if (dispatch.withoutReplay === undefined) return []
+  if (dispatch.withoutReplay === undefined || request.kind !== 'llm') return []
   return request.messages.flatMap(message =>
     message.role === 'assistant' && message.replay !== undefined ? [message.id] : [],
   )
@@ -268,7 +269,7 @@ export function createAttemptRunner<P>(
     return (
       isDeepStrictEqual(receipt, original) &&
       isDeepStrictEqual(receipt.supplier, input.supplier.adoption) &&
-      isDeepStrictEqual(receipt.representation, input.request.representation) &&
+      isDeepStrictEqual(receipt.representation, requestRepresentation(input.request)) &&
       /^[0-9a-f]{64}$/u.test(receipt.payloadDigest)
     )
   }

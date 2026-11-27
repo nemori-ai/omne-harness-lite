@@ -2,7 +2,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeProviderName,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCountingBasis,
   type ModelFault,
   type ProviderName,
@@ -16,7 +16,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
-  PiFamilyBinding,
+  PiChatBinding,
   PiFamilyContributions,
   PiProtocolFrame,
   PiResponseDecoder,
@@ -42,7 +42,7 @@ export const SUPPLIER: Supplier = {
   credential: { layer: 'official' },
 }
 
-export const REQUEST: FixedModelRequest = {
+export const REQUEST: LlmModelRequest = {
   kind: 'llm',
   profile: adoption('profile'),
   suppliers: [SUPPLIER],
@@ -83,7 +83,7 @@ export type FamilyProbe = {
   acquired: number
   released: number
   lastSignal: AbortSignal | undefined
-  encoded: Parameters<PiFamilyBinding['encode']>[0] | undefined
+  encoded: Parameters<PiChatBinding['encode']>[0] | undefined
   encodeDiagnostics: readonly ProviderDiagnostic[]
   acquireFailure: TransportFailure | undefined
   acquireGate: Promise<void> | undefined
@@ -124,7 +124,7 @@ export function createTestFamily(): Readonly<{
   return { families, probe }
 }
 
-function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
+function binding(supplier: Supplier, probe: FamilyProbe): PiChatBinding {
   let released = false
   const refused: TransportFailure = {
     kind: 'unsupported',

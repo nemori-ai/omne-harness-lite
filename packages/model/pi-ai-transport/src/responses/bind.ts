@@ -1,12 +1,12 @@
 import { wireLimits } from '../media.ts'
 import type {
   Adoption,
-  FixedModelRequest,
+  LlmModelRequest,
   ReasoningEffortMapping,
   Supplier,
 } from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
-import type { PiFamilyBinding } from '../family.ts'
+import type { PiChatBinding } from '../family.ts'
 import { recordAdoption } from '../family-table.ts'
 import { sameAdoption } from '../engine-request.ts'
 import { isPositiveInteger } from '../limits.ts'
@@ -98,7 +98,7 @@ function checkInput(input: ResponsesBindingInput, adoption: Adoption): void {
     throw new RangeError('limits must bound reasoning text and tool arguments')
 }
 
-export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
+export function bindResponses(input: ResponsesBindingInput): PiChatBinding {
   const { record, supplier, meter } = input
   const adoption = recordAdoption(supplier.adoption.owner, record)
   checkInput(input, adoption)
@@ -134,7 +134,7 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
     createDecoder: ({
       request,
       accounting,
-    }: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>) => {
+    }: Readonly<{ request: LlmModelRequest; accounting: RouteAccounting }>) => {
       const names = toolNamesOf({
         profile: record.wire.toolNames,
         tools: request.tools,
@@ -151,14 +151,14 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
       released ??= input.release()
       return released
     },
-  } satisfies PiFamilyBinding)
+  } satisfies PiChatBinding)
 }
 
 function toolPayloadOf(
   record: ResponsesRecord,
-  tool: Parameters<PiFamilyBinding['tools']['convertToModelPayload']>[0],
+  tool: Parameters<PiChatBinding['tools']['convertToModelPayload']>[0],
   adapter: Adoption,
-): ReturnType<PiFamilyBinding['tools']['convertToModelPayload']> {
+): ReturnType<PiChatBinding['tools']['convertToModelPayload']> {
   const name = declarationName(record.wire.toolNames, tool.name, adapter)
   if (!('ok' in name)) return name
   if (tool.argumentsSchema.kind !== 'object')

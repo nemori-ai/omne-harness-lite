@@ -8,7 +8,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MaterializationReceipt,
   type ModelCallId,
   type ModelOperationId,
@@ -217,7 +217,7 @@ const owner: ModelConsumerOwnerDeclaration = {
   work: { kind: 'exempt' },
   evidence: adoption,
 }
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
   kind: 'llm',
   profile: adoption,
   suppliers: [

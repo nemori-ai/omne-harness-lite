@@ -9,7 +9,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { MeterMargin } from '../chat-completions/measurement.ts'
 import type { ChatCompletionsLimits } from '../chat-completions/vocabulary.ts'
 import { defineFamily, type PiFamily } from '../family-table.ts'
-import type { PiFamilyBinding } from '../family.ts'
+import type { PiChatBinding } from '../family.ts'
 import type { GatewayRecord, ImageTokenRule } from './record.ts'
 
 export type TokenizerLease = Readonly<{
@@ -40,7 +40,7 @@ export type GatewayFamilySpec<R extends GatewayRecord> = Readonly<{
   title: string
   records: readonly R[]
   config: GatewayFamilyConfig
-  bind(record: R, input: GatewayBindingInput): PiFamilyBinding
+  bind(record: R, input: GatewayBindingInput): PiChatBinding
 }>
 
 const DECIMAL = /^(0|[1-9][0-9]*)$/
@@ -108,16 +108,18 @@ export function optionalImageBytes(
 
 // Each binding holds a tokenizer lease until the binding is released; a binding that throws
 // returns its lease. `title` names the family in configuration errors.
-export function defineGatewayFamily<R extends GatewayRecord>(spec: GatewayFamilySpec<R>): PiFamily {
+export function defineGatewayFamily<R extends GatewayRecord>(
+  spec: GatewayFamilySpec<R>,
+): PiFamily<PiChatBinding> {
   const { owner, config } = spec
   checkConfig(config, spec.title)
   const unavailable = (diagnostic: string): Outcome<never, TransportFailure> => ({
     failure: { kind: 'unavailable', dependency: owner, diagnostic },
   })
-  return defineFamily<R>({
+  return defineFamily<R, PiChatBinding>({
     owner,
     records: spec.records,
-    async acquire(record, supplier, signal): Promise<Outcome<PiFamilyBinding, TransportFailure>> {
+    async acquire(record, supplier, signal): Promise<Outcome<PiChatBinding, TransportFailure>> {
       if (!sameDefinition(config.tokenizer.definition, record.meter.tokenizer))
         return unavailable('tokenizer-definition-mismatch')
       if (signal.aborted) return unavailable('cancelled')

@@ -23,6 +23,7 @@ import type {
   Snapshot,
   Termination,
   TransportFailure,
+  FixedModelRequest,
 } from '@omne-harness/model-contract'
 import type {
   CallAccountReport,
@@ -482,7 +483,7 @@ it('an adapter can implement the transport chain from prepare to the fact stream
   void transport
   expectTypeOf<MaterializedTransport['receipt']>().toEqualTypeOf<MaterializationReceipt>()
   expectTypeOf<ModelTransport['prepare']>().parameters.toEqualTypeOf<
-    [request: typeof request, supplier: typeof supplier, dispatch: TransportDispatch]
+    [request: FixedModelRequest, supplier: typeof supplier, dispatch: TransportDispatch]
   >()
   const refused: PreparedTransport = {
     // @ts-expect-error materializing a refused send names a transport failure, not a provider fact

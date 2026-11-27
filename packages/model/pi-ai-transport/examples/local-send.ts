@@ -7,7 +7,7 @@ import { judgeContentBlock } from '@omne-harness/content-block'
 import {
   decodeProviderName,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
@@ -15,7 +15,7 @@ import type { TransportFact } from '@omne-harness/model-contract/provider'
 import {
   createNetworkResources,
   createPiTransport,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiFamilyContributions,
   type PiResponseDecoder,
 } from '@omne-harness/pi-ai-transport'
@@ -35,7 +35,7 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
   kind: 'llm',
   profile: adoption('profile'),
   suppliers: [supplier],
@@ -77,13 +77,13 @@ function createDecoder(): PiResponseDecoder {
   }
 }
 
-function exampleBinding(bound: Supplier): PiFamilyBinding {
+function exampleBinding(bound: Supplier): PiChatBinding {
   const refused: TransportFailure = {
     kind: 'unsupported',
     field: 'example',
     adapter: adoption('family'),
   }
-  const counting: PiFamilyBinding['counting'] = {
+  const counting: PiChatBinding['counting'] = {
     supplier: { adoption: bound.adoption, provider: bound.provider, model: bound.model },
     meter: adoption('meter'),
     tokenization: { kind: 'not-used', method: adoption('method') },

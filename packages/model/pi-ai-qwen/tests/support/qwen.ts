@@ -4,12 +4,12 @@ import {
   decodeRevision,
   type Adoption,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelProfile,
   type Supplier,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
@@ -17,7 +17,7 @@ import {
   composeFamilies,
   recordAdoption,
   recordProvider,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiMaterializedMedia,
 } from '@omne-harness/pi-ai-transport'
 import { openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
@@ -83,7 +83,7 @@ export function supplierOf(record: QwenRecord = RECORD): Supplier {
   }
 }
 
-export async function bindingOf(record: QwenRecord = RECORD): Promise<PiFamilyBinding> {
+export async function bindingOf(record: QwenRecord = RECORD): Promise<PiChatBinding> {
   const acquired = await composeFamilies([FAMILY]).acquire(
     supplierOf(record),
     new AbortController().signal,
@@ -197,21 +197,21 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
   }
 }
 
-export function fixedRequest(parts: RequestParts = {}, record = RECORD): FixedModelRequest {
-  const judged = judgeFixedModelRequest(requestJson(record, parts))
+export function fixedRequest(parts: RequestParts = {}, record = RECORD): LlmModelRequest {
+  const judged = judgeModelRequest('llm', requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
 }
 
 export function encodeInput(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   media: readonly PiMaterializedMedia[] = [],
   resent: TransportDispatch['resent'] = [],
-): Parameters<PiFamilyBinding['encode']>[0] {
+): Parameters<PiChatBinding['encode']>[0] {
   return { request, media, declaration: request.declarations[0], resent }
 }
 
-export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+export function assembledOf(request: LlmModelRequest): AssembledModelInput {
   return {
     system: request.system,
     messages: request.messages,
@@ -223,7 +223,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-export function officialProfile(record: QwenRecord = RECORD): ModelProfile {
+export function officialProfile(record: QwenRecord = RECORD): ModelProfile<'llm'> {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')
   const definition = officialQwenProfiles({

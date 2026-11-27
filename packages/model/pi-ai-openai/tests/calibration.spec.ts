@@ -8,7 +8,7 @@ import {
   decodeModelCallId,
   decodeModelOperationId,
   type DispatchRecord,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MeterRepresentation,
   type ModelCallId,
   type ModelFailure,
@@ -186,7 +186,7 @@ async function measureOn(
   Readonly<{
     measured: Measured
     representation: MeterRepresentation
-    request: FixedModelRequest
+    request: LlmModelRequest
   }>
 > {
   const [binding] = lease.bindings

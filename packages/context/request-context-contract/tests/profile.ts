@@ -4,7 +4,7 @@ const revision = decodeRevision('1')
 if ('failure' in revision) throw new Error('Revision fixture')
 const provider = decodeProviderName('route')
 if ('failure' in provider) throw new Error('Provider fixture')
-export const profile: ModelProfile = {
+export const profile: ModelProfile<'llm'> = {
   identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'route' },
   adoption,
   revision: revision.ok,

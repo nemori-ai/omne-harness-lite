@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import { decodeRevision, type ModelProfile } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 import { GLM_RECORDS, officialGlmProfiles } from '../src/index.ts'
@@ -25,7 +25,7 @@ it.each(GLM_RECORDS)(
     }).find(p => p.suppliers[0].model === record.name)
     const revision = decodeRevision(record.revision)
     if (!definition || !('ok' in revision)) throw Error('missing current profile')
-    const profile: ModelProfile = {
+    const profile: ModelProfile<'llm'> = {
       identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
       adoption: saved.profile,
       revision: revision.ok,
@@ -48,7 +48,7 @@ it.each(GLM_RECORDS)(
         { tools: saved.tools, toolChoice: { name: 'read_ticket' }, supported: false },
       ]) {
         const { supported, ...changes } = config
-        const judged = judgeFixedModelRequest({ ...saved, ...changes })
+        const judged = judgeModelRequest('llm', { ...saved, ...changes })
         if ('failure' in judged) throw Error(JSON.stringify(judged.failure))
         const request = judged.ok
         const plan = binding.rules.plan({

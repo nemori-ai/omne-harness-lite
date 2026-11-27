@@ -33,6 +33,10 @@ describe('the OpenRouter provider body', () => {
         },
       ],
     })
-    expect(OPENROUTER_ACCOUNTING).toEqual({ place: 'openrouter', costUnit: 'openrouter-credit' })
+    expect(OPENROUTER_ACCOUNTING).toEqual({
+      place: 'openrouter',
+      costUnit: 'openrouter-credit',
+      generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+    })
   })
 })

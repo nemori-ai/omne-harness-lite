@@ -4,12 +4,14 @@ import type {
   ModalityRequirement,
   ModelChoices,
   ModelProfiles,
+  ProfileKind,
   ProfileResolution,
 } from '../profile.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
 import { misuse } from './error.ts'
 import {
   copyChoices,
+  resolutionOf,
   copyResolution,
   covers,
   findRow,
@@ -128,8 +130,12 @@ function checkSelectedResolution(
 
 export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
   const rules = createAccessRules<P>()
-  type ListKey = Readonly<{ selected: string | null; required: ModalityRequirement }>
-  type ResolveKey = Readonly<{ route: string; required: ModalityRequirement }>
+  type ListKey = Readonly<{
+    kind: ProfileKind
+    selected: string | null
+    required: ModalityRequirement
+  }>
+  type ResolveKey = Readonly<{ kind: ProfileKind; route: string; required: ModalityRequirement }>
   const lists: ScriptRow<P, ListKey, ModelChoices>[] = []
   const resolutions: ScriptRow<P, ResolveKey, ProfileResolution>[] = []
   const recorded: ScriptedModelProfileCall<P>[] = []
@@ -151,6 +157,7 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const snapshot = Object.freeze({
         tenant: input.tenant,
         principal: input.principal,
+        kind: input.kind,
         selected: input.selected,
         required: frozenCopy(input.required),
       })
@@ -158,16 +165,34 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const refused = qualify(snapshot, 'profiles.list')
       if (refused !== null) return refusal(refused)
       const row = findRow(lists, snapshot, {
+        kind: snapshot.kind,
         selected: snapshot.selected,
         required: snapshot.required,
       })
       if (row === undefined) throw misuse('no scripted profiles.list answer')
-      return row.answer
+      if (!('ok' in row.answer)) return row.answer
+      const { choices, selected, source } = row.answer.ok
+      const narrow = (resolution: ProfileResolution) => {
+        const narrowed = resolutionOf(resolution, input.kind)
+        if (narrowed === null) throw misuse('a scripted choice is of another model kind')
+        return narrowed
+      }
+      return {
+        ok: Object.freeze({
+          choices: Object.freeze(choices.map(narrow)),
+          selected:
+            selected === null
+              ? null
+              : Object.freeze({ route: selected.route, resolution: narrow(selected.resolution) }),
+          source,
+        }),
+      }
     },
     async resolve(input) {
       const snapshot = Object.freeze({
         tenant: input.tenant,
         principal: input.principal,
+        kind: input.kind,
         route: input.route,
         required: frozenCopy(input.required),
       })
@@ -175,11 +200,15 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       const refused = qualify(snapshot, 'profiles.resolve')
       if (refused !== null) return refusal(refused)
       const row = findRow(resolutions, snapshot, {
+        kind: snapshot.kind,
         route: snapshot.route,
         required: snapshot.required,
       })
       if (row === undefined) throw misuse('no scripted profiles.resolve answer')
-      return row.answer
+      if (!('ok' in row.answer)) return row.answer
+      const narrowed = resolutionOf(row.answer.ok, input.kind)
+      if (narrowed === null) throw misuse('the scripted resolution is of another model kind')
+      return { ok: narrowed }
     },
   }
 
@@ -192,7 +221,11 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       putRow(lists, {
         tenant,
         principal: input.principal,
-        key: Object.freeze({ selected: input.selected, required: frozenCopy(input.required) }),
+        key: Object.freeze({
+          kind: input.kind,
+          selected: input.selected,
+          required: frozenCopy(input.required),
+        }),
         answer: frozenAnswer(answer, copyChoices),
       })
     },
@@ -206,7 +239,11 @@ export function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P> {
       putRow(resolutions, {
         tenant,
         principal: input.principal,
-        key: Object.freeze({ route: input.route, required: frozenCopy(input.required) }),
+        key: Object.freeze({
+          kind: input.kind,
+          route: input.route,
+          required: frozenCopy(input.required),
+        }),
         answer: frozenAnswer(answer, copyResolution),
       })
     },

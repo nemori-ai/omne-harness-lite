@@ -3,7 +3,7 @@ import {
   decodeRevision,
   type Adoption,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCountingBasis,
   type ModelProfile,
   type Parameter,
@@ -13,7 +13,7 @@ import {
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type ReplayTreatment,
 } from '@omne-harness/model-contract/provider'
@@ -406,8 +406,8 @@ export function declarationOf(record: AnyRecord): ReplayDeclaration {
   return judged.ok
 }
 
-export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): FixedModelRequest {
-  const judged = judgeFixedModelRequest({
+export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): LlmModelRequest {
+  const judged = judgeModelRequest('llm', {
     kind: 'llm',
     profile: adoption('profile'),
     suppliers: [supplierOf(record)],
@@ -428,7 +428,7 @@ export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): Fixed
   return judged.ok
 }
 
-export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+export function assembledOf(request: LlmModelRequest): AssembledModelInput {
   return {
     system: request.system,
     messages: request.messages,
@@ -444,7 +444,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
 export function profileOf(
   record: AnyRecord,
   options: Readonly<{ replay?: ProfileReplay; outputLimit?: string }> = {},
-): ModelProfile {
+): ModelProfile<'llm'> {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')
   const supplier = supplierOf(record)

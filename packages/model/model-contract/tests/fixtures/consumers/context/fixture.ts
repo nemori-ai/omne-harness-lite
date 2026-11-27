@@ -54,7 +54,7 @@ function setup(
   })
   const profiles = createScriptedModelProfiles<Principal>()
   profiles.setAccess(access, 'allow')
-  const resolved: ProfileResolution = {
+  const resolved: ProfileResolution<'llm'> = {
     kind: 'resolved',
     profile,
     source: evidence('profile'),
@@ -63,9 +63,12 @@ function setup(
     credential: 'available',
     shadowed: [],
   }
-  profiles.setResolution({ ...access, route: profile.identity.route, required }, { ok: resolved })
+  profiles.setResolution(
+    { ...access, kind: 'llm', route: profile.identity.route, required },
+    { ok: resolved },
+  )
   profiles.setList(
-    { ...access, selected: profile.identity.route, required },
+    { ...access, kind: 'llm', selected: profile.identity.route, required },
     {
       ok: {
         choices: [resolved],
@@ -189,7 +192,12 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
 
 async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void> {
   const { services, profiles } = setup()
-  const resolution = await services.profiles.resolve({ ...access, route: 'default', required })
+  const resolution = await services.profiles.resolve({
+    ...access,
+    kind: 'llm',
+    route: 'default',
+    required,
+  })
   expect('ok' in resolution, 'the profile service refused the route')
   expect(resolution.ok.kind === 'resolved', 'the route did not resolve')
   const { context } = resolution.ok.profile.definition

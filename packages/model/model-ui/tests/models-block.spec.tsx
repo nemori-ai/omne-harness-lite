@@ -48,6 +48,7 @@ const tree = (value: unknown): JsonValue => {
 const plain = (value: JsonValue): unknown => JSON.parse(writeJsonText(value))
 
 const GLM53 = {
+  kind: 'llm',
   model: 'z-ai/glm-5.3',
   title: 'GLM 5.3',
   input: ['text'],

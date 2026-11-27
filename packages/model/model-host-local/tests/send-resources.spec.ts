@@ -7,10 +7,12 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   type FixedModelRequest,
+  type LlmModelRequest,
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
   requestHead,
+  requestRepresentation,
   type MaterializedTransport,
   type ModelMedia,
   type ModelMediaSource,
@@ -21,6 +23,7 @@ import {
   composeFamilies,
   createNetworkResources,
   type NetworkResources,
+  type PiFamilyBinding,
   type PiTransport,
   type PiTransportConfig,
   type PiTransportLimits,
@@ -117,7 +120,7 @@ function observingFactory() {
                 const materialized: MaterializedTransport = {
                   receipt: {
                     supplier: request.suppliers[0].adoption,
-                    representation: request.representation,
+                    representation: requestRepresentation(request),
                     payloadDigest: 'a'.repeat(64),
                   },
                   start() {
@@ -168,7 +171,7 @@ type Principal = Readonly<{ subject: string }>
 
 const DEMAND: SendDemand<Principal> = demandOf(REQUEST)
 
-function demandOf(request: FixedModelRequest): SendDemand<Principal> {
+function demandOf(request: LlmModelRequest): SendDemand<Principal> {
   const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
   const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
   const call = decodeModelCallId('mcall_send-resources')
@@ -231,7 +234,7 @@ function observed(
   const resources = sendResourcesOver<Principal>({
     config: {
       network,
-      families: composeFamilies([]),
+      families: composeFamilies<PiFamilyBinding>([]),
       routes: ROUTES,
       limits: LIMITS,
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },

@@ -40,7 +40,7 @@ import {
   decodeProviderName,
   encodeModelInvocationRef,
   type ConsumerRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelResultReceiver,
 } from '@omne-harness/model-contract'
@@ -50,6 +50,7 @@ import {
   type ModelDriveInput,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import {
   ModelClockService,
@@ -126,7 +127,7 @@ const CONFIGURATION: ModelConfiguration = {
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
 }
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
   kind: 'llm',
   profile: ADOPTION,
   suppliers: [
@@ -532,7 +533,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: ANSWER,

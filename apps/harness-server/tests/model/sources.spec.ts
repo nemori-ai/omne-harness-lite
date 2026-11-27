@@ -19,6 +19,8 @@ const REQUIRED = {
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
 
+const DECISION_ROUTES = ['openai/gpt-6-luna-decisions', 'typesafe/jev-1.13', 'typesafe/jev-1.14']
+
 describe('the official send sources', () => {
   it('name every official profile of the release families with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
@@ -28,7 +30,7 @@ describe('the official send sources', () => {
     const routes = [...new Set(sources.map(source => source.model))]
     const families = new Set(sources.map(source => source.model.split('/')[0]))
     expect(families).toEqual(
-      new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek', 'z-ai']),
+      new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek', 'z-ai', 'typesafe']),
     )
     expect(routes.filter(model => /^(deepseek|moonshotai|z-ai)\//.test(model)).toSorted()).toEqual([
       'deepseek/deepseek-v3.2',
@@ -54,11 +56,34 @@ describe('the official send sources', () => {
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>
-    for (const route of routes) {
+    const access = { principal: Object.freeze({ subject: 'test' }), tenant: fixtureTenant('a') }
+    const decisionRoutes = routes.filter(route => DECISION_ROUTES.includes(route))
+    expect(decisionRoutes.toSorted()).toEqual(DECISION_ROUTES)
+    for (const route of decisionRoutes) {
+      const judged = await profiles.resolve({
+        ...access,
+        kind: 'decisions',
+        route,
+        required: REQUIRED,
+      })
+      if (!('ok' in judged) || judged.ok.kind !== 'resolved')
+        throw new Error(`${route}: not resolved`)
+      const [supplier] = judged.ok.profile.definition.suppliers
+      expect(sources.filter(source => source.model === route)).toEqual([
+        expect.objectContaining({
+          profile: judged.ok.profile.adoption,
+          supplier: supplier.adoption,
+          provider: supplier.provider,
+          official: true,
+        }),
+      ])
+    }
+    for (const route of routes.filter(route => !DECISION_ROUTES.includes(route))) {
       const matching = sources.filter(source => source.model === route)
       const resolved = await profiles.resolve({
         principal: Object.freeze({ subject: 'test' }),
         tenant: fixtureTenant('a'),
+        kind: 'llm',
         route,
         required: REQUIRED,
       })
@@ -87,6 +112,7 @@ describe('the official send sources', () => {
     const resolved = await profiles.resolve({
       principal: Object.freeze({ subject: 'test' }),
       tenant: fixtureTenant('a'),
+      kind: 'llm',
       route: 'qwen/qwen3.8-omni-flash',
       required: { ...REQUIRED, modalities: ['text', 'voice'] },
     })

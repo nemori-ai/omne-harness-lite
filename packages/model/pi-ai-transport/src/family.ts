@@ -1,11 +1,18 @@
-import type { EngineEndpoint, ProviderEndpoint, RouteAccounting } from './config.ts'
+import {
+  PROTOCOLS,
+  type DecisionsEndpoint,
+  type EngineEndpoint,
+  type ProviderEndpoint,
+  type RouteAccounting,
+} from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
   Adoption,
   Supplier,
-  FixedModelRequest,
+  LlmModelRequest,
+  ModelKind,
   ModelRequestRules,
   ModelCountingBasis,
   TransportFailure,
@@ -38,7 +45,7 @@ export type PiMaterializedMedia = Readonly<{
   bytes: Uint8Array
   measurement: MediaMeasurementFact
 }>
-export type PiFamilyBinding = Readonly<{
+export type PiChatBinding = Readonly<{
   supplier: Supplier
   adoption: Adoption
   /** What this model takes of a referenced medium; null: it takes none of this kind. */
@@ -52,7 +59,7 @@ export type PiFamilyBinding = Readonly<{
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(
     input: Readonly<{
-      request: FixedModelRequest
+      request: LlmModelRequest
       media: readonly PiMaterializedMedia[]
       declaration: ReplayDeclaration
       resent: TransportDispatch['resent']
@@ -70,25 +77,46 @@ export type PiFamilyBinding = Readonly<{
     TransportFailure
   >
   createDecoder(
-    input: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>,
+    input: Readonly<{ request: LlmModelRequest; accounting: RouteAccounting }>,
   ): PiResponseDecoder
   release(): Promise<void>
 }>
-type Encoded = Extract<ReturnType<PiFamilyBinding['encode']>, { ok: unknown }>['ok']
-/** What one dispatch needs of a binding: where it goes, how the request is written, how the answer is read. */
-export type PiSendBinding = Pick<
-  PiFamilyBinding,
-  'adoption' | 'mediaLimits' | 'replayFormat' | 'createDecoder' | 'release'
-> &
-  Readonly<{
-    endpoint: ProviderEndpoint
-    encode(
-      input: Parameters<PiFamilyBinding['encode']>[0],
-    ): Outcome<Omit<Encoded, 'representation'>, TransportFailure>
-  }>
-export interface PiFamilyContributions {
+export type PiDecisionsBinding = Readonly<{
+  supplier: Supplier
+  adoption: Adoption
+  endpoint: DecisionsEndpoint
+  maxQuestions: number | null
+  release(): Promise<void>
+}>
+export type PiFamilyBinding = PiChatBinding | PiDecisionsBinding
+type EndpointOf<K extends ModelKind> = {
+  [E in ProviderEndpoint]: (typeof PROTOCOLS)[E]['kind'] extends K ? E : never
+}[ProviderEndpoint]
+/** Whether a binding serves a kind of model; the table of interfaces answers, not the name of the interface. */
+export function isBindingOf<K extends ModelKind>(
+  binding: PiFamilyBinding,
+  kind: K,
+): binding is Extract<PiFamilyBinding, Readonly<{ endpoint: EndpointOf<K> }>> {
+  return PROTOCOLS[binding.endpoint].kind === kind
+}
+export interface PiFamilyContributions<B extends PiFamilyBinding = PiFamilyBinding> {
+  acquire(supplier: Supplier, signal: AbortSignal): Promise<Outcome<B, TransportFailure>>
+}
+
+export function chatBindingsOf(families: PiFamilyContributions): Readonly<{
   acquire(
     supplier: Supplier,
     signal: AbortSignal,
-  ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
+  ): Promise<Outcome<PiChatBinding, TransportFailure>>
+}> {
+  return {
+    async acquire(supplier, signal) {
+      const acquired = await families.acquire(supplier, signal)
+      if (!('ok' in acquired)) return acquired
+      const binding = acquired.ok
+      if (isBindingOf(binding, 'llm')) return { ok: binding }
+      await binding.release()
+      return { failure: { kind: 'unsupported', field: 'supplier', adapter: binding.adoption } }
+    },
+  }
 }

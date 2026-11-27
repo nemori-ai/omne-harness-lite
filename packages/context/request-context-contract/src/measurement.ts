@@ -87,7 +87,7 @@ function isFailure(value: M.RequestBudget | Failure): value is Failure {
 }
 export async function measureWithLease(
   lease: M.ModelPreparationLease,
-  profile: M.ModelProfile,
+  profile: M.ModelProfile<'llm'>,
   assembled: M.AssembledModelInput,
 ): Promise<M.RequestBudget | Failure> {
   const definition = profile.definition

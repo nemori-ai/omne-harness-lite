@@ -9,7 +9,7 @@ import {
   type ConsumerRef,
   type DurableEvidence,
   type ResultVersion,
-  type FixedModelRequest,
+  type LlmModelRequest,
   decodeProviderName,
 } from '@omne-harness/model-contract'
 import {
@@ -50,7 +50,7 @@ export function createAcceptanceAssembly(script: {
     digest: '0'.repeat(64),
   }
   const provider = decoded(decodeProviderName('acceptance.invalid'))
-  const request: FixedModelRequest = {
+  const request: LlmModelRequest = {
     kind: 'llm',
     profile: adoption,
     suppliers: [

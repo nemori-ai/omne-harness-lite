@@ -152,6 +152,7 @@ describe('the selected model', () => {
       {
         principal: sessionAccess.principal,
         tenant: sessionAccess.tenant,
+        kind: 'llm',
         route: ROUTE,
         required: textRequirement,
       },

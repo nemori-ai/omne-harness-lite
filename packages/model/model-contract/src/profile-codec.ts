@@ -3,7 +3,9 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
 import {
   isNativeFileType,
+  isProfileOf,
   LIMIT_METRICS,
+  type ProfileKind,
   type ProfileResolution,
   type ProfileScope,
 } from './profile.ts'
@@ -76,40 +78,50 @@ const modality = z.enum(['text', 'image', 'voice'])
 const metric = z.enum(LIMIT_METRICS)
 const parameters = z.array(checked(value => parameter(value, '')))
 const tools = z.array(checked(value => tool(value, '')))
+const llmDefinition = z
+  .strictObject({
+    kind: z.literal('llm'),
+    suppliers: z.tuple([supplier]).rest(supplier),
+    fallback: z.boolean(),
+    input: z.tuple([modality]).rest(modality),
+    fileTypes: z.array(z.string().refine(isNativeFileType)).optional(),
+    output: z.tuple([modality]).rest(modality),
+    context: z.strictObject({
+      window: tokenLimit,
+      input: tokenLimit.nullable(),
+      output: tokenLimit,
+      compactionTriggerPercent: z.string().regex(/^(?:[1-9][0-9]?|100)$/u),
+    }),
+    limits: z.array(tokenLimit.extend({ metric })),
+    parameters,
+    reasoningEfforts: z
+      .partialRecord(z.enum(REASONING_EFFORTS), z.enum([...REASONING_EFFORTS, 'max']))
+      .optional(),
+    representation: adopted,
+    meter: adopted,
+    retryPolicy: adopted,
+  })
+  .transform(({ fileTypes, reasoningEfforts, ...value }) => ({
+    ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
+    ...value,
+    ...(fileTypes === undefined ? {} : { fileTypes }),
+  }))
+const decisionsDefinition = z.strictObject({
+  kind: z.literal('decisions'),
+  suppliers: z.tuple([supplier]).rest(supplier),
+  fallback: z.boolean(),
+  input: z.tuple([modality]).rest(modality),
+  output: z.tuple([modality]).rest(modality),
+  maxQuestions: integer.nullable(),
+  retryPolicy: adopted,
+})
 const profile = z.strictObject({
   identity: z.strictObject({ scope, kind: z.enum(MODEL_KINDS), route: text }),
   adoption: adopted,
   revision: checked(decodeRevision),
   updatedAt: text,
   availability: z.enum(['active', 'withdrawn']),
-  definition: z
-    .strictObject({
-      kind: z.literal('llm'),
-      suppliers: z.tuple([supplier]).rest(supplier),
-      fallback: z.boolean(),
-      input: z.tuple([modality]).rest(modality),
-      fileTypes: z.array(z.string().refine(isNativeFileType)).optional(),
-      output: z.tuple([modality]).rest(modality),
-      context: z.strictObject({
-        window: tokenLimit,
-        input: tokenLimit.nullable(),
-        output: tokenLimit,
-        compactionTriggerPercent: z.string().regex(/^(?:[1-9][0-9]?|100)$/u),
-      }),
-      limits: z.array(tokenLimit.extend({ metric })),
-      parameters,
-      reasoningEfforts: z
-        .partialRecord(z.enum(REASONING_EFFORTS), z.enum([...REASONING_EFFORTS, 'max']))
-        .optional(),
-      representation: adopted,
-      meter: adopted,
-      retryPolicy: adopted,
-    })
-    .transform(({ fileTypes, reasoningEfforts, ...value }) => ({
-      ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
-      ...value,
-      ...(fileTypes === undefined ? {} : { fileTypes }),
-    })),
+  definition: z.union([llmDefinition, decisionsDefinition]),
 })
 const resolution = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -165,10 +177,19 @@ export function profileResolutionValue(
   )
 }
 
-export function readProfileResolution(
+/** Reads a resolution of one model kind; a resolved profile of another kind is refused. */
+export function readProfileResolution<K extends ProfileKind>(
   value: unknown,
-): Outcome<ProfileResolution, ModelInputRejection> {
-  return read(resolution, value)
+  kind: K,
+): Outcome<ProfileResolution<K>, ModelInputRejection> {
+  const parsed: Outcome<ProfileResolution, ModelInputRejection> = read(resolution, value)
+  if ('failure' in parsed) return parsed
+  const resolved = parsed.ok
+  if (resolved.kind === 'absent') return succeed(resolved)
+  const { profile } = resolved
+  return isProfileOf(profile, kind)
+    ? succeed(freezeTree({ ...resolved, profile }))
+    : rejected('profile/definition/kind', 'value')
 }
 
 export function judgeModelParameters(

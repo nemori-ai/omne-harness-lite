@@ -161,10 +161,11 @@ export function transportChecks<P>(): readonly Check<P>[] {
               same(receipt.supplier, supplier.adoption),
               `the receipt names the supplier ${show(receipt.supplier)}`,
             )
-            expect(
-              same(receipt.representation, request.representation),
-              `the receipt names the representation ${show(receipt.representation)}`,
-            )
+            if (request.kind === 'llm')
+              expect(
+                same(receipt.representation, request.representation),
+                `the receipt names the representation ${show(receipt.representation)}`,
+              )
             expect(same(receipt, materialized.receipt), 'the receipt changes between two reads')
             const format = receipt.replayFormat
             expect(

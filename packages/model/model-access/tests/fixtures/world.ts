@@ -43,14 +43,14 @@ export const REQUIRED: ModalityRequirement = {
   source: { owner: 'test', record: 'list-models', revision: '1', digest: '0'.repeat(64) },
 }
 
-type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
+type Resolved = Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>
 
 /** A profile as Model resolves it; only what the list reads is filled in. */
 export function resolved(
   route: string,
   over: Partial<Resolved> = {},
   reasoningEfforts?: Resolved['profile']['definition']['reasoningEfforts'],
-): ProfileResolution {
+): ProfileResolution<'llm'> {
   const profile = {
     identity: { scope: { kind: 'factory' }, route },
     definition: { input: ['text', 'image'], output: ['text'], reasoningEfforts },
@@ -76,7 +76,7 @@ export function createWorld() {
   const state = {
     acting: 'issued' as Script<Acting>,
     listing: [resolved('anthropic/claude-sonnet-5')] as Script<
-      readonly ProfileResolution[] | ModelFailure
+      readonly ProfileResolution<'llm'>[] | ModelFailure
     >,
     present: true,
   }

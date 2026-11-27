@@ -13,5 +13,7 @@ it('the testing entry exports the scripted provider and transport, the misuse er
     'createScriptedStreamObservation',
     'createScriptedStreamReferences',
     'createScriptedTransport',
+    'ofKind',
+    'resolutionOf',
   ])
 })

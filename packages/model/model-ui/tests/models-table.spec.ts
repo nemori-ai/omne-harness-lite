@@ -3,6 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { catalogOf, rowsOf, withEntry, type Own } from '../src/view/models-table.ts'
 
 const MODEL = {
+  kind: 'llm',
   model: 'z-ai/glm-5.3',
   title: 'GLM 5.3',
   input: ['text'],
@@ -61,6 +62,12 @@ describe('the catalog a provider body carries', () => {
       { enabled: 'yes' },
     ])
       expect(catalogOf({ models: [MODEL, { ...MODEL, ...broken }] })).toBeUndefined()
+  })
+
+  it('lists the chat models only: a model of another kind is not a row of this table', () => {
+    const decisions = { kind: 'decisions', model: 'vendor/judge', title: 'Judge', enabled: true }
+    expect(catalogOf({ models: [MODEL, decisions] })).toEqual(catalogOf({ models: [MODEL] }))
+    expect(catalogOf({ models: [decisions] })).toEqual([])
   })
 })
 

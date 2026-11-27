@@ -7,7 +7,9 @@ import { decodeProviderName } from './provider-name.ts'
 import type {
   Adoption,
   ConsumerRef,
+  DecisionsModelRequest,
   FixedModelRequest,
+  LlmModelRequest,
   Parameter,
   Supplier,
   ToolDeclaration,
@@ -16,6 +18,7 @@ import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { rejected } from './input-tree.ts'
 import { judgeReplayDeclaration } from './replay-values.ts'
+import { judgeDecisionAsk } from './decision-call.ts'
 
 type Checked<T> = Outcome<T, ModelInputRejection>
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -238,7 +241,7 @@ function toolChoice(
   value: unknown,
   field: string,
   tools: readonly ToolDeclaration[],
-): Checked<FixedModelRequest['toolChoice']> {
+): Checked<LlmModelRequest['toolChoice']> {
   if (value === 'none' || value === 'auto' || value === 'required') return succeed(value)
   const record = closed(value, ['name'], field)
   if ('failure' in record) return record
@@ -249,10 +252,10 @@ function toolChoice(
 
 type RequestRouting = Pick<FixedModelRequest, 'profile' | 'suppliers' | 'fallback' | 'retryPolicy'>
 type RequestContent = Pick<
-  FixedModelRequest,
+  LlmModelRequest,
   'parameters' | 'system' | 'messages' | 'tools' | 'toolChoice'
 >
-type RequestProvenance = Pick<FixedModelRequest, 'representation' | 'parameterAdoptions' | 'source'>
+type RequestProvenance = Pick<LlmModelRequest, 'representation' | 'parameterAdoptions' | 'source'>
 function requestSuppliers(value: unknown, field: string): Checked<FixedModelRequest['suppliers']> {
   const suppliers = sequence(value, field, supplier)
   if ('failure' in suppliers) return suppliers
@@ -277,10 +280,7 @@ function requestRouting(input: Record<string, unknown>, field: string): Checked<
     retryPolicy: retryPolicy.ok,
   })
 }
-function requestParameters(
-  value: unknown,
-  field: string,
-): Checked<FixedModelRequest['parameters']> {
+function requestParameters(value: unknown, field: string): Checked<LlmModelRequest['parameters']> {
   const parameters = sequence(value, field, parameter)
   if ('failure' in parameters) return parameters
   const parameterKeys = parameters.ok.map(item =>
@@ -292,7 +292,7 @@ function requestParameters(
 function requestTools(
   input: Record<string, unknown>,
   field: string,
-): Checked<Pick<FixedModelRequest, 'tools' | 'toolChoice'>> {
+): Checked<Pick<LlmModelRequest, 'tools' | 'toolChoice'>> {
   const tools = sequence(input.tools, `${field}/tools`, tool)
   if ('failure' in tools) return tools
   if (new Set(tools.ok.map(item => item.name)).size !== tools.ok.length)
@@ -343,7 +343,7 @@ function requestProvenance(
     source: source.ok,
   })
 }
-type RequestReplay = Pick<FixedModelRequest, 'replay' | 'declarations'>
+type RequestReplay = Pick<LlmModelRequest, 'replay' | 'declarations'>
 const DECLARATION_REJECTIONS: Readonly<
   Record<string, Readonly<{ key: string; reason: ModelInputRejection['reason'] }>>
 > = {
@@ -389,31 +389,22 @@ function requestReplay(
   return succeed(input.replay === 'off' ? { replay: 'off', ...fixed } : fixed)
 }
 
-export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
-  const record = closed(
-    value,
-    [
-      'kind',
-      'profile',
-      'suppliers',
-      'fallback',
-      'retryPolicy',
-      'parameters',
-      'system',
-      'messages',
-      'tools',
-      'toolChoice',
-      'declarations',
-      'representation',
-      'parameterAdoptions',
-      'source',
-    ],
-    field,
-    ['replay', 'contextWindow'],
-  )
+const COMMON_KEYS = ['kind', 'profile', 'suppliers', 'fallback', 'retryPolicy', 'source']
+const LLM_KEYS = [
+  ...COMMON_KEYS,
+  'parameters',
+  'system',
+  'messages',
+  'tools',
+  'toolChoice',
+  'declarations',
+  'representation',
+  'parameterAdoptions',
+]
+
+function llmRequest(value: unknown, field: string): Checked<LlmModelRequest> {
+  const record = closed(value, LLM_KEYS, field, ['replay', 'contextWindow'])
   if ('failure' in record) return record
-  const kind = record.ok.kind
-  if (kind !== 'llm' && kind !== 'decisions') return rejected(`${field}/kind`, 'value')
   const window = contextWindowOf(record.ok, field)
   if ('failure' in window) return window
   const routing = requestRouting(record.ok, field)
@@ -425,7 +416,7 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
   return succeed({
-    kind,
+    kind: 'llm',
     ...routing.ok,
     ...window.ok,
     ...content.ok,
@@ -433,10 +424,34 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
     ...provenance.ok,
   })
 }
+
+function decisionsRequest(value: unknown, field: string): Checked<DecisionsModelRequest> {
+  const record = closed(value, [...COMMON_KEYS, 'ask'], field)
+  if ('failure' in record) return record
+  const routing = requestRouting(record.ok, field)
+  if ('failure' in routing) return routing
+  const source = adoption(record.ok.source, `${field}/source`)
+  if ('failure' in source) return source
+  const ask = judgeDecisionAsk(record.ok.ask)
+  if (ask === null) return rejected(`${field}/ask`, 'value')
+  return succeed({ kind: 'decisions', ...routing.ok, ask, source: source.ok })
+}
+
+export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
+  if (!isRecord(value)) return rejected(field, 'type')
+  switch (value.kind) {
+    case 'llm':
+      return llmRequest(value, field)
+    case 'decisions':
+      return decisionsRequest(value, field)
+    default:
+      return rejected(`${field}/kind`, Object.hasOwn(value, 'kind') ? 'value' : 'missing')
+  }
+}
 function contextWindowOf(
   input: Record<string, unknown>,
   field: string,
-): Checked<Pick<FixedModelRequest, 'contextWindow'>> {
+): Checked<Pick<LlmModelRequest, 'contextWindow'>> {
   if (!Object.hasOwn(input, 'contextWindow')) return succeed({})
   const at = `${field}/contextWindow`
   const record = closed(input.contextWindow, ['tokens', 'compactionTriggerPercent'], at)

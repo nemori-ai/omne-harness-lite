@@ -1,3 +1,4 @@
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { vi } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -35,7 +36,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelHandle,
@@ -151,7 +152,7 @@ const OWNER: ModelConsumerOwnerDeclaration = {
   evidence: ADOPTION,
 }
 const CONSUMER = { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
   kind: 'llm',
   profile: ADOPTION,
   suppliers: [
@@ -807,7 +808,7 @@ function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendRe
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: DIGEST,
         },
         facts: [],

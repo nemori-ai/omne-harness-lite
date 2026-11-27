@@ -13,7 +13,7 @@ import type { RepresentationPolicyPort } from './ports.js'
 import { blockIdentity, textBlock, nonEmpty } from './internal.js'
 
 /** What a model takes as it is: the input modalities of its profile and the file types it lists. */
-export type NativeCapability = Pick<M.ModelProfileDefinition, 'input' | 'fileTypes'>
+export type NativeCapability = Pick<M.ModelProfileDefinition<'llm'>, 'input' | 'fileTypes'>
 export type RepresentationResult =
   | Readonly<{
       kind: 'chosen'

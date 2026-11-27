@@ -85,7 +85,7 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
       ctxWith(async () => [view('model-switches'), view('model-reasoning-efforts')]),
     )
     if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-    expect(answer.ok.enabled.size).toBe(25)
+    expect(answer.ok.enabled.size).toBe(28)
     expect(answer.ok.enabled.has('openai/gpt-6.1-sol')).toBe(true)
     expect(answer.ok.efforts.size).toBe(0)
   })
@@ -114,7 +114,7 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
     for (const views of [[], [{ ...view('model-switches'), kind: 'secret' as const }]]) {
       const answer = await read(ctxWith(async () => views))
       if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-      expect(answer.ok.enabled.size).toBe(25)
+      expect(answer.ok.enabled.size).toBe(28)
     }
   })
 

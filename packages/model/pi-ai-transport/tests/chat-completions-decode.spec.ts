@@ -14,7 +14,7 @@ import {
 } from '../src/chat-completions/index.ts'
 import { decodeBody } from '../src/fact-stream.ts'
 import { ResponseBodyReadError, ResponseBodyStoppedError } from '../src/http.ts'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { terminationOf } from '../src/termination.ts'
 import { GATEWAY_END_MARKER, replayStream } from '../src/testing/fixtures.ts'
 import {
@@ -39,7 +39,7 @@ type Options = Readonly<{
   usage?: VendorHooks['usage']
 }>
 
-function bind(options: Options = {}): PiFamilyBinding {
+function bind(options: Options = {}): PiChatBinding {
   const record = options.record ?? testRecord()
   const probe = engineProbe()
   const tested = testHooks(probe, options.reasoning ?? true)
@@ -86,7 +86,7 @@ function sse(...events: readonly (Record<string, unknown> | string)[]): Uint8Arr
 }
 
 async function replay(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   ...events: readonly (Record<string, unknown> | string)[]
 ): Promise<readonly TransportFact[]> {
   const facts = await replayStream(binding, sse(...events), REQUEST)

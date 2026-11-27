@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 import { DEEPSEEK_RECORDS, officialDeepSeekProfiles } from '../src/index.ts'
@@ -17,7 +17,7 @@ it.each(DEEPSEEK_RECORDS)(
     const file = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8')) as {
       request: unknown
     }
-    const checked = judgeFixedModelRequest(file.request)
+    const checked = judgeModelRequest('llm', file.request)
     if ('failure' in checked) throw Error(JSON.stringify(checked.failure))
     const request = checked.ok,
       supplier = request.suppliers[0]

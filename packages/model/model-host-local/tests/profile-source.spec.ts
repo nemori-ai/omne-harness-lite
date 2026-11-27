@@ -60,7 +60,7 @@ const METER: Adoption = {
 
 const UPDATED_AT = '2026-11-01T00:00:00Z'
 
-function definitionOf(route: string): ModelProfileDefinition {
+function definitionOf(route: string): ModelProfileDefinition<'llm'> {
   return {
     kind: 'llm',
     suppliers: [
@@ -172,6 +172,7 @@ it('makes every official profile resolvable, with no credential and no reason', 
   const resolved = await profiles.resolve({
     principal,
     tenant: TENANT,
+    kind: 'llm',
     route: 'alpha/route',
     required: { ...required, modalities: ['text'] },
   })
@@ -186,7 +187,7 @@ it('refuses two definitions on one route at construction instead of serving half
 })
 
 it('refuses a supplier adoption whose revision is not a revision', () => {
-  const broken: ModelProfileDefinition = {
+  const broken: ModelProfileDefinition<'llm'> = {
     ...definitionOf('alpha/route'),
     suppliers: [
       {
@@ -287,6 +288,7 @@ it('keeps uncertain credential presence unknown while the official profiles rema
     const resolved = await createModelProfiles(source).resolve({
       principal,
       tenant: TENANT,
+      kind: 'llm',
       route: 'alpha/route',
       required: {
         modalities: ['text'],

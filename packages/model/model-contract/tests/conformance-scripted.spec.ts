@@ -4,6 +4,7 @@ import {
   checkModelProviderConformance,
 } from '@omne-harness/model-contract/conformance'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import {
   acknowledged,
   ackInput,
@@ -190,7 +191,7 @@ describe('the transport of the scripted conformance subject', () => {
       'supplier',
     ])
     expect(materialized.ok.receipt.supplier).toEqual(supplier.adoption)
-    expect(materialized.ok.receipt.representation).toEqual(request.representation)
+    expect(materialized.ok.receipt.representation).toEqual(requestRepresentation(request))
     await materialized.ok.close()
     await prepared.ok.close()
   })

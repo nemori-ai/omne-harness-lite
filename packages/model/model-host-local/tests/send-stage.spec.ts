@@ -11,10 +11,11 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelFailure,
 } from '@omne-harness/model-contract'
 import {
+  requestRepresentation,
   type CredentialPort,
   type ModelCommands,
   type ModelSendBoundary,
@@ -81,7 +82,7 @@ function tenantOf(suffix: string) {
   return tenant(organization.value, account.value)
 }
 
-function sceneOf(request: FixedModelRequest, label: string) {
+function sceneOf(request: LlmModelRequest, label: string) {
   const scope = tenantOf('5')
   const principal = Object.freeze({ subject: 'local-model-test' })
   const call = decoded(decodeModelCallId(`mcall_${label}`))
@@ -231,7 +232,7 @@ function observing() {
                   ok: {
                     receipt: {
                       supplier: supplier.adoption,
-                      representation: request.representation,
+                      representation: requestRepresentation(request),
                       payloadDigest: 'a'.repeat(64),
                     },
                     start() {
@@ -356,7 +357,7 @@ function runtimeOver(scene: Scene, send: ModelSendBoundary<Principal>) {
     provider,
     results,
     facts,
-    async drive(request: FixedModelRequest) {
+    async drive(request: LlmModelRequest) {
       decoded(
         await provider.runtime.calls.admit({
           ...access,
@@ -1025,7 +1026,7 @@ function wireOf(received: ReceivedRequest) {
 
 async function replayThroughPlugin(
   name: (typeof RECORD_CASE_NAMES)[number],
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   label: string,
 ) {
   const recording = readFileSync(

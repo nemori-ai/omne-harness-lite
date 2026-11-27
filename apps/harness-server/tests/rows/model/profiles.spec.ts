@@ -48,13 +48,18 @@ describe('the model-profiles row', () => {
       { rows, plugins, probe: ['modelProfiles'] },
       async ctx => {
         const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
-        const listed = await service.list({ ...ACCESS, selected: null, required: REQUIRED })
+        const listed = await service.list({
+          ...ACCESS,
+          kind: 'llm',
+          selected: null,
+          required: REQUIRED,
+        })
         return { isService: service instanceof ModelProfilesService, listed }
       },
     )
     expect(value.isService).toBe(true)
     if (!('ok' in value.listed)) throw new Error(`list failed: ${JSON.stringify(value.listed)}`)
-    const profiles: ModelProfile[] = []
+    const profiles: ModelProfile<'llm'>[] = []
     for (const choice of value.listed.ok.choices) {
       if (choice.kind === 'resolved') profiles.push(choice.profile)
     }
@@ -71,7 +76,12 @@ describe('the model-profiles row', () => {
   it('resolves a route of the snapshot to its profile', async () => {
     const { value } = await withLiveRows({ rows, plugins, probe: ['modelProfiles'] }, async ctx => {
       const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
-      return service.resolve({ ...ACCESS, route: 'openai/gpt-5.6-sol', required: REQUIRED })
+      return service.resolve({
+        ...ACCESS,
+        kind: 'llm',
+        route: 'openai/gpt-5.6-sol',
+        required: REQUIRED,
+      })
     })
     expect(value).toMatchObject({ ok: { kind: 'resolved' } })
   })

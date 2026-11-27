@@ -9,7 +9,7 @@ import {
   type CallAccess,
   type ContextLimits,
   type DispatchRecord,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MaterializationReceipt,
   type MeterRepresentation,
   type ModelCallId,
@@ -24,7 +24,7 @@ import {
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type CalibratedInputMeter,
   type MeterCalibration,
   type ModelCommands,
@@ -90,13 +90,13 @@ function assistantWithState(id: string): unknown {
   }
 }
 
-function requestWith(messages: readonly unknown[], overrides: object = {}): FixedModelRequest {
-  const judged = judgeFixedModelRequest({ ...request, ...overrides, messages })
+function requestWith(messages: readonly unknown[], overrides: object = {}): LlmModelRequest {
+  const judged = judgeModelRequest('llm', { ...request, ...overrides, messages })
   if (!('ok' in judged)) throw new Error(`fixture request: ${JSON.stringify(judged.failure)}`)
   return judged.ok
 }
 
-function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
+function assembledOf(fixed: LlmModelRequest): AssembledModelInput {
   return {
     system: fixed.system,
     messages: fixed.messages,
@@ -116,7 +116,7 @@ const context: ContextLimits = {
   output: { provided: '100', upstream: [] },
   compactionTriggerPercent: '80',
 }
-const profile: ModelProfile = {
+const profile: ModelProfile<'llm'> = {
   identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption,
   revision,
@@ -353,7 +353,7 @@ type MeterInput = Parameters<ModelPreparationLease['bindings'][number]['meter'][
 
 function inputWith(
   lease: ModelPreparationLease,
-  fixed: FixedModelRequest,
+  fixed: LlmModelRequest,
   change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
 ): MeterInput {
   const [binding] = lease.bindings
@@ -373,7 +373,7 @@ function inputWith(
 
 async function measureWith(
   lease: ModelPreparationLease,
-  fixed: FixedModelRequest,
+  fixed: LlmModelRequest,
   change: (representation: MeterRepresentation) => MeterRepresentation = value => value,
 ): Promise<Measured> {
   return await lease.bindings[0].meter.measure(inputWith(lease, fixed, change))
@@ -388,13 +388,13 @@ const X = callId('xcontinued')
 const Y = callId('ysource')
 const two = [user('u1'), user('u2')]
 const three = [...two, user('u3')]
-const ids = (fixed: FixedModelRequest) => fixed.messages.map(message => message.id)
+const ids = (fixed: LlmModelRequest) => fixed.messages.map(message => message.id)
 
 async function settledCall(
   f: ReturnType<typeof fixture>,
   commands: Commands,
   call: ModelCallId,
-  fixed: FixedModelRequest,
+  fixed: LlmModelRequest,
   account: TransportFact,
 ) {
   const admit = { ...f.admit, call, operation: op(`admit-${call}`), request: fixed }
@@ -978,7 +978,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
   it('releases the bindings it acquired when a later supplier fails, and never forms a narrower profile', async () => {
     const family = stubFamily()
     family.acquireFailures = 0
-    const wide: ModelProfile = {
+    const wide: ModelProfile<'llm'> = {
       ...profile,
       definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
     }
@@ -1004,7 +1004,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
   })
 
   it('gives back the bindings it acquired when the supplier port or the binding source throws; a store that throws fails the measurement', async () => {
-    const wide: ModelProfile = {
+    const wide: ModelProfile<'llm'> = {
       ...profile,
       definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
     }
@@ -1061,7 +1061,7 @@ describe('acquire: reads, limits and all-or-nothing bindings', () => {
   it('returns the failure that stopped the acquire even when giving a binding back fails', async () => {
     const family = stubFamily()
     family.failRelease = true
-    const wide: ModelProfile = {
+    const wide: ModelProfile<'llm'> = {
       ...profile,
       definition: { ...profile.definition, suppliers: [profileSupplier, profileSupplier] },
     }

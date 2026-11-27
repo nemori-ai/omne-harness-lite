@@ -6,13 +6,13 @@ import {
   decodeModelOperationId,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelInstanceId,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type ModelConsumerOwnerDeclaration,
 } from '@omne-harness/model-contract/provider'
 import type {
@@ -85,7 +85,7 @@ export const OWNER: ModelConsumerOwnerDeclaration = {
 }
 export const DIGEST = 'a'.repeat(64)
 
-export const REQUEST: FixedModelRequest = (() => {
+export const REQUEST: LlmModelRequest = (() => {
   const user = (id: string) => ({
     id: `msg_${id.padEnd(22, '0')}`,
     role: 'user',
@@ -93,7 +93,7 @@ export const REQUEST: FixedModelRequest = (() => {
       { kind: 'text', id: `b-${id}`, visibility: { toHuman: true, toModel: true }, text: 'hello' },
     ],
   })
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
     kind: 'llm',
     profile: ADOPTION,
     suppliers: [

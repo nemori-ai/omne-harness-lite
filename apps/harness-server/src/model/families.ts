@@ -1,10 +1,15 @@
 import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
-import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
+import {
+  createOpenAiDecisionsFamily,
+  createOpenAiFamily,
+  openAiTokenizerResources,
+} from '@omne-harness/pi-ai-openai'
 import { createDeepSeekFamily } from '@omne-harness/pi-ai-deepseek'
 import { createGlmFamily } from '@omne-harness/pi-ai-glm'
+import { createJevFamily } from '@omne-harness/pi-ai-jev'
 import { createKimiFamily } from '@omne-harness/pi-ai-kimi'
 import { createQwenFamily } from '@omne-harness/pi-ai-qwen'
-import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import type { TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import type { ModelRequestPreparationConfig } from '../rows/model-request-preparation/config.ts'
 
@@ -17,7 +22,7 @@ export function releaseFamilies(
   >,
   executor: Pick<TiktokenExecutor, 'acquire'>,
 ): ReturnType<typeof composeFamilies> {
-  return composeFamilies([
+  return composeFamilies<PiFamilyBinding>([
     createOpenAiFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.openai }),
     createAnthropicFamily({
       tokenizer: anthropicTokenizerResources(),
@@ -28,5 +33,7 @@ export function releaseFamilies(
     createKimiFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.kimi }),
     createDeepSeekFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.deepseek }),
     createGlmFamily({ tokenizer: openAiTokenizerResources(), executor, ...config.glm }),
+    createOpenAiDecisionsFamily(),
+    createJevFamily(),
   ])
 }

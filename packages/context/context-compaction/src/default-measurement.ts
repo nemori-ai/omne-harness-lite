@@ -73,7 +73,7 @@ export async function measureDefaultInput<P>(
 
 async function measureLease(
   lease: M.ModelPreparationLease,
-  profile: M.ModelProfile,
+  profile: M.ModelProfile<'llm'>,
   assembled: M.AssembledModelInput,
 ): CompactionReply<readonly M.BudgetCheck[]> {
   const suppliers = profile.definition.suppliers

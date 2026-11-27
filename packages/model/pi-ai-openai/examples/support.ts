@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import {
   decodeRevision,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelBlock,
   type ModelProfile,
   type ModelProfileDefinition,
@@ -12,7 +12,7 @@ import {
   type Supplier,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type IndependentModelFact,
   type TransportFact,
@@ -23,6 +23,7 @@ import {
   createNetworkResources,
   createPiTransport,
   type NetworkResources,
+  type PiChatBinding,
   type PiFamily,
   type PiTransport,
   type ProxyConfig,
@@ -58,9 +59,9 @@ export const SOURCE = exampleAdoption('source')
 export const RETRY_POLICY = exampleAdoption('retry-policy')
 
 export function profileOf(
-  definitions: readonly ModelProfileDefinition[],
+  definitions: readonly ModelProfileDefinition<'llm'>[],
   model: string,
-): ModelProfile {
+): ModelProfile<'llm'> {
   const definition = definitions.find(item => item.suppliers[0].model === model)
   if (definition === undefined) throw new Error(`no official profile for ${model}`)
   const revision = decodeRevision('1')
@@ -75,7 +76,7 @@ export function profileOf(
   }
 }
 
-export function supplierOf(profile: ModelProfile): Supplier {
+export function supplierOf(profile: ModelProfile<'llm'>): Supplier {
   const declared = profile.definition.suppliers[0]
   return {
     adoption: declared.adoption,
@@ -85,7 +86,7 @@ export function supplierOf(profile: ModelProfile): Supplier {
   }
 }
 
-export function declarationOf(profile: ModelProfile): ReplayDeclaration {
+export function declarationOf(profile: ModelProfile<'llm'>): ReplayDeclaration {
   const declared = judgeReplayDeclaration(profile.definition.suppliers[0], 0)
   if (!('ok' in declared)) throw new Error(`replay declaration: ${declared.failure.reason}`)
   return declared.ok
@@ -99,18 +100,18 @@ export type RoundInput = Readonly<{
   parameters: readonly Parameter[]
 }>
 
-function judged(value: unknown): FixedModelRequest {
-  const request = judgeFixedModelRequest(value)
+function judged(value: unknown): LlmModelRequest {
+  const request = judgeModelRequest('llm', value)
   if (!('ok' in request))
     throw new Error(`the request is refused: ${JSON.stringify(request.failure)}`)
   return request.ok
 }
 
 export async function fixRequest(
-  families: readonly PiFamily[],
-  profile: ModelProfile,
+  families: readonly PiFamily<PiChatBinding>[],
+  profile: ModelProfile<'llm'>,
   input: RoundInput,
-): Promise<FixedModelRequest> {
+): Promise<LlmModelRequest> {
   const supplier = supplierOf(profile)
   const base = {
     kind: 'llm',
@@ -225,7 +226,7 @@ export type RoundResult = Readonly<{
 
 export async function executeOnce(
   open: OpenTransport,
-  request: FixedModelRequest,
+  request: LlmModelRequest,
 ): Promise<RoundResult> {
   const facts: TransportFact[] = []
   let ending: IndependentModelFact | undefined

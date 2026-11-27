@@ -1,14 +1,15 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server
 import {
   decisionAnswersOf,
-  decisionAskMessage,
   type DecisionAsk,
+  type DecisionsModelRequest,
   type FixedModelRequest,
   type Supplier,
 } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { decisionSupplierOf, isDecisionSupplier } from '../src/decisions/index.ts'
+import { defineDecisionsFamily } from '../src/family-kit/index.ts'
+import { composeFamilies, recordAdoption, recordProvider } from '../src/family-table.ts'
 import type { PiTransportLimits } from '../src/index.ts'
 import { createPiTransport } from '../src/transport.ts'
 import { network } from './support/exchange.ts'
@@ -18,13 +19,25 @@ import {
   type Certificate,
   type RequestHandler,
 } from './support/https-server.ts'
-import { createTestFamily, LIMITS, REQUEST } from './support/test-family.ts'
+import { LIMITS, REQUEST } from './support/test-family.ts'
 import { collect, countSends } from './support/transport.ts'
 
 const MODEL = 'openai/gpt-6-luna-decisions'
-const known = decisionSupplierOf(MODEL)
-if (known === undefined) throw new Error('no supplier of the decision model')
-const SUPPLIER: Supplier = { ...known, credential: { layer: 'official' } }
+const OWNER = 'test-decisions'
+const RECORD = {
+  name: MODEL,
+  revision: '1',
+  route: { provider: 'openrouter', model: MODEL },
+  status: 'current',
+  decisions: { maxQuestions: '200' },
+  profile: { input: ['text'], output: ['text'], evidence: 'a test record' },
+} as const
+const SUPPLIER: Supplier = {
+  adoption: recordAdoption(OWNER, RECORD),
+  provider: recordProvider(RECORD),
+  model: MODEL,
+  credential: { layer: 'official' },
+}
 const ask: DecisionAsk = {
   state: { goal: 'faster home page' },
   questions: {
@@ -45,16 +58,15 @@ const replied =
   }
 const WITH_DECISIONS: PiTransportLimits = { ...LIMITS, maxDecisionBytes: 4096 }
 
-function requestOf(asked: DecisionAsk = ask): FixedModelRequest {
-  const message = decisionAskMessage(`msg_${'d'.repeat(40)}`, asked)
-  if (message === null) throw new Error('no message')
-  const tag = `${SUPPLIER.provider}/${SUPPLIER.model}`
+function requestOf(asked: DecisionAsk = ask): DecisionsModelRequest {
   return {
-    ...REQUEST,
     kind: 'decisions',
+    profile: REQUEST.profile,
     suppliers: [SUPPLIER],
-    messages: [message],
-    declarations: [{ produces: tag, accepts: [tag], foreignThinking: 'omit' }],
+    fallback: false,
+    retryPolicy: REQUEST.retryPolicy,
+    ask: asked,
+    source: REQUEST.source,
   }
 }
 
@@ -72,14 +84,18 @@ async function run(
   const bodies = () => server.requests.map(request => Buffer.from(request.body).toString('utf8'))
   const resources = network(server.ca)
   const sends = countSends(resources)
-  const family = createTestFamily()
+  const families = composeFamilies([defineDecisionsFamily({ owner: OWNER, records: [RECORD] })])
   const built = createPiTransport({
     network: resources.handle,
-    families: family.families,
+    families,
     routes: {
       [SUPPLIER.provider]: {
         endpoints: { decisions: { url: new URL('/decisions', server.url).href, endMarker: null } },
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        accounting: {
+          place: 'openrouter',
+          costUnit: 'openrouter-credit',
+          generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+        },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
@@ -89,13 +105,12 @@ async function run(
   try {
     const request = options.request ?? requestOf()
     const prepared = await built.transport.prepare(request, SUPPLIER, { resent: [] })
-    if (!('ok' in prepared))
-      return { prepared, facts: [], bodies: bodies(), sends: sends(), family }
+    if (!('ok' in prepared)) return { prepared, facts: [], bodies: bodies(), sends: sends() }
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized))
-      return { materialized, facts: [], bodies: bodies(), sends: sends(), family }
+      return { materialized, facts: [], bodies: bodies(), sends: sends() }
     const facts = await collect(materialized.ok.start(new AbortController().signal))
-    return { facts, bodies: bodies(), sends: sends(), family, receipt: materialized.ok.receipt }
+    return { facts, bodies: bodies(), sends: sends(), receipt: materialized.ok.receipt }
   } finally {
     await built.close()
     await resources.close()
@@ -107,20 +122,11 @@ const kinds = (facts: readonly TransportFact[]) => facts.map(fact => fact.kind)
 const ended = (facts: readonly TransportFact[]) => facts.at(-1)
 
 describe('a decision dispatch through the transport', () => {
-  it('knows the supplier of a decision model by its whole adoption', () => {
-    expect(isDecisionSupplier(SUPPLIER)).toBe(true)
-    expect(isDecisionSupplier({ ...SUPPLIER, model: 'openai/gpt-6' })).toBe(false)
-    const other = { ...SUPPLIER.adoption, digest: 'another' }
-    expect(isDecisionSupplier({ ...SUPPLIER, adoption: other })).toBe(false)
-    expect(decisionSupplierOf('openai/gpt-6')).toBeUndefined()
-  })
-
   it('sends the ask once as one JSON body and hands over the answers as one sealed block, then the account', async () => {
-    const { facts, bodies, sends, family, receipt } = await run(
+    const { facts, bodies, sends, receipt } = await run(
       replied({ model: MODEL, provider: 'OpenAI', answers, usage }),
     )
     expect(sends).toBe(1)
-    expect(family.probe.acquired).toBe(0)
     expect(bodies.map(body => JSON.parse(body) as unknown)).toEqual([{ model: MODEL, ...ask }])
     expect(kinds(facts)).toEqual([
       'response',
@@ -216,7 +222,8 @@ describe('a decision dispatch through the transport', () => {
   })
 
   it('a request of another kind than the interface of its record is refused before anything is sent', async () => {
-    const { prepared, sends } = await run(replied({}), { request: { ...requestOf(), kind: 'llm' } })
+    const chat = { ...REQUEST, suppliers: [SUPPLIER] } satisfies FixedModelRequest
+    const { prepared, sends } = await run(replied({}), { request: chat })
     expect(prepared).toMatchObject({ failure: { kind: 'unsupported', field: 'request.kind' } })
     expect(sends).toBe(0)
   })
@@ -227,14 +234,12 @@ describe('a decision dispatch through the transport', () => {
     expect(sends).toBe(0)
   })
 
-  it('a request that is not one decision message, or an ask over the limit, is refused before anything is sent', async () => {
-    const chat = await run(replied({}), { request: { ...requestOf(), messages: [] } })
-    expect(chat.materialized).toMatchObject({
-      failure: { kind: 'invalid', field: 'request', reason: 'not-a-decision' },
-    })
+  it('an ask over the byte limit is refused before anything is sent', async () => {
     const large = { ...ask, state: 'x'.repeat(5000) }
     const over = await run(replied({}), { request: requestOf(large) })
-    expect(over.materialized).toMatchObject({ failure: { reason: 'not-a-decision' } })
-    expect([chat.sends, over.sends]).toEqual([0, 0])
+    expect(over.materialized).toMatchObject({
+      failure: { kind: 'invalid', field: 'request', reason: 'not-a-decision' },
+    })
+    expect(over.sends).toBe(0)
   })
 })

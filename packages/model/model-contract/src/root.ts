@@ -4,7 +4,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ModelInvocationRef } from './reference.ts'
-import type { ModelKind } from './model-kind.ts'
+import type { DecisionAsk } from './decision-call.ts'
 import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
 declare const identity: unique symbol
@@ -87,14 +87,17 @@ export type Supplier = Readonly<{
 }>
 /** The context window of the profile a request was prepared on, as the profile said then. */
 export type ContextWindow = Readonly<{ tokens: string; compactionTriggerPercent: string }>
-export type RequestKind = Extract<ModelKind, 'llm' | 'decisions'>
-export type FixedModelRequest = Readonly<{
-  kind: RequestKind
+/** What a fixed request of every kind states. */
+export type RequestCommon = Readonly<{
   profile: Adoption
-  contextWindow?: ContextWindow
   suppliers: readonly [Supplier, ...Supplier[]]
   fallback: boolean
   retryPolicy: Adoption
+  source: Adoption
+}>
+export type LlmRequest = Readonly<{
+  kind: 'llm'
+  contextWindow?: ContextWindow
   parameters: readonly Parameter[]
   system: readonly ContentBlock[]
   messages: readonly Message[]
@@ -104,13 +107,18 @@ export type FixedModelRequest = Readonly<{
   declarations: readonly [ReplayDeclaration, ...ReplayDeclaration[]]
   representation: Adoption
   parameterAdoptions: readonly ParameterAdoption[]
-  source: Adoption
 }>
-export type FixedRequestHead = Readonly<
-  Omit<FixedModelRequest, 'system' | 'messages' | 'tools'> & {
+export type DecisionsRequest = Readonly<{ kind: 'decisions'; ask: DecisionAsk }>
+export type LlmModelRequest = RequestCommon & LlmRequest
+export type DecisionsModelRequest = RequestCommon & DecisionsRequest
+export type FixedModelRequest = LlmModelRequest | DecisionsModelRequest
+export type LlmRequestHead = Readonly<
+  Omit<LlmModelRequest, 'system' | 'messages' | 'tools'> & {
     messageIds: readonly Message['id'][]
   }
 >
+export type DecisionsRequestHead = Readonly<Omit<DecisionsModelRequest, 'ask'>>
+export type FixedRequestHead = LlmRequestHead | DecisionsRequestHead
 export type Admit<P> = Mutation<P> &
   Readonly<{
     request: FixedModelRequest

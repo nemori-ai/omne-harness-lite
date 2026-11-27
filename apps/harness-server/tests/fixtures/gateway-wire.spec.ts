@@ -1,14 +1,14 @@
 import { writeJsonText } from '@omne-harness/json-text'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type { Adoption, LlmModelRequest, Supplier } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import {
   recordAdoption,
   recordProvider,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiModelRecordHead,
 } from '@omne-harness/pi-ai-transport'
 import {
@@ -115,13 +115,13 @@ function meterOf(supplier: Supplier): FamilyMeter {
   }
 }
 
-function requestOf(supplier: Supplier): FixedModelRequest {
+function requestOf(supplier: Supplier): LlmModelRequest {
   const declaration = judgeReplayDeclaration(
     { provider: HEAD.route.provider, model: HEAD.route.model, replay: {} },
     0,
   )
   if (!('ok' in declaration)) throw new Error('test declaration refused')
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
     kind: 'llm',
     profile: adoption('profile'),
     suppliers: [supplier],
@@ -149,7 +149,7 @@ function requestOf(supplier: Supplier): FixedModelRequest {
   return judged.ok
 }
 
-type Engine = Readonly<{ binding: PiFamilyBinding; request: FixedModelRequest }>
+type Engine = Readonly<{ binding: PiChatBinding; request: LlmModelRequest }>
 
 function responsesEngine(): Engine {
   const record = {

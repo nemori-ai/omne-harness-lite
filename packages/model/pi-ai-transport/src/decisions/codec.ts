@@ -1,9 +1,10 @@
+import { judgeDecisionAsk } from '@omne-harness/model-contract'
 import { canonicalJson } from '../canonical-json.ts'
-import {
-  OPENROUTER_DECISION_MODELS,
-  type DecisionQuestion,
-  type DecisionRequest,
-  type DecisionResponse,
+import type {
+  DecisionLimits,
+  DecisionQuestion,
+  DecisionRequest,
+  DecisionResponse,
 } from './contract.ts'
 
 type Dict = Record<string, unknown>
@@ -13,61 +14,20 @@ function object(value: unknown): value is Dict {
 function state(value: unknown): boolean {
   return typeof value === 'string' || Array.isArray(value) || object(value)
 }
-function guidance(value: unknown): boolean {
-  return value === null || state(value)
-}
-function question(value: unknown): boolean {
-  if (
-    !object(value) ||
-    Object.keys(value).some(key => !['type', 'instructions', 'criteria'].includes(key))
-  )
-    return false
-  if (value.instructions !== undefined && !guidance(value.instructions)) return false
-  const criteria = value.criteria
-  switch (value.type) {
-    case 'noul':
-      return (
-        criteria === undefined ||
-        (object(criteria) &&
-          Object.entries(criteria).every(
-            ([key, entry]) => (key === 'true' || key === 'false') && guidance(entry),
-          ))
-      )
-    case 'choice':
-      return (
-        object(criteria) &&
-        Object.keys(criteria).length > 0 &&
-        Object.values(criteria).every(guidance)
-      )
-    case 'score':
-      return Array.isArray(criteria) && criteria.length > 0 && criteria.every(state)
-    default:
-      return false
-  }
-}
 
 /** The bytes sent and the questions used to check the answer are the same owned snapshot. */
-export function prepareDecision(request: DecisionRequest, limit: number) {
+export function prepareDecision(request: DecisionRequest, limits: DecisionLimits) {
   try {
     const text = canonicalJson(request)
-    if (Buffer.byteLength(text) > limit) return null
-    const snapshot: DecisionRequest = JSON.parse(text)
-    if (
-      !object(snapshot) ||
-      Object.keys(snapshot).some(key => !['model', 'state', 'questions'].includes(key)) ||
-      !OPENROUTER_DECISION_MODELS.includes(snapshot.model) ||
-      !state(snapshot.state) ||
-      !object(snapshot.questions)
-    )
+    if (Buffer.byteLength(text) > limits.maxRequestBytes) return null
+    const snapshot: unknown = JSON.parse(text)
+    if (!object(snapshot) || typeof snapshot.model !== 'string' || snapshot.model.length === 0)
       return null
-    const questions = Object.entries(snapshot.questions)
-    if (
-      questions.length === 0 ||
-      (snapshot.model === 'openai/gpt-6-luna-decisions' && questions.length > 200) ||
-      !questions.every(([name, value]) => name.length > 0 && question(value))
-    )
-      return null
-    return { body: Buffer.from(text), questions: snapshot.questions }
+    const ask = judgeDecisionAsk({ state: snapshot.state, questions: snapshot.questions })
+    if (ask === null || Object.keys(snapshot).length !== 3) return null
+    const { maxQuestions } = limits
+    if (maxQuestions !== null && Object.keys(ask.questions).length > maxQuestions) return null
+    return { body: Buffer.from(text), questions: ask.questions }
   } catch {
     return null
   }

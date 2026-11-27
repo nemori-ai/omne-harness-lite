@@ -54,7 +54,13 @@ describe('list-models takes the profiles of Model at each call', () => {
     const { world, list } = assembled()
     await list()
     expect(world.listed).toEqual([
-      { principal: world.principal, tenant: ALICE.tenant, selected: null, required: REQUIRED },
+      {
+        principal: world.principal,
+        tenant: ALICE.tenant,
+        kind: 'llm',
+        selected: null,
+        required: REQUIRED,
+      },
     ])
   })
 })

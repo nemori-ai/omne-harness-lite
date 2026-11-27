@@ -36,6 +36,8 @@ const ENABLED = [
   'z-ai/glm-5.3-prime',
 ]
 
+const DECISIONS = ['openai/gpt-6-luna-decisions', 'typesafe/jev-1.13', 'typesafe/jev-1.14']
+
 const INPUT = {
   retryPolicy: { owner: 'test', name: 'retry', revision: '1', digest: '0'.repeat(64) },
   compactionTriggerPercent: '80',
@@ -46,14 +48,21 @@ describe('the release provider carries its model catalog (C1, C4)', () => {
     const provider = releaseProvider('openrouter')
     const routes = officialProfiles(INPUT).map(definition => definition.suppliers[0].model)
     expect(provider?.body.models.map(entry => entry.model).sort()).toEqual([...routes].sort())
-    expect(provider?.body.models).toHaveLength(43)
+    const models = provider?.body.models ?? []
+    expect(models.filter(entry => entry.kind === 'llm')).toHaveLength(43)
+    expect(
+      models
+        .filter(entry => entry.kind === 'decisions')
+        .map(entry => entry.model)
+        .sort(),
+    ).toEqual([...DECISIONS].sort())
   })
 
-  it('enables by default exactly the 25 models of the release', () => {
+  it('enables by default exactly the 25 chat models of the release, and every decisions model', () => {
     const enabled = releaseProvider('openrouter')
       ?.body.models.filter(entry => entry.enabled)
       .map(entry => entry.model)
-    expect([...(enabled ?? [])].sort()).toEqual([...ENABLED].sort())
+    expect([...(enabled ?? [])].sort()).toEqual([...ENABLED, ...DECISIONS].sort())
   })
 
   it('enables the initial model of every agent definition the release configures (I-7)', () => {

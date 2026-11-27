@@ -6,3 +6,9 @@ export type { OfficialProfilesInput } from '@omne-harness/pi-ai-transport/family
 export type { OpenAiChatRecord, OpenAiRecord, OpenAiResponsesRecord } from './record.ts'
 export { OPENAI_REASONING_FORMAT, OPENAI_RECORDS } from './records.ts'
 export { openAiTokenizerResources } from './tokenizer.ts'
+export {
+  createOpenAiDecisionsFamily,
+  officialOpenAiDecisionsProfiles,
+  OPENAI_DECISIONS_OWNER,
+  OPENAI_DECISIONS_RECORDS,
+} from './decisions.ts'

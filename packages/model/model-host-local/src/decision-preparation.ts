@@ -1,51 +1,68 @@
 import { NO_RESEND_RETRY_POLICY, type SupplierPort } from '@omne-harness/model'
+import { DECISION_REPRESENTATION, type ModelFailure } from '@omne-harness/model-contract'
 import {
-  DECISION_REPRESENTATION,
-  decisionAskMessage,
-  type ModelFailure,
-} from '@omne-harness/model-contract'
-import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type ModelDecisionPreparation,
+  type ModelProfiles,
 } from '@omne-harness/model-contract/provider'
-import { decisionSupplierOf } from '@omne-harness/pi-ai-transport/decisions'
 
-export type DecisionPreparationOptions<P> = Readonly<{ supplierOf: SupplierPort<P> }>
+export type DecisionPreparationOptions<P> = Readonly<{
+  profiles: Pick<ModelProfiles<P>, 'resolve'>
+  supplierOf: SupplierPort<P>
+}>
 
 const invalid = (field: string, reason: string): { failure: ModelFailure } => ({
   failure: { kind: 'invalid', field, reason },
 })
 
-/** Forms decision requests: the one supplier of the model with the credential layer of this tenant, sent once, and no profile of the chat selection. */
+// A decision takes its material as text: the form every decision call is written in says so.
+const TEXT_MATERIAL = Object.freeze({
+  modalities: ['text'] as const,
+  source: Object.freeze({
+    owner: DECISION_REPRESENTATION.owner,
+    record: DECISION_REPRESENTATION.name,
+    revision: DECISION_REPRESENTATION.revision,
+    digest: DECISION_REPRESENTATION.digest,
+  }),
+})
+
+/** Forms a decision request on the `decisions` profile its model resolves to; a model turned off answers excluded. */
 export function createDecisionPreparation<P>(
   options: DecisionPreparationOptions<P>,
 ): ModelDecisionPreparation<P> {
   return {
-    async prepare({ principal, tenant, model, message, ask, source }) {
-      const known = decisionSupplierOf(model)
-      if (known === undefined) return invalid('model', 'not-a-decision-model')
-      const asked = decisionAskMessage(message, ask)
-      if (asked === null) return invalid('message', 'identity')
-      const official = {
-        identity: { scope: { kind: 'factory' as const }, kind: 'decisions' as const, route: model },
-      }
-      const supplier = options.supplierOf({ principal, tenant, profile: official, supplier: known })
-      if (!('ok' in supplier)) return supplier
-      const produces = `${known.provider}/${known.model}`
-      const judged = judgeFixedModelRequest({
+    async prepare({ principal, tenant, model, ask, source }) {
+      const resolved = await options.profiles.resolve({
+        principal,
+        tenant,
         kind: 'decisions',
-        profile: known.adoption,
+        route: model,
+        required: TEXT_MATERIAL,
+      })
+      if (!('ok' in resolved)) return resolved
+      const resolution = resolved.ok
+      if (resolution.kind === 'absent')
+        return invalid(
+          'model',
+          resolution.reason === 'unknown-name' ? 'not-a-decision-model' : resolution.reason,
+        )
+      const [reason] = resolution.reasons
+      if (reason !== undefined) return invalid('model', reason)
+      const { profile } = resolution
+      const supplier = options.supplierOf({
+        principal,
+        tenant,
+        profile,
+        supplier: profile.definition.suppliers[0],
+      })
+      if (!('ok' in supplier)) return supplier
+      const judged = judgeModelRequest('decisions', {
+        kind: 'decisions',
+        profile: profile.adoption,
         suppliers: [supplier.ok],
         fallback: false,
         retryPolicy: NO_RESEND_RETRY_POLICY,
-        parameters: [],
-        system: [],
-        messages: [asked],
-        tools: [],
-        toolChoice: 'none',
-        declarations: [{ produces, accepts: [produces], foreignThinking: 'omit' }],
-        representation: DECISION_REPRESENTATION,
-        parameterAdoptions: [],
+        ask,
         source,
       })
       return 'ok' in judged ? judged : invalid(judged.failure.field, judged.failure.reason)

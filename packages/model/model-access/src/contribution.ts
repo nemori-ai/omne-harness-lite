@@ -63,7 +63,7 @@ async function requirementOf(
   }
 }
 
-type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
+type Resolved = Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>
 
 function blocksOf(resolution: Resolved, session: SessionRequirement | null) {
   if (session === null || !resolution.reasons.includes('modality')) return {}
@@ -75,7 +75,7 @@ function blocksOf(resolution: Resolved, session: SessionRequirement | null) {
 
 // A name that resolves to no profile is not a model of the tenant: it is left out of the list.
 function listedOf(
-  resolution: ProfileResolution,
+  resolution: ProfileResolution<'llm'>,
   session: SessionRequirement | null,
 ): readonly Listed[] {
   if (resolution.kind === 'absent') return []
@@ -117,6 +117,7 @@ export function createModelAccessContribution(
       listed = await profiles.list({
         principal: issued.principal,
         tenant: body.tenant,
+        kind: 'llm',
         selected: null,
         required: session?.required ?? settings.required,
       })

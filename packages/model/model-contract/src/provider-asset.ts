@@ -33,20 +33,31 @@ export type CredentialItemDeclaration = Readonly<{
 export type ModelProviderEndpoint = Readonly<{ protocol: string; url: string; endMarker?: string }>
 
 /** One model of the provider model catalog: what the provider adapts, and whether the release enables it. */
-export type CatalogModel = Readonly<{
+type CatalogCommon = Readonly<{
   model: string
   title: string
   input: readonly ModelModality[]
   output: readonly ModelModality[]
+  enabled: boolean
+}>
+export type LlmCatalog = Readonly<{
+  kind: 'llm'
   window: string
   efforts: readonly ReasoningEffort[]
-  enabled: boolean
+}>
+export type DecisionsCatalog = Readonly<{ kind: 'decisions'; maxQuestions?: string }>
+export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog)
+
+export type ProviderAccounting = Readonly<{
+  place: string
+  costUnit: string
+  generation?: Readonly<{ requestHeader: string; path: string }>
 }>
 
 export type ModelProviderBody = Readonly<{
   name: ProviderName
   endpoints: readonly ModelProviderEndpoint[]
-  accounting: Readonly<{ place: string; costUnit: string }>
+  accounting: ProviderAccounting
   credentials: readonly CredentialItemDeclaration[]
   models: readonly CatalogModel[]
 }>
@@ -75,11 +86,12 @@ export type ModelProviderBodyRejection =
   | 'invalid-models'
 
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
+const HEADER_NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const CREDENTIALS_GROUP = 'credentials'
 const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
 
 const schemaRead = readBodyText(
-  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"enabled":"boolean"}]}}',
+  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string","generation":{"requestHeader":"string","path":"string"}},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"kind":"string","model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"maxQuestions":"string","enabled":"boolean"}]}}',
   {
     maxBytes: 2000,
     maxDepth: 8,
@@ -184,9 +196,23 @@ function accountingOf(value: JsonValue | undefined): ModelProviderBody['accounti
   if (!isObject(value)) return undefined
   const place = stringField(value, 'place')
   const costUnit = stringField(value, 'costUnit')
-  return place === undefined || place === '' || costUnit === undefined || costUnit === ''
+  if (place === undefined || place === '' || costUnit === undefined || costUnit === '')
+    return undefined
+  const stated = field(value, 'generation')
+  if (stated === undefined) return { place, costUnit }
+  const generation = generationOf(stated)
+  return generation === undefined ? undefined : { place, costUnit, generation }
+}
+
+function generationOf(value: JsonValue): ProviderAccounting['generation'] {
+  const requestHeader = stringField(value, 'requestHeader')
+  const path = stringField(value, 'path')
+  return requestHeader === undefined ||
+    !HEADER_NAME.test(requestHeader) ||
+    path === undefined ||
+    !path.startsWith('/')
     ? undefined
-    : { place, costUnit }
+    : { requestHeader, path }
 }
 
 function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[] | 'invalid' {
@@ -348,18 +374,42 @@ function effortsOf(value: JsonValue | undefined): ReasoningEffort[] | undefined 
     : undefined
 }
 
+function llmCatalogOf(entry: JsonValue): LlmCatalog | undefined {
+  const window = stringField(entry, 'window')
+  const efforts = effortsOf(field(entry, 'efforts'))
+  if (window === undefined || !WINDOW.test(window) || efforts === undefined) return undefined
+  return { kind: 'llm', window, efforts }
+}
+
+function decisionsCatalogOf(entry: JsonValue): DecisionsCatalog | undefined {
+  const stated = field(entry, 'maxQuestions')
+  if (stated === undefined) return { kind: 'decisions' }
+  const maxQuestions = stringField(entry, 'maxQuestions')
+  return maxQuestions !== undefined && WINDOW.test(maxQuestions)
+    ? { kind: 'decisions', maxQuestions }
+    : undefined
+}
+
+function ownCatalogOf(entry: JsonValue): LlmCatalog | DecisionsCatalog | undefined {
+  switch (stringField(entry, 'kind')) {
+    case 'llm':
+      return llmCatalogOf(entry)
+    case 'decisions':
+      return decisionsCatalogOf(entry)
+  }
+  return undefined
+}
+
 function catalogModelOf(entry: JsonValue): CatalogModel | undefined {
   const model = stringField(entry, 'model')
   const title = stringField(entry, 'title')
-  const window = stringField(entry, 'window')
   const enabled = field(entry, 'enabled')
   const input = modalitiesOf(field(entry, 'input'))
   const output = modalitiesOf(field(entry, 'output'))
-  const efforts = effortsOf(field(entry, 'efforts'))
-  if (!model || !title || window === undefined || !WINDOW.test(window)) return undefined
+  const own = ownCatalogOf(entry)
+  if (!model || !title || own === undefined) return undefined
   if (enabled?.kind !== 'boolean' || input === undefined || output === undefined) return undefined
-  if (efforts === undefined) return undefined
-  return { model, title, input, output, window, efforts, enabled: enabled.value }
+  return { model, title, input, output, enabled: enabled.value, ...own }
 }
 
 function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
@@ -389,6 +439,7 @@ export function preferencesOf(
   for (const entry of body.models) {
     const on = entryOf(switches, entry.model)
     if (typeof on === 'boolean' ? on : entry.enabled) enabled.add(entry.model)
+    if (entry.kind !== 'llm') continue
     const effort = entryOf(efforts, entry.model)
     const supported = entry.efforts.find(level => level === effort)
     if (supported !== undefined) chosen.set(entry.model, supported)

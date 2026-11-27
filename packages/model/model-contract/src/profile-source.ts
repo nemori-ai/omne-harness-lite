@@ -32,7 +32,7 @@ export interface ModelProfileSource<P> {
 export interface ModelRequestRules {
   plan(
     input: Readonly<{
-      profile: ModelProfile
+      profile: ModelProfile<'llm'>
       supplier: Supplier
       assembled: AssembledModelInput
     }>,
@@ -61,7 +61,7 @@ export type PreparationLineage = Readonly<{
 }>
 export interface ModelPreparationResources<P> {
   acquire(
-    input: Access<P> & Readonly<{ profile: ModelProfile; lineage?: PreparationLineage }>,
+    input: Access<P> & Readonly<{ profile: ModelProfile<'llm'>; lineage?: PreparationLineage }>,
   ): Reply<ModelPreparationLease>
 }
 export interface ModelContentAuthority<P> {

@@ -5,7 +5,7 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
-  type FixedModelRequest,
+  type LlmModelRequest,
 } from '@omne-harness/model-contract'
 import type { ModelCommands, ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
@@ -59,7 +59,7 @@ const CONFIG = {
     delaysMs: [1000, 5000, 30000],
   },
 }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
   kind: 'llm',
   profile: ADOPTION,
   suppliers: [

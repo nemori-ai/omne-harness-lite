@@ -1,4 +1,4 @@
-// The read-only question an OpenRouter route answers after the fact: what one request cost, by the
+// The read-only question a route answers after the fact when its accounting states it: what one request cost, by the
 // identity its response header carried. It generates nothing; the secret goes into the header only.
 import { request, type RequestOptions } from 'node:https'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'

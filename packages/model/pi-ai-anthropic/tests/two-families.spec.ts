@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type FixedModelRequest } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
+import { type LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
   type ConformanceSubject,
@@ -73,7 +73,7 @@ type RecordFixture = Readonly<{
   path: string
   name: string
   model: string
-  request: FixedModelRequest
+  request: LlmModelRequest
   body: unknown
   stream: string
   facts: unknown
@@ -91,7 +91,7 @@ function readFixture(
 ): RecordFixture {
   const directory = join(root, fixtureDirectory(record))
   const parsed: unknown = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8'))
-  const request = judgeFixedModelRequest(Reflect.get(Object(parsed), 'request'))
+  const request = judgeModelRequest('llm', Reflect.get(Object(parsed), 'request'))
   if (!('ok' in request)) throw new Error(`${record.name}: ${JSON.stringify(request.failure)}`)
   return {
     family,
@@ -174,7 +174,7 @@ function buildTransport(): Built {
   return { transport, network, sends: () => reads }
 }
 
-async function send(built: Built, request: FixedModelRequest): Promise<readonly TransportFact[]> {
+async function send(built: Built, request: LlmModelRequest): Promise<readonly TransportFact[]> {
   const prepared = await built.transport.transport.prepare(request, request.suppliers[0], {
     resent: [],
   })

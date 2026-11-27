@@ -10,11 +10,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { Adoption, FixedModelRequest } from '@omne-harness/model-contract'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import type { Adoption, LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
@@ -65,7 +62,7 @@ const shown = { toHuman: true, toModel: true }
 
 function requestOf(record: KimiRecord): Readonly<{
   plain: Record<string, unknown>
-  request: FixedModelRequest
+  request: LlmModelRequest
 }> {
   const adoption = recordAdoption(KIMI_OWNER, record)
   const supplier = {
@@ -129,12 +126,12 @@ function requestOf(record: KimiRecord): Readonly<{
     })),
     source: TEST_ADOPTION('source'),
   }
-  const judged = judgeFixedModelRequest(plain)
+  const judged = judgeModelRequest('llm', plain)
   if (!('ok' in judged)) throw new Error(`${record.name}: ${JSON.stringify(judged.failure)}`)
   return { plain, request: judged.ok }
 }
 
-function bindingOf(record: KimiRecord, request: FixedModelRequest) {
+function bindingOf(record: KimiRecord, request: LlmModelRequest) {
   const supplier = request.suppliers[0]
   const unavailable = async () =>
     ({ failure: { kind: 'unavailable', dependency: 'capture', diagnostic: 'no meter' } }) as const

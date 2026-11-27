@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { profileCovers } from '@omne-harness/model-contract'
+import { isProfileOf, profileCovers, type ModelProfile } from '@omne-harness/model-contract'
+import { resolutionOf } from '@omne-harness/model-contract/testing'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesLocalPlugin } from '@omne-harness/model-host-local/cordis'
@@ -30,10 +31,11 @@ class WithWordsOnlyRoute extends ModelProfilesLocalPlugin {
       })
       if (!('ok' in seeing) || seeing.ok.kind !== 'resolved') return seeing
       const { profile } = seeing.ok
+      if (!isProfileOf(profile, 'llm')) return seeing
       const definition = { ...profile.definition, input: ['text'] as const }
       const covered = profileCovers(definition, input.required)
-      return {
-        ok: {
+      const reading = resolutionOf(
+        {
           ...seeing.ok,
           profile: {
             ...profile,
@@ -44,7 +46,9 @@ class WithWordsOnlyRoute extends ModelProfilesLocalPlugin {
           selectable: covered,
           reasons: covered ? [] : ['modality'],
         },
-      }
+        input.kind,
+      )
+      return reading === null ? seeing : { ok: reading }
     }
     Object.assign(this, { resolve })
   }
@@ -130,18 +134,22 @@ export function withRouteReadingWordsOnly(route: string) {
         const words = { ...input.required, modalities: ['text'] as const, fileTypes: [] }
         const resolved = await official({ ...input, required: words })
         if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') return resolved
-        const { fileTypes: _files, ...rest } = resolved.ok.profile.definition
+        const { profile } = resolved.ok
+        if (!isProfileOf(profile, 'llm')) return resolved
+        const chat: ModelProfile<'llm'> = profile
+        const { fileTypes: _files, ...rest } = chat.definition
         const definition = { ...rest, input: ['text'] as const }
         const covered = profileCovers(definition, input.required)
-        const profile = { ...resolved.ok.profile, definition }
-        return {
-          ok: {
+        const reading = resolutionOf(
+          {
             ...resolved.ok,
-            profile,
+            profile: { ...chat, definition },
             selectable: covered,
             reasons: covered ? [] : ['modality'],
           },
-        }
+          input.kind,
+        )
+        return reading === null ? resolved : { ok: reading }
       }
       Object.assign(this, { resolve })
     }

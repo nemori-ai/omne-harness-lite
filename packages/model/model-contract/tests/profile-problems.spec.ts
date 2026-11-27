@@ -21,7 +21,7 @@ const limit = (provided: string, finite?: string) => ({
 })
 const metric = (name: string, provided = '1024') => ({ metric: name, ...limit(provided) }) as never
 
-const GOOD: ModelProfileDefinition = {
+const GOOD: ModelProfileDefinition<'llm'> = {
   kind: 'llm',
   suppliers: [supplier],
   fallback: false,
@@ -46,7 +46,7 @@ const GOOD: ModelProfileDefinition = {
   retryPolicy: adoption,
 }
 
-const withContext = (change: Partial<ModelProfileDefinition['context']>) => ({
+const withContext = (change: Partial<ModelProfileDefinition<'llm'>['context']>) => ({
   ...GOOD,
   context: { ...GOOD.context, ...change },
 })
@@ -116,7 +116,7 @@ describe('profileProblems', () => {
     ['voice without a duration limit', without('voice-duration-ms'), ['limits.voice-duration-ms']],
     ['file types without a file byte limit', without('file-bytes'), ['limits.file-bytes']],
   ])('names the field for %s', (_name, definition, fields) => {
-    expect(profileProblems(definition as ModelProfileDefinition)).toEqual(fields)
+    expect(profileProblems(definition as ModelProfileDefinition<'llm'>)).toEqual(fields)
   })
 })
 

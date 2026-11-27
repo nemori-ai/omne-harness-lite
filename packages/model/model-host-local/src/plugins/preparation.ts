@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/model'
 import {
   profileCovers,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelFailure,
   type ModelPreparationLease,
   type ModelPreparationResources,
@@ -23,7 +23,7 @@ import {
   type Reply,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type ModelCommands,
   type ModelRequestPreparation,
@@ -88,7 +88,7 @@ function declarationsOf(
 function requestOf(
   input: PrepareInput,
   lease: ModelPreparationLease,
-): { ok: FixedModelRequest } | Failed {
+): { ok: LlmModelRequest } | Failed {
   const { profile, assembled } = input
   const adoptions: ParameterAdoption[] = []
   for (const binding of lease.bindings) {
@@ -98,7 +98,7 @@ function requestOf(
   }
   const declarations = declarationsOf(profile.definition.suppliers)
   if (!('ok' in declarations)) return declarations
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
     kind: 'llm',
     profile: profile.adoption,
     contextWindow: {
@@ -165,7 +165,7 @@ function createPluginClass(
 ): ModelRequestPreparationPluginClass {
   const leases = gate(live)
 
-  async function prepareOver(input: PrepareInput): Reply<FixedModelRequest> {
+  async function prepareOver(input: PrepareInput): Reply<LlmModelRequest> {
     const refused = qualify(input)
     if (refused !== null) return { failure: refused }
     const leased = await leases.acquire({
@@ -174,7 +174,7 @@ function createPluginClass(
       profile: input.profile,
     })
     if (!('ok' in leased)) return leased
-    let formed: { ok: FixedModelRequest } | Failed
+    let formed: { ok: LlmModelRequest } | Failed
     try {
       formed = requestOf(input, leased.ok)
     } catch (error) {

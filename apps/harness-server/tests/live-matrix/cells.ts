@@ -38,8 +38,10 @@ const PROFILE_INPUT = {
 const byRoute = (left: LiveModel, right: LiveModel) =>
   left.route < right.route ? -1 : left.route > right.route ? 1 : 0
 
+// The matrix runs chat turns: its cells are the official profiles of the chat kind.
 export function currentModels(): readonly LiveModel[] {
   return officialProfiles(PROFILE_INPUT)
+    .filter(definition => definition.kind === 'llm')
     .map(officialProfileAdoption)
     .map(adoption => ({
       route: adoption.name,

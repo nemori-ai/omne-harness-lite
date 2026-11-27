@@ -2,13 +2,13 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   type DispatchRecord,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelBlock,
   type Parameter,
   type ParameterAdoption,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer } from './https-server.ts'
@@ -187,7 +187,7 @@ function familyRecord(item: RecordCase) {
   return record
 }
 
-export function firstRoundRequest(item: RecordCase): FixedModelRequest {
+export function firstRoundRequest(item: RecordCase): LlmModelRequest {
   const { request } = readRecordFixture(item.family, familyRecord(item))
   const [supplier] = request.suppliers
   const adoptions: readonly ParameterAdoption[] = item.parameters.map(parameter => ({
@@ -196,7 +196,7 @@ export function firstRoundRequest(item: RecordCase): FixedModelRequest {
     origin: { kind: 'explicit', requested: parameter, source: request.source },
   }))
   return decoded(
-    judgeFixedModelRequest({
+    judgeModelRequest('llm', {
       ...request,
       parameters: item.parameters,
       parameterAdoptions: adoptions,
@@ -263,7 +263,7 @@ export type ReplayedRound = Readonly<{
 }>
 
 export async function replayRound(
-  input: Readonly<{ request: FixedModelRequest; recording: string; label: string; vault: string }>,
+  input: Readonly<{ request: LlmModelRequest; recording: string; label: string; vault: string }>,
 ): Promise<ReplayedRound> {
   const { note, stream } = readRecording(input.recording)
   const certificate = createCertificate()
@@ -340,11 +340,11 @@ export async function readReply(
 
 export function continuedRequest(
   input: Readonly<{
-    first: FixedModelRequest
+    first: LlmModelRequest
     replayed: ReplayedRound
     next?: NonNullable<RecordCase['next']>
   }>,
-): FixedModelRequest {
+): LlmModelRequest {
   const { first, replayed } = input
   const format = replayed.record.materialization?.receipt.replayFormat
   if (format === undefined) throw new Error('the first round has no replay format')
@@ -359,7 +359,9 @@ export function continuedRequest(
     },
   }
   const follow = input.next === 'tool-result' ? toolResultOf(replayed.blocks) : NEXT_QUESTION
-  return decoded(judgeFixedModelRequest({ ...first, messages: [...first.messages, reply, follow] }))
+  return decoded(
+    judgeModelRequest('llm', { ...first, messages: [...first.messages, reply, follow] }),
+  )
 }
 
 function toolResultOf(blocks: readonly ModelBlock[]) {

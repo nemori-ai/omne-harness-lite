@@ -31,8 +31,26 @@ function tokenProblems(context: ContextLimits): string[] {
   return problems
 }
 
+function decisionsProblems(definition: ModelProfileDefinition<'decisions'>): readonly string[] {
+  const { maxQuestions } = definition
+  return maxQuestions === null || POSITIVE.test(maxQuestions) ? [] : ['maxQuestions']
+}
+
 /** The fields of a profile that break the profile rules; empty when it may be adopted. */
 export function profileProblems(definition: ModelProfileDefinition): readonly string[] {
+  switch (definition.kind) {
+    case 'llm':
+      return llmProblems(definition)
+    case 'decisions':
+      return decisionsProblems(definition)
+    default: {
+      const _exhaustive: never = definition
+      return _exhaustive
+    }
+  }
+}
+
+function llmProblems(definition: ModelProfileDefinition<'llm'>): readonly string[] {
   const problems = tokenProblems(definition.context)
   const input: readonly string[] = definition.input
   if (!input.includes('text')) problems.push('input')

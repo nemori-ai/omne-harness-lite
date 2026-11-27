@@ -19,13 +19,39 @@ describe('the kinds of model', () => {
 })
 
 describe('the model kind of a fixed request', () => {
-  it.each(['llm', 'decisions'])('is kept as written: %s', kind => {
-    expect(judgeFixedModelRequest({ ...request, kind })).toMatchObject({ ok: { kind } })
+  it('is kept as written, and decides which members the request has', () => {
+    expect(judgeFixedModelRequest(request)).toMatchObject({ ok: { kind: 'llm' } })
+    const { profile, suppliers, fallback, retryPolicy, source } = request
+    const ask = { state: 'text', questions: { Q: { type: 'noul' } } }
+    const decision = { kind: 'decisions', profile, suppliers, fallback, retryPolicy, source, ask }
+    expect(judgeFixedModelRequest(decision)).toEqual({ ok: decision })
+    expect(judgeFixedModelRequest({ ...request, kind: 'decisions' })).toEqual({
+      failure: { field: '', reason: 'unknown-field' },
+    })
   })
 
   it.each(['live', 'image', '', null, 1])('refuses %j and names the field', kind => {
     expect(judgeFixedModelRequest({ ...request, kind })).toEqual({
       failure: { field: '/kind', reason: 'value' },
+    })
+  })
+
+  it.each([null, 5, 'llm', true])('refuses %j, which is no record, at the root', value => {
+    expect(judgeFixedModelRequest(value)).toEqual({ failure: { field: '', reason: 'type' } })
+  })
+
+  it('a decision request is judged like any request: its suppliers and its source too', () => {
+    const { profile, suppliers, fallback, retryPolicy, source } = request
+    const ask = { state: 'text', questions: { Q: { type: 'noul' } } }
+    const decision = { kind: 'decisions', profile, suppliers, fallback, retryPolicy, source, ask }
+    expect(judgeFixedModelRequest({ ...decision, suppliers: [] })).toMatchObject({
+      failure: { field: '/suppliers' },
+    })
+    expect(judgeFixedModelRequest({ ...decision, source: { ...source, digest: 5 } })).toMatchObject(
+      { failure: { field: '/source/digest' } },
+    )
+    expect(judgeFixedModelRequest({ ...decision, ask: { state: 'text' } })).toEqual({
+      failure: { field: '/ask', reason: 'value' },
     })
   })
 

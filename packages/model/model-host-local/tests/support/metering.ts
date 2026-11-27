@@ -1,6 +1,6 @@
 import type {
   AssembledModelInput,
-  FixedModelRequest,
+  LlmModelRequest,
   ModelInputMeter,
   ModelPreparationLease,
   ModelProfile,
@@ -8,7 +8,7 @@ import type {
 } from '@omne-harness/model-contract'
 import { decoded } from './local-host.ts'
 
-export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+export function assembledOf(request: LlmModelRequest): AssembledModelInput {
   return {
     system: request.system,
     messages: request.messages,
@@ -22,8 +22,8 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
 
 export async function measureOn(
   lease: ModelPreparationLease,
-  profile: ModelProfile,
-  request: FixedModelRequest,
+  profile: ModelProfile<'llm'>,
+  request: LlmModelRequest,
 ): ReturnType<ModelInputMeter['measure']> {
   const [binding] = lease.bindings
   const assembled = assembledOf(request)

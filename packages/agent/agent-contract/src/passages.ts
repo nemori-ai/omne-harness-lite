@@ -139,7 +139,7 @@ export type Subject =
   | Readonly<{
       purpose: 'main'
       call: M.ModelCallId
-      request: M.FixedModelRequest
+      request: M.LlmModelRequest
       fault: M.ModelFault
       dispatches: readonly M.DispatchRecord[]
       retry: M.RetryResolution | null

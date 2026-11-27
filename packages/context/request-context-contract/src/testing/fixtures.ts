@@ -87,7 +87,7 @@ export function fixtureTenant(account = '0'): TenantId {
   if (!tenant.ok) throw new Error('Tenant invalid')
   return tenant.value
 }
-export const profile: ModelProfile = {
+export const profile: ModelProfile<'llm'> = {
   identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'route' },
   adoption,
   revision: must(decodeRevision('1')),

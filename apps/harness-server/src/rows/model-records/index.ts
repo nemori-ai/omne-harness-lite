@@ -16,6 +16,7 @@ import {
 import type {
   ModelMaterializationEvidenceReader,
   ModelReceiveEvidenceReader,
+  RequestDisclosure,
 } from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import {
@@ -36,7 +37,7 @@ import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
-import { decisionSendSources, officialSendSources } from '../../model/sources.ts'
+import { officialSendSources } from '../../model/sources.ts'
 import { releaseFamilies } from '../../model/families.ts'
 import { defineRow } from '../../row.ts'
 import { providerRoutes } from '../../assets/model-providers.ts'
@@ -98,7 +99,10 @@ function recordsManifestDigest(): string {
 export type ModelRecordsRowInput = Readonly<{ adopt?: ModelInitialRunAdopt }>
 
 function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelRecordsRowInput): void {
-  const requestDisclosure = toolResultDisclosureOf(ctx)
+  const toolResults = toolResultDisclosureOf(ctx)
+  // Only a chat request carries tool results; a request of another kind discloses none.
+  const requestDisclosure: RequestDisclosure = request =>
+    request.kind === 'llm' ? toolResults(request) : null
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
     throw new Error(
@@ -136,13 +140,10 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelReco
       }),
       clock: given.modelClock,
       manifestDigest,
-      sources: [
-        ...officialSendSources({
-          profiles: sendStage.profiles,
-          current: qualification.sourceCurrent,
-        }),
-        ...decisionSendSources(qualification.sourceCurrent),
-      ],
+      sources: officialSendSources({
+        profiles: sendStage.profiles,
+        current: qualification.sourceCurrent,
+      }),
       initialRun,
       observation: { timing: observationTiming },
     }),

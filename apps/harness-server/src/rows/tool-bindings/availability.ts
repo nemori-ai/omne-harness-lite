@@ -11,7 +11,12 @@ import {
   notificationSendingKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import type { ModalityRequirement } from '@omne-harness/model-contract'
+import type {
+  ModalityRequirement,
+  ModelFailure,
+  ProfileResolution,
+} from '@omne-harness/model-contract'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
   modelProfilesKey,
   type ModelProfilesService,
@@ -115,7 +120,9 @@ export type ModelReadPorts = Readonly<{
   readSelection(
     access: SessionAccessOf,
   ): ReturnType<SessionWork<unknown>['readModelSelection']> | undefined
-  resolveProfile(input: Parameters<Resolve>[0]): ReturnType<Resolve> | undefined
+  resolveProfile(
+    input: Parameters<Resolve>[0] & Readonly<{ kind: 'llm' }>,
+  ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
 }>
 
 const RESULT_REQUIREMENT_SOURCE = Object.freeze({
@@ -137,6 +144,7 @@ export function modelReadsOver(ports: ModelReadPorts): ModelReads {
       const resolved = await ports.resolveProfile({
         principal: access.principal,
         tenant: access.tenant,
+        kind: 'llm',
         route,
         required: { modalities: ['text', ...modalities], source: RESULT_REQUIREMENT_SOURCE },
       })

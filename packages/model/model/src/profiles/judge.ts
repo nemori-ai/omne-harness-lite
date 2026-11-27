@@ -1,15 +1,26 @@
 import { organizationEquals, tenantEquals } from '@omne-harness/legal-identity'
 import {
+  isProfileOf,
   profileCovers,
   type ModalityRequirement,
   type ModelFailure,
+  type ModelProfile,
+  type ProfileKind,
   type ProfileResolution,
   type ProfileScope,
 } from '@omne-harness/model-contract'
 import type { ModelChoices, ModelProfileSnapshot } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 
-type Candidate = ModelProfileSnapshot['candidates'][number]
+type AnyCandidate = ModelProfileSnapshot['candidates'][number]
+type Candidate<K extends ProfileKind> = Omit<AnyCandidate, 'profile'> &
+  Readonly<{ profile: ModelProfile<K> }>
+/** The candidates of one model kind: a route names a profile within its kind only. */
+type Field<K extends ProfileKind> = Readonly<{
+  precedence: ModelProfileSnapshot['precedence']
+  candidates: readonly Candidate<K>[]
+  source: ModelProfileSnapshot['source']
+}>
 type Absent = Extract<ProfileResolution, { kind: 'absent' }>
 type Reason = Extract<ProfileResolution, { kind: 'resolved' }>['reasons'][number]
 
@@ -41,23 +52,40 @@ function layerOf(precedence: readonly ProfileScope[], scope: ProfileScope): numb
 }
 
 function checkSnapshot(snapshot: ModelProfileSnapshot): ModelFailure | null {
-  const seen: { scope: ProfileScope; route: string }[] = []
+  const seen: ModelProfile['identity'][] = []
   for (const { profile } of snapshot.candidates) {
     const { identity } = profile
+    if (identity.kind !== profile.definition.kind) return unavailable('profile-kind-mismatch')
     if (layerOf(snapshot.precedence, identity.scope) < 0)
       return unavailable('profile-scope-outside-precedence')
-    if (seen.some(item => item.route === identity.route && sameScope(item.scope, identity.scope)))
+    if (
+      seen.some(
+        item =>
+          item.kind === identity.kind &&
+          item.route === identity.route &&
+          sameScope(item.scope, identity.scope),
+      )
+    )
       return unavailable('duplicate-profile-identity')
-    seen.push({ scope: identity.scope, route: identity.route })
+    seen.push(identity)
   }
   return null
 }
 
-function alive(
-  snapshot: ModelProfileSnapshot,
+function fieldOf<K extends ProfileKind>(snapshot: ModelProfileSnapshot, kind: K): Field<K> {
+  const candidates: Candidate<K>[] = []
+  for (const candidate of snapshot.candidates) {
+    const { profile } = candidate
+    if (isProfileOf(profile, kind)) candidates.push({ ...candidate, profile })
+  }
+  return { precedence: snapshot.precedence, candidates, source: snapshot.source }
+}
+
+function alive<K extends ProfileKind>(
+  snapshot: Field<K>,
   route: string,
 ):
-  | Readonly<{ kind: 'eligible'; candidates: readonly Candidate[] }>
+  | Readonly<{ kind: 'eligible'; candidates: readonly Candidate<K>[] }>
   | Readonly<{ kind: 'absent'; absent: Absent }> {
   const same = snapshot.candidates.filter(candidate => candidate.profile.identity.route === route)
   if (same.length === 0)
@@ -71,10 +99,10 @@ function alive(
   return { kind: 'eligible', candidates: eligible }
 }
 
-function mostSpecific(
+function mostSpecific<K extends ProfileKind>(
   precedence: readonly ProfileScope[],
-  candidates: readonly Candidate[],
-): Candidate {
+  candidates: readonly Candidate<K>[],
+): Candidate<K> {
   return candidates.reduce((best, candidate) =>
     layerOf(precedence, candidate.profile.identity.scope) >
     layerOf(precedence, best.profile.identity.scope)
@@ -83,7 +111,10 @@ function mostSpecific(
   )
 }
 
-function reasonsOf(winner: Candidate, required: ModalityRequirement): readonly Reason[] {
+function reasonsOf(
+  winner: Candidate<ProfileKind>,
+  required: ModalityRequirement,
+): readonly Reason[] {
   const reasons: Reason[] = []
   if (!profileCovers(winner.profile.definition, required)) reasons.push('modality')
   if (winner.locked) reasons.push('locked')
@@ -91,10 +122,10 @@ function reasonsOf(winner: Candidate, required: ModalityRequirement): readonly R
 }
 
 function shadowedOf(
-  winner: Candidate,
-  candidates: readonly Candidate[],
+  winner: Candidate<ProfileKind>,
+  candidates: readonly Candidate<ProfileKind>[],
   precedence: readonly ProfileScope[],
-): readonly Candidate['profile']['adoption'][] {
+): readonly ModelProfile['adoption'][] {
   return candidates
     .filter(candidate => candidate !== winner)
     .toSorted(
@@ -105,11 +136,11 @@ function shadowedOf(
     .map(candidate => candidate.profile.adoption)
 }
 
-function resolveChecked(
-  snapshot: ModelProfileSnapshot,
+function resolveChecked<K extends ProfileKind>(
+  snapshot: Field<K>,
   route: string,
   required: ModalityRequirement,
-): ProfileResolution {
+): ProfileResolution<K> {
   const judged = alive(snapshot, route)
   if (judged.kind === 'absent') return judged.absent
   const winner = mostSpecific(snapshot.precedence, judged.candidates)
@@ -129,7 +160,7 @@ function resolveChecked(
 }
 
 /** A route every registered profile of which the tenant has turned off: listed, never selectable. */
-function turnedOff(snapshot: ModelProfileSnapshot, route: string): ProfileResolution {
+function turnedOff<K extends ProfileKind>(snapshot: Field<K>, route: string): ProfileResolution<K> {
   const registered = snapshot.candidates.filter(
     candidate =>
       candidate.profile.identity.route === route && candidate.profile.availability === 'active',
@@ -146,36 +177,39 @@ function turnedOff(snapshot: ModelProfileSnapshot, route: string): ProfileResolu
   }
 }
 
-export function judgeProfileResolution(
+export function judgeProfileResolution<K extends ProfileKind>(
   snapshot: ModelProfileSnapshot,
+  kind: K,
   route: string,
   required: ModalityRequirement,
-): Outcome<ProfileResolution, ModelFailure> {
+): Outcome<ProfileResolution<K>, ModelFailure> {
   const defect = checkSnapshot(snapshot)
   if (defect !== null) return { failure: defect }
-  return { ok: resolveChecked(snapshot, route, required) }
+  return { ok: resolveChecked(fieldOf(snapshot, kind), route, required) }
 }
 
-export function judgeProfileChoices(
+export function judgeProfileChoices<K extends ProfileKind>(
   snapshot: ModelProfileSnapshot,
+  kind: K,
   selected: string | null,
   required: ModalityRequirement,
-): Outcome<ModelChoices, ModelFailure> {
+): Outcome<ModelChoices<K>, ModelFailure> {
   const defect = checkSnapshot(snapshot)
   if (defect !== null) return { failure: defect }
-  const choices: ProfileResolution[] = []
+  const field = fieldOf(snapshot, kind)
+  const choices: ProfileResolution<K>[] = []
   const routes = new Set<string>()
-  for (const { profile } of snapshot.candidates) {
+  for (const { profile } of field.candidates) {
     const { route } = profile.identity
     if (routes.has(route)) continue
     routes.add(route)
-    const resolution = resolveChecked(snapshot, route, required)
+    const resolution = resolveChecked(field, route, required)
     if (resolution.kind === 'resolved') choices.push(resolution)
-    else if (resolution.reason === 'excluded') choices.push(turnedOff(snapshot, route))
+    else if (resolution.reason === 'excluded') choices.push(turnedOff(field, route))
   }
   const selection =
     selected === null
       ? null
-      : { route: selected, resolution: resolveChecked(snapshot, selected, required) }
+      : { route: selected, resolution: resolveChecked(field, selected, required) }
   return { ok: { choices, selected: selection, source: snapshot.source } }
 }

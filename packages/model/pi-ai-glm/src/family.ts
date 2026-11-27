@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   chatTextHooks,
@@ -16,7 +16,7 @@ import { withToolChoiceRule } from './rules.ts'
 export type GlmFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createGlmFamily(config: GlmFamilyConfig): PiFamily {
+export function createGlmFamily(config: GlmFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: GLM_OWNER,
     title: 'GLM',

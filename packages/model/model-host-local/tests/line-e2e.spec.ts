@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type {
   AssembledModelInput,
-  FixedModelRequest,
+  LlmModelRequest,
   Termination,
 } from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
@@ -112,7 +112,7 @@ function within<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
 
 const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex')
 
-function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
+function assembledOf(fixed: LlmModelRequest): AssembledModelInput {
   return {
     system: fixed.system,
     messages: fixed.messages,
@@ -124,7 +124,7 @@ function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
   }
 }
 
-function enlarged(request: FixedModelRequest, length: number) {
+function enlarged(request: LlmModelRequest, length: number) {
   const text = 'large request '.repeat(Math.ceil(length / 14)).slice(0, length)
   const copy = structuredClone(request)
   const blocks: readonly { kind: string; text?: string }[] = copy.messages.flatMap(
@@ -136,7 +136,7 @@ function enlarged(request: FixedModelRequest, length: number) {
   return { request: copy, text }
 }
 
-async function admit(line: LineTree, name: string, request: FixedModelRequest) {
+async function admit(line: LineTree, name: string, request: LlmModelRequest) {
   const call = callOf(name)
   const admitted = decoded(
     await line.runtime.calls.admit({

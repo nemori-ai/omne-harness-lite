@@ -8,6 +8,11 @@ export {
 } from './chat-meter.ts'
 export { chatTextHooks } from './chat-hooks.ts'
 export {
+  defineDecisionsFamily,
+  officialDecisionsProfilesOf,
+  type DecisionsRecord,
+} from './decisions.ts'
+export {
   byteLimitOf,
   defineGatewayFamily,
   optionalImageBytes,

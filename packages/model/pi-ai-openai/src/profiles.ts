@@ -34,6 +34,6 @@ export function effortMapping(record: OpenAiRecord): ReasoningEffortMapping {
 
 export function officialOpenAiProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(OPENAI_OWNER, OPENAI_RECORDS, input, effortMapping)
 }

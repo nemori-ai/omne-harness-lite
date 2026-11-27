@@ -32,7 +32,7 @@ import type {
   Waiting,
 } from '@omne-harness/agent-contract'
 import type { Message } from '@omne-harness/message'
-import type { FixedModelRequest, ModelInvocationRef } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ModelInvocationRef } from '@omne-harness/model-contract'
 import type { ProducedResult } from '@omne-harness/agent-contract'
 import type {
   ToolInvocationRef,
@@ -61,7 +61,7 @@ export type ContentType =
   | Message
   | ProducedResult
   | ToolInvokeRequest
-  | FixedModelRequest
+  | LlmModelRequest
   | AgentJournalEntry
 
 type IsRef<T> = T extends Readonly<{ digest: string; size: number }> ? true : false

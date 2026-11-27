@@ -7,7 +7,8 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Access,
   Adoption,
-  FixedModelRequest,
+  LlmModelRequest,
+  LlmRequest,
   ModelOperationId,
   Parameter,
   ReasoningEffort,
@@ -69,7 +70,7 @@ export type ReasoningEffortMapping = Readonly<
   Partial<Record<ReasoningEffort, ReasoningEffort | 'max'>>
 >
 export function supportedReasoningEfforts(
-  definition: Pick<ModelProfileDefinition, 'reasoningEfforts'>,
+  definition: Pick<LlmProfile, 'reasoningEfforts'>,
 ): readonly ReasoningEffort[] {
   return REASONING_EFFORTS.filter(level => definition.reasoningEfforts?.[level] !== undefined)
 }
@@ -90,15 +91,26 @@ export type LlmProfile = Readonly<{
   representation: Adoption
   meter: Adoption
 }>
-export type ModelProfileDefinition = ProfileCommon & LlmProfile
-export type ModelProfile = Readonly<{
+export type DecisionsProfile = Readonly<{ kind: 'decisions'; maxQuestions: string | null }>
+export type ProfileKind = Extract<ModelKind, 'llm' | 'decisions'>
+export type ModelProfileDefinition<K extends ProfileKind = ProfileKind> = Readonly<{
+  llm: ProfileCommon & LlmProfile
+  decisions: ProfileCommon & DecisionsProfile
+}>[K]
+export type ModelProfile<K extends ProfileKind = ProfileKind> = Readonly<{
   identity: ProfileIdentity
   adoption: Adoption
   revision: Revision
   updatedAt: string
   availability: 'active' | 'withdrawn'
-  definition: ModelProfileDefinition
+  definition: ModelProfileDefinition<K>
 }>
+export function isProfileOf<K extends ProfileKind>(
+  profile: ModelProfile,
+  kind: K,
+): profile is ModelProfile<K> {
+  return profile.definition.kind === kind
+}
 export type ModalityRequirement = Readonly<{
   modalities: readonly [Modality, ...Modality[]]
   fileTypes?: readonly string[]
@@ -119,7 +131,7 @@ export function isNativeFileType(value: string): boolean {
 
 /** File types are canonical media types of no modality; a profile covers what it takes natively. */
 export function profileCovers(
-  definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>,
+  definition: Pick<ProfileCommon, 'input'> & Pick<LlmProfile, 'fileTypes'>,
   required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>,
 ): boolean {
   const input: readonly string[] = definition.input
@@ -129,10 +141,10 @@ export function profileCovers(
     (required.fileTypes?.every(natively) ?? true)
   )
 }
-export type ProfileResolution =
+export type ProfileResolution<K extends ProfileKind = ProfileKind> =
   | Readonly<{
       kind: 'resolved'
-      profile: ModelProfile
+      profile: ModelProfile<K>
       source: DurableEvidence
       selectable: boolean
       reasons: readonly ('modality' | 'locked' | 'scope' | 'not-enabled')[]
@@ -142,26 +154,28 @@ export type ProfileResolution =
       defaultReasoningEffort?: ReasoningEffort
     }>
   | Readonly<{ kind: 'absent'; reason: 'unknown-name' | 'withdrawn' | 'excluded' }>
-export type ModelChoices = Readonly<{
-  choices: readonly ProfileResolution[]
-  selected: Readonly<{ route: string; resolution: ProfileResolution }> | null
+export type ModelChoices<K extends ProfileKind = ProfileKind> = Readonly<{
+  choices: readonly ProfileResolution<K>[]
+  selected: Readonly<{ route: string; resolution: ProfileResolution<K> }> | null
   source: DurableEvidence
 }>
 export interface ModelProfiles<P> {
-  list(
+  list<K extends ProfileKind>(
     input: Access<P> &
       Readonly<{
+        kind: K
         selected: string | null
         required: ModalityRequirement
       }>,
-  ): Reply<ModelChoices>
-  resolve(
+  ): Reply<ModelChoices<K>>
+  resolve<K extends ProfileKind>(
     input: Access<P> &
       Readonly<{
+        kind: K
         route: string
         required: ModalityRequirement
       }>,
-  ): Reply<ProfileResolution>
+  ): Reply<ProfileResolution<K>>
 }
 export type ProfileChange =
   | Readonly<{ kind: 'create'; identity: ProfileIdentity; definition: ModelProfileDefinition }>
@@ -259,7 +273,7 @@ export type AssembledModelInput = Readonly<{
   system: readonly ContentBlock[]
   messages: readonly Message[]
   tools: readonly ToolDeclaration[]
-  toolChoice: FixedModelRequest['toolChoice']
+  toolChoice: LlmRequest['toolChoice']
   parameters: readonly Parameter[]
   replay?: 'off'
   representation: Adoption
@@ -269,11 +283,11 @@ export interface ModelRequestPreparation<P> {
   prepare(
     input: Access<P> &
       Readonly<{
-        profile: ModelProfile
+        profile: ModelProfile<'llm'>
         required: ModalityRequirement
         assembled: AssembledModelInput
       }>,
-  ): Reply<FixedModelRequest>
+  ): Reply<LlmModelRequest>
 }
 export type MediaMeasurementFact = Readonly<{
   reference: ContentReference

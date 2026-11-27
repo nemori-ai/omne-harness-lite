@@ -1,9 +1,6 @@
 // @module-tag slow — exercises the public provider against a local TLS endpoint.
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest'
-import {
-  createOpenRouterDecisions,
-  type OpenRouterDecisionsConfig,
-} from '@omne-harness/pi-ai-transport/decisions'
+import { createDecisions, type DecisionsConfig } from '@omne-harness/pi-ai-transport/decisions'
 import { createNetworkResources, type NetworkResources } from '@omne-harness/pi-ai-transport'
 import {
   createCertificate,
@@ -67,11 +64,12 @@ afterAll(async () => {
   cert.dispose()
 })
 
-function provider(options: Partial<OpenRouterDecisionsConfig> = {}) {
-  return createOpenRouterDecisions({
+function provider(options: Partial<DecisionsConfig> = {}) {
+  return createDecisions({
     network,
     timeoutMs: 5000,
     maxRequestBytes: 8192,
+    maxQuestions: 200,
     responseLimits,
     route: {
       endpoints: {

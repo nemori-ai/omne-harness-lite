@@ -1,10 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createNetworkResources } from '@omne-harness/pi-ai-transport'
-import {
-  createOpenRouterDecisions,
-  type DecisionRequest,
-} from '@omne-harness/pi-ai-transport/decisions'
+import { createDecisions, type DecisionRequest } from '@omne-harness/pi-ai-transport/decisions'
 import type { Decide, Decided, ReplyCache } from './replay.ts'
 
 const LIMITS = {
@@ -22,10 +19,11 @@ export function openRouterDecide(
 ): Readonly<{ decide: Decide; close: () => Promise<void> }> {
   const key = readFileSync(keyFile, 'utf8').trim()
   const network = createNetworkResources({ maxConnections: 8, idleConnectionTimeoutMs: 2000 })
-  const decisions = createOpenRouterDecisions({
+  const decisions = createDecisions({
     network,
     timeoutMs: 120_000,
     maxRequestBytes: 262_144,
+    maxQuestions: null,
     responseLimits: LIMITS,
     route: {
       endpoints: {

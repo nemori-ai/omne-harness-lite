@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { expect, it } from 'vitest'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer } from './support/https-server.ts'
 import {
   ACCESS,
@@ -76,12 +76,13 @@ it('checks a fixed request recovered from SQLite under the new send activation p
     storage.reopen()
     const fresh = durableCommands(storage.storage, profile).commands
     expect(decoded(await fresh.loadRequest({ ...ACCESS, call }))).toEqual(request)
-    const checked: FixedModelRequest[] = []
+    const checked: LlmModelRequest[] = []
     line = await assembleLine({
       directory,
       storage,
       gateway,
       requestDisclosure: value => {
+        if (value.kind !== 'llm') return null
         checked.push(value)
         let bytes = 0
         for (const message of value.messages)

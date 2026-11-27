@@ -11,8 +11,29 @@ const openrouter = (() => {
 it('lists one catalog model per official profile of the provider, by the name the provider gives it', () => {
   const catalog = officialCatalog(openrouter, () => false)
   const models = catalog.map(entry => entry.model)
-  expect(models).toHaveLength(43)
-  expect(new Set(models).size).toBe(43)
+  expect(models).toHaveLength(46)
+  expect(new Set(models).size).toBe(46)
+  expect(catalog.filter(entry => entry.kind === 'llm')).toHaveLength(43)
+  expect(catalog.filter(entry => entry.kind === 'decisions')).toEqual([
+    {
+      kind: 'decisions',
+      model: 'openai/gpt-6-luna-decisions',
+      title: 'openai/gpt-6-luna-decisions',
+      input: ['text'],
+      output: ['text'],
+      maxQuestions: '200',
+      enabled: false,
+    },
+    {
+      kind: 'decisions',
+      model: 'typesafe/jev-1.13',
+      title: 'typesafe/jev-1.13',
+      input: ['text'],
+      output: ['text'],
+      enabled: false,
+    },
+    expect.objectContaining({ kind: 'decisions', model: 'typesafe/jev-1.14' }),
+  ])
   expect(models).toContain('anthropic/claude-opus-5.5')
   expect(models).toContain('z-ai/glm-5.3-prime')
   expect(catalog.every(entry => entry.title === entry.model)).toBe(true)
@@ -23,8 +44,9 @@ it('takes the modalities, the window and the reasoning efforts from the profile'
   const omni = catalog.find(entry => entry.model === 'qwen/qwen3.8-omni-flash')
   expect(omni?.input).toContain('voice')
   const sol = catalog.find(entry => entry.model === 'openai/gpt-6.1-sol')
-  expect(sol?.efforts.length).toBeGreaterThan(0)
-  expect(sol?.window).toMatch(/^[1-9][0-9]*$/u)
+  if (sol?.kind !== 'llm') throw new Error('the chat model is not in the catalog')
+  expect(sol.efforts.length).toBeGreaterThan(0)
+  expect(sol.window).toMatch(/^[1-9][0-9]*$/u)
   for (const entry of catalog) expect(entry.input).toContain('text')
 })
 

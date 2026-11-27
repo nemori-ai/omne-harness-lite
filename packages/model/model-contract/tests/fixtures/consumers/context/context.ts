@@ -3,7 +3,7 @@ import type { Message } from '@omne-harness/message'
 import type {
   AssembledModelInput,
   BudgetCheck,
-  FixedModelRequest,
+  LlmModelRequest,
   ModelFailure,
   ModelCallId,
   ModelInputMeter,
@@ -25,7 +25,7 @@ export type Services = Readonly<{
 }>
 
 export type Prepared =
-  | Readonly<{ kind: 'prepared'; request: FixedModelRequest; dropped: number }>
+  | Readonly<{ kind: 'prepared'; request: LlmModelRequest; dropped: number }>
   | Readonly<{ kind: 'rejected'; failure: ModelFailure; dropped: number }>
   | Readonly<{ kind: 'unmeasured'; dropped: number }>
   | Readonly<{ kind: 'too-large'; amount: string; limit: string; dropped: number }>
@@ -36,7 +36,7 @@ const route = 'default'
 function assemble(
   messages: readonly Message[],
   tools: readonly ToolDeclaration[],
-  chosen: ModelProfile,
+  chosen: ModelProfile<'llm'>,
 ): AssembledModelInput {
   const system: readonly ContentBlock[] = [textBlock('system', 'Be brief.')]
   return {
@@ -62,7 +62,7 @@ export async function prepareRequest(
     signal: AbortSignal
   }>,
 ): Promise<Prepared> {
-  const resolution = await services.profiles.resolve({ ...access, route, required })
+  const resolution = await services.profiles.resolve({ ...access, kind: 'llm', route, required })
   if (!('ok' in resolution)) return { kind: 'rejected', failure: resolution.failure, dropped: 0 }
   if (resolution.ok.kind !== 'resolved' || !resolution.ok.selectable) return { kind: 'no-profile' }
   const chosen = resolution.ok.profile
@@ -95,7 +95,7 @@ export type Submitted =
       kind: 'settled'
       termination: Termination
       calls: readonly ModelCallId[]
-      requests: readonly FixedModelRequest[]
+      requests: readonly LlmModelRequest[]
     }>
   | Readonly<{ kind: 'not-sent'; prepared: Exclude<Prepared, { kind: 'prepared' }> }>
   | Readonly<{ kind: 'gave-up'; calls: readonly ModelCallId[] }>
@@ -110,7 +110,7 @@ export async function submitRequest(
   }>,
 ): Promise<Submitted> {
   const calls: ModelCallId[] = []
-  const requests: FixedModelRequest[] = []
+  const requests: LlmModelRequest[] = []
   let history = input.history
   for (;;) {
     const prepared = await prepareRequest(services, { ...input, history })

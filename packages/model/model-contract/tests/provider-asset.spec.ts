@@ -147,6 +147,54 @@ describe('modelProviderBodyContract: judge', () => {
       'invalid-accounting',
     ],
     ['accounting that is not an object', { accounting: 'x' }, 'invalid-accounting'],
+    [
+      'accounting whose generation is not an object',
+      { accounting: { place: 'x', costUnit: 'y', generation: 'x-id' } },
+      'invalid-accounting',
+    ],
+    [
+      'accounting whose generation names no header',
+      { accounting: { place: 'x', costUnit: 'y', generation: { path: '/cost' } } },
+      'invalid-accounting',
+    ],
+    [
+      'accounting whose generation header is no header name',
+      {
+        accounting: {
+          place: 'x',
+          costUnit: 'y',
+          generation: { requestHeader: 'X Id', path: '/cost' },
+        },
+      },
+      'invalid-accounting',
+    ],
+    [
+      'accounting whose generation header only starts as a header name',
+      {
+        accounting: {
+          place: 'x',
+          costUnit: 'y',
+          generation: { requestHeader: 'x-id: more', path: '/cost' },
+        },
+      },
+      'invalid-accounting',
+    ],
+    [
+      'accounting whose generation names no path',
+      { accounting: { place: 'x', costUnit: 'y', generation: { requestHeader: 'x-id' } } },
+      'invalid-accounting',
+    ],
+    [
+      'accounting whose generation path is not a path of the origin',
+      {
+        accounting: {
+          place: 'x',
+          costUnit: 'y',
+          generation: { requestHeader: 'x-id', path: 'https://elsewhere.test/cost' },
+        },
+      },
+      'invalid-accounting',
+    ],
     ['missing credentials', { credentials: undefined }, 'invalid-credentials'],
     ['credentials that are not a list', { credentials: CREDENTIAL }, 'invalid-credentials'],
     [
@@ -192,10 +240,10 @@ describe('modelProviderBodyContract: judge', () => {
 })
 
 describe('modelProviderBodyContract: hooks', () => {
-  const contract = modelProviderBodyContract()
+  const contract = () => modelProviderBodyContract()
 
   it('derives the settings definition: the credential items follow the two preferences', () => {
-    const definitions = contract.settings?.(body(plainBody()))
+    const definitions = contract().settings?.(body(plainBody()))
     expect(definitions).toMatchObject({
       providerId: MODEL_PROVIDER_CATEGORY,
       definitionId: 'test-gateway',
@@ -221,17 +269,17 @@ describe('modelProviderBodyContract: hooks', () => {
   })
 
   it('derives no declarations and no references', () => {
-    expect(contract.deriveDeclarations(body(plainBody()))).toEqual({ entries: [] })
-    expect(contract.references(body(plainBody()))).toEqual([])
+    expect(contract().deriveDeclarations(body(plainBody()))).toEqual({ entries: [] })
+    expect(contract().references(body(plainBody()))).toEqual([])
   })
 
   it('throws when a hook receives a body the registry would have refused', () => {
     const refused = body(plainBody(one({ protocol: '' })))
-    expect(() => contract.settings?.(refused)).toThrow(
+    expect(() => contract().settings?.(refused)).toThrow(
       'model provider body failed judgment: invalid-protocol',
     )
-    expect(() => contract.deriveDeclarations(refused)).toThrow(TypeError)
-    expect(() => contract.references(refused)).toThrow(TypeError)
+    expect(() => contract().deriveDeclarations(refused)).toThrow(TypeError)
+    expect(() => contract().references(refused)).toThrow(TypeError)
   })
 })
 
@@ -329,6 +377,7 @@ describe('modelProviderBodyContract: settings through projectAssetSettings', () 
 })
 
 const MODEL = {
+  kind: 'llm',
   model: 'vendor/model-a',
   title: 'Model A',
   input: ['text', 'image'],
@@ -339,13 +388,34 @@ const MODEL = {
 }
 
 describe('the provider model catalog (C1, C2)', () => {
-  const contract = modelProviderBodyContract()
+  const contract = () => modelProviderBodyContract()
 
   it('reads the catalog of models the provider adapts, in its order', () => {
     const second = { ...MODEL, model: 'vendor/model-b', efforts: [], enabled: false }
     const parsed = parseModelProviderBody(body(plainBody({ models: [MODEL, second] })))
     if (!('ok' in parsed)) throw new Error(String(parsed.failure))
     expect(parsed.ok.models).toEqual([MODEL, second])
+  })
+
+  it('reads a decisions model beside a chat model, with the question limit it states or none', () => {
+    const judge = { kind: 'decisions', model: 'vendor/judge', title: 'Judge', enabled: true }
+    const common = { input: ['text'], output: ['text'] }
+    const limited = { ...judge, ...common, maxQuestions: '200' }
+    const open = { ...judge, ...common, model: 'vendor/judge-open', enabled: false }
+    const parsed = parseModelProviderBody(body(plainBody({ models: [MODEL, limited, open] })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.models).toEqual([MODEL, limited, open])
+  })
+
+  it('reads the accounting that states how a cost is asked afterwards, and the one that states nothing', () => {
+    const generation = { requestHeader: 'x-generation-id', path: '/api/v1/generation' }
+    const stated = { place: 'test-gateway', costUnit: 'test-credit', generation }
+    const parsed = parseModelProviderBody(body(plainBody({ accounting: stated })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.accounting).toEqual(stated)
+    const plain = parseModelProviderBody(body(plainBody()))
+    if (!('ok' in plain)) throw new Error(String(plain.failure))
+    expect(plain.ok.accounting).toEqual({ place: 'test-gateway', costUnit: 'test-credit' })
   })
 
   it('reads a model that takes voice', () => {
@@ -373,6 +443,16 @@ describe('the provider model catalog (C1, C2)', () => {
     ['a modality that is not text', { models: [{ ...MODEL, input: ['text', 7] }] }],
     ['a modality no model takes', { models: [{ ...MODEL, input: ['text', 'video'] }] }],
     ['efforts that are not a list', { models: [{ ...MODEL, efforts: 'low' }] }],
+    ['a model of no kind', { models: [{ ...MODEL, kind: undefined }] }],
+    ['a model of an unknown kind', { models: [{ ...MODEL, kind: 'image' }] }],
+    [
+      'a decisions model whose question limit is no positive integer',
+      { models: [{ ...MODEL, kind: 'decisions', maxQuestions: '0' }] },
+    ],
+    [
+      'a decisions model whose question limit is written as null',
+      { models: [{ ...MODEL, kind: 'decisions', maxQuestions: null }] },
+    ],
   ])('refuses %s', (_case, change) => {
     expect(parseModelProviderBody(body(plainBody(change)))).toEqual({
       failure: 'invalid-models',
@@ -380,7 +460,7 @@ describe('the provider model catalog (C1, C2)', () => {
   })
 
   it('declares the two preferences of a tenant, also for a provider with no credential item', () => {
-    const definitions = contract.settings?.(body(plainBody({ models: [MODEL], credentials: [] })))
+    const definitions = contract().settings?.(body(plainBody({ models: [MODEL], credentials: [] })))
     expect(definitions?.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
       ['model-switches', 'preference', 'ordinary'],
       ['model-reasoning-efforts', 'preference', 'ordinary'],
@@ -390,7 +470,7 @@ describe('the provider model catalog (C1, C2)', () => {
   })
 
   it('declares the credential items after the preferences', () => {
-    const definitions = contract.settings?.(body(plainBody({ models: [MODEL] })))
+    const definitions = contract().settings?.(body(plainBody({ models: [MODEL] })))
     expect(definitions?.items.map(item => item.id)).toEqual([
       'model-switches',
       'model-reasoning-efforts',
@@ -400,14 +480,14 @@ describe('the provider model catalog (C1, C2)', () => {
   })
 
   it('a version of the declaration that follows its content, not the catalog or the asset version', () => {
-    const one = contract.settings?.(body(plainBody({ models: [MODEL] })), { definition: '1' })
-    const more = contract.settings?.(
+    const one = contract().settings?.(body(plainBody({ models: [MODEL] })), { definition: '1' })
+    const more = contract().settings?.(
       body(plainBody({ models: [MODEL, { ...MODEL, model: 'vendor/model-b' }] })),
       { definition: '2' },
     )
     expect(one?.version).toMatch(/^sha256:[a-f0-9]{64}$/u)
     expect(more?.version).toBe(one?.version)
-    const otherKey = contract.settings?.(
+    const otherKey = contract().settings?.(
       body(plainBody({ models: [MODEL], credentials: [{ ...CREDENTIAL, item: 'other' }] })),
     )
     expect(otherKey?.version).not.toBe(one?.version)
@@ -418,7 +498,7 @@ describe('the provider model catalog (C1, C2)', () => {
       (() => {
         const point = createCategoryPoint()
         point.contribute({
-          contract,
+          contract: contract(),
           display: modelProviderCategoryDisplay,
           point: 'model.providers',
         })
@@ -452,7 +532,7 @@ describe('the provider model catalog (C1, C2)', () => {
 })
 
 describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
-  const catalog = (() => {
+  const catalog = () => {
     const parsed = parseModelProviderBody(
       body(
         plainBody({
@@ -465,36 +545,49 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     )
     if (!('ok' in parsed)) throw new Error(String(parsed.failure))
     return parsed.ok
-  })()
+  }
 
   it('without settings each model is as the release enables it, with no default effort', () => {
-    const preferences = preferencesOf(catalog, undefined, undefined)
+    const preferences = preferencesOf(catalog(), undefined, undefined)
     expect([...preferences.enabled]).toEqual(['m/on'])
     expect([...preferences.efforts]).toEqual([])
   })
 
   it('a switch of the tenant turns a model on or off', () => {
-    const preferences = preferencesOf(catalog, { 'm/on': false, 'm/off': true }, undefined)
+    const preferences = preferencesOf(catalog(), { 'm/on': false, 'm/off': true }, undefined)
     expect([...preferences.enabled]).toEqual(['m/off'])
   })
 
+  it('a decisions model follows its switch as a chat model does, and takes no default effort', () => {
+    const judge = { kind: 'decisions', model: 'm/judge', title: 'Judge', enabled: true }
+    const parsed = parseModelProviderBody(
+      body(plainBody({ models: [{ ...judge, input: ['text'], output: ['text'] }] })),
+    )
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect([...preferencesOf(parsed.ok, undefined, undefined).enabled]).toEqual(['m/judge'])
+    expect([...preferencesOf(parsed.ok, { 'm/judge': false }, undefined).enabled]).toEqual([])
+    expect(preferencesOf(parsed.ok, undefined, { 'm/judge': 'high' }).efforts.size).toBe(0)
+  })
+
   it('takes a default effort only where the model supports it', () => {
-    const preferences = preferencesOf(catalog, undefined, { 'm/on': 'high', 'm/off': 'low' })
+    const preferences = preferencesOf(catalog(), undefined, { 'm/on': 'high', 'm/off': 'low' })
     expect([...preferences.efforts]).toEqual([['m/on', 'high']])
-    expect(preferencesOf(catalog, undefined, { 'm/on': 'medium' }).efforts.size).toBe(0)
+    expect(preferencesOf(catalog(), undefined, { 'm/on': 'medium' }).efforts.size).toBe(0)
   })
 
   it('ignores what does not belong to the catalog or is not a value of its kind', () => {
     const preferences = preferencesOf(
-      catalog,
+      catalog(),
       { 'm/elsewhere': true, 'm/off': 'yes' },
       { 'm/elsewhere': 'low', 'm/on': 'max' },
     )
     expect([...preferences.enabled]).toEqual(['m/on'])
     expect(preferences.efforts.size).toBe(0)
-    expect(preferencesOf(catalog, [true], 'high')).toEqual(
-      preferencesOf(catalog, undefined, undefined),
+    expect(preferencesOf(catalog(), [true], 'high')).toEqual(
+      preferencesOf(catalog(), undefined, undefined),
     )
-    expect(preferencesOf(catalog, null, null)).toEqual(preferencesOf(catalog, undefined, undefined))
+    expect(preferencesOf(catalog(), null, null)).toEqual(
+      preferencesOf(catalog(), undefined, undefined),
+    )
   })
 })

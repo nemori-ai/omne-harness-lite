@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 import { GLM_RECORDS, officialGlmProfiles } from '../src/index.ts'
@@ -72,7 +72,8 @@ it.each(cases)(
     const file = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8')) as {
       request: Record<string, unknown>
     }
-    const checked = judgeFixedModelRequest(
+    const checked = judgeModelRequest(
+      'llm',
       sample === 'fixture' ? file.request : releaseRequest(file.request),
     )
     if ('failure' in checked) throw Error(JSON.stringify(checked.failure))

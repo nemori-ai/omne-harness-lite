@@ -6,7 +6,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeRevision,
   resolveModelInvocationRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelInvocationRef,
 } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
@@ -77,7 +77,7 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
         if ('failure' in prepared || prepared.ok.kind !== 'ready') return prepared
         const [supplier, ...rest] = prepared.ok.request.suppliers
         if (supplier === undefined) return prepared
-        const request: FixedModelRequest = {
+        const request: LlmModelRequest = {
           ...prepared.ok.request,
           suppliers: [{ ...supplier, model: `test-model-${prepares}` }, ...rest],
         }

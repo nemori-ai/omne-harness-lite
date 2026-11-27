@@ -11,6 +11,7 @@ import type {
   ModelSendBoundary,
 } from '@omne-harness/model-contract/provider'
 import {
+  chatBindingsOf,
   createNetworkResources,
   type NetworkConfig,
   type NetworkResources,
@@ -109,7 +110,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
     throw new RangeError('preparation must be an object')
   const leases = createModelPreparationResources<P>({
     commands: config.commands,
-    bindings: config.families,
+    bindings: chatBindingsOf(config.families),
     supplierOf: options.supplierOf,
     maxCitedCalls: options.maxCitedCalls,
   })

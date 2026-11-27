@@ -404,7 +404,7 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
+function sourcesOf(profile: ModelProfile<'llm'>): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
     supplier: supplier.adoption,
@@ -415,7 +415,7 @@ function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[]
   }))
 }
 
-export function durableCommands(storage: Storage, profile?: ModelProfile) {
+export function durableCommands(storage: Storage, profile?: ModelProfile<'llm'>) {
   return createSqlModelCommands<Principal>({
     ...coreOptions(),
     storage,
@@ -597,7 +597,7 @@ export async function assembleLine(input: LineInput) {
     updatedAt: '2026-11-02T00:00:00Z',
   })
   const resolution = decoded(
-    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: REQUIRED }),
+    await ctx.modelProfiles.resolve({ ...ACCESS, kind: 'llm', route: ROUTE, required: REQUIRED }),
   )
   if (resolution.kind !== 'resolved') throw new Error(`the profile ${ROUTE} did not resolve`)
   const { profile } = resolution

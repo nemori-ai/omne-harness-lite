@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   byteLimitOf,
@@ -16,7 +16,7 @@ import { hooksOf } from './rules.ts'
 export type OpenAiFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
+export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: OPENAI_OWNER,
     title: 'OpenAI',

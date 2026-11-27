@@ -12,6 +12,7 @@ import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
+import { officialProfiles } from '@omne-harness/model-host-local'
 import {
   ModelPreparationResourcesService,
   ModelDecisionPreparationService,
@@ -138,10 +139,11 @@ const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 async function profileOf(
   ctx: { get(name: string): unknown },
   route = 'openai/gpt-5.6-sol',
-): Promise<ModelProfile> {
+): Promise<ModelProfile<'llm'>> {
   const profiles = ctx.get('modelProfiles') as ModelProfilesLike
   const resolved = await profiles.resolve({
     ...ACCESS,
+    kind: 'llm',
     route,
     required: REQUIRED,
   })
@@ -153,7 +155,8 @@ type ModelProfilesLike = {
   resolve(
     input: unknown,
   ): Promise<
-    { ok: { kind: 'resolved'; profile: ModelProfile } | { kind: 'absent' } } | { failure: unknown }
+    | { ok: { kind: 'resolved'; profile: ModelProfile<'llm'> } | { kind: 'absent' } }
+    | { failure: unknown }
   >
 }
 
@@ -183,11 +186,16 @@ describe('the model-request-preparation row', () => {
     expect(run.result.exitCode).toBe(0)
   })
 
-  it('leases every official send source for preparation at the same supplier adoption', async () => {
+  it('leases every official chat send source for preparation at the same supplier adoption', async () => {
+    const chat = new Set(
+      officialProfiles(profilesConfig)
+        .filter(definition => definition.kind === 'llm')
+        .flatMap(definition => definition.suppliers.map(supplier => supplier.model)),
+    )
     const sources = officialSendSources({
       profiles: profilesConfig,
       current: () => ({ ok: { authorized: false } }),
-    })
+    }).filter(source => chat.has(source.model))
     const { value } = await withLiveRows({ rows, plugins, probe }, async ctx => {
       const leases = ctx.get(
         'modelPreparationResources',

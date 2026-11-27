@@ -3,6 +3,7 @@ import type { RouteAccounting } from '../config.ts'
 export const OPENROUTER_ACCOUNTING: RouteAccounting = Object.freeze({
   place: 'openrouter',
   costUnit: 'openrouter-credit',
+  generation: Object.freeze({ requestHeader: 'x-generation-id', path: '/api/v1/generation' }),
 })
 
 export const OPENROUTER_PROVIDER_BODY_TEXT: string = JSON.stringify({

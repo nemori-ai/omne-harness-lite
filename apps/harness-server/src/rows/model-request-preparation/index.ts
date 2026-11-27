@@ -3,9 +3,14 @@ import {
   modelCommandsKey,
   modelCredentialKey,
   modelDecisionPreparationKey,
+  modelProfilesKey,
   modelRequestPreparationKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { createDecisionPreparation } from '@omne-harness/model-host-local'
+import {
+  createDecisionPreparation,
+  type DecisionPreparationOptions,
+} from '@omne-harness/model-host-local'
+import { chatBindingsOf } from '@omne-harness/pi-ai-transport'
 import {
   createModelRequestPreparationPlugin,
   serveModelDecisionPreparation,
@@ -17,6 +22,14 @@ import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 import { releaseFamilies } from '../../model/families.ts'
 import { qualifyingReads } from '../../model/commands-qualifying.ts'
 import { modelReadersPortOf } from '../../model/ports.ts'
+
+const PROFILES_AWAY = Object.freeze({
+  failure: Object.freeze({
+    kind: 'unavailable',
+    dependency: 'model-profiles',
+    diagnostic: 'not-provided',
+  }),
+} as const)
 
 const plugin: Plugin.Object = {
   name: 'model-request-preparation',
@@ -33,10 +46,14 @@ const plugin: Plugin.Object = {
       )
     const reader = readers.bindReader(ctx)
     const supplierOf = credentialLayerSupplier(() => ctx.get(modelCredentialKey))
-    // A decision request stands on no profile of the chat selection: only the credential layer is shared.
-    serveModelDecisionPreparation(ctx, createDecisionPreparation({ supplierOf }))
+    // The profiles are read at each call: while they are away a decision answers unavailable.
+    const profiles: DecisionPreparationOptions<unknown>['profiles'] = {
+      resolve: async input =>
+        (await ctx.get(modelProfilesKey, false)?.resolve(input)) ?? PROFILES_AWAY,
+    }
+    serveModelDecisionPreparation(ctx, createDecisionPreparation({ profiles, supplierOf }))
     const preparation = createModelRequestPreparationPlugin({
-      bindings,
+      bindings: chatBindingsOf(bindings),
       supplierOf,
       readFacts: commands => qualifyingReads(commands, access => reader.qualifyRead(access)),
     })

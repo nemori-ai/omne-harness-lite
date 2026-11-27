@@ -1,9 +1,6 @@
 import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { officialGlmProfiles } from '../src/index.ts'
 import { FAMILY } from './support/glm.ts'
@@ -32,7 +29,7 @@ it('reports unavailable when text is sent from a file reference whose words are 
     bytes: String(bytes.length),
     digest: 'words',
   }
-  const request = judgeFixedModelRequest({
+  const request = judgeModelRequest('llm', {
     kind: 'llm',
     profile: source,
     retryPolicy: source,

@@ -46,3 +46,5 @@ export type {
   ScriptedCredentialPortOptions,
   ScriptedCredentialProvider,
 } from './credential.ts'
+export { ofKind } from './values.ts'
+export { resolutionOf } from './profile-values.ts'

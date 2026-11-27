@@ -23,6 +23,6 @@ export function effortMapping(record: GlmRecord): ReasoningEffortMapping {
 
 export function officialGlmProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(GLM_OWNER, GLM_RECORDS, input, effortMapping)
 }

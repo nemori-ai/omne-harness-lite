@@ -1,3 +1,4 @@
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
   accountCodec,
@@ -18,7 +19,7 @@ import {
   decodeModelOperationId,
   decodeResultVersion,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelDelivery,
   type ModelDeliveryFailure,
@@ -85,7 +86,7 @@ const CONFIGURATION: ModelConfiguration = {
   readIdleMs: 1000,
 }
 
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
   kind: 'llm',
   profile: ADOPTION,
   suppliers: [
@@ -379,7 +380,7 @@ function world(
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: input.answer ?? ANSWER,

@@ -28,7 +28,6 @@ describe('one decision call of a judging', () => {
       ask: ask().request,
       source: GOAL_DECISIONS_SOURCE,
     })
-    expect(prepared?.message).toMatch(/^msg_[0-9a-f]{40}$/u)
     const [id] = [...w.calls.keys()]
     expect(id).toMatch(/^mcall_goal_[0-9a-f]{40}$/u)
     expect(w.only().consumer).toEqual({

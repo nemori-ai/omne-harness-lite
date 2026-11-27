@@ -19,7 +19,7 @@ import {
   type DispatchId,
   type DispatchRecord,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ResultPart,
   type ModelCallId,
   type ModelCalls,
@@ -78,7 +78,7 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
   kind: 'llm',
   profile: adoption('profile'),
   suppliers: [supplier],

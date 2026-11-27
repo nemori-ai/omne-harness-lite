@@ -4,10 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeJsonText } from '@omne-harness/json-text'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
 import { DEEPSEEK_OWNER, DEEPSEEK_RECORDS, type DeepSeekRecord } from '../../src/index.ts'
@@ -72,7 +69,7 @@ function requestFor(record: DeepSeekRecord) {
     ],
     toolChoice: 'auto',
   }
-  const judged = judgeFixedModelRequest(input)
+  const judged = judgeModelRequest('llm', input)
   if ('failure' in judged) throw Error(JSON.stringify(judged.failure))
   return { input, request: judged.ok }
 }

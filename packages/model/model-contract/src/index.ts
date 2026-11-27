@@ -21,7 +21,11 @@ export type {
   ProviderName,
   ReadId,
   ReasoningEffort,
-  RequestKind,
+  RequestCommon,
+  LlmRequest,
+  DecisionsRequest,
+  LlmModelRequest,
+  DecisionsModelRequest,
   ResultVersion,
   Revision,
   Supplier,
@@ -60,8 +64,7 @@ export {
   DECISION_REPRESENTATION,
   decisionAnswersBlock,
   decisionAnswersOf,
-  decisionAskMessage,
-  decisionAskOf,
+  judgeDecisionAsk,
 } from './decision-call.ts'
 export type * from './dispatch-facts.ts'
 export type {
@@ -90,6 +93,8 @@ export type {
   ModelProfile,
   ModelProfileDefinition,
   LlmProfile,
+  DecisionsProfile,
+  ProfileKind,
   ParameterAdoption,
   ProfileCommon,
   ProfileIdentity,
@@ -108,6 +113,7 @@ export {
   LIMIT_METRICS,
   mediaLimitMetric,
   OVER_LIMIT_METRICS,
+  isProfileOf,
   profileCovers,
   supportedReasoningEfforts,
 } from './profile.ts'

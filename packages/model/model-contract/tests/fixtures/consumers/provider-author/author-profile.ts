@@ -27,6 +27,7 @@ function exceedsKnownUpstream(limit: TokenLimit): boolean {
 }
 
 export function invalidFields(definition: ModelProfileDefinition): string[] {
+  if (definition.kind !== 'llm') return []
   const fields: string[] = []
   const { context } = definition
   const limits: readonly (readonly [string, TokenLimit])[] = [

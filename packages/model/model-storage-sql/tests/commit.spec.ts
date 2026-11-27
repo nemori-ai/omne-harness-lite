@@ -8,7 +8,7 @@ import {
   decodeModelOperationId,
   decodeOutputCursor,
   decodeRevision,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelOperationId,
@@ -253,7 +253,7 @@ const SUPPLIER = {
   model: 'model',
   credential: { layer: 'official' as const },
 }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
   kind: 'llm',
   profile: ADOPTION,
   suppliers: [SUPPLIER],

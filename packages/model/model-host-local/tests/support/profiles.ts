@@ -18,9 +18,9 @@ const PROFILE: Adoption = {
 
 export function officialProfile(
   input: Readonly<{ family: FamilyName; model: string; retryPolicy: Adoption }>,
-): ModelProfile {
+): ModelProfile<'llm'> {
   const official = { retryPolicy: input.retryPolicy, compactionTriggerPercent: '80' }
-  const definitions: readonly ModelProfileDefinition[] =
+  const definitions: readonly ModelProfileDefinition<'llm'>[] =
     input.family === 'pi-ai-openai'
       ? officialOpenAiProfiles(official)
       : officialAnthropicProfiles(official)

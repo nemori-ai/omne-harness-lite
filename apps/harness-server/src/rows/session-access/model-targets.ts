@@ -38,7 +38,7 @@ const CREDENTIAL = {
   unavailable: 'unknown',
 } as const
 
-export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
+export function targetOf(resolution: ProfileResolution<'llm'>): ModelTargetCheck {
   if (resolution.kind === 'absent') return { kind: 'refused', reason: resolution.reason }
   const [reason] = resolution.reasons
   if (!resolution.selectable)
@@ -104,7 +104,7 @@ export function modelTargetsOf(
           : await sessionRequirementOf(view, { tenant, session })
       if (requirement === null) return { kind: 'unavailable' }
       const { required } = requirement
-      const resolved = await profiles.resolve({ principal, tenant, route, required })
+      const resolved = await profiles.resolve({ principal, tenant, kind: 'llm', route, required })
       if (!('ok' in resolved)) return { kind: 'unavailable' }
       const target = targetOf(resolved.ok)
       if (resolved.ok.kind !== 'resolved' || target.kind !== 'refused') return target

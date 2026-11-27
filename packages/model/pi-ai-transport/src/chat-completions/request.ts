@@ -7,7 +7,7 @@ import {
   type Adoption,
   type ReasoningEffortMapping,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MeterRepresentation,
   type ModelProfile,
   type Parameter,
@@ -140,7 +140,11 @@ function shown(context: RequestContext, input: RepresentInput) {
 
 export function planRequest(
   context: RequestContext,
-  input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
+  input: Readonly<{
+    profile: ModelProfile<'llm'>
+    supplier: Supplier
+    assembled: AssembledModelInput
+  }>,
 ): Outcome<
   Readonly<{ parameters: readonly ParameterAdoption[]; representation: MeterRepresentation }>,
   TransportFailure
@@ -195,7 +199,7 @@ export function planRequest(
 export function encodeRequest(
   context: RequestContext,
   input: Readonly<{
-    request: FixedModelRequest
+    request: LlmModelRequest
     media: readonly PiMaterializedMedia[]
     declaration: ReplayDeclaration
     resent: TransportDispatch['resent']
