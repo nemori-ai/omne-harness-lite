@@ -1,6 +1,6 @@
 # Skill产品设计
 
-状态：产品设计草案，revision 10。尚无整体接受证据。落位不授予运行支持。技术承接从[包组规格](../../../../packages/skills/SPEC.md)展开。
+状态：产品设计草案，revision 11。尚无整体接受证据。落位不授予运行支持。技术承接从[包组规格](../../../../packages/skills/SPEC.md)展开。
 
 ## 产品需求描述
 
@@ -11,6 +11,8 @@ Skill 按三层披露，用到才读下一层。第一层是名称与说明，�
 用户需要在上下文预算内找到方法，按需取得正文和资源，再由 agent 按指导工作。目录里的脚本是文件，用 `read_file` 读。要运行它，agent 用 Shell，那是一次普通的 Shell 工具调用，见 J-SK05。发现、读取和实际内容采用分别可辨认。常驻只把名称和说明交给模型，不自动加载正文；读正文是一次返回，不产生“已激活”状态，不改变系统提示词，也不自动读全部附件或运行脚本。指导文本和资源中的指令不授予身份、权限或系统决策权。
 
 方法内容、持有与配值归各自资产拥有者；本领域维护方法的定义、发现、按需读取和来源，以及向消息、Context、工具与环境交接的专有规则。Skill 交出的材料里有依赖声明和 [Skill 包](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package)字节。Skill 只交依赖声明，依赖在不在场、方法此刻可不可用，由[集成方](../../ubiquitous_language/terms/scope-and-resolution.md#ul-integrator--集成方--integrator)求值（J-SK02）。已发布方法的内容由资产存放。Skill 按能力标识向资产要一个[包的读口](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)，按[包的清单](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest)里的路径与摘要读文件，不认宿主机上的路径，存放办法见[资产与规则](../assets-and-rules/design.md#content-storage)。工具 read 返回与命令展开用户消息各自保存实际采用内容，不能统一改成一种日志。Skill 自身没有持续执行运行时，`Skills` 也没有执行命令。运行脚本是一次 Shell 工具调用，工作和结果归工具执行。后续内容更新不会重写已经读取或采用的旧内容。
+
+Skill 资产之外，MCP 接入点的对端也可以带来技能，叫 [MCP 技能](../../ubiquitous_language/terms/reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill)。它们不是 Skill 资产，不经本领域的来源贡献、持有与发布。它们经[技能条目来源](../../ubiquitous_language/terms/reach-and-availability.md#ul-skill-entry-source--技能条目来源--skill-entry-source)进到同一个 `Skills` 入口，搜索与三层读取的形状相同。每一条写明来源，名字带来源的前缀，不参加同名 Skill 的求值。它们的内容是外部内容，没有本机目录，不常驻。规则归 [MCP 产品页 J-MC10](../mcp/design.md#j-mc10-发现并读取随连接来的技能)。
 
 ### 元技能
 
