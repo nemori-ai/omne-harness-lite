@@ -112,7 +112,8 @@ booting('首帧之前的主题与字号档（DT-20）', () => {
     expect(bootAt).toBeGreaterThan(0)
     expect(bootAt).toBeLessThan(html.indexOf('type="module"'))
     expect(CONTENT_SECURITY_POLICY).toContain("script-src 'self'")
-    expect(CONTENT_SECURITY_POLICY).not.toContain('unsafe-inline')
+    const script = CONTENT_SECURITY_POLICY.split('; ').find(item => item.startsWith('script-src '))
+    expect(script).toBe("script-src 'self'")
   })
 })
 

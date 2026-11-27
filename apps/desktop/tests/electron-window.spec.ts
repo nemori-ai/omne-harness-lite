@@ -106,6 +106,11 @@ const PROBE = `(async () => {
   window.__control = needle
   const searchWorks = holds()
   delete window.__control
+  const violations = []
+  document.addEventListener('securitypolicyviolation', event => violations.push(event.effectiveDirective + ' ' + event.blockedURI))
+  await fetch('https://example.invalid/', { mode: 'no-cors' }).catch(() => undefined)
+  await fetch('http://example.invalid/', { mode: 'no-cors' }).catch(() => undefined)
+  await new Promise(resolve => setTimeout(resolve, 200))
   const opened = window.open('https://example.invalid/')
   const origin = location.origin
   location.href = 'https://example.invalid/'
@@ -126,7 +131,7 @@ const PROBE = `(async () => {
   const observation = await ${openObservation}
   window.__abortObservation()
   const cookie = document.cookie
-  return { sawGate, environment, visual, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
+  return { sawGate, environment, violations, visual, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
 })()`
 
 it(
@@ -229,6 +234,7 @@ it(
               pending: false,
             },
           },
+          violations: ['connect-src http://example.invalid/'],
           mail: null,
           local: null,
           notJson: 403,
