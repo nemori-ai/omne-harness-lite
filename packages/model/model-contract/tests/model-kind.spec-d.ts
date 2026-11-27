@@ -9,6 +9,9 @@ import {
   type ProfileCommon,
   type ProfileIdentity,
   type DecisionsModelRequest,
+  type LiveModelRequest,
+  type LiveProfile,
+  type LiveRequest,
   type DecisionsProfile,
   type DecisionsRequest,
   type FixedModelRequest,
@@ -33,7 +36,11 @@ describe('the kinds of model', () => {
     expectTypeOf<ModelProfileDefinition<'decisions'>>().toEqualTypeOf<
       ProfileCommon & DecisionsProfile
     >()
-    expectTypeOf<FixedModelRequest>().toEqualTypeOf<LlmModelRequest | DecisionsModelRequest>()
+    expectTypeOf<ModelProfileDefinition<'live'>>().toEqualTypeOf<ProfileCommon & LiveProfile>()
+    expectTypeOf<FixedModelRequest>().toEqualTypeOf<
+      LlmModelRequest | DecisionsModelRequest | LiveModelRequest
+    >()
+    expectTypeOf<LiveModelRequest>().toEqualTypeOf<RequestCommon & LiveRequest>()
     expectTypeOf<FixedModelRequest['kind']>().toExtend<ModelKind>()
     expectTypeOf<LlmModelRequest>().toEqualTypeOf<RequestCommon & LlmRequest>()
     expectTypeOf<DecisionsModelRequest>().toEqualTypeOf<RequestCommon & DecisionsRequest>()

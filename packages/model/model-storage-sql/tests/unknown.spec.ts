@@ -83,6 +83,7 @@ describe('a saved write whose reply is lost', () => {
     expect(await commands.control(control)).toEqual({
       ok: {
         kind: 'requested',
+        intent: 'cancel',
         operation: opId('stop'),
         propagation: 'pending',
         upstream: 'unknown',

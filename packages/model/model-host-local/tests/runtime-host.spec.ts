@@ -9,7 +9,13 @@ import {
 import { expect, it } from 'vitest'
 import { durableSubject, type AssemblyFacts } from './support/durable-assembly.ts'
 
-const ALLOWED_NOT_APPLICABLE: Readonly<Partial<Record<ConformanceObligation, string>>> = {}
+const ALLOWED_NOT_APPLICABLE: Readonly<Partial<Record<ConformanceObligation, string>>> =
+  Object.fromEntries(
+    CONFORMANCE_OBLIGATIONS.filter(name => name.startsWith('live-')).map(name => [
+      name,
+      'the assembly holds no live calls',
+    ]),
+  )
 
 const KNOWN_FAILING: Readonly<
   Partial<Record<ConformanceObligation, Readonly<{ reason: string; detail: string }>>>

@@ -334,7 +334,10 @@ const chosen = (enabled: readonly string[], efforts: readonly (readonly [string,
   ({
     async read() {
       return {
-        ok: { enabled: { llm: new Set(enabled), decisions: new Set() }, efforts: new Map(efforts) },
+        ok: {
+          enabled: { llm: new Set(enabled), decisions: new Set(), live: new Set() },
+          efforts: new Map(efforts),
+        },
       }
     },
   }) satisfies ModelPreferencesPort
@@ -384,7 +387,10 @@ it('reads the preferences once per provider and with the access of the reader', 
     async read(input) {
       seen.push(input)
       return {
-        ok: { enabled: { llm: new Set(['on/route']), decisions: new Set() }, efforts: new Map() },
+        ok: {
+          enabled: { llm: new Set(['on/route']), decisions: new Set(), live: new Set() },
+          efforts: new Map(),
+        },
       }
     },
   })).read({ principal, tenant: TENANT })

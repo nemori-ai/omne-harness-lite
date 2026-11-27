@@ -40,6 +40,14 @@ function catalogModel(definition: ModelProfileDefinition, enabled: boolean): Cat
         kind: 'decisions',
         ...(definition.maxQuestions === null ? {} : { maxQuestions: definition.maxQuestions }),
       }
+    case 'live':
+      return {
+        ...common,
+        kind: 'live',
+        ...(definition.maxSessionSeconds === null
+          ? {}
+          : { maxSessionSeconds: definition.maxSessionSeconds }),
+      }
     default: {
       const _exhaustive: never = definition
       return _exhaustive

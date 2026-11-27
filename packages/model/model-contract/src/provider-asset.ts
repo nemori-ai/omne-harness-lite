@@ -46,10 +46,11 @@ export type LlmCatalog = Readonly<{
   efforts: readonly ReasoningEffort[]
 }>
 export type DecisionsCatalog = Readonly<{ kind: 'decisions'; maxQuestions?: string }>
-export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog)
+export type LiveCatalog = Readonly<{ kind: 'live'; maxSessionSeconds?: string }>
+export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog | LiveCatalog)
 export type CatalogKind = CatalogModel['kind']
 
-export const CATALOG_KINDS = ['llm', 'decisions'] as const satisfies readonly CatalogKind[]
+export const CATALOG_KINDS = ['llm', 'decisions', 'live'] as const satisfies readonly CatalogKind[]
 
 export type ProviderAccounting = Readonly<{
   place: string
@@ -283,6 +284,7 @@ const PREFERENCE_ITEMS = [
       properties: {
         llm: { type: 'object', additionalProperties: { type: 'boolean' } },
         decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+        live: { type: 'object', additionalProperties: { type: 'boolean' } },
       } satisfies Record<CatalogKind, unknown>,
       additionalProperties: false,
     },
@@ -391,21 +393,36 @@ function llmCatalogOf(entry: JsonValue): LlmCatalog | undefined {
   return { kind: 'llm', window, efforts }
 }
 
-function decisionsCatalogOf(entry: JsonValue): DecisionsCatalog | undefined {
-  const stated = field(entry, 'maxQuestions')
-  if (stated === undefined) return { kind: 'decisions' }
-  const maxQuestions = stringField(entry, 'maxQuestions')
-  return maxQuestions !== undefined && WINDOW.test(maxQuestions)
-    ? { kind: 'decisions', maxQuestions }
-    : undefined
+function statedLimit(entry: JsonValue, name: string): { value?: string } | undefined {
+  if (field(entry, name) === undefined) return {}
+  const value = stringField(entry, name)
+  return value !== undefined && WINDOW.test(value) ? { value } : undefined
 }
 
-function ownCatalogOf(entry: JsonValue): LlmCatalog | DecisionsCatalog | undefined {
+function decisionsCatalogOf(entry: JsonValue): DecisionsCatalog | undefined {
+  const limit = statedLimit(entry, 'maxQuestions')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'decisions' }
+    : { kind: 'decisions', maxQuestions: limit.value }
+}
+
+function liveCatalogOf(entry: JsonValue): LiveCatalog | undefined {
+  const limit = statedLimit(entry, 'maxSessionSeconds')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'live' }
+    : { kind: 'live', maxSessionSeconds: limit.value }
+}
+
+function ownCatalogOf(entry: JsonValue): LlmCatalog | DecisionsCatalog | LiveCatalog | undefined {
   switch (stringField(entry, 'kind')) {
     case 'llm':
       return llmCatalogOf(entry)
     case 'decisions':
       return decisionsCatalogOf(entry)
+    case 'live':
+      return liveCatalogOf(entry)
   }
   return undefined
 }
@@ -448,7 +465,11 @@ export function preferencesOf(
   switches: unknown,
   efforts: unknown,
 ): ProviderPreferences {
-  const enabled: Record<CatalogKind, Set<string>> = { llm: new Set(), decisions: new Set() }
+  const enabled: Record<CatalogKind, Set<string>> = {
+    llm: new Set(),
+    decisions: new Set(),
+    live: new Set(),
+  }
   const chosen = new Map<string, ReasoningEffort>()
   for (const entry of body.models) {
     const on = entryOf(entryOf(switches, entry.kind), entry.model)

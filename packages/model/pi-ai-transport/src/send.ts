@@ -128,6 +128,8 @@ export function sendOf(
         },
       }
     }
+    case 'live':
+      return unsupported('request.kind')
     default: {
       const _exhaustive: never = request
       return _exhaustive

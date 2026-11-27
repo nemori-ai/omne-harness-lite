@@ -36,6 +36,11 @@ function decisionsProblems(definition: ModelProfileDefinition<'decisions'>): rea
   return maxQuestions === null || POSITIVE.test(maxQuestions) ? [] : ['maxQuestions']
 }
 
+function liveProblems(definition: ModelProfileDefinition<'live'>): readonly string[] {
+  const { maxSessionSeconds } = definition
+  return maxSessionSeconds === null || POSITIVE.test(maxSessionSeconds) ? [] : ['maxSessionSeconds']
+}
+
 /** The fields of a profile that break the profile rules; empty when it may be adopted. */
 export function profileProblems(definition: ModelProfileDefinition): readonly string[] {
   switch (definition.kind) {
@@ -43,6 +48,8 @@ export function profileProblems(definition: ModelProfileDefinition): readonly st
       return llmProblems(definition)
     case 'decisions':
       return decisionsProblems(definition)
+    case 'live':
+      return liveProblems(definition)
     default: {
       const _exhaustive: never = definition
       return _exhaustive

@@ -31,6 +31,7 @@ const modelsOf = (provider: ProviderName, kind: CatalogKind) =>
 const allOn = (provider: ProviderName) => ({
   llm: new Set(modelsOf(provider, 'llm')),
   decisions: new Set(modelsOf(provider, 'decisions')),
+  live: new Set(modelsOf(provider, 'live')),
 })
 
 /** Serves the preferences directly, for a tree without the model-credential row. */

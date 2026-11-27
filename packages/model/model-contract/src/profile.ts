@@ -92,10 +92,17 @@ export type LlmProfile = Readonly<{
   meter: Adoption
 }>
 export type DecisionsProfile = Readonly<{ kind: 'decisions'; maxQuestions: string | null }>
-export type ProfileKind = Extract<ModelKind, 'llm' | 'decisions'>
+export type LiveProfile = Readonly<{
+  kind: 'live'
+  voices: readonly string[]
+  audioFormats: readonly [string, ...string[]]
+  maxSessionSeconds: string | null
+}>
+export type ProfileKind = ModelKind
 export type ModelProfileDefinition<K extends ProfileKind = ProfileKind> = Readonly<{
   llm: ProfileCommon & LlmProfile
   decisions: ProfileCommon & DecisionsProfile
+  live: ProfileCommon & LiveProfile
 }>[K]
 export type ModelProfile<K extends ProfileKind = ProfileKind> = Readonly<{
   identity: ProfileIdentity

@@ -98,4 +98,23 @@ describe('a chat binding paired with a chat request', () => {
       failure: { kind: 'unsupported', field: 'request.kind', adapter: adoption('family') },
     })
   })
+
+  it('does not pair with a live request: a live call is no request and answer', async () => {
+    const { profile, suppliers, fallback, retryPolicy, source } = REQUEST
+    const live = {
+      kind: 'live',
+      profile,
+      suppliers,
+      fallback,
+      retryPolicy,
+      source,
+      instructions: 'Answer the phone.',
+      history: [],
+      voice: null,
+      media: { via: 'link', audio: 'pcm16' },
+    } as const
+    expect(sendOf(await chatBinding(), live, 0, SEND_LIMITS)).toEqual({
+      failure: { kind: 'unsupported', field: 'request.kind', adapter: adoption('family') },
+    })
+  })
 })

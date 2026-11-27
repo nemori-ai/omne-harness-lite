@@ -165,12 +165,6 @@ function answerOf(listed: Listing, session: SessionRequirement | null): Answer {
   return { outcome: 'succeeded', body: { models, supply: supplyAnswerOf(supplyOf(listed)) } }
 }
 
-// The kinds a profile is held of; a kind of model the release has no profile of is no offering.
-const NO_OFFERING: Answer = {
-  outcome: 'succeeded',
-  body: { models: [], supply: { state: 'blocked', by: 'no-offering' } },
-}
-
 export function createModelAccessContribution(
   input: ModelAccessContributionInput,
 ): Omit<AccessContribution<ModelProtocol>, 'protocol'> {
@@ -194,7 +188,6 @@ export function createModelAccessContribution(
     const issued = await actingFor(principals, call.principal, tenantText.value)
     if ('outcome' in issued) return issued
     const kind = body.kind ?? 'llm'
-    if (kind === 'live') return NO_OFFERING
     const profiles = input.profiles()
     if (profiles === undefined) return UNAVAILABLE
     const asked = await needOf(kind, body)

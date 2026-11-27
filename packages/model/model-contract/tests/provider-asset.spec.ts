@@ -405,6 +405,18 @@ describe('the provider model catalog (C1, C2)', () => {
     const parsed = parseModelProviderBody(body(plainBody({ models: [MODEL, limited, open] })))
     if (!('ok' in parsed)) throw new Error(String(parsed.failure))
     expect(parsed.ok.models).toEqual([MODEL, limited, open])
+    expect(Object.hasOwn(parsed.ok.models[2] ?? {}, 'maxQuestions')).toBe(false)
+  })
+
+  it('reads a live model beside a chat model, with the session limit it states or none', () => {
+    const talk = { kind: 'live', model: 'vendor/talk', title: 'Talk', enabled: true }
+    const common = { input: ['text', 'voice'], output: ['text', 'voice'] }
+    const limited = { ...talk, ...common, maxSessionSeconds: '1800' }
+    const open = { ...talk, ...common, model: 'vendor/talk-open', enabled: false }
+    const parsed = parseModelProviderBody(body(plainBody({ models: [MODEL, limited, open] })))
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(parsed.ok.models).toEqual([MODEL, limited, open])
+    expect(Object.hasOwn(parsed.ok.models[2] ?? {}, 'maxSessionSeconds')).toBe(false)
   })
 
   it('reads the accounting that states how a cost is asked afterwards, and the one that states nothing', () => {
@@ -452,6 +464,14 @@ describe('the provider model catalog (C1, C2)', () => {
     [
       'a decisions model whose question limit is written as null',
       { models: [{ ...MODEL, kind: 'decisions', maxQuestions: null }] },
+    ],
+    [
+      'a live model whose session limit is no positive integer',
+      { models: [{ ...MODEL, kind: 'live', maxSessionSeconds: '0' }] },
+    ],
+    [
+      'a live model whose session limit is written as null',
+      { models: [{ ...MODEL, kind: 'live', maxSessionSeconds: null }] },
     ],
     ['one model of one kind twice', { models: [MODEL, { ...MODEL, title: 'Again' }] }],
   ])('refuses %s', (_case, change) => {
@@ -526,6 +546,7 @@ describe('the provider model catalog (C1, C2)', () => {
       properties: {
         llm: { type: 'object', additionalProperties: { type: 'boolean' } },
         decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+        live: { type: 'object', additionalProperties: { type: 'boolean' } },
       },
       additionalProperties: false,
     })
@@ -559,7 +580,7 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
 
   it('without settings each model is as the release enables it, with no default effort', () => {
     const preferences = preferencesOf(catalog(), undefined, undefined)
-    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [] })
+    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [], live: [] })
     expect([...preferences.efforts]).toEqual([])
   })
 
@@ -568,6 +589,7 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     expect(on(preferencesOf(catalog(), switches, undefined))).toEqual({
       llm: ['m/off'],
       decisions: [],
+      live: [],
     })
   })
 
@@ -593,6 +615,7 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     expect(on(preferencesOf(parsed.ok, { decisions: { 'm/both': false } }, undefined))).toEqual({
       llm: ['m/both'],
       decisions: [],
+      live: [],
     })
   })
 
@@ -611,6 +634,20 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     expect(preferencesOf(parsed.ok, undefined, { 'm/judge': 'high' }).efforts.size).toBe(0)
   })
 
+  it('a live model follows its switch as a decisions model does, and takes no default effort', () => {
+    const talk = { kind: 'live', model: 'm/talk', title: 'Talk', enabled: true }
+    const parsed = parseModelProviderBody(
+      body(plainBody({ models: [{ ...talk, input: ['voice'], output: ['voice'] }] })),
+    )
+    if (!('ok' in parsed)) throw new Error(String(parsed.failure))
+    expect(on(preferencesOf(parsed.ok, undefined, undefined)).live).toEqual(['m/talk'])
+    expect(on(preferencesOf(parsed.ok, { live: { 'm/talk': false } }, undefined)).live).toEqual([])
+    expect(
+      on(preferencesOf(parsed.ok, { decisions: { 'm/talk': false } }, undefined)).live,
+    ).toEqual(['m/talk'])
+    expect(preferencesOf(parsed.ok, undefined, { 'm/talk': 'high' }).efforts.size).toBe(0)
+  })
+
   it('takes a default effort only where the model supports it', () => {
     const preferences = preferencesOf(catalog(), undefined, { 'm/on': 'high', 'm/off': 'low' })
     expect([...preferences.efforts]).toEqual([['m/on', 'high']])
@@ -623,7 +660,7 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
       { llm: { 'm/elsewhere': true, 'm/off': 'yes' }, image: { 'm/off': true } },
       { 'm/elsewhere': 'low', 'm/on': 'max' },
     )
-    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [] })
+    expect(on(preferences)).toEqual({ llm: ['m/on'], decisions: [], live: [] })
     expect(preferences.efforts.size).toBe(0)
     expect(preferencesOf(catalog(), [true], 'high')).toEqual(
       preferencesOf(catalog(), undefined, undefined),

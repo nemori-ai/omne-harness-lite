@@ -7,17 +7,15 @@ import {
   decodeModelOperationId,
   decodeResultVersion,
   encodeModelInvocationRef,
-} from '@omne-harness/model-contract'
-import type {
-  AckReceipt,
-  DispatchId,
-  Lookup,
-  ModelCallId,
-  ModelFailure,
-  ModelOperationId,
-  ReadStart,
-  Revision,
-  Snapshot,
+  type AckReceipt,
+  type DispatchId,
+  type Lookup,
+  type ModelCallId,
+  type ModelFailure,
+  type ModelOperationId,
+  type ReadStart,
+  type Revision,
+  type Snapshot,
 } from '@omne-harness/model-contract'
 import {
   decodeReadId,
@@ -276,6 +274,7 @@ export function callCommands<P>(
                 ...call.state,
                 control: {
                   kind: 'requested',
+                  intent: 'cancel',
                   operation: input.operation,
                   propagation: 'pending',
                   upstream: 'unknown',

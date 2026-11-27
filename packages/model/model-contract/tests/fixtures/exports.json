@@ -182,12 +182,22 @@
               "pending": false
             },
             {
+              "name": "LiveRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "LlmModelRequest",
               "kind": "type",
               "pending": false
             },
             {
               "name": "DecisionsModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveModelRequest",
               "kind": "type",
               "pending": false
             },
@@ -983,6 +993,11 @@
               "pending": false
             },
             {
+              "name": "LiveProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ProfileKind",
               "kind": "type",
               "pending": false
@@ -1125,6 +1140,61 @@
             {
               "name": "DECISION_REPRESENTATION",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "LIVE_REPRESENTATION",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "LiveCommand",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCommandOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCommandReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LivePhaseRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveEvent",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveFrame",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MediaFrame",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MediaWrite",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveMedia",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelLiveCalls",
+              "kind": "type",
               "pending": false
             },
             {
@@ -1675,6 +1745,11 @@
               "name": "ModelDecisionPreparation",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "ModelLivePreparation",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -1712,6 +1787,11 @@
             },
             {
               "name": "ConformanceHooks",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConformanceLive",
               "kind": "type",
               "pending": false
             },
@@ -2025,6 +2105,11 @@
               "pending": false
             },
             {
+              "name": "createLiveDouble",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ScriptedPrincipal",
               "kind": "type",
               "pending": false
@@ -2130,6 +2215,11 @@
             },
             {
               "name": "DecisionsCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCatalog",
               "kind": "type",
               "pending": false
             },

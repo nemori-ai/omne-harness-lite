@@ -1,7 +1,7 @@
 import type { Access, AgentOperationId, ReceivedCommitValue } from '@omne-harness/agent-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { ModelDelivery } from '@omne-harness/model-contract'
 import { canonical } from './canonical.ts'
+import type { ReceivedModelDelivery } from './receiving-material.ts'
 import type { ModelReceptionTarget } from './receiving-types.ts'
 
 type CommitState =
@@ -11,7 +11,7 @@ export type Reception<P> = {
   access: Access<P>
   target: ModelReceptionTarget
   binding: string
-  delivery: ModelDelivery
+  delivery: ReceivedModelDelivery
   operation: AgentOperationId
   bytes: number
   attachments: number

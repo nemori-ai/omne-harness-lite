@@ -45,7 +45,12 @@ function onAtOpenAi(kinds: readonly ProfileKind[]): ModelPreferencesPort {
     async read({ provider }) {
       const on = (kind: ProfileKind) =>
         new Set(provider === 'openai' && kinds.includes(kind) ? [MODEL] : [])
-      return { ok: { enabled: { llm: on('llm'), decisions: on('decisions') }, efforts: new Map() } }
+      return {
+        ok: {
+          enabled: { llm: on('llm'), decisions: on('decisions'), live: on('live') },
+          efforts: new Map(),
+        },
+      }
     },
   }
 }

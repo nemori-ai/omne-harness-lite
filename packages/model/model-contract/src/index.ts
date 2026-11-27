@@ -26,6 +26,8 @@ export type {
   DecisionsRequest,
   LlmModelRequest,
   DecisionsModelRequest,
+  LiveModelRequest,
+  LiveRequest,
   ResultVersion,
   Revision,
   Supplier,
@@ -67,6 +69,8 @@ export {
   judgeDecisionAsk,
 } from './decision-call.ts'
 export type * from './dispatch-facts.ts'
+export type * from './live-call.ts'
+export { LIVE_REPRESENTATION } from './live-call.ts'
 export type {
   MaterializationReceipt,
   MaterializedMedium,
@@ -97,6 +101,7 @@ export type {
   ModelProfileDefinition,
   LlmProfile,
   DecisionsProfile,
+  LiveProfile,
   ProfileKind,
   ParameterAdoption,
   ProfileCommon,

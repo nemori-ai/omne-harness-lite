@@ -4,7 +4,7 @@ import { writeJsonText, type JsonEntry, type JsonValue } from '@omne-harness/jso
 export const MODEL_SWITCHES = 'model-switches'
 export const MODEL_REASONING_EFFORTS = 'model-reasoning-efforts'
 
-export const CATALOG_KINDS = ['llm', 'decisions'] as const
+export const CATALOG_KINDS = ['llm', 'decisions', 'live'] as const
 export type CatalogKind = (typeof CATALOG_KINDS)[number]
 
 type RowCommon = Readonly<{
@@ -18,6 +18,7 @@ export type CatalogRow = RowCommon &
   (
     | Readonly<{ kind: 'llm'; window: string; efforts: readonly string[] }>
     | Readonly<{ kind: 'decisions'; maxQuestions: string | undefined }>
+    | Readonly<{ kind: 'live'; maxSessionSeconds: string | undefined }>
   )
 
 /** What this layer holds of a setting. */
@@ -33,6 +34,8 @@ export type ModelRow = CatalogRow &
 
 const isTexts = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every(item => typeof item === 'string')
+const isOptionalText = (value: unknown): value is string | undefined =>
+  value === undefined || typeof value === 'string'
 
 function commonOf(row: Record<string, unknown>): RowCommon | undefined {
   const { model, title, input, output, enabled } = row
@@ -44,15 +47,19 @@ function commonOf(row: Record<string, unknown>): RowCommon | undefined {
 function ownRow(row: Record<string, unknown>): CatalogRow | undefined {
   const common = commonOf(row)
   if (common === undefined) return undefined
-  const { window, efforts, maxQuestions } = row
+  const { window, efforts, maxQuestions, maxSessionSeconds } = row
   switch (row['kind']) {
     case 'llm':
       return typeof window === 'string' && isTexts(efforts)
         ? { ...common, kind: 'llm', window, efforts }
         : undefined
     case 'decisions':
-      return maxQuestions === undefined || typeof maxQuestions === 'string'
+      return isOptionalText(maxQuestions)
         ? { ...common, kind: 'decisions', maxQuestions }
+        : undefined
+    case 'live':
+      return isOptionalText(maxSessionSeconds)
+        ? { ...common, kind: 'live', maxSessionSeconds }
         : undefined
   }
   return undefined

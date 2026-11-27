@@ -35,6 +35,15 @@ const JUDGE = {
   maxQuestions: '200',
   enabled: true,
 }
+const TALK = {
+  kind: 'live',
+  model: 'openai/gpt-live',
+  title: 'GPT Live',
+  input: ['text', 'voice'],
+  output: ['text', 'voice'],
+  maxSessionSeconds: '1800',
+  enabled: false,
+}
 const catalog = catalogOf({ name: 'openrouter', models: [MODEL, OFF, JUDGE] }) ?? []
 
 const unset: Own = { kind: 'unset' }
@@ -72,6 +81,18 @@ describe('the catalog a provider body carries', () => {
     expect(catalogOf({ models: [unlimited] })?.[0]).toMatchObject({ maxQuestions: undefined })
   })
 
+  it('reads a live model with the session limit it states, or as one that states none', () => {
+    expect(catalogOf({ models: [TALK] })?.[0]).toMatchObject({
+      kind: 'live',
+      maxSessionSeconds: '1800',
+    })
+    const { maxSessionSeconds: _limit, ...unlimited } = TALK
+    expect(catalogOf({ models: [unlimited] })?.[0]).toMatchObject({
+      maxSessionSeconds: undefined,
+    })
+    expect(catalogOf({ models: [{ ...TALK, maxSessionSeconds: 1800 }] })).toBeUndefined()
+  })
+
   it('is not read from a body without a list of models, or with a model it cannot read', () => {
     for (const body of [undefined, null, {}, { models: {} }])
       expect(catalogOf(body)).toBeUndefined()
@@ -97,6 +118,12 @@ describe('the groups of the table', () => {
     expect(groups.map(group => [group.kind, group.rows.map(row => row.title)])).toEqual([
       ['llm', ['GLM 5.3', 'GLM 5.2']],
       ['decisions', ['GLM 5.3 判定']],
+    ])
+    const all = catalogOf({ models: [TALK, MODEL, JUDGE] }) ?? []
+    expect(groupsOf(rowsOf(all, unset, unset)).map(group => group.kind)).toEqual([
+      'llm',
+      'decisions',
+      'live',
     ])
     const chatOnly = catalogOf({ models: [MODEL] }) ?? []
     expect(groupsOf(rowsOf(chatOnly, unset, unset)).map(group => group.kind)).toEqual(['llm'])
@@ -177,6 +204,9 @@ describe('what a change writes', () => {
     )
     expect(withSwitch(unset, 'decisions', 'a', true)).toEqual(
       setTo({ decisions: { a: true } }).value,
+    )
+    expect(withSwitch(held, 'live', 'a', false)).toEqual(
+      setTo({ llm: { a: true, b: false }, decisions: { b: true }, live: { a: false } }).value,
     )
   })
 

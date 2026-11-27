@@ -43,9 +43,14 @@ export function deliveryBytes(delivery: ModelDelivery): number {
 export function deliveryIdentity(key: ModelDeliveryKey): string {
   const reference = decodeModelInvocationRef(key.reference)
   if ('failure' in reference) throw new TypeError('Invalid fixture invocation')
-  return key.kind === 'result'
-    ? JSON.stringify([key.kind, reference.ok, key.result])
-    : JSON.stringify([key.kind, reference.ok, key.dispatch, key.revision])
+  switch (key.kind) {
+    case 'result':
+      return JSON.stringify([key.kind, reference.ok, key.result])
+    case 'account':
+      return JSON.stringify([key.kind, reference.ok, key.dispatch, key.revision])
+    case 'live':
+      return JSON.stringify([key.kind, reference.ok, key.from, key.to])
+  }
 }
 export function attachmentLocations(delivery: ModelDelivery): readonly string[] {
   const locations = new Set<string>()

@@ -109,16 +109,29 @@ export type LlmRequest = Readonly<{
   parameterAdoptions: readonly ParameterAdoption[]
 }>
 export type DecisionsRequest = Readonly<{ kind: 'decisions'; ask: DecisionAsk }>
+/** A live session: what it is told first, the conversation it continues, its voice, and how its media go. */
+export type LiveRequest = Readonly<{
+  kind: 'live'
+  instructions: string
+  history: readonly Message[]
+  voice: string | null
+  standby?: Readonly<{ idleSeconds: string }>
+  media: Readonly<{ via: 'link'; audio: string }>
+}>
 export type LlmModelRequest = RequestCommon & LlmRequest
 export type DecisionsModelRequest = RequestCommon & DecisionsRequest
-export type FixedModelRequest = LlmModelRequest | DecisionsModelRequest
+export type LiveModelRequest = RequestCommon & LiveRequest
+export type FixedModelRequest = LlmModelRequest | DecisionsModelRequest | LiveModelRequest
 export type LlmRequestHead = Readonly<
   Omit<LlmModelRequest, 'system' | 'messages' | 'tools'> & {
     messageIds: readonly Message['id'][]
   }
 >
 export type DecisionsRequestHead = Readonly<Omit<DecisionsModelRequest, 'ask'>>
-export type FixedRequestHead = LlmRequestHead | DecisionsRequestHead
+export type LiveRequestHead = Readonly<
+  Omit<LiveModelRequest, 'instructions' | 'history'> & { messageIds: readonly Message['id'][] }
+>
+export type FixedRequestHead = LlmRequestHead | DecisionsRequestHead | LiveRequestHead
 export type Admit<P> = Mutation<P> &
   Readonly<{
     request: FixedModelRequest

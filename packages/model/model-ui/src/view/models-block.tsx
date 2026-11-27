@@ -40,6 +40,7 @@ const PROVIDER_DEFAULT = 'provider-default'
 const KIND_TITLES: Readonly<Record<CatalogKind, string>> = {
   llm: '聊天',
   decisions: '判定',
+  live: '实时',
 }
 const LOCKED: Readonly<Record<string, string>> = {
   locked: '这两项被上层锁定，这里不能改。',
@@ -122,11 +123,23 @@ function ModelLine({ row, wired }: Readonly<{ row: ModelRow; wired: Wired }>): J
   )
 }
 
-/** The limit a person reads of a model: the window of a chat model, the questions of a decisions model. */
+/** The limit a person reads of a model, by its kind; a model that states none shows none. */
+function limitOf(row: ModelRow): string | undefined {
+  switch (row.kind) {
+    case 'llm':
+      return `窗口 ${row.window}`
+    case 'decisions':
+      return row.maxQuestions === undefined ? undefined : `每次至多 ${row.maxQuestions} 题`
+    case 'live':
+      return row.maxSessionSeconds === undefined
+        ? undefined
+        : `单次至多 ${row.maxSessionSeconds} 秒`
+  }
+}
+
 function Limit({ row }: Readonly<{ row: ModelRow }>): JSX.Element | null {
-  if (row.kind === 'llm') return <div className="omne-model-row-fact">{`窗口 ${row.window}`}</div>
-  if (row.maxQuestions === undefined) return null
-  return <div className="omne-model-row-fact">{`每次至多 ${row.maxQuestions} 题`}</div>
+  const fact = limitOf(row)
+  return fact === undefined ? null : <div className="omne-model-row-fact">{fact}</div>
 }
 
 // A write this block made that did not land: the settings machine's words; an unknown one can be asked again.

@@ -80,6 +80,15 @@ const JUDGE = {
   maxQuestions: '200',
   enabled: true,
 }
+const TALK = {
+  kind: 'live',
+  model: 'openai/gpt-live',
+  title: 'GPT Live',
+  input: ['text', 'voice'],
+  output: ['text', 'voice'],
+  maxSessionSeconds: '1800',
+  enabled: false,
+}
 const BODY = { name: 'openrouter', models: [GLM53, GLM52, VISION] }
 const BOTH = { name: 'openrouter', models: [GLM53, GLM52, VISION, JUDGE] }
 
@@ -285,6 +294,22 @@ it('a decisions model shows its question limit, takes no effort, and its switch 
       value: { llm: { 'z-ai/glm-5.3': true }, decisions: { 'z-ai/glm-5.3': false } },
     },
   ])
+})
+
+it('a live model shows its session limit under its own group, takes no effort, and its switch writes under its own kind', async () => {
+  const fake = await shown(
+    { name: 'openai', models: [TALK, JUDGE] },
+    { switches: UNSET, efforts: UNSET },
+  )
+  expect(screen.getAllByRole('table').map(group => group.getAttribute('aria-label'))).toEqual([
+    '判定',
+    '实时',
+  ])
+  const talk = rowOf('GPT Live')
+  expect(talk.getByText('单次至多 1800 秒')).toBeTruthy()
+  expect(talk.queryByRole('combobox')).toBeNull()
+  fireEvent.click(talk.getByRole('switch', { name: '启用 GPT Live' }))
+  expect(fake.writes).toEqual([{ key: 'k-switches', value: { live: { 'openai/gpt-live': true } } }])
 })
 
 it('choosing a default effort writes it, and going back to the provider default takes it out', async () => {

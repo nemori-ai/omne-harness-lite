@@ -27,7 +27,13 @@ it('keeps every provider obligation through the configured runtime and SQL recor
     writeFileSync(join(out, 'line-hooks.json'), `${JSON.stringify(hooks, null, 2)}\n`)
   }
   expect(report.results.map(row => row.obligation)).toEqual([...CONFORMANCE_OBLIGATIONS])
-  expect(report.results.filter(row => row.status !== 'pass')).toEqual([])
+  expect(report.results.filter(row => row.status !== 'pass')).toEqual(
+    CONFORMANCE_OBLIGATIONS.filter(name => name.startsWith('live-')).map(obligation => ({
+      obligation,
+      status: 'not-applicable',
+      detail: 'the subject gives no live',
+    })),
+  )
   expect(report.ok).toBe(true)
   expect(assemblies).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
   for (const facts of assemblies) {

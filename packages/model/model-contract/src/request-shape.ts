@@ -8,6 +8,7 @@ import type {
   Adoption,
   ConsumerRef,
   DecisionsModelRequest,
+  LiveModelRequest,
   FixedModelRequest,
   LlmModelRequest,
   Parameter,
@@ -437,6 +438,65 @@ function decisionsRequest(value: unknown, field: string): Checked<DecisionsModel
   return succeed({ kind: 'decisions', ...routing.ok, ask, source: source.ok })
 }
 
+const LIVE_KEYS = [...COMMON_KEYS, 'instructions', 'history', 'voice', 'media']
+
+function liveMedia(value: unknown, field: string): Checked<LiveModelRequest['media']> {
+  const record = closed(value, ['via', 'audio'], field)
+  if ('failure' in record) return record
+  if (record.ok.via !== 'link') return rejected(`${field}/via`, 'value')
+  const audio = text(record.ok.audio, `${field}/audio`)
+  return 'failure' in audio ? audio : succeed({ via: 'link', audio: audio.ok })
+}
+
+function liveStandby(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<LiveModelRequest, 'standby'>> {
+  if (!Object.hasOwn(input, 'standby')) return succeed({})
+  const record = closed(input.standby, ['idleSeconds'], `${field}/standby`)
+  if ('failure' in record) return record
+  const idle = integer(record.ok.idleSeconds, `${field}/standby/idleSeconds`, true)
+  return 'failure' in idle ? idle : succeed({ standby: { idleSeconds: idle.ok } })
+}
+
+function liveContent(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<LiveModelRequest, 'instructions' | 'history' | 'voice'>> {
+  if (typeof input.instructions !== 'string') return rejected(`${field}/instructions`, 'type')
+  const history = sequence(input.history, `${field}/history`, (item, at) => {
+    const parsed = judgeMessage(item)
+    return 'rejected' in parsed ? rejected(at, 'message') : succeed(parsed.ok)
+  })
+  if ('failure' in history) return history
+  const voice = input.voice === null ? succeed(null) : text(input.voice, `${field}/voice`)
+  if ('failure' in voice) return voice
+  return succeed({ instructions: input.instructions, history: history.ok, voice: voice.ok })
+}
+
+function liveRequest(value: unknown, field: string): Checked<LiveModelRequest> {
+  const record = closed(value, LIVE_KEYS, field, ['standby'])
+  if ('failure' in record) return record
+  const routing = requestRouting(record.ok, field)
+  if ('failure' in routing) return routing
+  const source = adoption(record.ok.source, `${field}/source`)
+  if ('failure' in source) return source
+  const content = liveContent(record.ok, field)
+  if ('failure' in content) return content
+  const media = liveMedia(record.ok.media, `${field}/media`)
+  if ('failure' in media) return media
+  const standby = liveStandby(record.ok, field)
+  if ('failure' in standby) return standby
+  return succeed({
+    kind: 'live',
+    ...routing.ok,
+    ...content.ok,
+    ...standby.ok,
+    media: media.ok,
+    source: source.ok,
+  })
+}
+
 export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
   if (!isRecord(value)) return rejected(field, 'type')
   switch (value.kind) {
@@ -444,6 +504,8 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
       return llmRequest(value, field)
     case 'decisions':
       return decisionsRequest(value, field)
+    case 'live':
+      return liveRequest(value, field)
     default:
       return rejected(`${field}/kind`, Object.hasOwn(value, 'kind') ? 'value' : 'missing')
   }

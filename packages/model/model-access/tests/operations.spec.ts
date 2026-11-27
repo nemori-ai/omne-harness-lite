@@ -99,13 +99,15 @@ describe('list-models of one kind of model (C8)', () => {
     })
   })
 
-  it('a kind of model the release has none of lists nothing and is no offering, without asking Model', async () => {
+  it('a kind of model the release has none of is no offering, as Model judges its listing', async () => {
     const { world, list } = assembled()
     expect(await list('live')).toEqual({
       outcome: 'succeeded',
       body: { models: [], supply: { state: 'blocked', by: 'no-offering' } },
     })
-    expect(world.listed).toEqual([])
+    expect(world.listed.map(call => call.required)).toEqual([
+      { kind: 'live', source: REQUIRED.source },
+    ])
   })
 })
 

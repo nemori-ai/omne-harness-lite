@@ -114,7 +114,7 @@ it('narrows the key and payload together from the delivery kind', () => {
     expectTypeOf(delivery.parts).toEqualTypeOf<readonly ResultPart[]>()
     // @ts-expect-error account payloads belong to the account branch
     void delivery.account
-  } else {
+  } else if (delivery.kind === 'account') {
     expectTypeOf(delivery.key).toEqualTypeOf<typeof accountKey>()
     expectTypeOf(delivery.account).toEqualTypeOf<CallAccount>()
     // @ts-expect-error result payloads belong to the result branch

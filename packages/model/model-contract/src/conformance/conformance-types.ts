@@ -11,6 +11,7 @@ import type {
   Supplier,
   Termination,
 } from '../index.ts'
+import type { ModelLiveCalls } from '../live-call.ts'
 import type { ModelProvider, ModelTransport, TransportFact } from '../provider/index.ts'
 
 export type ConformanceCall = Readonly<{ tenant: TenantId; call: ModelCallId }>
@@ -65,6 +66,17 @@ export type ConformanceTransport = Readonly<{
   supplier?: Supplier
 }>
 
+/** The live calls of the subject, and the steps a live call's upstream takes. */
+export type ConformanceLive<P> = Readonly<{
+  calls: ModelLiveCalls<P>
+  /** Admits a live call on a profile that takes text and voice in. */
+  admit(label: string): Promise<ConformanceCall>
+  /** The session of the call opens, or its upstream closes it. */
+  upstream(input: ConformanceCall & Readonly<{ step: 'open' | 'close' }>): Promise<void>
+  /** This process loses the live body of the call before it settles. */
+  loseBody(input: ConformanceCall): Promise<void>
+}>
+
 export type ConformanceSubject<P> = Readonly<{
   provider: ModelProvider<P>
   principal: P
@@ -74,6 +86,7 @@ export type ConformanceSubject<P> = Readonly<{
   consumer?: ConsumerRef
   hooks?: ConformanceHooks<P>
   transport?: ConformanceTransport
+  live?: ConformanceLive<P>
   dispose?(): Promise<void>
 }>
 
@@ -136,6 +149,16 @@ export const CONFORMANCE_OBLIGATIONS = [
   'fact-stream-ends-once',
   'interruption-is-confirmed',
   'transport-close-is-idempotent',
+  'live-command-before-open-refused',
+  'live-command-taken-once',
+  'live-command-outside-profile-refused',
+  'live-command-after-settle-refused',
+  'live-end-before-open-refused',
+  'live-end-durable-and-idempotent',
+  'live-end-after-settle-idempotent',
+  'live-media-by-phase-and-modality',
+  'live-call-of-another-tenant-unknown',
+  'live-lost-body-unavailable',
 ] as const
 
 export type ConformanceObligation = (typeof CONFORMANCE_OBLIGATIONS)[number]
@@ -163,7 +186,7 @@ export type Scene<P> = Readonly<{
   waitMs: number
 }>
 
-export type Requirement = HookName | 'transport'
+export type Requirement = HookName | 'transport' | 'live'
 
 export type Check<P> = Readonly<{
   name: ConformanceObligation

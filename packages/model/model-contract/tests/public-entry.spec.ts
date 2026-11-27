@@ -27,6 +27,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'isModelKind',
       'MODEL_IDENTITY_PREFIXES',
       'DECISION_REPRESENTATION',
+      'LIVE_REPRESENTATION',
       'MODEL_REFERENCE_MAX_LENGTH',
       'REASONING_EFFORTS',
       'accountUndelivered',

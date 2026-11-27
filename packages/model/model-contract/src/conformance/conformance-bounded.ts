@@ -3,6 +3,7 @@ import type { ModelProvider, PreparedTransport, MaterializedTransport } from '..
 import { within } from './conformance-kit.ts'
 import type {
   ConformanceHooks,
+  ConformanceLive,
   ConformanceSubject,
   ConformanceTransport,
   HookName,
@@ -150,6 +151,20 @@ function boundedTransport(given: ConformanceTransport, waitMs: number): Conforma
   }
 }
 
+function boundedLive<P>(live: ConformanceLive<P>, waitMs: number): ConformanceLive<P> {
+  const { calls } = live
+  return {
+    calls: {
+      command: bounded(waitMs, 'live command', input => calls.command(input)),
+      end: bounded(waitMs, 'live end', input => calls.end(input)),
+      media: bounded(waitMs, 'live media', input => calls.media(input)),
+    },
+    admit: bounded(waitMs, 'live admit', label => live.admit(label)),
+    upstream: bounded(waitMs, 'live upstream', input => live.upstream(input)),
+    loseBody: bounded(waitMs, 'live lose body', input => live.loseBody(input)),
+  }
+}
+
 export function boundedSubject<P>(
   subject: ConformanceSubject<P>,
   waitMs: number,
@@ -163,5 +178,6 @@ export function boundedSubject<P>(
     ...(subject.consumer && { consumer: subject.consumer }),
     ...(subject.hooks && { hooks: boundedHooks(subject.hooks, waitMs) }),
     ...(subject.transport && { transport: boundedTransport(subject.transport, waitMs) }),
+    ...(subject.live && { live: boundedLive(subject.live, waitMs) }),
   }
 }

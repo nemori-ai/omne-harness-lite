@@ -39,10 +39,10 @@ describe('the receiving entries', () => {
     expectTypeOf<AgentJournalEntry['kind']>().toEqualTypeOf<'start-fence' | 'received'>()
   })
 
-  it('reuse the delivery keys of Model and Tool, one branch per kind of key', () => {
+  it('reuse the delivery keys of Model and Tool, one branch per kind of key; the events of a live call are not received', () => {
     type Model = Extract<ReceivedDelivery, { producer: 'model' }>
     type Tool = Extract<ReceivedDelivery, { producer: 'tool' }>
-    expectTypeOf<Model['key']>().toEqualTypeOf<M.ModelDeliveryKey>()
+    expectTypeOf<Model['key']>().toEqualTypeOf<Exclude<M.ModelDeliveryKey, { kind: 'live' }>>()
     expectTypeOf<Tool['key']>().toEqualTypeOf<T.ToolDeliveryKey>()
     expectTypeOf<Extract<Model, { key: { kind: 'result' } }>['accounts']>().toEqualTypeOf<
       readonly M.ModelAccountSnapshot[]
