@@ -43,6 +43,9 @@ describe('access/v1', () => {
   })
 })
 
+const KINDS =
+  'text, string, boolean, null, account, organization, login, tenant, instant, plain-date, session, page-bytes, bytes, revision, positive-integer, count, page-limit, parameters, json, user-message, literal, object, array, one-of'
+
 describe('a contract of a tenant written as data', () => {
   const text = { kind: 'text' } as const
   const data = {
@@ -95,6 +98,34 @@ describe('a contract of a tenant written as data', () => {
       'a limit that is neither',
       { ...data, operations: { a: { ...data.operations.forecast, limit: 'big' } } },
       'a: limit is small or input',
+    ],
+    [
+      'a field of a kind there is not',
+      {
+        ...data,
+        operations: {
+          a: {
+            ...data.operations.forecast,
+            body: { kind: 'object', fields: { latitude: { rule: { kind: 'number' } } } },
+          },
+        },
+      },
+      `a: body.latitude: number is not a kind of rule; a rule is one of ${KINDS}`,
+    ],
+    [
+      'a result of a kind there is not',
+      { ...data, operations: { a: { ...data.operations.forecast, result: { kind: 'decimal' } } } },
+      `a: result: decimal is not a kind of rule; a rule is one of ${KINDS}`,
+    ],
+    [
+      'an object rule with no fields',
+      { ...data, operations: { a: { ...data.operations.forecast, body: { kind: 'object' } } } },
+      'a: body: an object rule has fields',
+    ],
+    [
+      'an array rule with no item',
+      { ...data, operations: { a: { ...data.operations.forecast, result: { kind: 'array' } } } },
+      'a: result: an array rule has an item',
     ],
   ])('answers the first fault and does not throw: %s', (_name, given, reason) => {
     expect(guestContract(given)).toEqual({ reason })
