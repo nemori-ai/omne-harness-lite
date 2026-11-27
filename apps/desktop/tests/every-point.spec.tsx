@@ -126,3 +126,27 @@ it('PL-I27：桌面客户端树上的每个点，要么规矩写明关与理由�
   expect(missing, 'open points without a member to copy').toEqual([])
   expect(lines.length).toBe(points.length)
 })
+
+const LOOK = join(
+  import.meta.dirname,
+  '../../../packages/plugin/plugin-host-local/skills/extending-the-app/examples/send-button-look/plugin.json',
+)
+
+it('the look the developer handbook gives as an example installs as written, and both its members count for the tenant', async () => {
+  const { root, shell } = await signedIn()
+  const scope = tenantScope(TENANT)
+  const read = readManifest(readFileSync(LOOK, 'utf8'))
+  if (read.kind !== 'read') throw new Error(read.reason)
+  const { name, client } = read.manifest
+  const members = client?.members ?? []
+  const installed = await installOn(shell, { name, version: 'v1', members }, scope)
+  expect(installed.kind, JSON.stringify(installed)).toBe('installed')
+  for (const member of members) {
+    const listed = list(root.dynamis.registry(), member.point, member.key, scope)
+    const mine =
+      listed.kind === 'read'
+        ? listed.items.filter(item => item.entry.instance.fiber.startsWith(fiberOf(name, 'v1')))
+        : []
+    expect(mine.length, `${member.point} ${member.key}`).toBe(1)
+  }
+})

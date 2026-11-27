@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "name": "weather-protocol",
+  "summary": "A weather protocol on the server: one read operation that answers a forecast for a city.",
+  "server": {
+    "members": [
+      {
+        "point": "access.protocols",
+        "key": "weather/v1",
+        "module": "protocol.js",
+        "export": "protocol"
+      }
+    ]
+  }
+}
