@@ -40,12 +40,14 @@ import {
 } from './block-slot.ts'
 import { Composer } from './composer.tsx'
 import {
+  FOLD_RANK,
   HeadingFoldContext,
   HeadingEntriesContext,
   HeadingRevisionContext,
   useHeadingFold,
   type HeadingFold,
 } from './heading-fold.tsx'
+import { useModelChoiceAsked } from '../model/model-choice-ask.ts'
 import { NoticeLine } from './notice.tsx'
 import { PartDrawContext } from './part-draw.ts'
 import { Bubble, ItemView, speakerOf } from './parts.tsx'
@@ -285,6 +287,11 @@ function SessionMore({
 }) {
   const [said, say] = useState<string | null>(null)
   const menu = useMemo<HeadingFold>(() => ({ place: 'menu', folded, say }), [folded])
+  const [open, setOpen] = useState(false)
+  const asked = useCallback(() => {
+    if (folded >= FOLD_RANK.model) setOpen(true)
+  }, [folded])
+  useModelChoiceAsked(session, asked)
   return (
     <>
       {said === null ? null : (
@@ -292,7 +299,7 @@ function SessionMore({
           {said}
         </span>
       )}
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <IconButton label="更多" tooltipSide="bottom" {...sessionHeaderMore.props}>
             <MoreIcon aria-hidden="true" />

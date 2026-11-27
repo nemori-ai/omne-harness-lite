@@ -50,6 +50,10 @@ export const HeadingEntriesContext = createContext<readonly HistoryEntry[]>([])
 type HeadingReader = Readonly<{ load(tenant: string, session: string): Promise<void> }>
 
 /** The bar reads a heading item's value at each log position: the server answers, whoever changed it. */
+export function useHeadingFolded(rank: FoldRank): boolean {
+  return useContext(HeadingFoldContext).folded >= rank
+}
+
 export function useHeadingRead(store: HeadingReader, tenant: string, session: string): boolean {
   const inBar = useHeadingPlace() === 'bar'
   const at = useContext(HeadingRevisionContext)
