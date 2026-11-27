@@ -3,7 +3,16 @@ import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { macosRequestScreenAccess, screenBackendFor } from '@omne-harness/screen'
-import { app, Menu, safeStorage, session, shell, type BrowserWindow } from 'electron'
+import {
+  app,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  safeStorage,
+  session,
+  shell,
+  type BrowserWindow,
+} from 'electron'
 import { PAGE_VERSION_EVENT } from '../shared/page-version.ts'
 import { DEFAULT_SERVER } from '../shared/server.ts'
 import {
@@ -43,6 +52,9 @@ import { refuseRemoteDebugging } from './remote-debugging.ts'
 import { loadScreenLibrary, SCREEN_SETTINGS_URL } from './screen-host.ts'
 import { screenOverlays } from './screen-overlay.ts'
 import { startServerProcess } from './utility-process.ts'
+import { installVisualIpc } from './visual-ipc.ts'
+import { followVisualTheme, isTrustedSender, pageBackground } from './visual-look.ts'
+import { createVisualMirror } from './visual-mirror.ts'
 import {
   APP_PARTITION,
   openAppWindow,
@@ -179,8 +191,16 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   })
   void forwarding.ready().catch(() => {})
 
+  let window: BrowserWindow | undefined
+  const visual = createVisualMirror(app.getPath('userData'), { log })
+  const stopLook = followVisualTheme(visual, nativeTheme, () => (window ? [window] : []))
+  installVisualIpc(ipcMain, visual, event => isTrustedSender(event, window), log)
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
-  let window: BrowserWindow | undefined = openAppWindow(saved, utility, log, updates.onTrial)
+  visual.retryPending()
+  window = openAppWindow(saved, utility, log, updates.onTrial, {
+    preload: fileURLToPath(new URL('../preload/preload.cjs', import.meta.url)),
+    background: pageBackground(visual.theme(), nativeTheme.shouldUseDarkColors),
+  })
   updates.resume()
   const install = (argv: readonly string[]): void => {
     const directory = installRequest(argv)
@@ -204,6 +224,8 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
     if (quitting) return
     quitting = true
     event.preventDefault()
+    visual.retryPending()
+    stopLook()
     void Promise.allSettled([forwarding.shutdown(), flushForQuit(appSession.cookies, log)]).finally(
       () => app.quit(),
     )

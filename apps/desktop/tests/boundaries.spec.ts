@@ -116,7 +116,7 @@ describe('边界', () => {
     expect(offending('main', bad)).toEqual([])
   })
 
-  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口、桌面层的窗口、试起页面包的窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
+  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口、桌面层的窗口、试起页面包的窗口、utility 进程的启动与视觉镜像的两处导入 electron，其余换成替身就能测', () => {
     const using = files(join(SRC, 'main'))
       .filter(file => imports(file).includes('electron'))
       .map(file => relative(join(SRC, 'main'), file))
@@ -128,16 +128,30 @@ describe('边界', () => {
       'remote-debugging.ts',
       'screen-overlay.ts',
       'utility-process.ts',
+      'visual-ipc.ts',
+      'visual-look.ts',
       'window.ts',
     ])
   })
 
-  it('没有预加载脚本，不用进程间通信承载页面的请求；桌面应用不启动独立转发进程', () => {
+  it('只有视觉镜像经预加载脚本与两个进程间通信的通道，不用它们承载页面的请求；桌面应用不启动独立转发进程', () => {
     for (const file of files(join(SRC, 'main'))) {
       const text = readFileSync(file, 'utf8')
-      expect(text, relative(SRC, file)).not.toMatch(/ipcMain|ipcRenderer|contextBridge|preload/)
-      expect(text, relative(SRC, file)).not.toMatch(/createServer|\.listen\(/)
+      const name = relative(join(SRC, 'main'), file)
+      if (!['main.ts', 'visual-ipc.ts'].includes(name))
+        expect(text, name).not.toMatch(/ipcMain|ipcRenderer|contextBridge/)
+      expect(text, name).not.toMatch(/createServer|\.listen\(/)
     }
+    const ipc = readFileSync(join(SRC, 'main', 'visual-ipc.ts'), 'utf8')
+    const channels = [...ipc.matchAll(/ipc\.(?:on|handle)\(([^,]+),/g)].map(match => match[1])
+    expect(channels).toEqual(['VISUAL_IPC.read', 'VISUAL_IPC.push'])
+    const preloads = files(join(SRC, 'preload'))
+    expect(preloads.map(file => relative(SRC, file))).toEqual(['preload/preload.ts'])
+    expect(imports(preloads[0]!).toSorted()).toEqual(['../shared/desktop-bridge.ts', 'electron'])
+    const preload = readFileSync(preloads[0]!, 'utf8')
+    expect([...preload.matchAll(/exposeInMainWorld\(([^,]+),/g)].map(match => match[1])).toEqual([
+      "'omneDesktop'",
+    ])
     const bad = (specifier: string) => /standalone\/(server|bin)\.ts$/.test(specifier)
     expect([...offending('main', bad), ...offending('utility', bad)]).toEqual([])
   })

@@ -203,7 +203,6 @@ it(
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      preload: null,
       opened: [
         'https://example.invalid/',
         'https://example.invalid/',
@@ -216,7 +215,7 @@ it(
           environment: {
             require: 'undefined',
             process: 'undefined',
-            fromHost: [],
+            fromHost: ['omneDesktop', 'omneVisualBootstrap'],
           },
           mail: null,
           local: null,

@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { adaptScreenshotsCss, SCREENSHOTS_CSS } from './scripts/screenshots-css.ts'
+import { themeBootScript } from './src/page/theme-boot.ts'
 
 export default defineConfig({
   root: 'src/page',
@@ -13,6 +14,12 @@ export default defineConfig({
       enforce: 'pre',
       transform: (code, id) =>
         SCREENSHOTS_CSS.test(id.split('?')[0]!) ? adaptScreenshotsCss(code) : null,
+    },
+    {
+      name: 'omne-theme-boot',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'theme-boot.js', source: themeBootScript() })
+      },
     },
     react(),
     tailwindcss(),

@@ -43,9 +43,12 @@ const SHOW_FALLBACK_MS = 1_000
 /** The app's own persistent session: the cookie jar and the app protocol live on it. */
 export const APP_PARTITION = 'persist:omne'
 
+export type WindowLook = Readonly<{ preload: string; background: string }>
+
 export function windowOptions(
   state: WindowState | undefined,
   platform: NodeJS.Platform = process.platform,
+  look?: WindowLook,
 ): BrowserWindowConstructorOptions {
   return {
     ...(state?.bounds ?? DEFAULT_SIZE),
@@ -54,7 +57,9 @@ export function windowOptions(
     title: 'omne',
     show: false,
     ...windowChrome(platform),
+    ...(look === undefined ? {} : { backgroundColor: look.background }),
     webPreferences: {
+      ...(look === undefined ? {} : { preload: look.preload }),
       partition: APP_PARTITION,
       sandbox: true,
       contextIsolation: true,
@@ -213,12 +218,13 @@ export function openAppWindow(
   utility: UtilityWatch,
   log: Logger,
   taken: () => boolean = () => false,
+  look?: WindowLook,
 ): BrowserWindow {
   const state = usableState(
     saved.load(),
     screen.getAllDisplays().map(display => display.workArea),
   )
-  const window = new BrowserWindow(windowOptions(state))
+  const window = new BrowserWindow(windowOptions(state, process.platform, look))
   // Before maximize(), which shows a hidden window: its `show` must count.
   const afterShown = reportReady(window, log)
   if (state?.maximized === true) window.maximize()
