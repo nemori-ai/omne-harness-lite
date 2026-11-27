@@ -15,6 +15,7 @@ import { failureText } from '@omne-harness/mcp-bridge'
 import type { CatalogView, EndpointStatusView, RefreshResult } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
+import { beginOn, disconnectOn } from './connect.ts'
 import { createEndpointObservation } from './observe-endpoints.ts'
 import type { McpAccessSettings, McpFaces, McpPrincipals } from './ports.ts'
 import {
@@ -90,6 +91,11 @@ function catalogOf(
     : { kind: 'not-acquired', reason: notAcquiredText(adopted, status.connection) }
 }
 
+// The field of revision 1 has no word for a grant that wants a new connection: there is one, so it is present.
+function credentialOf(status: EndpointStatusView): Endpoint['credential'] {
+  return status.credential === 'reconnect-required' ? 'present' : status.credential
+}
+
 // A present credential the endpoint refused is rejected until the connection is ready again.
 function credentialStateOf(status: EndpointStatusView): NonNullable<Endpoint['credentialState']> {
   const refused =
@@ -105,8 +111,9 @@ function endpointOf(
   return {
     name: adopted.ref.name,
     connection: { state: status.connection.kind, reason: connectionText(status.connection) },
-    credential: status.credential,
+    credential: credentialOf(status),
     credentialState: credentialStateOf(status),
+    ...(status.connect === undefined ? {} : { connect: status.connect }),
     use:
       status.use.kind === 'usable'
         ? { kind: 'usable' }
@@ -207,14 +214,22 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
     return { outcome: 'succeeded', body: { endpoint: view.endpoint, actions } }
   }
 
-  const refreshEndpoint: Handlers['operations']['refresh-endpoint'] = async (call, body) => {
+  // A commit on one endpoint the asker sees; when the endpoints cannot be read, it is unavailable.
+  async function onEndpoint<A>(
+    call: Call,
+    body: BodyOf<Operations['read-endpoint']>,
+    commit: (stood: Known, adopted: AdoptedEndpoint) => Promise<A>,
+  ): Promise<A | Refusal | typeof NOT_VISIBLE> {
     const stood = await known(call, body)
     if ('outcome' in stood) return stood
     const adopted = await adoptedOf(stood, body.name)
     if (adopted === 'not-visible') return NOT_VISIBLE
     if (adopted === 'basis-unavailable') return UNAVAILABLE
-    return refreshCall(stood, adopted)
+    return commit(stood, adopted)
   }
+
+  const refreshEndpoint: Handlers['operations']['refresh-endpoint'] = (call, body) =>
+    onEndpoint(call, body, refreshCall)
 
   async function refreshCall(stood: Known, { ref }: AdoptedEndpoint) {
     try {
@@ -235,11 +250,19 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
     }
   }
 
+  const beginConnect: Handlers['operations']['begin-connect'] = (call, body) =>
+    onEndpoint(call, body, ({ faces, access }, { ref }) => beginOn(faces.connect, access, ref))
+
+  const disconnect: Handlers['operations']['disconnect'] = (call, body) =>
+    onEndpoint(call, body, ({ faces, access }, { ref }) => disconnectOn(faces.connect, access, ref))
+
   return {
     operations: {
       'list-endpoints': listEndpoints,
       'read-endpoint': readEndpoint,
       'refresh-endpoint': refreshEndpoint,
+      'begin-connect': beginConnect,
+      disconnect,
     },
     observations: { 'observe-endpoints': createEndpointObservation(input) },
   }

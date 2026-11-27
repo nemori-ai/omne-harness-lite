@@ -20,17 +20,24 @@ export const CREDENTIAL_ITEM = 'credential'
 export type CredentialCustody = Pick<SecretCustodyUse, 'use'> &
   Partial<Pick<SecretCustodyManagement, 'describe'>>
 
-/** Where the credential of one endpoint of one tenant is kept: the key its settings item is written under. */
-export function credentialKey(tenant: TenantId, endpoint: string): SecretBindingKey {
+/** Where a secret item of one endpoint of one tenant is kept: the key its settings item is written under. */
+export function endpointItemKey(
+  tenant: TenantId,
+  endpoint: string,
+  item: string,
+): SecretBindingKey {
   return holdingKey(
     { layer: 'tenant', tenant },
     {
       providerId: mcpEndpointGates.ownerId,
       definitionId: categoryCapabilityId(mcpEndpointGates.category, endpoint),
     },
-    CREDENTIAL_ITEM,
+    item,
   )
 }
+
+export const credentialKey = (tenant: TenantId, endpoint: string): SecretBindingKey =>
+  endpointItemKey(tenant, endpoint, CREDENTIAL_ITEM)
 
 /** The binding adoption hands MCP: the holding the credential belongs to, and the endpoint's name. */
 export function credentialBinding(

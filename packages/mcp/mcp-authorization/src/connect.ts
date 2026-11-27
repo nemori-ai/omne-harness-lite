@@ -8,6 +8,7 @@ import type {
   ClientRegistration,
   GrantFacts,
   GrantKey,
+  GrantStanding,
   PendingAuthorization,
 } from '@omne-harness/mcp-contract/provider'
 import { judgeCallback, readTokenAnswer, type CallbackQuery, type TokenReading } from './answers.ts'
@@ -61,6 +62,24 @@ function route(routes: Routes, pending: PendingAuthorization, now: number): void
     if (expiresAt <= now || JSON.stringify([key.tenant, key.holding, key.endpoint]) === same)
       routes.delete(state)
   routes.set(pending.state, { key: pending.key, expiresAt: pending.expiresAt })
+}
+
+/** How a grant stands: its state from storage; connecting while this process waits for one of its callbacks. */
+export async function standing(
+  deps: Deps,
+  routes: Routes,
+  key: GrantKey,
+): Promise<Outcome<GrantStanding, 'unavailable'>> {
+  const read = await deps.records.read(key)
+  if ('failure' in read) return read
+  const same = JSON.stringify([key.tenant, key.holding, key.endpoint])
+  const now = deps.now()
+  const connecting = [...routes.values()].some(
+    route =>
+      route.expiresAt > now &&
+      JSON.stringify([route.key.tenant, route.key.holding, route.key.endpoint]) === same,
+  )
+  return succeed({ grant: read.ok === 'absent' ? 'none' : read.ok.state, connecting })
 }
 
 async function takePending(

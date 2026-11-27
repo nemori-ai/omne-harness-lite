@@ -35,7 +35,8 @@
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/mcp-bridge": "workspace:*",
     "@omne-harness/mcp-contract": "workspace:*",
-    "@omne-harness/mcp-protocol": "workspace:*"
+    "@omne-harness/mcp-protocol": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/identity": "workspace:*",

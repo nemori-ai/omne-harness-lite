@@ -31,6 +31,11 @@ export type {
 } from './transport.ts'
 export type {
   AuthorizationRecords,
+  CallbackReceiver,
+  ConnectInput,
+  ConnectRefusal,
+  GrantConnector,
+  GrantStanding,
   ClientAuthMethod,
   ClientRegistration,
   GrantFacts,

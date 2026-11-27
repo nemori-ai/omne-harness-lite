@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
 import {
   SECRET,
   acquired,
+  BEGUN_AT,
   createWorld,
   fixtureLogin,
   knownAction,
@@ -39,6 +41,8 @@ describe('step 1: the login must act for the tenant', () => {
     ['list', (w: World) => w.list(alice)],
     ['read', (w: World) => w.read(alice, 'docs')],
     ['refresh', (w: World) => w.refresh(alice, 'docs')],
+    ['begin-connect', (w: World) => w.begin(alice, 'docs')],
+    ['disconnect', (w: World) => w.disconnect(alice, 'docs')],
   ])(
     '%s answers denied when the identity refuses and basis-unavailable when it is unavailable or throws',
     async (_name, call) => {
@@ -81,6 +85,8 @@ describe('step 3: the faces are taken on each call', () => {
     ['list', (w: World) => w.list(alice)],
     ['read', (w: World) => w.read(alice, 'docs')],
     ['refresh', (w: World) => w.refresh(alice, 'docs')],
+    ['begin-connect', (w: World) => w.begin(alice, 'docs')],
+    ['disconnect', (w: World) => w.disconnect(alice, 'docs')],
   ])(
     '%s answers basis-unavailable while the faces are away, and when the adoption is unknown or throws',
     async (_name, call) => {
@@ -446,6 +452,149 @@ describe('step 4: refresh-endpoint', () => {
     })
     expect(await world.refresh(alice, 'docs')).toEqual({ outcome: 'unknown' })
     expect(world.seen.filter(call => call.op === 'refresh')).toHaveLength(1)
+  })
+})
+
+describe('step 4: begin-connect and disconnect (C201, C206)', () => {
+  it('begins with the principal of the tenant and answers the address with the time it expires at', async () => {
+    const world = setup()
+    expect(await world.begin(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: {
+        url: 'https://auth.example/authorize?s=1',
+        expiresAt: expect.objectContaining({}),
+      },
+    })
+    const answer = await world.begin(alice, 'docs')
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect(encodeInstant(answer.body.expiresAt)).toBe(new Date(BEGUN_AT).toISOString())
+    expect(
+      world.seen.filter(call => call.op === 'begin').map(call => [call.tenant, call.name]),
+    ).toEqual([
+      [alice.tenant, 'docs'],
+      [alice.tenant, 'docs'],
+    ])
+  })
+
+  it.each([
+    [{ kind: 'not-oauth' as const }, { outcome: 'unsupported', body: { reason: 'not-oauth' } }],
+    [
+      { kind: 'blocked' as const, reason: 'disabled' as const },
+      { outcome: 'not-committed', body: { reason: 'disabled', text: 'the endpoint is disabled' } },
+    ],
+    [
+      { kind: 'config-missing' as const, item: 'target' as const },
+      {
+        outcome: 'not-committed',
+        body: { reason: 'target-missing', text: 'the endpoint has no address set' },
+      },
+    ],
+    [
+      { kind: 'config-invalid' as const, item: 'client-id' as const },
+      {
+        outcome: 'not-committed',
+        body: {
+          reason: 'client-id-invalid',
+          text: 'the client identifier set for the endpoint cannot be read',
+        },
+      },
+    ],
+    [
+      { kind: 'refused' as const, reason: 'no-registration' as const },
+      {
+        outcome: 'not-committed',
+        body: {
+          reason: 'no-registration',
+          text: 'register an application at the authorization server first and set its client identifier',
+        },
+      },
+    ],
+    [
+      { kind: 'refused' as const, reason: 'issuer-mismatch' as const },
+      {
+        outcome: 'not-committed',
+        body: {
+          reason: 'issuer-mismatch',
+          text: 'the authorization server described itself as a different issuer',
+        },
+      },
+    ],
+    [
+      { kind: 'refused' as const, reason: 'unavailable' as const },
+      { outcome: 'basis-unavailable' },
+    ],
+    [{ kind: 'unknown' as const }, { outcome: 'basis-unavailable' }],
+    [{ kind: 'not-available-to-you' as const }, { outcome: 'not-visible', body: {} }],
+  ])('maps a refusal %j of the connect face to %j', async (failure, answer) => {
+    const world = createWorld()
+    world.define(alice, 'docs', { status: readyStatus(docs), begin: fail(failure) })
+    expect(await world.begin(alice, 'docs')).toEqual(answer)
+  })
+
+  it("answers not-visible for an unknown name and for another tenant's endpoint, without asking the face", async () => {
+    const world = setup()
+    expect(await world.begin(alice, 'absent')).toEqual({ outcome: 'not-visible', body: {} })
+    expect(await world.disconnect(bob, 'docs')).toEqual({ outcome: 'not-visible', body: {} })
+    expect(world.seen.filter(call => call.op === 'begin' || call.op === 'disconnect')).toEqual([])
+  })
+
+  it('answers basis-unavailable when connecting is not offered, and unknown when the face throws', async () => {
+    const without = createWorld({ connect: false })
+    without.define(alice, 'docs', { status: readyStatus(docs) })
+    expect(await without.begin(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+    expect(await without.disconnect(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+    const world = createWorld()
+    const fault = () => {
+      throw new Error('connect fault')
+    }
+    world.define(alice, 'docs', { status: readyStatus(docs), begin: fault, disconnect: fault })
+    expect(await world.begin(alice, 'docs')).toEqual({ outcome: 'unknown' })
+    expect(await world.disconnect(alice, 'docs')).toEqual({ outcome: 'unknown' })
+  })
+
+  it('disconnects, refuses an endpoint that does not use OAuth, and says unavailable for anything else', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', { status: readyStatus(docs) })
+    world.define(alice, 'plain', {
+      status: readyStatus(ref('plain')),
+      disconnect: fail({ kind: 'not-oauth' as const }),
+    })
+    world.define(alice, 'gone', {
+      status: readyStatus(ref('gone')),
+      disconnect: fail({ kind: 'refused' as const, reason: 'unavailable' as const }),
+    })
+    world.define(alice, 'off', {
+      status: readyStatus(ref('off')),
+      disconnect: fail({ kind: 'blocked' as const, reason: 'disabled' as const }),
+    })
+    expect(await world.disconnect(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: { disconnected: 'disconnected' },
+    })
+    expect(await world.disconnect(alice, 'plain')).toEqual({
+      outcome: 'unsupported',
+      body: { reason: 'not-oauth' },
+    })
+    expect(await world.disconnect(alice, 'gone')).toEqual({ outcome: 'basis-unavailable' })
+    expect(await world.disconnect(alice, 'off')).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('an OAuth endpoint shows whether a connection can be begun or waits, and a grant that wants a new connection', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', {
+      status: readyStatus(docs, { credential: 'reconnect-required', connect: 'connecting' }),
+    })
+    const read = await world.read(alice, 'docs')
+    expect(read).toMatchObject({
+      outcome: 'succeeded',
+      body: {
+        endpoint: {
+          credential: 'present',
+          credentialState: 'reconnect-required',
+          connect: 'connecting',
+        },
+      },
+    })
   })
 })
 

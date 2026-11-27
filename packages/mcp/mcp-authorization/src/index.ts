@@ -1,6 +1,7 @@
 import type { Ack, Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialFailure,
+  GrantConnector,
   GrantKey,
   HttpCredentialHandle,
 } from '@omne-harness/mcp-contract/provider'
@@ -8,6 +9,7 @@ import type { CallbackQuery } from './answers.ts'
 import {
   begin,
   callback,
+  standing,
   type BeginInput,
   type BeginRefusal,
   type Begun,
@@ -40,17 +42,20 @@ export {
   type ServerRefusal,
 } from './server.ts'
 
-export type McpAuthorization = Readonly<{
-  begin(input: BeginInput): Promise<Outcome<Begun, BeginRefusal>>
-  callback(query: CallbackQuery, signal: AbortSignal): Promise<CallbackOutcome>
-  acquire(
-    key: GrantKey,
-    target: string,
-    signal: AbortSignal,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  requireScopes(key: GrantKey, scopes: readonly string[]): Promise<Ack<'unavailable'>>
-  disconnect(key: GrantKey): Promise<Ack<'unavailable'>>
-}>
+export type McpAuthorization = GrantConnector &
+  Readonly<{
+    begin(input: BeginInput): Promise<Outcome<Begun, BeginRefusal>>
+    callback(query: CallbackQuery, signal: AbortSignal): Promise<CallbackOutcome>
+    acquire(
+      key: GrantKey,
+      target: string,
+      signal: AbortSignal,
+    ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
+    requireScopes(key: GrantKey, scopes: readonly string[]): Promise<Ack<'unavailable'>>
+    disconnect(key: GrantKey): Promise<Ack<'unavailable'>>
+    /** Whether a connection begun in this process still waits for its callback. */
+    awaiting(): boolean
+  }>
 
 /** The OAuth grants of MCP endpoints: discovery, registration, the callback, use and refresh. */
 export function createMcpAuthorization(deps: McpAuthorizationDeps): McpAuthorization {
@@ -62,5 +67,7 @@ export function createMcpAuthorization(deps: McpAuthorizationDeps): McpAuthoriza
     acquire: (key, target, signal) => acquire(deps, flights, key, target, signal),
     requireScopes: (key, scopes) => requireScopes(deps, key, scopes),
     disconnect: key => disconnect(deps, key),
+    standing: key => standing(deps, routes, key),
+    awaiting: () => [...routes.values()].some(route => route.expiresAt > deps.now()),
   }
 }

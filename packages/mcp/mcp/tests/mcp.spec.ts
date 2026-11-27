@@ -24,6 +24,7 @@ describe('createMcp', () => {
     adoptHttp(w, files, { auth: 'none' })
     const mcp = createMcp(w.ports, CONFIG)
     expect(Object.keys(mcp).sort()).toEqual([
+      'connect',
       'connections',
       'discovery',
       'inspection',

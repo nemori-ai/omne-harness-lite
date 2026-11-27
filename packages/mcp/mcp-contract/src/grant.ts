@@ -45,7 +45,6 @@ export type PendingAuthorization = Readonly<{
   expiresAt: number
 }>
 
-/** Where the grants, the pending authorizations and the client registrations are kept. */
 export interface AuthorizationRecords {
   /** Puts the pending authorization of its key; one that stood for the key is void from now on. */
   begin(pending: PendingAuthorization): Promise<Ack<'unavailable'>>
@@ -99,4 +98,40 @@ export interface OAuthFetch {
     headers: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ): Promise<Outcome<OAuthAnswer, 'no-answer'>>
+}
+
+export type ConnectRefusal =
+  | 'no-resource-metadata'
+  | 'no-authorization-server'
+  | 'issuer-mismatch'
+  | 'no-pkce'
+  | 'insecure-endpoint'
+  | 'malformed'
+  | 'no-registration'
+  | 'registration-refused'
+  | 'unavailable'
+
+export type ConnectInput = Readonly<{
+  key: GrantKey
+  target: string
+  configured?: Readonly<{ clientId: string; secret?: string }>
+  metadataDocument?: string
+  redirectUri: string
+  initiator: string
+  signal: AbortSignal
+}>
+
+export type GrantStanding = Readonly<{ grant: 'none' | GrantState; connecting: boolean }>
+
+export interface GrantConnector {
+  begin(
+    input: ConnectInput,
+  ): Promise<Outcome<Readonly<{ url: string; expiresAt: number }>, ConnectRefusal>>
+  disconnect(key: GrantKey): Promise<Ack<'unavailable'>>
+  standing(key: GrantKey): Promise<Outcome<GrantStanding, 'unavailable'>>
+}
+
+/** Where the person's browser comes back to: it listens while some connection waits for its callback. */
+export interface CallbackReceiver {
+  open(until: number): Promise<Outcome<string, 'unavailable'>>
 }

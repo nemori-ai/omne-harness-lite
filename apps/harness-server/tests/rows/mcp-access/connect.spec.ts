@@ -1,0 +1,175 @@
+// @module-tag slow — every case starts the release tree and a local authorization server.
+import { afterEach, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/json-text'
+import { mcpProtocol } from '@omne-harness/mcp-protocol'
+import { createClient } from '@omne-harness/sdk/core'
+import { savedTenant } from '../../r9/support.ts'
+import {
+  originOf,
+  protocolTransport,
+  savedCredentials,
+  tenantOf,
+} from '../../support/protocol-clients.ts'
+import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
+import { settled } from '../../support/tools-flow.ts'
+import { freePort, testAuthServer } from '../mcp/auth-server.ts'
+
+const text = (value: string): JsonValue => ({ kind: 'string', value })
+const body = (name: string, auth: string): JsonValue => ({
+  kind: 'object',
+  entries: [
+    { key: 'name', value: text(name) },
+    { key: 'transport', value: text('streamable-http') },
+    { key: 'auth', value: text(auth) },
+  ],
+})
+const owner = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
+
+const servers: { close(): Promise<void> }[] = []
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map(server => server.close()))
+})
+
+async function registered(tree: ReleaseTree, name: string, auth: string, target: string) {
+  const tenant = tenantOf(savedTenant(tree.home))
+  const { assets } = tree.clients
+  const created = await assets['create-asset']({
+    tenant,
+    operation: `create-${name}`,
+    category: 'mcp',
+    name,
+    body: body(name, auth) as never,
+  })
+  expect(created).toMatchObject({ outcome: 'succeeded' })
+  const current = await settled(
+    tree,
+    `the target of ${name} to be read`,
+    () => assets['describe-setting']({ tenant, owner: owner(name), item: 'target' }),
+    value => value.outcome === 'succeeded',
+  )
+  if (current.outcome !== 'succeeded') throw new Error('unreachable')
+  const written = await assets['set-setting']({
+    tenant,
+    owner: owner(name),
+    item: 'target',
+    operation: `target-${name}`,
+    expectedRevision: current.body.item.revision,
+    value: { kind: 'ordinary', value: text(target) as never },
+  })
+  expect(written).toMatchObject({ outcome: 'succeeded' })
+  return tenant
+}
+
+const oauthConfig = (callbackPort: number) => ({
+  mcp: {
+    oauth: {
+      callbackPort,
+      pendingMs: 600_000,
+      refreshLeadMs: 60_000,
+      requestMs: 10_000,
+      metadataDocument: null,
+    },
+  },
+})
+
+const reachable = (url: string) =>
+  fetch(url, { redirect: 'manual' }).then(
+    () => true,
+    () => false,
+  )
+
+it(
+  'C201 C206 a person connects an OAuth endpoint: begin answers the address, the browser comes back once to a receiver that then closes, the endpoint is connected, and disconnecting ends it',
+  { tags: ['slow'], timeout: 300_000 },
+  async () => {
+    const server = await testAuthServer()
+    servers.push(server)
+    const port = await freePort()
+    const callback = `http://127.0.0.1:${String(port)}/callback`
+    const exit = await onReleaseTree(
+      { script: toolCallsThenText(() => []), rowConfig: oauthConfig(port) },
+      async tree => {
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const tenant = await registered(tree, 'desk', 'oauth', server.target)
+        expect(await reachable(callback)).toBe(false)
+
+        const begun = await mcp['begin-connect']({ tenant, name: 'desk' })
+        if (begun.outcome !== 'succeeded') throw new Error(JSON.stringify(begun))
+        const url = new URL(begun.body.url)
+        expect(url.origin + url.pathname).toBe(`${server.base}/authorize`)
+        expect(Object.fromEntries(url.searchParams)).toMatchObject({
+          response_type: 'code',
+          code_challenge_method: 'S256',
+          redirect_uri: callback,
+          resource: server.target,
+        })
+        const connecting = await mcp['read-endpoint']({ tenant, name: 'desk' })
+        expect(connecting).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { credentialState: 'absent', connect: 'connecting' } },
+        })
+
+        const bad = await fetch(
+          `${callback}?state=forged&code=x&iss=${encodeURIComponent(server.base)}`,
+        )
+        expect(await bad.text()).toContain('没有连上')
+        const consent = await fetch(url, { redirect: 'manual' })
+        const back = consent.headers.get('location') ?? ''
+        const page = await fetch(back)
+        const said = await page.text()
+        expect(said).toContain('连上了')
+        expect(said).not.toContain('code-')
+        expect(server.counts).toMatchObject({ registrations: 1, authorizations: 1, exchanges: 1 })
+        expect(await reachable(callback)).toBe(false)
+
+        const connected = await mcp['read-endpoint']({ tenant, name: 'desk' })
+        expect(connected).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { credentialState: 'present', connect: 'available' } },
+        })
+        expect(JSON.stringify(connected)).not.toContain('at-1')
+
+        expect(await mcp.disconnect({ tenant, name: 'desk' })).toEqual({
+          outcome: 'succeeded',
+          body: { disconnected: 'disconnected' },
+        })
+        expect(await mcp['read-endpoint']({ tenant, name: 'desk' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { credentialState: 'absent' } },
+        })
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C201 an endpoint with a static credential cannot be connected, and one whose server does not describe itself says why',
+  { tags: ['slow'], timeout: 300_000 },
+  async () => {
+    const port = await freePort()
+    const exit = await onReleaseTree(
+      { script: toolCallsThenText(() => []), rowConfig: oauthConfig(port) },
+      async tree => {
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const tenant = await registered(tree, 'plain', 'static', 'http://127.0.0.1:9/mcp')
+        expect(await mcp['begin-connect']({ tenant, name: 'plain' })).toEqual({
+          outcome: 'unsupported',
+          body: { reason: 'not-oauth' },
+        })
+        await registered(tree, 'mute', 'oauth', `http://127.0.0.1:${String(port)}/mcp`)
+        expect(await mcp['begin-connect']({ tenant, name: 'mute' })).toMatchObject({
+          outcome: 'not-committed',
+          body: { reason: 'no-resource-metadata' },
+        })
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)

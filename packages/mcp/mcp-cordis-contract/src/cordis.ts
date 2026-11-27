@@ -3,14 +3,18 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type {
   ActionDiscovery,
   ActionInvoker,
+  EndpointConnect,
   EndpointStatus,
   TaskWatch,
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  AuthorizationRecords,
+  CallbackReceiver,
   CatalogStore,
   ContinuationRecords,
   CredentialUse,
+  GrantConnector,
   TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
@@ -223,6 +227,60 @@ export abstract class TaskWatchService<P> extends Service implements TaskWatch<P
 
 export const mcpTaskWatchKey = TaskWatchService.provide
 
+/** The OAuth grants, pending authorizations and client registrations, kept across a restart. */
+export abstract class AuthorizationRecordsService extends Service implements AuthorizationRecords {
+  static readonly provide = 'mcpAuthorizationRecords'
+  constructor(ctx: Context) {
+    super(ctx, AuthorizationRecordsService.provide)
+  }
+  abstract readonly begin: AuthorizationRecords['begin']
+  abstract readonly take: AuthorizationRecords['take']
+  abstract readonly void: AuthorizationRecords['void']
+  abstract readonly read: AuthorizationRecords['read']
+  abstract readonly write: AuthorizationRecords['write']
+  abstract readonly remove: AuthorizationRecords['remove']
+  abstract readonly registration: AuthorizationRecords['registration']
+  abstract readonly register: AuthorizationRecords['register']
+}
+
+export const mcpAuthorizationRecordsKey = AuthorizationRecordsService.provide
+
+/** The OAuth grants of MCP endpoints, as MCP's core uses them. */
+export abstract class GrantConnectorService extends Service implements GrantConnector {
+  static readonly provide = 'mcpGrantConnector'
+  constructor(ctx: Context) {
+    super(ctx, GrantConnectorService.provide)
+  }
+  abstract readonly begin: GrantConnector['begin']
+  abstract readonly disconnect: GrantConnector['disconnect']
+  abstract readonly standing: GrantConnector['standing']
+}
+
+export const mcpGrantConnectorKey = GrantConnectorService.provide
+
+/** Where a person's browser comes back after an OAuth consent. */
+export abstract class CallbackReceiverService extends Service implements CallbackReceiver {
+  static readonly provide = 'mcpCallbackReceiver'
+  constructor(ctx: Context) {
+    super(ctx, CallbackReceiverService.provide)
+  }
+  abstract readonly open: CallbackReceiver['open']
+}
+
+export const mcpCallbackReceiverKey = CallbackReceiverService.provide
+
+/** Connecting and disconnecting an OAuth endpoint, for the person's entry only. */
+export abstract class EndpointConnectService<P> extends Service implements EndpointConnect<P> {
+  static readonly provide = 'mcpEndpointConnect'
+  constructor(ctx: Context) {
+    super(ctx, EndpointConnectService.provide)
+  }
+  abstract readonly begin: EndpointConnect<P>['begin']
+  abstract readonly disconnect: EndpointConnect<P>['disconnect']
+}
+
+export const mcpEndpointConnectKey = EndpointConnectService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -235,6 +293,10 @@ declare module '@deepseek-ai/cordis' {
     mcpContinuationRecords: ContinuationRecordsService
     mcpTaskRecords: TaskRecordsService
     mcpTaskWatch: TaskWatchService<unknown>
+    mcpAuthorizationRecords: AuthorizationRecordsService
+    mcpGrantConnector: GrantConnectorService
+    mcpCallbackReceiver: CallbackReceiverService
+    mcpEndpointConnect: EndpointConnectService<unknown>
   }
 }
 

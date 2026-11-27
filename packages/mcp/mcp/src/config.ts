@@ -16,10 +16,19 @@ function isTaskWatch(value: unknown): boolean {
   return ['pollFloorMs', 'backoffCapMs'].every(bound => isPositiveSafeInteger(member(value, bound)))
 }
 
+function isOAuth(value: unknown): boolean {
+  if (value === undefined) return true
+  if (typeof value !== 'object' || value === null) return false
+  const document = member(value, 'metadataDocument')
+  if (document !== undefined && typeof document !== 'string') return false
+  return ['pendingMs', 'requestMs'].every(bound => isPositiveSafeInteger(member(value, bound)))
+}
+
 function isMcpConfig<P>(value: unknown): value is McpConfig<P> {
   if (typeof value !== 'object' || value === null) return false
   if (typeof member(value, 'principalKey') !== 'function') return false
   if (!isTaskWatch(member(value, 'taskWatch'))) return false
+  if (!isOAuth(member(value, 'oauth'))) return false
   return BOUNDS.every(bound => isPositiveSafeInteger(member(value, bound)))
 }
 
@@ -27,7 +36,7 @@ export function validateConfig<P>(config: unknown): McpConfig<P> {
   if (!isMcpConfig<P>(config))
     throw new RangeError(
       'McpConfig needs principalKey (a function) and positive safe integers for ' +
-        `${BOUNDS.join(', ')}, and for pollFloorMs and backoffCapMs of a taskWatch it gives`,
+        `${BOUNDS.join(', ')}, for pollFloorMs and backoffCapMs of a taskWatch and pendingMs and requestMs of an oauth it gives`,
     )
   return config
 }

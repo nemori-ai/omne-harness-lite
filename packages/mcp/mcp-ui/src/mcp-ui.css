@@ -57,7 +57,8 @@
   overflow-wrap: anywhere;
 }
 
-.mcp-endpoint-actions {
+.mcp-endpoint-actions,
+.mcp-endpoint-connect {
   display: grid;
   gap: var(--omne-space-inline);
 }

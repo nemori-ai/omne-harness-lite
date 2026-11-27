@@ -110,6 +110,7 @@ export function settingsOf(given: Settings = {}): EndpointSettings {
     target: given.target ?? ABSENT,
     credential: given.credential ?? ABSENT,
     connectTimeout: given.connectTimeout ?? ABSENT,
+    ...(given.clientId === undefined ? {} : { clientId: given.clientId }),
   }
 }
 

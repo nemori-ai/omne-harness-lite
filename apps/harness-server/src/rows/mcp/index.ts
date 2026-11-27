@@ -29,6 +29,9 @@ import {
   mcpEndpointsPoint,
   mcpEndpointStatusKey,
   mcpTaskWatchKey,
+  mcpGrantConnectorKey,
+  mcpCallbackReceiverKey,
+  mcpEndpointConnectKey,
   mcpUseEligibilityKey,
   UseEligibilityService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -66,6 +69,7 @@ import {
 import { keptAdoption, keptSettings, type AdoptionStamp, type HeldRefs } from './kept-adoption.ts'
 import { createOutputCheck } from './output-check.ts'
 import { mcpPersonAsk } from './person.ts'
+import { forgettingRemoved, mountMcpOAuth } from './oauth.ts'
 import { mountMcpTasks } from './tasks.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -78,6 +82,13 @@ export const mcpRowConfig = z.strictObject({
     maxLongRequests: positive,
     taskWatch: z.strictObject({ pollFloorMs: positive, backoffCapMs: positive }),
     clientInfo: z.strictObject({ name: z.string().min(1), version: z.string().min(1) }),
+  }),
+  oauth: z.strictObject({
+    callbackPort: z.number().int().min(1).max(65_535),
+    pendingMs: positive,
+    refreshLeadMs: positive,
+    requestMs: positive,
+    metadataDocument: z.string().url().nullable(),
   }),
   bridge: z.strictObject({
     acquireWaitMs: positive,
@@ -259,14 +270,19 @@ const mcpPlugin: Plugin.Object = {
     )
     const stamp = stampOf(ctx)
     const facts = factsOf(ctx, stamp)
-    const held: HeldRefs = tenant => heldEndpointRefs(facts, tenant)
+    const grants = mountMcpOAuth(ctx, config.oauth)
+    const held: HeldRefs = forgettingRemoved(tenant => heldEndpointRefs(facts, tenant), grants)
     new Adoption(ctx, keptAdoption(createEndpointAdoption(facts), held, stamp))
     new Eligibility(ctx, createEndpointEligibility(facts))
     new Credentials(
       ctx,
       createCredentialUse(() => ctx.get(settingsSecretCustodyKey, false)),
     )
-    ctx.plugin(createMcpPlugin({ principalKey, checkOutput: createOutputCheck() }), config.core)
+    const { pendingMs, requestMs, metadataDocument } = config.oauth
+    ctx.plugin(createMcpPlugin({ principalKey, checkOutput: createOutputCheck() }), {
+      ...config.core,
+      oauth: { pendingMs, requestMs, metadataDocument },
+    })
     const sources = ctx.get(toolEntrySourcesKey) as ToolEntrySourcesService<
       unknown,
       ToolMessageContentBlock
@@ -309,6 +325,9 @@ export const mcpRow = defineRow({
       mcpUseEligibilityKey,
       mcpCredentialUseKey,
       mcpTaskWatchKey,
+      mcpGrantConnectorKey,
+      mcpCallbackReceiverKey,
+      mcpEndpointConnectKey,
       residentEndpointsKey,
     ],
     injects: [

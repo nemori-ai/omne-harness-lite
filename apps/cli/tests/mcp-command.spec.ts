@@ -234,3 +234,72 @@ describe('usage', () => {
     expect((await cli(['mcp', 'list', '--all'])).code).toBe(2)
   })
 })
+
+describe('mcp connect and disconnect (C201, C206)', () => {
+  const desk = (credentialState: string, connect: string) => ({
+    ...docs,
+    name: 'desk',
+    credentialState,
+    connect,
+  })
+  const URL = 'https://auth.example/authorize?state=s'
+  const connecting =
+    (reads: string[][]) =>
+    (seen: Seen): Answer | undefined => {
+      if (seen.operation === 'begin-connect')
+        return seen.body['name'] === 'desk'
+          ? {
+              outcome: 'succeeded',
+              body: { url: URL, expiresAt: new Date(Date.now() + 60_000).toISOString() },
+            }
+          : { outcome: 'unsupported', body: { reason: 'not-oauth' } }
+      if (seen.operation === 'read-endpoint') {
+        const [state, connect] = reads.shift() ?? ['absent', 'available']
+        return {
+          outcome: 'succeeded',
+          body: { endpoint: desk(state ?? '', connect ?? ''), actions: null },
+        }
+      }
+      if (seen.operation === 'disconnect')
+        return { outcome: 'succeeded', body: { disconnected: 'disconnected' } }
+      return undefined
+    }
+
+  it('prints the address to open and waits until the endpoint is connected', async () => {
+    const service = await loggedIn(
+      connecting([
+        ['absent', 'connecting'],
+        ['present', 'available'],
+      ]),
+    )
+    const result = await cli(['mcp', 'connect', 'desk'])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe(`Open this address in a browser and consent:\n${URL}\nconnected\n`)
+    expect(mcpCalls(service).map(seen => seen.operation)).toEqual([
+      'begin-connect',
+      'read-endpoint',
+      'read-endpoint',
+    ])
+  })
+
+  it('says not connected when the consent came back without a grant, and only prints the address with --no-wait', async () => {
+    await loggedIn(connecting([['absent', 'available']]))
+    const refused = await cli(['mcp', 'connect', 'desk'])
+    expect(refused.code).toBe(3)
+    expect(refused.stdout.endsWith('not connected\n')).toBe(true)
+    const quick = await cli(['mcp', 'connect', 'desk', '--no-wait'])
+    expect(quick.code).toBe(0)
+    expect(quick.stdout).toBe(`Open this address in a browser and consent:\n${URL}\n`)
+  })
+
+  it('reports an endpoint that cannot be connected, and disconnects', async () => {
+    const service = await loggedIn(connecting([]))
+    const plain = await cli(['mcp', 'connect', 'plain'])
+    expect(plain.code).not.toBe(0)
+    expect(plain.stdout + plain.stderr).toContain('not-oauth')
+    const ended = await cli(['mcp', 'disconnect', 'desk'])
+    expect(ended.code).toBe(0)
+    expect(ended.stdout).toBe('disconnected\n')
+    expect(mcpCalls(service).at(-1)?.body).toEqual({ tenant: tenantText, name: 'desk' })
+  })
+})

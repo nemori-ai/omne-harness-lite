@@ -202,6 +202,18 @@ describe('what the source gives, for each state of an endpoint', () => {
     expect(entry?.definition.name).toBe('mcp__docs')
   })
 
+  // C208 MC-35: what the agent gets of an endpoint is its actions; connecting and disconnecting are the person's.
+  it('an entry offers the actions of the endpoint and nothing that connects or disconnects it', async () => {
+    const w = world()
+    w.adopt(home, 'docs')
+    w.offers('docs', [action('search')])
+    const [entry] = (await listing(w, alice)).entries
+    const definition = JSON.stringify(entry?.definition)
+    expect(definition).toContain('search')
+    for (const word of ['begin-connect', 'disconnect', 'connect', 'oauth', 'authorize'])
+      expect(definition.toLowerCase(), word).not.toContain(word)
+  })
+
   it('an endpoint whose actions make no tool is withheld', async () => {
     const w = world()
     w.adopt(home, 'docs')

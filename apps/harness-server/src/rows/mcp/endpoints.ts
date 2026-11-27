@@ -52,6 +52,10 @@ export type EndpointFacts = Readonly<{
 
 const UNSET = { kind: 'absent' } as const
 
+const CLIENT_ID_ITEM = 'client-id'
+const isClientId = (value: unknown): value is string =>
+  typeof value === 'string' && value !== '' && value.length <= 2048
+
 function valueOf<T>(
   read: Exclude<EndpointSettingRead, { kind: 'secret' }>,
   is: (value: unknown) => value is T,
@@ -119,9 +123,12 @@ async function settingsOf(
   const target = items.get('target')
   const timeout = items.get('connect-timeout')
   const credential = secured ? items.get(CREDENTIAL_ITEM) : undefined
+  const oauth = body !== undefined && 'ok' in body && body.ok.auth === 'oauth'
+  const clientId = oauth ? items.get(CLIENT_ID_ITEM) : undefined
   if (target === undefined || target.kind === 'secret') return fail('unknown')
   if (timeout === undefined || timeout.kind === 'secret') return fail('unknown')
   if (secured && credential?.kind !== 'secret') return fail('unknown')
+  if (oauth && (clientId === undefined || clientId.kind === 'secret')) return fail('unknown')
   const kept = secured ? await facts.credential(tenant, name) : succeed(undefined)
   if ('failure' in kept) return kept
   const binding = kept.ok?.bound === true ? credentialBinding(holdingRef, name) : undefined
@@ -130,12 +137,16 @@ async function settingsOf(
       target: valueOf(target, isConnectionTarget),
       connectTimeout: valueOf(timeout, isMillis),
       credential: binding === undefined ? UNSET : { kind: 'value', value: binding },
+      ...(clientId === undefined || clientId.kind === 'secret'
+        ? {}
+        : { clientId: valueOf(clientId, isClientId) }),
     },
     revisions: [
       target.revision,
       timeout.revision,
       credential?.revision ?? '',
       kept.ok?.revision ?? '',
+      ...(clientId === undefined ? [] : [clientId.revision]),
     ],
   })
 }

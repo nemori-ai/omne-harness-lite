@@ -31,6 +31,7 @@ export declare const mcpProtocol: {
                             readonly kind: "not-acquired";
                             readonly reason: string | null;
                         };
+                        readonly connect?: "available" | "connecting";
                         readonly connection: {
                             readonly reason: string | null;
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
@@ -75,6 +76,7 @@ export declare const mcpProtocol: {
                             readonly kind: "not-acquired";
                             readonly reason: string | null;
                         };
+                        readonly connect?: "available" | "connecting";
                         readonly connection: {
                             readonly reason: string | null;
                             readonly state: "degraded" | "lost" | "none" | "preparing" | "ready";
@@ -124,6 +126,59 @@ export declare const mcpProtocol: {
                 readonly name: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
+        };
+        readonly 'begin-connect': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly expiresAt: import("@omne-harness/utc-instant").Instant;
+                    readonly url: string;
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly unsupported: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "not-oauth";
+                }>;
+                readonly 'not-committed': import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "client-id-invalid" | "disabled" | "insecure-endpoint" | "issuer-mismatch" | "malformed" | "no-authorization-server" | "no-pkce" | "no-registration" | "no-resource-metadata" | "registration-refused" | "target-invalid" | "target-missing";
+                    readonly text: string;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: "commit";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly name: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly since: 3;
+        };
+        readonly disconnect: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly disconnected: "disconnected";
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly unsupported: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "not-oauth";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly effect: "commit";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly name: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly since: 3;
         };
     };
     readonly name: "mcp";

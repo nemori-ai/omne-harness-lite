@@ -74,6 +74,38 @@ describe('one grant, every state against every operation that reaches it (design
   })
 })
 
+describe('how a grant stands (C201)', () => {
+  it('none, then connecting while its callback is awaited here, then valid, then reconnect; storage that cannot answer says so', async () => {
+    const w = world()
+    expect(await w.authorization.standing(keyOf())).toEqual({
+      ok: { grant: 'none', connecting: false },
+    })
+    const { state } = await beginOn(w)
+    expect(await w.authorization.standing(keyOf())).toEqual({
+      ok: { grant: 'none', connecting: true },
+    })
+    expect(await w.authorization.standing(keyOf('t'))).toEqual({
+      ok: { grant: 'none', connecting: false },
+    })
+    w.server.answer(issued('at-1', 'rt-1'))
+    await w.authorization.callback({ state, code: 'c', iss: ISSUER }, never)
+    expect(await w.authorization.standing(keyOf())).toEqual({
+      ok: { grant: 'valid', connecting: false },
+    })
+    await w.authorization.requireScopes(keyOf(), ['write'])
+    expect(await w.authorization.standing(keyOf())).toEqual({
+      ok: { grant: 'reconnect', connecting: false },
+    })
+    await beginOn(w)
+    w.advance(600_000)
+    expect(await w.authorization.standing(keyOf())).toEqual({
+      ok: { grant: 'reconnect', connecting: false },
+    })
+    w.records.blind()
+    expect(await w.authorization.standing(keyOf())).toEqual({ failure: 'unavailable' })
+  })
+})
+
 describe('secrets never leave (MC-34, C205)', () => {
   it('no answer, failure or stored fact carries a token, refresh material, code or verifier', async () => {
     const w = world()

@@ -937,6 +937,9 @@ importers:
       '@omne-harness/mcp-access':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-access
+      '@omne-harness/mcp-authorization':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-authorization
       '@omne-harness/mcp-bridge':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-bridge
@@ -4894,6 +4897,9 @@ importers:
       '@omne-harness/mcp-protocol':
         specifier: workspace:*
         version: link:../mcp-protocol
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
     devDependencies:
       '@omne-harness/identity':
         specifier: workspace:*

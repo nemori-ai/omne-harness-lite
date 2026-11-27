@@ -976,6 +976,13 @@
             "version": "0.0.0"
           }
         },
+        "oauth": {
+          "callbackPort": 8788,
+          "pendingMs": 600000,
+          "refreshLeadMs": 60000,
+          "requestMs": 10000,
+          "metadataDocument": null
+        },
         "bridge": {
           "acquireWaitMs": 3000,
           "resultMaxBytes": 65536,
