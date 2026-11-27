@@ -163,12 +163,21 @@ describe('读等人的答复', () => {
   })
 
   it('在等人：一轮、条数、成因原样放进模型', () => {
-    const cause = { kind: 'no-reply', detail: 'http-400' }
+    const fault = { cause: 'upstream-unavailable', upstreamStatus: '502', throttled: false }
+    const cause = { kind: 'no-reply', detail: 'http-502', fault }
     const next = waitingRead(reading, S, 1, {
       outcome: 'succeeded',
       body: { waiting: { run: 'run_9', pending: 3, cause } },
     })
     expect(next.waiting.fact).toEqual({ kind: 'waiting', run: 'run_9', pending: 3, cause })
+  })
+
+  it('服务端没带模型一侧的失败时，模型里记成没有', () => {
+    const next = waitingRead(reading, S, 1, {
+      outcome: 'succeeded',
+      body: { waiting: { run: 'run_9', pending: 1, cause: { kind: 'guard', detail: null } } },
+    })
+    expect(next.waiting.fact).toMatchObject({ cause: { kind: 'guard', detail: null, fault: null } })
   })
 
   it.each([
@@ -259,15 +268,26 @@ describe('重试', () => {
 
 describe('成因的一句话', () => {
   it('表里有的照表；诊断不在这句话里，它收进「详情」', () => {
-    expect(causeSentence({ kind: 'compaction-failed', detail: null })).toBe(
+    expect(causeSentence({ kind: 'compaction-failed', detail: null, fault: null })).toBe(
       '压缩前面的对话时，压缩服务执行失败。',
     )
-    expect(causeSentence({ kind: 'cannot-fit', detail: null })).toBe('当前请求装不进模型的上下文。')
-    expect(causeSentence({ kind: 'no-reply', detail: 'http-400' })).toBe('模型没有给出有效的回复。')
+    expect(causeSentence({ kind: 'cannot-fit', detail: null, fault: null })).toBe(
+      '当前请求装不进模型的上下文。',
+    )
+  })
+
+  it('没有回复分两种说：调用完成而回复不能用；调用本身没有成功（成因带着模型一侧的失败）', () => {
+    expect(causeSentence({ kind: 'no-reply', detail: null, fault: null })).toBe(
+      '模型没有给出有效的回复。',
+    )
+    const fault = { cause: 'upstream-unavailable', upstreamStatus: '429', throttled: true }
+    expect(causeSentence({ kind: 'no-reply', detail: 'http-429', fault })).toBe(
+      '模型调用没有成功，这一轮没有得到回复。',
+    )
   })
 
   it('表里没有的：通用的一句带上种类名；没有成因：只说失败了', () => {
-    expect(causeSentence({ kind: 'brand-new', detail: 'x-1' })).toBe(
+    expect(causeSentence({ kind: 'brand-new', detail: 'x-1', fault: null })).toBe(
       '这一轮失败了，原因是「brand-new」。',
     )
     expect(causeSentence(null)).toBe('这一轮失败了。')

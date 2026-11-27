@@ -468,7 +468,12 @@ function OpenSession({
             driver={driver}
             dock={dock(state.session)}
             failure={cause =>
-              failure({ session: state.session, cause: cause.kind, detail: cause.detail })
+              failure({
+                session: state.session,
+                cause: cause.kind,
+                detail: cause.detail,
+                fault: cause.fault,
+              })
             }
           />
           {work(state.session, state.revision)}
