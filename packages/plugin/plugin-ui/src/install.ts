@@ -309,12 +309,15 @@ function putAll(inside: InstallShell, ready: readonly Loaded[]): void {
   }
 }
 
+const spotText = (...parts: readonly string[]): string =>
+  parts.filter(part => part !== '').join(' ')
+
 function refusedOf(changes: Changes, by: string): Outcome | undefined {
   const mine = changes.refused.filter(each => each.by === by)
   if (mine.length === 0) return undefined
   return outcomeOf(
     mine.map(({ point, key, reason, absent }) => ({
-      label: `${point} ${key}`,
+      label: spotText(point, key),
       fault:
         absent === undefined ? { reason } : { reason, absent: { kind: 'reference', name: absent } },
     })),
@@ -326,7 +329,7 @@ const lockedOf = (hosted: Hosted): Outcome | undefined => {
   if (locked.length === 0) return undefined
   return outcomeOf(
     locked.map(({ entry, detail }) => ({
-      label: `${entry.point} ${entry.key}${entry.id === '' ? '' : ` ${entry.id}`}`,
+      label: spotText(entry.point, entry.key, entry.id),
       fault: { reason: `locked by ${detail}: the app keeps its own item here` },
     })),
   )

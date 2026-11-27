@@ -183,7 +183,10 @@ export type Judgment = Readonly<{
 export declare const wayOf: (member: Member) => Way;
 export declare function judgeMember(target: Target, member: Member): Judgment;
 export declare function reasonText(reason: Reason): string;
-export declare function genericItem(rules: PointRules, given: unknown): Readonly<{
+export declare function genericItem(rules: PointRules, given: unknown, spot?: Readonly<{
+    id?: string;
+    rank?: number;
+}>): Readonly<{
     item: object;
 }> | Reason;
 export {};
