@@ -199,11 +199,16 @@ export { type BubbleInk } from './ink/note-ink.ts'
 export { FigureSeat } from './ink/seat.tsx'
 export { FigureStage, type FigureControl } from './ink/figure-stage.tsx'
 export { LooseFigure, type LooseControl, type LooseFigureProps } from './ink/loose-figure.tsx'
-export { SayBubble, type SayBubbleProps, type SaySaid } from './ink/say-bubble.tsx'
+export { SayBubble, type SayBubbleProps, type SayControl, type SaySaid } from './ink/say-bubble.tsx'
 export {
+  type SayAct,
   type SayFate,
+  type SayInside,
   type SayNote,
+  type SayPhrase,
   type SayPicture,
+  type SayReply,
+  type SayReplyState,
   type SayTarget,
   type SayTold,
   type SayWords,

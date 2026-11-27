@@ -8,7 +8,10 @@ function ports(lockedBy: ServerInstallPorts['lockedBy']) {
   const calls: string[] = []
   const given: ServerInstallPorts = {
     scope: ['tenant', 'alice'],
-    point: () => ({ kind: 'takes', takes: 'code', when: 'running' }),
+    point: () => ({
+      kind: 'point',
+      rules: { binding: 'run', item: { kind: 'pure', fields: { greet: 'function' } } },
+    }),
     guestForm: () => made => made,
     needs: () => ({
       kind: 'adopted',

@@ -3,6 +3,7 @@ import * as ui from '@omne-harness/ui-kit'
 import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
+  assetsCategory,
   assetsCategoryPage,
   assetsHolding,
   assetsPageTarget,
@@ -149,6 +150,7 @@ export const assembly: Assembly = {
     createCanvasUiModule({ preferences: storedCanvasPreferences(() => window.localStorage) }),
     createPluginUiModule({
       floor: pageFloor,
+      skinsAbove: assetsCategory,
       looks: storedTenantTexts(() => window.localStorage, LOOK_KEY),
       code: {
         given: { React, ui },

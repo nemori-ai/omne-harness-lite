@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { blurMain, deskFigure, liftOut, onDesk, signUp } from './desk.ts'
-import { expect, test } from './desktop.ts'
+import { REPLY, expect, test } from './desktop.ts'
 
 // The desk layer is macOS only in this version (apps/desktop/SPEC.md#桌面层); elsewhere the figure stays in the page.
 test.skip(process.platform !== 'darwin', '桌面层这一版只在 macOS 上有，别的系统上形出不了页面')
@@ -14,10 +14,11 @@ const SENT = '已发送'
 const noteIn = (page: Page) => page.locator('.shell-float .omne-say-bubble')
 const noteOn = (desk: Page) => desk.locator('.omne-say-bubble')
 const fieldOf = (on: Page) => on.getByRole('textbox', { name: FIELD })
+const replyIn = (note: Locator) => note.locator('.omne-say-reply-text')
 const part = (on: Page, selector: string): Promise<string | null> =>
   on.evaluate(`document.querySelector('${selector}')?.getAttribute('data-omne-part') ?? null`)
 
-test('说话笺只有一块：窗口里写半句不发，到桌面上单击形，字在；Escape 再单击，字还在；发出去，字清掉；桌面上写的半句，回窗口里开也在，桌面上的先收', async ({
+test('说话笺只有一块：窗口里写半句不发，到桌面上单击形，字在；Escape 再单击，字还在；发出去，字清掉，agent 回的话出现在笺里；桌面上写的半句，回窗口里开也在，桌面上的先收，回的话也在', async ({
   launchApp,
 }) => {
   test.setTimeout(180_000)
@@ -57,10 +58,11 @@ test('说话笺只有一块：窗口里写半句不发，到桌面上单击形�
     await expect(fieldOf(desk)).toHaveValue(half)
   })
 
-  await test.step('发出去：笺上写受理了，字清掉', async () => {
+  await test.step('发出去：笺上写受理了，字清掉；agent 回的话出现在笺里', async () => {
     await fieldOf(desk).press('Enter')
     await expect(noteOn(desk).locator('.omne-say-line')).toHaveText(SENT, { timeout: 30_000 })
     await expect(fieldOf(desk)).toHaveValue('')
+    await expect(replyIn(noteOn(desk))).toContainText(REPLY, { timeout: 30_000 })
   })
 
   const other = `桌面上的半句 ${randomUUID().slice(0, 6)}`
@@ -70,6 +72,7 @@ test('说话笺只有一块：窗口里写半句不发，到桌面上单击形�
     await expect(noteIn(page)).toBeVisible({ timeout: 10_000 })
     await expect(fieldOf(page)).toHaveValue(other)
     await expect(noteOn(desk)).toHaveCount(0, { timeout: 10_000 })
+    await expect(replyIn(noteIn(page))).toContainText(REPLY)
   })
 
   await test.step('在窗口里按 Escape 再按随身入口：字还在', async () => {

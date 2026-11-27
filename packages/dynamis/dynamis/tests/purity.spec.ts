@@ -35,8 +35,10 @@ describe('DY-14：这个成员是纯的', () => {
   it.each(sources)('$name 不读时钟、随机数、环境，也不排定时器', ({ text }) => {
     const banned =
       /\b(Date|performance|Math\.random|crypto|process|globalThis|setTimeout|setInterval|queueMicrotask|fetch)\b/
-    expect(text).not.toMatch(banned)
-    expect(text).not.toMatch(/\b(async|await|Promise)\b/)
+    // A value such as 'one-per-process' names no global: only the code outside the quotes is read.
+    const code = text.replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+    expect(code).not.toMatch(banned)
+    expect(code).not.toMatch(/\b(async|await|Promise)\b/)
   })
 
   it.each(sources)('$name 没有模块级的可变状态', ({ text }) => {

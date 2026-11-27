@@ -119,6 +119,11 @@ const sourcesContract: Contract = Object.freeze({
   revision: 1,
   keys: 'public',
   conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The notification sources are read for the whole deployment, not for the tenant who asks, so a source a tenant put here would not be known.',
+  } as const,
   summary: 'The notification sources now registered: each key is the name of one.',
 })
 

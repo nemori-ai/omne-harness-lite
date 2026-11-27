@@ -1,7 +1,16 @@
 import { readTenantText } from '@omne-harness/public-contract'
-import type { Reader, SayItem, SayTarget, SayTo, ScopeSource } from '@omne-harness/shell-contract'
+import type {
+  Reader,
+  SayItem,
+  SayReply,
+  SayTarget,
+  SayTo,
+  ScopeSource,
+} from '@omne-harness/shell-contract'
 import { companionFacts, type CompanionFacts } from './model/companion.ts'
 import { takePictures, type PictureIntake, type PicturesTaken } from './model/pictures.ts'
+import { replyTo, takerFrom, UNCLEAR, type Reading, type Taker } from './model/reply.ts'
+import type { State } from './model/session-machine.ts'
 import { GONE, type SayTarget as Whom } from './model/say.ts'
 import type { SessionLease, SessionWorkspaces } from './model/session-workspaces.ts'
 
@@ -18,6 +27,10 @@ type Held = {
   stop: () => void
   facts: CompanionFacts
   shown: Readonly<{ page: CompanionFacts['page']; targets: readonly SayTarget[] }> | null
+  /** Each reply followed on this driver, told it can no longer be read. */
+  readonly replies: Set<() => void>
+  /** The input id of each message said through this item, by the message id the shell holds. */
+  readonly inputs: Map<string, string>
 }
 
 type Refused = Readonly<{ kind: 'failed'; reason: string }>
@@ -26,6 +39,59 @@ const failed = (reason: string): Refused => ({ kind: 'failed', reason })
 const NOTHING_ATTACHED: PicturesTaken = { kind: 'taken', attachments: [] }
 
 const whom = (to: SayTo): Whom => (to.kind === 'new' ? to : { kind: 'session', session: to.key })
+
+type Listener = (reply: SayReply) => void
+
+/** Follows what is said after one message of the session open now; tells only changes, reads once where the run that takes it is not clear, and stops by itself after the last. */
+function follow(now: Held, said: string, listener: Listener): () => void {
+  const driver = now.lease.driver
+  const input = now.inputs.get(said)
+  let given: SayReply = { text: '', state: 'coming' }
+  let taker: Taker = UNCLEAR
+  let asked = false
+  let done = false
+  let seen: State | null = null
+  let stop = (): void => undefined
+  const tell = (next: SayReply): void => {
+    if (next.text === given.text && next.state === given.state) return
+    given = next
+    if (next.state !== 'coming') stop()
+    listener(next)
+  }
+  const gone = (): void => tell({ text: given.text, state: 'unknown' })
+  function look(): void {
+    const state = driver.getState().session
+    if (state === seen) return
+    seen = state
+    const reading = replyTo(state, said, taker)
+    if (reading === null) gone()
+    else if (reading.kind === 'reply') tell(reading.reply)
+    else if (!asked) ask(reading)
+  }
+  function ask(reading: Extract<Reading, { kind: 'ask' }>): void {
+    asked = true
+    if (input === undefined) return gone()
+    void driver.readInputFate(reading.session, input).then(answer => {
+      if (done) return
+      const next = takerFrom(answer, reading.run)
+      if (next === 'it') return tell(reading.reply)
+      if (next === null) return gone()
+      taker = next
+      seen = null
+      look()
+    })
+  }
+  const unsubscribe = driver.subscribe(look)
+  now.replies.add(gone)
+  stop = () => {
+    done = true
+    unsubscribe()
+    now.replies.delete(gone)
+    now.inputs.delete(said)
+  }
+  look()
+  return () => stop()
+}
 
 /** What the session module puts on `shell.say`: the driver the companion speaks through, held for the shell's tenant. */
 export function sessionSayItem(
@@ -44,6 +110,8 @@ export function sessionSayItem(
 
   const release = (): void => {
     if (held === null) return
+    for (const gone of Array.from(held.replies)) gone()
+    held.inputs.clear()
     held.stop()
     held.lease.release()
     held = null
@@ -54,7 +122,15 @@ export function sessionSayItem(
     if (tenant === undefined) return null
     const lease = workspaces.acquire(scope, tenant)
     const facts = companionFacts(lease.driver.getState(), null)
-    const made: Held = { scope, lease, stop: () => undefined, facts, shown: null }
+    const made: Held = {
+      scope,
+      lease,
+      stop: () => undefined,
+      facts,
+      shown: null,
+      replies: new Set(),
+      inputs: new Map(),
+    }
     made.stop = lease.driver.subscribe(() => {
       const was = made.facts
       made.facts = companionFacts(lease.driver.getState(), was)
@@ -124,13 +200,21 @@ export function sessionSayItem(
       const now = ready(scope)
       if ('reason' in now) return now
       const answer = await now.lease.driver.say(whom(to), words, taken.attachments)
-      return answer.kind === 'sent' ? { kind: 'sent', key: answer.session } : answer
+      if (answer.kind !== 'sent') return answer
+      now.inputs.set(answer.said, answer.input)
+      return { kind: 'sent', key: answer.session, said: answer.said }
     },
     show: (scope, key) => {
       const now = heldFor(scope)
       if (now === null) return
       now.lease.driver.openSession(key)
       host.navigate(conversationPage)
+    },
+    reply: (scope, said, listener) => {
+      const now = heldFor(scope)
+      if (now !== null) return follow(now, said, listener)
+      listener({ text: '', state: 'unknown' })
+      return () => undefined
     },
   }
 

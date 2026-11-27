@@ -185,3 +185,15 @@ it('paints the real document root when none is injected', () => {
   delete document.documentElement.dataset['theme']
   delete document.documentElement.dataset['themePreference']
 })
+
+it('adopt paints a choice made elsewhere without writing it back, and follows the machine under system', () => {
+  const { root, system, controller, write } = setup('light', false)
+  controller.start()
+  expect(controller.adopt('dark')).toBe('dark')
+  expect(root.dataset.theme).toBe('dark')
+  expect(controller.adopt('system')).toBe('light')
+  expect(root.dataset.themePreference).toBe('system')
+  system?.flip(true)
+  expect(root.dataset.theme).toBe('dark')
+  expect(write).not.toHaveBeenCalled()
+})

@@ -34,6 +34,8 @@ const TOKENS: Point = {
   name: 'shell.tokens',
   summary: 'The tokens put on a part.',
   contract: rules({
+    keyFrom: 'shell.parts',
+    item: { kind: 'data', fields: [{ name: 'tokens', kind: 'object' }] },
     example: '{"point":"shell.tokens","key":"shell.app","data":{"--accent":"#1f8f4e"}}',
   }),
   dataKeys: [
@@ -46,6 +48,8 @@ const STYLE: Point = {
   name: 'shell.part-style',
   summary: 'The style of a part.',
   contract: rules({
+    keyFrom: 'shell.parts',
+    item: { kind: 'data', fields: [{ name: 'style', kind: 'object' }] },
     example: '{"point":"shell.part-style","key":"x","data":{"base":{"color":"red"}}}',
   }),
 }
@@ -53,7 +57,8 @@ const RENDER: Point = {
   name: 'shell.part-render',
   summary: 'How a part is drawn.',
   contract: rules({
-    item: { kind: 'pure', fields: [] },
+    keyFrom: 'shell.parts',
+    item: { kind: 'pure', fields: [{ name: 'render', kind: 'function' }] },
     example: [
       '{"point":"shell.part-render","key":"x","module":"send.js","export":"draw"}',
       'send.js: export const draw = host => host.default',
@@ -92,9 +97,10 @@ describe('show a point: both trees in one form', () => {
         'shell.tokens   point, client   v1.3',
         'The tokens put on a part.',
         'key: the name of a part',
+        'keys from: shell.parts',
         'holds: one per key; among several, the most specific scope wins; two at the same scope are a conflict',
         'may change: while running',
-        'a member gives: data. fields: data (record)',
+        'a member gives: data. fields: tokens (object)',
         'the host gives it: the token values of the part',
         'when it throws: the part keeps its own values',
         'a member, to copy:',
@@ -165,17 +171,20 @@ describe('show a part: a member to copy for each depth', () => {
     ['not JSON', 'member: shell.tokens / x'],
     ['not an object', '["shell.tokens"]'],
     ['without a key', '{"point":"shell.tokens","data":{}}'],
-  ])('an example whose first line is %s falls back to the fixed form', async (_why, example) => {
-    const { dataKeys: _listed, ...named } = TOKENS
-    const point = { ...named, contract: rules({ example }) }
-    const text = await sighted(world({ clients: [shell({ points: [point] })] })).text('show', {
-      name: 'shell.app',
-    })
-    expect(text).toContain(
-      '  tokens   data   member: {"point":"shell.tokens","key":"shell.app","data":{<token>:<value>}}',
-    )
-    expect(text).not.toContain('names:')
-  })
+  ])(
+    'an example whose first line is %s falls back to naming the point and where to read it',
+    async (_why, example) => {
+      const { dataKeys: _listed, ...named } = TOKENS
+      const point = { ...named, contract: { ...named.contract, example } as Rules }
+      const text = await sighted(world({ clients: [shell({ points: [point] })] })).text('show', {
+        name: 'shell.app',
+      })
+      expect(text).toContain(
+        '  tokens   data   member: {"point":"shell.tokens","key":"shell.app"}: OmneExtensionPoints show shell.tokens says what a member gives',
+      )
+      expect(text).not.toContain('names:')
+    },
+  )
 })
 
 describe('find', () => {

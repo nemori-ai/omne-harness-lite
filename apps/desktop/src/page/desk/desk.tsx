@@ -15,6 +15,7 @@ import {
   SayBubble,
   useSizeFactor,
   type LooseControl,
+  type SayControl,
 } from '@omne-harness/ui-kit'
 import {
   newer,
@@ -190,12 +191,12 @@ const inView = (box: Rect, origin: Point): Rect => ({
 const reachOf = (
   scene: Scene,
   control: RefObject<LooseControl | null>,
-  bubble: RefObject<HTMLElement | null>,
+  bubble: RefObject<SayControl | null>,
 ): Rect[] | null => {
   const box = control.current?.reach() ?? null
   if (box === null) return null
-  const own = scene.note === null ? null : bubble.current
-  return [box, ...(own === null ? [] : [own.getBoundingClientRect()])]
+  const own = scene.note === null ? null : (bubble.current?.reach() ?? null)
+  return [box, ...(own === null ? [] : [own])]
 }
 
 /** Tells the main process where to take the pointer: 34px about the figure, and the note while it is open. */
@@ -203,7 +204,7 @@ function useHot(
   deps: DeskDeps,
   scene: Scene | null,
   control: RefObject<LooseControl | null>,
-  bubble: RefObject<HTMLElement | null>,
+  bubble: RefObject<SayControl | null>,
 ): void {
   const sent = useRef('')
   const measure = useRef<() => void>(() => undefined)
@@ -333,7 +334,11 @@ function reports(deps: DeskDeps, held: RefObject<Scene | null>) {
     if (lease !== undefined && picture !== undefined)
       deps.post({ kind: 'input', lease, input: 'unpicture', picture: picture.id })
   }
-  return { report, send, unpicture }
+  const phrase = (key: string) => {
+    const lease = held.current?.lease
+    if (lease !== undefined) deps.post({ kind: 'input', lease, input: 'phrase', key })
+  }
+  return { report, send, unpicture, phrase }
 }
 
 function localAt(where: SceneWhere, hand: Point | null, origin: Point): Point | null {
@@ -375,13 +380,13 @@ const rewrites = (where: SceneWhere): boolean => where.mode === 'home' && where.
 /** The desk page draws the scene it holds and tells the shell what happened to it; it has no facts of its own. */
 export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Element {
   const control = useRef<LooseControl>(null)
-  const bubble = useRef<HTMLElement>(null)
+  const bubble = useRef<SayControl>(null)
   const factor = useSizeFactor()
   const words = useWords(deps)
   const { scene, hand, bytes, held, onArrived } = useScene(deps, words.took)
   useLook(scene)
   useHot(deps, scene, control, bubble)
-  const { report, send, unpicture } = reports(deps, held)
+  const { report, send, unpicture, phrase } = reports(deps, held)
   const away = () => report('close')()
   const close = () => {
     words.flush()
@@ -389,7 +394,6 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
   }
   const drawn = scene ?? BLANK
   const note = drawn.note ?? null
-  const sending = note?.fate?.kind === 'sending'
   const pictures = useShown(note, bytes)
   useNoteKeys(note !== null, words.text, pictures.length, close, away)
 
@@ -442,16 +446,20 @@ export function DeskPage({ deps }: { readonly deps: DeskDeps }): React.JSX.Eleme
         )}
         <SayBubble
           {...partOf(FIGURE_NOTE_PART)}
-          ref={bubble}
+          control={bubble}
           note={sayNote(note, words.text, words.chosen, pictures)}
           figure={figure}
           bounds={bounds}
           reduced={look.reduced}
           onTarget={words.setChosen}
-          onText={text => sending || words.setText(text)}
+          onText={words.setText}
           onSend={said => {
             words.drop()
             send(said.text, said.target, pictures)
+          }}
+          onPhrase={key => {
+            words.flush()
+            phrase(key)
           }}
           onClose={close}
           onOpen={() => report('show')()}

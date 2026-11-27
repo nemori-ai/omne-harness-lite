@@ -22,6 +22,7 @@ export {
 } from './toast-store.ts'
 export { FLOAT_GRIP_ATTRIBUTE, ShellAssemblyError, slots } from './slots.ts'
 export { actionsContract, keymapContract, shellContracts } from './placement.ts'
+export { GRANTS_ITSELF, NO_TENANT, READ_FOR_ALL, SPEAKS_AS_SYSTEM } from './closed.ts'
 export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
   projectionOn,
@@ -40,12 +41,16 @@ export {
   tenantScope,
   valueFault,
   type Changes,
+  type ClientGuestForm,
+  type GuestFormContext,
   type Conflict,
   type LayoutItem,
   type PartState,
   type PartStyle,
+  type PhraseItem,
   type Refused,
   type RenderItem,
+  type SayPhrase,
   type Standing,
   type StyleItem,
   type TokensItem,
@@ -114,6 +119,8 @@ export type {
   SayItem,
   SayOutcome,
   SayPicture,
+  SayReply,
+  SayReplyState,
   SayTarget,
   SayTo,
   ScopedProps,

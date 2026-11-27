@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { SayOutcome } from '@omne-harness/shell-contract'
 import {
+  PHRASES,
   SCOPE,
   WINDOW,
   carried,
   framed,
   harness,
   onDesk,
+  replies,
   sayItem,
   sayPlace,
   shot,
@@ -466,5 +468,115 @@ describe('外壳读说话位：窗口里与桌面上是同一份笺', () => {
     await talk.device.settle()
     talk.device.note.toggle('pet', opener)
     expect(talk.device.note.view().note.words).toBe('还在吗')
+  })
+})
+
+const PICTURE = { name: '窗口 09.05.07.png', bytes: new Uint8Array([1]) }
+
+/** On the desk with the note open over an item that knows pictures and says back, a picture in the note. */
+async function answering(given: Parameters<typeof sayItem>[1] = {}) {
+  const heard = replies()
+  const talk = await talking({
+    pictures: () => true,
+    reply: heard.reply,
+    say: () => Promise.resolve({ kind: 'sent', key: 's-1', said: 'm-1' }),
+    ...given,
+  })
+  talk.click()
+  talk.device.note.give({ pictures: [PICTURE], send: false })
+  const scenes = () => talk.device.scenes().length
+  return {
+    ...talk,
+    heard,
+    scenes,
+    give: (text: string, state: 'coming' | 'ended' = 'coming') =>
+      heard.calls[0]!.give({ text, state }),
+  }
+}
+
+describe('外壳读说话位：回的话到桌面上', () => {
+  it('受理了：一幕带回的话，每次给的写进下一幕', async () => {
+    const talk = await answering()
+    talk.send('看看')
+    await talk.device.settle()
+    expect(talk.note()?.reply).toEqual({ text: '', state: 'coming' })
+    talk.device.tick(100)
+    talk.give('看过了', 'ended')
+    expect(talk.note()?.reply).toEqual({ text: '看过了', state: 'ended' })
+  })
+
+  it('100ms 里回的话变三次：桌面层只多收到一幕，带最后的文字；窗口里的视图每次都变', async () => {
+    const talk = await answering()
+    talk.send('看看')
+    await talk.device.settle()
+    const before = talk.scenes()
+    const seen: (string | undefined)[] = []
+    talk.device.note.subscribe(() => seen.push(talk.device.note.view().note.reply?.text))
+    talk.give('一')
+    talk.device.tick(30)
+    talk.give('一二')
+    talk.device.tick(30)
+    talk.give('一二三')
+    expect(talk.scenes()).toBe(before)
+    talk.device.tick(40)
+    expect(talk.scenes()).toBe(before + 1)
+    expect(talk.note()?.reply).toEqual({ text: '一二三', state: 'coming' })
+    expect(seen).toEqual(['一', '一二', '一二三'])
+    talk.device.tick(200)
+    expect(talk.scenes()).toBe(before + 1)
+  })
+
+  it('终态的那一次不等：说完了立刻发一幕', async () => {
+    const talk = await answering()
+    talk.send('看看')
+    await talk.device.settle()
+    const before = talk.scenes()
+    talk.give('一')
+    talk.give('一二', 'ended')
+    expect(talk.scenes()).toBe(before + 1)
+    expect(talk.note()?.reply).toEqual({ text: '一二', state: 'ended' })
+    talk.device.tick(100)
+    expect(talk.scenes()).toBe(before + 1)
+  })
+
+  it('别的原因引起的重发不等：等着的时候人去掉一张图，这一幕立刻发并带着最新的回的话', async () => {
+    const talk = await answering()
+    talk.device.note.give({ pictures: [PICTURE, PICTURE], send: false })
+    talk.send('看看')
+    await talk.device.settle()
+    talk.device.note.give({ pictures: [PICTURE], send: false })
+    const before = talk.scenes()
+    talk.give('一')
+    const [picture] = talk.note()?.pictures ?? []
+    talk.device.up({ kind: 'input', lease: talk.lease, input: 'unpicture', picture: picture!.id })
+    expect(talk.scenes()).toBe(before + 1)
+    expect(talk.note()).toMatchObject({ reply: { text: '一' } })
+    expect(talk.note()?.pictures).toBeUndefined()
+  })
+})
+
+describe('外壳读说话位：现成的话到桌面上', () => {
+  it('笺里有图而那一项认识图：一幕里带现成的话，每句只有键与按钮上的字', async () => {
+    const talk = await answering()
+    expect(talk.note()?.phrases).toEqual(PHRASES.map(({ key, label }) => ({ key, label })))
+  })
+
+  it('那一项不认识图：一幕里不带', async () => {
+    const talk = await answering({ pictures: () => false })
+    expect(talk.note()?.phrases).toBeUndefined()
+  })
+
+  it('上行 phrase：按键调一次 say，话是那一句的 words，带笺里的图', async () => {
+    const talk = await answering()
+    talk.input('phrase', { key: 'shell.todo' })
+    expect(talk.one.said).toEqual([[SCOPE, { kind: 'new' }, '记成待办', [PICTURE]]])
+  })
+
+  it('上行 phrase：租约号不对、笺没在桌面上开着时不理', async () => {
+    const talk = await answering()
+    talk.device.up({ kind: 'input', lease: talk.lease + 1, input: 'phrase', key: 'shell.todo' })
+    talk.input('close')
+    talk.input('phrase', { key: 'shell.todo' })
+    expect(talk.one.said).toEqual([])
   })
 })

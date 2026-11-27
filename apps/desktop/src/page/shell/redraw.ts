@@ -46,7 +46,7 @@ export const piecePoint: RenderPoint<object> = defineRenderPoint({
   summary:
     'How one shared piece of the interface is drawn wherever a page shows it: the loading mark, an empty state, a notice in a page, the body of the figure of the agent.',
   subject:
-    'what the page asks the piece to show. loading: size (sm or md), active, counted, className. empty-state: title, hint, action, role, className. inline-notice: tone, title, body, detail, action. figure: size in pixels, phase (seated: still, on a seat or set down at a point; flying: on its way by itself; held: following the hand, or left where the hand let go), hover, doing (idle, thinking, looking, writing or background), waiting, the count of what waits for the person; the shell still places the figure, moves it and takes the press',
+    'what the page asks the piece to show. loading: size (sm or md), active, counted, className. empty-state: title, hint, action, role, className. inline-notice: tone, title, body, detail, action. figure: size in pixels, phase (seated: still, on a seat or set down at a point; flying: on its way by itself; held: following the hand, or left where the hand let go), hover, doing (idle, thinking, looking, writing or background), waiting, the count of what waits for the person; the shell still places the figure, moves it and takes the press. note: the inside of the say note; note, what it holds (targets, target, text, pictures, told, fate, reply, phrases), and act, what it does (write, choose, send, phrase, drop, open, close, settings); the shell still places the note and keeps its words',
   example: PIECE_EXAMPLE,
 })
 

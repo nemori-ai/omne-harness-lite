@@ -14,6 +14,7 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
+import type { FateAnswer } from './reply.ts'
 import { BUSY, GONE, NO_WORDS, sayFate, type Said, type SayAnswer, type SayTarget } from './say.ts'
 import {
   sayBlocked,
@@ -232,7 +233,7 @@ export class SessionDriver {
     const to: SayTo =
       target.kind === 'new' ? { kind: 'new', createCallId: this.#deps.newId() } : target
     if (sayBlocked(this.#state.session, to)) return { kind: 'failed', reason: BUSY }
-    const said: Said = { to, acceptId: this.#deps.newId(), messageId }
+    const said: Said = { to, acceptId: this.#deps.newId(), inputId, messageId }
     const words: Words = { text, acceptId: said.acceptId, inputId, messageId }
     this.dispatch({
       kind: 'say',
@@ -255,6 +256,12 @@ export class SessionDriver {
       this.#saying.add(look)
       look()
     })
+  }
+
+  /** Where one input of a session went, read once; a call that did not leave answers unavailable. */
+  readInputFate(session: string, inputId: string): Promise<FateAnswer> {
+    const { client, tenant } = this.#deps
+    return notSent(() => client['read-input-fate']({ tenant, session, inputId }))
   }
 
   confirmSend(acceptId: string): void {

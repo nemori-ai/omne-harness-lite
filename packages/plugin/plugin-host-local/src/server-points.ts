@@ -7,10 +7,15 @@ export const PORTS_POINT = 'plugin.ports'
 /** Whom a port acts for in one call: the caller's principal, and the tenant that holds the plugin the call reached. */
 export type PortCaller = Readonly<{ principal: unknown; tenant: string }>
 
+/** What one method of a port takes and answers, in a sentence each: data an agent reads before it writes a call. */
+export type PortMethod = Readonly<{ takes: string; answers: string }>
 /** An item of `plugin.ports`. */
-export type PortItem = Readonly<{ make: PortFactory<PortCaller> }>
-/** An item of `plugin.guest-forms`. */
-export type GuestFormItem = Readonly<{ form: GuestForm }>
+export type PortItem = Readonly<{
+  make: PortFactory<PortCaller>
+  methods: Readonly<Record<string, PortMethod>>
+}>
+/** An item of `plugin.guest-forms`: how the item is made, what the code is to give back, and a member to copy. */
+export type GuestFormItem = Readonly<{ form: GuestForm; gives: string; example: string }>
 export const GUEST_FORMS_POINT = 'plugin.guest-forms'
 
 const point = (
@@ -28,6 +33,11 @@ const point = (
     revision: 1,
     keys: 'public',
     conformance: null,
+    scopes: {
+      only: 'deployment',
+      why: 'grants-itself',
+      note: 'What a plugin may use and how its code becomes an item is lent by the hosts; a plugin cannot put it.',
+    } as const,
     ...over,
   })
 

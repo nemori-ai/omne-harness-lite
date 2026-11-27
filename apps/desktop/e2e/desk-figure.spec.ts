@@ -434,6 +434,22 @@ async function sayAndOpen(app: ElectronApplication, page: Page, desk: Page): Pro
 }
 
 /** Pointer on the page, Command held: the frame and label over the other window; letting go reads it. */
+const PHRASES = ['展开讲讲', '记成待办', '收藏下来']
+
+/** Presses the first ready phrase beside the note: its words go out with the pictures in the note. */
+async function phraseAndOpen(app: ElectronApplication, page: Page, desk: Page): Promise<string> {
+  const bubble = desk.locator('.omne-say-bubble')
+  const [words] = PHRASES
+  if (words === undefined) throw new Error('no ready phrase')
+  await desk.getByRole('button', { name: words, exact: true }).click()
+  await expect(bubble.locator('.omne-say-line')).toHaveText('已发送', { timeout: 30_000 })
+  await desk.getByRole('button', { name: '去对话页' }).click()
+  await expect.poll(() => mainFocused(app), { timeout: 10_000 }).toBe(true)
+  await expect(bubble).toHaveCount(0, { timeout: 10_000 })
+  await expect(userMessage(page, words)).toHaveCount(1, { timeout: 30_000 })
+  return words
+}
+
 async function lookFromPage(
   app: ElectronApplication,
   page: Page,
@@ -458,7 +474,7 @@ async function lookFromPage(
   return desk
 }
 
-test('按住 ⌘ 看一个窗口：观测框框住另一个进程的窗口、签上有它的应用名；⌘ 松手，有许可时两张图随一句话发出去，没有许可时笺里是说明与打开系统设置；⌘⇧ 从桌面层拿起再松手', async ({
+test('按住 ⌘ 看一个窗口：观测框框住另一个进程的窗口、签上有它的应用名；⌘ 松手，有许可时笺旁有现成的话、按一句两张图随它发出去，没有许可时笺里是说明与打开系统设置；⌘⇧ 从桌面层拿起再松手', async ({
   launchApp,
 }) => {
   test.setTimeout(300_000)
@@ -487,7 +503,10 @@ test('按住 ⌘ 看一个窗口：观测框框住另一个进程的窗口、签
       await expect(bubble.getByRole('button', { name: '打开系统设置' })).toBeVisible()
       await expect(bubble.locator('.omne-say-picture')).toHaveCount(0)
     }
-    const words = await sayAndOpen(app, page, desk)
+    const phrases = desk.locator('.omne-say-phrases button')
+    if (granted) await expect(phrases).toHaveText(PHRASES)
+    else await expect(phrases).toHaveCount(0)
+    const words = granted ? await phraseAndOpen(app, page, desk) : await sayAndOpen(app, page, desk)
     const shown = userMessage(page, words).locator('.omne-media-picture')
     await expect(shown).toHaveCount(granted ? 2 : 0, { timeout: 30_000 })
 

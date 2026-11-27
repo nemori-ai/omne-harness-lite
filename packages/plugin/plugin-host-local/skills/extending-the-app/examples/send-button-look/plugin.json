@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "name": "send-button-look",
+  "summary": "A sea-green accent for the app and a round send button.",
+  "client": {
+    "members": [
+      {
+        "point": "shell.tokens",
+        "key": "shell.app",
+        "data": { "--omne-accent": "#0a7a4a" }
+      },
+      {
+        "point": "shell.part-style",
+        "key": "session.composer.send",
+        "data": { "base": { "border-radius": "999px" }, "hover": { "opacity": "0.9" } }
+      }
+    ]
+  }
+}

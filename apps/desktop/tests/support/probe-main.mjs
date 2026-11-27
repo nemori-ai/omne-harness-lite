@@ -93,7 +93,6 @@ app.on('browser-window-created', (_event, window) => {
         sandbox: preferences.sandbox,
         contextIsolation: preferences.contextIsolation,
         nodeIntegration: preferences.nodeIntegration,
-        preload: preferences.preload ?? null,
         opened,
         result,
       })}`,

@@ -136,7 +136,7 @@ describe('a part a view module declares', () => {
       conflicts: [],
     })
     const drawn = render(tree(shell.registry(), []).root)
-    expect(drawn).toContain(`${PARTS_POINT}  [keyed-one]`)
+    expect(drawn).toContain(`${PARTS_POINT}  [keyed-one, closed: one-per-process]`)
     expect(drawn).toContain('notes.composer.send')
   })
 

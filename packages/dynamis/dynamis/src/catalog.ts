@@ -2,6 +2,7 @@ import {
   exactlyOne,
   listed,
   mostSpecific,
+  opened,
   unlocked,
   visible,
   type Answer,
@@ -30,8 +31,19 @@ const ITEM_KINDS = ['data', 'pure', 'effect'] as const
 const RESOLVES = ['conflict', 'most-specific'] as const
 const BINDINGS = ['build', 'run'] as const
 const KEYS = ['private', 'public'] as const
+const WHYS = [
+  'no-tenant',
+  'one-per-process',
+  'grants-itself',
+  'judges-or-records',
+  'speaks-as-system',
+] as const
 
 export type FieldKind = (typeof FIELD_KINDS)[number]
+
+export type Scopes =
+  | 'all'
+  | Readonly<{ only: 'deployment'; why: (typeof WHYS)[number]; note: string }>
 
 export type Contract = Readonly<{
   name: string
@@ -49,6 +61,7 @@ export type Contract = Readonly<{
   /** Whether the keys now on this point are told to the other tree. It tells nothing of the items. */
   keys: (typeof KEYS)[number]
   conformance: string | null
+  scopes?: Scopes
   summary: string
   /** One item of this point as its author writes it, to copy. The registry does not read it. */
   example?: string
@@ -70,6 +83,11 @@ export const catalogContract: Contract = Object.freeze({
   keys: 'private',
   conformance: null,
   summary: 'The catalog: one item declares one extension point and carries its contract.',
+  scopes: Object.freeze({
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The hosts read the declarations of the whole deployment: a point is declared by the code of its host.',
+  }),
 })
 
 export type PointStanding =
@@ -95,6 +113,7 @@ export type Effect = Readonly<{
     | 'point-ambiguous'
     | 'unread'
     | 'breach'
+    | 'closed'
     | 'locked'
     | 'conflict'
     | 'retiring'
@@ -144,6 +163,21 @@ function itemProblem(item: unknown): string | null {
 
 const isText = (value: unknown): boolean => typeof value === 'string'
 
+const isScopes = (value: unknown): boolean =>
+  value === undefined ||
+  value === 'all' ||
+  (isRecord(value) &&
+    Object.keys(value).length === 3 &&
+    value['only'] === 'deployment' &&
+    isOneOf(WHYS, value['why']) &&
+    typeof value['note'] === 'string' &&
+    value['note'].trim() !== '')
+
+export const closedBy = (contract: Contract): string | undefined =>
+  contract.scopes === undefined || contract.scopes === 'all'
+    ? undefined
+    : `${contract.scopes.why}: ${contract.scopes.note}`
+
 const namesAnotherPoint = (keyFrom: unknown, name: unknown): boolean =>
   keyFrom === null || (typeof keyFrom === 'string' && isPointName(keyFrom) && keyFrom !== name)
 
@@ -184,6 +218,10 @@ const CONTRACT_RULES: readonly (readonly [
   [
     contract => contract['example'] === undefined || isText(contract['example']),
     'example is not text',
+  ],
+  [
+    contract => isScopes(contract['scopes']),
+    'scopes is neither all nor only the deployment with a known why and a note',
   ],
 ]
 
@@ -234,15 +272,20 @@ function reading(registry: Registry, point: string, asker: Scope): readonly Plac
   )
 }
 
-/** The instance whose locked entry of this key, at a scope shallower than `scope`, would put an entry placed at `scope` out. */
+/** The instance whose locked entry of this key and id, at a scope shallower than `scope`, would put an entry placed at `scope` out. */
 export function lockOver(
   registry: Registry,
   point: string,
   key: string,
+  id: string,
   scope: Scope,
 ): Instance | undefined {
   const locks = reading(registry, point, scope).filter(
-    placed => placed.key === key && placed.lock === true && placed.scope.length < scope.length,
+    placed =>
+      placed.key === key &&
+      placed.id === id &&
+      placed.lock === true &&
+      placed.scope.length < scope.length,
   )
   return locks.sort((left, right) => left.scope.length - right.scope.length)[0]?.instance
 }
@@ -287,10 +330,14 @@ export function candidates<I = unknown>(
   if (declared.kind !== 'declared') return unavailableOf(declared, point)
   const source = unreadSource(registry, point, asker)
   if (source !== undefined) return { kind: 'unavailable', reason: 'unread', detail: source }
+  const read = reading(registry, point, asker) as readonly Placed<I>[]
+  const open = opened(
+    read.filter(placed => key === null || placed.key === key),
+    closedBy(declared.contract),
+  )
   const entries: Placed<I>[] = []
-  const filtered: Filtered<I>[] = []
-  for (const placed of reading(registry, point, asker) as readonly Placed<I>[]) {
-    if (key !== null && placed.key !== key) continue
+  const filtered: Filtered<I>[] = [...open.out]
+  for (const placed of open.entries) {
     const detail = problemOf(declared.contract, placed)
     if (detail === null) entries.push(placed)
     else filtered.push({ entry: placed, reason: 'breach', detail })
@@ -326,6 +373,13 @@ export function list<I = unknown>(
   return read.kind === 'read' ? listed(read.entries, read.filtered) : read
 }
 
+const OUT_STATE = {
+  closed: 'closed',
+  locked: 'locked',
+  breach: 'breach',
+  overridden: 'breach',
+} as const
+
 const UNAVAILABLE_STATE = {
   undeclared: 'point-absent',
   ambiguous: 'point-ambiguous',
@@ -349,8 +403,7 @@ function effectOf(registry: Registry, mine: Placed): Effect {
   if (read.kind !== 'read')
     return { entry: mine, state: UNAVAILABLE_STATE[read.reason], detail: read.detail }
   const out = read.filtered.find(filtered => filtered.entry === mine)
-  if (out !== undefined)
-    return { entry: mine, state: out.reason === 'locked' ? 'locked' : 'breach', detail: out.detail }
+  if (out !== undefined) return { entry: mine, state: OUT_STATE[out.reason], detail: out.detail }
   const rivals = rivalsOf(read.contract, read.entries, mine)
   if (rivals.length > 0) return { entry: mine, state: 'conflict', detail: rivals.join(', ') }
   return { entry: mine, state: 'effective', detail: '' }

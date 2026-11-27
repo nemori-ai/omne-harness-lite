@@ -34,6 +34,7 @@ export type Described = Readonly<{
     contract: Contract
     /** The names the data of an item may use where the set is closed, each with its value now. */
     dataKeys?: readonly Readonly<{ name: string; now: string | null }>[]
+    form?: Readonly<{ gives: string; example: string }>
   }>[]
   parts: readonly Readonly<{
     name: string
