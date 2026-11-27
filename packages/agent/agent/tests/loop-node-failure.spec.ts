@@ -142,6 +142,17 @@ describe('an accepted node failure', () => {
     })
     expect(long).toHaveLength(200)
     expect(long?.startsWith('first second x')).toBe(true)
+    expect(
+      failureDiagnostic({ kind: 'invalid', field: 'f', reason: 'r', disclosed: '' }),
+    ).toBeNull()
+    expect(
+      failureDiagnostic({
+        kind: 'invalid',
+        field: 'f',
+        reason: 'r',
+        disclosed: 'a\u007fb\u0000c d',
+      }),
+    ).toBe('a b c d')
   })
 
   it('keeps separate local classifications without marking a reused provider failure', () => {

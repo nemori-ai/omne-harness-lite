@@ -284,6 +284,7 @@ describe('成因的一句话', () => {
     expect(causeSentence({ kind: 'no-reply', detail: 'http-429', fault })).toBe(
       '模型调用没有成功，这一轮没有得到回复。',
     )
+    expect(causeSentence({ kind: 'guard', detail: null, fault })).toBe('守卫停下了这一轮。')
   })
 
   it('表里没有的：通用的一句带上种类名；没有成因：只说失败了', () => {

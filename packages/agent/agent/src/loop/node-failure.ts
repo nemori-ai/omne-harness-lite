@@ -25,14 +25,12 @@ function snapshotFailure(failure: Failure): Failure {
         kind: failure.kind,
         field: failure.field,
         reason: failure.reason,
-        ...disclosed(failure),
       }
     case 'unavailable':
       return {
         kind: failure.kind,
         owner: failure.owner,
         diagnostic: failure.diagnostic,
-        ...disclosed(failure),
       }
     case 'commit-unknown':
     case 'conflict':
@@ -89,11 +87,6 @@ export function revocationWait(
 }
 
 const DIAGNOSTIC_LIMIT = 200
-
-type Disclosing = Extract<Failure, { kind: 'invalid' | 'unavailable' }>
-
-const disclosed = (failure: Disclosing): Pick<Disclosing, 'disclosed'> =>
-  failure.disclosed === undefined ? {} : { disclosed: failure.disclosed }
 
 export function failureDiagnostic(failure: Failure): string | null {
   if (failure.kind !== 'invalid' && failure.kind !== 'unavailable') return null
