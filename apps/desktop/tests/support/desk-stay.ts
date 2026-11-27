@@ -5,6 +5,8 @@ import type {
   Projection,
   SayItem,
   SayOutcome,
+  SayPhrase,
+  SayReply,
   SayTarget,
   ShellSlots,
   SlotConflict,
@@ -14,7 +16,7 @@ import type { FigureHand } from '@omne-harness/ui-kit'
 import type { Down, Look, LookDown, Point, Scene } from '../../src/page/desk/scene.ts'
 import { hostFigure } from '../../src/page/shell/desk/device.ts'
 import { figureLink } from '../../src/page/shell/desk/link.ts'
-import { createShellNote } from '../../src/page/shell/say-note.ts'
+import { createShellNote, type PhraseFeed } from '../../src/page/shell/say-note.ts'
 import { createStay } from '../../src/page/shell/desk/stay.ts'
 import { createToldBoard, type Watched } from '../../src/page/shell/state.ts'
 
@@ -127,6 +129,7 @@ export function sayItem(
     current: () => string | undefined
     say: () => Promise<SayOutcome>
     pictures: () => boolean
+    reply: NonNullable<SayItem['reply']>
   }> = {},
 ) {
   const said: unknown[][] = []
@@ -150,6 +153,7 @@ export function sayItem(
     },
     show: (...args) => void shown.push(args),
     ...(given.pictures === undefined ? {} : { pictures: given.pictures }),
+    ...(given.reply === undefined ? {} : { reply: given.reply }),
   }
   const changed = () => {
     for (const listener of listeners) listener()
@@ -191,6 +195,51 @@ export function sayPlace() {
 
 type Place = ReturnType<typeof sayPlace>
 
+/** The shell's three phrases, as `phrases()` answers them. */
+export const PHRASES: readonly SayPhrase[] = [
+  { key: 'shell.expand', label: '展开讲讲', words: '展开讲讲' },
+  { key: 'shell.todo', label: '记成待办', words: '记成待办' },
+  { key: 'shell.keep', label: '收藏下来', words: '收藏下来' },
+]
+
+/** The shell's `phrases()` and its change, stood in for: `set` changes them and tells whoever watches. */
+export function phraseFeed(first: readonly SayPhrase[] = PHRASES) {
+  let now = first
+  let asked = 0
+  const listeners = new Set<() => void>()
+  const feed: PhraseFeed = {
+    phrases: () => {
+      asked += 1
+      return now
+    },
+    watch: listener => {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
+    },
+  }
+  const set = (next: readonly SayPhrase[]) => {
+    now = next
+    for (const listener of Array.from(listeners)) listener()
+  }
+  return { feed, set, asked: () => asked, watching: () => listeners.size }
+}
+
+/** One item's replies, stood in for: every call kept with its listener and how often its stop was called. */
+export function replies() {
+  const calls: {
+    scope: string | undefined
+    said: string
+    give: (reply: SayReply) => void
+    stops: number
+  }[] = []
+  const reply: NonNullable<SayItem['reply']> = (scope, said, give) => {
+    const call = { scope, said, give, stops: 0 }
+    calls.push(call)
+    return () => void (call.stops += 1)
+  }
+  return { reply, calls }
+}
+
 /** The projection the shell's service made, stood in for: none until a case makes one. */
 function projected() {
   let value: Projection | undefined
@@ -216,6 +265,7 @@ export function harness(
   device: 'leave' | 'stay' | 'unreadable' = 'leave',
   place?: Place,
   given: Partial<Routes> = {},
+  phrases = phraseFeed(),
 ) {
   const routes: Routes = { ...ROUTES, ...given }
   const time = manualClock()
@@ -263,7 +313,11 @@ export function harness(
   const navigated: unknown[][] = []
   const told = createToldBoard()
   told.room(true)
-  const note = createShellNote({ slots: (place ?? sayPlace()).slots, scope: () => scope })
+  const note = createShellNote({
+    slots: (place ?? sayPlace()).slots,
+    scope: () => scope,
+    phrases: phrases.feed,
+  })
   const stay = createStay({
     device: hostFigure(fetcher),
     link: figureLink(channel),
@@ -312,6 +366,7 @@ export function harness(
   return {
     stay,
     note,
+    phrases,
     sent,
     posted,
     cancelled,

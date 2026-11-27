@@ -90,7 +90,7 @@ const places: readonly Contract[] = [
     ...SHARED,
     name: POINT.say,
     arity: 'one',
-    revision: 2,
+    revision: 3,
     item: {
       kind: 'pure',
       fields: {
@@ -104,8 +104,10 @@ const places: readonly Contract[] = [
     gives: 'nothing: the shell hands the tenant scope with each call',
     binding: 'build',
     onError:
-      'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again',
-    summary: `Where the words a person says to the figure go: the item draws nothing, and the shell asks it afresh each time. ${FIXED}`,
+      'a reading that throws or answers undefined lets nothing be said; a say that throws ends unknown and is not said again; with no said, no reply, or a reply that throws, the shell writes only that the words were taken',
+    conformance:
+      'from revision 2 the item may know pictures; from revision 3 a sent outcome may carry said, and reply(scope, said, listener) gives the listener the whole text the agent has said so far with coming, ended or unknown, and nothing after ended or unknown',
+    summary: `Where the words a person says to the figure go, and what the agent says back: the item draws nothing, and the shell asks it afresh each time. ${FIXED}`,
   },
 ]
 

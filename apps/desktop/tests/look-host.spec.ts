@@ -544,3 +544,19 @@ describe('画法宿主：换上', () => {
     })
   })
 })
+
+describe('画法宿主认投影里列的每个键', () => {
+  it('shell.piece 的 note 列在投影里：表里有它的画法，和别的键一样取', async () => {
+    const t = setup()
+    const NOTE: LookDrawing = {
+      point: 'shell.piece',
+      key: 'note',
+      source: { module: `${SEA}look.js`, export: 'note', files: SEA },
+    }
+    t.host.take(look(1, [FIGURE, NOTE]))
+    await t.answer(NOTE.source.module, fileOf({ figure: drawing, note: () => () => 'note' }))
+    const given = { scope: SCOPE, subject: {}, generic: () => undefined }
+    expect(t.host.drawingAt('shell.piece', 'note')?.(given)).toBe('note')
+    expect(t.host.drawingAt('shell.piece', 'figure')?.(given)).toBe('drawn')
+  })
+})

@@ -278,8 +278,8 @@ describe('建会话，带着这句话', () => {
 })
 
 describe('结局是对状态的一次读', () => {
-  const SAID_NEW: Said = { to: NEW, acceptId: 'a1', messageId: 'msg_x' }
-  const SAID_S: Said = { to: TO_S, acceptId: 'a1', messageId: 'msg_x' }
+  const SAID_NEW: Said = { to: NEW, acceptId: 'a1', inputId: 'i1', messageId: 'msg_x' }
+  const SAID_S: Said = { to: TO_S, acceptId: 'a1', inputId: 'i1', messageId: 'msg_x' }
   const saidNew = step(INITIAL, say(NEW)).state
   const sending = step(INITIAL, say(TO_S)).state
   const answered = (outcome: string): State =>
@@ -340,7 +340,30 @@ describe('结局是对状态的一次读', () => {
   })
 
   it('已打开，已受理：受理，带会话的标识', () => {
-    expect(sayFate(answered('succeeded'), SAID_S)).toEqual({ kind: 'sent', session: S })
+    expect(sayFate(answered('succeeded'), SAID_S)).toEqual({
+      kind: 'sent',
+      session: S,
+      said: 'msg_x',
+      input: 'i1',
+    })
+  })
+
+  it('受理的结局带的是这句话的消息标识，说给新会话也是', () => {
+    const fate = sayFate(answered('succeeded'), SAID_S)
+    expect(fate).toMatchObject({ said: SAID_S.messageId })
+    expect(fate).not.toMatchObject({ said: S })
+    const opening = run(saidNew, created(S, 'c9'), {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: { outcome: 'succeeded' } as never,
+    }).state
+    expect(sayFate(opening, SAID_NEW)).toEqual({
+      kind: 'sent',
+      session: S,
+      said: 'msg_x',
+      input: 'i1',
+    })
   })
 
   it('已打开，结果仍未知：不知道', () => {
@@ -396,9 +419,11 @@ describe('结局是对状态的一次读', () => {
     }).state
     expect(asOpen(both).inputs.map(input => input.acceptId)).toEqual(['a1', 'a0'])
     expect(sayFate(both, SAID_S)).toBeNull()
-    expect(sayFate(both, { to: TO_S, acceptId: 'a0', messageId: 'msg_w' })).toEqual({
+    expect(sayFate(both, { to: TO_S, acceptId: 'a0', inputId: 'i0', messageId: 'msg_w' })).toEqual({
       kind: 'sent',
       session: S,
+      said: 'msg_w',
+      input: 'i0',
     })
   })
 
@@ -410,7 +435,12 @@ describe('结局是对状态的一次读', () => {
       answer: { outcome: 'succeeded', body: page([userEntry('e1', '1', '你好', 'msg_x')], '1') },
     }).state
     expect(asOpen(committed).inputs).toEqual([])
-    expect(sayFate(committed, SAID_S)).toEqual({ kind: 'sent', session: S })
+    expect(sayFate(committed, SAID_S)).toEqual({
+      kind: 'sent',
+      session: S,
+      said: 'msg_x',
+      input: 'i1',
+    })
   })
 
   it('已打开，不在待定的输入里，历史里也没有：不知道', () => {
@@ -435,6 +465,12 @@ describe('驱动器的 say', () => {
     return { fake, driver }
   }
   const body = (call: { body: unknown }) => call.body as Record<string, unknown>
+  /** The message id the send carried the words with. */
+  const idIn = (call: { body: unknown }) => {
+    type Tree = { entries: { key: string; value: { value?: string } }[] }
+    const message = body(call)['message'] as Tree
+    return message.entries.find(each => each.key === 'id')?.value.value
+  }
 
   it('说给新会话：建会话，建成后发这句话，受理了答受理并带会话', async () => {
     const { fake, driver } = started()
@@ -445,7 +481,12 @@ describe('驱动器的 say', () => {
     expect(body(send)).toMatchObject({ session: S })
     expect(JSON.stringify(body(send)['message'])).toContain('你好')
     send.answer({ outcome: 'succeeded', body: {} })
-    await expect(answer).resolves.toEqual({ kind: 'sent', session: S })
+    await expect(answer).resolves.toEqual({
+      kind: 'sent',
+      session: S,
+      said: idIn(send),
+      input: body(send)['inputId'],
+    })
     expect(driver.getState().session).toMatchObject({ kind: 'open', session: S })
   })
 
@@ -482,7 +523,12 @@ describe('驱动器的 say', () => {
     expect(JSON.stringify(body(send)['message'])).toContain('"k7"')
     expect(JSON.stringify(body(send)['message'])).toContain('看这个')
     send.answer({ outcome: 'succeeded', body: {} })
-    await expect(answer).resolves.toEqual({ kind: 'sent', session: T })
+    await expect(answer).resolves.toEqual({
+      kind: 'sent',
+      session: T,
+      said: idIn(send),
+      input: body(send)['inputId'],
+    })
   })
 
   it('没有字、带着附件：受理，发出的这句话只有附件', async () => {

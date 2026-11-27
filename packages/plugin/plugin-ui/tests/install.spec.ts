@@ -8,6 +8,7 @@ import {
   TOKENS_POINT,
   changesOn,
   definePart,
+  lookScope,
   tenantScope,
 } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
@@ -67,6 +68,12 @@ async function world() {
 const red: Member = { point: STYLE_POINT, key: 'notes.send', data: { base: { color: 'red' } } }
 const accent: Member = { point: TOKENS_POINT, key: 'shell.app', data: { '--omne-accent': 'teal' } }
 const pages: Member = { point: LAYOUT_POINT, key: 'shell.pages', data: ['b', 'a'] }
+const PHRASE_POINT = 'shell.say-phrase'
+const translate: Member = {
+  point: PHRASE_POINT,
+  key: 'notes.translate',
+  data: { label: '翻成英文', words: '把图里的字翻成英文', order: 5 },
+}
 const brand = (...members: Member[]): Listed => ({ name: 'brand', version: 'v1', members })
 
 async function failure(listed: Listed): Promise<string> {
@@ -163,6 +170,16 @@ describe('putting the members of one plugin on the points', () => {
       `member 2 (${LAYOUT_POINT} shell.pages): the data is not a list of ids`,
     ],
     [
+      'phrases that are not a record',
+      { point: PHRASE_POINT, key: 'notes.translate', data: ['翻成英文'] },
+      `member 2 (${PHRASE_POINT} notes.translate): the data is not a record of a label and words`,
+    ],
+    [
+      'a phrase that is nothing',
+      { point: PHRASE_POINT, key: 'notes.translate', data: null },
+      `member 2 (${PHRASE_POINT} notes.translate): the data is not a record of a label and words`,
+    ],
+    [
       'an id on a point that holds one item for a key',
       { ...red, id: 'mine' },
       `member 2 (${STYLE_POINT} notes.send): the point holds one item for a key, so a member writes no id and no rank`,
@@ -213,5 +230,43 @@ describe('putting the members of one plugin on the points', () => {
     expect(t.standing()).toEqual([`${TOKENS_POINT} shell.app by plugin:brand@v1+plugin:brand@v2`])
     if (first.kind === 'installed') await first.remove()
     expect(t.standing()).toEqual([`${TOKENS_POINT} shell.app by plugin:brand@v2`])
+  })
+})
+
+describe('a phrase a plugin puts beside the note it says through', () => {
+  const keys = (shell: ShellService) => shell.phrases().map(phrase => phrase.key)
+
+  it('stands among the phrases while the plugin is installed, and is gone once it is removed', async () => {
+    const t = await world()
+    const outcome = await t.install(brand(translate))
+    if (outcome.kind !== 'installed') throw new Error(JSON.stringify(outcome))
+    expect(t.shell.phrases()[0]).toEqual({
+      key: 'notes.translate',
+      label: '翻成英文',
+      words: '把图里的字翻成英文',
+    })
+    await outcome.remove()
+    expect(keys(t.shell)).not.toContain('notes.translate')
+  })
+
+  it('takes the whole plugin away when the shell does not take the phrase, and says why as the shell does', async () => {
+    const long: Member = { ...translate, data: { label: '把图里的字全部都翻成英文吧', words: 'w' } }
+    const t = await world()
+    const outcome = await t.install(brand(accent, long))
+    expect(outcome).toEqual({
+      kind: 'failed',
+      reason: `${PHRASE_POINT} notes.translate: the label is longer than 12 characters`,
+    })
+    expect(t.standing()).toEqual([])
+    expect(keys(t.shell)).not.toContain('notes.translate')
+  })
+
+  it('counts, when it comes with a skin, only while that skin is worn', async () => {
+    const t = await world()
+    const sea = { name: 'sea', version: 'v1', members: [translate] }
+    expect((await installOn(t.shell, sea, lookScope(ALICE, 'sea'))).kind).toBe('installed')
+    expect(keys(t.shell)).not.toContain('notes.translate')
+    t.shell.wear('sea')
+    expect(keys(t.shell)).toContain('notes.translate')
   })
 })

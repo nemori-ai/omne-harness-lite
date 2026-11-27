@@ -88,6 +88,8 @@ system
           DesktopShell#1  [effective]
         shell.say
           DesktopShell#1  [effective]
+        shell.say-phrase
+          DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
         shell.tokens
@@ -192,6 +194,8 @@ system
         shell.layout
           DesktopShell#1  [effective]
         shell.part-style
+          DesktopShell#1  [effective]
+        shell.say-phrase
           DesktopShell#1  [effective]
         shell.tokens
           DesktopShell#1  [effective]
@@ -592,8 +596,15 @@ system
         workspace.register
           workspace-ui#1  [effective]
       shell.piece  [keyed-one]
-      shell.say  [one, build, v1.2, closed: one-per-process]
+      shell.say  [one, build, v1.3, closed: one-per-process]
         session-ui#1  [effective]
+      shell.say-phrase  [keyed-one]
+        shell.expand
+          DesktopShell#1  [effective]
+        shell.keep
+          DesktopShell#1  [effective]
+        shell.todo
+          DesktopShell#1  [effective]
       shell.sidebar  [list, build, closed: one-per-process]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]

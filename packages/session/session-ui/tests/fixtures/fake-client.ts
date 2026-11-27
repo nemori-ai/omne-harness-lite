@@ -89,6 +89,7 @@ export function createFakeClient(): FakeClient {
     'interrupt-input',
     'query-send-input',
     'read-history',
+    'read-input-fate',
     'read-waiting',
     'read-pending',
     'read-waiting-calls',

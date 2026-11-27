@@ -107,6 +107,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'shell.parts',
     'shell.piece',
     'shell.say',
+    'shell.say-phrase',
     'shell.sidebar',
     'shell.tokens',
     'slash-command.composer',
