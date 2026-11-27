@@ -239,6 +239,23 @@ describe('an invoke that is refused for good closes the Run as failed', () => {
     })
   })
 
+  it('only an uninterpretable close marks the execution as read no more', async () => {
+    const closes: readonly BoundedClose[] = [
+      { kind: 'uninterpretable', evidence: evidence('u') },
+      { kind: 'drive-refused', failure: 'unsupported', field: null, reason: null, inputs: [] },
+    ]
+    const marks = []
+    for (const bounded of closes) {
+      const s = await started(['a'], [])
+      const { run } = await s.active()
+      succeeded(await close(s, bounded), 'finishRun')
+      const held = (await s.read()).executions?.find(item => item.run === run.run)
+      expect(held?.terminal).toMatchObject({ outcome: 'failed' })
+      marks.push(held?.uninterpretable)
+    }
+    expect(marks).toEqual([true, undefined])
+  })
+
   it('an uninterpretable close with incomplete evidence names its evidence', async () => {
     const s = await started(['a'], [])
     expect(
