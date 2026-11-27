@@ -31,6 +31,7 @@ const report = object({
   version: { rule: text },
   state: { rule: literal('loaded', 'failed', 'held') },
   reason: { rule: oneOf(text, nothing) },
+  waiting: { rule: array(text), optional: true, since: 3 },
 })
 
 /** The rules of a point as its owner declared them: what the key is, what an item gives and is given, and one to copy. */

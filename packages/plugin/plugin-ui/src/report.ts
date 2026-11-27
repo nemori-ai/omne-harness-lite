@@ -1,4 +1,4 @@
-import { fiberOf, type Kept, type ReportedPoint } from '@omne-harness/plugin-protocol'
+import { fiberOf, lacksText, type Kept, type ReportedPoint } from '@omne-harness/plugin-protocol'
 import type { Changes, Described } from '@omne-harness/shell-contract'
 
 export type PluginReport = Readonly<{
@@ -6,6 +6,8 @@ export type PluginReport = Readonly<{
   version: string
   state: 'loaded' | 'failed' | 'held'
   reason: string | null
+  /** The plugin waits for these, by name; it says failed to a server that does not know waiting. */
+  waiting?: readonly string[]
 }>
 
 type Tree = Readonly<{ points: readonly ReportedPoint[]; parts: Described['parts'] }>
@@ -47,13 +49,28 @@ export function reportsOf(
     .flatMap(([name, state]): PluginReport[] => {
       if (state.kind === 'loading') return []
       const { version, kind } = state
-      // A waiting plugin is told as one that did not load, with what it waits for as the reason.
-      if (kind === 'waiting')
-        return [{ name, version, state: 'failed', reason: `waits for ${state.lacks.join(', ')}` }]
+      if (kind === 'waiting') {
+        const waiting = state.lacks.map(lack => lack.name)
+        return [
+          {
+            name,
+            version,
+            state: 'failed',
+            reason: `waits for ${lacksText(state.lacks)}`,
+            waiting,
+          },
+        ]
+      }
       const reason = kind === 'failed' ? state.reason : clash(fiberOf(name, version))
       return [{ name, version, state: kind, reason }]
     })
     .sort((left, right) => (left.name < right.name ? -1 : 1))
+}
+
+/** The same report for a server before revision 3 of plugin/v1: a waiting plugin is told as failed, with the reason alone. */
+export function withoutWaiting(reported: Reported): Reported | undefined {
+  if (!reported.plugins.some(each => each.waiting !== undefined)) return undefined
+  return { ...reported, plugins: reported.plugins.map(({ waiting: _waiting, ...rest }) => rest) }
 }
 
 /** Tells what differs from what was last taken, one telling at a time; what changed meanwhile is told right after one that was taken. */

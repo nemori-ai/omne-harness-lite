@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Absent` · `side-state.d.ts`
 - `Bound` · `ports.d.ts`
 - `DataMember` · `manifest.d.ts`
 - `DirectoryMember` · `manifest.d.ts`
@@ -56,6 +57,7 @@
 - `imageFault` · `package.d.ts`
 - `insidePackage` · `manifest.d.ts`
 - `judgePackage` · `package.d.ts`
+- `lacksText` · `side-state.d.ts`
 - `memberDigest` · `package.d.ts`
 - `memberKind` · `manifest.d.ts`
 - `membersOf` · `package.d.ts`
@@ -96,7 +98,7 @@ export declare function standingOf(states: ReadonlyMap<string, Kept>): FloorStan
 export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginKind, type PluginManifest, type Side, type SideName, } from './manifest.ts';
 export { FILE_SUFFIXES, IMAGE_HEAD_BYTES, IMAGE_SUFFIXES, fileRefs, imageFault, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
 export { pluginProtocol, type PluginProtocol, type ReportedPoint, type ReportedPointContract, } from './plugin-protocol.ts';
-export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
+export { UNWANTED, lacksText, stepSide, type Absent, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
 export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
 export { createLoader, type Kept, type Listed, type Loader, type LoaderDeps, type Outcome, } from './loader.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
@@ -107,7 +109,7 @@ export { bindPorts, type Bound, type Port, type PortAnswer, type PortData, type 
 
 ```ts
 import type { Member, PluginKind } from './manifest.ts';
-import { type SideState } from './side-state.ts';
+import { type Absent, type SideState } from './side-state.ts';
 export type Listed = Readonly<{
     name: string;
     version: string;
@@ -126,7 +128,7 @@ export type Outcome = Readonly<{
     reason: string;
 }> | Readonly<{
     kind: 'waiting';
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'held';
 }>;
@@ -509,6 +511,7 @@ export declare const pluginProtocol: {
                     readonly reason: string | null;
                     readonly state: "failed" | "held" | "loaded";
                     readonly version: string;
+                    readonly waiting?: readonly string[];
                 }[];
                 readonly points: readonly {
                     readonly contract?: {
@@ -557,6 +560,7 @@ export declare const pluginProtocol: {
                             readonly reason: string | null;
                             readonly state: "failed" | "held" | "loaded";
                             readonly version: string;
+                            readonly waiting?: readonly string[];
                         }[];
                         readonly points: readonly {
                             readonly contract?: {
@@ -656,6 +660,11 @@ export declare function bindPorts<Caller>(factories: Readonly<Record<string, () 
 ## 声明文件 `side-state.d.ts`
 
 ```ts
+export type Absent = Readonly<{
+    kind: 'port' | 'point' | 'reference';
+    name: string;
+}>;
+export declare const lacksText: (lacks: readonly Absent[]) => string;
 export type SideState = Readonly<{
     kind: 'unwanted';
 }> | Readonly<{
@@ -675,7 +684,7 @@ export type SideState = Readonly<{
 }> | Readonly<{
     kind: 'waiting';
     version: string;
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'held';
     version: string;
@@ -694,7 +703,7 @@ export type SideEvent = Readonly<{
     reason: string;
 }> | Readonly<{
     kind: 'lacking';
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'appeared';
 }> | Readonly<{

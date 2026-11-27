@@ -22,9 +22,9 @@ import {
 } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
-import { installOn, type Code } from './install.ts'
+import { installOn, presentIn, type Code } from './install.ts'
 import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
-import { createReporter, describedOf, reportsOf } from './report.ts'
+import { createReporter, describedOf, reportsOf, withoutWaiting, type Reported } from './report.ts'
 import { SkinChoice } from './view/skin-choice.tsx'
 
 export type PluginUiOptions = Readonly<{
@@ -113,11 +113,22 @@ function loadFor(
       plugins: reportsOf(loader.states(), shell.changes().conflicts),
       ...describedOf(shell.described()),
     }),
-    async reported =>
-      (await client['report-loaded']({ tenant, client: id, ...reported })).outcome === 'succeeded',
+    async reported => {
+      const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
+      const answer = await send(reported)
+      const older = answer.outcome === 'unavailable' ? withoutWaiting(reported) : undefined
+      return (older === undefined ? answer : await send(older)).outcome === 'succeeded'
+    },
   )
   let listed = false
+  /** The tree changed: a waiting plugin whose lacks are all declared now is loaded again in the same version. */
+  const recheck = (): void => {
+    const described = shell.described()
+    for (const [name, state] of loader.states())
+      if (state.kind === 'waiting' && presentIn(described, state.lacks)) loader.appeared(name)
+  }
   const told = (): void => {
+    recheck()
     if (listed) reporter.touch()
   }
   const unwatch = [shell.watchAdoptions(told), shell.watchChanges(told)]

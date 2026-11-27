@@ -287,7 +287,6 @@ describe('a member that is code', () => {
   })
 
   it.each([
-    ['a point that is not declared', { ...sendCode, point: 'notes.nowhere' }],
     ['a point that takes data', { ...sendCode, point: TOKENS_POINT, key: 'shell.app' }],
   ] as const)('fails before any file is loaded when it names %s', async (_name, member) => {
     const t = await world({ 'send.js': { send: () => () => null } })
@@ -295,6 +294,15 @@ describe('a member that is code', () => {
     expect(outcome).toEqual({
       kind: 'failed',
       reason: `member 1 (${member.point} ${member.key}): the point takes no drawing`,
+    })
+    expect(t.loaded).toEqual([])
+  })
+
+  it('waits, before any file is loaded, when it names a point that is not declared', async () => {
+    const t = await world({ 'send.js': { send: () => () => null } })
+    expect(await t.install(brand({ ...sendCode, point: 'notes.nowhere' }))).toEqual({
+      kind: 'waiting',
+      lacks: [{ kind: 'point', name: 'notes.nowhere' }],
     })
     expect(t.loaded).toEqual([])
   })

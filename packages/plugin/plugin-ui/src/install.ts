@@ -1,6 +1,7 @@
 import {
   fiberOf,
   insidePackage,
+  type Absent,
   type JsonValue,
   type Listed,
   type Member,
@@ -11,10 +12,15 @@ import {
   LAYOUT_POINT,
   STYLE_POINT,
   TOKENS_POINT,
+  type Changes,
+  type Described,
+  type DrawingSource,
+  type Hosted,
   type KeyRender,
   type PartStyle,
+  type ScopeSource,
+  type Toast,
 } from '@omne-harness/shell-contract'
-import type { ShellService } from '@omne-harness/shell-contract/cordis'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
 export type Code = Readonly<{
@@ -23,9 +29,37 @@ export type Code = Readonly<{
   files?: (name: string, version: string) => string
 }>
 
-type Scope = Parameters<ShellService['putStyle']>[2]
-type Put = (shell: ShellService) => void
+type Scope = readonly string[]
+
+export type InstallShell = Readonly<{
+  described(): Described
+  takesDrawing(point: string): boolean
+  changesFor(asker: Scope): Changes
+  host(name: string, apply: (inside: InstallShell) => void): Promise<Hosted>
+  putTokens(
+    part: string,
+    tokens: Readonly<Record<string, string>>,
+    scope?: Scope,
+    files?: string,
+  ): () => unknown
+  putStyle(part: string, style: PartStyle, scope?: Scope, files?: string): () => unknown
+  putLayout(key: string, order: readonly string[], scope?: Scope): () => unknown
+  putDrawing(
+    point: string,
+    key: string,
+    render: KeyRender,
+    scope?: Scope,
+    source?: DrawingSource,
+  ): () => unknown
+  navigate(page: string, subject?: string): void
+  toast(toast: Toast): void
+  scope: Pick<ScopeSource, 'get' | 'subscribe'>
+}>
+
+type Put = (shell: InstallShell) => void
 type Entries = Readonly<Record<string, JsonValue>>
+
+type Fault = Readonly<{ reason: string; absent?: Absent }>
 
 const ONE_ITEM = 'the point holds one item for a key, so a member writes no id and no rank'
 
@@ -54,10 +88,10 @@ const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 /** What the code of a plugin may do with the shell: nothing that puts. Putting stays with the loader. */
-const guestOf = (shell: ShellService): object =>
+const guestOf = (shell: InstallShell): object =>
   Object.freeze({
     navigate: (page: string, subject?: string) => shell.navigate(page, subject),
-    toast: (toast: Parameters<ShellService['toast']>[0]) => shell.toast(toast),
+    toast: (toast: Toast) => shell.toast(toast),
     scope: Object.freeze({
       get: () => shell.scope.get(),
       subscribe: (listener: (scope: string | undefined) => void) => shell.scope.subscribe(listener),
@@ -66,24 +100,41 @@ const guestOf = (shell: ShellService): object =>
 
 type Pending = Readonly<{ member: ModuleMember; code: Code }>
 
+type Step =
+  | Readonly<{ kind: 'put'; put: Put }>
+  | Readonly<{ kind: 'code'; pending: Pending }>
+  | Readonly<{ kind: 'fault'; fault: Fault }>
+
+const refused = (reason: string): Step => ({ kind: 'fault', fault: { reason } })
+const put = (made: Put | string): Step =>
+  typeof made === 'string' ? refused(made) : { kind: 'put', put: made }
+
+type Asked = Readonly<{
+  shell: InstallShell
+  declared: ReadonlySet<string>
+  scope: Scope
+  code: Code | undefined
+  files: string | undefined
+}>
+
 /** One member before anything of the plugin is loaded: how to put it, the code still to load, or why it cannot be put. */
-function stepOf(
-  shell: ShellService,
-  member: Member,
-  scope: Scope,
-  code: Code | undefined,
-  files: string | undefined,
-): Put | Pending | string {
-  if ('directory' in member) return 'this side takes no directory'
+function stepOf({ shell, declared, scope, code, files }: Asked, member: Member): Step {
+  if ('directory' in member) return refused('this side takes no directory')
+  if (!declared.has(member.point)) {
+    const absent: Absent = { kind: 'point', name: member.point }
+    return { kind: 'fault', fault: { reason: `${member.point} is not a point now`, absent } }
+  }
   const single = member.id === undefined && member.rank === undefined
   if ('module' in member) {
-    if (!shell.takesDrawing(member.point)) return 'the point takes no drawing'
-    if (!single) return ONE_ITEM
-    return code === undefined ? 'this application loads no code' : { member, code }
+    if (!shell.takesDrawing(member.point)) return refused('the point takes no drawing')
+    if (!single) return refused(ONE_ITEM)
+    return code === undefined
+      ? refused('this application loads no code')
+      : { kind: 'code', pending: { member, code } }
   }
   const taken = DATA[member.point]
-  if (taken === undefined) return 'the point takes no data from a plugin'
-  return single ? taken(member.key, member.data, scope, files) : ONE_ITEM
+  if (taken === undefined) return refused('the point takes no data from a plugin')
+  return single ? put(taken(member.key, member.data, scope, files)) : refused(ONE_ITEM)
 }
 
 const filesAt = (place: string): object =>
@@ -128,77 +179,115 @@ function called(name: string, call: () => unknown): unknown {
 
 const failed = (reason: string): Outcome => ({ kind: 'failed', reason })
 
-type Step = Readonly<{ label: string; step: Put | Pending }>
-type Ready = Readonly<{ label: string; put: Put }>
+type Labelled = Readonly<{ label: string; fault: Fault }>
+
+function outcomeOf(faults: readonly Labelled[]): Outcome {
+  const lasting = faults.find(({ fault }) => fault.absent === undefined)
+  if (lasting !== undefined) return failed(`${lasting.label}: ${lasting.fault.reason}`)
+  const lacks: Absent[] = []
+  for (const { fault } of faults) {
+    const { absent } = fault
+    if (absent === undefined) continue
+    if (!lacks.some(lack => lack.kind === absent.kind && lack.name === absent.name))
+      lacks.push(absent)
+  }
+  return { kind: 'waiting', lacks }
+}
+
+type Ready = Readonly<{ label: string; step: Exclude<Step, { kind: 'fault' }> }>
 
 function stepsOf(
-  shell: ShellService,
+  shell: InstallShell,
   { name, version, members }: Listed,
   scope: Scope,
   code?: Code,
-): readonly Step[] | string {
-  const files = code?.files?.(name, version)
+): readonly Ready[] | Outcome {
+  const declared = new Set(shell.described().points.map(point => point.name))
+  const asked: Asked = { shell, declared, scope, code, files: code?.files?.(name, version) }
   const places = members.map(member => `${member.point}\n${member.key}`)
-  const steps: Step[] = []
+  const ready: Ready[] = []
+  const faults: Labelled[] = []
   for (const [index, member] of members.entries()) {
     const label = `member ${index + 1} (${member.point} ${member.key})`
     const twice = places.indexOf(places[index] ?? '') !== index
     const step = twice
-      ? 'another member of this plugin is at the same place'
-      : stepOf(shell, member, scope, code, files)
-    if (typeof step === 'string') return `${label}: ${step}`
-    steps.push({ label, step })
+      ? refused('another member of this plugin is at the same place')
+      : stepOf(asked, member)
+    if (step.kind === 'fault') faults.push({ label, fault: step.fault })
+    else ready.push({ label, step })
   }
-  return steps
+  return faults.length === 0 ? ready : outcomeOf(faults)
 }
 
-async function readyOf(
+type Loaded = Readonly<{ label: string; put: Put }>
+
+async function loadedOf(
   listed: Listed,
-  steps: readonly Step[],
+  steps: readonly Ready[],
   scope: Scope,
-): Promise<readonly Ready[] | string> {
+): Promise<readonly Loaded[] | string> {
   const loaded = await Promise.all(
     steps.map(async ({ label, step }) => ({
       label,
-      put: typeof step === 'function' ? step : await drawingOf(listed, step, scope),
+      put: step.kind === 'put' ? step.put : await drawingOf(listed, step.pending, scope),
     })),
   )
-  const ready: Ready[] = []
-  for (const { label, put } of loaded) {
-    if (typeof put === 'string') return `${label}: ${put}`
-    ready.push({ label, put })
+  const ready: Loaded[] = []
+  for (const { label, put: one } of loaded) {
+    if (typeof one === 'string') return `${label}: ${one}`
+    ready.push({ label, put: one })
   }
   return ready
 }
 
-function putAll(inside: ShellService, ready: readonly Ready[]): void {
-  for (const { label, put } of ready) {
+function putAll(inside: InstallShell, ready: readonly Loaded[]): void {
+  for (const { label, put: one } of ready) {
     try {
-      put(inside)
+      one(inside)
     } catch (error) {
       throw new Error(`${label}: ${reasonOf(error)}`)
     }
   }
 }
 
+function refusedOf(changes: Changes, by: string): Outcome | undefined {
+  const mine = changes.refused.filter(each => each.by === by)
+  if (mine.length === 0) return undefined
+  return outcomeOf(
+    mine.map(({ point, key, reason, absent }) => ({
+      label: `${point} ${key}`,
+      fault:
+        absent === undefined ? { reason } : { reason, absent: { kind: 'reference', name: absent } },
+    })),
+  )
+}
+
 /** Puts the members of one plugin in a scope of its own, in the scope it is to count in: all of them, or none. */
 export async function installOn(
-  shell: ShellService,
+  shell: InstallShell,
   listed: Listed,
   scope: Scope,
   code?: Code,
 ): Promise<Outcome> {
   if (listed.fault !== undefined) return failed(listed.fault)
   const steps = stepsOf(shell, listed, scope, code)
-  if (typeof steps === 'string') return failed(steps)
-  const ready = await readyOf(listed, steps, scope)
+  if (!Array.isArray(steps)) return steps as Outcome
+  const ready = await loadedOf(listed, steps, scope)
   if (typeof ready === 'string') return failed(ready)
   const hosted = await shell
     .host(fiberOf(listed.name, listed.version), inside => putAll(inside, ready))
     .catch((error: unknown) => reasonOf(error))
   if (typeof hosted === 'string') return failed(hosted)
-  const [refused] = shell.changesFor(scope ?? []).refused.filter(each => each.by === hosted.by)
-  if (refused === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
+  const refusal = refusedOf(shell.changesFor(scope), hosted.by)
+  if (refusal === undefined) return { kind: 'installed', remove: () => hosted.dispose() }
   await hosted.dispose()
-  return failed(`${refused.point} ${refused.key}: ${refused.reason}`)
+  return refusal
+}
+
+export function presentIn(described: Described, lacks: readonly Absent[]): boolean {
+  return lacks.every(({ kind, name }) =>
+    kind === 'reference'
+      ? described.parts.some(part => part.name === name)
+      : described.points.some(point => point.name === name),
+  )
 }

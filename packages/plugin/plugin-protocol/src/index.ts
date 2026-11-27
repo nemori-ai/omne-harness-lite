@@ -37,7 +37,9 @@ export {
 } from './plugin-protocol.ts'
 export {
   UNWANTED,
+  lacksText,
   stepSide,
+  type Absent,
   type SideEffect,
   type SideEvent,
   type SideState,

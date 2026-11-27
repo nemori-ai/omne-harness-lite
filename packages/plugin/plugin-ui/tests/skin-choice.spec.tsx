@@ -46,7 +46,7 @@ const colored = (color: string) => ({
   key: 'notes.send',
   data: { base: { color } },
 })
-const broken = { ...colored('red'), key: 'notes.nowhere' }
+const broken = { ...colored('red'), data: { base: { '--omne-accent': 'red' } } }
 
 afterEach(cleanup)
 

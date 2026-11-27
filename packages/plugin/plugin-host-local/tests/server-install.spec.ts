@@ -267,7 +267,7 @@ describe('the members a plugin writes for the server, put by the loader', () => 
       ...wanted(LABEL, GREETER),
       needs: ['notifications', 'store'],
     })
-    expect(outcome).toEqual({ kind: 'waiting', lacks: ['port store'] })
+    expect(outcome).toEqual({ kind: 'waiting', lacks: [{ kind: 'port', name: 'store' }] })
     expect(asked).toEqual([['notifications', 'store']])
     expect(w.loaded).toEqual([])
     expect(w.placed).toEqual([])
@@ -343,7 +343,7 @@ describe('a plugin that lacks only what is not there now waits; anything else wr
     const w = world()
     expect(await w.install(wanted(GREETER, ABSENT))).toEqual({
       kind: 'waiting',
-      lacks: ['point notes.none'],
+      lacks: [{ kind: 'point', name: 'notes.none' }],
     })
     expect(w.loaded).toEqual([])
     expect(w.placed).toEqual([])
@@ -354,7 +354,10 @@ describe('a plugin that lacks only what is not there now waits; anything else wr
     const twice: Member = { point: 'notes.none', key: 'other', data: 2 }
     expect(await w.install({ ...wanted(ABSENT, twice), needs: ['store'] })).toEqual({
       kind: 'waiting',
-      lacks: ['port store', 'point notes.none'],
+      lacks: [
+        { kind: 'port', name: 'store' },
+        { kind: 'point', name: 'notes.none' },
+      ],
     })
   })
 

@@ -372,6 +372,7 @@ describe('tokens put on a part', () => {
         by: 'brand',
         scope: alice,
         reason: 'no part is declared as notes.nowhere',
+        absent: 'notes.nowhere',
       },
       {
         point: TOKENS_POINT,

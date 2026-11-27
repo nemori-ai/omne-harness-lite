@@ -1,5 +1,11 @@
 import { createServerSide, type ServerSidePorts } from '@omne-harness/plugin-host-local'
-import { fiberOf, type FloorPort, type Outcome, type Wanted } from '@omne-harness/plugin-protocol'
+import {
+  fiberOf,
+  lacksText,
+  type FloorPort,
+  type Outcome,
+  type Wanted,
+} from '@omne-harness/plugin-protocol'
 import { describe, expect, it } from 'vitest'
 
 const wanted = (name: string, version = 'v1'): Wanted => ({
@@ -158,7 +164,7 @@ describe('what each tenant is to load on the server, brought there one tenant at
 
 describe('a waiting plugin is loaded again when what it lacks is there', () => {
   it('rechecks only the waiting ones whose lacks are all there, and tells the floor it is not wanted while it waits', async () => {
-    const outcomes: Outcome[] = [{ kind: 'waiting', lacks: ['port store'] }]
+    const outcomes: Outcome[] = [{ kind: 'waiting', lacks: [{ kind: 'port', name: 'store' }] }]
     let there = false
     const asked: string[] = []
     const { side, log } = world({
@@ -166,7 +172,7 @@ describe('a waiting plugin is loaded again when what it lacks is there', () => {
         log.push(`install ${tenant} ${name}`)
         return outcomes.shift() ?? { kind: 'installed', remove: () => undefined }
       },
-      present: (tenant, lacks) => (asked.push(`${tenant} ${lacks.join(',')}`), there),
+      present: (tenant, lacks) => (asked.push(`${tenant} ${lacksText(lacks)}`), there),
     })
     side.converge('alice', [wanted('tidy'), wanted('other')])
     await side.idle()

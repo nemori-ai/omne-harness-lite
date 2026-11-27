@@ -47,6 +47,7 @@ export type LoadReport = Readonly<{
   version: string
   state: 'loaded' | 'failed' | 'held'
   reason: string | null
+  waiting?: readonly string[]
 }>
 
 export type ClientReport = Readonly<{

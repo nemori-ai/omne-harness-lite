@@ -27,6 +27,7 @@ import {
   bindPorts,
   fiberOf,
   wantedOf,
+  type Absent,
   type PortFactory,
   type Wanted,
 } from '@omne-harness/plugin-protocol'
@@ -212,13 +213,12 @@ export const pluginServerRow = defineRow({
         within: run => attributed(fallMark(tenant, fiberOf(wanted.name, wanted.version)), run),
       })(wanted)
     }
-    const present = (tenant: string, lacks: readonly string[]): boolean =>
-      lacks.every(lack => {
-        const [kind, name = ''] = lack.split(' ')
-        return kind === 'port'
+    const present = (tenant: string, lacks: readonly Absent[]): boolean =>
+      lacks.every(({ kind, name }) =>
+        kind === 'port'
           ? needsOf(ctx, tenant, [name]).kind === 'adopted'
-          : pointOf(ctx, name, () => undefined) !== undefined
-      })
+          : pointOf(ctx, name, () => undefined) !== undefined,
+      )
     const side = createServerSide({ floor, install, present })
     providePluginServer(ctx, tenant => side.states(tenant))
     const converge = (tenant: string, plugins: readonly HeldPlugin[]): void => {

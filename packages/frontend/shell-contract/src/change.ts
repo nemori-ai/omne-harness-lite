@@ -54,6 +54,7 @@ export type Refused = Readonly<{
   by: string
   scope: Scope
   reason: string
+  absent?: string
 }>
 
 export type Conflict = Readonly<{ point: string; key: string; by: readonly string[] }>
@@ -306,6 +307,7 @@ type Kind<I> = Readonly<{
   point: string
   fault: (key: string, item: I, parts: readonly DeclaredPart[], tokens: Tokens) => string | null
   builtIn?: (item: I) => boolean
+  onParts?: true
 }>
 
 function partFaultOf(key: string, depth: string, parts: readonly DeclaredPart[]): string | null {
@@ -435,28 +437,32 @@ function layoutFault(key: string, item: LayoutItem): string | null {
 
 const TOKENS: Kind<TokensItem> = {
   point: TOKENS_POINT,
+  onParts: true,
   fault: (key, item, parts, tokens) =>
     partFaultOf(key, 'tokens', parts) ?? tokensFault(item, tokens),
   builtIn: item => item.builtIn === true,
 }
 const STYLE: Kind<StyleItem> = {
   point: STYLE_POINT,
+  onParts: true,
   fault: (key, item, parts) => partFaultOf(key, 'style', parts) ?? styleFault(item),
 }
 const RENDER: Kind<RenderItem> = {
   point: RENDER_POINT,
+  onParts: true,
   fault: (key, _item, parts) => partFaultOf(key, 'render', parts),
 }
 const LAYOUT: Kind<LayoutItem> = { point: LAYOUT_POINT, fault: layoutFault }
 
 const placeOf = (out: Refused): string => `${out.point}\n${out.key}\n${out.by}`
 
-const refusal = (entry: Placed, reason: string): Refused => ({
+const refusal = (entry: Placed, reason: string, absent?: string): Refused => ({
   point: entry.point,
   key: entry.key,
   by: entry.instance.fiber,
   scope: entry.scope,
   reason,
+  ...(absent !== undefined && { absent }),
 })
 
 type Found = { standing: Standing[]; refused: Refused[]; conflicts: Conflict[] }
@@ -478,7 +484,8 @@ function standingOn<I>(kind: Kind<I>, asked: Asked): Map<string, I> {
   found.refused.push(...read.filtered.map(out => refusal(out.entry, out.detail)))
   const sound = read.entries.filter(entry => {
     const fault = kind.fault(entry.key, entry.item, asked.parts, asked.tokens)
-    if (fault !== null) found.refused.push(refusal(entry, fault))
+    const absent = kind.onParts && !asked.parts.some(part => part.name === entry.key)
+    if (fault !== null) found.refused.push(refusal(entry, fault, absent ? entry.key : undefined))
     return fault === null
   })
   for (const key of new Set(sound.map(entry => entry.key))) {

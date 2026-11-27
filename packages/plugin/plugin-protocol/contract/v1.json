@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166",
-    "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e"
+    "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e",
+    "3": "sha256:19f6b0fdddf704cce3d869855618d4b69300022bf7aff4c3e7803ae9e8062208"
   },
   "major": 1,
   "name": "plugin",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-wanted": {
@@ -15,7 +16,9 @@
             "kind": {
               "rule": {
                 "kind": "literal",
-                "values": ["changed"]
+                "values": [
+                  "changed"
+                ]
               }
             }
           },
@@ -32,7 +35,10 @@
             "side": {
               "rule": {
                 "kind": "literal",
-                "values": ["client", "server"]
+                "values": [
+                  "client",
+                  "server"
+                ]
               }
             },
             "tenant": {
@@ -84,7 +90,11 @@
                                 "rule": {
                                   "item": {
                                     "kind": "literal",
-                                    "values": ["tokens", "style", "render"]
+                                    "values": [
+                                      "tokens",
+                                      "style",
+                                      "render"
+                                    ]
                                   },
                                   "kind": "array"
                                 }
@@ -148,13 +158,27 @@
                               "state": {
                                 "rule": {
                                   "kind": "literal",
-                                  "values": ["loaded", "failed", "held"]
+                                  "values": [
+                                    "loaded",
+                                    "failed",
+                                    "held"
+                                  ]
                                 }
                               },
                               "version": {
                                 "rule": {
                                   "kind": "text"
                                 }
+                              },
+                              "waiting": {
+                                "optional": true,
+                                "rule": {
+                                  "item": {
+                                    "kind": "text"
+                                  },
+                                  "kind": "array"
+                                },
+                                "since": 3
                               }
                             },
                             "kind": "object"
@@ -173,13 +197,21 @@
                                     "arity": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": ["one", "list", "keyed-one", "keyed-list"]
+                                        "values": [
+                                          "one",
+                                          "list",
+                                          "keyed-one",
+                                          "keyed-list"
+                                        ]
                                       }
                                     },
                                     "binding": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": ["build", "run"]
+                                        "values": [
+                                          "build",
+                                          "run"
+                                        ]
                                       }
                                     },
                                     "example": {
@@ -234,7 +266,11 @@
                                           "kind": {
                                             "rule": {
                                               "kind": "literal",
-                                              "values": ["data", "pure", "effect"]
+                                              "values": [
+                                                "data",
+                                                "pure",
+                                                "effect"
+                                              ]
                                             }
                                           }
                                         },
@@ -267,7 +303,10 @@
                                     "resolve": {
                                       "rule": {
                                         "kind": "literal",
-                                        "values": ["conflict", "most-specific"]
+                                        "values": [
+                                          "conflict",
+                                          "most-specific"
+                                        ]
                                       }
                                     },
                                     "revision": {
@@ -348,7 +387,10 @@
             "side": {
               "rule": {
                 "kind": "literal",
-                "values": ["client", "server"]
+                "values": [
+                  "client",
+                  "server"
+                ]
               }
             },
             "tenant": {
@@ -476,7 +518,10 @@
               "reason": {
                 "rule": {
                   "kind": "literal",
-                  "values": ["plugin", "file"]
+                  "values": [
+                    "plugin",
+                    "file"
+                  ]
                 }
               }
             },
@@ -529,7 +574,11 @@
                       "rule": {
                         "item": {
                           "kind": "literal",
-                          "values": ["tokens", "style", "render"]
+                          "values": [
+                            "tokens",
+                            "style",
+                            "render"
+                          ]
                         },
                         "kind": "array"
                       }
@@ -593,13 +642,27 @@
                     "state": {
                       "rule": {
                         "kind": "literal",
-                        "values": ["loaded", "failed", "held"]
+                        "values": [
+                          "loaded",
+                          "failed",
+                          "held"
+                        ]
                       }
                     },
                     "version": {
                       "rule": {
                         "kind": "text"
                       }
+                    },
+                    "waiting": {
+                      "optional": true,
+                      "rule": {
+                        "item": {
+                          "kind": "text"
+                        },
+                        "kind": "array"
+                      },
+                      "since": 3
                     }
                   },
                   "kind": "object"
@@ -618,13 +681,21 @@
                           "arity": {
                             "rule": {
                               "kind": "literal",
-                              "values": ["one", "list", "keyed-one", "keyed-list"]
+                              "values": [
+                                "one",
+                                "list",
+                                "keyed-one",
+                                "keyed-list"
+                              ]
                             }
                           },
                           "binding": {
                             "rule": {
                               "kind": "literal",
-                              "values": ["build", "run"]
+                              "values": [
+                                "build",
+                                "run"
+                              ]
                             }
                           },
                           "example": {
@@ -679,7 +750,11 @@
                                 "kind": {
                                   "rule": {
                                     "kind": "literal",
-                                    "values": ["data", "pure", "effect"]
+                                    "values": [
+                                      "data",
+                                      "pure",
+                                      "effect"
+                                    ]
                                   }
                                 }
                               },
@@ -712,7 +787,10 @@
                           "resolve": {
                             "rule": {
                               "kind": "literal",
-                              "values": ["conflict", "most-specific"]
+                              "values": [
+                                "conflict",
+                                "most-specific"
+                              ]
                             }
                           },
                           "revision": {

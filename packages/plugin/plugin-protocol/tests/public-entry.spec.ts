@@ -18,6 +18,7 @@ it('the root entry gives the plugin/v1 contract, the manifest, the judgment of a
     'imageFault',
     'insidePackage',
     'judgePackage',
+    'lacksText',
     'memberDigest',
     'memberKind',
     'membersOf',
