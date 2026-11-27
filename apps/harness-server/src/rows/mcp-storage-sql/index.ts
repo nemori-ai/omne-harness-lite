@@ -3,9 +3,11 @@ import {
   AuthorizationRecordsService,
   CatalogStoreService,
   ContinuationRecordsService,
+  HoldingRowsService,
   mcpAuthorizationRecordsKey,
   mcpCatalogStoreKey,
   mcpContinuationRecordsKey,
+  mcpHoldingRowsKey,
   mcpTaskRecordsKey,
   TaskRecordsService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -13,12 +15,14 @@ import type {
   AuthorizationRecords,
   CatalogStore,
   ContinuationRecords,
+  HoldingRows,
   TaskRecords,
 } from '@omne-harness/mcp-contract/provider'
 import {
   createSqlAuthorizationRecords,
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlHoldingRows,
   createSqlTaskRecords,
   mcpStoreParticipant,
   type McpSqlOptions,
@@ -115,6 +119,16 @@ class SqlAuthorizationRecords extends AuthorizationRecordsService {
   }
 }
 
+class SqlHoldingRows extends HoldingRowsService {
+  declare readonly kept: HoldingRows['kept']
+  declare readonly forget: HoldingRows['forget']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlHoldingRows(sqlOptions(ctx)))
+  }
+}
+
 export const mcpStorageSqlRow = defineRow({
   row: 'mcp-storage-sql',
   implementation: 'real',
@@ -124,6 +138,7 @@ export const mcpStorageSqlRow = defineRow({
       mcpContinuationRecordsKey,
       mcpTaskRecordsKey,
       mcpAuthorizationRecordsKey,
+      mcpHoldingRowsKey,
     ],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: null,
@@ -137,6 +152,7 @@ export const mcpStorageSqlRow = defineRow({
       new SqlContinuationRecords(ctx)
       new SqlTaskRecords(ctx)
       new SqlAuthorizationRecords(ctx)
+      new SqlHoldingRows(ctx)
     },
   },
 })

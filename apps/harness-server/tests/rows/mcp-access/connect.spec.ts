@@ -1,6 +1,8 @@
 // @module-tag slow — every case starts the release tree and a local authorization server.
 import { afterEach, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
+import { mcpHoldingRowsKey } from '@omne-harness/mcp-cordis-contract/cordis'
+import type { EndpointHolding } from '@omne-harness/mcp-contract'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
 import { createClient } from '@omne-harness/sdk/core'
 import { savedTenant } from '../../r9/support.ts'
@@ -40,7 +42,7 @@ async function registered(tree: ReleaseTree, name: string, auth: string, target:
     name,
     body: body(name, auth) as never,
   })
-  expect(created).toMatchObject({ outcome: 'succeeded' })
+  if (created.outcome !== 'succeeded') throw new Error(JSON.stringify(created))
   const current = await settled(
     tree,
     `the target of ${name} to be read`,
@@ -57,7 +59,7 @@ async function registered(tree: ReleaseTree, name: string, auth: string, target:
     value: { kind: 'ordinary', value: text(target) as never },
   })
   expect(written).toMatchObject({ outcome: 'succeeded' })
-  return tenant
+  return { tenant, holding: created.body.holding as EndpointHolding }
 }
 
 const oauthConfig = (callbackPort: number) => ({
@@ -93,7 +95,7 @@ it(
           mcpProtocol,
           protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
         )
-        const tenant = await registered(tree, 'desk', 'oauth', server.target)
+        const { tenant } = await registered(tree, 'desk', 'oauth', server.target)
         expect(await reachable(callback)).toBe(false)
 
         const begun = await mcp['begin-connect']({ tenant, name: 'desk' })
@@ -158,7 +160,7 @@ it(
           mcpProtocol,
           protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
         )
-        const tenant = await registered(tree, 'plain', 'static', 'http://127.0.0.1:9/mcp')
+        const { tenant } = await registered(tree, 'plain', 'static', 'http://127.0.0.1:9/mcp')
         expect(await mcp['begin-connect']({ tenant, name: 'plain' })).toEqual({
           outcome: 'unsupported',
           body: { reason: 'not-oauth' },
@@ -168,6 +170,50 @@ it(
           outcome: 'not-committed',
           body: { reason: 'no-resource-metadata' },
         })
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C206 a removed holding loses its OAuth grant with its rows: the rows go only once its grant is disconnected, tokens included',
+  { tags: ['slow'], timeout: 300_000 },
+  async () => {
+    const server = await testAuthServer()
+    servers.push(server)
+    const port = await freePort()
+    const exit = await onReleaseTree(
+      { script: toolCallsThenText(() => []), rowConfig: oauthConfig(port) },
+      async tree => {
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const { tenant, holding } = await registered(tree, 'desk', 'oauth', server.target)
+        const begun = await mcp['begin-connect']({ tenant, name: 'desk' })
+        if (begun.outcome !== 'succeeded') throw new Error(JSON.stringify(begun))
+        const consent = await fetch(new URL(begun.body.url), { redirect: 'manual' })
+        expect(await (await fetch(consent.headers.get('location') ?? '')).text()).toContain(
+          '连上了',
+        )
+
+        const rows = tree.scope.get(mcpHoldingRowsKey)
+        if (rows === undefined) throw new Error('the rows of MCP are not mounted')
+        expect(await rows.kept(tenant)).toEqual({ ok: [{ holding, grants: ['desk'] }] })
+
+        const removed = await tree.clients.assets['remove-asset']({
+          tenant,
+          operation: 'remove-desk',
+          holding,
+        })
+        expect(removed).toMatchObject({ outcome: 'succeeded' })
+        await settled(
+          tree,
+          'the rows of the removed holding to go',
+          async () => (await mcp['list-endpoints']({ tenant }), rows.kept(tenant)),
+          value => 'ok' in value && value.ok.length === 0,
+        )
       },
     )
     expect(exit).toBe(0)

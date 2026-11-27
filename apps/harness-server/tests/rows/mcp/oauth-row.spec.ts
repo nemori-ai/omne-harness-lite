@@ -1,23 +1,7 @@
 import { createServer } from 'node:http'
 import { expect, it } from 'vitest'
-import {
-  accountCodec,
-  organizationCodec,
-  tenant,
-  type TenantId,
-} from '@omne-harness/legal-identity'
-import type { EndpointHolding, EndpointName, EndpointRef } from '@omne-harness/mcp-contract'
-import { fail, succeed } from '@omne-harness/operation-result'
 import { createCallbackReceiver } from '../../../src/rows/mcp/callback-receiver.ts'
-import { forgettingRemoved } from '../../../src/rows/mcp/oauth.ts'
 import { freePort } from './auth-server.ts'
-
-function tenantOf(last: string): TenantId {
-  const organization = organizationCodec.parse(`org_0123456789abcdefghjkmnpqr${last}`)
-  const account = accountCodec.parse(`acc_0123456789abcdefghjkmnpqr${last}`)
-  if (!organization.ok || !account.ok) throw new TypeError('bad tenant sample')
-  return tenant(organization.value, account.value)
-}
 
 const reachable = (url: string) =>
   fetch(url).then(
@@ -76,25 +60,4 @@ it('closes by itself when the last connection it was opened for runs out, and re
     await new Promise(resolve => taken.close(resolve))
     await receiver.close()
   }
-})
-
-it('a holding that is no longer held loses its grant at the next read of the tenant; an unreadable read forgets nothing', async () => {
-  const home = tenantOf('s')
-  const ref = (name: string, holding: string): EndpointRef => ({
-    name: name as EndpointName,
-    holding: holding as EndpointHolding,
-  })
-  let now: EndpointRef[] | 'unknown' = [ref('desk', 'h-1'), ref('docs', 'h-2')]
-  const ended: unknown[] = []
-  const held = forgettingRemoved(async () => (now === 'unknown' ? fail('unknown') : succeed(now)), {
-    disconnect: async key => (ended.push(key), succeed(true)),
-  })
-  await held(home)
-  expect(ended).toEqual([])
-  now = 'unknown'
-  await held(home)
-  expect(ended).toEqual([])
-  now = [ref('docs', 'h-2'), ref('desk', 'h-3')]
-  await held(home)
-  expect(ended).toEqual([{ tenant: home, holding: 'h-1', endpoint: 'desk' }])
 })

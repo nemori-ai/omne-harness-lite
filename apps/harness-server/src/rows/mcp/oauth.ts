@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { createMcpAuthorization, type McpAuthorization } from '@omne-harness/mcp-authorization'
-import type { EndpointRef } from '@omne-harness/mcp-contract'
 import type {
   AuthorizationRecords,
   CallbackReceiver,
@@ -136,24 +135,4 @@ export function mountMcpOAuth(ctx: Context, config: McpOAuthConfig): McpAuthoriz
   new Connector(ctx, grants, configuredSecret)
   new Receiver(ctx, receiver)
   return grants
-}
-
-type Held = (tenant: TenantId) => Promise<Outcome<readonly EndpointRef[], 'unknown'>>
-
-/** A holding that is no longer held loses its grant the next time MCP reads the tenant's endpoints. */
-export function forgettingRemoved(held: Held, grants: Pick<McpAuthorization, 'disconnect'>): Held {
-  const seen = new Map<string, readonly EndpointRef[]>()
-  return async tenant => {
-    const refs = await held(tenant)
-    if ('failure' in refs) return refs
-    const text = JSON.stringify(tenant)
-    const before = seen.get(text) ?? []
-    seen.set(text, refs.ok)
-    const kept = new Set(refs.ok.map(ref => ref.holding))
-    for (const gone of before.filter(ref => !kept.has(ref.holding)))
-      void grants
-        .disconnect({ tenant, holding: gone.holding, endpoint: gone.name })
-        .catch(() => undefined)
-    return refs
-  }
 }

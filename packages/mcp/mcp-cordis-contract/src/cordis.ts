@@ -15,6 +15,7 @@ import type {
   ContinuationRecords,
   CredentialUse,
   GrantConnector,
+  HoldingRows,
   TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
@@ -245,6 +246,18 @@ export abstract class AuthorizationRecordsService extends Service implements Aut
 
 export const mcpAuthorizationRecordsKey = AuthorizationRecordsService.provide
 
+/** The rows MCP keeps under each holding, so those of a removed holding go in one cleanup. */
+export abstract class HoldingRowsService extends Service implements HoldingRows {
+  static readonly provide = 'mcpHoldingRows'
+  constructor(ctx: Context) {
+    super(ctx, HoldingRowsService.provide)
+  }
+  abstract readonly kept: HoldingRows['kept']
+  abstract readonly forget: HoldingRows['forget']
+}
+
+export const mcpHoldingRowsKey = HoldingRowsService.provide
+
 /** The OAuth grants of MCP endpoints, as MCP's core uses them. */
 export abstract class GrantConnectorService extends Service implements GrantConnector {
   static readonly provide = 'mcpGrantConnector'
@@ -294,6 +307,7 @@ declare module '@deepseek-ai/cordis' {
     mcpTaskRecords: TaskRecordsService
     mcpTaskWatch: TaskWatchService<unknown>
     mcpAuthorizationRecords: AuthorizationRecordsService
+    mcpHoldingRows: HoldingRowsService
     mcpGrantConnector: GrantConnectorService
     mcpCallbackReceiver: CallbackReceiverService
     mcpEndpointConnect: EndpointConnectService<unknown>

@@ -32,6 +32,7 @@ import {
   mcpGrantConnectorKey,
   mcpCallbackReceiverKey,
   mcpEndpointConnectKey,
+  mcpHoldingRowsKey,
   mcpUseEligibilityKey,
   UseEligibilityService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -69,7 +70,8 @@ import {
 import { keptAdoption, keptSettings, type AdoptionStamp, type HeldRefs } from './kept-adoption.ts'
 import { createOutputCheck } from './output-check.ts'
 import { mcpPersonAsk } from './person.ts'
-import { forgettingRemoved, mountMcpOAuth } from './oauth.ts'
+import { mountMcpOAuth } from './oauth.ts'
+import { sweepingRemoved } from './removed-holdings.ts'
 import { mountMcpTasks } from './tasks.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -271,7 +273,11 @@ const mcpPlugin: Plugin.Object = {
     const stamp = stampOf(ctx)
     const facts = factsOf(ctx, stamp)
     const grants = mountMcpOAuth(ctx, config.oauth)
-    const held: HeldRefs = forgettingRemoved(tenant => heldEndpointRefs(facts, tenant), grants)
+    const held: HeldRefs = sweepingRemoved(
+      tenant => heldEndpointRefs(facts, tenant),
+      () => ctx.get(mcpHoldingRowsKey, false),
+      key => grants.disconnect(key),
+    )
     new Adoption(ctx, keptAdoption(createEndpointAdoption(facts), held, stamp))
     new Eligibility(ctx, createEndpointEligibility(facts))
     new Credentials(

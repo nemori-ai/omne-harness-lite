@@ -49,3 +49,4 @@ export type {
   RegistrationWay,
   SecretSlot,
 } from './grant.ts'
+export type { HoldingRows, KeptHolding } from './holdings.ts'

@@ -22,6 +22,7 @@ export const SCRIPTS = [
   'writeGrant',
   'removeGrant',
   'register',
+  'forgetHolding',
 ] as const
 export type ScriptName = (typeof SCRIPTS)[number]
 
@@ -31,6 +32,7 @@ export const READS = [
   'followingTasks',
   'readGrant',
   'readClient',
+  'keptHoldings',
 ] as const
 export type ReadName = (typeof READS)[number]
 

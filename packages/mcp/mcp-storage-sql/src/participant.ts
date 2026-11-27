@@ -11,6 +11,7 @@ import {
   voidPending,
   type GrantCells,
 } from './rows-grants.ts'
+import { forgetHolding } from './rows-holdings.ts'
 import {
   PARTICIPANT,
   PROTOCOL,
@@ -80,6 +81,10 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   register(port, input: Readonly<{ tenant: string; issuer: string; row: JsonValue }>) {
     saveClient(port, input.tenant, input.issuer, input.row)
     return { ok: 'registered' }
+  },
+  forgetHolding(port, input: Readonly<{ tenant: string; holding: string }>) {
+    forgetHolding(port, input.tenant, input.holding)
+    return { ok: 'forgotten' }
   },
 }
 
