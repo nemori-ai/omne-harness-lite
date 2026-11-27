@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createInMemoryCatalogStore, createMcp } from '@omne-harness/mcp'
+import { createMcp } from '@omne-harness/mcp'
 import type {
   ActionDiscovery,
   ActionInvoker,
@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
   CredentialFailure,
   CredentialUse,
   HttpCredentialHandle,
@@ -20,6 +21,7 @@ import {
   ActionInvokerService,
   EndpointStatusService,
   mcpAdoptionViewKey,
+  mcpCatalogStoreKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -139,6 +141,16 @@ function eligibilityOf(ctx: Context): UseEligibility<unknown> {
   }
 }
 
+// The catalog store is taken at each read and write; while it is away both answer unavailable.
+function storeOf(ctx: Context): CatalogStore {
+  return {
+    read: key => ctx.get(mcpCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
 function credentialsOf(ctx: Context): CredentialUse<unknown> {
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
   type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
@@ -225,7 +237,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
-        store: createInMemoryCatalogStore(),
+        store: storeOf(ctx),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),

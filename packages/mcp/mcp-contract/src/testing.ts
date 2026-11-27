@@ -29,6 +29,7 @@ export {
   mcpCatalogStoreConformance,
   type CatalogStoreFixture,
   type MemoryCatalogStore,
+  sampleCatalogRecord,
 } from './testing-catalog-store.ts'
 export {
   actionNameOf,

@@ -118,6 +118,7 @@
     "@omne-harness/mcp-contract": "workspace:*",
     "@omne-harness/mcp-cordis-contract": "workspace:*",
     "@omne-harness/mcp-host-local": "workspace:*",
+    "@omne-harness/mcp-storage-sql": "workspace:*",
     "@omne-harness/media": "workspace:*",
     "@omne-harness/media-access": "workspace:*",
     "@omne-harness/media-adapters": "workspace:*",

@@ -16,7 +16,12 @@ import {
   tenantOf,
   type ProtocolClients,
 } from '../../support/protocol-clients.ts'
-import { onReleaseTree, toolCallsByRequest, type ReleaseTree } from '../../support/release-tree.ts'
+import {
+  onReleaseTree,
+  onReleaseTreeRuns,
+  toolCallsByRequest,
+  type ReleaseTree,
+} from '../../support/release-tree.ts'
 import {
   journey,
   lastMessageOf,
@@ -79,7 +84,7 @@ const PROGRAMS: Readonly<Record<string, string>> = {
 
 const ownerOf = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
 const text = (value: string): JsonValue => ({ kind: 'string', value })
-const bodyOf = (name: string, auth: 'none' | 'static'): JsonValue => ({
+const bodyOf = (name: string, auth: 'none' | 'static' | 'oauth'): JsonValue => ({
   kind: 'object',
   entries: [
     { key: 'name', value: text(name) },
@@ -790,10 +795,9 @@ it(
         expect(await keyed(w, ownerOf('docs'), 'credential', CREDENTIAL)).toMatchObject({
           outcome: 'succeeded',
         })
-        const before = {
-          target: (await described(w, 'docs', 'target')).effective,
-          invoke: (await described(w, 'docs', 'invoke')).effective,
-        }
+        const effectiveOf = async (item: string) =>
+          ((await described(w, 'docs', item)) as Readonly<{ effective?: unknown }>).effective
+        const before = { target: await effectiveOf('target'), invoke: await effectiveOf('invoke') }
         expect(before.target).toMatchObject({
           value: { kind: 'set', value: { kind: 'string', value: peer.target } },
         })
@@ -815,11 +819,81 @@ it(
           () => settingOf(w.assets, w.tenant, 'docs', 'invoke'),
           value => value.outcome === 'succeeded' && value.body.item.kind === 'permission',
         )
-        expect((await described(w, 'docs', 'target')).effective).toEqual(before.target)
-        expect((await described(w, 'docs', 'invoke')).effective).toEqual(before.invoke)
+        expect(await effectiveOf('target')).toEqual(before.target)
+        expect(await effectiveOf('invoke')).toEqual(before.invoke)
         expect(await described(w, 'docs', 'credential')).toMatchObject({ own: 'available' })
       }),
     )
     expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C106 MC-31 after a restart the catalog of an endpoint is read from storage with the freshness it was acquired with, not listed again; an endpoint disabled or removed before the restart is not usable after it',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(ECHO, FAIL)
+    const ref = (name: string, holding: string) => ({ name, holding }) as unknown as EndpointRef
+    const holdings: Record<string, string> = {}
+    let before: unknown
+    const discoveryOf = (tree: ReleaseTree) =>
+      tree.scope.get(mcpActionDiscoveryKey) as ActionDiscovery<unknown>
+    const exits = await onReleaseTreeRuns(options(script), [
+      async tree => {
+        const w = world(tree)
+        const login = await loginAccess(tree)
+        for (const name of ['docs', 'off', 'gone']) {
+          holdings[name] = await registered(w, name)
+          await configured(w, name, 'target', peer.target, `${name}-target`)
+          const published = await settled(
+            tree,
+            `the catalog of ${name} to be published`,
+            () =>
+              discoveryOf(tree).refresh(login, {
+                ref: ref(name, holdings[name] ?? ''),
+                connectBound: 10_000 as Millis,
+              }),
+            answer => 'ok' in answer && answer.ok.kind === 'published',
+          )
+          expect(published).toMatchObject({ ok: { kind: 'published' } })
+        }
+        before = await discoveryOf(tree).current(login, ref('docs', holdings['docs'] ?? ''))
+        expect(before).toMatchObject({ ok: { kind: 'acquired' } })
+        const disabled = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'off-off',
+          holding: holdings['off'] ?? '',
+          enabled: false,
+        })
+        expect(disabled).toMatchObject({ outcome: 'succeeded' })
+        const removed = await w.assets['remove-asset']({
+          tenant: w.tenant,
+          operation: 'gone-gone',
+          holding: holdings['gone'] ?? '',
+        })
+        expect(removed).toMatchObject({ outcome: 'succeeded' })
+      },
+      async tree => {
+        const login = await loginAccess(tree)
+        const after = await settled(
+          tree,
+          'the stored catalog of docs to be read after the restart',
+          () => discoveryOf(tree).current(login, ref('docs', holdings['docs'] ?? '')),
+          answer => 'ok' in answer,
+        )
+        // The same revision and the same moment it was acquired: read from storage, not listed again;
+        // there is no connection yet after the restart.
+        const was = (before as { ok: Readonly<Record<string, unknown>> }).ok
+        expect(after).toEqual({ ok: { ...was, basisCurrent: 'no-connection' } })
+        expect(
+          await discoveryOf(tree).current(login, ref('off', holdings['off'] ?? '')),
+        ).toMatchObject({ failure: { kind: 'blocked' } })
+        expect(
+          await discoveryOf(tree).current(login, ref('gone', holdings['gone'] ?? '')),
+        ).toMatchObject({ failure: { kind: 'not-available-to-you' } })
+      },
+    ])
+    expect(exits).toEqual([0, 0])
   },
 )

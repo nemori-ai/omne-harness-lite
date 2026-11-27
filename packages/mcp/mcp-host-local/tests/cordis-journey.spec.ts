@@ -12,6 +12,7 @@ import {
   actionNameOf,
   correlationKeyOf,
   createMemoryAdoptionView,
+  createMemoryCatalogStore,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   credentialBindingOf,
@@ -25,6 +26,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import {
   AdoptionViewService,
+  CatalogStoreService,
   CredentialUseService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
@@ -140,6 +142,15 @@ function credentialService(port: CredentialUse<unknown>) {
   }
 }
 
+// The catalogs the plugin keeps: a memory store, loaded with the other ports.
+function storeService() {
+  const store = createMemoryCatalogStore()
+  return class extends CatalogStoreService {
+    readonly read = store.read
+    readonly write = store.write
+  }
+}
+
 function recordingCredentials(inner: CredentialUse<unknown>) {
   const released: string[] = []
   const port: CredentialUse<unknown> = {
@@ -229,6 +240,7 @@ const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials
 async function assembled(endpoint: Endpoint, absent?: PortName, loaded: Plugin = plugin) {
   const ctx = new Context()
   const provided = await ports(endpoint)
+  await load(ctx, storeService(), undefined)
   for (const name of PORT_NAMES) if (name !== absent) await load(ctx, provided[name], undefined)
   const fiber = await load(ctx, loaded, CONFIG)
   return { ctx, fiber, provided }

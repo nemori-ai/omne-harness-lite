@@ -13,6 +13,7 @@ import {
   connectionTargetOf,
   correlationKeyOf,
   createMemoryAdoptionView,
+  createMemoryCatalogStore,
   createMemoryCredentialUse,
   createMemoryUseEligibility,
   credentialBindingOf,
@@ -25,6 +26,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import {
   AdoptionViewService,
+  CatalogStoreService,
   CredentialUseService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
@@ -93,6 +95,15 @@ function credentialService(port: CredentialUse<unknown>) {
   }
 }
 
+// The catalogs the plugin keeps: a memory store, loaded with the other ports.
+function storeService() {
+  const store = createMemoryCatalogStore()
+  return class extends CatalogStoreService {
+    readonly read = store.read
+    readonly write = store.write
+  }
+}
+
 function recordingPurposes(inner: CredentialUse<unknown>) {
   const purposes: HttpPurpose[] = []
   const port: CredentialUse<unknown> = {
@@ -157,9 +168,10 @@ const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials
 const TARGET = 'https://files.example.test/mcp'
 const REPLACEMENT = 'https://replacement.example.test/mcp'
 
-async function assembled(endpoint: Endpoint, absent?: PortName) {
+async function assembled(endpoint: Endpoint, absent?: PortName | 'store') {
   const ctx = new Context()
   const provided = ports(endpoint)
+  if (absent !== 'store') await load(ctx, storeService(), undefined)
   for (const name of PORT_NAMES) if (name !== absent) await load(ctx, provided[name], undefined)
   const { refused, requests } = refusingFetch()
   const fiber = await load(
@@ -231,6 +243,7 @@ describe('the MCP plugin on a Cordis context, without a peer', () => {
     const { refused, requests } = refusingFetch()
 
     const ctx = new Context()
+    await load(ctx, storeService(), undefined)
     await load(ctx, adoptionService(adoption), undefined)
     await load(ctx, eligibilityService(eligibility), undefined)
     await load(ctx, credentialService(credentials.port), undefined)
@@ -314,6 +327,14 @@ describe('the MCP plugin on a Cordis context, without a peer', () => {
     await load(ctx, provided.adoption, undefined)
     expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
     expect(requests).toHaveLength(1)
+  })
+
+  it('reads the catalog as not known, not as not acquired, while the catalog store is absent, and reads it once it is provided (C106)', async () => {
+    const { ctx } = await assembled({ target: TARGET }, 'store')
+    const discovery = service(ctx, mcpActionDiscoveryKey)
+    expect(await discovery.current(ALICE, FILES)).toEqual({ failure: { kind: 'unknown' } })
+    await load(ctx, storeService(), undefined)
+    expect(await discovery.current(ALICE, FILES)).toEqual({ ok: { kind: 'not-acquired' } })
   })
 
   it('answers unknown, and sends no request, while the use eligibility is absent, and checks it once it is provided', async () => {

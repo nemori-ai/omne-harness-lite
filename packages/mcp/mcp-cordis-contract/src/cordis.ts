@@ -3,6 +3,7 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
   CredentialUse,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
@@ -144,6 +145,23 @@ export abstract class CredentialUseService<P> extends Service implements Credent
 
 export const mcpCredentialUseKey = CredentialUseService.provide
 
+/**
+ * Where the catalogs of MCP are kept across a restart, as a service. The core takes it at each read and write;
+ * while it is away both answer unavailable.
+ *
+ * @owner packages/mcp/mcp-cordis-contract
+ */
+export abstract class CatalogStoreService extends Service implements CatalogStore {
+  static readonly provide = 'mcpCatalogStore'
+  constructor(ctx: Context) {
+    super(ctx, CatalogStoreService.provide)
+  }
+  abstract readonly read: CatalogStore['read']
+  abstract readonly write: CatalogStore['write']
+}
+
+export const mcpCatalogStoreKey = CatalogStoreService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -152,6 +170,7 @@ declare module '@deepseek-ai/cordis' {
     mcpAdoptionView: AdoptionViewService<unknown, unknown>
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
+    mcpCatalogStore: CatalogStoreService
   }
 }
 
