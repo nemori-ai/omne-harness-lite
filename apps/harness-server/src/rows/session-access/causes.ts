@@ -26,9 +26,9 @@ function textAt(value: JsonValue | undefined, ...path: readonly string[]): strin
 
 const DIAGNOSED: ReadonlySet<string> = new Set(['no-reply', 'node-failed'])
 
-function faultOf(kind: string, failure: JsonValue): RunFailureFault | null {
+function faultOf(failure: JsonValue): RunFailureFault | null {
   const cause = textAt(failure, 'cause')
-  if (kind !== 'no-reply' || cause === undefined || cause === '') return null
+  if (cause === undefined) return null
   const throttled = member(failure, 'throttled')
   return {
     cause,
@@ -41,7 +41,7 @@ export function failureCauseOf(failure: JsonValue): RunFailureCause | null {
   const kind = textAt(failure, 'kind')
   if (kind === undefined || kind === '') return null
   const detail = DIAGNOSED.has(kind) ? (textAt(failure, 'diagnostic') ?? '') : ''
-  return { kind, detail: detail === '' ? null : detail, fault: faultOf(kind, failure) }
+  return { kind, detail: detail === '' ? null : detail, fault: faultOf(failure) }
 }
 
 function readingOf(payload: JsonValue): RunFailureReading {
