@@ -45,9 +45,16 @@ describe('the reminder commit answers', () => {
       kind: 'unavailable',
       diagnostic: 'the runtime context reminder: down',
     })
-    expect(
-      reminderOutcome({ kind: 'refused', reason: 'invalid_request' as never, diagnostic: 'no' }),
-    ).toEqual(refusalFailure('invalid_request' as never))
+    const refused = { reason: 'invalid_request' as never, said: 'invalid_request: no' }
+    expect(reminderOutcome({ kind: 'refused', ...refused, diagnostic: 'no' })).toEqual(
+      refusalFailure(refused),
+    )
+    expect(refusalFailure(refused)).toEqual({
+      kind: 'invalid',
+      field: 'storage',
+      reason: 'invalid_request: no',
+      disclosed: 'invalid_request: no',
+    })
   })
 
   it('a denied read is denied; another read failure is unavailable with its diagnostic', () => {

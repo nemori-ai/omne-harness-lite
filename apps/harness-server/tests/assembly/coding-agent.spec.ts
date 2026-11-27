@@ -64,9 +64,11 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'tool', name: 'OmneExtensionPoints' }, resident: true },
       { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
       { capability: { category: 'tool', name: 'Screen' }, resident: true },
+      { capability: { category: 'tool', name: 'AppView' }, resident: true },
       { capability: { category: 'tool', name: 'Skills' }, resident: true },
       { capability: { category: 'tool', name: 'Code' }, resident: true },
       { capability: { category: 'skill', name: 'skill-authoring' }, resident: true },
+      { capability: { category: 'skill', name: 'extending-the-app' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([

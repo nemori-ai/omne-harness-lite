@@ -450,7 +450,7 @@ function createMessageHandoff<P>(
       ...preadmissionCommit(bound.tenantText, bound.handoff, command),
       generations,
     })
-    if (outcome.kind === 'refused') return fail(refusalFailure(outcome.reason))
+    if (outcome.kind === 'refused') return fail(refusalFailure(outcome))
     if (outcome.kind === 'unknown' || outcome.kind === 'unavailable')
       return fail(unavailable(`the preadmission write is ${outcome.kind}: ${outcome.diagnostic}`))
     const reply = outcome.receipt.responses.find(item => item.participant === 'execution-record')

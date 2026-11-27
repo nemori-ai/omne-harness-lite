@@ -14,17 +14,18 @@ import {
 } from '@omne-harness/plugin-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import {
-  defineKeyedPoint,
-  lookScope,
-  needProtocol,
-  tenantScope,
-} from '@omne-harness/shell-contract'
+import { lookScope, needProtocol, tenantScope, type KeyedPoint } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
-import { installOn, type Code } from './install.ts'
+import { handedNames, installOn, presentIn, type Code } from './install.ts'
 import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
-import { createReporter, describedOf, reportsOf } from './report.ts'
+import {
+  beforeRevisionThree,
+  createReporter,
+  describedOf,
+  reportsOf,
+  type Reported,
+} from './report.ts'
 import { SkinChoice } from './view/skin-choice.tsx'
 
 export type PluginUiOptions = Readonly<{
@@ -36,19 +37,18 @@ export type PluginUiOptions = Readonly<{
   looks?: LookStore
   /** The name this client goes by on the server; one of its own making when none is given. */
   clientId?: () => string
+  /** Where the choice of skins is drawn: the place above the list of one category of the assets page. */
+  skinsAbove?: KeyedPoint<Readonly<{ category: string }>>
+  reports?: boolean
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
 
 const SKIN_CATEGORY = 'skin'
 
-/** The place the assets page keeps above the list of one category. The page declares it; this module only puts on it. */
-const aboveCategory = defineKeyedPoint<Readonly<{ category: string }>>({
-  name: 'assets.category',
-  subject: { encode: value => value.category, decode: text => ({ category: text }) },
-})
-
 const isSkin = (listed: Listed): boolean => listed.kind === 'skin'
+
+const SILENT = Object.freeze({ touch: () => undefined, stop: () => undefined })
 
 /** Loads what one tenant is to load for as long as it is the one signed in: a skin in the scope of its own look, the rest in the scope of the tenant. */
 function loadFor(
@@ -67,6 +67,7 @@ function loadFor(
     floor = NO_FLOOR,
     clientId = () => crypto.randomUUID(),
     looks: _looks,
+    reports = true,
     ...pace
   } = options
   let skins: ReadonlySet<string> | undefined
@@ -108,16 +109,30 @@ function loadFor(
     if (skins !== undefined) wear.settle(skins, loader.states())
     reporter.touch()
   }
-  const reporter = createReporter(
-    () => ({
-      plugins: reportsOf(loader.states(), shell.changes().conflicts),
-      ...describedOf(shell.described()),
-    }),
-    async reported =>
-      (await client['report-loaded']({ tenant, client: id, ...reported })).outcome === 'succeeded',
-  )
+  const reporter = !reports
+    ? SILENT
+    : createReporter(
+        () => ({
+          plugins: reportsOf(loader.states(), shell.changes().conflicts),
+          ...describedOf(shell.described()),
+          handed: handedNames(code, shell),
+        }),
+        async reported => {
+          const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
+          const answer = await send(reported)
+          if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
+        },
+      )
   let listed = false
+  /** The tree changed: a waiting plugin whose lacks are all declared now is loaded again in the same version. */
+  const recheck = (): void => {
+    const described = shell.described()
+    for (const [name, state] of loader.states())
+      if (state.kind === 'waiting' && presentIn(described, state.lacks)) loader.appeared(name)
+  }
   const told = (): void => {
+    recheck()
     if (listed) reporter.touch()
   }
   const unwatch = [shell.watchAdoptions(told), shell.watchChanges(told)]
@@ -156,7 +171,7 @@ export function createPluginUiModule(options: PluginUiOptions = {}): Plugin.Obje
         wear: look => shell.wear(look),
         store: options.looks ?? memoryLookStore(),
       })
-      aboveCategory.contribute(shell, SKIN_CATEGORY, {
+      options.skinsAbove?.contribute(shell, SKIN_CATEGORY, {
         id: 'plugin-ui.skins',
         order: 0,
         render: () => createElement(SkinChoice, { wear }),

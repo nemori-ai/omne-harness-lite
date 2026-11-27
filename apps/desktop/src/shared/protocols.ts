@@ -4,6 +4,7 @@ import { canvasProtocol } from '@omne-harness/canvas-protocol'
 import { goalProtocol } from '@omne-harness/goal-protocol'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
+import { interfaceProtocol } from '@omne-harness/interface-protocol'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { modelProtocol } from '@omne-harness/model-protocol'
@@ -37,4 +38,5 @@ export const domainProtocols: readonly ProtocolContract[] = [
   pluginProtocol,
   mcpProtocol,
   canvasProtocol,
+  interfaceProtocol,
 ]

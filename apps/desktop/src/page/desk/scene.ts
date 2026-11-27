@@ -50,6 +50,10 @@ export type NoteTold =
   | Readonly<{ kind: 'not-authorized' | 'cannot-send-pictures' }>
   | Readonly<{ kind: 'not-seen'; reason: string }>
 
+export type NoteReplyState = 'coming' | 'ended' | 'unknown'
+export type NoteReply = Readonly<{ text: string; state: NoteReplyState; more?: true }>
+export type NotePhrase = Readonly<{ key: string; label: string }>
+
 /** The say note: `targets` null when who can be spoken to cannot be read; `to` is the default; pictures by id; the unsent words, who the person chose and the `edit` they stand at. */
 export type SceneNote = Readonly<{
   targets: readonly NoteTarget[] | null
@@ -60,6 +64,8 @@ export type SceneNote = Readonly<{
   words: string
   chosen?: NoteTo
   edit: number
+  reply?: NoteReply
+  phrases?: readonly NotePhrase[]
 }>
 
 export type SceneFrame = Readonly<{ rect: Rect; covered: readonly Rect[]; closed: boolean }>
@@ -130,6 +136,7 @@ export type Up =
       pictures?: readonly string[]
     }>
   | Readonly<{ kind: 'input'; lease: number; input: 'unpicture'; picture: string }>
+  | Readonly<{ kind: 'input'; lease: number; input: 'phrase'; key: string }>
   | Readonly<{
       kind: 'input'
       lease: number
@@ -181,6 +188,21 @@ const isSceneLook = (value: unknown): boolean => {
   return look !== undefined && isText(look['issuer']) && isNumber(look['version'])
 }
 
+const REPLY_STATES: readonly unknown[] = ['coming', 'ended', 'unknown']
+
+const isReply = (value: unknown): boolean => {
+  const reply = fields(value)
+  return (
+    reply !== undefined &&
+    isText(reply['text']) &&
+    REPLY_STATES.includes(reply['state']) &&
+    optional(reply['more'], more => more === true)
+  )
+}
+
+const isPhrase = (value: unknown): boolean =>
+  isText(fields(value)?.['key']) && isText(fields(value)?.['label'])
+
 const isNote = (value: unknown): boolean => {
   if (value === null || value === undefined) return true
   const note = fields(value)
@@ -188,7 +210,9 @@ const isNote = (value: unknown): boolean => {
     note !== undefined &&
     isText(note['words']) &&
     isNumber(note['edit']) &&
-    optional(note['chosen'], isTo)
+    optional(note['chosen'], isTo) &&
+    optional(note['reply'], isReply) &&
+    optional(note['phrases'], phrases => Array.isArray(phrases) && phrases.every(isPhrase))
   )
 }
 
@@ -301,6 +325,12 @@ const isUnpicture = (kind: string, message: Fields): boolean =>
   isNumber(message['lease']) &&
   typeof message['picture'] === 'string'
 
+const isPhraseInput = (kind: string, message: Fields): boolean =>
+  kind === 'input' &&
+  message['input'] === 'phrase' &&
+  isNumber(message['lease']) &&
+  isText(message['key'])
+
 const isHandover = (kind: string, message: Fields): boolean =>
   HANDOVERS.includes(kind) && isNumber(message['lease']) && isNumber(message['serial'])
 
@@ -354,19 +384,23 @@ const isInput = (kind: string, message: Fields): boolean =>
   optional(message['meta'], isFlag) &&
   optional(message['shift'], isFlag)
 
+const UP_KINDS: readonly ((kind: string, message: Fields) => boolean)[] = [
+  isWords,
+  isUnpicture,
+  isPhraseInput,
+  isHandover,
+  isInput,
+  isUndrawn,
+  isNavigate,
+  isTold,
+]
+
 export function readUp(data: unknown): Up | undefined {
   const message = fields(data)
   if (message === undefined) return undefined
   const kind = String(message['kind'])
   if (kind === 'hello') return { kind: 'hello' }
-  const known =
-    isWords(kind, message) ||
-    isUnpicture(kind, message) ||
-    isHandover(kind, message) ||
-    isInput(kind, message) ||
-    isUndrawn(kind, message) ||
-    isNavigate(kind, message) ||
-    isTold(kind, message)
+  const known = UP_KINDS.some(is => is(kind, message))
   return known ? (message as Up) : undefined
 }
 

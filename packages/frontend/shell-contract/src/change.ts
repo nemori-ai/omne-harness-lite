@@ -8,12 +8,14 @@ import {
   type Scope,
 } from '@omne-harness/dynamis'
 import { PART_ATTRIBUTE, PARTS_POINT, partsOn, type DeclaredPart, type PartRender } from './part.ts'
+import { GRANTS_ITSELF } from './closed.ts'
 import type { DrawingSource } from './point.ts'
 
 export const TOKENS_POINT = 'shell.tokens'
 export const STYLE_POINT = 'shell.part-style'
 export const RENDER_POINT = 'shell.part-render'
 export const LAYOUT_POINT = 'shell.layout'
+export const PHRASE_POINT = 'shell.say-phrase'
 
 const APP = 'shell.app'
 const LAYER = 'omne-changes'
@@ -40,6 +42,10 @@ export type RenderItem = Readonly<{ render: PartRender; source?: DrawingSource }
 
 export type LayoutItem = Readonly<{ order: readonly string[] }>
 
+export type PhraseItem = Readonly<{ label: string; words: string; order?: number }>
+
+export type SayPhrase = Readonly<{ key: string; label: string; words: string }>
+
 export type Standing = Readonly<{
   point: string
   key: string
@@ -54,6 +60,7 @@ export type Refused = Readonly<{
   by: string
   scope: Scope
   reason: string
+  absent?: string
 }>
 
 export type Conflict = Readonly<{ point: string; key: string; by: readonly string[] }>
@@ -159,6 +166,46 @@ export const layoutContract: Contract = {
   summary:
     'The order of the pages in the navigation: the page ids an item names come first, in its order, and the other pages follow as they were.',
   example: '{"point":"shell.layout","key":"shell.pages","data":["assets","conversation"]}',
+}
+
+export const phraseContract: Contract = {
+  name: PHRASE_POINT,
+  tree: 'client',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key: 'the mark of the phrase; to the shell it is only text',
+  gives: 'nothing: the item is data, the label of a button and the words it sends',
+  item: { kind: 'data', fields: { label: 'string', words: 'string' } },
+  resolve: 'most-specific',
+  binding: 'run',
+  onError:
+    'an item the rule refuses does not count, and the answer of the shell names who put it and why; two different items at one scope are a conflict, and the key does not count',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance:
+    'the label is one line of 1 to 12 characters; the words are 1 to 400 characters; neither is only blank space; the order is a whole number, 100 when left out',
+  summary:
+    'The ready phrases beside the note: a button that sends its words with the pictures in the note. The first four by order and then by key show. The shell ships shell.expand, shell.todo and shell.keep for everyone; one put on the same key for a tenant or a look takes its place.',
+  example:
+    '{"point":"shell.say-phrase","key":"notes.translate","data":{"label":"翻成英文","words":"把图里的字翻成英文"}}',
+}
+
+const SHIPPED_PHRASES: readonly (readonly [key: string, words: string, order: number])[] = [
+  ['shell.expand', '展开讲讲', 10],
+  ['shell.todo', '记成待办', 20],
+  ['shell.keep', '收藏下来', 30],
+]
+
+export function phraseEntry(key: string, item: PhraseItem, scope: Scope): Entry<PhraseItem> {
+  const digest = JSON.stringify(ordered(item))
+  return { point: PHRASE_POINT, key, id: '', scope, rank: 0, digest, item }
+}
+
+export function shippedPhrases(): readonly Entry<PhraseItem>[] {
+  return SHIPPED_PHRASES.map(([key, words, order]) =>
+    phraseEntry(key, { label: words, words, order }, []),
+  )
 }
 
 /** The scope of what one tenant put, and of the one who asks as that tenant; nobody signed in asks as the deployment. */
@@ -306,6 +353,7 @@ type Kind<I> = Readonly<{
   point: string
   fault: (key: string, item: I, parts: readonly DeclaredPart[], tokens: Tokens) => string | null
   builtIn?: (item: I) => boolean
+  onParts?: true
 }>
 
 function partFaultOf(key: string, depth: string, parts: readonly DeclaredPart[]): string | null {
@@ -433,30 +481,67 @@ function layoutFault(key: string, item: LayoutItem): string | null {
   return twice === undefined ? null : `the order names ${String(twice)} twice`
 }
 
+const LABEL_LONGEST = 12
+const WORDS_LONGEST = 400
+const ORDER_UNSAID = 100
+const SHOWN_PHRASES = 4
+
+const lengthOf = (text: string): number => Array.from(text).length
+
+function phraseFault(item: PhraseItem): string | null {
+  const { label, words, order } = item
+  if (label === '') return 'the label is empty'
+  if (label.trim() === '') return 'the label is only blank space'
+  if (lengthOf(label) > LABEL_LONGEST) return `the label is longer than ${LABEL_LONGEST} characters`
+  if (/[\n\r]/u.test(label)) return 'the label is more than one line'
+  if (words === '') return 'the words are empty'
+  if (words.trim() === '') return 'the words are only blank space'
+  if (lengthOf(words) > WORDS_LONGEST)
+    return `the words are longer than ${WORDS_LONGEST} characters`
+  return order === undefined || Number.isInteger(order) ? null : 'the order is not a whole number'
+}
+
+function phrasesOf(stands: Map<string, PhraseItem>): readonly SayPhrase[] {
+  return Array.from(stands, ([key, { label, words, order = ORDER_UNSAID }]) => ({
+    order,
+    phrase: { key, label, words },
+  }))
+    .sort(
+      (left, right) => left.order - right.order || (left.phrase.key < right.phrase.key ? -1 : 1),
+    )
+    .slice(0, SHOWN_PHRASES)
+    .map(({ phrase }) => phrase)
+}
+
 const TOKENS: Kind<TokensItem> = {
   point: TOKENS_POINT,
+  onParts: true,
   fault: (key, item, parts, tokens) =>
     partFaultOf(key, 'tokens', parts) ?? tokensFault(item, tokens),
   builtIn: item => item.builtIn === true,
 }
 const STYLE: Kind<StyleItem> = {
   point: STYLE_POINT,
+  onParts: true,
   fault: (key, item, parts) => partFaultOf(key, 'style', parts) ?? styleFault(item),
 }
 const RENDER: Kind<RenderItem> = {
   point: RENDER_POINT,
+  onParts: true,
   fault: (key, _item, parts) => partFaultOf(key, 'render', parts),
 }
 const LAYOUT: Kind<LayoutItem> = { point: LAYOUT_POINT, fault: layoutFault }
+const PHRASE: Kind<PhraseItem> = { point: PHRASE_POINT, fault: (_key, item) => phraseFault(item) }
 
 const placeOf = (out: Refused): string => `${out.point}\n${out.key}\n${out.by}`
 
-const refusal = (entry: Placed, reason: string): Refused => ({
+const refusal = (entry: Placed, reason: string, absent?: string): Refused => ({
   point: entry.point,
   key: entry.key,
   by: entry.instance.fiber,
   scope: entry.scope,
   reason,
+  ...(absent !== undefined && { absent }),
 })
 
 type Found = { standing: Standing[]; refused: Refused[]; conflicts: Conflict[] }
@@ -478,7 +563,8 @@ function standingOn<I>(kind: Kind<I>, asked: Asked): Map<string, I> {
   found.refused.push(...read.filtered.map(out => refusal(out.entry, out.detail)))
   const sound = read.entries.filter(entry => {
     const fault = kind.fault(entry.key, entry.item, asked.parts, asked.tokens)
-    if (fault !== null) found.refused.push(refusal(entry, fault))
+    const absent = kind.onParts && !asked.parts.some(part => part.name === entry.key)
+    if (fault !== null) found.refused.push(refusal(entry, fault, absent ? entry.key : undefined))
     return fault === null
   })
   for (const key of new Set(sound.map(entry => entry.key))) {
@@ -506,7 +592,19 @@ function rulesOf<I>(stands: Map<string, I>, write: (key: string, item: I) => str
   ].join('')
 }
 
-export type ChangesRead = Readonly<{ changes: Changes; drawn: ReadonlyMap<string, RenderItem> }>
+function phrasesAsked(asked: Asked): readonly SayPhrase[] {
+  const own: Found = { standing: [], refused: [], conflicts: [] }
+  const stands = standingOn(PHRASE, { ...asked, found: own })
+  asked.found.refused.push(...own.refused)
+  asked.found.conflicts.push(...own.conflicts)
+  return phrasesOf(stands)
+}
+
+export type ChangesRead = Readonly<{
+  changes: Changes
+  drawn: ReadonlyMap<string, RenderItem>
+  phrases: readonly SayPhrase[]
+}>
 
 /** What the changes put on the parts come to for one asker: the sheet, the drawings, the layouts, who stands on each key, and what does not count. */
 export function changesOn(
@@ -525,7 +623,7 @@ export function readChanges(
   names: Names = () => undefined,
 ): ChangesRead {
   const found: Found = { standing: [], refused: [], conflicts: [] }
-  const declared = partsOn(registry)
+  const declared = partsOn(registry, asker)
   const parts = declared.kind === 'read' ? declared.parts : []
   const asked: Asked = { registry, asker, parts, tokens: { known, names }, found }
   const tokens = standingOn(TOKENS, asked)
@@ -537,8 +635,10 @@ export function readChanges(
   const layouts = Object.fromEntries(
     Array.from(standingOn(LAYOUT, asked), ([key, item]) => [key, item.order] as const),
   )
+  const phrases = phrasesAsked(asked)
   found.refused.sort((left, right) => (placeOf(left) < placeOf(right) ? -1 : 1))
-  return { changes: { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts, app }, drawn }
+  const changes = { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts, app }
+  return { changes, drawn, phrases }
 }
 
 /** The pages in the order of a layout: the ids it names first, in its order; the rest as they were. */
@@ -549,4 +649,98 @@ export function laidOut<T extends Readonly<{ id: string }>>(
   if (order === undefined) return items
   const named = order.flatMap(id => items.filter(item => item.id === id))
   return [...named, ...items.filter(item => !order.includes(item.id))]
+}
+
+export const GUEST_FORMS_POINT = 'plugin.guest-forms'
+
+const lent = (name: string, key: string, field: string, summary: string): Contract => ({
+  name,
+  tree: 'client',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key,
+  gives: 'nothing',
+  item: { kind: 'pure', fields: { [field]: 'function' } },
+  resolve: 'conflict',
+  binding: 'build',
+  onError: 'what is not there is not lent',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  scopes: GRANTS_ITSELF,
+  summary,
+})
+
+export const pluginContracts: readonly Contract[] = [
+  lent(
+    'plugin.ports',
+    'the name of a port, as a plugin writes it in needs',
+    'make',
+    'The ports this tree lends to the code of plugins. A plugin names the ones it uses in needs.',
+  ),
+  lent(
+    GUEST_FORMS_POINT,
+    'the name of the point whose items its host makes from what a member gives',
+    'form',
+    'How the host of a point makes one item of it from what a member of a plugin gives: data or what the code gave.',
+  ),
+]
+
+export type GuestFormContext = Readonly<{ key: string; files?: string }>
+
+export type ClientGuestForm = Readonly<{
+  form: (given: unknown, context: GuestFormContext) => object
+  gives: string
+  example: string
+}>
+
+const isEntries = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+function recordUnder(field: string, refusal: string): ClientGuestForm['form'] {
+  return (given, { files }) => {
+    if (!isEntries(given)) throw new Error(refusal)
+    return { [field]: given, ...(files !== undefined && { files }) }
+  }
+}
+
+export const shellGuestForms: Readonly<Record<string, ClientGuestForm>> = {
+  [TOKENS_POINT]: {
+    form: recordUnder('tokens', 'the data is not a record of names and values'),
+    gives: 'data: a record of token names and their values',
+    example: tokensContract.example ?? '',
+  },
+  [STYLE_POINT]: {
+    form: recordUnder('style', 'the data is not a record of states and declarations'),
+    gives: 'data: a record of states (base, hover, …) and their declarations',
+    example: styleContract.example ?? '',
+  },
+  [LAYOUT_POINT]: {
+    form: given => {
+      if (!Array.isArray(given)) throw new Error('the data is not a list of ids')
+      return { order: given }
+    },
+    gives: 'data: the ids of the pages, the first ones first',
+    example: layoutContract.example ?? '',
+  },
+  [PHRASE_POINT]: {
+    form: given => {
+      if (!isEntries(given)) throw new Error('the data is not a record of a label and words')
+      return given
+    },
+    gives: 'data: the label of a button and the words it sends, with an order if you like',
+    example: phraseContract.example ?? '',
+  },
+}
+
+export function itemEntry(
+  spot: Readonly<{ point: string; key: string; id?: string; rank?: number }>,
+  item: object,
+  scope: Scope,
+  by: string | undefined,
+): Entry {
+  const { point, key, id = '', rank = 0 } = spot
+  const digest = by ?? JSON.stringify(ordered(item))
+  return { point, key, id, scope, rank, digest, item }
 }

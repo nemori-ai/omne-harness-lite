@@ -494,7 +494,8 @@ function inBandError(errorType: string | null): Refusal {
         : errorType === 'authentication_error' || errorType === 'permission_error'
           ? 'credential'
           : 'unclassified'
-  return { fault: { cause, diagnostic: 'in-band-error', upstreamStatus: null } }
+  const fault = { cause, diagnostic: 'in-band-error', upstreamStatus: null } as const
+  return { fault: errorType === 'rate_limit_error' ? { ...fault, throttled: true } : fault }
 }
 
 function blockId(index: string): BlockId {

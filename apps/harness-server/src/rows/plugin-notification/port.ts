@@ -35,5 +35,15 @@ export const notificationsPortEntry = (ctx: Context) => ({
   scope: [],
   rank: 0,
   digest: `${NOTIFICATIONS_PORT}@plugin-notification`,
-  item: { make: notificationsPort(ctx) },
+  item: {
+    make: notificationsPort(ctx),
+    methods: {
+      send: {
+        takes:
+          '{ identity: { tenant, source, eventId }, event }: one event to tell, in the shape the send of Notification takes it; source is a notification source this tenant has',
+        answers:
+          'done with { recalled } (true when the same event was sent before); refused with the reason Notification gives; unavailable; unknown',
+      },
+    },
+  },
 })

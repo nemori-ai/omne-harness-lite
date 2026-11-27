@@ -73,7 +73,7 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4084,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1005,
-      "packages/agent/agent/src/loop/coordinator.ts": 3165,
+      "packages/agent/agent/src/loop/coordinator.ts": 3143,
       "packages/agent/agent/src/testing/journal.ts": 3575,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1040,
@@ -81,7 +81,7 @@
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1025,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1604,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1603,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1214,
@@ -159,11 +159,11 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2765
+        "longest": 2733
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 592
+        "longest": 585
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
@@ -487,7 +487,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1061
+        "longest": 1059
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -555,7 +555,7 @@
       },
       "packages/session/session/src/advance.ts": {
         "count": 1,
-        "longest": 477
+        "longest": 473
       },
       "packages/session/session/src/command.ts": {
         "count": 1,

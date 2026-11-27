@@ -149,8 +149,9 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[Skill 产品：产品需求描述](../../product/skills/design.md#产品需求描述)（rev 10）
+- **出处**：[Skill 产品：产品需求描述](../../product/skills/design.md#产品需求描述)（rev 11）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
+- **别混 ②**：**不是 [MCP 技能](reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill)**。MCP 技能由 MCP 接入点的对端经连接提供，不是资产，没有持有、版本与发布
 - **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
 
@@ -166,7 +167,7 @@
 > lower layer can shadow it with a Skill of the same name.
 
 - **形态**：变体（父：[技能](#ul-skill--技能--skill)）
-- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 10）
+- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 11）
 - **⚠️ 别混**：**不是 [meta 能力](#ul-meta-capability--meta-能力--meta-capability)**——meta 能力是一整类能力的统一入口（`Tools()`、`Skills()` 这类元工具）；元技能是那扇门后的一份方法，经 `Skills()` 读取。名字只差一个字，跨 topic 引用写全称
 - **注意**：它的「不可替换」来自它自己的 `immutable` 声明，不是 meta 能力的那条规则。租户自己写的、同样教人写 Skill 的 Skill 不是元技能
 
@@ -223,9 +224,10 @@
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 7）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 8）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
+- **注意 ③**：接入点还可以带来 [MCP 事件类型](reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type)与 [MCP 技能](reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill)。它们和动作一样不单独成为资产，随接入点一起被持有、授权与治理
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
 - **弃用**：~~「端点」~~、~~Endpoint~~（指本条时；指对端地址时不是术语）
 - **能组合**：**不组合任何资产**
@@ -551,7 +553,7 @@
 > Skins are a category of their own among the assets. They are not listed with the plugins.
 
 - **形态**：变体（父：[插件](#ul-plugin--插件--plugin)）
-- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 13）
+- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 14）
 - **别混 ①**：不是主题。主题是浅色、深色、跟随系统三选一，由应用自带；皮肤是持有的资产，一套皮肤自己要顾到浅色与深色
 - **别混 ②**：启用不等于在用。启用是这一套装着、可以用；界面此刻用哪一套是人在这台设备上的[观感偏好](interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)
 - **别混 ③**：一份只改几处样子的普通 plugin 不是皮肤：它没有在清单里写明，不进皮肤这一类，也不受「至多用一套」的约束
@@ -729,7 +731,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -748,7 +750,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 13） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 14） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
@@ -765,7 +767,7 @@
 > The format rules inside the package belong to the skill kind.
 
 - **形态**：属性
-- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 10） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 9）
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 9）
 - **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
 - **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
 - **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
@@ -786,7 +788,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 10）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
@@ -815,7 +817,7 @@
 > source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 10）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
 - **别混 ②**：**不是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在 Skill 材料依据里，调用方不能用它指定从哪里读取

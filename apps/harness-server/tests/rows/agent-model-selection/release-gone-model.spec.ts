@@ -5,7 +5,8 @@ import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesLocalPlugin } from '@omne-harness/model-host-local/cordis'
 import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
-import { modelRowsOperatorConfig } from '../../r9/support.ts'
+import { modelRowsOperatorConfig, savedTenant } from '../../r9/support.ts'
+import { sessionRef, tenantOf } from '../../support/protocol-clients.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -59,7 +60,7 @@ const ends = (tree: ReleaseTree, session: string, count: number) =>
 
 describe('a session whose selected model goes away (C5)', () => {
   it.each(['withdrawn', 'unknown-name'] as const)(
-    'ends its next Run as failed, without a model request, once the model is %s',
+    'ends its next Run as failed, without a model request, once the model is %s; the reason reaches the log and the client',
     { tags: ['slow'], timeout: 240_000 },
     async gone => {
       now.gone = null
@@ -84,9 +85,23 @@ describe('a session whose selected model goes away (C5)', () => {
         const terminal = history.filter(entry => entry.kind === 'run.terminal').at(-1)
         expect(terminal?.payload).toMatchObject({
           terminal: { outcome: 'failed' },
-          end: { conclusion: 'fail', failure: { kind: 'node-failed', failureKind: 'invalid' } },
+          end: {
+            conclusion: 'fail',
+            failure: { kind: 'node-failed', failureKind: 'invalid', diagnostic: `model ${gone}` },
+          },
         })
         expect(requests).toBe(before)
+        const read = tree.clients.session['read-waiting']
+        const waiting = await read({
+          tenant: tenantOf(savedTenant(tree.home)),
+          session: sessionRef(session),
+        } as Parameters<typeof read>[0])
+        expect(waiting).toMatchObject({
+          outcome: 'succeeded',
+          body: {
+            waiting: { cause: { kind: 'node-failed', detail: `model ${gone}`, fault: null } },
+          },
+        })
       })
       now.gone = null
       expect(exitCode).toBe(0)

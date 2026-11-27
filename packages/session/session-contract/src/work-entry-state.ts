@@ -6,7 +6,7 @@ import type { EntryId } from './identity.ts'
 import type { SessionCallWait } from './call-values.ts'
 import type { ControlProgress, WorkSnapshot } from './values.ts'
 import type { SessionWorkEntryIndex, SessionControlEntryReferences } from './work-entry-values.ts'
-import { nonempty, unavailableAt, unique } from './session-validation.ts'
+import { missingAt, nonempty, unavailableAt, unique } from './session-validation.ts'
 
 export function unsettled(control: ControlProgress): boolean {
   return (
@@ -19,7 +19,7 @@ function selectedWait(index: SessionWorkEntryIndex, wait: SessionCallWait) {
   const call = index.calls.find(item => item.consumption === wait.consumption)
   const waiting = call?.waits.find(item => item.position === wait.position)
   if (call === undefined || waiting === undefined)
-    unavailableAt(`workEntryIndex.wait.${wait.consumption}/${wait.position}`)
+    missingAt(`workEntryIndex.wait.${wait.consumption}/${wait.position}`)
   return {
     consumption: wait.consumption,
     position: wait.position,
@@ -39,7 +39,7 @@ export function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[] 
     snapshot.callWaits === undefined &&
     snapshot.callRegistrations?.some(call => call.registration.kind === 'tool-intent')
   )
-    unavailableAt('workEntryIndex.originalWaiting')
+    missingAt('workEntryIndex.originalWaiting')
   const controls = snapshot.controls.filter(unsettled)
   if (waits.length === 0 && controls.length === 0) return []
   const index = snapshot.workEntryIndex
@@ -54,7 +54,7 @@ export function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[] 
   for (const wait of waits) addSelected(selectedWait(index, wait))
   for (const control of controls) {
     const original = index.controls.find(item => item.operation === control.operation)
-    if (original === undefined) unavailableAt(`workEntryIndex.control.${control.operation}`)
+    if (original === undefined) missingAt(`workEntryIndex.control.${control.operation}`)
     refs.push(original.intent)
     if (original.progress !== null) refs.push(original.progress)
     unique(
@@ -68,7 +68,7 @@ export function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[] 
           item => item.consumption === wait.consumption && item.position === wait.position,
         )
       )
-        unavailableAt('workEntryIndex.control.selected')
+        missingAt('workEntryIndex.control.selected')
     for (const selected of original.selected) addSelected(selected)
   }
   for (const ref of refs) nonempty(ref, 'workEntryIndex.reference')
@@ -128,7 +128,7 @@ export function projectWorkEntries(
   if (entry.kind === 'control.progress' && entry.progress !== null) {
     const operation = entry.progress.operation
     if (!controls.some(item => item.operation === operation) && unsettled(entry.progress))
-      unavailableAt('workEntryIndex.control.intent')
+      missingAt('workEntryIndex.control.intent')
     controls = controls.map(item =>
       item.operation === operation ? { ...item, progress: row.id } : item,
     )
@@ -141,7 +141,7 @@ export function projectWorkEntries(
     const current = after.callWaits ?? []
     for (const wait of current)
       if (!calls.some(item => item.consumption === wait.consumption))
-        unavailableAt('workEntryIndex.wait.registered')
+        missingAt('workEntryIndex.wait.registered')
     calls = calls.map(call => ({
       ...call,
       waits: current

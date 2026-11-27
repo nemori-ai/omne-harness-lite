@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Absent` · `side-state.d.ts`
 - `Bound` · `ports.d.ts`
 - `DataMember` · `manifest.d.ts`
 - `DirectoryMember` · `manifest.d.ts`
@@ -15,6 +16,7 @@
 - `IMAGE_HEAD_BYTES` · `package.d.ts`
 - `IMAGE_SUFFIXES` · `package.d.ts`
 - `JsonValue` · `manifest.d.ts`
+- `Judgment` · `judge-member.d.ts`
 - `Kept` · `loader.d.ts`
 - `Listed` · `loader.d.ts`
 - `Loader` · `loader.d.ts`
@@ -34,10 +36,12 @@
 - `PluginKind` · `manifest.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
+- `PointRules` · `judge-member.d.ts`
 - `Port` · `ports.d.ts`
 - `PortAnswer` · `ports.d.ts`
 - `PortData` · `ports.d.ts`
 - `PortFactory` · `ports.d.ts`
+- `Reason` · `judge-member.d.ts`
 - `ReportedPoint` · `plugin-protocol.d.ts`
 - `ReportedPointContract` · `plugin-protocol.d.ts`
 - `Side` · `manifest.d.ts`
@@ -46,24 +50,31 @@
 - `SideName` · `manifest.d.ts`
 - `SideState` · `side-state.d.ts`
 - `SideStep` · `side-state.d.ts`
+- `Target` · `judge-member.d.ts`
 - `UNWANTED` · `side-state.d.ts`
 - `Wanted` · `wanted.d.ts`
+- `Way` · `judge-member.d.ts`
 - `bindPorts` · `ports.d.ts`
 - `createLoader` · `loader.d.ts`
 - `fiberOf` · `floor.d.ts`
 - `fileRefs` · `package.d.ts`
+- `genericItem` · `judge-member.d.ts`
 - `heldOf` · `floor.d.ts`
 - `imageFault` · `package.d.ts`
 - `insidePackage` · `manifest.d.ts`
+- `judgeMember` · `judge-member.d.ts`
 - `judgePackage` · `package.d.ts`
+- `lacksText` · `side-state.d.ts`
 - `memberDigest` · `package.d.ts`
 - `memberKind` · `manifest.d.ts`
 - `membersOf` · `package.d.ts`
 - `pluginProtocol` · `plugin-protocol.d.ts`
 - `readManifest` · `manifest.d.ts`
+- `reasonText` · `judge-member.d.ts`
 - `standingOf` · `floor.d.ts`
 - `stepSide` · `side-state.d.ts`
 - `wantedOf` · `wanted.d.ts`
+- `wayOf` · `judge-member.d.ts`
 
 ## 声明文件 `floor.d.ts`
 
@@ -96,23 +107,102 @@ export declare function standingOf(states: ReadonlyMap<string, Kept>): FloorStan
 export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginKind, type PluginManifest, type Side, type SideName, } from './manifest.ts';
 export { FILE_SUFFIXES, IMAGE_HEAD_BYTES, IMAGE_SUFFIXES, fileRefs, imageFault, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
 export { pluginProtocol, type PluginProtocol, type ReportedPoint, type ReportedPointContract, } from './plugin-protocol.ts';
-export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
+export { UNWANTED, lacksText, stepSide, type Absent, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
 export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
 export { createLoader, type Kept, type Listed, type Loader, type LoaderDeps, type Outcome, } from './loader.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
+export { genericItem, judgeMember, reasonText, wayOf, type Judgment, type PointRules, type Reason, type Target, type Way, } from './judge-member.ts';
 export { bindPorts, type Bound, type Port, type PortAnswer, type PortData, type PortFactory, } from './ports.ts';
+```
+
+## 声明文件 `judge-member.d.ts`
+
+```ts
+import type { Member } from './manifest.ts';
+import type { Absent } from './side-state.ts';
+type FieldKind = 'string' | 'number' | 'boolean' | 'function' | 'object' | 'array';
+export type PointRules = Readonly<{
+    binding: 'build' | 'run';
+    item: Readonly<{
+        kind: 'data' | 'pure' | 'effect';
+        fields: Readonly<Record<string, FieldKind>>;
+    }>;
+    scopes?: 'all' | Readonly<{
+        only: 'deployment';
+        why: string;
+        note: string;
+    }>;
+}>;
+export type Target = Readonly<{
+    kind: 'absent';
+}> | Readonly<{
+    kind: 'point';
+    rules: PointRules;
+    form: boolean;
+}> | Readonly<{
+    kind: 'category';
+    takes: 'data' | 'directory';
+}> | Readonly<{
+    kind: 'category';
+    takes: 'none';
+    why: string;
+}>;
+export type Way = 'data' | 'directory' | 'code';
+export type Reason = Readonly<{
+    kind: 'absent';
+    absent: Absent;
+}> | Readonly<{
+    kind: 'closed';
+    why: string;
+    note: string;
+}> | Readonly<{
+    kind: 'fixed';
+}> | Readonly<{
+    kind: 'wrong-way';
+    takes: Way;
+    gives: Way;
+}> | Readonly<{
+    kind: 'threw';
+    detail: string;
+}> | Readonly<{
+    kind: 'refused';
+    detail: string;
+}>;
+export type Judgment = Readonly<{
+    kind: 'data';
+}> | Readonly<{
+    kind: 'held';
+    way: 'data' | 'directory';
+}> | Readonly<{
+    kind: 'code';
+    form: 'special' | 'generic';
+}> | Readonly<{
+    kind: 'not';
+    reason: Reason;
+}>;
+export declare const wayOf: (member: Member) => Way;
+export declare function judgeMember(target: Target, member: Member): Judgment;
+export declare function reasonText(reason: Reason): string;
+export declare function genericItem(rules: PointRules, given: unknown, spot?: Readonly<{
+    id?: string;
+    rank?: number;
+}>): Readonly<{
+    item: object;
+}> | Reason;
+export {};
 ```
 
 ## 声明文件 `loader.d.ts`
 
 ```ts
 import type { Member, PluginKind } from './manifest.ts';
-import { type SideState } from './side-state.ts';
+import { type Absent, type SideState } from './side-state.ts';
 export type Listed = Readonly<{
     name: string;
     version: string;
     kind?: PluginKind;
     members: readonly Member[];
+    needs?: readonly string[];
     fault?: string;
 }>;
 export type Kept = Exclude<SideState, {
@@ -126,7 +216,7 @@ export type Outcome = Readonly<{
     reason: string;
 }> | Readonly<{
     kind: 'waiting';
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'held';
 }>;
@@ -389,6 +479,33 @@ declare const point: {
                             ];
                         };
                     };
+                    readonly scopes: {
+                        readonly rule: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly only: {
+                                    rule: {
+                                        readonly kind: 'literal';
+                                        readonly values: readonly [
+                                            "deployment"
+                                        ];
+                                    };
+                                };
+                                readonly why: {
+                                    rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly note: {
+                                    rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                            };
+                        };
+                        readonly optional: true;
+                        readonly since: 3;
+                    };
                 };
             };
             readonly optional: true;
@@ -423,6 +540,25 @@ declare const point: {
             };
             readonly optional: true;
             readonly since: 2;
+        };
+        readonly form: {
+            readonly rule: {
+                readonly kind: 'object';
+                readonly fields: {
+                    readonly gives: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                    readonly example: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                };
+            };
+            readonly optional: true;
+            readonly since: 3;
         };
     };
 };
@@ -497,6 +633,7 @@ export declare const pluginProtocol: {
             readonly limit: "input";
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly client: string;
+                readonly handed?: readonly string[];
                 readonly parts: readonly {
                     readonly depths: readonly ("render" | "style" | "tokens")[];
                     readonly label: string;
@@ -509,6 +646,7 @@ export declare const pluginProtocol: {
                     readonly reason: string | null;
                     readonly state: "failed" | "held" | "loaded";
                     readonly version: string;
+                    readonly waiting?: readonly string[];
                 }[];
                 readonly points: readonly {
                     readonly contract?: {
@@ -528,12 +666,21 @@ export declare const pluginProtocol: {
                         readonly onError: string;
                         readonly resolve: "conflict" | "most-specific";
                         readonly revision: number;
+                        readonly scopes?: {
+                            readonly note: string;
+                            readonly only: "deployment";
+                            readonly why: string;
+                        };
                         readonly version: number;
                     };
                     readonly dataKeys?: readonly {
                         readonly name: string;
                         readonly now: string | null;
                     }[];
+                    readonly form?: {
+                        readonly example: string;
+                        readonly gives: string;
+                    };
                     readonly name: string;
                     readonly summary: string;
                 }[];
@@ -545,6 +692,7 @@ export declare const pluginProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly clients: readonly {
                         readonly client: string;
+                        readonly handed?: readonly string[];
                         readonly parts: readonly {
                             readonly depths: readonly ("render" | "style" | "tokens")[];
                             readonly label: string;
@@ -557,6 +705,7 @@ export declare const pluginProtocol: {
                             readonly reason: string | null;
                             readonly state: "failed" | "held" | "loaded";
                             readonly version: string;
+                            readonly waiting?: readonly string[];
                         }[];
                         readonly points: readonly {
                             readonly contract?: {
@@ -576,12 +725,21 @@ export declare const pluginProtocol: {
                                 readonly onError: string;
                                 readonly resolve: "conflict" | "most-specific";
                                 readonly revision: number;
+                                readonly scopes?: {
+                                    readonly note: string;
+                                    readonly only: "deployment";
+                                    readonly why: string;
+                                };
                                 readonly version: number;
                             };
                             readonly dataKeys?: readonly {
                                 readonly name: string;
                                 readonly now: string | null;
                             }[];
+                            readonly form?: {
+                                readonly example: string;
+                                readonly gives: string;
+                            };
                             readonly name: string;
                             readonly summary: string;
                         }[];
@@ -656,6 +814,11 @@ export declare function bindPorts<Caller>(factories: Readonly<Record<string, () 
 ## 声明文件 `side-state.d.ts`
 
 ```ts
+export type Absent = Readonly<{
+    kind: 'port' | 'point' | 'reference';
+    name: string;
+}>;
+export declare const lacksText: (lacks: readonly Absent[]) => string;
 export type SideState = Readonly<{
     kind: 'unwanted';
 }> | Readonly<{
@@ -675,7 +838,7 @@ export type SideState = Readonly<{
 }> | Readonly<{
     kind: 'waiting';
     version: string;
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'held';
     version: string;
@@ -694,7 +857,7 @@ export type SideEvent = Readonly<{
     reason: string;
 }> | Readonly<{
     kind: 'lacking';
-    lacks: readonly string[];
+    lacks: readonly Absent[];
 }> | Readonly<{
     kind: 'appeared';
 }> | Readonly<{

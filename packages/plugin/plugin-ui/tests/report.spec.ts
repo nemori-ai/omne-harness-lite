@@ -47,7 +47,7 @@ type Sent = Readonly<{
   parts: readonly Readonly<{ name: string }>[]
 }>
 
-async function world(floor?: FloorPort) {
+async function world(floor?: FloorPort, reports?: boolean) {
   const started = await startShellOf(Signed)
   let notes: Context | undefined
   await started.root.plugin({
@@ -65,6 +65,7 @@ async function world(floor?: FloorPort) {
       backoff: { delayMs: () => 1 },
       clientId: () => 'desktop-1',
       ...(floor && { floor }),
+      ...(reports !== undefined && { reports }),
     }),
   )
   await module
@@ -91,6 +92,13 @@ describe('what the client tells the server of itself', () => {
     expect(await t.quiet()).toBe(1)
   })
 
+  it('is told nothing by a page drawn only to be looked at, though it loads the same', async () => {
+    const t = await world(undefined, false)
+    t.source.set(ALICE, [given('brand', 'v1', colored('red'))])
+    await vi.waitFor(() => expect(t.source.opened.at(-1)).toMatchObject({ client: 'desktop-1' }))
+    expect(await t.quiet()).toBe(0)
+  })
+
   it('says of each plugin whether it is loaded, or failed and why, by name', async () => {
     const t = await world()
     t.source.set(ALICE, [
@@ -103,7 +111,8 @@ describe('what the client tells the server of itself', () => {
           name: 'aside',
           version: 'v2',
           state: 'failed',
-          reason: `${STYLE_POINT} notes.nowhere: no part is declared as notes.nowhere`,
+          reason: 'waits for reference notes.nowhere',
+          waiting: ['notes.nowhere'],
         },
         { name: 'brand', version: 'v1', state: 'loaded', reason: null },
       ]),

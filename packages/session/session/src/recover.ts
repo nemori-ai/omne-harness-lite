@@ -14,7 +14,8 @@ import {
 } from '@omne-harness/session-contract'
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
-import { messageOf } from './failures.ts'
+import type { Advance } from './advance.ts'
+import { messageOf, type DriveRefusal } from './failures.ts'
 import { handedRun, type KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import { sessionKey, type Scheduling, type SessionRef } from './scheduling.ts'
@@ -70,9 +71,10 @@ export function createRecovery<P>(
     scheduling: Scheduling<P>
     coordinator: SessionFaces<P>
     known: KnownHandovers
+    closeRefused: Advance['closeRefused']
   }>,
 ): Recovery {
-  const { dependencies, lifecycle, scheduling, coordinator, known } = input
+  const { dependencies, lifecycle, scheduling, coordinator, known, closeRefused } = input
   const held = new Map<string, number>()
 
   const report = (
@@ -125,6 +127,16 @@ export function createRecovery<P>(
     return null
   }
 
+  const closeRun = async (ref: SessionRef, run: RunId, refusal: DriveRefusal): Promise<void> => {
+    const principal = await scheduling.principal('coordinator', ref)
+    if ('failure' in principal) return
+    const snapshot = await coordinator.work.readWork({ principal: principal.ok, ...ref })
+    if ('failure' in snapshot) return
+    const active = snapshot.ok.run
+    if (active.kind === 'active' && active.run === run && active.advance !== null)
+      await closeRefused(ref, active.advance, refusal)
+  }
+
   const join: Recovery['join'] = async (ref, port, { run, execution, handover, grant }) => {
     const resumed = await outbound(() =>
       port.resume({
@@ -135,9 +147,10 @@ export function createRecovery<P>(
         grant,
       }),
     )
-    if ('failure' in resumed && !transient(resumed.failure))
-      report(ref, 'resume', run, resumed.failure)
-    return 'ok' in resumed
+    if ('ok' in resumed) return true
+    if (resumed.failure.kind === 'refused') await closeRun(ref, run, resumed.failure)
+    else if (!transient(resumed.failure)) report(ref, 'resume', run, resumed.failure)
+    return false
   }
 
   const takeUp = async (

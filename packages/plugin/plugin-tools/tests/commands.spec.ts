@@ -23,7 +23,7 @@ const world = (over: Partial<World> = {}): World => ({
 const SERVER_T1 = [
   'server',
   '  dynamis',
-  '    dynamis.points   point   The catalog: one item declares one extension point and carries its contract.   [keyed-one]',
+  '    dynamis.points   point   The catalog: one item declares one extension point and carries its contract.   [keyed-one, closed: one-per-process]',
   '      skill.skills',
   '        skill#1  [effective, deployment]',
   '      tool.tools',
@@ -174,9 +174,9 @@ describe('show', () => {
         '输入区右侧，发出当前输入。',
         'in: 对话 › 输入区',
         'depths, shallow first:',
-        '  tokens   data   member: {"point":"shell.tokens","key":"session.composer.send","data":{<token>:<value>}}',
-        '  style    data   member: {"point":"shell.part-style","key":"session.composer.send","data":{"base":{<css property>:<value>},"hover":{…},"disabled":{…}}}',
-        '  render   code   member: {"point":"shell.part-render","key":"session.composer.send","module":<file>,"export":<name>}',
+        '  tokens   —   member: none: no point on this client takes the depth tokens now',
+        '  style    —   member: none: no point on this client takes the depth style now',
+        '  render   —   member: none: no point on this client takes the depth render now',
         'tree rev 7c1f.0',
       ].join('\n'),
     )

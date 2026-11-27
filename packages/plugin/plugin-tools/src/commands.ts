@@ -13,7 +13,7 @@ import type { ArgumentsOf, ExtensionPointsCommandName } from './protocol.ts'
 import { CANNOT_READ, done, invalid, unavailable, type Answer } from './results.ts'
 import type { TreeChange } from './revisions.ts'
 import { pointText, rulesOf } from './rules.ts'
-import { serverPointLines, serverPoints, serverTreeLines } from './server.ts'
+import { serverForm, serverPointLines, serverPoints, serverTreeLines } from './server.ts'
 import { columns, nearest, placeOf, scopeText, score, stateText } from './text.ts'
 
 type Side = 'server' | 'client'
@@ -150,16 +150,27 @@ const show: Handler<'show'> = (sight, { name }) => {
   if (read.server !== 'unavailable') {
     const points = serverPoints(read.server, sight.scope)
     const contract = points.get(name)
-    if (contract !== undefined) blocks.push(serverPointLines(read.server, contract, sight.scope))
+    if (contract !== undefined) {
+      const form = serverForm(read.server, name)
+      const admission = sight.admission?.('server', name, rulesOf(contract), form)
+      blocks.push(serverPointLines(read.server, contract, sight.scope, admission))
+    }
     names.push(...points.keys())
   }
   if (read.clients !== 'unavailable') {
     const part = read.clients.flatMap(client =>
       client.parts.filter(one => one.name === name).map(one => partLines(client, one)),
     )[0]
-    const point = read.clients.flatMap(client => client.points).find(one => one.name === name)
+    const owner = read.clients.find(client => client.points.some(one => one.name === name))
+    const point = owner?.points.find(one => one.name === name)
     if (part !== undefined) blocks.push(part)
-    else if (point !== undefined) blocks.push(clientPointLines(point))
+    else if (point !== undefined) {
+      const admission =
+        point.contract === undefined
+          ? undefined
+          : sight.admission?.('client', name, point.contract, point.form !== undefined)
+      blocks.push(clientPointLines(point, owner?.handed, admission))
+    }
     names.push(...read.clients.flatMap(clientNames))
   }
   if (blocks.length === 0) return notFound('point or part', name, names, read)

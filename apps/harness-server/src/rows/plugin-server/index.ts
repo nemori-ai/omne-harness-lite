@@ -5,13 +5,22 @@ import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { adopt, ask, declare, lockOver, type Binding, type Scope } from '@omne-harness/dynamis'
+import {
+  adopt,
+  ask,
+  declare,
+  lockOver,
+  standingOf,
+  type Binding,
+  type Scope,
+} from '@omne-harness/dynamis'
 import {
   GUEST_FORMS_POINT,
   PORTS_POINT,
   createServerSide,
   guestFormsContract,
   heldPlugins,
+  noMemberOf,
   portsContract,
   serverInstall,
   type GuestForm,
@@ -27,6 +36,7 @@ import {
   bindPorts,
   fiberOf,
   wantedOf,
+  type Absent,
   type PortFactory,
   type Wanted,
 } from '@omne-harness/plugin-protocol'
@@ -36,7 +46,6 @@ import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-s
 import { LAST_FALL_KEY, type Fall } from '../../process-fall.ts'
 import { defineRow } from '../../row.ts'
 import { heldPluginPorts } from '../plugin-host/held-ports.ts'
-import { serverPointsOf } from '../plugin-host/effect-ports.ts'
 import { openRegisteredTenants } from '../registered-tenants.ts'
 import { tenantAssetsKey, type TenantAssetsService } from '../tenant-assets/service.ts'
 import { fileFloor } from './floor-file.ts'
@@ -62,9 +71,10 @@ const lockedBy = (
   registry: ReturnType<typeof registryOf>,
   point: string,
   key: string,
+  id: string,
   scope: Scope,
 ): string | undefined =>
-  registry === undefined ? undefined : lockOver(registry, point, key, scope)?.fiber
+  registry === undefined ? undefined : lockOver(registry, point, key, id, scope)?.fiber
 
 function guestFormOf(ctx: Context, point: string): GuestForm | undefined {
   const registry = registryOf(ctx)
@@ -120,18 +130,40 @@ const heldWithin =
     }
   }
 
-function pointOf(
+const DATA_HELD = 'this tree does not yet make a held item of a category from data'
+
+export function serverPointOf(
   ctx: Context,
   name: string,
-  place: (directory: string) => unknown,
+  place: (directory: string) => unknown = () => {
+    throw new Error('nothing is placed here')
+  },
 ): ServerPoint | undefined {
-  const categories = ctx.get(assetCategoriesKey)?.view
   const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
-  const known = serverPointsOf(registry, categories).find(point => point.name === name)
-  if (known === undefined) return undefined
-  if (categories?.atPoint(name) !== undefined) return { kind: 'category', place }
-  const takes = known.takes === 'data' ? 'data' : 'code'
-  return { kind: 'takes', takes, when: known.when === 'running' ? 'running' : 'build' }
+  const declared = registry === undefined ? undefined : standingOf(registry, name, [])
+  if (declared?.kind !== 'declared') return undefined
+  const category = ctx.get(assetCategoriesKey)?.view.atPoint(name)
+  if (category === undefined) return { kind: 'point', rules: declared.contract }
+  const made = 'creation' in category ? category.creation : 'none'
+  const why = noMemberOf(category.category, made)
+  const named = category.category
+  if (why !== undefined)
+    return { kind: 'category', category: named, takes: 'none', why, place: () => undefined }
+  if (made === 'data')
+    return {
+      kind: 'category',
+      category: named,
+      takes: 'data',
+      place: () => {
+        throw new Error(DATA_HELD)
+      },
+    }
+  return {
+    kind: 'category',
+    category: named,
+    takes: 'directory',
+    place: what => place(String(what)),
+  }
 }
 
 /** Where the fibers of plugins grow: below this row, with the one trusted name it sees isolated away. */
@@ -199,7 +231,7 @@ export const pluginServerRow = defineRow({
       const held = refs.get(tenant)?.get(`${wanted.name}\n${wanted.version}`)
       return serverInstall({
         scope: scopeOfLayer('tenant', tenant),
-        point: name => pointOf(ctx, name, heldWithin(held)),
+        point: name => serverPointOf(ctx, name, heldWithin(held)),
         guestForm: point => guestFormOf(ctx, point),
         needs: names => needsOf(ctx, tenant, names),
         async load(file) {
@@ -207,18 +239,17 @@ export const pluginServerRow = defineRow({
           return loadHeldFile((await assetsOf(ctx)?.open(tenant))?.packages, held, file)
         },
         put: entries => putAs(bare, fiberOf(wanted.name, wanted.version), entries),
-        lockedBy: (point, key) =>
-          lockedBy(registryOf(ctx), point, key, scopeOfLayer('tenant', tenant)),
+        lockedBy: (point, key, id) =>
+          lockedBy(registryOf(ctx), point, key, id, scopeOfLayer('tenant', tenant)),
         within: run => attributed(fallMark(tenant, fiberOf(wanted.name, wanted.version)), run),
       })(wanted)
     }
-    const present = (tenant: string, lacks: readonly string[]): boolean =>
-      lacks.every(lack => {
-        const [kind, name = ''] = lack.split(' ')
-        return kind === 'port'
+    const present = (tenant: string, lacks: readonly Absent[]): boolean =>
+      lacks.every(({ kind, name }) =>
+        kind === 'port'
           ? needsOf(ctx, tenant, [name]).kind === 'adopted'
-          : pointOf(ctx, name, () => undefined) !== undefined
-      })
+          : serverPointOf(ctx, name) !== undefined,
+      )
     const side = createServerSide({ floor, install, present })
     providePluginServer(ctx, tenant => side.states(tenant))
     const converge = (tenant: string, plugins: readonly HeldPlugin[]): void => {

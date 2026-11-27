@@ -11,9 +11,10 @@ import {
 } from '@omne-harness/plugin-access'
 import { createPluginAccessPlugin } from '@omne-harness/plugin-access/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
-import { guestProtocol } from '@omne-harness/plugin-access'
+import { PROTOCOL_EXAMPLE, PROTOCOL_GIVES } from './protocol-form.ts'
 import { GUEST_FORMS_POINT, type GuestForm } from '@omne-harness/plugin-host-local'
-import { PROTOCOLS, protocolItem } from '@omne-harness/server-entry/cordis'
+import { guestItem } from '@omne-harness/server-entry'
+import { PROTOCOLS } from '@omne-harness/server-entry/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
@@ -31,7 +32,7 @@ export const pluginAccessConfig = z.strictObject({
 })
 
 /** How a protocol the code of a plugin wrote becomes an item of the point of protocols. */
-const protocolGuestForm: GuestForm = (made, context) => protocolItem(guestProtocol(made, context))
+const protocolGuestForm: GuestForm = (made, context) => guestItem(made, context)
 
 function principals(ctx: Context): TargetTenantPrincipals {
   const actForMember = memberActingOfCall(ctx)
@@ -81,7 +82,7 @@ export const pluginAccessRow = defineRow({
           scope: [],
           rank: 0,
           digest: `${PROTOCOLS}@plugin-access`,
-          item: { form: protocolGuestForm },
+          item: { form: protocolGuestForm, gives: PROTOCOL_GIVES, example: PROTOCOL_EXAMPLE },
         }
         ;(child.get(dynamisKey) as DynamisService).put([guestForm])
       })

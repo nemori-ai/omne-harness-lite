@@ -88,11 +88,15 @@ export type SayTo = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: 
 export type SayTarget = Readonly<{ key: string; label: string }>
 
 export type SayOutcome =
-  | Readonly<{ kind: 'sent'; key: string }>
+  | Readonly<{ kind: 'sent'; key: string; said?: string }>
   | Readonly<{ kind: 'failed'; reason: string }>
   | Readonly<{ kind: 'unknown' }>
 
 export type SayPicture = Readonly<{ name: string; bytes: Uint8Array }>
+
+export type SayReplyState = 'coming' | 'ended' | 'unknown'
+
+export type SayReply = Readonly<{ text: string; state: SayReplyState }>
 
 export type SayItem = Readonly<{
   id: string
@@ -107,6 +111,11 @@ export type SayItem = Readonly<{
     pictures?: readonly SayPicture[],
   ) => Promise<SayOutcome>
   show: (scope: string | undefined, key: string) => void
+  reply?: (
+    scope: string | undefined,
+    said: string,
+    listener: (reply: SayReply) => void,
+  ) => () => void
 }>
 
 export type AttachedItem = Readonly<{

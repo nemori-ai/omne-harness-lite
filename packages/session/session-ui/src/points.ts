@@ -146,17 +146,31 @@ export type SessionRunFailureSubject = Readonly<{
   session: string
   cause: string
   detail: string | null
+  fault: Readonly<{ cause: string; upstreamStatus: string | null; throttled: boolean }> | null
 }>
+
+const textOrNull = (value: unknown): boolean => value === null || typeof value === 'string'
+
+function faultShape(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const fault = value as Record<string, unknown>
+  return (
+    typeof fault['cause'] === 'string' &&
+    textOrNull(fault['upstreamStatus']) &&
+    typeof fault['throttled'] === 'boolean'
+  )
+}
 
 export const SESSION_RUN_FAILURE = 'session.run-failure'
 
 export const sessionRunFailure: Point<SessionRunFailureSubject> = definePoint({
   name: SESSION_RUN_FAILURE,
   summary:
-    'What is shown under the reason of a failed run of a session, by the domain that knows how to set it right.',
+    'What is shown under the reason of a failed run of a session, by the domain that knows why it failed and how to set it right. The subject carries the kind of the failure, its diagnosis, and what Model said of a failed call.',
   subject: jsonSubject(
     value =>
       texts(value, ['session', 'cause']) &&
-      (value['detail'] === null || typeof value['detail'] === 'string'),
+      textOrNull(value['detail']) &&
+      (value['fault'] === null || faultShape(value['fault'])),
   ),
 })

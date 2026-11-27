@@ -21,11 +21,13 @@ export function serverPointsOf(
   const declared = registry === undefined ? undefined : list<Contract>(registry, CATALOG, null, [])
   if (declared?.kind !== 'read') return []
   return declared.items.map(({ entry }): KnownPoint => {
-    const { name, item, binding } = entry.item
+    const { name, item, binding, scopes } = entry.item
     const category = categories?.atPoint(name)
     const made = category !== undefined && 'creation' in category ? category.creation : 'none'
     const takes = made === 'none' ? (item.kind === 'data' ? 'data' : 'code') : made
-    return { name, side: 'server', takes, when: binding === 'run' ? 'running' : 'build' }
+    const shut = made === 'none' && scopes !== undefined && scopes !== 'all'
+    const closed = shut ? { closed: { why: scopes.why, note: scopes.note } } : {}
+    return { name, side: 'server', takes, when: binding === 'run' ? 'running' : 'build', ...closed }
   })
 }
 
@@ -50,10 +52,10 @@ export function pluginEffectPorts(ctx: Context): PluginEffectPorts {
       const loading = ctx.get(pluginServerKey) as PluginServerService | undefined
       return loading === undefined ? null : (loading.states(tenant) ?? new Map())
     },
-    lockedBy: (tenant, point, key) => {
+    lockedBy: (tenant, point, key, id) => {
       const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
       if (registry === undefined) return undefined
-      return lockOver(registry, point, key, scopeOfLayer('tenant', tenant))?.fiber
+      return lockOver(registry, point, key, id, scopeOfLayer('tenant', tenant))?.fiber
     },
   }
 }

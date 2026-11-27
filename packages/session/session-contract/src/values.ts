@@ -103,13 +103,20 @@ export type InputBatch = Readonly<{
   ordered: readonly InputId[]
 }>
 export type RunFailure =
-  | Readonly<{ kind: 'node-failed'; node: string; category: string; failureKind: string }>
+  | Readonly<{
+      kind: 'node-failed'
+      node: string
+      category: string
+      failureKind: string
+      diagnostic?: string
+    }>
   | Readonly<{ kind: 'model-refused'; failure: string }>
   | Readonly<{
       kind: 'no-reply'
       cause: string | null
       upstreamStatus: string | null
       diagnostic: string | null
+      throttled?: true
     }>
   | Readonly<{ kind: 'cannot-fit'; reason: string }>
   | Readonly<{
@@ -523,6 +530,7 @@ export type RunExecution = Readonly<{
   run: RunId
   execution: ExecutionRef
   terminal: RunTerminal | null
+  uninterpretable?: true
 }>
 export type ContextScopeBinding = Readonly<{
   generation: string

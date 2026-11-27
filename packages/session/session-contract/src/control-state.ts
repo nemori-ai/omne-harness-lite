@@ -1,7 +1,7 @@
 import { resolveControlScope } from './judgments.ts'
 import { waitKey } from './call-state.ts'
 import type { ControlProgress, WorkSnapshot } from './values.ts'
-import { equalValue, invalidAt, nonempty, unavailableAt, unique } from './session-validation.ts'
+import { equalValue, invalidAt, missingAt, nonempty, unique } from './session-validation.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 export function validateControlIdentity(snapshot: WorkSnapshot, progress: ControlProgress): void {
@@ -9,7 +9,7 @@ export function validateControlIdentity(snapshot: WorkSnapshot, progress: Contro
   if (!['committed', 'propagating', 'reconciled'].includes(progress.state))
     invalidAt('control.state', 'unknown state')
   const original = snapshot.controls.find(item => item.operation === progress.operation)
-  if (original === undefined) unavailableAt('control.original')
+  if (original === undefined) missingAt('control.original')
   if (
     !equalValue(original.target, progress.target) ||
     !equalValue(original.intent, progress.intent)
@@ -38,7 +38,7 @@ export function validateControlProgress(snapshot: WorkSnapshot, progress: Contro
     invalidAt('control.pending', 'outside original responsibility')
   const prior = original.pendingUnassociatedWaiting ?? []
   if (prior.length > 0 && progress.pendingUnassociatedWaiting === undefined)
-    unavailableAt('control.pendingUnassociatedWaiting')
+    missingAt('control.pendingUnassociatedWaiting')
   const next = progress.pendingUnassociatedWaiting ?? []
   if (next.some(item => !prior.some(old => equalValue(old, item))))
     invalidAt('control.pendingUnassociatedWaiting', 'outside original responsibility')

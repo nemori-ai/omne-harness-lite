@@ -22,6 +22,8 @@ export const WORK_HANDLER = 'session.work'
 export const WORK_VERSION_HANDLER = 'session.work-version'
 const WORK_INDEX_HANDLER = 'session.work-index'
 const WORK_READS_HANDLER = 'session.work-reads'
+const WORK_INDEX_READS = 64
+const INDEX_UNFINISHED = 'the index of the session rows is still being read'
 const HISTORY_HANDLER = 'session.history'
 const CALLS_LEFT_HANDLER = 'session.calls-left'
 
@@ -267,13 +269,35 @@ async function readWhole(reach: WorkReach, cache: WorkCache, key: string): Promi
       diagnostic: `read ${WORK_HANDLER}: the snapshot does not decode: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
+  return keptWhole(reach, cache, key, whole, snapshot)
+}
+
+async function keptWhole(
+  reach: WorkReach,
+  cache: WorkCache,
+  key: string,
+  whole: Record,
+  snapshot: WorkSnapshot,
+): Promise<WorkRead> {
   const tail = textOf(whole['tail'])
   const published = textOf(whole['published'])
   const bytes = whole['bytes']
-  if (tail !== null && published !== null && typeof bytes === 'number')
-    cache.set(key, { version: { tail, published }, bytes, snapshot })
-  else cache.delete(key)
-  return { kind: 'state', snapshot }
+  if (tail === null || published === null || typeof bytes !== 'number') {
+    cache.delete(key)
+    return { kind: 'state', snapshot }
+  }
+  const version = { tail, published }
+  const indexed =
+    snapshot.historyIndex === undefined
+      ? await withIndex(reach, version, snapshot)
+      : { version, snapshot }
+  if (indexed === null) {
+    cache.delete(key)
+    return { kind: 'unavailable', diagnostic: `read ${WORK_HANDLER}: ${INDEX_UNFINISHED}` }
+  }
+  const complete = frozen(indexed.snapshot)
+  cache.set(key, { version: indexed.version, bytes, snapshot: complete })
+  return { kind: 'state', snapshot: complete }
 }
 
 export function readCachedSessionWork(
@@ -355,23 +379,24 @@ async function withIndex(
   version: WorkVersion,
   snapshot: WorkSnapshot,
 ): Promise<Indexed | null> {
-  const read = await readOne(reach, WORK_INDEX_HANDLER, {
-    tail: version.tail,
-    published: version.published,
-    snapshot: indexInput(snapshot),
-  })
-  if (!('output' in read)) return null
-  const out = read.output
-  const published = textOf(out['published'])
-  if ((out['kind'] !== 'index' && out['kind'] !== 'too-many') || published === null) return null
-  if (out['kind'] === 'too-many') return { version: { tail: version.tail, published }, snapshot }
-  return {
-    version: { tail: version.tail, published },
-    snapshot: {
-      ...snapshot,
-      historyIndex: decodeValue(out['index'] as JsonValue) as SessionHistoryIndex,
-    },
+  const input = { tail: version.tail, published: version.published, snapshot: indexInput(snapshot) }
+  for (let reads = 0; reads < WORK_INDEX_READS; reads += 1) {
+    const read = await readOne(reach, WORK_INDEX_HANDLER, input)
+    if (!('output' in read)) return null
+    const out = read.output
+    const published = textOf(out['published'])
+    if (published === null) return null
+    if (out['kind'] === 'too-many') continue
+    if (out['kind'] !== 'index') return null
+    return {
+      version: { tail: version.tail, published },
+      snapshot: {
+        ...snapshot,
+        historyIndex: decodeValue(out['index'] as JsonValue) as SessionHistoryIndex,
+      },
+    }
   }
+  return null
 }
 
 async function batchEntries(reach: WorkReach, fold: WorkFold): Promise<HistoryEntry[] | null> {

@@ -68,6 +68,11 @@ const categoriesContract: Contract = Object.freeze({
   revision: 1,
   keys: 'public',
   conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The table of categories is read for the whole deployment, not for the tenant who asks, so a category a tenant put here would not be listed.',
+  } as const,
   summary: 'The asset categories now registered: each item is the contribution of one category.',
 })
 

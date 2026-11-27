@@ -93,7 +93,16 @@ import {
 } from './admission-read.ts'
 import { successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
-import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import {
+  localFailure,
+  namedStop,
+  nodeFailed,
+  nodeFailureCategory,
+  nodeFault,
+  revocationWait,
+  savedNodeFault,
+  type NodeFault,
+} from './node-failure.ts'
 import { acceptanceOf, nextInitialHandoff, nonEmpty, rejectedInput } from './initial-admission.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { judgeBatch } from './batch-judging.ts'
@@ -257,6 +266,7 @@ export type ReplyAdmissionReadReport = Readonly<{
 export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
 export interface ExecutionDrive {
+  step(): StepId | null
   runExecution(): Promise<Outcome<void, Halted>>
   waitForWake(
     input: Readonly<{ pacer: ReconciliationPacer; signal: AbortSignal }>,
@@ -422,13 +432,7 @@ function coordinate<P>(
   let snapshot: ExecutionSnapshot | null = null
   let facts: LoopFacts | null = null
   let decided: Next | null = null
-  let fault: Readonly<{
-    node: string
-    category: NodeFailureCategory
-    failureKind: Failure['kind']
-    step: StepId | null
-    history: DurableEvidence | null
-  }> | null = null
+  let fault: NodeFault | null = null
   let faultDecision: Extract<Next, { kind: 'try-finish' }> | null = null
   let faultCandidate: FinishCandidateContent | null = null
   let candidate: Candidate | null = null
@@ -669,23 +673,20 @@ function coordinate<P>(
     return succeed('W0')
   }
 
-  function waitForRevocationCause() {
-    finishWait = true
-    return waitFor(
-      'E2',
-      {
-        kind: 'unavailable',
-        owner: AGENT_OWNER,
-        diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
-      },
-      null,
-    )
-  }
-
   function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
     finishWait = true
     waitFor(at, failure, null)
     return succeed<LoopNode>('W0')
+  }
+
+  async function withdrawnTo(failure: Failure): Promise<Outcome<LoopNode, Failure> | null> {
+    const latest = await load()
+    if ('failure' in latest) return null
+    takeLatestPosition(latest.ok)
+    if (latest.ok.state.kind === 'ended') return succeed('F4')
+    if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+    const revoked = authority === null ? null : revocationWait(failure, advancementOf(latest.ok))
+    return revoked === null ? null : waitForFault('E2', revoked)
   }
 
   async function failedNode(at: LoopNode, failure: Failure): Promise<Outcome<LoopNode, Failure>> {
@@ -696,23 +697,14 @@ function coordinate<P>(
     if (failure.kind === 'unavailable' && answeredByPort(failure) && authority !== null)
       return waitOnUnavailable(at, failure)
     if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
-      const latest = await load()
-      if ('ok' in latest) {
-        takeLatestPosition(latest.ok)
-        if (latest.ok.state.kind === 'ended') return succeed('F4')
-        if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
-      }
+      const withdrawn = await withdrawnTo(failure)
+      if (withdrawn !== null) return withdrawn
     }
     if (fault !== null) return fail(failure)
     const category = nodeFailureCategory(failure)
     if (authority === null || category === null || closingNodes.includes(at)) return fail(failure)
-    fault = {
-      node: at,
-      category,
-      failureKind: failure.kind,
-      step: checkpoint?.step ?? null,
-      history: snapshot?.history ?? null,
-    }
+    const step = checkpoint?.step ?? null
+    fault = nodeFault({ node: at, category, step, history: snapshot?.history ?? null }, failure)
     return succeed('F1')
   }
 
@@ -771,13 +763,7 @@ function coordinate<P>(
     const saved = loaded.ok.settlement.candidate
     if (fault === null && saved?.failure?.kind === 'node-failed') {
       const failure = saved.failure
-      fault = {
-        node: failure.node,
-        category: failure.category,
-        failureKind: failure.failureKind,
-        step: failure.step,
-        history: null,
-      }
+      fault = savedNodeFault(failure)
       faultDecision = { kind: 'try-finish', conclusion: saved.conclusion, failure }
       faultCandidate = {
         origin: saved.origin,
@@ -926,7 +912,7 @@ function coordinate<P>(
           { kind: 'unavailable', owner: AGENT_OWNER, diagnostic: 'execution is suspended' },
           null,
         )
-      return fail({ kind: 'stale-advance' })
+      return fail(namedStop())
     }
     let next = evaluated.ok
     if (next.kind === 'take-inputs') {
@@ -1361,7 +1347,6 @@ function coordinate<P>(
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind === 'unavailable') return waitFor('E2', read.failure, readFacts)
-        if (read.failure.kind === 'stale-advance') return waitForRevocationCause()
         return read
       }
       facts = read.ok
@@ -2884,15 +2869,7 @@ function coordinate<P>(
           failureKind: fault.failureKind,
           historyAtFailure: fault.history,
         })
-        const failure: FailureCandidate = {
-          kind: 'node-failed',
-          node: fault.node,
-          category: fault.category,
-          failureKind: fault.failureKind,
-          step: fault.step,
-          at: instant.ok,
-          source,
-        }
+        const failure = nodeFailed(fault, instant.ok, source)
         faultDecision = { kind: 'try-finish', conclusion: { kind: 'fail', cause: source }, failure }
       }
       if (faultDecision !== null) {
@@ -3022,6 +2999,7 @@ function coordinate<P>(
   }
 
   return {
+    step: () => checkpoint?.step ?? null,
     async accept(confirmedOpen) {
       return exclusive('E0', async () => {
         const start = originalOpen === null ? 'U0' : 'E0'

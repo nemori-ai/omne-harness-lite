@@ -14,6 +14,13 @@ import {
   type ToastBoard,
 } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
+import {
+  connectionPlugin,
+  type LoginState,
+  type LoginStateSource,
+} from '@omne-harness/client-assembly/cordis'
+import { accessProtocol } from '@omne-harness/public-contract'
+import type { Transport } from '@omne-harness/sdk/core'
 import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testing'
 
 const ALICE =
@@ -279,7 +286,7 @@ describe('a member that is code', () => {
     [
       'its export gives something that is not a drawing',
       { 'send.js': { send: () => ({ render: 'later' }) } },
-      'member 1 (shell.part-render notes.send): send gave no drawing',
+      'member 1 (shell.part-render notes.send): the item lacks render (function)',
     ],
   ] as const)('fails the whole plugin when %s', async (_name, files, reason) => {
     const other = { 'cards/todo.js': { todo: () => () => null } }
@@ -287,14 +294,22 @@ describe('a member that is code', () => {
   })
 
   it.each([
-    ['a point that is not declared', { ...sendCode, point: 'notes.nowhere' }],
     ['a point that takes data', { ...sendCode, point: TOKENS_POINT, key: 'shell.app' }],
   ] as const)('fails before any file is loaded when it names %s', async (_name, member) => {
     const t = await world({ 'send.js': { send: () => () => null } })
     const outcome = await t.install(brand(member))
     expect(outcome).toEqual({
       kind: 'failed',
-      reason: `member 1 (${member.point} ${member.key}): the point takes no drawing`,
+      reason: `member 1 (${member.point} ${member.key}): the point takes data; this member gives code`,
+    })
+    expect(t.loaded).toEqual([])
+  })
+
+  it('waits, before any file is loaded, when it names a point that is not declared', async () => {
+    const t = await world({ 'send.js': { send: () => () => null } })
+    expect(await t.install(brand({ ...sendCode, point: 'notes.nowhere' }))).toEqual({
+      kind: 'waiting',
+      lacks: [{ kind: 'point', name: 'notes.nowhere' }],
     })
     expect(t.loaded).toEqual([])
   })
@@ -397,5 +412,110 @@ describe('the source a member of code is put with', () => {
         { point: 'notes.card', key: 'todo', by },
       ],
     })
+  })
+})
+
+type Tree = Parameters<typeof accessProtocol.operations.scoped.outcomes.succeeded.write>[0]
+type Told = Tree['protocols'][number]['contract']
+
+const LIMITS = {
+  maxBytes: 65_536,
+  maxDepth: 16,
+  maxItems: 1_024,
+  maxMembers: 64,
+  maxStringLength: 1_024,
+  maxNumberLength: 32,
+}
+
+function treeOf(value: unknown): Told {
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  const entries = Object.entries(value as object).map(([key, each]) => ({
+    key,
+    value: treeOf(each),
+  }))
+  return { kind: 'object', entries }
+}
+
+const WEATHER = {
+  name: 'weather',
+  major: 1,
+  operations: {
+    look: {
+      effect: 'read',
+      limit: 'small',
+      body: { kind: 'object', fields: {} },
+      result: { kind: 'text' },
+    },
+  },
+}
+
+/** A connection whose login a test signs in: `scoped` then tells the tenant's protocol, and a call of it answers. */
+async function connected(root: Context) {
+  let state: LoginState = 'signed-out'
+  const listeners = new Set<(state: LoginState) => void>()
+  const login: LoginStateSource = {
+    state: () => state,
+    subscribe: listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+  const scoped = { protocols: [{ name: 'weather', major: 1, contract: treeOf(WEATHER) }] }
+  const written = accessProtocol.operations.scoped.outcomes.succeeded.write(scoped, LIMITS)
+  if (!written.ok) throw new Error('an answer outside access/v1')
+  const transport: Transport = {
+    call: async request =>
+      request.operation === 'scoped'
+        ? { kind: 'answered', outcome: 'succeeded', body: written.value }
+        : { kind: 'answered', outcome: 'succeeded', body: { kind: 'string', value: 'sunny' } },
+    async *observe(request) {
+      yield* []
+      await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+      return { kind: 'aborted' }
+    },
+  }
+  await root.plugin(connectionPlugin({ transport, login }))
+  return {
+    async signIn() {
+      state = 'signed-in'
+      for (const listener of Array.from(listeners)) listener(state)
+      for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setImmediate(resolve))
+    },
+  }
+}
+
+type Port = Readonly<Record<string, (body: unknown) => Promise<unknown>>>
+
+describe('the ports the code of a plugin is handed on the client', () => {
+  it('a protocol in needs is a client always there: unavailable before the protocol is, through once the login reads it', async () => {
+    const handed: Readonly<{ ports: Readonly<Record<string, Port>> }>[] = []
+    const t = await world({
+      'send.js': {
+        send: (given: Given & { ports: Readonly<Record<string, Port>> }) => {
+          handed.push(given)
+          return counting(given)
+        },
+      },
+    })
+    const link = await connected(t.root)
+    const outcome = await t.install({ ...brand(sendCode), needs: ['weather/v1'] })
+    expect(outcome.kind).toBe('installed')
+    const ports = handed[0]!.ports
+    expect(Object.keys(ports)).toEqual(['weather/v1'])
+    expect(Object.isFrozen(ports)).toBe(true)
+    expect(await ports['weather/v1']!['look']!({})).toEqual({ outcome: 'unavailable' })
+    await link.signIn()
+    expect(await ports['weather/v1']!['look']!({})).toEqual({ outcome: 'succeeded', body: 'sunny' })
+  })
+
+  it('a plugin that names in needs anything but a protocol fails, and nothing of it is loaded', async () => {
+    const t = await world({ 'send.js': { send: counting } })
+    const outcome = await t.install({ ...brand(sendCode), needs: ['net.fetch'] })
+    expect(outcome).toEqual({
+      kind: 'failed',
+      reason: 'needs net.fetch: this side lends only protocols, each <name>/v<major>',
+    })
+    expect(t.loaded).toEqual([])
   })
 })

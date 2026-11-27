@@ -3,6 +3,7 @@ import type { DeskInput, Look, Point, SceneFigure, SceneWhere, Up } from '../../
 import type { FigureDevice, FigureFacts } from './device.ts'
 import { LetGo } from './let-go.ts'
 import { DeskPictures } from './pictures.ts'
+import { ReplyPace } from './reply-pace.ts'
 import type { FigureLink } from './link.ts'
 import { createLookPublisher, type LookFeed, type LookPublisher } from './look.ts'
 import { firstLabel, insideApp } from './sign.ts'
@@ -63,7 +64,6 @@ class FigureStay {
   private signed = false
   private lease: Lease | null = null
   private serial = 0
-  private sentKey = ''
   private shape: SceneFigure = { waiting: 0 }
   private labelled = false
   private pagePoint: Point = { x: 0, y: 0 }
@@ -71,6 +71,7 @@ class FigureStay {
   private deskKeys: Keys = NO_KEYS
   private rewrite = false
   private readonly pictures: DeskPictures
+  private readonly pace: ReplyPace
   private unwatch: () => void = nothing
   private isAway = false
   private readonly listeners = new Set<() => void>()
@@ -87,6 +88,7 @@ class FigureStay {
       this.read = read
     })
     this.pictures = new DeskPictures(deps.link)
+    this.pace = new ReplyPace(deps.clock, () => this.publish())
     this.unlisten = deps.link.listen(message => this.heard(message))
     this.note = deps.note
     const unport = this.note.desk({
@@ -232,7 +234,7 @@ class FigureStay {
     return placed.mode === 'home' && this.rewrite ? { ...placed, rewrite: true } : placed
   }
 
-  /** Sends the scene when what it shows changed (the hand's moves go as small messages), or when asked again. */
+  /** Sends the scene when what it shows changed (the hand's moves go as small messages), or when asked again; the pace holds back a reply still coming. */
   private publish(again = false): void {
     const lease = this.leased()
     if (lease === null) return
@@ -242,9 +244,7 @@ class FigureStay {
     const label = this.label()
     const look = { ...this.deps.look(), ...this.changes.stamp() }
     const shown = { look, figure: this.shape, where, label, note, frame }
-    const key = JSON.stringify({ ...shown, where: where.mode === 'hand' ? 'hand' : where })
-    if (!again && key === this.sentKey) return
-    this.sentKey = key
+    if (!this.pace.goes({ ...shown, where: where.mode === 'hand' ? 'hand' : where }, again)) return
     this.serial += 1
     if (again) this.pictures.forget()
     this.pictures.send(noting(this.where) ? this.note.pictures() : [])
@@ -254,7 +254,7 @@ class FigureStay {
   private forget(): void {
     this.changes.ended()
     this.lease = null
-    this.sentKey = ''
+    this.pace.reset()
     this.pictures.forget()
     this.unwatch()
     this.unwatch = nothing
@@ -383,6 +383,10 @@ class FigureStay {
     if (message.input === 'unsent')
       return this.note.unsent(message.words, message.chosen, message.edit)
     if (message.input === 'unpicture') return this.note.unpicture(message.picture)
+    if (message.input === 'phrase') {
+      if (noting(this.where)) this.note.phrase(message.key)
+      return
+    }
     if (message.at !== null) this.deskPoint = message.at
     this.deskKeys = { meta: message.meta === true, shift: message.shift === true }
     this.inputs[message.input]()

@@ -353,7 +353,7 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
-const LOCAL_IMAGE_BUDGET = Object.freeze({
+export const LOCAL_IMAGE_BUDGET = Object.freeze({
   imageMaxWidth: 16384,
   imageMaxHeight: 16384,
   imageMaxDecodedBytes: 128 * 1024 * 1024,
@@ -438,6 +438,7 @@ const AGENT_HOST = {
   toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
+  haltLimit: 3,
   maxRunSteps: 500,
 } as const
 
@@ -530,6 +531,30 @@ export type ReplaceOperation = Readonly<{
 
 export type OperatorLayer = Readonly<{ ops: readonly ReplaceOperation[] }>
 
+const LOCAL_TOOL_CONSTRUCTION = Object.freeze({
+  Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
+  Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
+  TodoItems: { resultMaxBytes: 1_048_576 },
+  BkgToolCalls: { resultMaxBytes: 65_536 },
+  Ask: { resultMaxBytes: 1_048_576 },
+  Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+  Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+  Calendar: { resultMaxBytes: 65_536 },
+  Schedules: { resultMaxBytes: 65_536 },
+  Jobs: { resultMaxBytes: 65_536 },
+  Notifications: { resultMaxBytes: 65_536 },
+  Canvas: { resultMaxBytes: 65_536 },
+  AppView: { resultMaxBytes: 65_536, ...LOCAL_IMAGE_BUDGET },
+  Sessions: { resultMaxBytes: 131_072 },
+  Agents: { resultMaxBytes: 1_048_576 },
+  Goal: { resultMaxBytes: 1_048_576 },
+  SwitchWorkspace: { resultMaxBytes: 65_536 },
+  OmneExtensions: { resultMaxBytes: 131_072 },
+  OmneExtensionPoints: { resultMaxBytes: 131_072 },
+  Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+  Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
+})
+
 export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const rows = releaseRows(input.distribution)
   const combinationVersion = combinationVersionOf(rows)
@@ -569,26 +594,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             argsPrefix: shellArguments(platform, settings.shell),
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
-          Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
-          TodoItems: { resultMaxBytes: 1_048_576 },
-          BkgToolCalls: { resultMaxBytes: 65_536 },
-          Ask: { resultMaxBytes: 1_048_576 },
-          Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
-          Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
-          Calendar: { resultMaxBytes: 65_536 },
-          Schedules: { resultMaxBytes: 65_536 },
-          Jobs: { resultMaxBytes: 65_536 },
-          Notifications: { resultMaxBytes: 65_536 },
-          Canvas: { resultMaxBytes: 65_536 },
-          Sessions: { resultMaxBytes: 131_072 },
-          Agents: { resultMaxBytes: 1_048_576 },
-          Goal: { resultMaxBytes: 1_048_576 },
-          SwitchWorkspace: { resultMaxBytes: 65_536 },
-          OmneExtensions: { resultMaxBytes: 131_072 },
-          OmneExtensionPoints: { resultMaxBytes: 131_072 },
-          Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
-          Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
+          ...LOCAL_TOOL_CONSTRUCTION,
         },
       },
     ],

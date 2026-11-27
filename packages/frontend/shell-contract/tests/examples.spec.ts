@@ -137,6 +137,18 @@ describe('the example of each point the shell declares', () => {
     ])
   })
 
+  it('adds a ready phrase beside the note, for one tenant', async () => {
+    const { shell, contract } = await world()
+    shell.tenant = ALICE
+    await putExample(shell, contract('shell.say-phrase'), {}, tenantScope(ALICE))
+    expect(shell.changes().refused).toEqual([])
+    expect(shell.phrases()).toContainEqual({
+      key: 'notes.translate',
+      label: '翻成英文',
+      words: '把图里的字翻成英文',
+    })
+  })
+
   it('names the theme and the brand colour where an agent looks for them', async () => {
     const { contract } = await world()
     expect(contract(TOKENS_POINT).summary).toMatch(/^The theme: /u)
@@ -146,12 +158,19 @@ describe('the example of each point the shell declares', () => {
     )
   })
 
-  it('gives no example for the places fixed when the app is built, and says so', () => {
+  it('gives no example for the login gate, fixed when the app is built; each other place gives a member of its own point and its file', () => {
     for (const contract of shellContracts) {
-      expect(contract.example).toBeUndefined()
-      expect(contract.summary).toMatch(
-        / Fixed when the app is built: a plugin cannot add to it while the app runs\.$/u,
-      )
+      if (contract.name === 'shell.gate') {
+        expect(contract.example).toBeUndefined()
+        expect(contract.summary).toMatch(
+          / Fixed when the app is built: a plugin cannot add to it while the app runs\.$/u,
+        )
+        continue
+      }
+      const [member = '', file = ''] = (contract.example ?? '').split('\n')
+      expect(JSON.parse(member)).toMatchObject({ point: contract.name, key: '' })
+      expect(file).toMatch(/^\S+\.js:$/u)
+      expect(contract.summary).toContain('A plugin adds to it while the app runs, for its tenant')
     }
   })
 })

@@ -161,6 +161,27 @@ describe('what publishing a plugin would change', () => {
     ])
   })
 
+  it('a closed point is closed, with the reason the loader gives, before what it takes or when it is fixed', () => {
+    const gate = { point: 'shell.gate', key: '', module: 'a.js', export: 'a' }
+    const closed: KnownPoint = {
+      name: 'shell.gate',
+      side: 'client',
+      takes: 'code',
+      when: 'build',
+      closed: { why: 'no-tenant', note: 'Nobody is signed in here.' },
+    }
+    const answer = pluginImpact({
+      name: 'gate',
+      change: 'publish',
+      manifest: manifest('gate', [gate]),
+      held: [],
+      points: [...POINTS, closed],
+    })
+    expect(lines(answer)).toEqual([
+      '! shell.gate /    → the point is closed to plugins (no-tenant): Nobody is signed in here. It would not be in effect.',
+    ])
+  })
+
   it('says so when the points of a side are not known: no client is connected', () => {
     const answer = pluginImpact({
       name: 'pill',

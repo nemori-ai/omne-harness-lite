@@ -137,23 +137,43 @@ describe('条目的锁：带锁的条目所在的键上，更深作用域的条�
     expect(free.out).toEqual([{ entry: deep, reason: 'locked', detail: 'usage' }])
   })
 
+  it('放一列的点：锁按键加标识，只护住带锁的那一项；同键别的标识照常收更深的条目', () => {
+    const registry = registryOf(
+      points('conflict', 'keyed-list'),
+      ['usage', [put('assets-page', { id: 'assets', lock: true })]],
+      ['plugin:rival', [put('rival-assets', { id: 'assets', scope: TENANT })]],
+      ['plugin:weather', [put('weather', { id: 'weather', scope: TENANT })]],
+    )
+    const read = list(registry, 'memory.stores', null, TENANT)
+    expect(read.kind === 'read' && read.items.map(item => item.entry.digest)).toEqual([
+      'assets-page',
+      'weather',
+    ])
+    expect(
+      read.kind === 'read' && read.filtered.map(out => [out.entry.digest, out.reason]),
+    ).toEqual([['rival-assets', 'locked']])
+    expect(lockOver(registry, 'memory.stores', 'graph', 'assets', TENANT)).toEqual(inst('usage'))
+    expect(lockOver(registry, 'memory.stores', 'graph', 'weather', TENANT)).toBeUndefined()
+    expect(report(registry, inst('plugin:weather')).map(one => one.state)).toEqual(['effective'])
+  })
+
   it('先问一声放在这一层会不会被锁挡住：答锁它的是哪一份，取最浅的；同层的、别的键的、看不见的都不算', () => {
     const registry = registryOf(
       points('conflict'),
       ['org', [put('org', { scope: ORG, lock: true })]],
       ['usage', [official]],
     )
-    expect(lockOver(registry, 'memory.stores', 'graph', TENANT)).toEqual(inst('usage'))
-    expect(lockOver(registry, 'memory.stores', 'graph', ORG)).toEqual(inst('usage'))
-    expect(lockOver(registry, 'memory.stores', 'graph', [])).toBeUndefined()
-    expect(lockOver(registry, 'memory.stores', 'vector', TENANT)).toBeUndefined()
+    expect(lockOver(registry, 'memory.stores', 'graph', '', TENANT)).toEqual(inst('usage'))
+    expect(lockOver(registry, 'memory.stores', 'graph', '', ORG)).toEqual(inst('usage'))
+    expect(lockOver(registry, 'memory.stores', 'graph', '', [])).toBeUndefined()
+    expect(lockOver(registry, 'memory.stores', 'vector', '', TENANT)).toBeUndefined()
     const orgOnly = registryOf(
       points('conflict'),
       ['org', [put('org', { scope: ORG, lock: true })]],
       ['plain', [put('plain')]],
     )
-    expect(lockOver(orgOnly, 'memory.stores', 'graph', TENANT)).toEqual(inst('org'))
-    expect(lockOver(orgOnly, 'memory.stores', 'graph', OTHER)).toBeUndefined()
+    expect(lockOver(orgOnly, 'memory.stores', 'graph', '', TENANT)).toEqual(inst('org'))
+    expect(lockOver(orgOnly, 'memory.stores', 'graph', '', OTHER)).toBeUndefined()
   })
 
   it('另一个键不受这把锁管', () => {
@@ -178,6 +198,71 @@ describe('条目的锁：带锁的条目所在的键上，更深作用域的条�
     expect(report(registry, inst('usage')).map(one => [one.state, one.detail])).toEqual([
       ['effective', ''],
     ])
+  })
+})
+
+describe('DY-16（含放一列的点）：锁护住的是键加标识', () => {
+  it('随机的标识：同键同标识的更深条目加减不改答案；别的标识的更深条目照常算', () => {
+    const random = randomOf(1616)
+    const scopes: Scope[] = [[], ORG, TENANT, [...TENANT, 'skin'], OTHER]
+    const seen = new Set<string>()
+    let guarded = 0
+    let otherCounted = 0
+    for (let run = 0; run < 3000; run += 1) {
+      const lockAt = pick(random, scopes)
+      const lockedId = pick(random, ['a', 'b'])
+      const base: Entry[] = [put('locked', { id: lockedId, scope: lockAt, lock: true })]
+      const sameId: Entry[] = []
+      for (let n = 1 + below(random, 6); n > 0; n -= 1) {
+        const scope = pick(random, scopes)
+        const id = pick(random, ['a', 'b', 'c'])
+        const made = put(`e${String(n)}-${id}-${String(below(random, 3))}`, { id, scope })
+        const deeper =
+          scope.length > lockAt.length && lockAt.every((part, at) => part === scope[at])
+        ;(deeper && id === lockedId ? sameId : base).push(made)
+      }
+      const fibers = (entries: readonly Entry[], prefix: string) =>
+        entries.map((each, n) => [`${prefix}${String(n)}`, [each]] as const)
+      const without = registryOf(points('conflict', 'keyed-list'), ...fibers(base, 'b'))
+      const withThem = registryOf(
+        points('conflict', 'keyed-list'),
+        ...fibers(base, 'b'),
+        ...fibers(sameId, 'x'),
+      )
+      seen.add(JSON.stringify([base, sameId]))
+      if (sameId.length > 0) guarded += 1
+      const listOf = (registry: Registry, asker: Scope) => {
+        const read = list(registry, 'memory.stores', null, asker)
+        return read.kind === 'read'
+          ? [
+              read.items.map(item => item.entry.digest),
+              read.conflicts.map(group => group.map(e => e.digest)),
+            ]
+          : read.kind
+      }
+      for (const asker of scopes) expect(listOf(withThem, asker)).toEqual(listOf(without, asker))
+      // A deeper entry of another id is not out by the lock.
+      const other = base.find(
+        each =>
+          each.id !== lockedId &&
+          each.scope.length > lockAt.length &&
+          lockAt.every((part, at) => part === each.scope[at]),
+      )
+      if (other !== undefined) {
+        otherCounted += 1
+        const read = list(withThem, 'memory.stores', null, other.scope)
+        const lockedOut =
+          read.kind === 'read' &&
+          read.filtered.some(out => out.entry.digest === other.digest && out.reason === 'locked')
+        expect(lockedOut).toBe(false)
+      }
+    }
+    console.log(
+      `lock by key and id: ${String(seen.size)} distinct inputs of 3000, ${String(guarded)} with deeper entries of the locked id, ${String(otherCounted)} with a deeper entry of another id`,
+    )
+    expect(seen.size).toBeGreaterThan(2000)
+    expect(guarded).toBeGreaterThan(500)
+    expect(otherCounted).toBeGreaterThan(500)
   })
 })
 

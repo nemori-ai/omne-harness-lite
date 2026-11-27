@@ -20,8 +20,18 @@ const WITHDRAWN_DIAGNOSTIC = {
 } as const
 
 type Judged =
-  | Readonly<{ kind: 'rejected'; reason: CommitRejectReason }>
+  | Readonly<{ kind: 'rejected'; reason: CommitRejectReason; measured?: string }>
   | Readonly<{ kind: 'accepted'; identity: SqlIdentity; requestBytes: number; inputDigest: string }>
+
+type CommandLimit = 'maxJsonDepth' | 'maxCommandsPerCommit' | 'maxCommandBytes' | 'maxRequestBytes'
+
+function firstOf<T, R>(items: readonly T[], judge: (item: T) => R | null): R | null {
+  for (const item of items) {
+    const found = judge(item)
+    if (found !== null) return found
+  }
+  return null
+}
 
 function commandsValid(commands: unknown): commands is CommitRequestV2['commands'] {
   return (
@@ -68,14 +78,26 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (new Set(commands.map(command => command.participant)).size !== commands.length)
     return rejected('participant_repeated')
   if (!commands.every(command => isStrictJson(command.facts))) return rejected('facts_not_json')
-  for (const command of commands)
-    if (jsonShape(command.facts).depth > config.maxJsonDepth) return rejected('command_limit')
-  if (commands.length > config.maxCommandsPerCommit) return rejected('command_limit')
-  for (const command of commands)
-    if (utf8Length(canonicalJson(command)) > config.maxCommandBytes)
-      return rejected('command_limit')
+  const over = (limit: CommandLimit, measured: number, participant?: string): Judged | null =>
+    measured <= config[limit]
+      ? null
+      : {
+          kind: 'rejected',
+          reason: 'command_limit',
+          measured: `${limit} ${String(measured)} > ${String(config[limit])}${participant === undefined ? '' : ` (participant ${participant})`}`,
+        }
+  const limited =
+    firstOf(commands, item =>
+      over('maxJsonDepth', jsonShape(item.facts).depth, item.participant),
+    ) ??
+    over('maxCommandsPerCommit', commands.length) ??
+    firstOf(commands, item =>
+      over('maxCommandBytes', utf8Length(canonicalJson(item)), item.participant),
+    )
+  if (limited !== null) return limited
   const requestBytes = utf8Length(canonicalJson(input))
-  if (requestBytes > config.maxRequestBytes) return rejected('command_limit')
+  const whole = over('maxRequestBytes', requestBytes)
+  if (whole !== null) return whole
   return {
     kind: 'accepted',
     identity,
@@ -88,16 +110,20 @@ export function createCommit(core: Core): SqlStorage['commit'] {
   return (input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2> => {
     const signal = options?.signal
     const decoded = decodeIdentity((input as Partial<CommitRequestV2> | null)?.identity)
-    const rejection = (reason: CommitRejectReason, identity: SqlIdentity | null): CommitResultV2 =>
+    const rejection = (
+      reason: CommitRejectReason,
+      identity: SqlIdentity | null,
+      measured?: string,
+    ): CommitResultV2 =>
       ({
         kind: 'rejected_before_accept',
         identity,
         reason,
-        diagnostic: core.diagnostic(reason),
+        diagnostic: core.diagnostic(measured === undefined ? reason : `${reason}: ${measured}`),
       }) as CommitResultV2
     const judged = judge(core, input, signal)
     if (judged.kind === 'rejected')
-      return Promise.resolve(rejection(judged.reason, decoded.identity))
+      return Promise.resolve(rejection(judged.reason, decoded.identity, judged.measured))
     const { identity, requestBytes, inputDigest } = judged
     const key = identityKey(identity)
     core.pending.add(key)

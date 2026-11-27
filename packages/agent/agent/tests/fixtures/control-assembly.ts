@@ -3,6 +3,7 @@ import {
   createAgentRuntime,
   type AgentConfiguration,
   type AgentDependencies,
+  type AgentRuntimeExtras,
 } from '@omne-harness/agent'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { createTestAgentDependencies, type TestJournalOptions } from '@omne-harness/agent/testing'
@@ -20,6 +21,7 @@ export async function controlAssembly(
     dependencies: AgentDependencies<Principal, ContentBlock>,
   ) => AgentDependencies<Principal, ContentBlock> = dependencies => dependencies,
   configuration: Partial<AgentConfiguration> = {},
+  extras: AgentRuntimeExtras = {},
 ) {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({
     journal: {
@@ -50,6 +52,7 @@ export async function controlAssembly(
     await createAgentRuntime(
       assembled,
       options({ reconciliationDelaysMs: [1000], ...configuration }),
+      extras,
     ),
   )
   return { provider, dependencies: assembled, controls }

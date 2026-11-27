@@ -140,12 +140,36 @@ it('a read that never arrives is not readable now either, and a refusal says it 
   expect(screen.queryByRole('region')).toBeNull()
 })
 
+/** A point a plugin draws on: one item for a key, the most specific counts, and the item is a drawing. */
+const takesDrawing = (
+  shell: {
+    described(): {
+      points: readonly {
+        name: string
+        contract: {
+          arity: string
+          resolve: string
+          item: { fields: Readonly<Record<string, string>> }
+        }
+      }[]
+    }
+  },
+  point: string,
+): boolean => {
+  const contract = shell.described().points.find(each => each.name === point)?.contract
+  return (
+    contract?.arity === 'keyed-one' &&
+    contract.resolve === 'most-specific' &&
+    contract.item.fields['render'] === 'function'
+  )
+}
+
 it('declares the four client points in the catalog, each taking drawings by key', async () => {
   const { shell } = await loaded()
   const declared = shell.described().points.map(point => point.name)
   for (const point of POINTS) {
     expect(declared).toContain(point)
-    expect(shell.takesDrawing(point)).toBe(true)
+    expect(takesDrawing(shell, point)).toBe(true)
   }
   expect([canvasElement, canvasPicker, canvasIntake, canvasAppRender].map(p => p.name)).toEqual(
     POINTS,
@@ -155,7 +179,7 @@ it('declares the four client points in the catalog, each taking drawings by key'
 it('the points are declared even while canvas/v1 is not served, so a plugin can still put on them', async () => {
   const { root, shell } = await startShell()
   await root.plugin(canvasUiModule)
-  for (const point of POINTS) expect(shell.takesDrawing(point)).toBe(true)
+  for (const point of POINTS) expect(takesDrawing(shell, point)).toBe(true)
 })
 
 it('the kinds of canvas.element and canvas.picker are the kinds the server declares; intake and apps take any key', () => {

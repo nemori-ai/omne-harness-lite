@@ -143,7 +143,17 @@ export type WorkspaceSelections = Readonly<{
   read(access: SessionAccess<Principal>): Promise<WorkspaceSelectionReading>
 }>
 
-export type RunFailureCause = Readonly<{ kind: string; detail: string | null }>
+export type RunFailureFault = Readonly<{
+  cause: string
+  upstreamStatus: string | null
+  throttled: boolean
+}>
+
+export type RunFailureCause = Readonly<{
+  kind: string
+  detail: string | null
+  fault: RunFailureFault | null
+}>
 
 export type RunFailureReading =
   | Readonly<{ kind: 'cause'; cause: RunFailureCause }>

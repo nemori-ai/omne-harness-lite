@@ -3,9 +3,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { choiceIn, type LookChoice, type LookStore } from '@omne-harness/plugin-ui'
 import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
-import { STYLE_POINT, definePart, lookScope, tenantScope } from '@omne-harness/shell-contract'
+import {
+  STYLE_POINT,
+  defineKeyedPoint,
+  TOKENS_POINT,
+  definePart,
+  lookScope,
+  tenantScope,
+} from '@omne-harness/shell-contract'
 import { ReferenceShell, serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
 import { fakeSource, given, givenSkin } from './support/fake-source.ts'
+
+/** The place above the list of one category of the assets page, as the application hands it to the loader. */
+const skinsAbove = defineKeyedPoint<Readonly<{ category: string }>>({
+  name: 'assets.category',
+  subject: { encode: value => value.category, decode: text => ({ category: text }) },
+})
 
 const ALICE =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -60,7 +73,9 @@ async function world(kept: Readonly<Record<string, LookChoice>> = {}) {
     write: (tenant, text) => void texts.set(tenant, text),
   }
   const store = { get: (tenant: string) => choiceIn(texts.get(tenant) ?? null) }
-  await started.root.plugin(createPluginUiModule({ backoff: { delayMs: () => 1 }, looks }))
+  await started.root.plugin(
+    createPluginUiModule({ backoff: { delayMs: () => 1 }, looks, skinsAbove }),
+  )
   /** Who put what stands on the key, and in which scope, for whoever asks as the shell asks now. */
   const standing = () =>
     started.shell
@@ -150,7 +165,7 @@ describe('skins on the client tree', () => {
     const t = await world({ [ALICE]: named('sea') })
     t.source.set(ALICE, [
       givenSkin('sea', 'v1', colored('blue')),
-      givenSkin('odd', 'v1', { ...colored('red'), key: 'notes.nowhere' }),
+      givenSkin('odd', 'v1', { ...colored('red'), data: { base: { '--omne-accent': 'red' } } }),
     ])
     await vi.waitFor(() =>
       expect(t.source.reports.at(-1)).toMatchObject({
@@ -158,7 +173,7 @@ describe('skins on the client tree', () => {
           {
             name: 'odd',
             state: 'failed',
-            reason: `${STYLE_POINT} notes.nowhere: no part is declared as notes.nowhere`,
+            reason: `${STYLE_POINT} notes.send: --omne-accent is a token: tokens are put on ${TOKENS_POINT}`,
           },
           { name: 'sea', state: 'loaded' },
         ],

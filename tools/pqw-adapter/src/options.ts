@@ -4,6 +4,7 @@ export interface Options {
   readonly base?: string
   readonly scopes: readonly string[]
   readonly files: readonly string[]
+  readonly tests: readonly string[]
   readonly full: boolean
   readonly planOnly: boolean
   readonly out?: string
@@ -22,7 +23,7 @@ type Spec =
       readonly field: 'base' | 'out' | 'timeout' | 'timeoutFactor' | 'recheckLimit'
     }
   | { readonly kind: 'count'; readonly field: 'workers' | 'maxLines' }
-  | { readonly kind: 'multi'; readonly field: 'scopes' | 'files' }
+  | { readonly kind: 'multi'; readonly field: 'scopes' | 'files' | 'tests' }
 
 const SPECS: ReadonlyMap<string, Spec> = new Map<string, Spec>([
   ['--base', { kind: 'single', field: 'base' }],
@@ -31,6 +32,7 @@ const SPECS: ReadonlyMap<string, Spec> = new Map<string, Spec>([
   ['--max-lines', { kind: 'count', field: 'maxLines' }],
   ['--scope', { kind: 'multi', field: 'scopes' }],
   ['--files', { kind: 'multi', field: 'files' }],
+  ['--tests', { kind: 'multi', field: 'tests' }],
   ['--full', { kind: 'flag', field: 'full' }],
   ['--plan-only', { kind: 'flag', field: 'planOnly' }],
   ['--timeout', { kind: 'single', field: 'timeout' }],
@@ -105,6 +107,7 @@ function optionsOf(raw: Raw): Options {
   const options: Mutable<Options> = {
     scopes: [],
     files: [],
+    tests: [],
     full: false,
     planOnly: false,
     recheck: false,

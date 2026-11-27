@@ -1,4 +1,4 @@
-import { ask, type Contract, type Registry, type Scope } from '@omne-harness/dynamis'
+import { ask, type Contract, type Registry, type Scope, type Scopes } from '@omne-harness/dynamis'
 import type { ReactNode } from 'react'
 import { drawingContract, pointContract } from './placement.ts'
 import type { AttachedItem, AttachedLayout } from './slots.ts'
@@ -170,6 +170,7 @@ export type RenderPointDeclaration = Readonly<{
   keysFrom?: string
   subject?: string
   example?: string
+  scopes?: Scopes
 }>
 
 function keysOf(from: string | null, server: PublicKeys | undefined): PointKeys {

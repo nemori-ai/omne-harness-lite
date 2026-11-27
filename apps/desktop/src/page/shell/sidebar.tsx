@@ -22,10 +22,10 @@ import {
   FigureSeat,
   FoldIcon,
   GlideMenu,
-  ICONS,
   IconButton,
   LoadingState,
   MenuIcon,
+  NamedIcon,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -34,7 +34,6 @@ import {
   TooltipContent,
   TooltipTrigger,
   TurnIcon,
-  UnknownIcon,
   ViewIcon,
   type ResolvedTheme,
   type SizeController,
@@ -61,8 +60,9 @@ import {
 import type { ShellState } from './state.ts'
 
 export type ThemeSwitch = {
-  readonly initial: ThemeChoice
+  current(): ThemeChoice
   select(choice: ThemeChoice): ResolvedTheme
+  subscribe(listener: () => void): () => void
 }
 
 export type SizeSwitch = Pick<SizeController, 'current' | 'set' | 'subscribe'>
@@ -177,7 +177,6 @@ function PageRow(props: {
   glide: boolean
 }) {
   const { page, scope, selected } = props
-  const Icon = ICONS[page.icon] ?? UnknownIcon
   const { badge } = page
   const row = useRef<HTMLAnchorElement>(null)
   useLayoutEffect(() => {
@@ -200,7 +199,7 @@ function PageRow(props: {
         draggable={false}
         onClick={follow(props.choose, page.id)}
       >
-        <Icon aria-hidden="true" />
+        <NamedIcon name={page.icon} aria-hidden="true" />
         <span className="shell-link-label">{page.title}</span>
         {badge === undefined ? null : (
           <span className="shell-nav-badge">
@@ -260,8 +259,8 @@ function SidebarEntry(props: { item: SidebarItem; scope: string | undefined; exp
 }
 
 function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boolean }) {
-  const [choice, setChoice] = useState(props.theme.initial)
-  const { size } = props
+  const { size, theme } = props
+  const choice = useSyncExternalStore(theme.subscribe, () => theme.current())
   const tier = useSyncExternalStore(
     listener => size.subscribe(() => listener()),
     () => size.current(),
@@ -287,8 +286,7 @@ function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boo
           onValueChange={value => {
             const next = THEMES.find(([name]) => name === value)?.[0]
             if (next === undefined) return
-            props.theme.select(next)
-            setChoice(next)
+            theme.select(next)
           }}
         >
           {THEMES.map(([name, label]) => (

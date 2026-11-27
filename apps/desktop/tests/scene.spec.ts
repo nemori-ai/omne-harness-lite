@@ -344,6 +344,42 @@ describe('说话笺的字跟着外壳的状态', () => {
     ]
     for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
   })
+
+  it('一幕的笺带回的话（整段字、三种状态之一、后面还有）与现成的话（键与按钮上的字）：形状对的原样过', () => {
+    const right = [
+      noteWith({ reply: { text: '', state: 'coming' } }),
+      noteWith({ reply: { text: '看过了', state: 'ended', more: true } }),
+      noteWith({ reply: { text: '一半', state: 'unknown' } }),
+      noteWith({ phrases: [] }),
+      noteWith({ phrases: [{ key: 'shell.todo', label: '记成待办' }] }),
+    ]
+    for (const message of right) expect(readDown(message)).toBe(message)
+  })
+
+  it('回的话或现成的话形状不对：答 undefined', () => {
+    const wrong: unknown[] = [
+      noteWith({ reply: { state: 'coming' } }),
+      noteWith({ reply: { text: '一半', state: 'said' } }),
+      noteWith({ reply: { text: '一半', state: 'coming', more: false } }),
+      noteWith({ reply: '一半' }),
+      noteWith({ phrases: [{ key: 'shell.todo' }] }),
+      noteWith({ phrases: [{ key: 7, label: '记成待办' }] }),
+      noteWith({ phrases: { key: 'shell.todo', label: '记成待办' } }),
+    ]
+    for (const message of wrong) expect(readDown(message), JSON.stringify(message)).toBeUndefined()
+  })
+
+  it('上行 phrase 带租约号与键：形状对的原样过；缺租约号或键、类型不对，答 undefined', () => {
+    const PHRASE = { kind: 'input', lease: 1, input: 'phrase', key: 'shell.todo' }
+    expect(readUp(PHRASE)).toBe(PHRASE)
+    const wrong: unknown[] = [
+      { kind: 'input', lease: 1, input: 'phrase' },
+      { kind: 'input', input: 'phrase', key: 'shell.todo' },
+      { ...PHRASE, key: 3 },
+      { ...PHRASE, lease: '1' },
+    ]
+    for (const message of wrong) expect(readUp(message), JSON.stringify(message)).toBeUndefined()
+  })
 })
 
 describe('从外壳到桌面层：一条消息往哪走', () => {

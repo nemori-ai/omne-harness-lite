@@ -517,7 +517,9 @@ function inBandError(code: string | null, errorType: string | null): Refusal {
             code === 'image_content_policy_violation'
           ? 'input-rejected'
           : 'unclassified'
-  return { fault: { cause, diagnostic: 'in-band-error', upstreamStatus: null } }
+  const fault = { cause, diagnostic: 'in-band-error', upstreamStatus: null } as const
+  const throttled = cause === 'upstream-unavailable' && code === 'rate_limit_exceeded'
+  return { fault: throttled ? { ...fault, throttled: true } : fault }
 }
 
 function blockId(index: string): BlockId {

@@ -309,17 +309,28 @@ const unknown = (reason: SessionDiagnosticUnknown['reason']): SessionDiagnosticU
 const textOrNull = (value: JsonValue | undefined, key: string): string | null =>
   textAt(value, key) ?? null
 
+function throttledIn(failure: JsonValue): boolean {
+  if (failure.kind !== 'object') return false
+  const mark = failure.entries.find(entry => entry.key === 'throttled')?.value
+  return mark?.kind === 'boolean' && mark.value
+}
+
+function nodeFailureOf(failure: JsonValue): SessionRunCause {
+  const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
+  const node = textAt(failure, 'node')
+  const failureKind = textAt(failure, 'failureKind')
+  if (category === undefined || node === undefined || failureKind === undefined)
+    return unknown('unsupported')
+  const diagnostic = textAt(failure, 'diagnostic')
+  const said = diagnostic === undefined || diagnostic === '' ? {} : { diagnostic }
+  return { kind: 'node-failed', node, category, failureKind, ...said }
+}
+
 function failureOf(failure: JsonValue): SessionRunCause {
   const kind = textAt(failure, 'kind')
   switch (kind) {
-    case 'node-failed': {
-      const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
-      const node = textAt(failure, 'node')
-      const failureKind = textAt(failure, 'failureKind')
-      return category === undefined || node === undefined || failureKind === undefined
-        ? unknown('unsupported')
-        : { kind, node, category, failureKind }
-    }
+    case 'node-failed':
+      return nodeFailureOf(failure)
     case 'model-refused':
       return {
         kind,
@@ -330,6 +341,7 @@ function failureOf(failure: JsonValue): SessionRunCause {
         kind,
         cause: textOrNull(failure, 'cause'),
         upstreamStatus: textOrNull(failure, 'upstreamStatus'),
+        ...(throttledIn(failure) ? { throttled: 'yes' as const } : {}),
       }
     case 'cannot-fit':
       return {

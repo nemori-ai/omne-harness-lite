@@ -1,0 +1,199 @@
+import { expect, it } from 'vitest'
+
+import {
+  createVisualRecordKernel,
+  VISUAL_DEFAULTS,
+  visualRecordKernel as kernel,
+  type VisualPreferences,
+  type VisualRecord,
+} from '../src/shared/visual-record.ts'
+
+function record(t: number, preferences: Partial<VisualPreferences> = {}, id = 'a'): VisualRecord {
+  return { version: 1, stamp: { t, id }, preferences }
+}
+
+// Input digits denote record time, '-' missing, '!' invalid and 'x' unavailable.
+// The last column lists the available replicas that need the winning record.
+it.each([
+  ['-', '-', 0, ''],
+  ['!', '!', 0, ''],
+  ['1', '1', 1, ''],
+  ['x', 'x', 0, ''],
+  ['-!', '-!', 0, ''],
+  ['1-', '1-', 1, '1'],
+  ['!1', '!1', 1, '0'],
+  ['12', '12', 2, '0'],
+  ['21', '21', 2, '1'],
+  ['11', '11', 1, ''],
+  ['1x', '1x', 1, ''],
+  ['x1', 'x1', 1, ''],
+  ['---', '---', 0, ''],
+  ['1--', '1--', 1, '12'],
+  ['-1-', '-1-', 1, '02'],
+  ['--1', '--1', 1, '01'],
+  ['21-', '21-', 2, '12'],
+  ['12-', '12-', 2, '02'],
+  ['11-', '11-', 1, '2'],
+  ['2-1', '2-1', 2, '12'],
+  ['1-2', '1-2', 2, '01'],
+  ['1-1', '1-1', 1, '1'],
+  ['-21', '-21', 2, '02'],
+  ['-12', '-12', 2, '01'],
+  ['-11', '-11', 1, '0'],
+  ['211', '211', 2, '12'],
+  ['121', '121', 2, '02'],
+  ['112', '112', 2, '01'],
+  ['221', '221', 2, '2'],
+  ['212', '212', 2, '1'],
+  ['122', '122', 2, '0'],
+  ['111', '111', 1, ''],
+] as const)(
+  '%s selects the observable maximum and repairs only lagging sources',
+  (_, inputs, time, repair) => {
+    const sources = Array.from(
+      inputs,
+      c =>
+        kernel.decode(c === '!' ? '{}' : Number(c) ? kernel.encode(record(Number(c))) : null)
+          .record,
+    )
+    const best = kernel.pick(sources)
+    expect(best?.stamp.t ?? 0).toBe(time)
+    expect(
+      kernel.pick(Array.from(sources, (_source, i) => sources[sources.length - i - 1])),
+    ).toEqual(best)
+    expect(kernel.pick([...sources, best, ...sources])).toEqual(best)
+    expect(
+      sources
+        .flatMap((source, i) =>
+          inputs[i] !== 'x' && best && kernel.behind(source, best) ? [i] : [],
+        )
+        .join(''),
+    ).toBe(repair)
+  },
+)
+
+// Inputs are ordered upstream to downstream, the mirror then local storage. The last column lists the
+// available replicas that differ from the start record.
+it.each([
+  ['-', '-', 0, ''],
+  ['!', '!', 0, ''],
+  ['1', '1', 1, ''],
+  ['x', 'x', 0, ''],
+  ['-!', '-!', 0, ''],
+  ['1-', '1-', 1, '1'],
+  ['!1', '!1', 1, '0'],
+  ['12', '12', 1, '1'],
+  ['21', '21', 2, '1'],
+  ['11', '11', 1, ''],
+  ['1x', '1x', 1, ''],
+  ['x1', 'x1', 1, ''],
+] as const)(
+  '%s starts from the first valid upstream and repairs every different replica',
+  (_, inputs, time, repair) => {
+    const sources = Array.from(
+      inputs,
+      c =>
+        kernel.decode(c === '!' ? '{}' : Number(c) ? kernel.encode(record(Number(c))) : null)
+          .record,
+    )
+    const [first, second] = sources
+    const selected =
+      inputs.length === 1
+        ? kernel.atStart({ local: first })
+        : kernel.atStart({ native: first, local: second })
+    expect(selected?.stamp.t ?? 0).toBe(time)
+    expect(
+      sources
+        .flatMap((source, i) =>
+          inputs[i] !== 'x' && selected && (!source || kernel.compare(source, selected) !== 0)
+            ? [i]
+            : [],
+        )
+        .join(''),
+    ).toBe(repair)
+  },
+)
+
+it('orders by time, code units and canonical sparse JSON, independently of key order', () => {
+  const a = record(1, { size: 'large', theme: 'dark' })
+  const b = record(1, { theme: 'dark', size: 'large' })
+  expect(kernel.encode(a)).toBe(
+    '{"version":1,"stamp":{"t":1,"id":"a"},"preferences":{"theme":"dark","size":"large"}}',
+  )
+  expect(kernel.encode(b)).toBe(kernel.encode(a))
+  expect(kernel.compare(a, b)).toBe(0)
+  const ordered = [
+    record(0),
+    record(1, {}, 'Z'),
+    record(1, { size: 'large' }),
+    a,
+    record(1),
+    record(2),
+  ]
+  for (const [i, first] of ordered.entries()) {
+    for (const [j, second] of ordered.entries()) {
+      expect(kernel.compare(first, second)).toBe(Math.sign(i - j))
+      for (const [k, third] of ordered.entries()) {
+        const winner = ordered[Math.max(i, j, k)]
+        expect(kernel.pick([first, second, third])).toEqual(winner)
+        expect(kernel.pick([kernel.pick([first, second]), third, first])).toEqual(winner)
+      }
+    }
+  }
+})
+it('advances the maximum observed clock after rollback and generates a random id per commit', () => {
+  expect(kernel.nextStamp([record(200), record(300)], 10, () => 'next')).toEqual({
+    t: 301,
+    id: 'next',
+  })
+  expect(kernel.nextStamp([], 400).t).toBe(400)
+  expect(kernel.nextStamp([], 400).id).not.toBe(kernel.nextStamp([], 400).id)
+})
+it.each([
+  ['system', {}, 'system'],
+  ['light', {}, 'light'],
+  ['light', { theme: 'dark' }, 'dark'],
+  ['light', { size: 'small' }, 'light'],
+  ['light', { theme: 'light' }, 'light'],
+  ['light', { size: 'large' }, 'light'],
+  ['system', { theme: 'light' }, 'light'],
+] as const)(
+  'with the default theme %s, %o fills only omitted fields from product defaults',
+  (theme, preferences, expected) => {
+    const product = createVisualRecordKernel({ ...VISUAL_DEFAULTS, theme })
+    const stored = product.decode(product.encode(record(1, preferences))).record
+    expect(stored?.preferences).toEqual(preferences)
+    expect(product.effective(stored).theme).toBe(expected)
+  },
+)
+it.each([
+  null,
+  [],
+  {},
+  { ...record(1), version: 2 },
+  { ...record(1), extra: true },
+  ...[
+    null,
+    [],
+    { t: -1, id: 'x' },
+    { t: 1.5, id: 'x' },
+    { t: 0, id: '' },
+    { t: 0, id: 42 },
+    { t: 0, id: 'x', foo: 0 },
+  ].map(stamp => ({ ...record(1), stamp })),
+  ...[
+    null,
+    [],
+    { size: 'huge' },
+    { theme: 'blue', size: 'large' },
+    { theme: true },
+    { unknown: 'system' },
+  ].map(preferences => ({ ...record(1), preferences })),
+])('rejects the whole malformed record %#', value => {
+  expect(kernel.decode(JSON.stringify(value))).toEqual({ kind: 'invalid' })
+})
+it('distinguishes a missing value from an empty or corrupt payload', () => {
+  expect(kernel.decode(null)).toEqual({ kind: 'missing' })
+  expect(kernel.decode('')).toEqual({ kind: 'invalid' })
+  expect(kernel.decode('{')).toEqual({ kind: 'invalid' })
+})

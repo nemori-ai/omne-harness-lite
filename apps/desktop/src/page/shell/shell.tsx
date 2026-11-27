@@ -44,7 +44,7 @@ import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { runAction } from './dispatch.ts'
 import { bindShellKeys, shellKeys } from './keys.ts'
-import { paletteSwitch, ShellPalette } from './palette.tsx'
+import { ShellPalette } from './palette.tsx'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import {
   shellApp,
@@ -269,7 +269,7 @@ function Outside(props: {
 export const CONNECTING_TEXT = '正在连接服务……'
 
 /** A page or gate whose module lacks something it needs: one sentence for each, or the wait for the connection. */
-function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
+export function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
   const said = props.lacks.flatMap(lack =>
     lack.kind === 'connecting' ? [] : [lackText(lack, props.slot)],
   )
@@ -282,7 +282,7 @@ function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
   ))
 }
 
-function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
+export function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
   const [, changed] = useReducer((count: number) => count + 1, 0)
   useEffect(() => state.lacks.subscribe(changed), [state.lacks])
   return (slot, id) => state.lacks.of(slot, id)
@@ -518,8 +518,9 @@ export function Shell(props: ShellProps) {
   const shown = useWatched(state.page)
   const merged = useFigure(state, pages, shown)
   const face = useWatched(state.face)
-  const palette = useMemo(paletteSwitch, [])
-  const keys = useMemo(() => shellKeys(state, props.size, palette), [state, props.size, palette])
+  const palette = state.palette
+  const keys = useMemo(() => shellKeys(state), [state])
+  useEffect(() => state.size.bind(props.size), [state, props.size])
   useEffect(() => bindShellKeys(window, keys), [keys])
   const homePage = homeOf(merged, pages)
   const doing = merged.doing === 'idle' ? undefined : merged.doing

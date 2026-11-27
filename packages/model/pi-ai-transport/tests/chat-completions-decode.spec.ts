@@ -1227,8 +1227,20 @@ describe('in-band error', () => {
       cause: 'upstream-unavailable',
       diagnostic: 'in-band-error',
       upstreamStatus: '429',
+      throttled: true,
     })
     expect(JSON.stringify(facts)).not.toContain('secret')
+  })
+
+  it('marks only the code 429 as throttled', async () => {
+    for (const code of [500, 502, 503]) {
+      const facts = await replay(bind(), { error: { code, message: 'm' } })
+      expect(faultOf(facts)).toEqual({
+        cause: 'upstream-unavailable',
+        diagnostic: 'in-band-error',
+        upstreamStatus: String(code),
+      })
+    }
   })
 
   it('keeps the codes at the edges of the status range as statuses', async () => {

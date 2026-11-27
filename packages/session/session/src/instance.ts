@@ -133,6 +133,7 @@ export function createSessionInstance<P>(
     scheduling,
     coordinator: faces.coordinator,
     known,
+    closeRefused: async (ref, held, refusal) => advance?.closeRefused(ref, held, refusal),
   })
   reloading = createReload({
     dependencies,

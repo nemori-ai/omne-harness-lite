@@ -512,7 +512,8 @@ describe('a publication between the commit and its fold', () => {
   })
 })
 
-describe('a publication takes the index of the folded tail over the row bound', () => {
+// The work index reads none of the admissions of another execution: a thousand of them change nothing in it.
+describe('a publication while the index of the folded tail is read', () => {
   it('the fold registers at the answered count; readers that waited for it answer as a whole read', async () => {
     const a = await app()
     const { port, storage, hooks } = portOver(a)
@@ -544,7 +545,9 @@ describe('a publication takes the index of the folded tail over the row bound', 
     expect(answers.length).toBe(3)
     const whole = await wholeRead(a)
     expect(whole.revision).toBe(String(BigInt(held.revision) + 1n))
-    expect(whole.historyIndex).toBeUndefined()
+    expect(whole.historyIndex?.inputs.map(item => [item.input, item.count])).toEqual([
+      ['input-1', '0'],
+    ])
     for (const answer of answers)
       expect(canonicalText(encodeValue(answer))).toBe(canonicalText(encodeValue(whole)))
     const from = a.provider.calls.length

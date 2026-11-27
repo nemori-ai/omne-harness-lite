@@ -81,7 +81,8 @@ function effortOf(
 
 // A model turned off, withdrawn or unknown does not come back on its own: the Run ends, not waits.
 function absentFailure(reason: Extract<ProfileResolution, { kind: 'absent' }>['reason']): Failure {
-  return { kind: 'invalid', field: 'model', reason: reason === 'excluded' ? 'not-enabled' : reason }
+  const said = reason === 'excluded' ? 'not-enabled' : reason
+  return { kind: 'invalid', field: 'model', reason: said, disclosed: `model ${said}` }
 }
 
 export async function selectModel(

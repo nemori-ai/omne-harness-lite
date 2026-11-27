@@ -35,7 +35,11 @@ const boxOf = (element: Element | null | undefined): Box => {
 export function useShellNote(state: ShellState): ShellNote | null {
   const [note, setNote] = useState<ShellNote | null>(null)
   useEffect(() => {
-    const made = createShellNote({ slots: state.slots, scope: () => state.scope.get() })
+    const made = createShellNote({
+      slots: state.slots,
+      scope: () => state.scope.get(),
+      phrases: state.phrases,
+    })
     setNote(made)
     const unscope = state.scope.subscribe(() => made.rescope())
     return () => {
@@ -133,13 +137,14 @@ function actions(note: ShellNote, view: NoteView) {
   const { note: drawn, pictures, window: spot } = view
   return {
     onTarget: (target: string) => note.write(drawn.words, toOf(target)),
-    onText: (text: string) => drawn.fate?.kind === 'sending' || note.write(text, drawn.chosen),
+    onText: (text: string) => note.write(text, drawn.chosen),
     onSend: (said: SaySaid) =>
       note.send(
         said.text,
         toOf(said.target),
         pictures.map(picture => picture.id),
       ),
+    onPhrase: (key: string) => note.phrase(key),
     onOpen: () => spot !== null && note.show() && note.close(spot.id),
     onDropPicture: (index: number) => {
       const picture = pictures[index]

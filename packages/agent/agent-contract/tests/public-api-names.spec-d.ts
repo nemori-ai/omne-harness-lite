@@ -520,6 +520,7 @@ describe('the discriminants of the evaluation chapter', () => {
         field: string
         reason: string
         rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+        disclosed?: string
       }>
     >()
     expectTypeOf<

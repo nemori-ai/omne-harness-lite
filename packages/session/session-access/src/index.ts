@@ -15,6 +15,7 @@ export type {
   ResolvedDefinition,
   RunFailureCause,
   RunFailureCauses,
+  RunFailureFault,
   RunFailureReading,
   SessionAccessFaces,
   SessionAccessSettings,

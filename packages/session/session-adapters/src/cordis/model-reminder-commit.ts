@@ -86,7 +86,7 @@ export function reminderOutcome(
     case 'unavailable':
       return down(`${subject}: ${outcome.diagnostic}`)
     case 'refused':
-      return refusalFailure(outcome.reason)
+      return refusalFailure(outcome)
   }
 }
 

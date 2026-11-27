@@ -1,3 +1,4 @@
+import type { GuestContractData } from '@omne-harness/public-contract'
 import type {
   AccessContribution,
   FrameSource,
@@ -5,6 +6,7 @@ import type {
   ProtocolKey,
 } from '@omne-harness/access-cordis-contract'
 import type { Scope } from '@omne-harness/dynamis'
+import type { ScopedProtocol } from './table.ts'
 import type {
   ObservationContract,
   OperationContract,
@@ -52,12 +54,14 @@ export type AvailabilityChange =
       readonly conflicts: readonly ProtocolKey[]
     }
   | { readonly revision: number; readonly change: 'points'; readonly points: readonly PointFact[] }
+  | { readonly revision: number; readonly change: 'scoped'; readonly scoped: number }
 
 export type AvailabilitySubscription = {
   readonly revision: number
   readonly protocols: readonly ServedProtocol[]
   readonly conflicts: readonly ProtocolKey[]
   readonly points: readonly PointFact[]
+  readonly scoped: number
   readonly unsubscribe: () => void
 }
 
@@ -70,6 +74,7 @@ export type Refusal = Readonly<{
 export type RegistryForPipeline = {
   readonly enter: (key: ProtocolKey, name: string, scope?: Scope) => Entered | Refusal
   readonly subscribe: (listener: (change: AvailabilityChange) => void) => AvailabilitySubscription
+  readonly scoped: (asker: Scope) => readonly ScopedProtocol[] | undefined
 }
 
 type Mount = <P extends ProtocolContract>(
@@ -79,7 +84,14 @@ type Mount = <P extends ProtocolContract>(
 /** What the entry needs besides the pipeline's part: a way to put its own protocol and take it back. */
 export type RegistryForEntry = RegistryForPipeline & { readonly own: Mount }
 
-export type StandaloneRegistry = RegistryForEntry & { readonly mount: Mount }
+export type HeldFor = Readonly<{ scope: Scope; data: GuestContractData }>
+
+export type StandaloneRegistry = RegistryForEntry & {
+  readonly mount: <P extends ProtocolContract>(
+    contribution: AccessContribution<P>,
+    held?: HeldFor,
+  ) => () => Promise<void>
+}
 
 export function memberOf(
   contribution: AccessContribution<ProtocolContract>,

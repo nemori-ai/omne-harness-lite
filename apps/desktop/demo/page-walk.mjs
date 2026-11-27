@@ -848,7 +848,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     other.click()
     await wait('the other theme', () => document.documentElement.dataset.theme !== before)
     await wait('the menu to close', () => document.querySelector('[role=menu]') === null)
-    return { before, after: document.documentElement.dataset.theme, stored: localStorage.getItem('omne.theme') }`,
+    return { before, after: document.documentElement.dataset.theme, stored: JSON.parse(localStorage.getItem('omne.visual') ?? 'null')?.preferences?.theme }`,
   )
   await step(
     '「待你决定」页读得出',

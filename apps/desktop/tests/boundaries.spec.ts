@@ -4,6 +4,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { firstRoute } from '../src/main/app-protocol.ts'
 import { deviceFigure } from '../src/main/device-figure.ts'
+import { deviceViewRoute } from '../src/main/device-view.ts'
 import { deviceScreenRoute } from '../src/main/device-screen.ts'
 
 const SRC = join(import.meta.dirname, '..', 'src')
@@ -116,28 +117,61 @@ describe('边界', () => {
     expect(offending('main', bad)).toEqual([])
   })
 
-  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口、桌面层的窗口、试起页面包的窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
+  it('主进程里只有入口、拒绝远程调试、窗口、截图的遮罩窗口、桌面层的窗口、试起页面包的窗口、看界面的窗口、utility 进程的启动与视觉镜像的两处导入 electron，其余换成替身就能测', () => {
     const using = files(join(SRC, 'main'))
       .filter(file => imports(file).includes('electron'))
       .map(file => relative(join(SRC, 'main'), file))
       .toSorted()
     expect(using).toEqual([
       'desk-window.ts',
+      'look-window.ts',
       'main.ts',
       'page-candidate.ts',
       'remote-debugging.ts',
       'screen-overlay.ts',
       'utility-process.ts',
+      'visual-ipc.ts',
+      'visual-look.ts',
       'window.ts',
     ])
   })
 
-  it('没有预加载脚本，不用进程间通信承载页面的请求；桌面应用不启动独立转发进程', () => {
+  it('只有视觉镜像经预加载脚本与两个进程间通信的通道，不用它们承载页面的请求；桌面应用不启动独立转发进程', () => {
     for (const file of files(join(SRC, 'main'))) {
       const text = readFileSync(file, 'utf8')
-      expect(text, relative(SRC, file)).not.toMatch(/ipcMain|ipcRenderer|contextBridge|preload/)
-      expect(text, relative(SRC, file)).not.toMatch(/createServer|\.listen\(/)
+      const name = relative(join(SRC, 'main'), file)
+      if (!['main.ts', 'visual-ipc.ts'].includes(name))
+        expect(text, name).not.toMatch(/ipcMain|ipcRenderer|contextBridge/)
+      expect(text, name).not.toMatch(/createServer|\.listen\(/)
     }
+    const ipc = readFileSync(join(SRC, 'main', 'visual-ipc.ts'), 'utf8')
+    const channels = [...ipc.matchAll(/ipc\.(?:on|handle)\(([^,]+),/g)].map(match => match[1])
+    expect(channels).toEqual(['VISUAL_IPC.read', 'VISUAL_IPC.push'])
+    const preloads = files(join(SRC, 'preload'))
+    expect(preloads.map(file => relative(SRC, file))).toEqual(['preload/preload.ts'])
+    expect(imports(preloads[0]!).toSorted()).toEqual(['../shared/desktop-bridge.ts', 'electron'])
+    const preload = readFileSync(preloads[0]!, 'utf8')
+    expect([...preload.matchAll(/exposeInMainWorld\(([^,]+),/g)].map(match => match[1])).toEqual([
+      "'omneDesktop'",
+    ])
+    const windows = files(join(SRC, 'main'))
+      .filter(file => /windowOptions\(|openAppWindow\(/.test(readFileSync(file, 'utf8')))
+      .flatMap(file =>
+        [...readFileSync(file, 'utf8').matchAll(/(?:windowOptions|openAppWindow)\(([^)\n]*)/g)].map(
+          match => `${relative(join(SRC, 'main'), file)}: ${match[1]}`,
+        ),
+      )
+      .filter(call => !call.startsWith('window.ts: '))
+    expect(windows.toSorted()).toEqual([
+      'desk-window.ts: undefined',
+      'look-window.ts: undefined',
+      'main.ts: saved, utility, log, updates.onTrial, {',
+      'page-candidate.ts: undefined',
+      'screen-overlay.ts: undefined',
+    ])
+    expect(readFileSync(join(SRC, 'main', 'window.ts'), 'utf8')).toContain(
+      'new BrowserWindow(windowOptions(state, process.platform, look))',
+    )
     const bad = (specifier: string) => /standalone\/(server|bin)\.ts$/.test(specifier)
     expect([...offending('main', bad), ...offending('utility', bad)]).toEqual([])
   })
@@ -163,8 +197,9 @@ describe('边界', () => {
     expect(offending('page/surface', bad)).toEqual([])
   })
 
-  it('/device/ 下除截屏与 figure 之外仍答 404', async () => {
+  it('/device/ 下除截屏、figure 与看界面之外仍答 404', async () => {
     const route = firstRoute([
+      deviceViewRoute({ open: () => undefined, deadlineMs: 1 }),
       deviceFigure({
         leave: true,
         open: () => {
@@ -197,7 +232,14 @@ describe('边界', () => {
     const status = async (method: string, path: string) =>
       (await route(new Request(`app://omne${path}`, { method })))?.status
     expect(await status('GET', '/device/figure')).toBe(200)
-    for (const path of ['/device/camera', '/device/figures', '/device/', '/device/figure/other'])
+    expect(await status('GET', '/device/view')).toBe(405)
+    for (const path of [
+      '/device/camera',
+      '/device/figures',
+      '/device/',
+      '/device/figure/other',
+      '/device/view/other',
+    ])
       expect(await status('GET', path), path).toBe(404)
   })
 
@@ -214,7 +256,7 @@ describe('边界', () => {
     expect(naming).toEqual(['page/assembly.tsx'])
   })
 
-  it('装配文件列出十七个界面模块', () => {
+  it('装配文件列出十八个界面模块', () => {
     const modules = imports(join(SRC, 'page', 'assembly.tsx'))
       .filter(specifier => specifier.endsWith('-ui/cordis'))
       .sort()
@@ -225,6 +267,7 @@ describe('边界', () => {
       '@omne-harness/goal-ui/cordis',
       '@omne-harness/human-intervention-ui/cordis',
       '@omne-harness/identity-ui/cordis',
+      '@omne-harness/interface-ui/cordis',
       '@omne-harness/mcp-ui/cordis',
       '@omne-harness/media-ui/cordis',
       '@omne-harness/model-ui/cordis',

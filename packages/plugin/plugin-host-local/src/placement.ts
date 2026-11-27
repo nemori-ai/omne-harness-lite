@@ -5,7 +5,7 @@ import { placedOf, rivals, type PluginHeld } from './effect.ts'
 /** What one connected client last told of this plugin; `state` is null when it told nothing of it. */
 export type ClientTold = Readonly<{
   client: string
-  state: 'loaded' | 'failed' | 'held' | null
+  state: 'loaded' | 'failed' | 'held' | 'waiting' | null
   reason: string | null
 }>
 
@@ -43,7 +43,9 @@ function toldBy({ client, state, reason }: ClientTold): ClientLine {
         ? `loaded${reason === null ? '' : `: ${reason}`}`
         : state === 'held'
           ? STOPPED
-          : `failed: ${reason ?? 'no reason was told'}`
+          : state === 'waiting'
+            ? `waits for ${reason ?? 'what it lacks'}: it loads by itself when that is there`
+            : `failed: ${reason ?? 'no reason was told'}`
   return { label: `${client}, connected`, says }
 }
 
@@ -58,6 +60,8 @@ function clientStanding(clients: readonly ClientTold[] | null): Standing {
     return { standing: 'not in effect', says: 'the client could not load it' }
   if (clients.some(client => client.state === 'held'))
     return { standing: 'not in effect', says: 'the app stopped loading it' }
+  if (clients.some(client => client.state === 'waiting'))
+    return { standing: 'not in effect', says: 'the client waits for what it lacks' }
   if (clients.some(client => client.state === null))
     return { standing: 'not known', says: 'a client has not loaded it yet' }
   return IN_EFFECT

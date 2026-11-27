@@ -4,6 +4,7 @@ export interface Command {
   readonly command: string
   readonly args: readonly string[]
   readonly cwd: string
+  readonly env?: Readonly<Record<string, string>>
 }
 
 export interface Outcome {
@@ -14,9 +15,13 @@ export interface Outcome {
 
 export type Executor = (command: Command) => Promise<Outcome>
 
-export const spawnExecutor: Executor = ({ command, args, cwd }) =>
+export const spawnExecutor: Executor = ({ command, args, cwd, env }) =>
   new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(command, args, {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+    })
     let stdout = ''
     let stderr = ''
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk))

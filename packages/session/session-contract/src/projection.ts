@@ -33,12 +33,13 @@ import {
 } from './call-state.ts'
 import { validateControlProgress } from './control-state.ts'
 import {
-  SessionValidationFailure,
   equalValue,
   evidenceFields,
   inconsistent,
   invalidAt,
+  missingAt,
   nonempty,
+  SessionValidationFailure,
   unavailableAt,
 } from './session-validation.ts'
 import { encodeEntry, type SessionEntry } from './entries.ts'
@@ -170,7 +171,7 @@ function projectObservation(
         const original = draft.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (original === undefined) unavailableAt('association.registration')
+        if (original === undefined) missingAt('association.registration')
         append({
           kind: 'call.bound',
           consumption: consequence.consumption,
@@ -233,7 +234,7 @@ function projectObservation(
               item.registration.kind === 'associated' &&
               equalValue(item.registration.binding, wait.binding),
           )
-          if (record === undefined) unavailableAt('waiting.registration')
+          if (record === undefined) missingAt('waiting.registration')
           return [{ consumption: record.consumption, position: wait.position }]
         })
         append({

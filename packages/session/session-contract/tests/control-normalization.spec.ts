@@ -22,6 +22,7 @@ type Material = Readonly<{
   attemptOf: string
   advance: 'held' | 'released'
   waits: boolean
+  gone?: 'references' | 'registration'
 }>
 
 function decide(material: Material) {
@@ -52,22 +53,26 @@ function decide(material: Material) {
           }
         : { kind: 'none' },
     workEntryIndex: {
-      controls: [{ operation: OPERATION, selected: material.waits ? [WAIT] : [] }],
+      controls:
+        material.gone === 'references'
+          ? []
+          : [{ operation: OPERATION, selected: material.waits ? [WAIT] : [] }],
     },
-    callRegistrations: material.waits
-      ? [
-          {
-            consumption: WAIT.consumption,
-            registration: {
-              kind: 'tool-intent',
-              action: 'action-1',
-              request: evidence('request'),
-              initiatingAttempt: ATTEMPT,
-              purpose: 'action',
+    callRegistrations:
+      material.waits && material.gone !== 'registration'
+        ? [
+            {
+              consumption: WAIT.consumption,
+              registration: {
+                kind: 'tool-intent',
+                action: 'action-1',
+                request: evidence('request'),
+                initiatingAttempt: ATTEMPT,
+                purpose: 'action',
+              },
             },
-          },
-        ]
-      : [],
+          ]
+        : [],
   } as unknown as WorkSnapshot
   const input: SessionControlDecisionInput = {
     snapshot,
@@ -145,6 +150,20 @@ describe('a cancel reconciles its control only on the original execution and onc
       expect(decide(material)).toEqual(answer)
     },
   )
+})
+
+describe('what a control names and the snapshot no longer holds is gone for good', () => {
+  it.each([
+    ['its references in the work entry index', 'references', 'control.references'],
+    ['the registration of a call it selected', 'registration', 'control.registration'],
+  ] as const)('%s: quarantined, with the name of what is missing', (_name, gone, field) => {
+    expect(decide({ attemptOf: EXECUTION, advance: 'released', waits: true, gone })).toEqual({
+      failure: {
+        kind: 'quarantined',
+        diagnostic: `${field}: required original material is missing`,
+      },
+    })
+  })
 })
 
 describe('an urgent input reconciles its control once the Agent released each foreground call', () => {
@@ -384,6 +403,7 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
     model?: true
     intent?: ControlProgress['intent']
     origin?: string
+    registered?: false
   }>
 
   const STOPPED = { command: 'withdraw-tool', reached: ['accepted', 'physically-stopped'] } as const
@@ -406,9 +426,10 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
       controls: [progress],
       run: { kind: 'none' },
       workEntryIndex: { controls: [{ operation: OPERATION, selected: [] }] },
-      callRegistrations: [
-        { consumption: 'consumption-1', registration: { kind: 'associated', binding } },
-      ],
+      callRegistrations:
+        stop.registered === false
+          ? []
+          : [{ consumption: 'consumption-1', registration: { kind: 'associated', binding } }],
     } as unknown as WorkSnapshot
     const name = stop.names ?? producer.call
     return decideControlConsequences({
@@ -554,4 +575,14 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
       expect(decideCancel(stop)).toEqual(answer)
     },
   )
+
+  // A control keeps the calls it names in the snapshot: one that is not there will not come back.
+  it('a pending producer the snapshot holds no call of is material gone for good, not a read to make again', () => {
+    expect(decideCancel({ ...STOPPED, registered: false })).toEqual({
+      failure: {
+        kind: 'quarantined',
+        diagnostic: 'control.pending.registration: required original material is missing',
+      },
+    })
+  })
 })

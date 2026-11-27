@@ -1,0 +1,228 @@
+{
+  "digests": {
+    "1": "sha256:ca249f94bc7c658cf1c9152f7f2501f3bd4721f5281696eeebe1f8a93e3bdddd"
+  },
+  "major": 1,
+  "name": "interface",
+  "revision": 1,
+  "rules": {
+    "observations": {
+      "observe-requests": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "mode": {
+              "rule": {
+                "fields": {
+                  "height": {
+                    "rule": {
+                      "kind": "positive-integer"
+                    }
+                  },
+                  "look": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "fields": {
+                            "kind": {
+                              "rule": {
+                                "kind": "literal",
+                                "values": [
+                                  "built-in"
+                                ]
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        {
+                          "fields": {
+                            "kind": {
+                              "rule": {
+                                "kind": "literal",
+                                "values": [
+                                  "skin"
+                                ]
+                              }
+                            },
+                            "name": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "size": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "small",
+                        "medium",
+                        "large",
+                        "reading"
+                      ]
+                    }
+                  },
+                  "theme": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "light",
+                        "dark"
+                      ]
+                    }
+                  },
+                  "width": {
+                    "rule": {
+                      "kind": "positive-integer"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "page": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "request": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "subject": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "client": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        }
+      }
+    },
+    "operations": {
+      "deliver": {
+        "body": {
+          "fields": {
+            "client": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "request": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "result": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "bytes": {
+                        "rule": {
+                          "kind": "bytes"
+                        }
+                      },
+                      "height": {
+                        "rule": {
+                          "kind": "positive-integer"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "image"
+                          ]
+                        }
+                      },
+                      "width": {
+                        "rule": {
+                          "kind": "positive-integer"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "cannot"
+                          ]
+                        }
+                      },
+                      "reason": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "no-page",
+                            "no-skin",
+                            "bad-mode",
+                            "not-settled",
+                            "unsupported"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      }
+    }
+  }
+}

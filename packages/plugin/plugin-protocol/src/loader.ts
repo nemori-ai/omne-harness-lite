@@ -1,5 +1,5 @@
 import type { Member, PluginKind } from './manifest.ts'
-import { UNWANTED, stepSide, type SideEvent, type SideState } from './side-state.ts'
+import { UNWANTED, stepSide, type Absent, type SideEvent, type SideState } from './side-state.ts'
 
 /** One plugin as the list has it for this side; `fault` is why it cannot be loaded as listed. */
 export type Listed = Readonly<{
@@ -7,6 +7,7 @@ export type Listed = Readonly<{
   version: string
   kind?: PluginKind
   members: readonly Member[]
+  needs?: readonly string[]
   fault?: string
 }>
 
@@ -16,7 +17,7 @@ export type Kept = Exclude<SideState, { kind: 'unwanted' }>
 export type Outcome =
   | Readonly<{ kind: 'installed'; remove: () => unknown }>
   | Readonly<{ kind: 'failed'; reason: string }>
-  | Readonly<{ kind: 'waiting'; lacks: readonly string[] }>
+  | Readonly<{ kind: 'waiting'; lacks: readonly Absent[] }>
   | Readonly<{ kind: 'held' }>
 
 export type LoaderDeps = Readonly<{

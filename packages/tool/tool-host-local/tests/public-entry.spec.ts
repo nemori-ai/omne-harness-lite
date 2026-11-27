@@ -16,6 +16,7 @@ it('root entry exports the local start coordinator, the host clock, the registry
     'START_COORDINATOR_OWNER',
     'START_GUARDS_DOMAIN_KEY',
     'TOOL_FORWARDING_OWNER',
+    'TOOL_PRODUCT_OWNER',
     'TOOL_PROGRAM_OWNER',
     'callHostDomain',
     'createAbsentToolPorts',

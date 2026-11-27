@@ -40,7 +40,13 @@ async function openFailed(fake: FakeClient): Promise<void> {
   await settle()
 }
 
-const waiting = (pending: number, cause: { kind: string; detail: string | null } | null) => ({
+type Told = {
+  kind: string
+  detail: string | null
+  fault?: { cause: string; upstreamStatus: string | null; throttled: boolean } | null
+}
+
+const waiting = (pending: number, cause: Told | null) => ({
   outcome: 'succeeded',
   body: { waiting: { run: 'run_1', pending, cause } },
 })
@@ -226,8 +232,9 @@ it('失败通知里有 session.run-failure 的位置：放进来的项收到会�
     ),
   })
   await settle()
-  const detail = 'model-failed/credential/credential-not-provided'
-  ;(await fake.next('read-waiting')).answer(waiting(0, { kind: 'no-reply', detail }))
+  const detail = 'http-401'
+  const fault = { cause: 'credential', upstreamStatus: '401', throttled: false }
+  ;(await fake.next('read-waiting')).answer(waiting(0, { kind: 'no-reply', detail, fault }))
   await settle()
   const block = screen.getByRole('status', { name: '这一轮失败了' })
   const remedy = block.querySelector('[data-remedy]')
@@ -235,7 +242,9 @@ it('失败通知里有 session.run-failure 的位置：放进来的项收到会�
     session: SESSION,
     cause: 'no-reply',
     detail,
+    fault,
   })
+  expect(within(block).getByText('模型调用没有成功，这一轮没有得到回复。')).toBeTruthy()
 })
 
 it('没有原因的失败通知里，session.run-failure 的项不画', async () => {

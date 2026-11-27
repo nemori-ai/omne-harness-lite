@@ -2,7 +2,7 @@
 id: PD-mcp
 title: MCP
 status: draft
-revision: 7
+revision: 8
 relations:
   supersedes: []
   depends-on: []

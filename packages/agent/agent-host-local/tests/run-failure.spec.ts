@@ -122,7 +122,7 @@ async function failing() {
       grant: null,
     }),
   )
-  return { host, instance }
+  return { host, instance, runtime }
 }
 
 describe('a run that stops on a node failure', () => {
@@ -155,5 +155,55 @@ describe('a run that stops on a node failure', () => {
     expect(answer).toEqual({ kind: 'settled' })
     expect(host.errors.filter(line => line.includes('ordered stop left'))).toEqual([])
     expect(runFailed(host)).toHaveLength(1)
+  })
+})
+
+describe('an execution that halts again at the same step', () => {
+  type Failing = Awaited<ReturnType<typeof failing>>
+
+  async function takeUp({ host, runtime }: Failing, name: string) {
+    const loaded = ok(
+      await host.controls.journal.port.load({ ...caller('a'), execution: EXECUTION }),
+    )
+    if (loaded.executionAttachment === null) throw new Error('the execution has no attachment')
+    const handover = ok(
+      await host.recovery.detach({
+        ...caller('a'),
+        execution: EXECUTION,
+        operation: ok(decodeAgentOperationId(`detach-${name}`)),
+        authority: loaded.executionAttachment,
+        reason: evidence(`lost-${name}`),
+      }),
+    )
+    return runtime.resume({
+      ...caller('a'),
+      execution: EXECUTION,
+      operation: ok(decodeAgentOperationId(`resume-${name}`)),
+      recovery: handover,
+      grant: null,
+    })
+  }
+
+  it('is resumed until it halted the limit of times, then the resume is refused for good', async () => {
+    const world = await failing()
+    const { host } = world
+    await until(() => runFailed(host).length === 1)
+    ok(await takeUp(world, '1'))
+    await until(() => runFailed(host).length === 2)
+    ok(await takeUp(world, '2'))
+    await until(() => runFailed(host).length === 3)
+    const refused = await takeUp(world, '3')
+    expect(refused).toEqual({
+      failure: {
+        kind: 'invalid',
+        field: 'execution',
+        reason: 'halted 3 times at step-0, last at F3 on invalid',
+      },
+    })
+    await turns(20)
+    expect(runFailed(host)).toHaveLength(3)
+    expect(host.warnings.filter(text => text.startsWith('agent run is not resumed'))).toEqual([
+      `agent run is not resumed: execution=${EXECUTION} halted 3 times at step-0, last at F3 on invalid`,
+    ])
   })
 })

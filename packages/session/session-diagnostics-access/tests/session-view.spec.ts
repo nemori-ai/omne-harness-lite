@@ -1204,6 +1204,36 @@ describe('the values the owners give', () => {
       { kind: 'unknown', reason: 'unsupported' },
     ],
     [
+      {
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'rejected',
+        failureKind: 'invalid',
+        diagnostic: 'command_limit: maxCommandBytes 5 > 4',
+      },
+      {
+        kind: 'node-failed',
+        node: 'E4',
+        category: 'rejected',
+        failureKind: 'invalid',
+        diagnostic: 'command_limit: maxCommandBytes 5 > 4',
+      },
+    ],
+    [
+      {
+        kind: 'no-reply',
+        cause: 'upstream-unavailable',
+        upstreamStatus: null,
+        diagnostic: 'in-band-error',
+        throttled: true,
+      },
+      { kind: 'no-reply', cause: 'upstream-unavailable', upstreamStatus: null, throttled: 'yes' },
+    ],
+    [
+      { kind: 'no-reply', cause: 'upstream-unavailable', upstreamStatus: '502', diagnostic: 'x' },
+      { kind: 'no-reply', cause: 'upstream-unavailable', upstreamStatus: '502' },
+    ],
+    [
       { kind: 'cannot-fit', reason: 'after-compaction' },
       { kind: 'cannot-fit', reason: 'after-compaction' },
     ],
