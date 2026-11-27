@@ -360,6 +360,52 @@ describe('the command line', () => {
     expect(readBaseline(dirty.baselines, 'a', 'short')).toBeNull()
   })
 
+  it('writes the baselines of several suites of one run: the first one written does not dirty the tree under the next', async () => {
+    const base = setting([suiteOf('a', () => counts(10)), suiteOf('b', () => counts(10))])
+    const tracked = {
+      ...base,
+      sources: {
+        ...base.sources,
+        run: (command: string, args: readonly string[]) =>
+          args.includes('status') && existsSync(base.baselines)
+            ? ' M baselines/a.short.json\n'
+            : base.sources.run(command, args),
+      },
+    }
+    expect(await perf(['run', '--write-baseline'], tracked, io)).toBe(0)
+    expect(errors).toEqual([])
+    expect(readBaseline(base.baselines, 'a', 'short')).not.toBeNull()
+    expect(readBaseline(base.baselines, 'b', 'short')).not.toBeNull()
+  })
+
+  it('does not hold a candidate to a count the base itself does not keep from one run to the next', async () => {
+    let runs = 0
+    const moving = (): Measured => {
+      const measured = counts(10)
+      runs += 1
+      return {
+        ...measured,
+        readings: [
+          ...measured.readings,
+          { name: 'bytes of one step', kind: 'count', unit: 'bytes', value: 1000 + (runs % 2) },
+        ],
+      }
+    }
+    const prepared = setting([suiteOf('a', moving)], {
+      prepare: commit => Promise.resolve(`/at/${commit}`),
+    })
+    expect(await perf(['compare', 'base', 'cand', 'a', '--counts-only'], prepared, io)).toBe(2)
+    expect(lines.join('\n')).toContain(
+      'Blocked: the base differs from itself in bytes of one step: what moves between two runs of one commit is not a count of steps.',
+    )
+    lines.length = 0
+    const still = setting([suiteOf('a', () => counts(10))], {
+      prepare: commit => Promise.resolve(`/at/${commit}`),
+    })
+    expect(await perf(['compare', 'base', 'cand', 'a', '--counts-only'], still, io)).toBe(0)
+    expect(lines.join('\n')).toContain('Comparable. All 2 counts equal those of')
+  })
+
   it('compares the counts of two results, and refuses two that asked different questions', async () => {
     const one = join(scratch, 'one')
     const two = join(scratch, 'two')

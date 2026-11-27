@@ -101,4 +101,17 @@ export function compareCounts(baseline: Baseline | null, result: Result): CountC
     : { state: 'different', against: baseline.commit, differences }
 }
 
+export function compareSteady(base: Result, again: Result, candidate: Result): CountComparison {
+  const baseline = baselineOf(base)
+  if ('state' in baseline) return baseline
+  const self = compareCounts(baseline, again)
+  if (self.state === 'equal') return compareCounts(baseline, candidate)
+  if (self.state !== 'different') return self
+  const moved = self.differences.map(item => item.name).join(', ')
+  return {
+    state: 'blocked',
+    reason: `the base differs from itself in ${moved}: what moves between two runs of one commit is not a count of steps`,
+  }
+}
+
 export const FACILITY_MAJOR = FACILITY.major

@@ -6,7 +6,13 @@ import type { CommitSettings, Probe } from './environment/probes.ts'
 import { fitnessOf, idsOf, type Environment } from './environment/record.ts'
 import type { Blocked } from './judgment/growth.ts'
 import type { PairedVerdict } from './judgment/paired.ts'
-import { baselineOf, compareCounts, readBaseline, writeBaseline } from './result/baseline.ts'
+import {
+  baselineOf,
+  compareCounts,
+  compareSteady,
+  readBaseline,
+  writeBaseline,
+} from './result/baseline.ts'
 import { reportOf } from './result/report.ts'
 import {
   FACILITY,
@@ -227,6 +233,7 @@ async function run(setting: Setting, parsed: Parsed, io: Io): Promise<number> {
   }
   const out = text(parsed.options, '--out') ?? join(setting.results, stamp(setting.now()))
   let worst = 0
+  const results: Result[] = []
   for (const one of chosen) {
     const result = await measured(setting, setting.root, one)
     const directory = join(out, `${one.suite.id}.${one.tier}`)
@@ -235,10 +242,13 @@ async function run(setting: Setting, parsed: Parsed, io: Io): Promise<number> {
     io.out(reportOf(result, compareCounts(baseline, result)))
     io.out(`Result: ${directory}`)
     worst = Math.max(worst, EXIT[outcomeOf(result)])
-    if (!parsed.options.has('--write-baseline')) continue
+    results.push(result)
+  }
+  if (!parsed.options.has('--write-baseline')) return worst
+  for (const result of results) {
     const made = baselineOf(result)
     if ('state' in made) {
-      io.err(`${one.suite.id}: no baseline written: ${made.reason}`)
+      io.err(`${result.suite}: no baseline written: ${made.reason}`)
       worst = Math.max(worst, 2)
     } else io.out(`Baseline: ${writeBaseline(setting.baselines, made)}`)
   }
@@ -314,14 +324,14 @@ async function compareCommits(setting: Setting, parsed: Parsed, io: Io): Promise
   let worst = 0
   for (const one of chosen) {
     const from = await measured(setting, roots.base, one)
+    const again = await measured(setting, roots.base, one)
     const to = await measured(setting, roots.candidate, one)
     const kept = [from, to].map((result, index) => {
       const directory = join(out, index === 0 ? 'base' : 'candidate', `${one.suite.id}.${one.tier}`)
       writeResult(directory, result)
       return directory
     })
-    const baseline = baselineOf(from)
-    const compared = 'state' in baseline ? baseline : compareCounts(baseline, to)
+    const compared = compareSteady(from, again, to)
     io.out(reportOf(to, compared))
     io.out(`Results: ${kept.join(' ')}`)
     worst = Math.max(
