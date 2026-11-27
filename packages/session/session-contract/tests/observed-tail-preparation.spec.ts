@@ -372,7 +372,14 @@ describe('final decisions after an observed-only tail', () => {
       },
     })
     expect(cancel(marked({ uninterpretable: true }), reads).kind).toBe('entries')
-    expect(cancel(marked({}), reads)).toMatchObject({
+    const held = f.snapshot.executions ?? []
+    const earlier = {
+      ...held[0]!,
+      run: 'run-earlier' as typeof f.run.run,
+      uninterpretable: true as const,
+    }
+    const beside: Fixture = { ...f, snapshot: { ...f.snapshot, executions: [earlier, ...held] } }
+    expect(cancel(beside, reads)).toMatchObject({
       kind: 'rejected',
       failure: {
         kind: 'unavailable',

@@ -662,6 +662,26 @@ describe('an event that Session can never take', () => {
     expect((await work(f.s)).taken).toEqual(left)
   })
 
+  it('each such Run closes under its own operation: the Run after it closes the same way', async () => {
+    const f = await interpreted('ad02-uninterpretable-twice')
+    f.script.push(async () => fail(gone))
+    await started(f.s, f.c.journal())
+    await vi.waitFor(async () => expect(await terminalOf(f.s)).not.toBeNull(), { timeout: 5000 })
+    const first = await terminalOf(f.s)
+    const next = await nextRun(f.s, 2)
+    const journal = f.c.journal()
+    const opened = ok(await journal.open(next.openInput))
+    ok(await handed(next, String(next.initial.id), opened.receipt.evidence, 'again'))
+    f.script.push(async () => fail(gone))
+    await take(next, journal)
+    await vi.waitFor(
+      async () => expect(await terminalOf(f.s)).toMatchObject({ outcome: 'failed' }),
+      { timeout: 5000 },
+    )
+    expect((await terminalOf(f.s))?.run).not.toBe(first?.run)
+    expect(f.logged.filter(line => line.includes('is closed as'))).toHaveLength(2)
+  })
+
   it('the close that meets a change comes again: the event is sent once more and the Run closes', async () => {
     const f = await interpreted('ad02-uninterpretable-changed')
     for (let n = 0; n < 4; n += 1) f.script.push(async () => fail(gone))
