@@ -11,11 +11,17 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { answerRequests, type DrawPage } from './answer.ts'
 
 export type InterfaceClient = ClientOf<InterfaceProtocol>
+/** How the host application draws a page for the tenant whose request it is. */
+export type DrawTenantPage = (
+  asked: InspectionAsked,
+  signal: AbortSignal,
+  tenant: string,
+) => ReturnType<DrawPage>
 export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>
 
 export type InterfaceUiOptions = Readonly<{
   /** How the host application draws a page; without one every request is answered unsupported. */
-  draw?: DrawPage
+  draw?: DrawTenantPage
   /** The name this client goes by on the server; one of its own making when none is given. */
   clientId?: () => string
   backoff?: Backoff
@@ -25,7 +31,9 @@ export type InterfaceUiOptions = Readonly<{
 const pause: Sleep = (ms, signal) =>
   new Promise(resolve => {
     const timer = setTimeout(resolve, ms)
-    signal.addEventListener('abort', () => (clearTimeout(timer), resolve(undefined)), { once: true })
+    signal.addEventListener('abort', () => (clearTimeout(timer), resolve(undefined)), {
+      once: true,
+    })
   })
 
 const deniedEnd = (end: unknown): boolean => {
@@ -43,7 +51,8 @@ async function serveTenant(
 ): Promise<void> {
   const tenant = readTenantText(text)
   if (tenant === undefined) return
-  const { backoff = defaultBackoff, sleep = pause } = options
+  const { backoff = defaultBackoff, sleep = pause, draw } = options
+  const drawn: DrawPage | undefined = draw && ((asked, signal) => draw(asked, signal, text))
   for (let attempt = 0; !signal.aborted; attempt += 1) {
     const frames = client.observe['observe-requests']({ tenant, client: id }, { signal })
     let end: unknown
@@ -57,7 +66,7 @@ async function serveTenant(
     try {
       await answerRequests(
         observed,
-        options.draw,
+        drawn,
         (request, result) => client.deliver({ tenant, client: id, request, result }),
         signal,
       )

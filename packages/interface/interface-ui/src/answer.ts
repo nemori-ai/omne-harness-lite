@@ -19,10 +19,7 @@ async function drawn(
   }
 }
 
-/**
- * Answers the requests of one observation in the order they came, one drawing at a time.
- * A drawing that failed is not answered: the request runs out at the server, so its outcome is not made up.
- */
+/** One drawing at a time, in the order asked; a drawing that failed is not answered, so the request runs out at the server. */
 export async function answerRequests(
   frames: AsyncIterator<InspectionAsked, unknown>,
   draw: DrawPage | undefined,

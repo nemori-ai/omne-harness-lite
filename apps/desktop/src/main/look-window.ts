@@ -3,7 +3,7 @@ import { APP_URL } from './app-url.ts'
 import type { LookWindow } from './device-view.ts'
 import { harden, windowOptions } from './window.ts'
 
-/** Never shown and never focused, out of the task bar and the window switcher; it paints while hidden, at the content size asked for. */
+/** Never shown and never focused, out of the task bar and the window switcher. It renders offscreen: a hidden window hands back a frame it painted before. */
 export function lookWindowOptions(width: number, height: number): BrowserWindowConstructorOptions {
   return {
     show: false,
@@ -16,7 +16,11 @@ export function lookWindowOptions(width: number, height: number): BrowserWindowC
     skipTaskbar: true,
     hiddenInMissionControl: true,
     paintWhenInitiallyHidden: true,
-    webPreferences: { ...windowOptions(undefined).webPreferences, backgroundThrottling: false },
+    webPreferences: {
+      ...windowOptions(undefined).webPreferences,
+      offscreen: true,
+      backgroundThrottling: false,
+    },
   }
 }
 

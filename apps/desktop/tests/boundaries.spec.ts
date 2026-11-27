@@ -233,7 +233,13 @@ describe('边界', () => {
       (await route(new Request(`app://omne${path}`, { method })))?.status
     expect(await status('GET', '/device/figure')).toBe(200)
     expect(await status('GET', '/device/view')).toBe(405)
-    for (const path of ['/device/camera', '/device/figures', '/device/', '/device/figure/other', '/device/view/other'])
+    for (const path of [
+      '/device/camera',
+      '/device/figures',
+      '/device/',
+      '/device/figure/other',
+      '/device/view/other',
+    ])
       expect(await status('GET', path), path).toBe(404)
   })
 

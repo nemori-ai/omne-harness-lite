@@ -3,6 +3,8 @@ import { judgeView, memoryStorage, viewLooks, type ViewFacts } from '../src/page
 import type { ViewAsked } from '../src/shared/view.ts'
 
 const BUILT_IN: ViewAsked = {
+  tenant:
+    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}',
   page: 'notes',
   theme: 'dark',
   size: 'medium',
@@ -23,20 +25,26 @@ const facts = (given: Partial<ViewFacts> = {}): ViewFacts => ({
 })
 
 describe('what the drawing page says', () => {
-  it('is ready once the page asked for is drawn in the look asked for, settled or not', () => {
-    expect(judgeView(BUILT_IN, facts())).toBe('ready')
+  it('is ready once everything settled and the page asked for is at rest in the look asked for', () => {
+    expect(judgeView(BUILT_IN, facts({ settled: true }))).toBe('ready')
     expect(judgeView(PAPER, facts({ worn: 'paper', settled: true }))).toBe('ready')
   })
 
-  it('waits while the page is not drawn yet, the login not there, or the look not on, until everything settled', () => {
+  it('says nothing before everything settled, though the page is there and at rest', () => {
     for (const given of [
-      { drawn: false },
-      { signedIn: false },
+      {},
       { pages: ['sessions'] },
+      { worn: 'paper' },
     ] satisfies Partial<ViewFacts>[])
       expect(judgeView(BUILT_IN, facts(given)), JSON.stringify(given)).toBeUndefined()
-    expect(judgeView(PAPER, facts({ worn: undefined }))).toBeUndefined()
-    expect(judgeView(BUILT_IN, facts({ worn: 'paper' }))).toBeUndefined()
+  })
+
+  it('waits while the page is not at rest or the login not there', () => {
+    for (const given of [{ drawn: false }, { signedIn: false }] satisfies Partial<ViewFacts>[])
+      expect(
+        judgeView(BUILT_IN, facts({ settled: true, ...given })),
+        JSON.stringify(given),
+      ).toBeUndefined()
   })
 
   it('says no-page once settled without the page, and no-skin once settled without the look', () => {
@@ -47,10 +55,6 @@ describe('what the drawing page says', () => {
 
   it('says no-skin at once when the look could not be chosen as asked', () => {
     expect(judgeView(PAPER, facts({ fellBack: true }))).toBe('no-skin')
-  })
-
-  it('keeps waiting for the drawing when everything settled and the page and look are there', () => {
-    expect(judgeView(BUILT_IN, facts({ settled: true, drawn: false }))).toBeUndefined()
   })
 })
 
@@ -69,7 +73,11 @@ describe('what the drawing page keeps', () => {
   it('keeps what is written in memory only', () => {
     const store = memoryStorage()
     store.setItem('omne.visual', 'x')
-    expect([store.getItem('omne.visual'), store.length, store.key(0)]).toEqual(['x', 1, 'omne.visual'])
+    expect([store.getItem('omne.visual'), store.length, store.key(0)]).toEqual([
+      'x',
+      1,
+      'omne.visual',
+    ])
     store.removeItem('omne.visual')
     expect(store.getItem('omne.visual')).toBeNull()
   })

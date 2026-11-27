@@ -14,19 +14,16 @@ export type ViewFacts = Readonly<{
   fellBack: boolean
 }>
 
-/** Ready once the page asked for is drawn in the look asked for; before everything has settled, a lack is not yet a no. */
+/** Nothing is said before everything the tenant loads has settled: a page may still be about to start reading. */
 export function judgeView(view: ViewAsked, facts: ViewFacts): ViewMark | undefined {
   if (facts.fellBack) return 'no-skin'
-  const wanted = view.look.kind === 'skin' ? view.look.name : undefined
-  const there = facts.pages.includes(view.page)
-  const worn = facts.worn === wanted
-  if (facts.signedIn && there && worn && facts.drawn) return 'ready'
   if (!facts.settled) return undefined
-  if (!there) return 'no-page'
-  return worn ? undefined : 'no-skin'
+  const wanted = view.look.kind === 'skin' ? view.look.name : undefined
+  if (!facts.pages.includes(view.page)) return 'no-page'
+  if (facts.worn !== wanted) return 'no-skin'
+  return facts.signedIn && facts.drawn ? 'ready' : undefined
 }
 
-/** A store that keeps what is written while this page lives, and never touches the device's own. */
 export function memoryStorage(): Storage {
   const kept = new Map<string, string>()
   return {
@@ -55,6 +52,12 @@ export function viewLooks(look: ViewLook, fellBack: () => void): TenantTexts {
 }
 
 const POLL_MS = 50
+/** How long the page must not change, nor be so busy that a look comes late, with nothing on it saying it is loading. */
+export const REST_MS = 300
+const LATE_MS = 3 * POLL_MS
+const clock = (): number =>
+  /* wall-clock: operation-timing -- how long the drawing page has been still or busy; compared only with itself */ performance.now()
+const LOADING = '.omne-loading-state, [aria-busy="true"]'
 
 /** Tells the window how the drawing went, once, on the root element; it reads the facts until they answer. */
 export function viewWatch(
@@ -67,14 +70,30 @@ export function viewWatch(
   }>,
 ) {
   const { view, state, floor, root } = input
-  const drawn = (): boolean =>
-    (root.ownerDocument.querySelector(`[data-page="${CSS.escape(view.page)}"]`)?.childElementCount ??
-      0) > 0
+  let changed = clock()
+  let looked = changed
+  const changes = new MutationObserver(() => {
+    changed = clock()
+  })
+  const atRest = (): boolean => {
+    const now = clock()
+    if (now - looked > LATE_MS) changed = now
+    looked = now
+    const page = root.ownerDocument.querySelector(`[data-page="${CSS.escape(view.page)}"]`)
+    if (page === null || page.childElementCount === 0) return false
+    return page.querySelector(LOADING) === null && now - changed >= REST_MS
+  }
   return defineUiModule({
     name: 'page-view',
     needs: {},
     apply(shell) {
       let settled = false
+      changes.observe(root, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+      })
       const stopOutcomes = floor.outcomes(() => {
         settled = true
       })
@@ -82,18 +101,19 @@ export function viewWatch(
         const mark = judgeView(view, {
           signedIn: shell.login.state() === 'signed-in',
           pages: state.slots.items('pages').map(page => page.id),
-          drawn: drawn(),
+          drawn: atRest(),
           settled,
           worn: shell.look(),
           fellBack: input.fellBack(),
         })
         if (mark === undefined) return
         clearInterval(timer)
-        // One more turn so the page has drawn the frame the mark speaks for.
-        setTimeout(() => root.setAttribute(VIEW_MARK, mark), POLL_MS)
+        changes.disconnect()
+        root.setAttribute(VIEW_MARK, mark)
       }, POLL_MS)
       return () => {
         clearInterval(timer)
+        changes.disconnect()
         stopOutcomes()
       }
     },

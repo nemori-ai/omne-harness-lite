@@ -3,6 +3,8 @@ import { deviceViewRoute, type DeviceViewDeps, type LookWindow } from '../src/ma
 import { DEVICE_VIEW, VIEW_PARAM, type ViewAsked } from '../src/shared/view.ts'
 
 const ASKED: ViewAsked = {
+  tenant:
+    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}',
   page: 'notes',
   theme: 'dark',
   size: 'medium',
@@ -18,7 +20,8 @@ function standIn(log: string[], name: string, page: { mounts: boolean; marks: (s
   const listeners = new Map<string, Set<Listener>>()
   let destroyed = false
   const emit = (event: string, ...args: unknown[]) => {
-    for (const listener of [...(listeners.get(event) ?? [])]) (listener as (...a: unknown[]) => void)(...args)
+    for (const listener of listeners.get(event) ?? [])
+      (listener as (...a: unknown[]) => void)(...args)
   }
   const on = (event: string, listener: Listener) => {
     listeners.set(event, (listeners.get(event) ?? new Set()).add(listener))
@@ -55,7 +58,10 @@ function standIn(log: string[], name: string, page: { mounts: boolean; marks: (s
 const post = (body: unknown) =>
   new Request(`omne-app://app${DEVICE_VIEW}`, { method: 'POST', body: JSON.stringify(body) })
 
-function routeWith(pages: { mounts: boolean; marks: (string | null)[] }[], more: Partial<DeviceViewDeps> = {}) {
+function routeWith(
+  pages: { mounts: boolean; marks: (string | null)[] }[],
+  more: Partial<DeviceViewDeps> = {},
+) {
   const log: string[] = []
   let opened = 0
   const route = deviceViewRoute({

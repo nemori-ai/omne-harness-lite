@@ -178,8 +178,11 @@ export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
         ? []
         : [
             createInterfaceUiModule({
-              draw: async ({ page, subject, mode }, signal) =>
-                view({ page, ...(subject === undefined ? {} : { subject }), ...mode }, signal),
+              draw: async ({ page, subject, mode }, signal, tenant) =>
+                view(
+                  { tenant, page, ...(subject === undefined ? {} : { subject }), ...mode },
+                  signal,
+                ),
             }),
           ]),
     ],

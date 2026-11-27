@@ -47,9 +47,14 @@ describe('answering the requests of one observation', () => {
       return image(request.length)
     }
     const delivered: [string, InspectionResult][] = []
-    const done = answerRequests(stream, draw, async (request, result) => {
-      delivered.push([request, result])
-    }, new AbortController().signal)
+    const done = answerRequests(
+      stream,
+      draw,
+      async (request, result) => {
+        delivered.push([request, result])
+      },
+      new AbortController().signal,
+    )
     push(asked('a'), asked('bb'))
     await tick()
     expect(log).toEqual(['draw a'])
@@ -69,9 +74,14 @@ describe('answering the requests of one observation', () => {
   it('answers unsupported for every request when the application gives no way to draw', async () => {
     const { stream, push, end } = frames()
     const delivered: [string, InspectionResult][] = []
-    const done = answerRequests(stream, undefined, async (request, result) => {
-      delivered.push([request, result])
-    }, new AbortController().signal)
+    const done = answerRequests(
+      stream,
+      undefined,
+      async (request, result) => {
+        delivered.push([request, result])
+      },
+      new AbortController().signal,
+    )
     push(asked('a'), asked('b'))
     await tick()
     end()
@@ -89,9 +99,14 @@ describe('answering the requests of one observation', () => {
       if (request === 'a') throw new Error('the window crashed')
       return image(1)
     }
-    const done = answerRequests(stream, draw, async request => {
-      delivered.push(request)
-    }, new AbortController().signal)
+    const done = answerRequests(
+      stream,
+      draw,
+      async request => {
+        delivered.push(request)
+      },
+      new AbortController().signal,
+    )
     push(asked('a'), asked('b'))
     await tick()
     end()
@@ -102,10 +117,15 @@ describe('answering the requests of one observation', () => {
   it('goes on after a delivery that failed', async () => {
     const { stream, push, end } = frames()
     const delivered: string[] = []
-    const done = answerRequests(stream, async () => image(1), async request => {
-      delivered.push(request)
-      if (request === 'a') throw new Error('offline')
-    }, new AbortController().signal)
+    const done = answerRequests(
+      stream,
+      async () => image(1),
+      async request => {
+        delivered.push(request)
+        if (request === 'a') throw new Error('offline')
+      },
+      new AbortController().signal,
+    )
     push(asked('a'), asked('b'))
     await tick()
     end()
@@ -124,9 +144,14 @@ describe('answering the requests of one observation', () => {
       await new Promise<void>(resolve => (release = resolve))
       return image(1)
     }
-    const done = answerRequests(stream, draw, async request => {
-      delivered.push(request)
-    }, stop.signal)
+    const done = answerRequests(
+      stream,
+      draw,
+      async request => {
+        delivered.push(request)
+      },
+      stop.signal,
+    )
     push(asked('a'), asked('b'))
     await tick()
     stop.abort()

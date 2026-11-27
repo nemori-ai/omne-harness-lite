@@ -37,7 +37,7 @@ class TurnedShell extends ReferenceShell {
   }
   change(to: Partial<{ state: ShellLoginState; tenant: string | undefined }>): void {
     Object.assign(this, to)
-    for (const listener of [...this.told]) listener()
+    for (const listener of this.told) listener()
   }
 }
 
@@ -89,6 +89,8 @@ function fakeClient() {
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 
+const drawnFor: string[] = []
+
 async function started(shellTenant: string | undefined) {
   const { root, shell } = await startShellOf(TurnedShell)
   shell.tenant = shellTenant
@@ -98,7 +100,15 @@ async function started(shellTenant: string | undefined) {
   await root.plugin(
     createInterfaceUiModule({
       clientId: () => 'client-1',
-      draw: async ({ page }) => ({ kind: 'image', bytes: new Uint8Array([1]), width: page.length, height: 1 }),
+      draw: async ({ page }, _signal, tenant) => (
+        drawnFor.push(tenant),
+        {
+          kind: 'image',
+          bytes: new Uint8Array([1]),
+          width: page.length,
+          height: 1,
+        }
+      ),
       sleep: async () => undefined,
     }),
   )
@@ -112,8 +122,10 @@ describe('the interface module', () => {
     expect(streams.map(stream => stream.body)).toEqual([
       { tenant: readTenantText(TENANT_A), client: 'client-1' },
     ])
+    drawnFor.length = 0
     streams[0]!.push({ request: 'r1', page: 'notes', mode: DEFAULT_MODE })
     await tick()
+    expect(drawnFor).toEqual([TENANT_A])
     expect(delivered).toEqual([
       {
         tenant: readTenantText(TENANT_A),
@@ -141,7 +153,9 @@ describe('the interface module', () => {
     await tick()
     shell.change({ tenant: TENANT_B })
     await tick()
-    expect(streams.map(stream => [(stream.body as { tenant: unknown }).tenant, stream.ended])).toEqual([
+    expect(
+      streams.map(stream => [(stream.body as { tenant: unknown }).tenant, stream.ended]),
+    ).toEqual([
       [readTenantText(TENANT_A), true],
       [readTenantText(TENANT_B), false],
     ])

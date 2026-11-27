@@ -50,6 +50,7 @@ async function viewMain(element: HTMLElement, view: ViewAsked): Promise<void> {
     tokens: tokensOf(document),
     faces: storedFacePreference(local),
   })
+  state.scope.set(view.tenant)
   let fellBack = false
   const looks = viewLooks(view.look, () => {
     fellBack = true

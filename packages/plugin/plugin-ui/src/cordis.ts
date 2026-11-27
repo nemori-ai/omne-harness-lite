@@ -39,7 +39,6 @@ export type PluginUiOptions = Readonly<{
   clientId?: () => string
   /** Where the choice of skins is drawn: the place above the list of one category of the assets page. */
   skinsAbove?: KeyedPoint<Readonly<{ category: string }>>
-  /** Whether this client tells the server what it loaded; a page drawn only to be looked at does not. */
   reports?: boolean
 }>
 

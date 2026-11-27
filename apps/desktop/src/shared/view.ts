@@ -1,7 +1,6 @@
 /** The local route the page asks the application to draw a page by, and the query the drawing window is opened with. */
 export const DEVICE_VIEW = '/device/view'
 export const VIEW_PARAM = 'view'
-/** The attribute of the root element the drawing page tells how it went by. */
 export const VIEW_MARK = 'data-view'
 
 export const VIEW_THEMES = ['light', 'dark'] as const
@@ -13,6 +12,8 @@ export const VIEW_BOUNDS = Object.freeze({
 
 export type ViewLook = Readonly<{ kind: 'built-in' }> | Readonly<{ kind: 'skin'; name: string }>
 export type ViewAsked = Readonly<{
+  /** The tenant the page is drawn for, as the shell names it; the server still judges every call. */
+  tenant: string
   page: string
   subject?: string
   theme: (typeof VIEW_THEMES)[number]
@@ -45,16 +46,27 @@ function lookOf(value: unknown): ViewLook | undefined {
 /** The request, when every value is one this application can draw; anything else is a bad mode. */
 export function viewAskedOf(value: unknown): ViewAsked | undefined {
   if (typeof value !== 'object' || value === null) return undefined
-  const { page, subject, theme, size, look, width, height } = value as Record<string, unknown>
+  const { tenant, page, subject, theme, size, look, width, height } = value as Record<
+    string,
+    unknown
+  >
   const worn = lookOf(look)
-  if (!text(page) || (subject !== undefined && !text(subject)) || worn === undefined)
-    return undefined
+  if (!text(tenant) || !text(page) || (subject !== undefined && !text(subject))) return undefined
+  if (worn === undefined) return undefined
   if (!oneOf(VIEW_THEMES, theme) || !oneOf(VIEW_SIZES, size)) return undefined
   if (!within(width, VIEW_BOUNDS.width) || !within(height, VIEW_BOUNDS.height)) return undefined
-  return { page, ...(subject === undefined ? {} : { subject }), theme, size, look: worn, width, height }
+  return {
+    tenant,
+    page,
+    ...(subject === undefined ? {} : { subject }),
+    theme,
+    size,
+    look: worn,
+    width,
+    height,
+  }
 }
 
-/** The query the drawing window is opened with. */
 export const viewQuery = (asked: ViewAsked): string =>
   `?${new URLSearchParams({ [VIEW_PARAM]: JSON.stringify(asked) }).toString()}`
 

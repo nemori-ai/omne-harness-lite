@@ -30,7 +30,9 @@ export type DeviceViewDeps = Readonly<{
   sleep?: (ms: number) => Promise<void>
 }>
 
-export type Looked = Readonly<{ kind: 'image' } & Shot> | Readonly<{ kind: 'cannot'; reason: ViewCannot }>
+export type Looked =
+  | Readonly<{ kind: 'image' } & Shot>
+  | Readonly<{ kind: 'cannot'; reason: ViewCannot }>
 
 const POLL_MS = 100
 const MARKED = `document.documentElement.getAttribute(${JSON.stringify(VIEW_MARK)})`

@@ -9,6 +9,8 @@ import {
 } from '../src/shared/view.ts'
 
 const ASKED: ViewAsked = {
+  tenant:
+    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}',
   page: 'notes',
   subject: 'note 7',
   theme: 'dark',
@@ -40,6 +42,7 @@ describe('the request of the drawing window', () => {
       { ...ASKED, theme: 'sepia' },
       { ...ASKED, size: 'huge' },
       { ...ASKED, page: '' },
+      { ...ASKED, tenant: '' },
       { ...ASKED, subject: 7 },
       { ...ASKED, look: { kind: 'skin', name: '' } },
       { ...ASKED, look: { kind: 'own' } },
