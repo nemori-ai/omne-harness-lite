@@ -4,6 +4,7 @@ import {
   createCategoryPoint,
   createTenantPublishing,
   publishStanding,
+  isReadBody,
   readBodyText,
   type Candidate,
   type LayerInput,
@@ -136,6 +137,34 @@ function request(overrides: Partial<TenantPublishRequest<Principal>> = {}) {
     ...overrides,
   } as const satisfies TenantPublishRequest<Principal>
 }
+
+describe('a body from a caller', () => {
+  it('is read first: the publisher gets a read copy equal to it; a malformed one is refused and nothing is published', async () => {
+    const sent: unknown[] = []
+    const s = setup({
+      publisherOf: async () => ({
+        async publish(input) {
+          sent.push(input.content)
+          return { kind: 'published', version: 'sha256:1', holdingRef: 'note/a', changed: true }
+        },
+      }),
+    })
+    const plain = { kind: 'object', entries: [{ key: 'a', value: { kind: 'string', value: 'x' } }] }
+    const content = { kind: 'data', body: plain } as never
+    expect(await s.publishing.publish(request({ content }))).toMatchObject({ kind: 'published' })
+    const [first] = sent as { kind: string; body: unknown }[]
+    expect(first?.kind === 'data' && isReadBody(first.body)).toBe(true)
+    expect(first).toEqual({ kind: 'data', body: plain })
+    const malformed = { kind: 'data', body: { kind: 'string' } } as never
+    expect(
+      await s.publishing.publish(request({ operationId: 'publish-2', content: malformed })),
+    ).toEqual({
+      kind: 'invalid',
+      reason: 'body-not-read',
+    })
+    expect(sent).toHaveLength(1)
+  })
+})
 
 describe('the publish service: the cells of table three', () => {
   it('身份答拒绝：denied，不调本机资产', async () => {

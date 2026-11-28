@@ -13,6 +13,16 @@ import {
 export const mcpCategoryDisplay: CategoryDisplay = Object.freeze({
   title: 'MCP',
   summary: '按地址接入的 MCP 服务端，它的动作作为工具交给代理。',
+  creation:
+    '一份数据：名字、传输（streamable-http）与认证（none、static、oauth）；地址与密钥是建好之后这一份的设置。',
+  authoring: [
+    'An MCP endpoint is data, not a directory: publish with data {"name":"<the name it is published under>","transport":"streamable-http","auth":"none"}. auth is none, static (a key) or oauth.',
+    'omne reaches a server only at an address. It does not read .mcp.json and does not start a command: a server that only runs as a local command (npx, uvx, stdio) cannot be added. Say so, and look for a hosted address of the same server.',
+    'Then give it its address: configure with category mcp, the name, item target and value "https://.../mcp" (http only on 127.0.0.1 or localhost).',
+    'auth static: the key is a secret, set by the person on the 资产 page, tab MCP, in the section of this endpoint (凭据). Tell them so; never ask for a key in the chat.',
+    'auth oauth: the person clicks 连接 in that section and agrees in the browser. If the server wants an application registered first (GitHub does), the section says what to register and where its client identifier goes.',
+    'Its actions are one tool, mcp__<name>, with a command for each action: find it with Tools search (query the name) and call it with Tools execute. The first call asks the person.',
+  ].join('\n'),
 })
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'

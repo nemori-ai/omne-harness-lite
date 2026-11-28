@@ -3,7 +3,6 @@ import {
   capabilityId,
   createCategoryPoint,
   createTenantManagement,
-  isReadBody,
   type BodyContract,
   type CapabilityId,
   type PackageReader,
@@ -175,7 +174,7 @@ describe('creating from data', () => {
     ])
   })
 
-  it('a body from outside is read first: the publisher gets a read copy; a malformed one is refused and nothing is published', async () => {
+  it('creating from data hands the body to the publishing service, which reads it', async () => {
     const s = setup()
     const body = { kind: 'object', entries: [{ key: 'a', value: { kind: 'string', value: 'x' } }] }
     await s.management.createFromData({
@@ -184,18 +183,7 @@ describe('creating from data', () => {
       capability: id('note', 'a'),
       body: body as never,
     })
-    const sent = s.published[0]?.content
-    expect(sent?.kind === 'data' && isReadBody(sent.body)).toBe(true)
-    expect(sent).toEqual({ kind: 'data', body })
-    expect(
-      await s.management.createFromData({
-        ...scope,
-        operationId: 'op-2',
-        capability: id('note', 'a'),
-        body: { kind: 'string' } as never,
-      }),
-    ).toEqual({ kind: 'invalid', reason: 'body-not-read' })
-    expect(s.published).toHaveLength(1)
+    expect(s.published.map(each => each.content)).toEqual([{ kind: 'data', body }])
   })
 
   it('a publishing service that throws leaves the outcome unknown', async () => {

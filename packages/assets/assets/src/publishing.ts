@@ -2,6 +2,7 @@ import type { CategoryView, CreationMode } from './category-point.ts'
 import { evaluate, type Candidate, type LayerInput } from './evaluate.ts'
 import type { CapabilityId, JsonValue } from './identity.ts'
 import type { PackageReader } from './package.ts'
+import { copyTree } from './read-body.ts'
 
 export type PublishContent =
   | Readonly<{ kind: 'data'; body: JsonValue }>
@@ -89,6 +90,14 @@ export function creationRefusal(
   return undefined
 }
 
+const BODY_NOT_READ = Object.freeze({ kind: 'invalid', reason: 'body-not-read' } as const)
+
+/** A body is read here into the assets' own frozen copy, whoever gives it; the store takes no other. */
+function contentOf(content: PublishContent): PublishContent | undefined {
+  if (content.kind !== 'data') return content
+  const body = copyTree(content.body, true)
+  return body === undefined ? undefined : { kind: 'data', body }
+}
 export function createTenantPublishing<P>(ports: {
   acting: TenantActing<P>
   categories: Pick<CategoryView, 'describe'>
@@ -120,6 +129,8 @@ export function createTenantPublishing<P>(ports: {
   }
   return Object.freeze({
     async publish(request: TenantPublishRequest<P>): Promise<TenantPublishOutcome> {
+      const content = contentOf(request.content)
+      if (content === undefined) return BODY_NOT_READ
       const answer = await admitted(request)
       if (answer !== 'admitted') return { kind: answer }
       const listing = ports.categories.describe(request.capability.category)
@@ -131,7 +142,7 @@ export function createTenantPublishing<P>(ports: {
       if (shadowed !== undefined) return shadowed
       const local = await publisher(request.tenant)
       if (local === undefined) return UNAVAILABLE
-      const { operationId, capability, content } = request
+      const { operationId, capability } = request
       try {
         return await local.publish({ operationId, capability, content })
       } catch {
