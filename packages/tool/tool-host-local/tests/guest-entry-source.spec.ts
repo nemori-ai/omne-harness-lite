@@ -132,6 +132,7 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
     expect(result.content).toMatchObject([
       { kind: 'text', text: 'done weather__forecast\n{"city":"Oslo","sky":"sunny"}' },
     ])
+    expect(result.content[0]).toMatchObject({ visibility: { toHuman: true, toModel: true } })
     expect([result.data, result.original, result.attachments]).toEqual([
       { kind: 'none' },
       { kind: 'none' },
