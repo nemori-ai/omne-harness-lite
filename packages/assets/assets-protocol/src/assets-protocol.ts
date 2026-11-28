@@ -94,6 +94,36 @@ const assetRow = object({
   holding: { rule: text },
   origin: { rule: literal('customized', 'official') },
   summary: { rule: nullable(assetSummary) },
+  from: { rule: text, optional: true, since: 2 },
+})
+/** What a line of an effect says: empty where there is nothing to say, such as a place in effect. */
+const said = { kind: 'string' } as const
+const impactLine = object({
+  mark: { rule: literal('+', '-', '~', '!') },
+  of: { rule: nullable(text) },
+  point: { rule: text },
+  key: { rule: said },
+  says: { rule: said },
+})
+/** Where a held one is placed and whether each place is in effect, and what disabling or removing it takes back. */
+const assetEffect = object({
+  places: {
+    rule: array(
+      object({
+        point: { rule: text },
+        key: { rule: said },
+        side: { rule: nullable(literal('client', 'server')) },
+        category: { rule: nullable(text) },
+        categoryTitle: { rule: nullable(text) },
+        standing: { rule: text },
+        says: { rule: said },
+      }),
+    ),
+  },
+  clients: { rule: nullable(array(object({ label: { rule: text }, says: { rule: said } }))) },
+  advice: { rule: nullable(text) },
+  disable: { rule: nullable(array(impactLine)) },
+  remove: { rule: nullable(array(impactLine)) },
 })
 const assetContent = oneOf(
   object({ kind: { rule: literal('data') }, body: { rule: json } }),
@@ -265,10 +295,11 @@ const refused = ruleCodec(
 )
 const published = ruleCodec(object(publishedFields))
 const holdingNotWritable = ruleCodec(object({ reason: { rule: literal('official', 'removed') } }))
+const holdingNotFound = ruleCodec(object({ broughtBy: { rule: text, optional: true, since: 2 } }))
 const holdingOutcomes = {
   succeeded: empty,
   'no-change': empty,
-  'not-found': empty,
+  'not-found': holdingNotFound,
   'not-writable': holdingNotWritable,
   conflict: empty,
 } as const
@@ -426,6 +457,7 @@ export const assetsProtocol = defineProtocol({
             content: { rule: assetContent },
             standing: { rule: standing },
             settings: { rule: boolean },
+            effect: { rule: assetEffect, optional: true, since: 2 },
           }),
         ),
         'not-found': empty,

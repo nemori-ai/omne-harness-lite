@@ -17,12 +17,15 @@ export type AssetsPageProps = Readonly<{
   holdingSlot?: (category: string, name: string) => ReactNode
   /** The settings items the items of `assets.holding` claim; none without it. */
   claims?: HoldingClaims
-  pages?: (layout: AttachedLayout) => ReactNode
-  /** The category the shell points at: it is chosen when it is there, nothing is opened. */
+  pages?: (layout: AttachedLayout, asset?: string) => ReactNode
+  /** Goes to one asset of a category, where it is changed: the plugin that brought another. */
+  open?: (category: string, name: string) => void
+  /** The category the shell points at, with `:<name>` when it points at one of it: the category is chosen when it is there. */
   pointAt?: string
 }>
 
 const nothing = (): null => null
+const nowhere = (): void => undefined
 const noPages = (layout: AttachedLayout): ReactNode => layout([])
 
 type Categories = Readonly<{ kind: 'reading' }> | CategoriesRead
@@ -81,6 +84,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     categorySlot: props.categorySlot ?? nothing,
     holdingSlot: props.holdingSlot ?? nothing,
     claims: props.claims ?? NO_CLAIMS,
+    open: props.open ?? nowhere,
   }
   const generic = (category: string) => (
     <CategoryPage
@@ -116,28 +120,34 @@ const byCodeUnit = (left: string, right: string): number =>
 type OverviewProps = Readonly<{
   categories: Categories
   extras: Extras
-  pages: (layout: AttachedLayout) => ReactNode
+  pages: (layout: AttachedLayout, asset?: string) => ReactNode
   generic: (category: string) => ReactNode
   pointAt: string | undefined
 }>
 
 function Overview({ categories, extras, pages, generic, pointAt }: OverviewProps) {
-  const [chosen, setChosen] = useState<string | null>(pointAt ?? null)
+  const colon = pointAt?.indexOf(':') ?? -1
+  const pointed = colon < 0 ? pointAt : pointAt?.slice(0, colon)
+  const asset = colon < 0 ? undefined : pointAt?.slice(colon + 1)
+  const [chosen, setChosen] = useState<string | null>(pointed ?? null)
   useEffect(() => {
-    if (pointAt !== undefined) setChosen(pointAt)
-  }, [pointAt])
+    if (pointed !== undefined) setChosen(pointed)
+  }, [pointed])
   const data = categories.kind === 'read' ? [...categories.names.keys()].sort(byCodeUnit) : []
-  return pages(entries => (
-    <Tabs
-      entries={entries}
-      data={data}
-      reading={categories.kind === 'reading'}
-      chosen={chosen}
-      choose={setChosen}
-      extras={extras}
-      generic={generic}
-    />
-  ))
+  return pages(
+    entries => (
+      <Tabs
+        entries={entries}
+        data={data}
+        reading={categories.kind === 'reading'}
+        chosen={chosen}
+        choose={setChosen}
+        extras={extras}
+        generic={generic}
+      />
+    ),
+    asset,
+  )
 }
 
 type TabsProps = Readonly<{

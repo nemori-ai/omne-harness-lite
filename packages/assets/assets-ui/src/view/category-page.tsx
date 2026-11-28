@@ -24,6 +24,7 @@ import {
   assetsList,
 } from '../parts.ts'
 import { AssetPage } from './asset-page.tsx'
+import { BroughtPage, bringerOf } from './brought-page.tsx'
 import { CreateForm } from './create-form.tsx'
 import { NoticeLine } from './notice.tsx'
 
@@ -32,6 +33,7 @@ export type Extras = Readonly<{
   categorySlot: (category: string) => ReactNode
   holdingSlot: (category: string, name: string) => ReactNode
   claims: HoldingClaims
+  open: (category: string, name: string) => void
 }>
 
 type CategoryPageProps = Readonly<{
@@ -93,12 +95,13 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
     for (const row of rows) if (row.dataset['assetRow'] === name) row.focus()
   }, [shown])
   const enter = (name: string): void => {
-    view.openAsset(name)
+    const brought = entries?.find(each => each.row.name === name)?.row.from !== undefined
+    if (!brought) view.openAsset(name)
     setShown(name)
   }
   const leave = (): void => {
     if (shown === null) return
-    view.closeAsset(shown)
+    if (entry?.row.from === undefined) view.closeAsset(shown)
     returnTo.current = shown
     setShown(null)
   }
@@ -141,7 +144,16 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
           />
         )}
       </div>
-      {entry !== undefined && (
+      {entry !== undefined && entry.row.from !== undefined && (
+        <BroughtPage
+          entry={entry}
+          from={bringerOf(entry.row.from, extras.label)}
+          label={extras.label(category)}
+          open={extras.open}
+          onBack={leave}
+        />
+      )}
+      {entry !== undefined && entry.row.from === undefined && (
         <AssetPage
           entry={entry}
           view={view}
@@ -176,7 +188,12 @@ function AssetList({ assets, ...shown }: Listing & { readonly assets: CategoryAs
             {...assetsList.props}
           >
             {assets.entries.map(entry => (
-              <AssetItem key={entry.row.name} entry={entry} enter={shown.enter} />
+              <AssetItem
+                key={entry.row.name}
+                entry={entry}
+                enter={shown.enter}
+                label={shown.extras.label}
+              />
             ))}
           </ul>
         </GlideMenu>
@@ -189,11 +206,14 @@ function AssetList({ assets, ...shown }: Listing & { readonly assets: CategoryAs
 function AssetItem({
   entry,
   enter,
+  label,
 }: {
   readonly entry: AssetEntry
   readonly enter: (name: string) => void
+  readonly label: (category: string) => string
 }) {
   const { row } = entry
+  const from = row.from === undefined ? undefined : bringerOf(row.from, label)
   const marks = [!row.enabled && '已禁用', row.origin === 'official' && '官方'].filter(
     mark => mark !== false,
   )
@@ -203,7 +223,9 @@ function AssetItem({
       <ListReadingRow
         data-asset-row={row.name}
         title={row.summary?.title ?? row.name}
-        {...(row.summary !== null &&
+        {...(from !== undefined && { facts: `来自 ${from.title}「${from.name}」` })}
+        {...(row.from === undefined &&
+          row.summary !== null &&
           row.summary.description !== '' && { facts: row.summary.description })}
         {...((marks.length > 0 || missing) && {
           time: (

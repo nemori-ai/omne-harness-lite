@@ -289,7 +289,7 @@ export declare const modelProvidersPoint: Readonly<{
     gives: string;
     item: Readonly<{
         kind: 'data';
-        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within' | 'valueAt'>, 'string' | 'boolean'>>;
+        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within' | 'valueAt' | 'from'>, 'string' | 'boolean'>>;
     }>;
     resolve: 'most-specific';
     binding: 'run';

@@ -31,6 +31,7 @@ import {
   type PortItem,
   type ServerEntry,
   type ServerPoint,
+  PLUGIN_CATEGORY,
 } from '@omne-harness/plugin-host-local'
 import {
   bindPorts,
@@ -122,11 +123,19 @@ const nowhere = (): never => {
 }
 const NOWHERE: Placing = { directory: nowhere, data: nowhere }
 
-function heldIn(held: HeldRef | undefined): Placing {
+function heldIn(held: HeldRef | undefined, plugin: string): Placing {
   const item = (where: Pick<HeldItem, 'within' | 'valueAt'>): HeldItem => {
     if (held === undefined) throw new Error('the tenant no longer holds this version')
     const { asset, version } = held
-    return { asset, version, disabled: false, immutable: true, replaceLocked: false, ...where }
+    return {
+      asset,
+      version,
+      disabled: false,
+      immutable: true,
+      replaceLocked: false,
+      from: `${PLUGIN_CATEGORY}:${plugin}`,
+      ...where,
+    }
   }
   return { directory: within => item({ within }), data: valueAt => item({ valueAt }) }
 }
@@ -221,7 +230,7 @@ export const pluginServerRow = defineRow({
       const held = refs.get(tenant)?.get(`${wanted.name}\n${wanted.version}`)
       return serverInstall({
         scope: scopeOfLayer('tenant', tenant),
-        point: name => serverPointOf(ctx, name, heldIn(held)),
+        point: name => serverPointOf(ctx, name, heldIn(held, wanted.name)),
         guestForm: point => guestFormOf(ctx, point),
         needs: names => needsOf(ctx, tenant, names),
         async load(file) {

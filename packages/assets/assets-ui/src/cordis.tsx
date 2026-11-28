@@ -18,9 +18,12 @@ import { SettingsPage } from './view/settings-page.tsx'
 export const ASSETS_PAGE_ORDER = 15
 export const ASSETS_PAGE = 'assets'
 
-/** Where the page of one category is: the shell's navigate takes these two, and the page chooses that category. */
-export function assetsPageTarget(category: string): Readonly<{ page: string; subject: string }> {
-  return { page: ASSETS_PAGE, subject: category }
+/** Where the page of one category is, and of one of it when named: the shell's navigate takes these two. */
+export function assetsPageTarget(
+  category: string,
+  name?: string,
+): Readonly<{ page: string; subject: string }> {
+  return { page: ASSETS_PAGE, subject: name === undefined ? category : `${category}:${name}` }
 }
 export const SETTINGS_PAGE_ORDER = 20
 
@@ -63,7 +66,13 @@ export const assetsUiModule = defineUiModule({
                   assetsHolding.slot(shell, category, { category, name }, inOrder)
                 }
                 claims={claims}
-                pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
+                open={(category, name) => {
+                  const { page, subject } = assetsPageTarget(category, name)
+                  shell.navigate(page, subject)
+                }}
+                pages={(layout, asset) =>
+                  assetsCategoryPage.slot(shell, asset === undefined ? {} : { asset }, layout)
+                }
               />
             </ControlDrawContext.Provider>
           ),

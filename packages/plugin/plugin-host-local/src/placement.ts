@@ -107,12 +107,14 @@ function standingOf(input: PluginPlacementInput, side: SideName): Standing {
 export function pluginPlacement(input: PluginPlacementInput): PluginPlacement {
   const places = placedOf(input.manifest).map((placed): PlacedLine => {
     const { point, key } = placed.member
+    const { side } = placed
     const [rival] = input.enabled ? rivals(input.name, placed, input.held) : []
     return rival === undefined
-      ? { point, key, ...standingOf(input, placed.side) }
+      ? { point, key, side, ...standingOf(input, side) }
       : {
           point,
           key,
+          side,
           standing: 'conflict',
           says: `with plugin ${rival}; neither is in effect, the built-in shows`,
         }

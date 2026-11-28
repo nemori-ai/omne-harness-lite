@@ -33,15 +33,9 @@ import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { seenOf } from './sender-view.ts'
-import { assetCommand } from './asset-command.ts'
-import { settingCommand } from './setting-command.ts'
-import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
-import { scheduleCommand } from './schedule-command.ts'
-import { mcpCommand } from './mcp-command.ts'
-import { notificationCommand } from './notification-command.ts'
-import { attachUploads, mediaCommand, readUpload } from './media-command.ts'
-import { workspaceCommand } from './workspace-command.ts'
+import { attachUploads, readUpload } from './media-command.ts'
+import { tenantCommands } from './tenant-commands.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -987,13 +981,6 @@ export const productionCommands: readonly CommandSpec[] = [
   callsCommand,
   ...hitlCommands,
   ...governanceCommands,
-  calendarCommand,
-  scheduleCommand,
-  notificationCommand,
-  workspaceCommand,
-  settingCommand,
-  assetCommand,
-  mcpCommand,
-  mediaCommand,
+  ...tenantCommands,
   ...usageCommands,
 ]

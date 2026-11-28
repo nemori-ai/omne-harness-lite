@@ -214,6 +214,13 @@ declare const assetRow: {
                 ];
             };
         };
+        readonly from: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
     };
 };
 declare const assetContent: {
@@ -1840,6 +1847,7 @@ export declare const assetsProtocol: {
                     readonly items: readonly {
                         readonly category: string;
                         readonly enabled: boolean;
+                        readonly from?: string;
                         readonly holding: string;
                         readonly name: string;
                         readonly origin: "customized" | "official";
@@ -1885,9 +1893,40 @@ export declare const assetsProtocol: {
                         }[];
                         readonly kind: "directory";
                     };
+                    readonly effect?: {
+                        readonly advice: string | null;
+                        readonly clients: readonly {
+                            readonly label: string;
+                            readonly says: string;
+                        }[] | null;
+                        readonly disable: readonly {
+                            readonly key: string;
+                            readonly mark: "!" | "+" | "-" | "~";
+                            readonly of: string | null;
+                            readonly point: string;
+                            readonly says: string;
+                        }[] | null;
+                        readonly places: readonly {
+                            readonly category: string | null;
+                            readonly categoryTitle: string | null;
+                            readonly key: string;
+                            readonly point: string;
+                            readonly says: string;
+                            readonly side: "client" | "server" | null;
+                            readonly standing: string;
+                        }[];
+                        readonly remove: readonly {
+                            readonly key: string;
+                            readonly mark: "!" | "+" | "-" | "~";
+                            readonly of: string | null;
+                            readonly point: string;
+                            readonly says: string;
+                        }[] | null;
+                    };
                     readonly item: {
                         readonly category: string;
                         readonly enabled: boolean;
+                        readonly from?: string;
                         readonly holding: string;
                         readonly name: string;
                         readonly origin: "customized" | "official";
@@ -2049,7 +2088,9 @@ export declare const assetsProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{}>;
                 readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
-                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly broughtBy?: string;
+                }>;
                 readonly 'not-writable': import("@omne-harness/public-contract").Codec<{
                     readonly reason: "official" | "removed";
                 }>;
@@ -2073,7 +2114,9 @@ export declare const assetsProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{}>;
                 readonly 'no-change': import("@omne-harness/public-contract").Codec<{}>;
-                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{
+                    readonly broughtBy?: string;
+                }>;
                 readonly 'not-writable': import("@omne-harness/public-contract").Codec<{
                     readonly reason: "official" | "removed";
                 }>;

@@ -44,6 +44,7 @@ export {
   type PackageSourceFailure,
 } from './package.ts'
 export { packageBody, packageValue } from './package-body.ts'
+export { withPlaced } from './placed.ts'
 export {
   declarationRejection,
   judgePackageContent,
