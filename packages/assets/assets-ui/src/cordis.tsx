@@ -8,7 +8,13 @@ import { assetGovernanceKey, governancePort } from './governance-port.ts'
 import { createCategoryNames } from './model/category-names.ts'
 import { createGovernance } from './model/governance.ts'
 import { holdingClaims } from './model/holding-claims.ts'
-import { assetsCategory, assetsCategoryPage, assetsControl, assetsHolding } from './model/points.ts'
+import {
+  assetsCategory,
+  assetsCategoryPage,
+  assetsControl,
+  assetsCreateForm,
+  assetsHolding,
+} from './model/points.ts'
 import { assetsParts } from './parts.ts'
 import { AssetsPage } from './view/assets-page.tsx'
 import { ControlDrawContext } from './view/control-draw.ts'
@@ -38,7 +44,13 @@ export const assetsUiModule = defineUiModule({
   },
   apply(shell, { assets: client, server }, provide) {
     for (const part of assetsParts) part.declare(shell)
-    for (const point of [assetsCategoryPage, assetsCategory, assetsHolding, assetsControl])
+    for (const point of [
+      assetsCategoryPage,
+      assetsCategory,
+      assetsCreateForm,
+      assetsHolding,
+      assetsControl,
+    ])
       point.declare(shell)
     const governance = createGovernance({ client })
     const categoryNames = createCategoryNames(client, server.get())
@@ -61,6 +73,11 @@ export const assetsUiModule = defineUiModule({
                 categoryNames={categoryNames}
                 categorySlot={category =>
                   assetsCategory.slot(shell, category, { category }, inOrder)
+                }
+                createFormSlot={(category, generic) =>
+                  assetsCreateForm.slot(shell, category, { category }, entries =>
+                    entries.length === 0 ? generic : inOrder(entries),
+                  )
                 }
                 holdingSlot={(category, name) =>
                   assetsHolding.slot(shell, category, { category, name }, inOrder)
@@ -118,10 +135,12 @@ export {
   ASSETS_CATEGORY,
   ASSETS_CATEGORY_PAGE,
   ASSETS_CONTROL,
+  ASSETS_CREATE_FORM,
   ASSETS_HOLDING,
   assetsCategory,
   assetsCategoryPage,
   assetsControl,
+  assetsCreateForm,
   assetsHolding,
   type AssetsControlSubject,
   type AssetsPageSubject,

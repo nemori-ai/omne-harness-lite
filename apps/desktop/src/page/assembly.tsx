@@ -5,6 +5,7 @@ import {
   assetGovernanceKey,
   assetsCategory,
   assetsCategoryPage,
+  assetsCreateForm,
   assetsHolding,
   assetsPageTarget,
   assetsUiModule,
@@ -142,7 +143,11 @@ export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
       createScheduleUiModule({ releaseDetail, conversation: conversationTarget, sessionStatus }),
       calendarUiModule,
       assetsUiModule,
-      createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+      createMcpUiModule({
+        page: assetsCategoryPage,
+        governance: assetGovernanceKey,
+        createForm: assetsCreateForm,
+      }),
       createPluginViewModule({
         page: assetsCategoryPage,
         governance: assetGovernanceKey,

@@ -69,7 +69,9 @@ describe('an agent publishes an asset made from a body, on the release tree', ()
           value: 'sk-never-written',
         }
         const refused = await ask([extensions('configure', key)])
-        expect(refused).toContain('credential is a secret. Its value is not written through this tool')
+        expect(refused).toContain(
+          'credential is a secret. Its value is not written through this tool',
+        )
         const settings = await ask([extensions('settings', { category: 'mcp', name: 'keyed' })])
         expect(settings).toMatch(/credential\s+secret\s+not set/u)
         expect(settings).not.toContain('sk-never-written')

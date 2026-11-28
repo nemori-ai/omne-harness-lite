@@ -148,7 +148,9 @@ it('E2b a credential the endpoint rejected: the status line says so and where to
     credentialState: 'rejected',
   })
   shownWith(fakeStatus(answered(rejected, null)).status)
-  expect(await screen.findByText(`连不上：${reason}；凭据被拒，要在设置里改成对的`)).toBeTruthy()
+  expect(
+    await screen.findByText(`连不上：${reason}；凭据被拒：在下面「凭据」一行换一个对的`),
+  ).toBeTruthy()
 })
 
 it('E3 after the setting rows, one line per action: its name and summary, and why it cannot be called', async () => {

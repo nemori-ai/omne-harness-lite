@@ -6,7 +6,8 @@ import type { CategoriesRead, CategoryNames } from '../model/category-names.ts'
 import type { GovernanceModel } from '../model/governance.ts'
 import { NO_CLAIMS, type HoldingClaims } from '../model/holding-claims.ts'
 import { assetsPage, assetsPanel, assetsTabs, assetsTabsTab } from '../parts.ts'
-import { CategoryPage, type Extras } from './category-page.tsx'
+import type { CreateFormSlot } from './category-head.tsx'
+import { CategoryPage, CategoryPageHead, type Extras } from './category-page.tsx'
 import { NoticeLine } from './notice.tsx'
 
 export type AssetsPageProps = Readonly<{
@@ -14,6 +15,7 @@ export type AssetsPageProps = Readonly<{
   tenant: string
   categoryNames?: CategoryNames
   categorySlot?: (category: string) => ReactNode
+  createFormSlot?: CreateFormSlot
   holdingSlot?: (category: string, name: string) => ReactNode
   /** The settings items the items of `assets.holding` claim; none without it. */
   claims?: HoldingClaims
@@ -26,6 +28,7 @@ export type AssetsPageProps = Readonly<{
 
 const nothing = (): null => null
 const nowhere = (): void => undefined
+const genericForm: CreateFormSlot = (_category, generic) => generic
 const noPages = (layout: AttachedLayout): ReactNode => layout([])
 
 type Categories = Readonly<{ kind: 'reading' }> | CategoriesRead
@@ -85,6 +88,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     holdingSlot: props.holdingSlot ?? nothing,
     claims: props.claims ?? NO_CLAIMS,
     open: props.open ?? nowhere,
+    createForm: props.createFormSlot ?? genericForm,
   }
   const generic = (category: string) => (
     <CategoryPage
@@ -93,6 +97,15 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
       tenant={tenant}
       category={category}
       extras={extras}
+    />
+  )
+  const head = (category: string, label: string) => (
+    <CategoryPageHead
+      governance={props.governance}
+      tenant={tenant}
+      category={category}
+      extras={extras}
+      label={label}
     />
   )
   return (
@@ -106,6 +119,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
         extras={extras}
         pages={props.pages ?? noPages}
         generic={generic}
+        head={head}
         pointAt={props.pointAt}
       />
     </PageColumn>
@@ -122,10 +136,11 @@ type OverviewProps = Readonly<{
   extras: Extras
   pages: (layout: AttachedLayout, asset?: string) => ReactNode
   generic: (category: string) => ReactNode
+  head: (category: string, label: string) => ReactNode
   pointAt: string | undefined
 }>
 
-function Overview({ categories, extras, pages, generic, pointAt }: OverviewProps) {
+function Overview({ categories, extras, pages, generic, head, pointAt }: OverviewProps) {
   const colon = pointAt?.indexOf(':') ?? -1
   const pointed = colon < 0 ? pointAt : pointAt?.slice(0, colon)
   const asset = colon < 0 ? undefined : pointAt?.slice(colon + 1)
@@ -144,6 +159,7 @@ function Overview({ categories, extras, pages, generic, pointAt }: OverviewProps
         choose={setChosen}
         extras={extras}
         generic={generic}
+        head={head}
       />
     ),
     asset,
@@ -158,9 +174,10 @@ type TabsProps = Readonly<{
   choose: (category: string) => void
   extras: Extras
   generic: (category: string) => ReactNode
+  head: (category: string, label: string) => ReactNode
 }>
 
-function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsProps) {
+function Tabs({ entries, data, reading, chosen, choose, extras, generic, head }: TabsProps) {
   const contributed = new Map(entries.map(entry => [entry.id, entry]))
   const ids = [...contributed.keys(), ...data.filter(category => !contributed.has(category))]
   const shown = chosen !== null && ids.includes(chosen) ? chosen : ids[0]
@@ -211,7 +228,14 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
             className="assets-page-panel"
             {...assetsPanel.props}
           >
-            {page === undefined ? generic(category) : page.node}
+            {page === undefined ? (
+              generic(category)
+            ) : (
+              <>
+                {head(category, labelOf(category))}
+                {page.node}
+              </>
+            )}
           </section>
         )
       })}

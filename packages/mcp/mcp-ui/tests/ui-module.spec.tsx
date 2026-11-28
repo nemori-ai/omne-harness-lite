@@ -85,13 +85,14 @@ it('UI4 the port absent: the module is not adopted; it comes: the page is placed
   expect(entries(shell)).toEqual([])
 })
 
-it('M4 declares its six parts', async () => {
+it('M4 declares its seven parts', async () => {
   const { root, shell } = await startShell()
   await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
   await root.plugin(mcpUiModule)
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['mcp.create', 'assets.panel'],
     ['mcp.endpoint', 'mcp.page'],
     ['mcp.endpoint.actions', 'mcp.endpoint'],
     ['mcp.endpoint.connect', 'mcp.endpoint'],

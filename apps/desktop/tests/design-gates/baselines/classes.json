@@ -3,7 +3,7 @@
   "entries": {
     "apps/desktop/src/page/shell/item.tsx | .shell-item-failed": 1,
     "packages/assets/assets-ui/src/view/assets-page.tsx | .assets-page-body": 1,
-    "packages/assets/assets-ui/src/view/category-page.tsx | .assets-category-head": 1,
+    "packages/assets/assets-ui/src/view/category-head.tsx | .assets-category-head": 1,
     "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create": 1,
     "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-hint": 1,
     "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-note": 3,

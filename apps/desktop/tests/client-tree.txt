@@ -8,6 +8,8 @@ system
           assets-ui#1  [effective]
         assets.control
           assets-ui#1  [effective]
+        assets.create-form
+          assets-ui#1  [effective]
         assets.governance
           assets-ui#1  [effective]
         assets.holding
@@ -112,6 +114,9 @@ system
       assets.category-page  [list, v1.2]
         mcp  [effective, mcp-ui#1]
         plugin  [effective, plugin-ui.view#1]
+      assets.create-form  [keyed-list, v1.2]
+        mcp
+          mcp-ui.create  [effective, mcp-ui#1]
       assets.governance  [one, closed: grants-itself]
         assets-ui#1  [effective]
       assets.holding  [keyed-list, v1.2]
@@ -405,6 +410,8 @@ system
           identity-ui#1  [effective]
         identity.login.submit
           identity-ui#1  [effective]
+        mcp.create
+          mcp-ui#1  [effective]
         mcp.endpoint
           mcp-ui#1  [effective]
         mcp.endpoint.actions

@@ -54,6 +54,15 @@ export const mcpEndpointConnect = definePart({
   when: '这个接入点用 OAuth 且状态读到时',
 })
 
+export const mcpCreate = definePart({
+  name: 'mcp.create',
+  label: '新建接入点',
+  summary: '一次填完名字、地址与认证的表',
+  within: 'assets.panel',
+  depths: ['tokens', 'style'],
+  when: '在 MCP 页签点了「新建」时',
+})
+
 export const mcpParts = [
   mcpPage,
   mcpEndpoint,
@@ -61,4 +70,5 @@ export const mcpParts = [
   mcpEndpointStatus,
   mcpEndpointConnect,
   mcpEndpointActions,
+  mcpCreate,
 ] as const
