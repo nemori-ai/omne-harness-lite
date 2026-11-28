@@ -6,7 +6,13 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
-import type { Generation, PeerIdentity } from '@omne-harness/mcp-contract'
+import type {
+  Generation,
+  PeerIdentity,
+  ResourceContent,
+  SkillListingPage,
+} from '@omne-harness/mcp-contract'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Deferred } from './deferred.ts'
 
@@ -17,6 +23,9 @@ export type Step =
   | Readonly<{ discover: Scripted<PeerIdentity> }>
   | Readonly<{ listActions: Scripted<ListingPage> }>
   | Readonly<{ listEventTypes: Scripted<EventListingPage> }>
+  | Readonly<{ listSkills: Scripted<SkillListingPage> }>
+  | Readonly<{ getSkill: Scripted<JsonValue> }>
+  | Readonly<{ readResource: Scripted<ResourceContent> }>
   | Readonly<{ close: Deferred<'closed'> }>
 
 export type Call =
@@ -24,6 +33,8 @@ export type Call =
   | Readonly<{ kind: 'discover'; generation: Generation }>
   | Readonly<{ kind: 'listActions'; generation: Generation; cursor: string | undefined }>
   | Readonly<{ kind: 'listEventTypes'; generation: Generation; cursor: string | undefined }>
+  | Readonly<{ kind: 'listSkills'; generation: Generation; cursor: string | undefined }>
+  | Readonly<{ kind: 'getSkill' | 'readResource'; generation: Generation; uri: string }>
   | Readonly<{ kind: 'close'; generation: Generation }>
 
 export type ScriptedTransports = McpTransportFactory &
@@ -55,7 +66,14 @@ async function outcomeOf<T>(step: Scripted<T>): Promise<Outcome<T, TransportFail
   return { ok: settled }
 }
 
-type StepKind = 'open' | 'discover' | 'listActions' | 'listEventTypes'
+type StepKind =
+  | 'open'
+  | 'discover'
+  | 'listActions'
+  | 'listEventTypes'
+  | 'listSkills'
+  | 'getSkill'
+  | 'readResource'
 
 function notScripted(method: string): never {
   throw new Error(`scripted transport: ${method} is not scripted in this wave`)
@@ -93,6 +111,21 @@ export function scriptedTransports(
       return 'listEventTypes' in step
         ? outcomeOf(step.listEventTypes)
         : notScripted('listEventTypes')
+    },
+    async listSkills(cursor) {
+      calls.push({ kind: 'listSkills', generation, cursor })
+      const step = take('listSkills')
+      return 'listSkills' in step ? outcomeOf(step.listSkills) : notScripted('listSkills')
+    },
+    async getSkill(uri) {
+      calls.push({ kind: 'getSkill', generation, uri })
+      const step = take('getSkill')
+      return 'getSkill' in step ? outcomeOf(step.getSkill) : notScripted('getSkill')
+    },
+    async readResource(uri) {
+      calls.push({ kind: 'readResource', generation, uri })
+      const step = take('readResource')
+      return 'readResource' in step ? outcomeOf(step.readResource) : notScripted('readResource')
     },
     call: () => notScripted('call'),
     cancelRequest: () => notScripted('cancelRequest'),

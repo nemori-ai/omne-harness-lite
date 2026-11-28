@@ -45,6 +45,7 @@ function ports(
       return over.entries === 'unknown' ? fail('unknown') : succeed(over.entries ?? [])
     },
     search: async () => fail('unknown'),
+    order: () => [],
   }
   const pages = over.pages ?? ['正文']
   const access: SkillAccess<string, unknown> = {

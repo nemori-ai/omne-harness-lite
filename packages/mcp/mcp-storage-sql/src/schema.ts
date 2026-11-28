@@ -10,7 +10,7 @@ export const SUBSCRIPTION_TABLES = ['mcp_subscriptions', 'mcp_occurrences']
 export const OWNED_TABLES = [...TABLES, ...GRANT_TABLES, ...SUBSCRIPTION_TABLES]
 
 /** What a catalog row holds: one kind of the peer's directory. */
-export const CATALOG_KINDS = ['actions', 'events'] as const
+export const CATALOG_KINDS = ['actions', 'events', 'skills'] as const
 export type CatalogKind = (typeof CATALOG_KINDS)[number]
 
 export const SCRIPTS = [

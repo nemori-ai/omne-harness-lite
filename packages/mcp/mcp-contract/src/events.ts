@@ -1,13 +1,11 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CatalogRevision } from './brands.ts'
 import type { AdoptionBasis, Freshness } from './catalog.ts'
-import { encodeMcpHeaderValue } from './envelope.ts'
+import { EVENTS_EXTENSION, encodeMcpHeaderValue } from './envelope.ts'
 import { isObject, itemsOf, member, textOf } from './json.ts'
 import { isModernProtocolVersion } from './revisions.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import { headersInvalid } from './withheld.ts'
-
-export const EVENTS_EXTENSION = 'io.modelcontextprotocol/events'
 
 export type EventDelivery = 'poll' | 'push' | 'webhook'
 

@@ -179,7 +179,7 @@ async function world() {
     },
   })
   cleanups.push(() => host.close())
-  const routed = routedSkills(host)
+  const routed = routedSkills(host, { k1: 1.2, b: 0.75 })
   const fixture = fixtureEnv([principalIssuerKey])
   await fixture.install(principalVerifier)
   await fixture.install(principalIssuer)
@@ -190,6 +190,7 @@ async function world() {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      sources: () => [],
       missingTools: async () => new Set(),
     })
   }

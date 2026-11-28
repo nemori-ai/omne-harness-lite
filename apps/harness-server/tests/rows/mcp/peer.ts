@@ -9,6 +9,7 @@ import {
   ProtocolError,
   ProtocolErrorCode,
 } from '@modelcontextprotocol/server'
+import { memorySkillFiles, SkillsExtension } from '@modelcontextprotocol/server/ext/skills'
 import { z } from 'zod'
 
 export type PeerAction = Readonly<{
@@ -472,8 +473,12 @@ function serveEventTypes(server: McpServer, events: readonly PeerEventType[]): v
 
 export async function modernPeer(
   initial: readonly PeerAction[],
-  options: Readonly<{ events?: readonly PeerEventType[] }> = {},
+  options: Readonly<{ events?: readonly PeerEventType[]; skills?: Record<string, string> }> = {},
 ): Promise<ModernPeer> {
+  const skills =
+    options.skills === undefined
+      ? undefined
+      : await SkillsExtension.load(memorySkillFiles(options.skills))
   let offered = initial
   const asked = new Map<string, number>()
   const answers: unknown[] = []
@@ -493,6 +498,7 @@ export async function modernPeer(
       },
     )
     serveTasks(server, tasks)
+    skills?.attach(server)
     if (options.events !== undefined) {
       serveEventTypes(server, options.events)
       serveEvents(server, book)

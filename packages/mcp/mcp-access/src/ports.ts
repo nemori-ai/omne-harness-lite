@@ -21,7 +21,7 @@ export interface McpPrincipals {
 export type McpFaces = Readonly<{
   adoption: Pick<AdoptionView<Principal, null>, 'endpoints'>
   status: Pick<EndpointStatus<Principal, null>, 'inspect' | 'subscribe'>
-  discovery: Pick<ActionDiscovery<Principal>, 'current' | 'refresh' | 'eventTypes'>
+  discovery: Pick<ActionDiscovery<Principal>, 'current' | 'refresh' | 'eventTypes' | 'skills'>
   connect?: EndpointConnect<Principal>
   subscriptions?: EventSubscriptions<Principal>
 }>

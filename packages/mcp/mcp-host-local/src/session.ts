@@ -21,9 +21,12 @@ import {
   legacyIdentityOf,
   legacyInitializeParamsOf,
   lineGoneAnswerOf,
+  getSkillRequest,
   listActionsRequest,
   listEventTypesRequest,
+  listSkillsRequest,
   pollEventsRequest,
+  readResourceRequest,
   eventStreamMessageOf,
   mcpRequestHeadersOf,
   notSentFailureOf,
@@ -64,6 +67,8 @@ import {
   type UnusableCause,
   type WireAnswer,
   type WireContext,
+  type ResourceContent,
+  type SkillListingPage,
   type WireEvent,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -779,6 +784,18 @@ export class Session implements McpTransport {
 
   listEventTypes(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>> {
     return this.perform(listEventTypesRequest(cursor))
+  }
+
+  listSkills(cursor?: string): Promise<Outcome<SkillListingPage, TransportFailure>> {
+    return this.perform(listSkillsRequest(cursor))
+  }
+
+  getSkill(uri: string): Promise<Outcome<JsonValue, TransportFailure>> {
+    return this.perform(getSkillRequest(uri))
+  }
+
+  readResource(uri: string): Promise<Outcome<ResourceContent, TransportFailure>> {
+    return this.perform(readResourceRequest(uri))
   }
 
   async call(

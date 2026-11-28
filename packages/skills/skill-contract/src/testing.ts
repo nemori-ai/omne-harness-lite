@@ -27,3 +27,9 @@ export {
   type MemoryPackage,
   type SourceFixture,
 } from './testing-source.ts'
+export {
+  createMemorySkillEntrySource,
+  skillEntrySourceConformance,
+  type EntrySourceFixture,
+  type MemorySkill,
+} from './testing-entry-source.ts'

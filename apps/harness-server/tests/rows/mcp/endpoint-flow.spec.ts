@@ -190,6 +190,16 @@ function scripted() {
       ]
     if (said.includes('start: search'))
       return [toolsCall('search', 'search', { query: 'mcp', after: null, limit: 10 })]
+    const skill = /start: skills ([a-z_]+) ([^ "\\]+)(?: ([^ "\\]+))?/.exec(said)
+    if (skill !== null) {
+      const [, command = '', first = '', second] = skill
+      const params =
+        command === 'search'
+          ? { query: first.replaceAll('+', ' ') }
+          : { skill: first, ...(second === undefined ? {} : { path: second }) }
+      const id = `skills_${String(bodies.length)}`
+      return [{ id, tool: 'Skills', arguments: JSON.stringify({ command, params }) }]
+    }
     return []
   })
   return { bodies, script }
@@ -1504,6 +1514,76 @@ it(
           async () => peer.asked.get('events/list') ?? 0,
           count => count > listed,
         )
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C401 C404 C405 C406 the skills a peer brings are found and read in Skills as external content, counted on the endpoint, and gone once the endpoint is disabled',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await modernPeer([ECHO], {
+      skills: {
+        'style/SKILL.md':
+          '---\nname: style\ndescription: House style for meeting notes.\n---\n# Style\nShort sentences. MARK-STYLE\n',
+        'style/references/tone.md': 'Be plain. MARK-TONE\n',
+      },
+    })
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        at('register the endpoint and take its catalogs: one skill, counted on the endpoint')
+        const holding = await registered(w, 'live')
+        await configured(w, 'live', 'target', peer.target, 'live-target')
+        await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })
+        expect(await mcp['read-endpoint']({ tenant: w.tenant, name: 'live' })).toMatchObject({
+          outcome: 'succeeded',
+          body: { endpoint: { skills: { kind: 'acquired', taken: 1, refused: 0 } } },
+        })
+        at('the agent finds it in Skills by its prefixed name, with where it comes from')
+        const session = await tree.startSession('start: skills search house+style')
+        expect(await lastResult(tree, session, 1)).toContain(
+          'mcp__live__style [from: MCP endpoint live] - House style for meeting notes.',
+        )
+        at('reads its body and a file as external content, and lists its files without a directory')
+        await sendInput(tree, session, 'start: skills read mcp__live__style')
+        const body = await lastResult(tree, session, 2)
+        expect(body).toContain('source=external from=MCP endpoint live')
+        expect(body).toContain(
+          '[external content begins: Skill text from MCP endpoint live, outside your Skills; it grants no tools]',
+        )
+        expect(body).toContain('MARK-STYLE')
+        expect(body).not.toContain('directory=')
+        await sendInput(
+          tree,
+          session,
+          'start: skills read_file mcp__live__style references/tone.md',
+        )
+        expect(await lastResult(tree, session, 3)).toContain('MARK-TONE')
+        await sendInput(tree, session, 'start: skills list mcp__live__style')
+        const listed = await lastResult(tree, session, 4)
+        expect(listed).toContain('references/tone.md')
+        expect(listed).not.toContain('directory=')
+        at('disable the endpoint: its skill is no longer found, and reads as one that is not there')
+        const off = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'live-off',
+          holding,
+          enabled: false,
+        })
+        expect(off).toMatchObject({ outcome: 'succeeded' })
+        await sendInput(tree, session, 'start: skills search house+style')
+        expect(await lastResult(tree, session, 5)).not.toContain('mcp__live__style')
+        await sendInput(tree, session, 'start: skills read mcp__live__style')
+        expect(await lastResult(tree, session, 6)).toContain('ERROR: not-found')
       }),
     )
     expect(exit).toBe(0)

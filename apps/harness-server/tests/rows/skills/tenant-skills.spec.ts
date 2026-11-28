@@ -24,6 +24,7 @@ function setOf(label: string, warmed: string[] = []): TenantSkills {
     catalog: {
       summaries: async () => ({ ok: [] }),
       search: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
+      order: () => [],
     },
     access: {
       read: async () => ({ failure: { kind: 'resource-missing' } }),
@@ -32,6 +33,7 @@ function setOf(label: string, warmed: string[] = []): TenantSkills {
     sessionCatalog: {
       summaries: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
       search: async () => ({ ok: [] }),
+      order: () => [],
     },
     async warm() {
       warmed.push(label)
@@ -56,7 +58,7 @@ function world() {
   })
   return {
     host,
-    routed: routedSkills(host),
+    routed: routedSkills(host, { k1: 1.2, b: 0.75 }),
     opened,
     warmed,
     answer: (value: typeof answer) => {

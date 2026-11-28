@@ -4903,6 +4903,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -4999,6 +5002,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../../skills/skill-contract
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -7659,6 +7665,12 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract

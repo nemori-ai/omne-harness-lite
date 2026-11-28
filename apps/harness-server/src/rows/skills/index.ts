@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { OFFICIAL_SKILLS as SKIN_SKILLS } from '@omne-harness/plugin-host-local'
 import { OFFICIAL_SKILLS as SKILL_SKILLS } from '@omne-harness/skill-host-local'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
@@ -12,6 +13,8 @@ import {
   SkillCatalogService,
   skillAccessKey,
   skillCatalogKey,
+  skillEntrySourcesKey,
+  skillEntrySourcesPlugin,
   skillSkillsPoint,
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -39,6 +42,9 @@ class TenantSkillCatalog extends SkillCatalogService<unknown, unknown> {
   search(...args: Parameters<Catalog['search']>) {
     return this.routed.search(...args)
   }
+  order(...args: Parameters<Catalog['order']>) {
+    return this.routed.order(...args)
+  }
 }
 
 class TenantSkillAccess extends SkillAccessService<unknown, unknown> {
@@ -59,14 +65,15 @@ export const skillsRow = defineRow({
   row: 'skills',
   implementation: 'real',
   manifest: {
-    provides: [skillCatalogKey, skillAccessKey, sessionSkillsKey],
-    injects: [tenantAssetsKey, assetCategoriesKey],
+    provides: [skillCatalogKey, skillAccessKey, sessionSkillsKey, skillEntrySourcesKey],
+    injects: [tenantAssetsKey, assetCategoriesKey, dynamisKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     ctx.plugin(skillCategoryPlugin)
+    ctx.plugin(skillEntrySourcesPlugin)
     const brought = await officialSkills([...SKIN_SKILLS, ...SKILL_SKILLS])
     const held = brought.map(({ name, item, body, files }) => ({ name, item, body, files }))
     ctx.plugin(broughtDefinitionsPlugin('skills-official', skillSkillsPoint.name, held))
@@ -91,7 +98,7 @@ export const skillsRow = defineRow({
             )
       },
     })
-    const routed = routedSkills(host)
+    const routed = routedSkills(host, config.ranking)
     new TenantSkillCatalog(ctx, routed.catalog)
     new TenantSkillAccess(ctx, routed.access)
     provideSessionSkills(ctx, sessionSkillsOf(host))

@@ -7,6 +7,8 @@ import type {
   EndpointStatus,
   EventCatalogRecord,
   EventSubscriptions,
+  PeerSkills,
+  SkillCatalogRecord,
   TaskWatch,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -47,6 +49,9 @@ export abstract class ActionDiscoveryService<P> extends Service implements Actio
   abstract eventTypes(
     ...args: Parameters<ActionDiscovery<P>['eventTypes']>
   ): ReturnType<ActionDiscovery<P>['eventTypes']>
+  abstract skills(
+    ...args: Parameters<ActionDiscovery<P>['skills']>
+  ): ReturnType<ActionDiscovery<P>['skills']>
 }
 
 export const mcpActionDiscoveryKey = ActionDiscoveryService.provide
@@ -197,6 +202,20 @@ export abstract class EventCatalogStoreService
 }
 
 export const mcpEventCatalogStoreKey = EventCatalogStoreService.provide
+
+export abstract class SkillCatalogStoreService
+  extends Service
+  implements CatalogStore<SkillCatalogRecord>
+{
+  static readonly provide = 'mcpSkillCatalogStore'
+  constructor(ctx: Context) {
+    super(ctx, SkillCatalogStoreService.provide)
+  }
+  abstract readonly read: CatalogStore<SkillCatalogRecord>['read']
+  abstract readonly write: CatalogStore<SkillCatalogRecord>['write']
+}
+
+export const mcpSkillCatalogStoreKey = SkillCatalogStoreService.provide
 
 /**
  * Where the bridge marks a checkpoint whose continuation it sends, as a service; the bridge takes it at each resume.
@@ -359,6 +378,16 @@ export abstract class EventSubscriptionsService<P>
 
 export const mcpEventSubscriptionsKey = EventSubscriptionsService.provide
 
+export abstract class PeerSkillsService<P> extends Service implements PeerSkills<P> {
+  static readonly provide = 'mcpPeerSkills'
+  constructor(ctx: Context) {
+    super(ctx, PeerSkillsService.provide)
+  }
+  abstract readonly read: PeerSkills<P>['read']
+}
+
+export const mcpPeerSkillsKey = PeerSkillsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -380,6 +409,8 @@ declare module '@deepseek-ai/cordis' {
     mcpEventRecords: EventRecordsService
     mcpEventConsumer: EventConsumerService
     mcpEventSubscriptions: EventSubscriptionsService<unknown>
+    mcpSkillCatalogStore: SkillCatalogStoreService
+    mcpPeerSkills: PeerSkillsService<unknown>
   }
 }
 

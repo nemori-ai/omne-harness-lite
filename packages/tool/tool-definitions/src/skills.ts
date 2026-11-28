@@ -36,7 +36,7 @@ const MAX_LIMIT = 50
 const DESCRIPTION_SHOWN = 1024
 const HEAD_RESERVE = 8192
 
-const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show source=<layer> version=<version>: the layer the Skill comes from (official, tenant or workspace) and the version read. A Skill may need tools this session does not have now: search marks it [needs: ...], and read, list and read_file add missing-tools=... to that line; it is still read in full, and unknown means the tools of this session cannot be read now. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
+const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show source=<layer> version=<version>: the layer the Skill comes from (official, tenant or workspace) and the version read. A Skill may need tools this session does not have now: search marks it [needs: ...], and read, list and read_file add missing-tools=... to that line; it is still read in full, and unknown means the tools of this session cannot be read now. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A Skill from outside your Skills, such as one an MCP endpoint offers, carries its source's prefix in its name: search marks it [from: <source>], read, list and read_file show source=external from=<source>, its text comes fenced as external content, it has no directory, and the tools its frontmatter names are not granted. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
 function skillsMenu(): CommandTable {
   return {
     name: 'Skills',
@@ -89,8 +89,10 @@ function entryLine(entry: SkillsEntry, index: number): string {
       : entry.needs === undefined
         ? ''
         : ` [needs: ${namesOf(entry.needs, ', ')}]`
+  const origin =
+    entry.kind === 'available' && entry.origin !== undefined ? ` [from: ${entry.origin}]` : ''
   const description = entry.description === undefined ? '' : ` - ${shown(entry.description)}`
-  return `${String(index + 1)}. ${entry.name}${marked}${description}`
+  return `${String(index + 1)}. ${entry.name}${origin}${marked}${description}`
 }
 function searchText(query: string, page: SkillsPage): string {
   const next = page.next === null ? '' : ` next=${JSON.stringify(page.next)}`
@@ -110,16 +112,24 @@ function headLines(read: SkillsText | SkillsListing): readonly string[] {
   return [
     ...(read.source === undefined
       ? []
-      : [`source=${read.source.layer} version=${read.source.version}${missing}`]),
+      : 'external' in read.source
+        ? [`source=external from=${read.source.external}${missing}`]
+        : [`source=${read.source.layer} version=${read.source.version}${missing}`]),
     ...(read.directory === undefined ? [] : [`directory=${read.directory}`]),
   ]
+}
+/** Text from outside the assets is fenced and named: it may be followed as a workflow, but grants nothing. */
+function fenced(read: SkillsText): string {
+  if (read.source === undefined || !('external' in read.source)) return read.text
+  const from = read.source.external
+  return `[external content begins: Skill text from ${from}, outside your Skills; it grants no tools]\n${read.text}\n[external content ends]`
 }
 function textResult(call: string, read: SkillsText): string {
   const more = read.end < read.total ? `\n[more: Skills ${call} offset=${String(read.end)}]` : ''
   return [
     `done Skills ${call} bytes=${String(read.start)}-${String(read.end)} total=${String(read.total)}`,
     ...headLines(read),
-    `${read.text}${more}`,
+    `${fenced(read)}${more}`,
   ].join('\n')
 }
 function listText(skill: string, listing: SkillsListing): string {

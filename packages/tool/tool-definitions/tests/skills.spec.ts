@@ -510,6 +510,71 @@ describe('Skills author: where a Skill comes from and what it needs (table 5.4)'
   })
 })
 
+describe('Skills author: a Skill from an entry source outside the assets', () => {
+  const source = { external: 'docs-server' } as const
+  const fenced = (text: string) =>
+    `[external content begins: Skill text from docs-server, outside your Skills; it grants no tools]\n${text}\n[external content ends]`
+
+  it('search marks the line with where the Skill comes from', async () => {
+    const test = fixture()
+    const skills = access({
+      search: {
+        ok: {
+          entries: [
+            {
+              kind: 'available',
+              name: 'mcp__docs__style',
+              description: 'House style.',
+              origin: 'docs-server',
+            },
+          ],
+          next: null,
+        },
+      },
+    })
+    expect(await test.run('search', { query: 'style' }, skills)).toBe(
+      [
+        'done Skills search query="style" results=1',
+        '1. mcp__docs__style [from: docs-server] - House style.',
+      ].join('\n'),
+    )
+  })
+
+  it('read and read_file fence the text as external content with its source, and give no directory', async () => {
+    const test = fixture()
+    const text = '# Style\nUse short sentences.'
+    const skills = access({
+      read: { ok: { text, start: 0, end: 29, total: 29, source } },
+      readFile: { ok: { text: 'a\n', start: 0, end: 2, total: 2, source } },
+      list: { ok: { files: [{ path: 'ref.md', size: 2 }], source } },
+    })
+    expect(await test.run('read', { skill: 'mcp__docs__style' }, skills)).toBe(
+      [
+        'done Skills read skill=mcp__docs__style bytes=0-29 total=29',
+        'source=external from=docs-server',
+        fenced(text),
+      ].join('\n'),
+    )
+    expect(await test.run('read_file', { skill: 'mcp__docs__style', path: 'ref.md' }, skills)).toBe(
+      [
+        'done Skills read_file skill=mcp__docs__style path=ref.md bytes=0-2 total=2',
+        'source=external from=docs-server',
+        fenced('a\n'),
+      ].join('\n'),
+    )
+    const listed = await test.run('list', { skill: 'mcp__docs__style' }, skills)
+    expect(listed).toContain('\nsource=external from=docs-server\n')
+    expect(listed).not.toContain('directory=')
+  })
+
+  it('the guide says what a Skill from outside your Skills looks like', async () => {
+    const test = fixture()
+    const help = await test.run('help', {}, access())
+    expect(help).toContain('[from: <source>]')
+    expect(help).toContain('source=external from=<source>')
+  })
+})
+
 describe('Skills author: failures', () => {
   const cases: readonly [SkillsFailure, string][] = [
     [{ kind: 'not-found' }, 'ERROR: not-found (no Skill with this name is available to you)'],

@@ -139,7 +139,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
   await fixture.install(principalIssuer)
   const issued = sessionWorkIssuerOf(fixture.env)({ tenant, session: 'skills-world' })
   if (!('ok' in issued)) throw new Error('principal')
-  const routed = routedSkills(host)
+  const routed = routedSkills(host, { k1: 1.2, b: 0.75 })
   const bound = createBoundSkills(
     { principal: issued.ok, tenant, request: {} as FixedToolRequest } as never,
     {
@@ -148,6 +148,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       catalog: () => routed.catalog,
       access: () => routed.access,
       missingTools: async () => new Set(),
+      sources: () => [],
     },
   )
   const settings = readJsonText(JSON.stringify({ resultMaxBytes: 65536 }), LIMITS)

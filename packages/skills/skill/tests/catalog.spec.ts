@@ -75,6 +75,7 @@ function pressingUnknown(world: CatalogWorld): SkillCatalog<Principal, Scope> {
   return {
     summaries: (who, at, capabilities) => pressed(world.catalog.summaries(who, at, capabilities)),
     search: (who, at, query) => pressed(world.catalog.search(who, at, query)),
+    order: (text, documents) => world.catalog.order(text, documents),
   }
 }
 
@@ -239,5 +240,20 @@ describe('the answer does not depend on the order in which the read checks compl
       held.release(order)
       expect(await answer).toStrictEqual({ failure: 'unknown' })
     }
+  })
+})
+
+describe('ordering documents beside the Skills (C401)', () => {
+  it('ranks any documents the way a search ranks Skills: with text only those it matches, best first; with none, every one', () => {
+    const { catalog } = createCatalogWorld()
+    const documents = [
+      { name: 'mcp__desk__deploy', fields: ['deploy', 'Ships a build to production.'] },
+      { name: 'mcp__desk__review', fields: ['review', 'Reviews code with the team checklist.'] },
+      { name: 'review', fields: ['review', 'Reviews a pull request.'] },
+    ]
+    expect(catalog.order('review code', documents)).toEqual(['mcp__desk__review', 'review'])
+    expect([...catalog.order('', documents)].sort()).toEqual(
+      documents.map(each => each.name).sort(),
+    )
   })
 })
