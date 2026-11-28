@@ -549,3 +549,19 @@ describe('the form, third round of the mutation', () => {
     expect(fake.calls.join('\n')).not.toContain('cs-very-secret')
   })
 })
+
+it('C2b what was typed under another auth is not written: a client secret left from OAuth is not written for a key, nor a key for OAuth', () => {
+  expect(
+    placingsOf({ ...ENTERED, auth: 'static', key: 'k', clientId: 'c', clientSecret: 's' }).map(
+      p => p.item,
+    ),
+  ).toEqual(['target', 'credential'])
+  expect(
+    placingsOf({ ...ENTERED, auth: 'oauth', key: 'k', clientSecret: 's' }).map(p => p.item),
+  ).toEqual(['target', 'client-secret'])
+  expect(
+    placingsOf({ ...ENTERED, auth: 'none', key: 'k', clientId: 'c', clientSecret: 's' }).map(
+      p => p.item,
+    ),
+  ).toEqual(['target'])
+})
