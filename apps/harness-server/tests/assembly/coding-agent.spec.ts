@@ -142,7 +142,14 @@ describe('the coding entry of the release mapping', () => {
     )
     expect(fullText).not.toContain('## Code')
     const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''
-    for (const word of ['OmneExtensionPoints', 'OmneExtensions', 'Files', 'impact', 'disable'])
+    for (const word of [
+      'OmneExtensionPoints',
+      'OmneExtensions',
+      'Files',
+      'impact',
+      'disable',
+      'Tools search',
+    ])
       expect(extending, word).toContain(word)
     for (const named of ['shell.', 'plugin', 'skill.', 'session.'])
       expect(extending, named).not.toContain(named)

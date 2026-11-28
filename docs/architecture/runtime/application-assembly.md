@@ -157,6 +157,7 @@
 | `plugin-host` | `@omne-harness/plugin-host-local` 的 `./cordis` 插件 `pluginCategory(端口)`：把 Plugin 与皮肤两类贡献给 `assetCategories`，连同它们的点 `plugin.plugins`、`plugin.skins`。皮肤的正文契约是 Plugin 的再收窄。它的正文契约在判一份包时现问别的类别：清单里指向一个类别的点的成员，交给那个类别的正文契约判 | 无 | `assetCategories` | 无 | 无 |
 | `plugin-notification` | 行体：向通知的来源登记面登记来源 `extensions.changes`（一种持续事项：这个租户在持并启用的一份拓展，有客户端装不上它或把它停掉了），并向租户级登记面贡献块 `plugin.load-failures` 与一条不经翻译的需要绑定：通知的「一组持续事项」← 这个块。块按调用现读：在持的 plugin 读自 `tenantAssets`，客户端的回报读自 `pluginReports`，只认在持那一版的回报；任一边读不到答不知道，不答成没有。两个登记面出现时登记、撤下时随之收回，不是必需：通知的行不在时这一行照常启动、什么也不登记。去掉这一行，plugin 照常，通知没有拓展的事项 |另向 `plugin.ports` 放口 `notifications`：plugin 经它发一条通知，进的是通知自己的发送入口，以这次调用者的名义，上下文的租户是持有这份 plugin 的租户。另在所有行起来之后记下此刻服务端声明的点与登记的类别；之后登记表一变，多出来的点与类别作为一次性事件（`point-added`、`category-added`）以来源 `extensions.changes` 自己的身份发给每个已登记的租户（列租户用 `tenantDomainScannerPrincipal`），事件标识就是那个点或类别，再发一遍是认回。
 | `plugin-server` | 应用成员的服务端装载行：每个已登记的租户在持并启用的 plugin，清单里 `server` 一段的成员装在服务端。一份 plugin 是这一行下的一个 fiber，名字是 `plugin:<名字>@<版本>`，撤下 fiber 就撤下它放的全部条目。数据成员作为条目放上登记表，作用域由这一行打上（这个租户的范围），清单里写不出作用域；代码成员只放在给了客人写法的点上，文件先核摘要，再从这一版在本机的包目录导入，导出的函数只拿到口。plugin 的 fiber 造在把 `tenantDomainScannerPrincipal` 也隔离掉的上下文里，那里取不到任何受信名。服务端的底：每个租户一个标记文件，连着两次在装载中倒下，下一次起来不装那几份，诊断写明，有了新版本或被禁用再启用就放开；有序的停止不算倒下。起来之后列出已登记的租户逐个跟上，登记表变了再列一次以跟上新的租户；一个租户的资产变了，重算它要装的；读不到时不改已装的它声明 `plugin.ports` 与 `plugin.guest-forms`；装一份之前在它的作用域里钉住 `needs` 写的口，每次调用用调用者的主体打开、返回时关上。一个类别的点上的目录成员放成那个类别的 `HeldItem`：资产引用与版本是这份 plugin 在持的那一版，`within` 是成员写的目录。 | `pluginServer`：每个租户的每份 plugin 在服务端的状态，给 Plugin 类别答「生效了没有」；不受信 | `dynamis`、`tenantAssets`、`assetChanges`、`tenantDomains`、`tenantDomainScannerPrincipal` | `assetCategories` | `floorDirectory`：标记文件的目录，运维者层给绝对路径（本机缺省 `<状态目录>/plugin-floor`） |
+| `plugin-storage` | 行体：把 `plugin-storage-sql` 的仓储接上，在 `plugin.ports` 上放口 `storage` 与 `points`；口的规则归 [plugin 的规格](../../../packages/plugin/SPEC.md#plugin-的数据) | 无 | `dynamis`、`storage`、`tenantDomainLookup`、`tenantDomainRegistration` | 无 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -558,6 +559,7 @@ flowchart LR
 | `tool-body-sweep` | `storage`、`tenantDomainLookup`、`tenantDomainScannerPrincipal` |
 | `tool-bindings` | `principalVerifier`、`settingsSecretCustody`、`settingsSecretItems` |
 | `mcp-storage-sql` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
+| `plugin-storage` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `mcp`                        | `settingsSecretCustody`、`settingsSecretItems`、`tenantDomainScannerPrincipal`                                                                                                                                                                                                                                                                                        |
 | `agent-adoptions` | `definitionMappings` |
 | `adoption-sources` | `definitionMappings`、`sessionModesInstallation`、`sessionWorkPrincipals` |

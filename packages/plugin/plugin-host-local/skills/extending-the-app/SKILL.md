@@ -14,9 +14,14 @@ A plugin is one directory with `plugin.json` at its root. Each member puts one i
 3. Before publishing, call `OmneExtensions impact` with category `plugin` and `dir`. It says what would take effect and what would not, and why.
 4. Publish with `OmneExtensions publish`. Give category `plugin`, the name in `plugin.json`, and `dir`.
 5. Check with `OmneExtensions show`, category `plugin` and the name. It lists each member and whether it is in effect, with the reason when it is not.
-6. To undo, `disable` keeps the plugin and stops it. `remove` drops it.
+6. See it work before you say it is done. A member in effect can still do the wrong thing. Look with `AppView` at what the person will see. For a part that reacts to something, make that thing happen first, for example a short conversation, and then look. Fix and publish again until it does what the person asked.
+7. To undo, `disable` keeps the plugin and stops it. `remove` drops it.
 
 `OmneExtensions help` with name `publish` and category `plugin` gives the fields of `plugin.json`.
+
+## A page and its server side
+
+A page is drawn as soon as the plugin loads, hidden until the person opens it, so its first calls run before anyone looks. Its protocol can reach the app a moment after the page. Until then a call answers `{ outcome: 'unavailable' }`. Read that as not yet: ask again after a short wait, as `notes-page` does, and keep an error for the other outcomes.
 
 ## Examples
 

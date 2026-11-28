@@ -1,7 +1,7 @@
 {
   "digests": {
     "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c",
-    "2": "sha256:5974c652674fd0ac08ca31c093c17698e0b1ce00d31d2fb2e2eacd1a1705bc8b"
+    "2": "sha256:d0fd75b96c239c86a84fc5b48b61db1f33940b230a1ddb7f0e95a4de060b2086"
   },
   "major": 1,
   "name": "assets",
@@ -665,6 +665,19 @@
                           {
                             "item": {
                               "fields": {
+                                "id": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
                                 "key": {
                                   "rule": {
                                     "kind": "string"
@@ -745,6 +758,19 @@
                                 ]
                               }
                             },
+                            "id": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
                             "key": {
                               "rule": {
                                 "kind": "string"
@@ -795,6 +821,19 @@
                           {
                             "item": {
                               "fields": {
+                                "id": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
                                 "key": {
                                   "rule": {
                                     "kind": "string"

@@ -28,9 +28,14 @@ export async function assetsOf(origin: string, name: string) {
   return { tenant: tenantId, assets }
 }
 
-/** Publishes one fixture directory file by file, as an upload does. */
-export async function publish(assets: Assets, tenant: TenantId, category: string, name: string) {
-  const dir = join(FIXTURES, name)
+/** Publishes one directory (a fixture by its name unless another is given) file by file, as an upload does. */
+export async function publish(
+  assets: Assets,
+  tenant: TenantId,
+  category: string,
+  name: string,
+  dir = join(FIXTURES, name),
+) {
   const encoder = new TextEncoder()
   const paths = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter(path =>
     statSync(join(dir, path)).isFile(),

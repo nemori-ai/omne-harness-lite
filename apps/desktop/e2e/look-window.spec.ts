@@ -2,8 +2,18 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { createClient, createHttpProtocolTransport } from '@omne-harness/sdk/core'
+import { fileURLToPath } from 'node:url'
 import { PASSWORD, signUp } from './desk.ts'
 import { expect, test } from './desktop.ts'
+import { assetsOf, publish } from './tenant-publish.ts'
+
+// The handbook's example with a page of its own, as a tenant publishes it.
+const NOTES_PAGE = fileURLToPath(
+  new URL(
+    '../../../packages/plugin/plugin-host-local/skills/extending-the-app/examples/notes-page',
+    import.meta.url,
+  ),
+)
 
 type Asked = Readonly<{
   page: string
@@ -163,4 +173,18 @@ test('看界面的窗口答得出做不到的原因：没有这一页、没有�
     reason: 'no-skin',
   })
   expect(await look(page, { ...asked, width: 100 })).toEqual({ reason: 'bad-mode' })
+})
+
+test('看界面的窗口看得到这个租户装的 Plugin 带来的页', async ({ launchApp, server }) => {
+  const { page } = await launchApp()
+  const name = await signUp(page)
+  const { tenant, assets } = await assetsOf(server, name)
+  await publish(assets, tenant, 'plugin', 'notes-page', NOTES_PAGE)
+  await expect(page.locator('a[data-page="notes"]')).toBeVisible({ timeout: 30_000 })
+  const looked = await look(page, {
+    ...SETTINGS_DARK,
+    page: 'notes',
+    tenant: await tenantOf(server, name),
+  })
+  expect('png' in looked, JSON.stringify(looked)).toBe(true)
 })

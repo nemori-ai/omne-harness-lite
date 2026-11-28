@@ -112,7 +112,7 @@ async function world(initial: LoginState = 'signed-in') {
   const root = new Context()
   roots.push(root)
   await root.plugin(DynamisService)
-  await root.plugin(
+  const connection = root.plugin(
     connectionPlugin({
       transport,
       login,
@@ -122,6 +122,7 @@ async function world(initial: LoginState = 'signed-in') {
       },
     }),
   )
+  await connection
   await settle()
   const keys = () => {
     const read = list(root.dynamis.registry(), CONNECTION_PROTOCOLS_POINT, null, [])
@@ -147,6 +148,10 @@ async function world(initial: LoginState = 'signed-in') {
     },
     async reconnect() {
       fake.breakStream()
+      await settle()
+    },
+    async unplug() {
+      await connection.dispose()
       await settle()
     },
     async sign(next: LoginState) {
@@ -232,6 +237,24 @@ describe('the connection grows the clients of the protocols of the tenant its lo
     await settle()
     expect(t.keys()).toEqual([])
     expect(await held['look']!({})).toEqual({ outcome: 'unavailable' })
+    const reads = t.reads.length
+    await t.push(snapshot(2, 2))
+    expect(t.reads).toHaveLength(reads)
+  })
+
+  it('a frame that tells the same count of changes does not read again', async () => {
+    const t = await world()
+    await t.push(snapshot(1, 4))
+    const reads = t.reads.length
+    await t.push(snapshot(2, 4))
+    expect(t.reads).toHaveLength(reads)
+  })
+
+  it('a protocol whose contract the client cannot make is not put; the others are', async () => {
+    const t = await world('signed-out')
+    t.answers.push(answered(contractOf('weather'), contractOf('broken', 'number')))
+    await t.sign('signed-in')
+    expect(t.keys()).toEqual(['weather/v1'])
   })
 
   it("a new login while one is followed takes the last one's protocols and reads for the new one", async () => {
@@ -254,6 +277,25 @@ describe('the connection grows the clients of the protocols of the tenant its lo
     t.answers.push(answered(contractOf('weather')))
     await t.push(snapshot(1, 4))
     expect(t.keys()).toEqual(['weather/v1'])
+  })
+
+  it('unplugged, the point goes and every client it put refuses; a read on its way puts nothing; nothing reads after', async () => {
+    const t = await world('signed-out')
+    t.answers.push(answered(contractOf('weather')))
+    await t.sign('signed-in')
+    const held = t.client('weather/v1')!
+    let release!: (report: CallReport) => void
+    t.answers.push({ held: new Promise(resolve => (release = resolve)) })
+    await t.push(snapshot(1, 1))
+    const reads = t.reads.length
+    await t.unplug()
+    release(answered(contractOf('notes')))
+    await settle()
+    expect(() => t.keys()).toThrow('the point is unavailable')
+    expect(await held['look']!({})).toEqual({ outcome: 'unavailable' })
+    await t.push(snapshot(2, 2))
+    await t.sign('signed-in')
+    expect(t.reads).toHaveLength(reads)
   })
 
   it('signed out, it does not read, whatever the server tells', async () => {
