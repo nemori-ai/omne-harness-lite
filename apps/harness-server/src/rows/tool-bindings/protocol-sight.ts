@@ -1,3 +1,4 @@
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { ask, list, type Registry, type Scope } from '@omne-harness/dynamis'
 import type { ProtocolRules, ProtocolShown } from '@omne-harness/plugin-tools'
 import type { ProtocolContract } from '@omne-harness/public-contract'
@@ -5,7 +6,10 @@ import { contractRules } from '@omne-harness/public-contract/snapshot'
 
 const PROTOCOLS = 'access.protocols'
 
-type Held = Readonly<{ contribution: Readonly<{ contract: ProtocolContract }>; revision: number }>
+type Held = Readonly<{
+  contribution: Pick<AccessContribution<ProtocolContract>, 'protocol'>
+  revision: number
+}>
 
 /** A protocol as the asker can call it: the official ones and those of its own tenant; another tenant's is not there. */
 export function protocolOf(
@@ -24,7 +28,7 @@ export function protocolOf(
     major,
     revision: item.revision,
     held: scope.length === 0 ? 'deployment' : 'tenant',
-    rules: contractRules(item.contribution.contract) as ProtocolRules,
+    rules: contractRules(item.contribution.protocol) as ProtocolRules,
   }
 }
 

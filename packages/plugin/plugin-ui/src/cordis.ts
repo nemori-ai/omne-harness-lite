@@ -174,7 +174,11 @@ function loadFor(
     recheck()
     if (listed) reporter.touch()
   }
-  const unwatch = [shell.watchAdoptions(told), shell.watchChanges(told)]
+  const unwatch = [
+    shell.watchAdoptions(told),
+    shell.watchChanges(told),
+    shell.subscribe('pages', told),
+  ]
   loader.watch(settle)
   const stopFollowing = followWanted({
     client,

@@ -7,7 +7,8 @@ import {
   type Entry,
   type Registry,
 } from '@omne-harness/dynamis'
-import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
+import { defineProtocol, ruleCodec, type ProtocolContract } from '@omne-harness/public-contract'
 import { contractRules } from '@omne-harness/public-contract/snapshot'
 import { describe, expect, it } from 'vitest'
 import { protocolKeys, protocolOf } from '../../../src/rows/tool-bindings/protocol-sight.ts'
@@ -57,7 +58,10 @@ const served = (name: string, scope: readonly string[]): Entry => ({
   scope,
   rank: 0,
   digest: `${name}/${scope.join('/')}`,
-  item: { contribution: { contract: protocol(name) }, revision: 1 },
+  item: {
+    contribution: { protocol: protocol(name), operations: {}, observations: {} },
+    revision: 1,
+  } satisfies Readonly<{ contribution: AccessContribution<ProtocolContract>; revision: number }>,
 })
 
 function registry(): Registry {
