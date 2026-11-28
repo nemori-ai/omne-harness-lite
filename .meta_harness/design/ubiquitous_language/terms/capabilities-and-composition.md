@@ -328,6 +328,22 @@
 - **注意 ①**：未订阅的类型送来，受理拒绝，不是静默丢弃
 - **注意 ②**：组合了这份连接件的 agent，上下文里**只带被订阅的那几种**的说明——怎么带归 PF-010
 
+### UL-loop-definition · 环定义 · Loop Definition
+
+> **中**：一份 [Agent Loop](agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) 的**资产**：一段脚本、一句说明，
+> 加上它声明的 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
+> **发布出不可变的版本**；一个会话选了它，之后开始的每一次 [Agent 执行](agent-runtime-loop.md#ul-agent-execution--agent-执行--agent-execution)在开始时钉住当时的那一版。
+>
+> **EN**: An **asset** that holds one agent loop: a script, a one-line summary, and the loop
+> extension points it declares. **It is published as immutable versions**; once a session
+> selects it, each agent execution that starts afterwards pins the version current at its start.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[产品页 可替换的环](../../product/agent-progression/design.md#可替换的环)（rev 8）；负责人 2026-11-26、2026-11-28
+- **⚠️ 别混**：**它不是 [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)**——
+  Agent 定义说这个 agent 是谁、能用什么；环定义说一次执行怎样往前推。同一个 Agent 定义可以跑在不同的环上
+- **注意**：会话选了哪个环，是会话的事实；一次执行用的是哪一版，是那次执行的事实。两者分开查
+
 ### UL-loop-extension · 拓展件 · Loop Extension
 
 > **中**：挂在某个 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的**一段判断或动作**。
