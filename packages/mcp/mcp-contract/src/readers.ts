@@ -4,6 +4,7 @@ import { isProtocolVersion, type Generation, type ProtocolVersion } from './bran
 import { countOf, taskHintsOf } from './classify.ts'
 import { SERVER_INFO_KEY } from './envelope.ts'
 import type { EventListingPage } from './events.ts'
+import type { SkillListingPage } from './skills.ts'
 import { boundInstructions } from './instructions.ts'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
 import type { ErrorAnswer, TaskHints, TaskReport, TaskStatus } from './outcomes.ts'
@@ -126,6 +127,23 @@ export function readEventListingPage(
   const nextCursor = textOf(cursor)
   if (cursor !== undefined && nextCursor === undefined) return { failure: 'cursor-invalid' }
   return { ok: nextCursor === undefined ? { events } : { events, nextCursor } }
+}
+
+export function readSkillListingPage(
+  result: JsonValue,
+): Outcome<SkillListingPage, 'skills-missing' | 'cursor-invalid'> {
+  const skills = isObject(result) ? itemsOf(member(result, 'skills')) : undefined
+  if (!isObject(result) || skills === undefined) return { failure: 'skills-missing' }
+  const cursor = member(result, 'nextCursor')
+  const nextCursor = textOf(cursor)
+  if (cursor !== undefined && nextCursor === undefined) return { failure: 'cursor-invalid' }
+  return { ok: nextCursor === undefined ? { skills } : { skills, nextCursor } }
+}
+
+/** The one skill entry a `skills/get` answer carries. */
+export function readSkillAnswer(result: JsonValue): Outcome<JsonValue, 'skill-missing'> {
+  const skill = isObject(result) ? member(result, 'skill') : undefined
+  return isObject(skill) ? { ok: skill } : { failure: 'skill-missing' }
 }
 
 export type TaskReadDefect =

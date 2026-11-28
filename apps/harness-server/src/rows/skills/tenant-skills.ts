@@ -8,7 +8,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
+import { createSkillAccess, createSkillCatalog, orderDocuments } from '@omne-harness/skill'
 import {
   skillBodyContract,
   type SkillAccess,
@@ -207,7 +207,10 @@ export function sessionSkillsOf(host: TenantSkillsHost): SessionSkillsService['s
 }
 
 /** The two Skill services over all tenants: each call goes to the set of its own tenant. */
-export function routedSkills(host: TenantSkillsHost): Readonly<{
+export function routedSkills(
+  host: TenantSkillsHost,
+  ranking: RankingParameters,
+): Readonly<{
   catalog: SkillCatalog<unknown, unknown>
   access: SkillAccess<unknown, unknown>
 }> {
@@ -223,6 +226,7 @@ export function routedSkills(host: TenantSkillsHost): Readonly<{
         const set = await host.get(access.tenant)
         return set === undefined ? CATALOG_UNKNOWN : set.catalog.search(access, scope, query)
       },
+      order: (text, documents) => orderDocuments(text, documents, ranking),
     },
     access: {
       async read(access, scope, target, options) {

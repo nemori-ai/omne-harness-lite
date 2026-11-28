@@ -26,6 +26,7 @@ import {
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import type { EventTypes } from './event-types.ts'
+import type { PeerSkillsCore } from './peer-skills.ts'
 import type { ChangeFeed } from './internal/changes.ts'
 import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
 import type { Following } from './internal/follow.ts'
@@ -50,7 +51,18 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   changes: ChangeFeed
   following: Following
   eventTypes: EventTypes<P>
+  skills: PeerSkillsCore<P>
 }>
+
+/** What a peer offers beside its actions, taken with each published catalog of them. */
+async function publishBeside<P, S>(
+  deps: DiscoveryDependencies<P, S>,
+  ensured: Ensured,
+  access: Access<P>,
+): Promise<void> {
+  await deps.eventTypes.publish(ensured, access)
+  await deps.skills.publish(ensured, access)
+}
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
 const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
@@ -183,7 +195,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     if ('failure' in write)
       return write.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
     deps.changes.changed(access.tenant)
-    await deps.eventTypes.publish(ensured, access)
+    await publishBeside(deps, ensured, access)
     deps.following.follow(ensured, () => refresh(access, repeatOf(request)))
     return succeed({ kind: 'published', revision: merged.revision })
   }
@@ -304,5 +316,5 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return succeed({ peer: connected.peer, generation: connected.generation })
   }
 
-  return { refresh, current, peer, eventTypes: deps.eventTypes.view }
+  return { refresh, current, peer, eventTypes: deps.eventTypes.view, skills: deps.skills.view }
 }

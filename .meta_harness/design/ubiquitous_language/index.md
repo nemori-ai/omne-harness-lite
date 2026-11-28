@@ -137,6 +137,7 @@
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；声明事件目录、持有上配事件订阅；两种投递方式（已有会话开口接收 / 事件开新会话，后者必配触发会话的默认运行模式）；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
 | [UL-event-subscription](terms/capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription) | 事件订阅 | Event Subscription | 连接件持有上的一项偏好类设置：目录里哪几种真的送进来，只在持有那一侧求值；agent 不在运行时改它 |
+| [UL-loop-definition](terms/capabilities-and-composition.md#ul-loop-definition--环定义--loop-definition) | 环定义 | Loop Definition | 一份 Agent Loop 的资产：脚本、说明与它声明的拓展点；会话选它，之后开始的每次执行钉住当时的一版 |
 | [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产**；无「放宽」档，可否决含落卡片等人；不可用处置是它自己的声明，不是设置也不是权限 |
 | [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 媒体把非文字内容转成别的表示的机制，由**转换件定义**与**转换引擎**组成；人发的接纳前转，工具产出的需要时转；结局四种；**不站在拓展点上，不归 Model** |
 | [UL-converter-definition](terms/capabilities-and-composition.md#ul-converter-definition--转换件定义--converter-definition) | 转换件定义 | Converter Definition | 写明一种媒体用哪个引擎、什么参数、内容去哪的资产，类别 `converter`，名字是媒体种类；按层同名替换（父：资产） |
@@ -250,7 +251,7 @@
 | [UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) | 消息准入 | Message Admission | 外部输入、模型完整回复、工具结果成为消息前按来源校验、接纳或拒收，后果按来源不同；**Agent 自己的规则，不是拓展位置**；**不是放行判断** |
 | [UL-side-question](terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question) | 旁路提问 | Side Question | 趁 agent 干活顺口问的一句，**不属于任何 Run**、问答不进日志，钱归会话 |
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
-| [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前九个** |
+| [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**官方的环九个，其中七个每种环都有；环定义可声明自己的** |
 | [UL-execution-started-position](terms/agent-runtime-loop.md#ul-execution-started-position--执行开始之后--execution-started-position) | 执行开始之后 | Execution-Started Position | 每个新的 Agent 执行开始后经过一次；**重挂接、实例换代、接续原执行不再经过**；旧说法 ~~尝试开始之后~~ |
 | [UL-intervention-power](terms/agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power) | 干预力 | Intervention Power | 只观察 / 可改写 / 可否决，**恰三档、没有放宽**；在拓展件上是权限 |
 | [UL-extension-unavailability-policy](terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) | 拓展件不可用处置 | Extension Unavailability Policy | 拓展件此刻不在时那个位置怎么办：跳过 / 否决 / 替换为指定挂件；租户件默认跳过、可声明前两种，替换件只有系统自带的能用；它是拓展件自己的声明，各层不配值 |

@@ -489,6 +489,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpHoldingRows',
       'mcpEventCatalogStore',
       'mcpEventRecords',
+      'mcpSkillCatalogStore',
     ],
     injects: ['storage', 'tenantDomainLookup'],
   },
@@ -518,8 +519,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['toolContributionAuthority'],
   },
   skills: {
-    provides: ['skillCatalog', 'skillAccess', 'sessionSkills'],
-    injects: ['tenantAssets', 'assetCategories'],
+    provides: ['skillCatalog', 'skillAccess', 'sessionSkills', 'skillEntrySources'],
+    injects: ['tenantAssets', 'assetCategories', 'dynamis'],
     phase: 'composition',
   },
   'skill-command-source': { provides: [], injects: ['commandEntrySources'] },

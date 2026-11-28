@@ -130,11 +130,27 @@ function brokenStream(resend: boolean): WireAnswer {
   return { kind: 'no-answer', cause: 'stream-broken', resend }
 }
 
+type ReadLikeListing =
+  | 'events/list'
+  | 'events/poll'
+  | 'skills/list'
+  | 'skills/get'
+  | 'resources/read'
+const READ_LIKE_LISTING: ReadonlySet<RequestMethod> = new Set<RequestMethod>([
+  'events/list',
+  'events/poll',
+  'skills/list',
+  'skills/get',
+  'resources/read',
+])
+const readsLikeListing = (method: RequestMethod): method is ReadLikeListing =>
+  READ_LIKE_LISTING.has(method)
+
 export function requestClassOf(method: RequestMethod, retried: boolean): RequestClass {
   if (method === 'server/discover') return retried ? 'discover-retry' : 'discover'
   // A long request is concluded as a call is: never sent again, with the same refusals.
   if (method === 'subscriptions/listen') return 'tools/call'
-  if (method === 'events/list' || method === 'events/poll') return 'tools/list'
+  if (readsLikeListing(method)) return 'tools/list'
   if (method === 'events/stream') return 'tools/call'
   return method
 }

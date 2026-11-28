@@ -5,6 +5,9 @@ import {
   eventPollAnswerOf,
   interpretAnswer,
   listingPageOf,
+  resourceContentOf,
+  skillAnswerOf,
+  skillListingPageOf,
   taskAnswerOf,
   taskReportOf,
 } from './answer-readings.ts'
@@ -16,6 +19,7 @@ import type { EventListingPage, EventPollAnswer, EventRequest } from './events.t
 import type { TaskReport } from './outcomes.ts'
 import type { PlainJson, PlainRecord } from './plain.ts'
 import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+import type { ResourceContent, SkillListingPage } from './skills.ts'
 import type { CallRequest, ListingPage, TaskAnswer, TransportFailure } from './transport.ts'
 import type { PeerMessage } from './wire.ts'
 
@@ -26,6 +30,9 @@ export type RequestMethod =
   | 'events/list'
   | 'events/poll'
   | 'events/stream'
+  | 'skills/list'
+  | 'skills/get'
+  | 'resources/read'
   | 'tools/call'
   | 'tasks/get'
   | 'tasks/update'
@@ -181,6 +188,22 @@ export function listEventTypesRequest(
     params: cursor === undefined ? {} : { cursor },
     read: eventListingPageOf,
   }
+}
+
+export function listSkillsRequest(cursor: string | undefined): ComposedRequest<SkillListingPage> {
+  return {
+    method: 'skills/list',
+    params: cursor === undefined ? {} : { cursor },
+    read: skillListingPageOf,
+  }
+}
+
+export function getSkillRequest(uri: string): ComposedRequest<JsonValue> {
+  return { method: 'skills/get', params: { uri }, read: skillAnswerOf }
+}
+
+export function readResourceRequest(uri: string): ComposedRequest<ResourceContent> {
+  return { method: 'resources/read', params: { uri }, read: wire => resourceContentOf(wire, uri) }
 }
 
 export function pollEventsRequest(request: EventRequest): ComposedRequest<EventPollAnswer> {

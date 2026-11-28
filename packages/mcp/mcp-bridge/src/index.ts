@@ -40,3 +40,8 @@ export {
   MCP_TASK_WAIT_OWNER,
   type TaskWaitBridgeInput,
 } from './task-wait.ts'
+export {
+  createMcpSkillSource,
+  mcpSkillName,
+  type McpSkillSourceDependencies,
+} from './skill-source.ts'

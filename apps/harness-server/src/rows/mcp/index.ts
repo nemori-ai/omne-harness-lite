@@ -57,6 +57,7 @@ import { settingsSecretItemsKey } from '../settings/index.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { createCredentialUse, credentialKey } from './credential.ts'
 import { principalKey } from './principal-key.ts'
+import { mcpSkillSourcePlugin } from './skill-source.ts'
 import {
   createEndpointAdoption,
   createEndpointEligibility,
@@ -313,6 +314,13 @@ const mcpPlugin: Plugin.Object = {
       },
     })
     sources.contribute(source)
+    ctx.plugin(
+      mcpSkillSourcePlugin({
+        endpoints: asker => held(asker.tenant),
+        acquireWaitMs: config.bridge.acquireWaitMs,
+        connectBound: config.bridge.connectBoundMs as Millis,
+      }),
+    )
     provideResidentEndpoints(ctx, (access, name) => source.named(access, name))
     mountMcpTasks(ctx, config.bridge.connectBoundMs as Millis)
   },

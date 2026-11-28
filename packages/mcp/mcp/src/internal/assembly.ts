@@ -1,4 +1,5 @@
 import { createEventTypes } from '../event-types.ts'
+import { createPeerSkills } from '../peer-skills.ts'
 import type { McpClock, McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'
 import { createConnections } from '../connections.ts'
 import { createDiscovery } from '../discovery.ts'
@@ -66,17 +67,19 @@ export function assemble<P, S>(
       : createTaskWatch({ ports, config, clock, control: createTasks(deps), settings, timer })
   const connections = createConnections(deps)
   const eventTypes = createEventTypes(deps)
+  const skills = createPeerSkills(deps)
   const subscriptions = createEventSubscriptions({ ...deps, eventTypes, pause, timer })
   return {
     table,
     services: {
       inspection: createInspection(),
-      discovery: createDiscovery({ ...deps, eventTypes }),
+      discovery: createDiscovery({ ...deps, eventTypes, skills }),
       invoker,
       ...(watch === undefined ? {} : { tasks: watch }),
       status: createStatus(deps),
       subscriptions,
       connect: createConnect(deps),
+      skills: { read: skills.read },
       connections: {
         ...connections,
         closeAll: async () => {

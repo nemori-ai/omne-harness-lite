@@ -1,0 +1,10 @@
+positive.cfg pass
+witness-loop-veto.cfg NeverLoopVeto
+witness-finish-veto.cfg NeverFinishVeto
+witness-blocked.cfg NeverBlocked
+witness-ended.cfg NeverEnded
+witness-recognized.cfg NeverRecognized
+bad-empty-unrecorded.cfg Justified
+bad-finish-unrecorded.cfg Justified
+bad-bypass.cfg NoBypass
+bad-direct-effect.cfg NoDup

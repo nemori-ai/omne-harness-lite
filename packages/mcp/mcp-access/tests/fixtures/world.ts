@@ -64,6 +64,7 @@ type Status = Awaited<ReturnType<McpFaces['status']['inspect']>>
 type Current = Awaited<ReturnType<McpFaces['discovery']['current']>>
 type Refreshed = Awaited<ReturnType<McpFaces['discovery']['refresh']>>
 type Events = Awaited<ReturnType<McpFaces['discovery']['eventTypes']>>
+type Skills = Awaited<ReturnType<McpFaces['discovery']['skills']>>
 type Connect = NonNullable<McpFaces['connect']>
 type Begun = Awaited<ReturnType<Connect['begin']>>
 type Ended = Awaited<ReturnType<Connect['disconnect']>>
@@ -80,6 +81,7 @@ export type EndpointScript = {
   current?: Current | (() => Current)
   refresh?: Refreshed | (() => Refreshed)
   events?: Events | (() => Events)
+  skills?: Skills | (() => Skills)
   begin?: Begun | (() => Begun)
   disconnect?: Ended | (() => Ended)
   subscribe?: Subscribed | (() => Subscribed)
@@ -266,6 +268,12 @@ export function createWorld(options: WorldOptions = {}) {
           name: endpoint.name,
         })
         return run(scriptOf(access.tenant, endpoint.name)?.current, notAcquired)
+      },
+      async skills(access, endpoint) {
+        return run(
+          scriptOf(access.tenant, endpoint.name)?.skills,
+          fail({ kind: 'unknown' as const }),
+        )
       },
       async refresh(access, request) {
         seen.push({

@@ -39,6 +39,13 @@ export declare const mcpProtocol: {
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
                         readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
+                        readonly skills?: {
+                            readonly kind: "acquired";
+                            readonly refused: number;
+                            readonly taken: number;
+                        } | {
+                            readonly kind: "not-acquired" | "not-offered";
+                        };
                         readonly use: {
                             readonly kind: "usable";
                         } | {
@@ -84,6 +91,13 @@ export declare const mcpProtocol: {
                         readonly credential: "absent" | "invalid" | "not-required" | "present";
                         readonly credentialState?: "absent" | "invalid" | "not-required" | "present" | "reconnect-required" | "rejected";
                         readonly name: string;
+                        readonly skills?: {
+                            readonly kind: "acquired";
+                            readonly refused: number;
+                            readonly taken: number;
+                        } | {
+                            readonly kind: "not-acquired" | "not-offered";
+                        };
                         readonly use: {
                             readonly kind: "usable";
                         } | {

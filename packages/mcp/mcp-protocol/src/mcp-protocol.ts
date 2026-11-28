@@ -49,6 +49,18 @@ const endpoint = object({
       object({ kind: { rule: literal('not-acquired') }, reason: { rule: reason } }),
     ),
   },
+  skills: {
+    rule: oneOf(
+      object({
+        kind: { rule: literal('acquired') },
+        taken: { rule: count },
+        refused: { rule: count },
+      }),
+      object({ kind: { rule: literal('not-acquired', 'not-offered') } }),
+    ),
+    optional: true,
+    since: 5,
+  },
 })
 
 const action = object({
@@ -136,7 +148,7 @@ const eventTypes = oneOf(
   object({ kind: { rule: literal('not-declared', 'not-acquired') } }),
 )
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`; revision 4 lists the event types of an endpoint, subscribes the person to one and reads what came; an unknown answer to a subscription is read with `read-events`. */
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`; revision 4 lists the event types of an endpoint, subscribes the person to one and reads what came; an unknown answer to a subscription is read with `read-events`; revision 5 says how many skills an endpoint brings. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,

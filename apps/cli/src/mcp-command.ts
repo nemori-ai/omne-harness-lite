@@ -56,6 +56,7 @@ type Endpoint = Readonly<{
   connect?: string
   use: Readonly<{ kind: string; reason?: string }>
   catalog: Readonly<{ kind: string; actions?: number; reason?: string | null }>
+  skills?: Readonly<{ kind: string; taken?: number; refused?: number }>
 }>
 type Subscription = Readonly<{
   name: string
@@ -109,6 +110,13 @@ const catalogOf = ({ kind, actions, reason }: Endpoint['catalog']) =>
     ? `${String(actions)} actions`
     : `not acquired${reason === null || reason === undefined ? '' : `: ${reason}`}`
 
+const skillsOf = ({ kind, taken = 0, refused = 0 }: NonNullable<Endpoint['skills']>) =>
+  kind === 'acquired'
+    ? `${String(taken)}${refused === 0 ? '' : ` (${String(refused)} not taken)`}`
+    : kind === 'not-offered'
+      ? 'the endpoint offers none'
+      : 'not acquired'
+
 const stateOf = ({ state, reason }: Subscription) =>
   reason === null ? state : `${state} (${reason})`
 
@@ -137,6 +145,7 @@ const RENDER = {
       `Credential: ${credentialOf(endpoint)}`,
       `Use: ${useOf(endpoint.use)}`,
       `Catalog: ${catalogOf(endpoint.catalog)}`,
+      ...(endpoint.skills === undefined ? [] : [`Skills: ${skillsOf(endpoint.skills)}`]),
       ...(actions === null
         ? []
         : [

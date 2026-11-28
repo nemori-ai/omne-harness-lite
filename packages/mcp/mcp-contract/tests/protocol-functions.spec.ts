@@ -28,11 +28,15 @@ const generation: Generation = (() => {
 })()
 
 describe('clientEnvelopeOf (T3)', () => {
-  it('declares the tasks extension and form elicitation on a modern revision, nothing on a legacy one', () => {
+  it('declares the tasks, events and skills extensions and form elicitation on a modern revision, nothing on a legacy one', () => {
     expect(clientEnvelopeOf('2026-07-28', CLIENT)).toEqual({
       'io.modelcontextprotocol/protocolVersion': '2026-07-28',
       'io.modelcontextprotocol/clientCapabilities': {
-        extensions: { 'io.modelcontextprotocol/tasks': {} },
+        extensions: {
+          'io.modelcontextprotocol/tasks': {},
+          'io.modelcontextprotocol/events': {},
+          'io.modelcontextprotocol/skills': {},
+        },
         elicitation: { form: {} },
       },
       'io.modelcontextprotocol/clientInfo': { name: 'host', version: '1' },
@@ -54,6 +58,11 @@ describe('mcpRequestHeadersOf (T3)', () => {
     })
     for (const method of ['tasks/get', 'tasks/update', 'tasks/cancel'])
       expect(mcpRequestHeadersOf(method, { taskId: 't1' }, '2026-07-28')['mcp-name']).toBe('t1')
+    expect(
+      mcpRequestHeadersOf('resources/read', { uri: 'skill://docs/SKILL.md' }, '2026-07-28')[
+        'mcp-name'
+      ],
+    ).toBe('skill://docs/SKILL.md')
     expect(mcpRequestHeadersOf('tools/list', { name: 'x' }, '2026-07-28')).toEqual({
       'mcp-protocol-version': '2026-07-28',
       'mcp-method': 'tools/list',

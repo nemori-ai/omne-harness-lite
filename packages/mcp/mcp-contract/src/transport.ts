@@ -16,6 +16,7 @@ import type {
   EventStreamMessage,
 } from './events.ts'
 import type { HttpCredentialHandle } from './ports.ts'
+import type { ResourceContent, SkillListingPage } from './skills.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
@@ -79,6 +80,9 @@ export interface McpTransport {
   listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>>
   /** `events/list`, only to a peer that declared the events extension. */
   listEventTypes?(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>>
+  listSkills?(cursor?: string): Promise<Outcome<SkillListingPage, TransportFailure>>
+  getSkill?(uri: string): Promise<Outcome<JsonValue, TransportFailure>>
+  readResource?(uri: string): Promise<Outcome<ResourceContent, TransportFailure>>
   pollEvents?(request: EventRequest): Promise<Outcome<EventPollAnswer, TransportFailure>>
   /** `events/stream`: a long request; its messages go to `observe`, and it ends as any long request does. */
   streamEvents?(
