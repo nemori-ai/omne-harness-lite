@@ -891,18 +891,17 @@
 
 ### UL-interface-inspection · 界面检视 · Interface Inspection
 
-> **中**：**agent 向一个连着的客户端要「点名的一页在点名的模式下的一张图」的那一次问答。**
-> 模式是明暗、字号档、皮肤与内容区的宽高。它没有效果：人正在看的页面与本机记着的选择都不变。
-> 没有客户端连着时，答案是客户端不在。
+> **中**：**agent 向一个连着的客户端问界面长什么样的那一次问答：点名的一页在点名的模式下会是什么样，或人此刻在这个客户端上看到的是什么样。**
+> 答案是一张图、这一刻的结构（画着的部位与每一处的字、框），或两样都有。模式是明暗、字号档、皮肤与内容区的宽高。
+> 它没有效果：人正在看的页面、焦点、输入框里的字与本机记着的选择都不变。没有客户端连着时，答案是客户端不在。
 >
-> **EN**: **One question an agent puts to a connected client: draw the named page in the named mode and give one image.**
-> The mode is the theme, the type scale, the skin, and the width and height of the content area.
-> It has no effect: the page the person is looking at and the choices kept on the device do not change.
-> With no client connected, the answer is that no client is there.
+> **EN**: **One question an agent puts to a connected client about how its interface looks: how the named page would look in the named mode, or what the person sees on that client now.**
+> The answer is one image, the structure at that moment (the UI parts drawn and the text and box of each place), or both. The mode is the theme, the type scale, the skin, and the width and height of the content area.
+> It has no effect: the page the person is looking at, the focus, the text in the input and the choices kept on the device do not change. With no client connected, the answer is that no client is there.
 
 - **形态**：过程
-- **出处**：[桌面应用：agent 给应用加东西](../../product/desktop-application/design.md#agent-给应用加东西)（rev 15）
-- **别混**：不是执行环境的屏幕截取（那是服务端那台机器的屏幕）；不是「人此刻正在看什么」；不是[界面开发模式](#ul-ui-developer-mode--界面开发模式--ui-developer-mode)里人的选取。
+- **出处**：[桌面应用：agent 给应用加东西](../../product/desktop-application/design.md#agent-给应用加东西)、[开发模式](../../product/desktop-application/design.md#开发模式)（rev 15）
+- **别混**：不是执行环境的屏幕截取（那是服务端那台机器的屏幕）；「此刻」只看人用的那扇窗，不看整块屏幕；不是[界面开发模式](#ul-ui-developer-mode--界面开发模式--ui-developer-mode)里人的选取，也不在人的屏幕上标东西。
 
 ---
 
