@@ -244,7 +244,22 @@ export type ModernPeer = Readonly<{
   offer(actions: readonly PeerAction[]): void
   /** The tasks `report` made, and what moves them on. */
   tasks: PeerTasks
+  /** The events the peer gives to polls and streams, and what it does with the streams open. */
+  log: PeerEventLog
   close(): Promise<void>
+}>
+
+export type PeerEventLog = Readonly<{
+  /** Something happened: every open stream of its kind hears it, and polls find it. */
+  emit(name: string, data: Readonly<Record<string, unknown>>): string
+  /** Sends every event of the kind again from the start, whatever position is asked, as a peer that replays may. */
+  replay(on: boolean): void
+  /** The identifiers of the events the streams sent, in order. */
+  sent(): readonly string[]
+  /** Ends every open stream with this error code. */
+  terminate(code: number): void
+  /** How many streams are open now. */
+  open(): number
 }>
 
 export type PeerTask = {
@@ -350,17 +365,138 @@ function serveTasks(server: McpServer, tasks: Map<string, PeerTask>): void {
   )
 }
 
-export async function modernPeer(initial: readonly PeerAction[]): Promise<ModernPeer> {
+/** A kind of event the modern peer offers, as `events/list` writes it. */
+export type PeerEventType = Readonly<{
+  name: string
+  description: string
+  delivery: readonly string[]
+  inputSchema: Readonly<Record<string, unknown>>
+  payloadSchema: Readonly<Record<string, unknown>>
+}>
+
+const EVENTS_EXTENSION = 'io.modelcontextprotocol/events'
+
+type Happened = Readonly<{
+  eventId: string
+  name: string
+  timestamp: string
+  data: Readonly<Record<string, unknown>>
+  cursor: string
+}>
+
+type EventBook = {
+  readonly happened: Happened[]
+  readonly streams: Set<(event: Happened | Readonly<{ terminated: number }>) => void>
+  readonly sent: string[]
+  replay: boolean
+}
+
+const EVENT_PARAMS = z
+  .object({ name: z.string(), cursor: z.string().nullable().optional() })
+  .passthrough()
+
+// A position is the count of events before it; a replaying peer starts from the first.
+function after(book: EventBook, name: string, cursor: string | null | undefined): Happened[] {
+  const from = book.replay ? 0 : Number(cursor ?? book.happened.length)
+  return book.happened.slice(from).filter(event => event.name === name)
+}
+
+function serveEvents(server: McpServer, book: EventBook): void {
+  server.server.setRequestHandler(
+    'events/poll',
+    { params: EVENT_PARAMS, result: z.object({}).passthrough() },
+    async ({ name, cursor }) => ({
+      events: after(book, name, cursor),
+      cursor: String(book.happened.length),
+      truncated: false,
+      hasMore: false,
+      nextPollMs: 100,
+    }),
+  )
+  server.server.setRequestHandler(
+    'events/stream',
+    { params: EVENT_PARAMS, result: z.object({}).passthrough() },
+    async ({ name, cursor }, ctx) => {
+      const { notify, signal, id } = ctx.mcpReq
+      // Every message of a stream names the request it belongs to, as the extension says it must.
+      const meta = { 'io.modelcontextprotocol/subscriptionId': id }
+      const send = (method: string, params: Record<string, unknown>) =>
+        notify({ method, params: { ...params, _meta: meta } } as never).catch(() => undefined)
+      await send('notifications/events/active', {
+        cursor: String(book.happened.length),
+        truncated: false,
+        heartbeatMs: 1000,
+      })
+      for (const event of after(book, name, cursor)) {
+        book.sent.push(event.eventId)
+        await send('notifications/events/event', event)
+      }
+      await new Promise<void>(resolve => {
+        const heartbeat = setInterval(() => {
+          void send('notifications/events/heartbeat', { cursor: String(book.happened.length) })
+        }, 1000)
+        const hear = (event: Happened | Readonly<{ terminated: number }>) => {
+          if ('terminated' in event) {
+            void send('notifications/events/terminated', {
+              error: { code: event.terminated, message: 'the peer ended it' },
+            }).then(done)
+            return
+          }
+          if (event.name !== name) return
+          book.sent.push(event.eventId)
+          void send('notifications/events/event', event)
+        }
+        const done = () => {
+          clearInterval(heartbeat)
+          book.streams.delete(hear)
+          resolve()
+        }
+        book.streams.add(hear)
+        signal.addEventListener('abort', done, { once: true })
+      })
+      return {}
+    },
+  )
+}
+
+function serveEventTypes(server: McpServer, events: readonly PeerEventType[]): void {
+  server.server.setRequestHandler(
+    'events/list',
+    {
+      params: z.object({ cursor: z.string().optional() }).passthrough(),
+      result: z.object({ events: z.array(z.unknown()) }),
+    },
+    async () => ({ events: [...events] }),
+  )
+}
+
+export async function modernPeer(
+  initial: readonly PeerAction[],
+  options: Readonly<{ events?: readonly PeerEventType[] }> = {},
+): Promise<ModernPeer> {
   let offered = initial
   const asked = new Map<string, number>()
   const answers: unknown[] = []
   const tasks = new Map<string, PeerTask>()
+  const book: EventBook = { happened: [], streams: new Set(), sent: [], replay: false }
   const handler = createMcpHandler(() => {
     const server = new McpServer(
       { name: 'modern-peer', version: '1' },
-      { capabilities: { tools: { listChanged: true }, extensions: { [TASKS_EXTENSION]: {} } } },
+      {
+        capabilities: {
+          tools: { listChanged: true },
+          extensions: {
+            [TASKS_EXTENSION]: {},
+            ...(options.events === undefined ? {} : { [EVENTS_EXTENSION]: {} }),
+          },
+        },
+      },
     )
     serveTasks(server, tasks)
+    if (options.events !== undefined) {
+      serveEventTypes(server, options.events)
+      serveEvents(server, book)
+    }
     for (const action of offered)
       server.registerTool(
         action.name,
@@ -442,6 +578,24 @@ export async function modernPeer(initial: readonly PeerAction[]): Promise<Modern
         for (const task of tasks.values())
           if (task.status === 'working') task.status = 'input_required'
       },
+    },
+    log: {
+      emit(name, data) {
+        const eventId = `ev-${String(book.happened.length + 1)}`
+        const cursor = String(book.happened.length + 1)
+        const event = { eventId, name, timestamp: new Date(0).toISOString(), data, cursor }
+        book.happened.push(event)
+        for (const hear of book.streams) hear(event)
+        return eventId
+      },
+      replay(on) {
+        book.replay = on
+      },
+      terminate(code) {
+        for (const hear of book.streams) hear({ terminated: code })
+      },
+      open: () => book.streams.size,
+      sent: () => [...book.sent],
     },
     async close() {
       server.closeAllConnections()

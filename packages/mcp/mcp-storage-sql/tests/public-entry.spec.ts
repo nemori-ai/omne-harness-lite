@@ -6,6 +6,7 @@ it('the public entry exports the store, its materials and the name of its partic
     'createSqlAuthorizationRecords',
     'createSqlCatalogStore',
     'createSqlContinuationRecords',
+    'createSqlEventRecords',
     'createSqlHoldingRows',
     'createSqlTaskRecords',
     'mcpSqlMaterials',

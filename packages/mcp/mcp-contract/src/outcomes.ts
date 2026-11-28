@@ -129,6 +129,7 @@ export type AnswerMalformed = Readonly<{
     | 'error-missing'
     | 'error-shape'
     | 'tools-missing'
+    | 'events-missing'
     | 'cursor-invalid'
     | 'discover-shape'
 }>

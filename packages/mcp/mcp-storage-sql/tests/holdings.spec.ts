@@ -9,7 +9,14 @@ import type {
   TaskId,
 } from '@omne-harness/mcp-contract'
 import type { TaskRow, TaskRowKey } from '@omne-harness/mcp-contract/provider'
-import { sampleCatalogRecord, sampleGrant, samplePending } from '@omne-harness/mcp-contract/testing'
+import {
+  occurrenceOf,
+  sampleCatalogRecord,
+  sampleGrant,
+  samplePending,
+  sampleSubscription,
+  subscriptionKeyOf,
+} from '@omne-harness/mcp-contract/testing'
 import { openSqlWorld, tenantOf, type SqlWorld } from './world.ts'
 
 const worlds: SqlWorld[] = []
@@ -107,4 +114,40 @@ it('a tenant without storage lists nothing it could vouch for, and a forget whos
   world.unbind()
   expect(await world.holdings.kept(home)).toEqual({ failure: 'unavailable' })
   expect(await world.holdings.forget(home, holding('h-desk'))).toEqual({ failure: 'unavailable' })
+})
+
+it('a holding with only a subscription is listed; forgetting it deletes the subscription and the events it took in, and nothing of another holding', async () => {
+  const world = await openSqlWorld()
+  worlds.push(world)
+  const desk = { ...subscriptionKeyOf(home), holding: holding('h-desk') }
+  const files = { ...subscriptionKeyOf(home), holding: holding('h-files') }
+  for (const key of [desk, files]) {
+    expect(await world.subscriptions.write(key, sampleSubscription(), 'absent')).toEqual({
+      ok: 'written',
+    })
+    const batch = {
+      events: [occurrenceOf('a')],
+      cursor: 'c1',
+      gap: null,
+      at: '2026-11-27T22:00:00.000Z',
+    }
+    expect(
+      await world.subscriptions.receive(key, batch, { maxEvents: 10, maxAgeMs: 86_400_000 }),
+    ).toEqual({
+      ok: { stored: 1 },
+    })
+  }
+  expect(await world.holdings.kept(home)).toEqual({
+    ok: [
+      { holding: 'h-desk', grants: [] },
+      { holding: 'h-files', grants: [] },
+    ],
+  })
+  expect(await world.holdings.forget(home, holding('h-desk'))).toEqual({ ok: true })
+  expect(await world.holdings.kept(home)).toEqual({ ok: [{ holding: 'h-files', grants: [] }] })
+  expect(await world.subscriptions.read(desk)).toEqual({ ok: 'absent' })
+  expect(await world.subscriptions.occurrences(desk, 0, 10)).toEqual({ ok: [] })
+  expect(await world.subscriptions.read(files)).toMatchObject({ ok: { cursor: 'c1' } })
+  const kept = await world.subscriptions.occurrences(files, 0, 10)
+  expect('ok' in kept && kept.ok.length).toBe(1)
 })

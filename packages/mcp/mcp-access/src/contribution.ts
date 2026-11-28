@@ -16,7 +16,9 @@ import type { CatalogView, EndpointStatusView, RefreshResult } from '@omne-harne
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
 import { beginOn, disconnectOn } from './connect.ts'
+import { eventTypesOn } from './events.ts'
 import { createEndpointObservation } from './observe-endpoints.ts'
+import { readEventsOn, subscribeOn, unsubscribeOn, type Named } from './subscriptions.ts'
 import type { McpAccessSettings, McpFaces, McpPrincipals } from './ports.ts'
 import {
   blockedText,
@@ -142,6 +144,46 @@ function refreshedOf(result: RefreshResult): Wire<'refresh-endpoint'> {
   return { refreshed: 'failed', reason: keptText(reason) }
 }
 
+type OnEndpoint = <A>(
+  call: Call,
+  body: BodyOf<Operations['read-endpoint']>,
+  commit: (stood: Known, adopted: AdoptedEndpoint) => Promise<A>,
+) => Promise<A | Refusal | typeof NOT_VISIBLE>
+
+function subscriptionOperations(
+  onEndpoint: OnEndpoint,
+  principals: McpPrincipals,
+  settings: McpAccessSettings,
+) {
+  const namedOf = (stood: Known, body: BodyOf<Operations['subscribe-events']>): Named => ({
+    event: body.event,
+    arguments: body.arguments,
+    subscriber: principals.subscriberOf(stood.access.principal),
+    connectBound: settings.refresh.connectBoundMs,
+  })
+  const subscribeEvents: Handlers['operations']['subscribe-events'] = (call, body) =>
+    onEndpoint(call, body, (stood, { ref }) =>
+      subscribeOn(stood.faces.subscriptions, stood.access, ref, namedOf(stood, body)),
+    )
+  const unsubscribeEvents: Handlers['operations']['unsubscribe-events'] = (call, body) =>
+    onEndpoint(call, body, (stood, { ref }) =>
+      unsubscribeOn(stood.faces.subscriptions, stood.access, ref, namedOf(stood, body)),
+    )
+  const readEvents: Handlers['operations']['read-events'] = (call, body) =>
+    onEndpoint(call, body, (stood, { ref }) =>
+      readEventsOn(stood.faces.subscriptions, stood.access, ref, {
+        ...namedOf(stood, body),
+        after: body.after,
+        limit: body.limit,
+      }),
+    )
+  return {
+    'subscribe-events': subscribeEvents,
+    'unsubscribe-events': unsubscribeEvents,
+    'read-events': readEvents,
+  }
+}
+
 export function createMcpContribution(input: McpContributionInput): Handlers {
   const { principals, settings } = input
 
@@ -257,6 +299,11 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
   const disconnect: Handlers['operations']['disconnect'] = (call, body) =>
     onEndpoint(call, body, ({ faces, access }, { ref }) => disconnectOn(faces.connect, access, ref))
 
+  const listEventTypes: Handlers['operations']['list-event-types'] = (call, body) =>
+    onEndpoint(call, body, ({ faces, access }, { ref }) =>
+      eventTypesOn(faces.discovery, access, ref),
+    )
+
   return {
     operations: {
       'list-endpoints': listEndpoints,
@@ -264,6 +311,8 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
       'refresh-endpoint': refreshEndpoint,
       'begin-connect': beginConnect,
       disconnect,
+      'list-event-types': listEventTypes,
+      ...subscriptionOperations(onEndpoint, principals, settings),
     },
     observations: { 'observe-endpoints': createEndpointObservation(input) },
   }

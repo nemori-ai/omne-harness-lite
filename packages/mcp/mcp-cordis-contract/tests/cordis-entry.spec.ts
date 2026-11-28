@@ -35,7 +35,7 @@ it('gives the six services six different keys', () => {
   expect(new Set(KEYS.map(([, key]) => key)).size).toBe(6)
 })
 
-it('exports exactly the fifteen abstract Service classes, the fifteen key constants and the point of the category', async () => {
+it('exports exactly the nineteen abstract Service classes, the nineteen key constants and the point of the category', async () => {
   const cordis: Record<string, unknown> = await import('@omne-harness/mcp-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
     'ActionDiscoveryService',
@@ -48,6 +48,10 @@ it('exports exactly the fifteen abstract Service classes, the fifteen key consta
     'CredentialUseService',
     'EndpointConnectService',
     'EndpointStatusService',
+    'EventCatalogStoreService',
+    'EventConsumerService',
+    'EventRecordsService',
+    'EventSubscriptionsService',
     'GrantConnectorService',
     'HoldingRowsService',
     'TaskRecordsService',
@@ -64,6 +68,10 @@ it('exports exactly the fifteen abstract Service classes, the fifteen key consta
     'mcpEndpointConnectKey',
     'mcpEndpointStatusKey',
     'mcpEndpointsPoint',
+    'mcpEventCatalogStoreKey',
+    'mcpEventConsumerKey',
+    'mcpEventRecordsKey',
+    'mcpEventSubscriptionsKey',
     'mcpGrantConnectorKey',
     'mcpHoldingRowsKey',
     'mcpTaskRecordsKey',
@@ -84,6 +92,9 @@ class Discovery extends ActionDiscoveryService<unknown> {
     return notCalled()
   }
   peer() {
+    return notCalled()
+  }
+  eventTypes() {
     return notCalled()
   }
 }

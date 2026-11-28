@@ -1,6 +1,7 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import {
+  type Access,
   accountCodec,
   accountEquals,
   organizationCodec,
@@ -62,9 +63,14 @@ export const loginIdentity = (login: FixtureLogin): LoginIdentity =>
 type Status = Awaited<ReturnType<McpFaces['status']['inspect']>>
 type Current = Awaited<ReturnType<McpFaces['discovery']['current']>>
 type Refreshed = Awaited<ReturnType<McpFaces['discovery']['refresh']>>
+type Events = Awaited<ReturnType<McpFaces['discovery']['eventTypes']>>
 type Connect = NonNullable<McpFaces['connect']>
 type Begun = Awaited<ReturnType<Connect['begin']>>
 type Ended = Awaited<ReturnType<Connect['disconnect']>>
+type Subscriptions = NonNullable<McpFaces['subscriptions']>
+type Subscribed = Awaited<ReturnType<Subscriptions['subscribe']>>
+type Unsubscribed = Awaited<ReturnType<Subscriptions['unsubscribe']>>
+type ReadEvents = Awaited<ReturnType<Subscriptions['read']>>
 
 /** What the faces say of one endpoint; a function is a call that throws or answers when asked. */
 export type EndpointScript = {
@@ -73,8 +79,12 @@ export type EndpointScript = {
   status?: Status | (() => Status)
   current?: Current | (() => Current)
   refresh?: Refreshed | (() => Refreshed)
+  events?: Events | (() => Events)
   begin?: Begun | (() => Begun)
   disconnect?: Ended | (() => Ended)
+  subscribe?: Subscribed | (() => Subscribed)
+  unsubscribe?: Unsubscribed | (() => Unsubscribed)
+  readEvents?: ReadEvents | (() => ReadEvents)
 }
 
 export const readyStatus = (ref: EndpointRef, fields: Partial<EndpointStatusView> = {}): Status =>
@@ -131,7 +141,12 @@ export const SECRET = 'sk-live-0123456789-secret'
 
 export const ref = (name: string): EndpointRef => endpointRefOf(name)
 
-export type WorldOptions = Readonly<{ faces?: boolean; connect?: boolean }>
+export type WorldOptions = Readonly<{ faces?: boolean; connect?: boolean; subscriptions?: boolean }>
+
+export const QUEUE = {
+  kind: 'object',
+  entries: [{ key: 'queue', value: { kind: 'string', value: 'ops' } }],
+} as const
 
 export const BEGUN_AT = 1_800_000_000_000
 
@@ -149,12 +164,14 @@ export function createWorld(options: WorldOptions = {}) {
     tenant: TenantId
     name?: string
     bound?: Millis
+    asked?: unknown
   }[] = []
   const listeners = new Set<EndpointChangeListener>()
   let breakSubscribe = false
   let adoptionFailure: 'throw' | 'unknown' | undefined
   let present = options.faces !== false
 
+  const people = new Map<Principal, string>()
   const principals: McpPrincipals = {
     async actingFor(login, tenantText) {
       const ask = principalAsks.length
@@ -174,11 +191,19 @@ export function createWorld(options: WorldOptions = {}) {
       if ('failure' in issued) throw new Error('fixture principal not issued')
       const principal = issued.ok as unknown as Principal
       issuedPrincipals.push(principal)
+      people.set(principal, `person:${caller.loginText}`)
       return { ok: principal }
     },
+    subscriberOf: principal => people.get(principal) ?? 'person:unknown',
   }
 
   const scriptOf = (tenantId: TenantId, name: string) => byTenant.get(textOf(tenantId))?.get(name)
+  const askedOf = (op: string, access: Access<Principal>, name: string) => ({
+    op,
+    principal: access.principal,
+    tenant: access.tenant,
+    name,
+  })
   const run = <T>(value: T | (() => T) | undefined, absent: T): T =>
     value === undefined ? absent : typeof value === 'function' ? (value as () => T)() : value
 
@@ -252,7 +277,41 @@ export function createWorld(options: WorldOptions = {}) {
         })
         return run(scriptOf(access.tenant, request.ref.name)?.refresh, published)
       },
+      async eventTypes(access, endpoint) {
+        seen.push({
+          op: 'events',
+          principal: access.principal,
+          tenant: access.tenant,
+          name: endpoint.name,
+        })
+        return run(scriptOf(access.tenant, endpoint.name)?.events, {
+          ok: { kind: 'not-acquired' },
+        } as Events)
+      },
     },
+    ...(options.subscriptions === false
+      ? {}
+      : {
+          subscriptions: {
+            async subscribe(access, ref, request) {
+              seen.push({ ...askedOf('subscribe', access, ref.name), asked: request })
+              return run(scriptOf(access.tenant, ref.name)?.subscribe, fail({ kind: 'unknown' }))
+            },
+            async unsubscribe(access, ref, request) {
+              seen.push({ ...askedOf('unsubscribe', access, ref.name), asked: request })
+              const left: Unsubscribed = succeed('unsubscribed')
+              return run(scriptOf(access.tenant, ref.name)?.unsubscribe, left)
+            },
+            async list() {
+              return succeed([])
+            },
+            async read(access, ref, request) {
+              seen.push({ ...askedOf('read-events', access, ref.name), asked: request })
+              const none: ReadEvents = fail({ kind: 'not-subscribed' })
+              return run(scriptOf(access.tenant, ref.name)?.readEvents, none)
+            },
+          },
+        }),
     ...(options.connect === false
       ? {}
       : {
@@ -319,8 +378,8 @@ export function createWorld(options: WorldOptions = {}) {
     },
     feed: {
       listeners,
-      changed: (login: FixtureLogin) => {
-        for (const listener of listeners) listener.changed(login.tenant)
+      changed: (login: FixtureLogin, about: 'endpoints' | 'events' = 'endpoints') => {
+        for (const listener of listeners) listener.changed(login.tenant, about)
       },
       close: () => {
         for (const listener of listeners) listener.closed()
@@ -348,6 +407,31 @@ export function createWorld(options: WorldOptions = {}) {
       contribution.operations['begin-connect'](callOf(login), { tenant: target.tenant, name }),
     disconnect: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
       contribution.operations['disconnect'](callOf(login), { tenant: target.tenant, name }),
+    events: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['list-event-types'](callOf(login), { tenant: target.tenant, name }),
+    subscribe: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['subscribe-events'](callOf(login), {
+        tenant: target.tenant,
+        name,
+        event: 'incident.created',
+        arguments: QUEUE,
+      }),
+    unsubscribe: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['unsubscribe-events'](callOf(login), {
+        tenant: target.tenant,
+        name,
+        event: 'incident.created',
+        arguments: QUEUE,
+      }),
+    readEvents: (login: FixtureLogin, name: string, after = 0, limit = 20) =>
+      contribution.operations['read-events'](callOf(login), {
+        tenant: login.tenant,
+        name,
+        event: 'incident.created',
+        arguments: QUEUE,
+        after,
+        limit,
+      }),
   }
 }
 

@@ -7,8 +7,10 @@ import {
   noAnswerFailureOf,
   type WireAnswer,
 } from './decisions.ts'
+import { readEventPollAnswer, type EventListingPage, type EventPollAnswer } from './events.ts'
 import type { AnswerMalformed, PeerAnswer, TaskReport } from './outcomes.ts'
 import {
+  readEventListingPage,
   peerIdentityOf,
   readInitializeResult,
   readListingPage,
@@ -86,6 +88,14 @@ export function listingPageOf(
     wire,
     readerOf(result => readListingPage(result, checkHeaders)),
   )
+}
+
+export function eventPollAnswerOf(wire: WireAnswer): Outcome<EventPollAnswer, TransportFailure> {
+  return interpretAnswer(wire, readerOf(readEventPollAnswer))
+}
+
+export function eventListingPageOf(wire: WireAnswer): Outcome<EventListingPage, TransportFailure> {
+  return interpretAnswer(wire, readerOf(readEventListingPage))
 }
 
 function expired(wire: WireAnswer): boolean {

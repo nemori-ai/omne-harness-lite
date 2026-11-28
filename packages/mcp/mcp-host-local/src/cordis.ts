@@ -5,6 +5,9 @@ import type {
   ActionInvoker,
   EndpointConnect,
   EndpointStatus,
+  EventCatalogRecord,
+  EventsConfig,
+  EventSubscriptions,
   McpConfig,
   McpPorts,
   TaskWatch,
@@ -16,6 +19,8 @@ import type {
   CatalogStore,
   CredentialFailure,
   CredentialUse,
+  EventConsumer,
+  EventRecords,
   GrantConnector,
   HttpCredentialHandle,
   HttpPurpose,
@@ -27,11 +32,15 @@ import {
   ActionInvokerService,
   EndpointConnectService,
   EndpointStatusService,
+  EventSubscriptionsService,
   TaskWatchService,
   mcpAdoptionViewKey,
   mcpCallbackReceiverKey,
   mcpGrantConnectorKey,
   mcpCatalogStoreKey,
+  mcpEventCatalogStoreKey,
+  mcpEventConsumerKey,
+  mcpEventRecordsKey,
   mcpTaskRecordsKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
@@ -59,12 +68,16 @@ export type OAuthPluginConfig = Readonly<{
 }>
 
 export type McpPluginConfig = Readonly<
-  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch' | 'oauth'> &
-    Omit<LocalTransportOptions, 'fetch'> & { taskWatch: TaskWatchConfig; oauth: OAuthPluginConfig }
+  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch' | 'oauth' | 'events'> &
+    Omit<LocalTransportOptions, 'fetch'> & {
+      taskWatch: TaskWatchConfig
+      oauth: OAuthPluginConfig
+      events: EventsConfig
+    }
 >
 
 type ClientInfo = McpPluginConfig['clientInfo']
-type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch' | 'oauth'>
+type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch' | 'oauth' | 'events'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
 const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
@@ -75,6 +88,7 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   clientInfo: true,
   taskWatch: true,
   oauth: true,
+  events: true,
 }
 const OAUTH_FIELDS: Readonly<Record<keyof OAuthPluginConfig, true>> = {
   pendingMs: true,
@@ -82,6 +96,12 @@ const OAUTH_FIELDS: Readonly<Record<keyof OAuthPluginConfig, true>> = {
   metadataDocument: true,
 }
 const TASK_WATCH_FIELDS: Readonly<Record<keyof TaskWatchConfig, true>> = {
+  pollFloorMs: true,
+  backoffCapMs: true,
+}
+const EVENTS_FIELDS: Readonly<Record<keyof EventsConfig, true>> = {
+  maxEvents: true,
+  maxAgeMs: true,
   pollFloorMs: true,
   backoffCapMs: true,
 }
@@ -148,6 +168,17 @@ function oauthOf(value: unknown): OAuthPluginConfig | string {
   return { pendingMs, requestMs, metadataDocument }
 }
 
+function eventsOf(value: unknown): EventsConfig | string {
+  if (!isPlainRecord(value)) return 'events must be an object'
+  const fields = fieldsIssue(value, EVENTS_FIELDS, 'events')
+  if (fields !== undefined) return fields
+  const { maxEvents, maxAgeMs, pollFloorMs, backoffCapMs } = value
+  const bounds = { maxEvents, maxAgeMs, pollFloorMs, backoffCapMs }
+  const wrong = Object.entries(bounds).find(([, bound]) => typeof bound !== 'number')
+  if (wrong !== undefined) return `events.${wrong[0]} must be a number`
+  return bounds as EventsConfig
+}
+
 function issue(message: string): ConfigResult {
   return { issues: [{ message }] }
 }
@@ -168,7 +199,9 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
       if (typeof taskWatch === 'string') return issue(taskWatch)
       const oauth = oauthOf(value['oauth'])
       if (typeof oauth === 'string') return issue(oauth)
-      return { value: { ...bounds, clientInfo, taskWatch, oauth } }
+      const events = eventsOf(value['events'])
+      if (typeof events === 'string') return issue(events)
+      return { value: { ...bounds, clientInfo, taskWatch, oauth, events } }
     },
   },
 }
@@ -205,6 +238,40 @@ function storeOf(ctx: Context): CatalogStore {
     write: (key, record, expected) =>
       ctx.get(mcpCatalogStoreKey)?.write(key, record, expected) ??
       Promise.resolve(fail('unavailable')),
+  }
+}
+
+function eventStoreOf(ctx: Context): CatalogStore<EventCatalogRecord> {
+  return {
+    read: key =>
+      ctx.get(mcpEventCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpEventCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
+function eventRecordsOf(ctx: Context): EventRecords {
+  const away = () => Promise.resolve(fail('unavailable' as const))
+  const records = () => ctx.get(mcpEventRecordsKey)
+  return {
+    list: tenant => records()?.list(tenant) ?? away(),
+    read: key => records()?.read(key) ?? away(),
+    write: (key, row, expected) => records()?.write(key, row, expected) ?? away(),
+    remove: key => records()?.remove(key) ?? away(),
+    receive: (key, batch, bounds) => records()?.receive(key, batch, bounds) ?? away(),
+    occurrences: (key, after, limit) => records()?.occurrences(key, after, limit) ?? away(),
+    end: (key, reason, at) => records()?.end(key, reason, at) ?? away(),
+    acknowledge: (key, seq) => records()?.acknowledge(key, seq) ?? away(),
+  }
+}
+
+// The consumer is asked at each delivery; while none is there the events stay and are handed over later.
+function eventConsumerOf(ctx: Context): EventConsumer {
+  const later = () => Promise.resolve('not-now' as const)
+  return {
+    deliver: (ref, events) => ctx.get(mcpEventConsumerKey)?.deliver(ref, events) ?? later(),
+    report: (ref, notice) => ctx.get(mcpEventConsumerKey)?.report(ref, notice) ?? later(),
   }
 }
 
@@ -249,6 +316,9 @@ class HostActionDiscovery extends ActionDiscoveryService<unknown> {
   }
   peer(...args: Parameters<ActionDiscovery<unknown>['peer']>) {
     return this.discovery.peer(...args)
+  }
+  eventTypes(...args: Parameters<ActionDiscovery<unknown>['eventTypes']>) {
+    return this.discovery.eventTypes(...args)
   }
 }
 
@@ -322,6 +392,20 @@ class HostEndpointConnect extends EndpointConnectService<unknown> {
   }
 }
 
+class HostEventSubscriptions extends EventSubscriptionsService<unknown> {
+  readonly subscribe: EventSubscriptions<unknown>['subscribe']
+  readonly unsubscribe: EventSubscriptions<unknown>['unsubscribe']
+  readonly list: EventSubscriptions<unknown>['list']
+  readonly read: EventSubscriptions<unknown>['read']
+  constructor(ctx: Context, subscriptions: EventSubscriptions<unknown>) {
+    super(ctx)
+    this.subscribe = (...args) => subscriptions.subscribe(...args)
+    this.unsubscribe = (...args) => subscriptions.unsubscribe(...args)
+    this.list = (...args) => subscriptions.list(...args)
+    this.read = (...args) => subscriptions.read(...args)
+  }
+}
+
 // Read at each call: a connector or a receiver that is away answers unavailable.
 function grantsOf(ctx: Context): GrantConnector {
   const away = () => Promise.resolve(fail('unavailable' as const))
@@ -349,6 +433,9 @@ export function createMcpPlugin(parts: McpPluginParts) {
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
         store: storeOf(ctx),
+        eventStore: eventStoreOf(ctx),
+        eventRecords: eventRecordsOf(ctx),
+        eventConsumer: eventConsumerOf(ctx),
         tasks: tasksOf(ctx),
         grants: grantsOf(ctx),
         callbacks: callbacksOf(ctx),
@@ -366,6 +453,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
         taskWatch: config.taskWatch,
+        events: config.events,
         oauth: {
           pendingMs: config.oauth.pendingMs,
           requestMs: config.oauth.requestMs,
@@ -384,6 +472,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostActionInvoker(ctx, services.invoker)
       new HostEndpointStatus(ctx, services.status)
       new HostEndpointConnect(ctx, services.connect)
+      new HostEventSubscriptions(ctx, services.subscriptions)
       if (services.tasks !== undefined) new HostTaskWatch(ctx, services.tasks)
     },
   })

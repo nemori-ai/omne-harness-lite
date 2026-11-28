@@ -13,6 +13,16 @@ import {
 } from './rows-grants.ts'
 import { forgetHolding } from './rows-holdings.ts'
 import {
+  acknowledgeThrough,
+  dropSubscription,
+  endSubscription,
+  loadSubscription,
+  receiveBatch,
+  saveSubscription,
+  type Batch,
+  type SubscriptionCells,
+} from './rows-subscriptions.ts'
+import {
   PARTICIPANT,
   PROTOCOL,
   SCRIPTS,
@@ -85,6 +95,36 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   forgetHolding(port, input: Readonly<{ tenant: string; holding: string }>) {
     forgetHolding(port, input.tenant, input.holding)
     return { ok: 'forgotten' }
+  },
+  // Written whole, only at the expected revision; the position is not part of the write.
+  writeSubscription(
+    port,
+    input: Readonly<{
+      cells: SubscriptionCells
+      revision: number
+      cursor: string | null
+      row: JsonValue
+      expected: number | 'absent'
+    }>,
+  ) {
+    const current = loadSubscription(port, input.cells)?.revision ?? 'absent'
+    if (current !== input.expected) return { failure: 'conflict' }
+    saveSubscription(port, input.cells, input.revision, input.cursor, input.row)
+    return { ok: 'written' }
+  },
+  removeSubscription(port, input: Readonly<{ cells: SubscriptionCells }>) {
+    dropSubscription(port, input.cells)
+    return { ok: 'removed' }
+  },
+  receiveEvents(port, input: Readonly<{ cells: SubscriptionCells; batch: Batch }>) {
+    return { ok: receiveBatch(port, input.cells, input.batch) }
+  },
+  endSubscription(port, input: Readonly<{ cells: SubscriptionCells; reason: string; at: string }>) {
+    return { ok: endSubscription(port, input.cells, input.reason, input.at) }
+  },
+  acknowledgeEvents(port, input: Readonly<{ cells: SubscriptionCells; seq: number }>) {
+    acknowledgeThrough(port, input.cells, input.seq)
+    return { ok: 'acknowledged' }
   },
 }
 

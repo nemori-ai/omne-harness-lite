@@ -9,6 +9,12 @@ import type {
   TaskReport,
   UnusableCause,
 } from './outcomes.ts'
+import type {
+  EventListingPage,
+  EventPollAnswer,
+  EventRequest,
+  EventStreamMessage,
+} from './events.ts'
 import type { HttpCredentialHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -71,6 +77,15 @@ export interface McpTransport {
   readonly generation: Generation
   discover(): Promise<Outcome<PeerIdentity, TransportFailure>>
   listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>>
+  /** `events/list`, only to a peer that declared the events extension. */
+  listEventTypes?(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>>
+  pollEvents?(request: EventRequest): Promise<Outcome<EventPollAnswer, TransportFailure>>
+  /** `events/stream`: a long request; its messages go to `observe`, and it ends as any long request does. */
+  streamEvents?(
+    request: EventRequest,
+    signal: AbortSignal,
+    observe: (message: EventStreamMessage) => void,
+  ): Promise<ListenEnd>
   call(
     request: CallRequest,
     signal: AbortSignal,

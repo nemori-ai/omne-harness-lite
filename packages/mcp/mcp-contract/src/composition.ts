@@ -1,10 +1,18 @@
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import { interpretAnswer, listingPageOf, taskAnswerOf, taskReportOf } from './answer-readings.ts'
+import {
+  eventListingPageOf,
+  eventPollAnswerOf,
+  interpretAnswer,
+  listingPageOf,
+  taskAnswerOf,
+  taskReportOf,
+} from './answer-readings.ts'
 import type { TaskId } from './brands.ts'
 import { checksListingHeaders, type ConnectionView } from './connection.ts'
 import type { WireAnswer } from './decisions.ts'
 import { clientEnvelopeOf, type ClientInfo } from './envelope.ts'
+import type { EventListingPage, EventPollAnswer, EventRequest } from './events.ts'
 import type { TaskReport } from './outcomes.ts'
 import type { PlainJson, PlainRecord } from './plain.ts'
 import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
@@ -15,6 +23,9 @@ export type RequestMethod =
   | 'server/discover'
   | 'initialize'
   | 'tools/list'
+  | 'events/list'
+  | 'events/poll'
+  | 'events/stream'
   | 'tools/call'
   | 'tasks/get'
   | 'tasks/update'
@@ -125,6 +136,7 @@ export type ComposedRequest<T> = Readonly<{
   method: RequestMethod
   params: PlainRecord
   values?: RequestValues
+  headers?: Readonly<Record<string, string>>
   read: (wire: WireAnswer) => Outcome<T, TransportFailure>
 }>
 
@@ -158,6 +170,26 @@ export function listActionsRequest(
     method: 'tools/list',
     params: cursor === undefined ? {} : { cursor },
     read: wire => listingPageOf(wire, checksHeaders),
+  }
+}
+
+export function listEventTypesRequest(
+  cursor: string | undefined,
+): ComposedRequest<EventListingPage> {
+  return {
+    method: 'events/list',
+    params: cursor === undefined ? {} : { cursor },
+    read: eventListingPageOf,
+  }
+}
+
+export function pollEventsRequest(request: EventRequest): ComposedRequest<EventPollAnswer> {
+  return {
+    method: 'events/poll',
+    params: { name: request.name, cursor: request.cursor },
+    values: { arguments: request.arguments },
+    headers: request.headers,
+    read: eventPollAnswerOf,
   }
 }
 

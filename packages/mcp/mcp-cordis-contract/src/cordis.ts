@@ -5,6 +5,8 @@ import type {
   ActionInvoker,
   EndpointConnect,
   EndpointStatus,
+  EventCatalogRecord,
+  EventSubscriptions,
   TaskWatch,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -14,6 +16,8 @@ import type {
   CatalogStore,
   ContinuationRecords,
   CredentialUse,
+  EventConsumer,
+  EventRecords,
   GrantConnector,
   HoldingRows,
   TaskRecords,
@@ -40,6 +44,9 @@ export abstract class ActionDiscoveryService<P> extends Service implements Actio
   abstract peer(
     ...args: Parameters<ActionDiscovery<P>['peer']>
   ): ReturnType<ActionDiscovery<P>['peer']>
+  abstract eventTypes(
+    ...args: Parameters<ActionDiscovery<P>['eventTypes']>
+  ): ReturnType<ActionDiscovery<P>['eventTypes']>
 }
 
 export const mcpActionDiscoveryKey = ActionDiscoveryService.provide
@@ -177,6 +184,20 @@ export abstract class CatalogStoreService extends Service implements CatalogStor
 
 export const mcpCatalogStoreKey = CatalogStoreService.provide
 
+export abstract class EventCatalogStoreService
+  extends Service
+  implements CatalogStore<EventCatalogRecord>
+{
+  static readonly provide = 'mcpEventCatalogStore'
+  constructor(ctx: Context) {
+    super(ctx, EventCatalogStoreService.provide)
+  }
+  abstract readonly read: CatalogStore<EventCatalogRecord>['read']
+  abstract readonly write: CatalogStore<EventCatalogRecord>['write']
+}
+
+export const mcpEventCatalogStoreKey = EventCatalogStoreService.provide
+
 /**
  * Where the bridge marks a checkpoint whose continuation it sends, as a service; the bridge takes it at each resume.
  *
@@ -294,6 +315,50 @@ export abstract class EndpointConnectService<P> extends Service implements Endpo
 
 export const mcpEndpointConnectKey = EndpointConnectService.provide
 
+export abstract class EventRecordsService extends Service implements EventRecords {
+  static readonly provide = 'mcpEventRecords'
+  constructor(ctx: Context) {
+    super(ctx, EventRecordsService.provide)
+  }
+  abstract readonly list: EventRecords['list']
+  abstract readonly read: EventRecords['read']
+  abstract readonly write: EventRecords['write']
+  abstract readonly remove: EventRecords['remove']
+  abstract readonly receive: EventRecords['receive']
+  abstract readonly occurrences: EventRecords['occurrences']
+  abstract readonly end: EventRecords['end']
+  abstract readonly acknowledge: EventRecords['acknowledge']
+}
+
+export const mcpEventRecordsKey = EventRecordsService.provide
+
+export abstract class EventConsumerService extends Service implements EventConsumer {
+  static readonly provide = 'mcpEventConsumer'
+  constructor(ctx: Context) {
+    super(ctx, EventConsumerService.provide)
+  }
+  abstract readonly deliver: EventConsumer['deliver']
+  abstract readonly report: EventConsumer['report']
+}
+
+export const mcpEventConsumerKey = EventConsumerService.provide
+
+export abstract class EventSubscriptionsService<P>
+  extends Service
+  implements EventSubscriptions<P>
+{
+  static readonly provide = 'mcpEventSubscriptions'
+  constructor(ctx: Context) {
+    super(ctx, EventSubscriptionsService.provide)
+  }
+  abstract readonly subscribe: EventSubscriptions<P>['subscribe']
+  abstract readonly unsubscribe: EventSubscriptions<P>['unsubscribe']
+  abstract readonly list: EventSubscriptions<P>['list']
+  abstract readonly read: EventSubscriptions<P>['read']
+}
+
+export const mcpEventSubscriptionsKey = EventSubscriptionsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -303,6 +368,7 @@ declare module '@deepseek-ai/cordis' {
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
     mcpCatalogStore: CatalogStoreService
+    mcpEventCatalogStore: EventCatalogStoreService
     mcpContinuationRecords: ContinuationRecordsService
     mcpTaskRecords: TaskRecordsService
     mcpTaskWatch: TaskWatchService<unknown>
@@ -311,6 +377,9 @@ declare module '@deepseek-ai/cordis' {
     mcpGrantConnector: GrantConnectorService
     mcpCallbackReceiver: CallbackReceiverService
     mcpEndpointConnect: EndpointConnectService<unknown>
+    mcpEventRecords: EventRecordsService
+    mcpEventConsumer: EventConsumerService
+    mcpEventSubscriptions: EventSubscriptionsService<unknown>
   }
 }
 

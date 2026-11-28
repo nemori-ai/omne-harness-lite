@@ -3,10 +3,14 @@ import {
   AuthorizationRecordsService,
   CatalogStoreService,
   ContinuationRecordsService,
+  EventCatalogStoreService,
+  EventRecordsService,
   HoldingRowsService,
   mcpAuthorizationRecordsKey,
   mcpCatalogStoreKey,
   mcpContinuationRecordsKey,
+  mcpEventCatalogStoreKey,
+  mcpEventRecordsKey,
   mcpHoldingRowsKey,
   mcpTaskRecordsKey,
   TaskRecordsService,
@@ -15,13 +19,16 @@ import type {
   AuthorizationRecords,
   CatalogStore,
   ContinuationRecords,
+  EventRecords,
   HoldingRows,
   TaskRecords,
 } from '@omne-harness/mcp-contract/provider'
+import type { EventCatalogRecord } from '@omne-harness/mcp-contract'
 import {
   createSqlAuthorizationRecords,
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlEventRecords,
   createSqlHoldingRows,
   createSqlTaskRecords,
   mcpStoreParticipant,
@@ -119,6 +126,32 @@ class SqlAuthorizationRecords extends AuthorizationRecordsService {
   }
 }
 
+class SqlEventCatalogStore extends EventCatalogStoreService {
+  declare readonly read: CatalogStore<EventCatalogRecord>['read']
+  declare readonly write: CatalogStore<EventCatalogRecord>['write']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlCatalogStore<EventCatalogRecord>(sqlOptions(ctx), 'events'))
+  }
+}
+
+class SqlEventRecords extends EventRecordsService {
+  declare readonly list: EventRecords['list']
+  declare readonly read: EventRecords['read']
+  declare readonly write: EventRecords['write']
+  declare readonly remove: EventRecords['remove']
+  declare readonly receive: EventRecords['receive']
+  declare readonly occurrences: EventRecords['occurrences']
+  declare readonly end: EventRecords['end']
+  declare readonly acknowledge: EventRecords['acknowledge']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlEventRecords(sqlOptions(ctx)))
+  }
+}
+
 class SqlHoldingRows extends HoldingRowsService {
   declare readonly kept: HoldingRows['kept']
   declare readonly forget: HoldingRows['forget']
@@ -139,6 +172,8 @@ export const mcpStorageSqlRow = defineRow({
       mcpTaskRecordsKey,
       mcpAuthorizationRecordsKey,
       mcpHoldingRowsKey,
+      mcpEventCatalogStoreKey,
+      mcpEventRecordsKey,
     ],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: null,
@@ -153,6 +188,8 @@ export const mcpStorageSqlRow = defineRow({
       new SqlTaskRecords(ctx)
       new SqlAuthorizationRecords(ctx)
       new SqlHoldingRows(ctx)
+      new SqlEventCatalogStore(ctx)
+      new SqlEventRecords(ctx)
     },
   },
 })

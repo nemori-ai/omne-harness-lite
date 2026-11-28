@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { ActionCatalogRecord, CatalogKey, PeerAccount } from '@omne-harness/mcp-contract'
+import type {
+  ActionCatalogRecord,
+  CatalogKey,
+  CatalogRevision,
+  PeerAccount,
+} from '@omne-harness/mcp-contract'
 import type {
   CatalogStore,
   ContinuationRecords,
@@ -14,6 +19,7 @@ import {
   HANDLER,
   PARTICIPANT,
   PROTOCOL,
+  type CatalogKind,
   type CatalogRowKey,
   type ReadName,
   type ScriptName,
@@ -48,12 +54,12 @@ export function tenantText(key: Pick<CatalogKey, 'tenant'>): string {
 const accountText = (account: PeerAccount): string =>
   account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
 
-function rowKeyOf(key: CatalogKey): CatalogRowKey {
+function rowKeyOf(key: CatalogKey, kind: CatalogKind = 'actions'): CatalogRowKey {
   return {
     tenant: tenantText(key),
     account: accountText(key.account),
     holding: key.holding,
-    kind: 'actions',
+    kind,
   }
 }
 
@@ -199,16 +205,18 @@ export function createSqlTaskRecords(options: McpSqlOptions): TaskRecords {
 }
 
 /** The catalog store over SQL, one storage domain per tenant; every read carries the tenant. */
-export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
+export function createSqlCatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+>(options: McpSqlOptions, kind: CatalogKind = 'actions'): CatalogStore<R> {
   const commit = committer(options)
   const readOf = reader(options)
   const readRow = (key: CatalogRowKey) => readOf(key.tenant, 'readCatalog', { key })
 
-  const read: CatalogStore['read'] = async key => {
+  const read: CatalogStore<R>['read'] = async key => {
     try {
-      const found = await readRow(rowKeyOf(key))
+      const found = await readRow(rowKeyOf(key, kind))
       if (found === null) return fail('unavailable')
-      return found.ok === 'absent' ? succeed('absent') : succeed(found.ok as ActionCatalogRecord)
+      return found.ok === 'absent' ? succeed('absent') : succeed(found.ok as R)
     } catch {
       return fail('unavailable')
     }
@@ -218,7 +226,7 @@ export function createSqlCatalogStore(options: McpSqlOptions): CatalogStore {
     read,
     async write(key, record, expected) {
       try {
-        const rowKey = rowKeyOf(key)
+        const rowKey = rowKeyOf(key, kind)
         const command = { key: rowKey, revision: record.revision, record, expected }
         const done = await commit(rowKey.tenant, 'writeCatalog', command)
         if (done === null) return fail('unavailable')

@@ -1178,3 +1178,334 @@ it(
     expect(exits).toEqual([0, 0])
   },
 )
+
+it(
+  'C301 a peer that offers events has its kinds of events listed with their delivery, in mcp/v1 and the command line; one that offers none is said so',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const incident = {
+      name: 'incident.created',
+      description: 'An incident was opened.',
+      delivery: ['poll', 'push'],
+      inputSchema: { type: 'object', properties: { service: { type: 'string' } } },
+      payloadSchema: { type: 'object' },
+    }
+    const deploy = {
+      ...incident,
+      name: 'deploy.done',
+      description: 'A deploy finished.',
+      delivery: ['webhook'],
+    }
+    const peer = await modernPeer([ECHO], { events: [incident, deploy] })
+    const plain = await modernPeer([ECHO])
+    peers.push(peer, plain)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        at('register one endpoint at each peer and fetch their actions')
+        for (const [name, target] of [
+          ['live', peer.target],
+          ['plain', plain.target],
+        ] as const) {
+          await registered(w, name)
+          await configured(w, name, 'target', target, `${name}-target`)
+          expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name })).toMatchObject({
+            outcome: 'succeeded',
+            body: { refreshed: 'published' },
+          })
+        }
+        at('list the kinds of events of each')
+        expect(await mcp['list-event-types']({ tenant: w.tenant, name: 'live' })).toEqual({
+          outcome: 'succeeded',
+          body: {
+            events: {
+              kind: 'acquired',
+              types: [
+                {
+                  name: 'incident.created',
+                  description: 'An incident was opened.',
+                  delivery: ['poll', 'push'],
+                },
+                { name: 'deploy.done', description: 'A deploy finished.', delivery: ['webhook'] },
+              ],
+            },
+          },
+        })
+        expect(await mcp['list-event-types']({ tenant: w.tenant, name: 'plain' })).toEqual({
+          outcome: 'succeeded',
+          body: { events: { kind: 'not-declared' } },
+        })
+        expect(plain.asked.get('events/list') ?? 0).toBe(0)
+        at('the command line prints them')
+        const printed = await tree.cli(['mcp', 'events', 'live'])
+        expect(printed.status).toBe(0)
+        expect(printed.stdout).toMatch(/incident\.created\s+poll,push\s+An incident was opened\./u)
+        expect((await tree.cli(['mcp', 'events', 'plain'])).stdout).toBe(
+          'The endpoint offers no events.\n',
+        )
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'C302 C303 C305 subscribed events come in by push and by poll, are stored once, carry on from where they stood across a restart, and stop when the peer ends them or the last subscriber leaves',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const type = (name: string, delivery: readonly string[]) => ({
+      name,
+      description: `${name} happened`,
+      delivery,
+      inputSchema: { type: 'object', properties: { service: { type: 'string' } } },
+      payloadSchema: { type: 'object' },
+    })
+    const peer = await modernPeer([ECHO], {
+      events: [
+        type('incident.created', ['poll', 'push']),
+        type('watch.tick', ['poll']),
+        type('deploy.done', ['webhook']),
+      ],
+    })
+    peers.push(peer)
+    const named = (tenant: TenantId, event: string) => ({
+      tenant,
+      name: 'live',
+      event,
+      arguments: { kind: 'object', entries: [] } as never,
+    })
+    const clientOf = (tree: ReleaseTree) =>
+      createClient(mcpProtocol, protocolTransport(originOf(tree.port), savedCredentials(tree.home)))
+    const idsOf = (read: unknown) =>
+      (read as { body: { items: { kind: string; eventId?: string }[] } }).body.items.map(item =>
+        item.kind === 'event' ? item.eventId : `gap`,
+      )
+    const received = (tree: ReleaseTree, tenant: TenantId, event: string, count: number) =>
+      settled(
+        tree,
+        `${String(count)} ${event} events to be stored`,
+        () => clientOf(tree)['read-events']({ ...named(tenant, event), after: 0, limit: 50 }),
+        read => read.outcome === 'succeeded' && read.body.items.length >= count,
+      )
+    const exits = await onReleaseTreeRuns(
+      {
+        ...options(script),
+        beforeRun: async run => {
+          if (run !== 1) return
+          peer.log.replay(true)
+          for (const id of [2, 3, 4]) peer.log.emit('incident.created', { id })
+        },
+      },
+      [
+        tree =>
+          journey(tree, LIMIT_MS, async at => {
+            const w = world(tree)
+            const mcp = clientOf(tree)
+            at('register the endpoint and take its actions and its kinds of events')
+            await registered(w, 'live')
+            await configured(w, 'live', 'target', peer.target, 'live-target')
+            expect(await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })).toMatchObject(
+              {
+                body: { refreshed: 'published' },
+              },
+            )
+            at(
+              'subscribe: push where the peer pushes, poll where it only polls, none where it only calls back',
+            )
+            const subscribed = await tree.cli(['mcp', 'subscribe', 'live', 'incident.created'])
+            expect(subscribed.stdout).toBe('subscribed to incident.created: push, receiving\n')
+            expect(await mcp['subscribe-events'](named(w.tenant, 'watch.tick'))).toMatchObject({
+              outcome: 'succeeded',
+              body: { subscription: { delivery: 'poll', state: 'receiving' } },
+            })
+            expect(await mcp['subscribe-events'](named(w.tenant, 'deploy.done'))).toEqual({
+              outcome: 'unsupported',
+              body: { reason: 'webhook-only' },
+            })
+            await settled(
+              tree,
+              'the stream to be open',
+              async () => peer.log.open(),
+              open => open === 1,
+            )
+            at('what happens at the peer comes in, by both')
+            peer.log.emit('incident.created', { id: 1 })
+            peer.log.emit('watch.tick', { at: 1 })
+            expect(idsOf(await received(tree, w.tenant, 'incident.created', 1))).toEqual(['ev-1'])
+            expect(idsOf(await received(tree, w.tenant, 'watch.tick', 1))).toEqual(['ev-2'])
+            const tail = await tree.cli(['mcp', 'tail', 'live', 'incident.created'])
+            expect(tail.status).toBe(0)
+            expect(tail.stdout).toMatch(
+              /^Subscription: incident\.created, push, receiving\n1 {2}\S+ {2}ev-1 {2}\{"id":1\}\n$/u,
+            )
+          }),
+        tree =>
+          journey(tree, LIMIT_MS, async at => {
+            const w = world(tree)
+            const mcp = clientOf(tree)
+            at(
+              'after the restart it carries on from where it stood: the three that came meanwhile, the one sent again kept once',
+            )
+            const after = await received(tree, w.tenant, 'incident.created', 4)
+            expect(idsOf(after)).toEqual(['ev-1', 'ev-3', 'ev-4', 'ev-5'])
+            expect(peer.log.sent().filter(id => id === 'ev-1')).toEqual(['ev-1', 'ev-1'])
+            await settled(
+              tree,
+              'the stream to be open again',
+              async () => peer.log.open(),
+              open => open === 1,
+            )
+            at('the peer ends it: it is ended, and not asked for again')
+            peer.log.terminate(-32024)
+            const ended = await settled(
+              tree,
+              'the subscription to be ended',
+              () =>
+                mcp['read-events']({ ...named(w.tenant, 'incident.created'), after: 0, limit: 50 }),
+              read => read.outcome === 'succeeded' && read.body.subscription.state === 'terminated',
+            )
+            expect(ended).toMatchObject({ body: { subscription: { reason: 'refused' } } })
+            const tail = (await tree.cli(['mcp', 'tail', 'live', 'incident.created'])).stdout
+            expect(tail).toMatch(
+              /^Subscription: incident\.created, push, terminated \(refused\)\n/u,
+            )
+            expect(tail).toMatch(/\n\d+ {2}-- ended: refused\n$/u)
+            at('the person logs in again and leaves as the same subscriber: the subscription goes')
+            await tree.relogin()
+            const again = clientOf(tree)
+            for (const event of ['incident.created', 'watch.tick'])
+              expect(await again['unsubscribe-events'](named(w.tenant, event))).toEqual({
+                outcome: 'succeeded',
+                body: { unsubscribed: 'unsubscribed' },
+              })
+            expect(
+              await again['read-events']({ ...named(w.tenant, 'watch.tick'), after: 0, limit: 50 }),
+            ).toEqual({ outcome: 'not-found', body: {} })
+            expect(peer.log.open()).toBe(0)
+          }),
+      ],
+    )
+    expect(exits).toEqual([0, 0])
+  },
+)
+
+it(
+  'C304 C305 a subscription ends when its endpoint is disabled, keeping nothing the peer sends after; a peer that ends one because the type is gone has its kinds of events listed again',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const type = (name: string) => ({
+      name,
+      description: `${name} happened`,
+      delivery: ['push'],
+      inputSchema: { type: 'object' },
+      payloadSchema: { type: 'object' },
+    })
+    const peer = await modernPeer([ECHO], {
+      events: [type('incident.created'), type('deploy.done')],
+    })
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const named = (event: string) => ({
+          tenant: w.tenant,
+          name: 'live',
+          event,
+          arguments: { kind: 'object', entries: [] } as never,
+        })
+        const read = (event: string) => mcp['read-events']({ ...named(event), after: 0, limit: 50 })
+        at('register, subscribe, and take one event in')
+        const holding = await registered(w, 'live')
+        await configured(w, 'live', 'target', peer.target, 'live-target')
+        await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })
+        expect(await mcp['subscribe-events'](named('incident.created'))).toMatchObject({
+          outcome: 'succeeded',
+        })
+        await settled(
+          tree,
+          'the stream to be open',
+          async () => peer.log.open(),
+          open => open === 1,
+        )
+        peer.log.emit('incident.created', { id: 1 })
+        await settled(
+          tree,
+          'the first event to be stored',
+          () => read('incident.created'),
+          answer => answer.outcome === 'succeeded' && answer.body.items.length === 1,
+        )
+        at('disable the endpoint: what the peer sends after is not kept, and the stream closes')
+        const off = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'live-off',
+          holding,
+          enabled: false,
+        })
+        expect(off).toMatchObject({ outcome: 'succeeded' })
+        peer.log.emit('incident.created', { id: 2 })
+        await settled(
+          tree,
+          'the stream to close',
+          async () => peer.log.open(),
+          open => open === 0,
+        )
+        const on = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'live-on',
+          holding,
+          enabled: true,
+        })
+        expect(on).toMatchObject({ outcome: 'succeeded' })
+        const ended = await read('incident.created')
+        expect(ended).toMatchObject({
+          outcome: 'succeeded',
+          body: { subscription: { state: 'terminated', reason: 'unavailable' } },
+        })
+        expect(ended.outcome === 'succeeded' && ended.body.items.map(item => item.kind)).toEqual([
+          'event',
+          'ended',
+        ])
+        at(
+          'the peer ends another because its type is gone: ended, and the kinds of events are listed again',
+        )
+        expect(await mcp['subscribe-events'](named('deploy.done'))).toMatchObject({
+          outcome: 'succeeded',
+        })
+        await settled(
+          tree,
+          'the stream to be open',
+          async () => peer.log.open(),
+          open => open === 1,
+        )
+        const listed = peer.asked.get('events/list') ?? 0
+        peer.log.terminate(-32023)
+        const gone = await settled(
+          tree,
+          'the subscription to be ended',
+          () => read('deploy.done'),
+          answer =>
+            answer.outcome === 'succeeded' && answer.body.subscription.state === 'terminated',
+        )
+        expect(gone).toMatchObject({ body: { subscription: { reason: 'type-gone' } } })
+        await settled(
+          tree,
+          'the kinds of events to be listed again',
+          async () => peer.asked.get('events/list') ?? 0,
+          count => count > listed,
+        )
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)

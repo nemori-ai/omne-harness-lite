@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { mergeListing, type ActionCatalogRecord, type CatalogState } from './catalog.ts'
 import { completeListing } from './listing.ts'
+import type { CatalogRevision } from './brands.ts'
 import type { CatalogStore } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
 import { generationOf, jsonOf, protocolVersionOf, revisionOf } from './testing-values.ts'
@@ -145,15 +146,18 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
   ]
 }
 
-export type MemoryCatalogStore = CatalogStore &
-  Readonly<{ setUnavailable(unavailable: boolean): void }>
+export type MemoryCatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+> = CatalogStore<R> & Readonly<{ setUnavailable(unavailable: boolean): void }>
 
 function accountText(account: PeerAccount): string {
   return account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
 }
 
-export function createMemoryCatalogStore(): MemoryCatalogStore {
-  const records = new Map<string, ActionCatalogRecord>()
+export function createMemoryCatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+>(): MemoryCatalogStore<R> {
+  const records = new Map<string, R>()
   let unavailable = false
   const keyOf = (key: CatalogKey) =>
     JSON.stringify([tenantText(key.tenant), accountText(key.account), key.holding])

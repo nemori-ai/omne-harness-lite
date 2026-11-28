@@ -93,6 +93,11 @@ function headerDeclarationInvalid(
   return false
 }
 
+/** Whether an input schema marks an argument as a header in a way the protocol does not allow. */
+export function headersInvalid(schema: JsonValue | undefined): boolean {
+  return headerDeclarationInvalid(schema, true, 0, new Set())
+}
+
 export function withheldTools(
   tools: readonly JsonValue[],
 ): Pick<ListingPage, 'tools' | 'withheld'> {

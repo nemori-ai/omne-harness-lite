@@ -4,6 +4,7 @@ import { createWorld, fixtureLogin, type World } from './fixtures/world.ts'
 const alice = fixtureLogin('a')
 const bob = fixtureLogin('b')
 const ENDPOINTS = { kind: 'changed', about: 'endpoints' }
+const EVENTS = { kind: 'changed', about: 'events' }
 
 /** Settles to `waiting` when the generator has nothing to give yet. */
 async function settled<T>(taking: Promise<T>) {
@@ -59,6 +60,19 @@ describe('the frames of observe-endpoints (C107)', () => {
     expect(await settled(taking)).toBe('waiting')
     world.feed.changed(alice)
     expect(await taking).toEqual({ done: false, value: ENDPOINTS })
+  })
+
+  it('events that may have changed give a frame of their own, after one for the endpoints (C307)', async () => {
+    const world = createWorld()
+    const frames = await opened(world)
+    world.feed.changed(alice, 'events')
+    expect(await frames.next()).toEqual({ done: false, value: EVENTS })
+    world.feed.changed(alice, 'events')
+    world.feed.changed(alice)
+    world.feed.changed(alice, 'events')
+    expect(await frames.next()).toEqual({ done: false, value: ENDPOINTS })
+    expect(await frames.next()).toEqual({ done: false, value: EVENTS })
+    expect(await settled(frames.next())).toBe('waiting')
   })
 
   it('changes that arrive before the next frame is taken give one frame', async () => {

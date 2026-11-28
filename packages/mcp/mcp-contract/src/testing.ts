@@ -54,6 +54,22 @@ export {
   type MemoryGrantSecrets,
 } from './testing-grants.ts'
 export {
+  createMemoryEventRecords,
+  mcpEventRecordsConformance,
+  occurrenceOf,
+  sampleSubscription,
+  subscriptionKeyOf,
+  type EventRecordsFixture,
+  type MemoryEventRecords,
+} from './testing-subscriptions.ts'
+export {
+  createMemoryEventConsumer,
+  mcpEventConsumerConformance,
+  subscriptionRefOf,
+  type EventConsumerFixture,
+  type MemoryEventConsumer,
+} from './testing-consumer.ts'
+export {
   actionNameOf,
   adoptionRevisionOf,
   connectionTargetOf,

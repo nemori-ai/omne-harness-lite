@@ -487,6 +487,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpTaskRecords',
       'mcpAuthorizationRecords',
       'mcpHoldingRows',
+      'mcpEventCatalogStore',
+      'mcpEventRecords',
     ],
     injects: ['storage', 'tenantDomainLookup'],
   },

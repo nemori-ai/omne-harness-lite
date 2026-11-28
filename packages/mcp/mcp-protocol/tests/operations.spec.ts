@@ -1,10 +1,11 @@
+import { expectRoundTrip } from './fixtures/samples.ts'
 import { describe, expect, it } from 'vitest'
 import { mcpProtocol } from '@omne-harness/mcp-protocol'
 
 const { operations } = mcpProtocol
 
 describe('mcp/v1', () => {
-  it('is mcp major 1 with the five operations and the one observation', () => {
+  it('is mcp major 1 with the nine operations and the one observation', () => {
     expect(mcpProtocol.name).toBe('mcp')
     expect(mcpProtocol.major).toBe(1)
     expect(Object.keys(operations)).toEqual([
@@ -13,6 +14,10 @@ describe('mcp/v1', () => {
       'refresh-endpoint',
       'begin-connect',
       'disconnect',
+      'list-event-types',
+      'subscribe-events',
+      'unsubscribe-events',
+      'read-events',
     ])
     expect(Object.keys(mcpProtocol.observations)).toEqual(['observe-endpoints'])
   })
@@ -27,6 +32,58 @@ describe('mcp/v1', () => {
         3,
       ])
     }
+  })
+
+  it('list-event-types came at revision 4, wants a login and only reads (C301)', () => {
+    const operation = operations['list-event-types']
+    expect([operation.identity, operation.effect, operation.since]).toEqual(['login', 'read', 4])
+    expectRoundTrip(operation.outcomes.succeeded, {
+      events: { kind: 'acquired', types: [{ name: 'a', description: '', delivery: ['push'] }] },
+    })
+    expectRoundTrip(operation.outcomes.succeeded, { events: { kind: 'not-declared' } })
+    expectRoundTrip(operation.outcomes.succeeded, { events: { kind: 'not-acquired' } })
+  })
+
+  // C302, MC-35: a person subscribes, unsubscribes and reads what came; agents have no way in.
+  it('the three subscription operations came at revision 4 and want a login', () => {
+    const shapes = ['subscribe-events', 'unsubscribe-events', 'read-events'] as const
+    expect(
+      shapes.map(name => [
+        operations[name].identity,
+        operations[name].effect,
+        operations[name].since,
+      ]),
+    ).toEqual([
+      ['login', 'commit', 4],
+      ['login', 'commit', 4],
+      ['login', 'read', 4],
+    ])
+    const subscription = {
+      name: 'incident.created',
+      arguments: { queue: 'ops' },
+      delivery: 'push',
+      state: 'terminated',
+      reason: 'refused',
+      subscribers: 1,
+    }
+    expectRoundTrip(operations['subscribe-events'].outcomes.succeeded, { subscription })
+    expectRoundTrip(operations['subscribe-events'].outcomes.unsupported, { reason: 'webhook-only' })
+    expectRoundTrip(operations['read-events'].outcomes.succeeded, {
+      subscription: { ...subscription, state: 'receiving', reason: null },
+      items: [
+        {
+          seq: 1,
+          receivedAt: '2026-11-27T22:00:00.000Z',
+          kind: 'event',
+          eventId: 'e1',
+          name: 'incident.created',
+          timestamp: '2026-11-27T21:59:59Z',
+          data: { id: 'e1' },
+        },
+        { seq: 2, receivedAt: '2026-11-27T22:00:00.000Z', kind: 'gap', reason: 'possibly-missed' },
+        { seq: 3, receivedAt: '2026-11-27T22:00:00.000Z', kind: 'ended', reason: 'type-gone' },
+      ],
+    })
   })
 
   it('observe-endpoints came at revision 2, wants a login and has no end of its own', () => {

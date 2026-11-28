@@ -1,8 +1,12 @@
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { EndpointChangeListener, EndpointChanges } from '@omne-harness/mcp-contract'
+import type {
+  ChangeAbout,
+  EndpointChangeListener,
+  EndpointChanges,
+} from '@omne-harness/mcp-contract'
 
 export type ChangeFeed = EndpointChanges &
-  Readonly<{ changed(tenant: TenantId): void; close(): void }>
+  Readonly<{ changed(tenant: TenantId, about?: ChangeAbout): void; close(): void }>
 
 const told = (tell: () => void): void => {
   try {
@@ -25,8 +29,8 @@ export function createChangeFeed(): ChangeFeed {
         listeners.delete(listener)
       }
     },
-    changed(tenant) {
-      for (const listener of listeners) told(() => listener.changed(tenant))
+    changed(tenant, about = 'endpoints') {
+      for (const listener of listeners) told(() => listener.changed(tenant, about))
     },
     close() {
       closed = true

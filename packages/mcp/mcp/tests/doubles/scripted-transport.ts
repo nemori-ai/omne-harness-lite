@@ -1,4 +1,5 @@
 import type {
+  EventListingPage,
   ListingPage,
   McpTransport,
   McpTransportFactory,
@@ -15,12 +16,14 @@ export type Step =
   | Readonly<{ open: Scripted<'opened'> }>
   | Readonly<{ discover: Scripted<PeerIdentity> }>
   | Readonly<{ listActions: Scripted<ListingPage> }>
+  | Readonly<{ listEventTypes: Scripted<EventListingPage> }>
   | Readonly<{ close: Deferred<'closed'> }>
 
 export type Call =
   | Readonly<{ kind: 'open'; material: TransportMaterial }>
   | Readonly<{ kind: 'discover'; generation: Generation }>
   | Readonly<{ kind: 'listActions'; generation: Generation; cursor: string | undefined }>
+  | Readonly<{ kind: 'listEventTypes'; generation: Generation; cursor: string | undefined }>
   | Readonly<{ kind: 'close'; generation: Generation }>
 
 export type ScriptedTransports = McpTransportFactory &
@@ -52,7 +55,7 @@ async function outcomeOf<T>(step: Scripted<T>): Promise<Outcome<T, TransportFail
   return { ok: settled }
 }
 
-type StepKind = 'open' | 'discover' | 'listActions'
+type StepKind = 'open' | 'discover' | 'listActions' | 'listEventTypes'
 
 function notScripted(method: string): never {
   throw new Error(`scripted transport: ${method} is not scripted in this wave`)
@@ -83,6 +86,13 @@ export function scriptedTransports(
       calls.push({ kind: 'listActions', generation, cursor })
       const step = take('listActions')
       return 'listActions' in step ? outcomeOf(step.listActions) : notScripted('listActions')
+    },
+    async listEventTypes(cursor) {
+      calls.push({ kind: 'listEventTypes', generation, cursor })
+      const step = take('listEventTypes')
+      return 'listEventTypes' in step
+        ? outcomeOf(step.listEventTypes)
+        : notScripted('listEventTypes')
     },
     call: () => notScripted('call'),
     cancelRequest: () => notScripted('cancelRequest'),
