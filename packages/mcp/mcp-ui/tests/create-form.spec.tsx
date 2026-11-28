@@ -513,3 +513,39 @@ describe('the form, second round of the mutation', () => {
     expect(problemsOf({ ...ENTERED, target: 'http://127.0.0.1' }, nobody)).toEqual({})
   })
 })
+
+describe('the form, third round of the mutation', () => {
+  it('F9 OAuth with an application registered: the client identifier as a value and its secret as a secret, after the address', async () => {
+    const fake = fakeGovernance(readOf())
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    fill('名字（必填）', 'gh')
+    fill('地址（必填）', 'https://gh.example/mcp')
+    fireEvent.click(screen.getByRole('button', { name: 'OAuth 登录' }))
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '对方要求先登记一个应用？（例如 GitHub）' }))
+    await settle()
+    fill('客户端标识', ' Iv1.abc ')
+    fill('客户端密钥（对方给了才填）', 'cs-very-secret')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(fake.calls).toContain('create gh name=gh,transport=streamable-http,auth=oauth')
+    const rows = (writes: Partial<Record<string, McpRow['write']>>) => [
+      otherRow('gh/target', 'ordinary', 'target', writes['target']),
+      otherRow('gh/client-id', 'ordinary', 'client-id', writes['client-id']),
+      otherRow('gh/client-secret', 'secret', 'client-secret', writes['client-secret']),
+    ]
+    const done = { kind: 'done', text: '已新建 gh。' } as const
+    const ok = { kind: 'succeeded' } as const
+    act(() => fake.show(withCreating(done, endpoint('gh', rows({})))))
+    await settle()
+    act(() => fake.show(withCreating(done, endpoint('gh', rows({ target: ok })))))
+    await settle()
+    act(() => fake.show(withCreating(done, endpoint('gh', rows({ target: ok, 'client-id': ok })))))
+    await settle()
+    expect(fake.calls).toContain('setValue gh/target string:https://gh.example/mcp')
+    expect(fake.calls).toContain('setValue gh/client-id string:Iv1.abc')
+    expect(fake.calls).toContain('setSecret gh/client-secret')
+    expect(fake.calls.join('\n')).not.toContain('cs-very-secret')
+  })
+})

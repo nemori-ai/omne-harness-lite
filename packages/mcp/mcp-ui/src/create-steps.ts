@@ -58,15 +58,17 @@ export function bodyOf(entered: Entered): McpBody {
 
 /** The settings to write once it is made, in order; only what was filled in, only what its kind of auth has. */
 export function placingsOf(entered: Entered): readonly Placing[] {
-  const wanted: Placing[] = [{ item: 'target', secret: false, value: entered.target.trim() }]
-  if (entered.auth === 'static')
+  const wanted: Placing[] = []
+  const filled = (value: string) => value.trim() !== ''
+  if (filled(entered.target))
+    wanted.push({ item: 'target', secret: false, value: entered.target.trim() })
+  if (entered.auth === 'static' && filled(entered.key))
     wanted.push({ item: 'credential', secret: true, value: entered.key })
-  if (entered.auth === 'oauth')
-    wanted.push(
-      { item: 'client-id', secret: false, value: entered.clientId.trim() },
-      { item: 'client-secret', secret: true, value: entered.clientSecret },
-    )
-  return wanted.filter(placing => placing.value.trim() !== '')
+  if (entered.auth === 'oauth' && filled(entered.clientId))
+    wanted.push({ item: 'client-id', secret: false, value: entered.clientId.trim() })
+  if (entered.auth === 'oauth' && filled(entered.clientSecret))
+    wanted.push({ item: 'client-secret', secret: true, value: entered.clientSecret })
+  return wanted
 }
 
 /** Where one 新建 stands: the cells of the table in the run's design, one variant each. */

@@ -101,3 +101,29 @@ it('M4 declares its seven parts', async () => {
     ['mcp.page', 'assets.panel'],
   ])
 })
+
+it('UI-form given the point of the assets page, the module puts its create form under the key mcp, drawn only with a scope', async () => {
+  const contributed: {
+    key: string
+    id: string
+    render: (props: { scope: string | undefined }) => unknown
+  }[] = []
+  const createForm = {
+    contribute: (
+      _shell: unknown,
+      key: string,
+      item: { id: string; render: (props: { scope: string | undefined }) => unknown },
+    ) => void contributed.push({ key, ...item }),
+  } as never
+  const { root } = await startShell()
+  const fake = fakeGovernance(readOf())
+  await provideOn(root, governanceKey, fake.governance)
+  await root.plugin(createMcpUiModule({ page, governance: governanceKey, createForm }))
+  expect(contributed.map(({ key, id }) => ({ key, id }))).toEqual([
+    { key: 'mcp', id: 'mcp-ui.create' },
+  ])
+  expect(contributed[0]!.render({ scope: undefined })).toBeNull()
+  render(<>{contributed[0]!.render({ scope: TENANT }) as never}</>)
+  expect(await screen.findByRole('form', { name: '新建 MCP 接入点' })).toBeTruthy()
+  expect(fake.opened).toContain(`mcp ${TENANT}`)
+})
