@@ -97,12 +97,12 @@ export function sliceText(
 ): Outcome<SkillFileText, never> {
   const total = bytes.length
   let start = Math.min(Math.max(0, range.start), total)
-  while (start < total && continues(bytes, start)) start += 1
+  while (continues(bytes, start)) start += 1
   let end = Math.min(total, start + Math.max(1, range.length))
-  while (end > start && end < total && continues(bytes, end)) end -= 1
+  while (continues(bytes, end)) end -= 1
   if (end === start && start < total) {
     end += 1
-    while (end < total && continues(bytes, end)) end += 1
+    while (continues(bytes, end)) end += 1
   }
   return succeed({ text: new TextDecoder().decode(bytes.subarray(start, end)), start, total })
 }

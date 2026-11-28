@@ -279,6 +279,7 @@ describe('the memory of checked files', () => {
     ])
     cache.put(fileOf('d', 11), new Uint8Array(11))
     expect(cache.get(fileOf('d', 11))).toBeUndefined()
+    expect([cache.get(a), cache.get(c)].every(hit => hit !== undefined)).toBe(true)
   })
 })
 
@@ -291,7 +292,10 @@ describe('the catalog of peer skills through changes (C403)', () => {
     ])
     await mcp.discovery.refresh(alice, { ref: desk })
     expect(await mcp.discovery.skills(alice, desk)).toMatchObject({
-      ok: { kind: 'acquired', freshness: { acquiredAt: '2026-11-03T12:00:00.000Z' } },
+      ok: {
+        kind: 'acquired',
+        freshness: { acquiredAt: '2026-11-03T12:00:00.000Z', changedNotified: false },
+      },
     })
     await mcp.connections.release(alice, desk)
     await mcp.discovery.refresh(alice, { ref: desk })
@@ -302,7 +306,13 @@ describe('the catalog of peer skills through changes (C403)', () => {
     const pages = Array.from({ length: 3 }, (_, at) => ({
       listSkills: { skills: [named(`s${String(at)}`)], nextCursor: `p${String(at + 1)}` },
     }))
-    const { mcp } = skillWorld([{ discover: offering }, { listActions: page(['read']) }, ...pages])
+    const last = { listSkills: { skills: [named('s3')] } }
+    const { mcp } = skillWorld([
+      { discover: offering },
+      { listActions: page(['read']) },
+      ...pages,
+      last,
+    ])
     await mcp.discovery.refresh(alice, { ref: desk })
     expect(await mcp.discovery.skills(alice, desk)).toEqual({ ok: { kind: 'not-acquired' } })
   })
@@ -355,6 +365,33 @@ describe('the entry a peer gives when asked again (C402)', () => {
     })
   })
 
+  it('tells the listeners once the entry asked again is written, and not when it cannot be', async () => {
+    const heard: unknown[] = []
+    const { mcp, skillStore } = skillWorld([...withTwo, broken, { getSkill: named('other') }])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    mcp.status.subscribe({ changed: tenant => heard.push(tenant), closed: () => undefined })
+    await mcp.skills.read(alice, desk, readTone)
+    expect(heard).toHaveLength(1)
+    const before = await mcp.discovery.skills(alice, desk)
+    skillStore.setUnavailable(true)
+    expect(await mcp.skills.read(alice, desk, read('SKILL.md'))).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    skillStore.setUnavailable(false)
+    expect(heard).toHaveLength(1)
+    expect(await mcp.discovery.skills(alice, desk)).toEqual(before)
+  })
+
+  it('answers unknown when the file cannot be fetched, and keeps the catalog', async () => {
+    const { mcp } = skillWorld([
+      ...withTwo,
+      { readResource: { kind: 'no-answer', cause: 'abandoned' } },
+    ])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.skills.read(alice, desk, readTone)).toEqual({ failure: { kind: 'unknown' } })
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({ ok: { revision: 1 } })
+  })
+
   it('keeps the kept entry when the peer does not answer', async () => {
     const { mcp } = skillWorld([
       ...withTwo,
@@ -389,6 +426,10 @@ describe('the checks of a fetched file (C402)', () => {
   }
   const front = { name: 'style', description: 'House style.' }
 
+  it('takes a SKILL.md that ends with the closing line', async () => {
+    expect(await check('---\nname: style\ndescription: House style.\n---', front)).toBe('given')
+  })
+
   it('takes a frontmatter after a byte order mark and with CRLF lines, with lists and nested values equal to the entry', async () => {
     const withLists = { ...front, 'allowed-tools': ['Bash', 'Read'], metadata: { version: 2 } }
     const yaml =
@@ -397,6 +438,13 @@ describe('the checks of a fetched file (C402)', () => {
   })
 
   it.each([
+    [
+      'a list with one item changed',
+      'allowed-tools: [Bash, Write]',
+      { 'allowed-tools': ['Bash', 'Read'] },
+    ],
+    ['nothing where the entry has an object', 'metadata:', { metadata: { a: 1 } }],
+    ['an object where the entry has nothing', 'metadata:\n  a: 1', { metadata: null }],
     [
       'a list in another order',
       'allowed-tools: [Read, Bash]',
@@ -415,6 +463,7 @@ describe('the checks of a fetched file (C402)', () => {
 
   it.each([
     ['no frontmatter', '# Style\n'],
+    ['text before the frontmatter', 'x\nname: style\ndescription: House style.\n---\n# Style\n'],
     ['no closing line', '---\nname: style\ndescription: House style.\n# Style\n'],
     [
       'text right after the closing line',

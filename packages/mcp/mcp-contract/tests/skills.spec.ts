@@ -119,6 +119,12 @@ describe('reading a listed skill (C403)', () => {
 })
 
 describe('the edges of a listed skill', () => {
+  it('takes a name made of words joined by hyphens', () => {
+    expect(
+      readSkillEntry(entryOf({ frontmatter: { name: 'house-style-2', description: 'x' } })),
+    ).toHaveProperty('ok')
+  })
+
   it('takes a name of 64 characters and an empty file, and names a file at the root by its whole address', () => {
     const long = 'a'.repeat(64)
     expect(
