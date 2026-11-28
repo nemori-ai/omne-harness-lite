@@ -81,7 +81,7 @@ describe('kept events are handed to the consumer (C306, MC-37)', () => {
     await settle()
     await settle()
     expect(heard.map(item => item.kind === 'deliver' && item.ids)).toEqual([['a'], ['a']])
-    expect(made.pauses.length).toBeGreaterThanOrEqual(1)
+    expect(made.pauses).toEqual([250])
   })
 
   it('after a restart, what the consumer did not take is handed over again with the same identifiers, and what it took is not', async () => {
@@ -125,4 +125,63 @@ describe('kept events are handed to the consumer (C306, MC-37)', () => {
       ),
     ).toEqual(['gap:peer-truncated', 'x', 'terminated:refused'])
   })
+})
+
+describe('what the consumer is handed (C306)', () => {
+  it('events kept while no one took them are handed over together, in order', async () => {
+    const before = eventWorld({ script })
+    opened.push(before)
+    await before.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    for (const id of ['a', 'b', 'c'])
+      before.streams[0]?.send({ kind: 'event', event: eventOf(id), cursor: id })
+    await settle()
+    await before.services.connections.closeAll()
+    const { consumer, heard } = consumerOf()
+    const after = eventWorld({
+      script: [{ discover: offering }],
+      records: before.records,
+      eventStore: before.eventStore,
+      consumer,
+    })
+    opened.push(after)
+    await after.services.subscriptions.read(alice, desk, { ...created, after: 0, limit: 10 })
+    await settle()
+    expect(heard.map(item => item.kind === 'deliver' && item.ids)).toEqual([['a', 'b', 'c']])
+  })
+
+  it('a gap the consumer did not take is reported again, and is not passed over', async () => {
+    const { consumer, heard } = consumerOf(call => (call === 1 ? 'not-now' : 'accepted'))
+    const made = arranged(consumer)
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    made.streams[0]?.send({ kind: 'active', cursor: 'c0', truncated: true, heartbeatMs: 0 })
+    await settle()
+    await settle()
+    expect(heard.map(item => item.kind)).toEqual(['report', 'report'])
+    made.streams[0]?.send({ kind: 'event', event: eventOf('x'), cursor: 'c1' })
+    await settle()
+    expect(delivered(heard)).toEqual(['x'])
+  })
+})
+
+it('a consumer slow to answer is handed each event once: one subscription has one delivery at a time (C306)', async () => {
+  const heard: string[] = []
+  const consumer: EventConsumer = {
+    async deliver(_ref, events) {
+      heard.push(...events.map(event => event.eventId))
+      await settle()
+      return 'accepted'
+    },
+    report: async () => 'accepted',
+  }
+  const made = arranged(consumer)
+  await made.services.subscriptions.subscribe(alice, desk, created)
+  await settle()
+  made.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+  await new Promise(resolve => setTimeout(resolve, 1))
+  made.streams[0]?.send({ kind: 'event', event: eventOf('b'), cursor: 'c2' })
+  await settle()
+  await settle()
+  expect(heard).toEqual(['a', 'b'])
 })

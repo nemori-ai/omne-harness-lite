@@ -50,6 +50,7 @@ export type Stream = Readonly<{
   signal: AbortSignal
   send(message: EventStreamMessage): void
   end(end: ListenEnd): void
+  reject(error: Error): void
 }>
 
 export type Wait = Readonly<{ ms: number; signal: AbortSignal; fire(): void }>
@@ -66,9 +67,10 @@ export function eventWorld(
     eventStore?: ReturnType<typeof createMemoryCatalogStore<EventCatalogRecord>>
     settings?: Settings
     consumer?: EventConsumer
+    events?: Partial<EventsConfig>
   }>,
 ) {
-  const w = world({ script: options.script, config: { events: EVENTS } })
+  const w = world({ script: options.script, config: { events: { ...EVENTS, ...options.events } } })
   const eventStore = options.eventStore ?? createMemoryCatalogStore<EventCatalogRecord>()
   const records = options.records ?? createMemoryEventRecords()
   const streams: Stream[] = []
@@ -86,8 +88,8 @@ export function eventWorld(
         : Promise.resolve(next)
     },
     streamEvents(request, signal, observe) {
-      return new Promise<ListenEnd>(end => {
-        streams.push({ request, signal, send: observe, end })
+      return new Promise<ListenEnd>((end, reject) => {
+        streams.push({ request, signal, send: observe, end, reject })
         signal.addEventListener('abort', () => end({ kind: 'stopped' }), { once: true })
       })
     },

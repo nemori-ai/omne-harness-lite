@@ -152,6 +152,7 @@ describe('a subscription being received (C302, C303, I12, I13)', () => {
     expect(await readIds(made)).toEqual(['a', 'b'])
     expect(await rowOf(made)).toMatchObject({ cursor: 'c2', state: 'receiving' })
     expect(heard.filter(about => about === 'events').length).toBeGreaterThanOrEqual(3)
+    expect(made.pauses).toEqual([])
   })
 
   it('a broken stream is opened again after a wait, from the position stored', async () => {
@@ -162,7 +163,7 @@ describe('a subscription being received (C302, C303, I12, I13)', () => {
     await settle()
     made.streams[0]?.end({ kind: 'broken' })
     await settle()
-    expect(made.pauses.length).toBe(1)
+    expect(made.pauses).toEqual([250])
     expect(made.streams.map(stream => stream.request.cursor)).toEqual([null, 'c1'])
     expect(await rowOf(made)).toMatchObject({ state: 'receiving' })
   })
@@ -230,6 +231,9 @@ describe('a subscription being received (C302, C303, I12, I13)', () => {
     made.streams[0]?.send({ kind: 'heartbeat', cursor: 'c0' })
     await settle()
     expect(watch?.signal.aborted).toBe(true)
+    watch?.fire()
+    await settle()
+    expect(made.streams[0]?.signal.aborted).toBe(false)
     made.waits.at(-1)?.fire()
     await settle()
     expect(made.streams[0]?.signal.aborted).toBe(true)
@@ -282,6 +286,7 @@ describe('after a restart (C303)', () => {
     await settle()
     const stream = again.streams[0]
     expect(stream?.request.cursor).toBe('c1')
+    stream?.send({ kind: 'active', cursor: 'c1', truncated: false, heartbeatMs: 0 })
     stream?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
     stream?.send({ kind: 'event', event: eventOf('b'), cursor: 'c2' })
     stream?.send({ kind: 'event', event: eventOf('c'), cursor: 'c3' })
@@ -325,8 +330,13 @@ describe('missed events, ends and the last subscriber (C304, C305)', () => {
     await made.services.subscriptions.subscribe(alice, desk, created)
     await settle()
     made.streams[0]?.send({ kind: 'terminated', code: -32024, data: null })
+    made.streams[0]?.send({ kind: 'event', event: eventOf('late'), cursor: 'c9' })
     await settle()
-    expect(await rowOf(made)).toMatchObject({ state: 'terminated', reason: 'refused' })
+    expect(await rowOf(made)).toMatchObject({
+      state: 'terminated',
+      reason: 'refused',
+      cursor: null,
+    })
     expect(made.streams).toHaveLength(1)
     expect(made.w.transports.calls.filter(call => call.kind === 'listEventTypes')).toHaveLength(1)
     expect(await made.services.subscriptions.list(alice, desk)).toMatchObject({
@@ -502,4 +512,195 @@ describe('an endpoint with no connect timeout of its own (C302, C303)', () => {
     await settle()
     expect(again.streams.map(stream => stream.request.cursor)).toEqual(['c1'])
   })
+})
+
+describe('the edges of receiving (C302 to C305)', () => {
+  it('a heartbeat that carries a new position moves the stored one, and a reopen starts there', async () => {
+    const made = arranged()
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    made.streams[0]?.send({ kind: 'heartbeat', cursor: 'c7' })
+    await settle()
+    expect(await rowOf(made)).toMatchObject({ cursor: 'c7' })
+    made.streams[0]?.end({ kind: 'broken' })
+    await settle()
+    expect(made.streams[1]?.request.cursor).toBe('c7')
+  })
+
+  it('an ordinary error of the peer is a break, not an end; a header the peer does not take has the types listed again', async () => {
+    const made = arranged([
+      ...listed(typeOf('incident.created', ['poll'])),
+      { listEventTypes: { events: [typeOf('incident.created', ['poll'])] } },
+    ])
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    const lists = () => made.w.transports.calls.filter(call => call.kind === 'listEventTypes')
+    made.answer({ failure: { kind: 'error-answer', code: -32603, message: 'internal' } })
+    await settle()
+    expect(await rowOf(made)).toMatchObject({ state: 'receiving' })
+    expect(lists()).toHaveLength(1)
+    made.answer({ failure: { kind: 'error-answer', code: -32020, message: 'header mismatch' } })
+    await settle()
+    expect(lists()).toHaveLength(2)
+    expect(made.pauses).toEqual([250, 500])
+    expect(await rowOf(made)).toMatchObject({ state: 'receiving' })
+    expect(made.polls.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('a stream the peer refuses as it is asked for ends the subscription as refused, and the feed hears of it', async () => {
+    const made = arranged()
+    const heard: string[] = []
+    made.services.status.subscribe({
+      changed: (_t, about) => heard.push(about),
+      closed: () => undefined,
+    })
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    heard.length = 0
+    made.streams[0]?.end({
+      kind: 'refused',
+      failure: { kind: 'error-answer', code: -32024, message: 'forbidden' },
+    })
+    await settle()
+    expect(await rowOf(made)).toMatchObject({ state: 'terminated', reason: 'refused' })
+    expect(heard).toContain('events')
+  })
+
+  it('while the connection is away the subscription says it waits, and says it receives again once it is back', async () => {
+    const records = createMemoryEventRecords()
+    const states: string[] = []
+    const made = eventWorld({
+      script: [
+        ...listed(typeOf('incident.created')),
+        { open: { kind: 'not-sent', cause: 'connection-unavailable' } },
+        { discover: offering },
+      ],
+      records: {
+        ...records,
+        async write(key, row, expected) {
+          states.push(row.state)
+          return records.write(key, row, expected)
+        },
+      },
+    })
+    opened.push(made)
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    await made.services.connections.release(alice, desk)
+    made.streams[0]?.end({ kind: 'broken' })
+    await settle()
+    await settle()
+    expect(states).toEqual(['receiving', 'waiting', 'receiving'])
+    expect(await rowOf(made)).toMatchObject({ revision: 3 })
+  })
+
+  it('a blocked endpoint ends at once, without a wait; one whose use cannot be told now waits, keeping nothing until it can', async () => {
+    const blocked = arranged()
+    await blocked.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    blocked.w.eligibility.block(alice, desk, 'disabled')
+    blocked.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+    await settle()
+    expect(await rowOf(blocked)).toMatchObject({ state: 'terminated' })
+    expect(blocked.pauses).toEqual([])
+    const unknown = arranged()
+    await unknown.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    unknown.w.adoption.setUnreadable(true)
+    unknown.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+    await settle()
+    expect(await rowOf(unknown)).toMatchObject({ state: 'waiting', reason: null })
+    const none = await unknown.records.occurrences(KEY, 0, 10)
+    expect('ok' in none && none.ok).toEqual([])
+    unknown.w.adoption.setUnreadable(false)
+    await settle()
+    unknown.streams.at(-1)?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+    await settle()
+    expect(await readIds(unknown)).toEqual(['a'])
+  })
+})
+
+describe('what is taken from the peer and how (C302, C303, C307, I12)', () => {
+  it('with no heartbeat agreed there is no watch; an error message or a malformed event moves nothing it should not', async () => {
+    const made = arranged()
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    made.streams[0]?.send({ kind: 'active', cursor: 'c0', truncated: false, heartbeatMs: 0 })
+    made.streams[0]?.send({
+      kind: 'event',
+      event: jsonOf({ eventId: 'x', name: 'incident.created' }),
+      cursor: 'c1',
+    })
+    made.streams[0]?.send({ kind: 'error' })
+    await settle()
+    expect(made.waits).toEqual([])
+    expect(await rowOf(made)).toMatchObject({ cursor: 'c1' })
+    expect(await readIds(made)).toEqual([])
+  })
+
+  it('a stream request that fails outright is a break, and is opened again', async () => {
+    const made = arranged()
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    made.streams[0]?.reject(new Error('socket hang up'))
+    await settle()
+    expect(made.streams).toHaveLength(2)
+  })
+
+  it('a poll whose events the storage could not take is asked again from where the storage stands', async () => {
+    const made = arranged(listed(typeOf('incident.created', ['poll'])))
+    const page = (cursor: string, ids: string[]) => ({
+      ok: {
+        events: ids.map(id => eventOf(id)),
+        cursor,
+        truncated: false,
+        hasMore: false,
+        nextPollMs: 100,
+      },
+    })
+    made.answer(page('c0', []))
+    await made.services.subscriptions.subscribe(alice, desk, {
+      ...created,
+      connectBound: millisOf(10_000),
+    })
+    made.records.setUnavailable(true)
+    made.waits.at(-1)?.fire()
+    made.answer(page('c1', ['a']))
+    await settle()
+    made.records.setUnavailable(false)
+    await settle()
+    expect(made.polls.map(poll => poll.cursor)).toEqual([null, 'c0', 'c0'])
+  })
+
+  it('the bounds the configuration gives reach the storage: past them the oldest go, and a gap says so', async () => {
+    const made = eventWorld({
+      script: listed(typeOf('incident.created')),
+      events: { maxEvents: 2 },
+    })
+    opened.push(made)
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    for (const id of ['a', 'b', 'c'])
+      made.streams[0]?.send({ kind: 'event', event: eventOf(id), cursor: id })
+    await settle()
+    expect(await readIds(made)).toEqual(['b', 'c', 'gap:trimmed'])
+  })
+})
+
+it('a poll answer that says some were missed leaves a gap before its events; an unreadable event in it is left out (C304)', async () => {
+  const made = arranged(listed(typeOf('incident.created', ['poll'])))
+  made.answer({
+    ok: {
+      events: [jsonOf({ eventId: 'x' }), eventOf('a')],
+      cursor: 'c1',
+      truncated: true,
+      hasMore: false,
+      nextPollMs: 100,
+    },
+  })
+  await made.services.subscriptions.subscribe(alice, desk, {
+    ...created,
+    connectBound: millisOf(10_000),
+  })
+  await settle()
+  expect(await readIds(made)).toEqual(['gap:peer-truncated', 'a'])
 })
