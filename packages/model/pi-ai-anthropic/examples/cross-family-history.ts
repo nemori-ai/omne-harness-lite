@@ -82,7 +82,7 @@ try {
   const ANTHROPIC_PARAMETERS = parametersAt('low')
 
   const ROUNDS: readonly Readonly<{
-    profile: ModelProfile
+    profile: ModelProfile<'llm'>
     parameters: readonly Parameter[]
     question: string
   }>[] = [

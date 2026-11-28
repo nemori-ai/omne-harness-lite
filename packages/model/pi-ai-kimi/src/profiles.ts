@@ -19,6 +19,6 @@ export function effortMapping(record: KimiRecord): ReasoningEffortMapping {
 
 export function officialKimiProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(KIMI_OWNER, KIMI_RECORDS, input, effortMapping)
 }

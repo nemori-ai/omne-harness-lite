@@ -9,7 +9,13 @@ import {
   type OpenAiResponsesRecord,
 } from '@omne-harness/pi-ai-openai'
 
-const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
+// The models OpenAI serves through OpenRouter; the one it serves itself has its own block below.
+const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS.filter(
+  record => record.route.provider === 'openrouter',
+)
+const DIRECT: readonly OpenAiRecord[] = OPENAI_RECORDS.filter(
+  record => record.route.provider !== 'openrouter',
+)
 const CHAT_RECORDS = RECORDS.filter((record): record is OpenAiChatRecord => !('engine' in record))
 const RESPONSES_RECORDS = RECORDS.filter(
   (record): record is OpenAiResponsesRecord => 'engine' in record,
@@ -353,5 +359,39 @@ describe('purity and adoption', () => {
     expect(recordAdoption(OPENAI_OWNER, binding).digest).not.toBe(before)
     expect(recordAdoption(OPENAI_OWNER, accepts).digest).not.toBe(before)
     expect(recordAdoption(OPENAI_OWNER, source).digest).not.toBe(before)
+  })
+})
+
+describe('the model OpenAI serves itself', () => {
+  it('is gpt-6-luna alone, current at revision 1, on the Responses interface with no gateway pin', () => {
+    expect(
+      DIRECT.map(record => [record.name, record.revision, record.status, record.route]),
+    ).toEqual([['gpt-6-luna', '1', 'current', { provider: 'openai', model: 'gpt-6-luna' }]])
+    const [luna] = DIRECT
+    if (luna === undefined || !('engine' in luna)) throw new Error('no direct Responses record')
+    expect(luna.serving).toBeNull()
+    expect(luna.wire).toEqual({
+      system: 'developer',
+      cache: { kind: 'automatic' },
+      image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },
+      reasoning: { summary: 'auto' },
+      toolNames: { rule: 'underscore/1', maxLength: 64 },
+    })
+    expect(luna.accepts).toEqual({ forcedToolChoice: true, endsWithAssistant: true })
+    expect(luna.replay.binding).toBe('none')
+    expect(luna.parameters).toEqual(
+      OPENAI_RECORDS.find(r => r.name === 'openai/gpt-6-luna')?.parameters,
+    )
+  })
+
+  it('cites for every fact its own stream at OpenAI, measured 2026-11-27, and says how the stream ends', () => {
+    const [luna] = DIRECT
+    if (luna === undefined || !('engine' in luna)) throw new Error('no direct Responses record')
+    const evidence = 'packages/model/pi-ai-openai/tests/fixtures/records/gpt-6-luna/1/stream.sse'
+    expect(Object.keys(luna.provenance).toSorted()).toEqual([...RECORD_FACTS].toSorted())
+    for (const fact of RECORD_FACTS)
+      expect(luna.provenance[fact]).toMatchObject({ measuredAt: '2026-11-27', evidence })
+    expect(luna.provenance.engine.note).toContain('with no end marker')
+    expect(luna.provenance['usage-fields'].note).toContain('no cost')
   })
 })

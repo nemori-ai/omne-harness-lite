@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { KIMI_RECORDS } from '../src/records.ts'
 import { FAMILY } from './support/kimi.ts'
@@ -28,7 +28,7 @@ it.each(cases)('encodes only tool choices the pinned endpoint accepts for $route
       { type: 'function', function: { name: 'get_weather' } },
     ],
   ] as const) {
-    const fixed = judgeFixedModelRequest({ ...fixture.request, toolChoice: choice })
+    const fixed = judgeModelRequest('llm', { ...fixture.request, toolChoice: choice })
     if ('failure' in fixed) throw new Error(JSON.stringify(fixed.failure))
     const request = fixed.ok
     const supplier = request.suppliers[0]

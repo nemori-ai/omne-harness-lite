@@ -6,10 +6,10 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   decodeResultVersion,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ResultVersion,
 } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { parseRecordEntryRef, type RecordEntryRef } from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { CompactionStore } from './provider.ts'
@@ -30,7 +30,7 @@ export type DefaultExecutionState = Readonly<{
   version: 1
   phase: 'running'
   configuration: DefaultCompactionConfiguration
-  fixed: FixedModelRequest
+  fixed: LlmModelRequest
   coverTo: RecordEntryRef
   retained: readonly RecordEntryRef[]
   attempt: number
@@ -77,7 +77,7 @@ export function readDefaultState(text: string): Awaited<CompactionReply<DefaultS
     !Array.isArray(raw.processed)
   )
     return invalid()
-  const fixed = judgeFixedModelRequest(raw.fixed)
+  const fixed = judgeModelRequest('llm', raw.fixed)
   const coverTo = parseRecordEntryRef(raw.coverTo)
   if ('failure' in fixed || coverTo === null) return invalid()
   const retained: RecordEntryRef[] = []

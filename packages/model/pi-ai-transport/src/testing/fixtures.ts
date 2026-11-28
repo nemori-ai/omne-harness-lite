@@ -1,27 +1,33 @@
-import {
-  OPENROUTER_ACCOUNTING,
-  OPENROUTER_PROVIDER_BODY_TEXT,
-} from '../chat-completions/openrouter.ts'
 import type { RouteAccounting } from '../config.ts'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
-import { type Adoption, type FixedModelRequest, type Supplier } from '@omne-harness/model-contract'
+import { type Adoption, type LlmModelRequest, type Supplier } from '@omne-harness/model-contract'
 import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import { sorted } from '../chat-completions/json.ts'
 import { decodeBody, type Progress } from '../fact-stream.ts'
 import { composeFamilies, familyRecords, recordProvider, type PiFamily } from '../family-table.ts'
-import type { PiFamilyBinding } from '../family.ts'
+import { chatBindingsOf, type PiChatBinding } from '../family.ts'
 import { terminationOf } from '../termination.ts'
 
 export const GATEWAY_END_MARKER = '[DONE]'
 
-// The gateway's own body says which interface ends its stream with a marker.
-const GATEWAY_ENDPOINTS: readonly Readonly<{ protocol: string; endMarker?: string }>[] =
-  Reflect.get(JSON.parse(OPENROUTER_PROVIDER_BODY_TEXT), 'endpoints')
-function endMarkerOf(endpoint: PiFamilyBinding['endpoint']): string | null {
-  return GATEWAY_ENDPOINTS.find(item => item.protocol === endpoint)?.endMarker ?? null
+/** How the gateway the recordings were made through accounts: it names who served, and looks a cost up afterwards. */
+export const OPENROUTER_ACCOUNTING: RouteAccounting = Object.freeze({
+  place: 'openrouter',
+  costUnit: 'openrouter-credit',
+  generation: Object.freeze({ requestHeader: 'x-generation-id', path: '/api/v1/generation' }),
+})
+
+// Which interface of the gateway ends its stream with a marker; a recording made elsewhere simply has none.
+const GATEWAY_END_MARKERS: Readonly<Record<PiChatBinding['endpoint'], string | null>> = {
+  'chat-completions': GATEWAY_END_MARKER,
+  messages: null,
+  responses: GATEWAY_END_MARKER,
+}
+function endMarkerOf(endpoint: PiChatBinding['endpoint']): string | null {
+  return GATEWAY_END_MARKERS[endpoint]
 }
 
 export const FIXTURE_FILES = ['request.json', 'stream.sse', 'facts.json'] as const
@@ -51,7 +57,10 @@ export async function checkRecordFixtures(family: PiFamily, root: string): Promi
       model: record.route.model,
       credential: { layer: 'official' },
     }
-    const acquired = await contributions.acquire(supplier, new AbortController().signal)
+    const acquired = await chatBindingsOf(contributions).acquire(
+      supplier,
+      new AbortController().signal,
+    )
     if (!('ok' in acquired)) {
       problems.push(`${label}: acquire failed: ${JSON.stringify(acquired.failure)}`)
       continue
@@ -118,10 +127,10 @@ function budgetsOf(size: number): JsonLimits {
 
 type EncodeCheck = Readonly<{
   problems: readonly string[]
-  request: FixedModelRequest | null
+  request: LlmModelRequest | null
 }>
 
-function checkEncode(label: string, binding: PiFamilyBinding, text: string): EncodeCheck {
+function checkEncode(label: string, binding: PiChatBinding, text: string): EncodeCheck {
   const where = `${label}: request.json`
   const tree = readJsonText(text, budgetsOf(new TextEncoder().encode(text).length))
   if (tree.kind !== 'ok' || tree.value.kind !== 'object')
@@ -141,6 +150,8 @@ function checkEncode(label: string, binding: PiFamilyBinding, text: string): Enc
       ],
       request: null,
     }
+  if (request.ok.kind !== 'llm')
+    return { problems: [`${where}: the request is not a chat request`], request: null }
   const index = request.ok.suppliers.findIndex(supplier =>
     sameAdoption(supplier.adoption, binding.adoption),
   )
@@ -179,8 +190,8 @@ function failureOf(outcome: object): unknown {
 
 async function checkDecode(
   label: string,
-  binding: PiFamilyBinding,
-  request: FixedModelRequest,
+  binding: PiChatBinding,
+  request: LlmModelRequest,
   stream: Uint8Array,
   factsText: string,
 ): Promise<readonly string[]> {
@@ -200,9 +211,9 @@ async function checkDecode(
 }
 
 export async function replayStream(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   stream: Uint8Array,
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   accounting: RouteAccounting = OPENROUTER_ACCOUNTING,
 ): Promise<readonly TransportFact[]> {
   const facts: TransportFact[] = []

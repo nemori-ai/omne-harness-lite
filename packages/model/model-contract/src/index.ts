@@ -21,12 +21,21 @@ export type {
   ProviderName,
   ReadId,
   ReasoningEffort,
+  RequestCommon,
+  LlmRequest,
+  DecisionsRequest,
+  LlmModelRequest,
+  DecisionsModelRequest,
+  LiveModelRequest,
+  LiveRequest,
   ResultVersion,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
+export { KIND_TRAITS, MODEL_KINDS, isModelKind } from './model-kind.ts'
+export type { KindTraits, ModelKind } from './model-kind.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
 export { faultProblem } from './fault-shape.ts'
@@ -57,10 +66,11 @@ export {
   DECISION_REPRESENTATION,
   decisionAnswersBlock,
   decisionAnswersOf,
-  decisionAskMessage,
-  decisionAskOf,
+  judgeDecisionAsk,
 } from './decision-call.ts'
 export type * from './dispatch-facts.ts'
+export type * from './live-call.ts'
+export { LIVE_REPRESENTATION } from './live-call.ts'
 export type {
   MaterializationReceipt,
   MaterializedMedium,
@@ -81,12 +91,20 @@ export type {
   MediaMeasurementFact,
   MeterRepresentation,
   ModalityRequirement,
+  ModelNeed,
+  ProfileListInput,
+  ProfileResolveInput,
   ModelInputMeter,
   ModelLimit,
   ModelModality,
   ModelProfile,
   ModelProfileDefinition,
+  LlmProfile,
+  DecisionsProfile,
+  LiveProfile,
+  ProfileKind,
   ParameterAdoption,
+  ProfileCommon,
   ProfileIdentity,
   ProfileReplay,
   ProfileResolution,
@@ -103,7 +121,9 @@ export {
   LIMIT_METRICS,
   mediaLimitMetric,
   OVER_LIMIT_METRICS,
-  profileCovers,
+  chatNeedOf,
+  isProfileOf,
+  meetsNeed,
   supportedReasoningEfforts,
 } from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'

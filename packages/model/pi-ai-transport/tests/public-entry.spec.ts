@@ -3,11 +3,14 @@ import { expect, it } from 'vitest'
 it('the root entry exports the family table, the network resources factory, the transport factory, the engine endpoint guard and the record fact names as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
   expect(Object.keys(root).toSorted()).toEqual([
+    'PROTOCOLS',
     'RECORD_FACTS',
+    'chatBindingsOf',
     'composeFamilies',
     'createNetworkResources',
     'createPiTransport',
     'defineFamily',
+    'isBindingOf',
     'isEngineEndpoint',
     'isProviderEndpoint',
     'recordAdoption',
@@ -16,13 +19,11 @@ it('the root entry exports the family table, the network resources factory, the 
   ])
 })
 
-it('the chat-completions entry exposes the shared binding, metering, reasoning and OpenRouter accounting APIs', async () => {
+it('the chat-completions entry exposes the shared binding, metering and reasoning APIs, and no provider', async () => {
   const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
   expect(Object.keys(engine).toSorted()).toEqual([
     'ANCHORED_METHOD',
     'NO_CALIBRATION',
-    'OPENROUTER_ACCOUNTING',
-    'OPENROUTER_PROVIDER_BODY_TEXT',
     'bindChatCompletions',
     'calibratedAmount',
     'calibratedDigest',
@@ -39,6 +40,7 @@ it('the subpath entry testing exports the fixture check and the adoption fingerp
   expect(Object.keys(testing).toSorted()).toEqual([
     'FIXTURE_FILES',
     'GATEWAY_END_MARKER',
+    'OPENROUTER_ACCOUNTING',
     'TEST_DECODER_LIMITS',
     'TEST_EXECUTOR_LIMITS',
     'appendAdoptionFingerprints',
@@ -65,9 +67,13 @@ it('the subpath entry family-kit exports what every gateway family declares with
     'componentAdoption',
     'countingBasis',
     'createGatewayMeter',
+    'defineDecisionsFamily',
     'defineGatewayFamily',
+    'defineLiveFamily',
     'memberOf',
     'obj',
+    'officialDecisionsProfilesOf',
+    'officialLiveProfilesOf',
     'officialProfilesOf',
     'optionalImageBytes',
     'str',

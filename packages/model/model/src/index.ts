@@ -10,6 +10,9 @@ export type {
   SupplierPort,
 } from './preparation/resources.ts'
 export type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from './runtime.ts'
+export type { LiveHosting } from './live/hosting.ts'
+export type { LiveDeadlines, LiveEventPort } from './live/runner.ts'
+export type { LiveDeliveryAnswer } from './live/body.ts'
 export type { ModelLiveness } from './contact.ts'
 export { createModelSendBoundary } from './send.ts'
 export type {

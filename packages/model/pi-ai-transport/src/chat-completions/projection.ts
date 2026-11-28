@@ -7,7 +7,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ReplayDeclaration,
   type ToolDeclaration,
   type TransportFailure,
@@ -66,7 +66,7 @@ export type Projection = Readonly<{
   tools: readonly JsonValue[]
   toolChoice: JsonValue | undefined
   declared: readonly ToolDeclaration[]
-  choice: FixedModelRequest['toolChoice']
+  choice: LlmModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
   replayPrefix: string
@@ -80,7 +80,7 @@ export type ProjectionInput = Readonly<{
   system: readonly ContentBlock[]
   messages: readonly ChatMessage[]
   tools: readonly ToolDeclaration[]
-  toolChoice: FixedModelRequest['toolChoice']
+  toolChoice: LlmModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
   media: MediaView
@@ -513,12 +513,12 @@ function toolPayload(
 }
 
 function toolChoiceOf(
-  choice: FixedModelRequest['toolChoice'],
+  choice: LlmModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
   names: ToolNames,
   input: Pick<ProjectionInput, 'record' | 'adapter'>,
 ): Outcome<
-  Readonly<{ json: JsonValue | undefined; choice: FixedModelRequest['toolChoice'] }>,
+  Readonly<{ json: JsonValue | undefined; choice: LlmModelRequest['toolChoice'] }>,
   TransportFailure
 > {
   if (tools.length === 0)

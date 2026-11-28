@@ -11,7 +11,12 @@ import { providerCredentialKey, releaseProvider } from '../../../src/assets/mode
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
-import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
+import {
+  chatNeedOf,
+  type AssembledModelInput,
+  type ModelProfile,
+} from '@omne-harness/model-contract'
+import { officialProfiles } from '@omne-harness/model-host-local'
 import {
   ModelPreparationResourcesService,
   ModelDecisionPreparationService,
@@ -74,9 +79,9 @@ let vaults = 0
 const OFFICIAL_SECRET = 'synth-official-secret'
 const TENANT_SECRET = 'synth-tenant-secret'
 
-function apiKey(scope: SecretScope) {
-  const provider = releaseProvider('openrouter')
-  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+function apiKey(scope: SecretScope, name = 'openrouter') {
+  const provider = releaseProvider(name)
+  if (provider === undefined) throw new Error(`the release holds no ${name} provider`)
   return providerCredentialKey(provider, scope, 'apiKey')
 }
 function secret(raw: string) {
@@ -93,6 +98,11 @@ function vaultPath(tenant?: 'active' | 'unreadable'): string {
     path,
     seed: [
       { key: apiKey({ layer: 'official' }), secret: secret(OFFICIAL_SECRET), configuredAt: null },
+      {
+        key: apiKey({ layer: 'official' }, 'openai'),
+        secret: secret(OFFICIAL_SECRET),
+        configuredAt: null,
+      },
       ...(tenant === undefined
         ? []
         : [{ key: tenantKey, secret: secret(TENANT_SECRET), configuredAt: null }]),
@@ -138,22 +148,23 @@ const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 async function profileOf(
   ctx: { get(name: string): unknown },
   route = 'openai/gpt-5.6-sol',
-): Promise<ModelProfile> {
+): Promise<ModelProfile<'llm'>> {
   const profiles = ctx.get('modelProfiles') as ModelProfilesLike
   const resolved = await profiles.resolve({
     ...ACCESS,
     route,
-    required: REQUIRED,
+    required: chatNeedOf(REQUIRED),
   })
   if (!('ok' in resolved) || resolved.ok.kind !== 'resolved')
-    throw new Error('profile did not resolve')
+    throw new Error(`profile ${route} did not resolve: ${JSON.stringify(resolved)}`)
   return resolved.ok.profile
 }
 type ModelProfilesLike = {
   resolve(
     input: unknown,
   ): Promise<
-    { ok: { kind: 'resolved'; profile: ModelProfile } | { kind: 'absent' } } | { failure: unknown }
+    | { ok: { kind: 'resolved'; profile: ModelProfile<'llm'> } | { kind: 'absent' } }
+    | { failure: unknown }
   >
 }
 
@@ -163,7 +174,7 @@ describe('the model-request-preparation row', () => {
       row: 'model-request-preparation',
       implementation: 'real',
       manifest: {
-        provides: ['modelRequestPreparation', 'modelDecisionPreparation'],
+        provides: ['modelRequestPreparation', 'modelDecisionPreparation', 'modelLivePreparation'],
         injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
@@ -183,11 +194,19 @@ describe('the model-request-preparation row', () => {
     expect(run.result.exitCode).toBe(0)
   })
 
-  it('leases every official send source for preparation at the same supplier adoption', async () => {
+  it('leases every official chat send source for preparation at the same supplier adoption', async () => {
+    // A chat source is named by its supplier adoption: a decisions model can share its name.
+    const chat = new Set(
+      officialProfiles(profilesConfig)
+        .filter(definition => definition.kind === 'llm')
+        .flatMap(definition =>
+          definition.suppliers.map(supplier => supplier.adoption.owner + supplier.model),
+        ),
+    )
     const sources = officialSendSources({
       profiles: profilesConfig,
       current: () => ({ ok: { authorized: false } }),
-    })
+    }).filter(source => chat.has(source.supplier.owner + source.model))
     const { value } = await withLiveRows({ rows, plugins, probe }, async ctx => {
       const leases = ctx.get(
         'modelPreparationResources',

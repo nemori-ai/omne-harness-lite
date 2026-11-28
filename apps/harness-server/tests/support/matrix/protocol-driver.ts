@@ -269,10 +269,11 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
       const tenant = tenantValue() as never
       const current = await assets['describe-setting']({ tenant, owner, item })
       if (current.outcome !== 'succeeded') return current.outcome
-      const value = {
+      const chat = {
         kind: 'object',
         entries: routes.map(route => ({ key: route, value: { kind: 'boolean', value: true } })),
       }
+      const value = { kind: 'object', entries: [{ key: 'llm', value: chat }] }
       const written = await assets['set-setting']({
         tenant,
         owner,

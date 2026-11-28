@@ -42,7 +42,7 @@ function profileOf<R extends GatewayRecord>(
   record: R,
   input: OfficialProfilesInput,
   effortMapping: EffortMappingOf<R>,
-): ModelProfileDefinition {
+): ModelProfileDefinition<'llm'> {
   const supplier = recordAdoption(owner, record)
   const { context } = record.profile
   const limits: ModelLimit[] = record.profile.limits.map(limit => ({
@@ -58,6 +58,7 @@ function profileOf<R extends GatewayRecord>(
       upstream: [{ supplier, limit: { kind: 'unknown' } }],
     })
   return {
+    kind: 'llm',
     suppliers: [
       {
         adoption: supplier,
@@ -91,7 +92,7 @@ export function officialProfilesOf<R extends GatewayRecord>(
   records: readonly R[],
   input: OfficialProfilesInput,
   effortMapping: EffortMappingOf<R>,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   if (
     typeof input.compactionTriggerPercent !== 'string' ||
     !PERCENT.test(input.compactionTriggerPercent)

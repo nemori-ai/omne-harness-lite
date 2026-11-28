@@ -33,7 +33,7 @@ class Agent {
 type Other = Readonly<{ id: number }>
 
 declare const transport: ModelTransport
-declare const profile: ModelProfile
+declare const profile: ModelProfile<'llm'>
 
 interface AgentRequestPreparation<P> {
   prepare(

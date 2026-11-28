@@ -33,27 +33,42 @@ export type CredentialItemDeclaration = Readonly<{
 export type ModelProviderEndpoint = Readonly<{ protocol: string; url: string; endMarker?: string }>
 
 /** One model of the provider model catalog: what the provider adapts, and whether the release enables it. */
-export type CatalogModel = Readonly<{
+type CatalogCommon = Readonly<{
   model: string
   title: string
   input: readonly ModelModality[]
   output: readonly ModelModality[]
+  enabled: boolean
+}>
+export type LlmCatalog = Readonly<{
+  kind: 'llm'
   window: string
   efforts: readonly ReasoningEffort[]
-  enabled: boolean
+}>
+export type DecisionsCatalog = Readonly<{ kind: 'decisions'; maxQuestions?: string }>
+export type LiveCatalog = Readonly<{ kind: 'live'; maxSessionSeconds?: string }>
+export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog | LiveCatalog)
+export type CatalogKind = CatalogModel['kind']
+
+export const CATALOG_KINDS = ['llm', 'decisions', 'live'] as const satisfies readonly CatalogKind[]
+
+export type ProviderAccounting = Readonly<{
+  place: string
+  costUnit: string
+  generation?: Readonly<{ requestHeader: string; path: string }>
 }>
 
 export type ModelProviderBody = Readonly<{
   name: ProviderName
   endpoints: readonly ModelProviderEndpoint[]
-  accounting: Readonly<{ place: string; costUnit: string }>
+  accounting: ProviderAccounting
   credentials: readonly CredentialItemDeclaration[]
   models: readonly CatalogModel[]
 }>
 
-/** What a tenant chose over a catalog: the models that are on, and the default effort of some. */
+/** What a tenant chose over a catalog: the models of each kind that are on, and the default effort of some chat models. */
 export type ProviderPreferences = Readonly<{
-  enabled: ReadonlySet<string>
+  enabled: Readonly<Record<CatalogKind, ReadonlySet<string>>>
   efforts: ReadonlyMap<string, ReasoningEffort>
 }>
 
@@ -75,11 +90,12 @@ export type ModelProviderBodyRejection =
   | 'invalid-models'
 
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
+const HEADER_NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const CREDENTIALS_GROUP = 'credentials'
 const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
 
 const schemaRead = readBodyText(
-  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"enabled":"boolean"}]}}',
+  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string","generation":{"requestHeader":"string","path":"string"}},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"kind":"string","model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"maxQuestions":"string","enabled":"boolean"}]}}',
   {
     maxBytes: 2000,
     maxDepth: 8,
@@ -168,7 +184,7 @@ function endpointsOf(
     if (protocol === undefined || protocol === '') return 'invalid-protocol'
     if (out.some(item => item.protocol === protocol)) return 'duplicate-protocol'
     const url = stringField(entry, 'url')
-    if (url === undefined || !isHttpsUrl(url)) return 'invalid-endpoint'
+    if (url === undefined || !isEndpointUrl(url)) return 'invalid-endpoint'
     if (field(entry, 'endMarker') === undefined) {
       out.push({ protocol, url })
       continue
@@ -184,9 +200,23 @@ function accountingOf(value: JsonValue | undefined): ModelProviderBody['accounti
   if (!isObject(value)) return undefined
   const place = stringField(value, 'place')
   const costUnit = stringField(value, 'costUnit')
-  return place === undefined || place === '' || costUnit === undefined || costUnit === ''
+  if (place === undefined || place === '' || costUnit === undefined || costUnit === '')
+    return undefined
+  const stated = field(value, 'generation')
+  if (stated === undefined) return { place, costUnit }
+  const generation = generationOf(stated)
+  return generation === undefined ? undefined : { place, costUnit, generation }
+}
+
+function generationOf(value: JsonValue): ProviderAccounting['generation'] {
+  const requestHeader = stringField(value, 'requestHeader')
+  const path = stringField(value, 'path')
+  return requestHeader === undefined ||
+    !HEADER_NAME.test(requestHeader) ||
+    path === undefined ||
+    !path.startsWith('/')
     ? undefined
-    : { place, costUnit }
+    : { requestHeader, path }
 }
 
 function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[] | 'invalid' {
@@ -213,10 +243,11 @@ function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[
   return out
 }
 
-function isHttpsUrl(text: string): boolean {
+function isEndpointUrl(text: string): boolean {
   if (!URL.canParse(text)) return false
   const url = new URL(text)
-  return url.protocol === 'https:' && url.username === '' && url.password === '' && url.hash === ''
+  const scheme = url.protocol === 'https:' || url.protocol === 'wss:'
+  return scheme && url.username === '' && url.password === '' && url.hash === ''
 }
 
 function stringField(body: unknown, key: string): string | undefined {
@@ -244,12 +275,20 @@ const PREFERENCE_ITEMS = [
     category: 'preference' as const,
     presentation: {
       title: '启用的模型',
-      description: '这家供应商的每个模型开或关；没有设的按发行缺省。',
+      description: '这家供应商的每个模型按模型类型开或关；没有设的按发行缺省。',
       impact: '之后的模型列表与请求按新的开关；正在跑的调用不受影响。',
       clear: '清除之后每个模型回到发行缺省。',
       adoption: 'next-read' as const,
     },
-    valueSchema: { type: 'object', additionalProperties: { type: 'boolean' } },
+    valueSchema: {
+      type: 'object',
+      properties: {
+        llm: { type: 'object', additionalProperties: { type: 'boolean' } },
+        decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+        live: { type: 'object', additionalProperties: { type: 'boolean' } },
+      } satisfies Record<CatalogKind, unknown>,
+      additionalProperties: false,
+    },
     default: { kind: 'absent' as const },
     merge: 'override' as const,
     sensitivity: 'ordinary' as const,
@@ -348,18 +387,57 @@ function effortsOf(value: JsonValue | undefined): ReasoningEffort[] | undefined 
     : undefined
 }
 
+function llmCatalogOf(entry: JsonValue): LlmCatalog | undefined {
+  const window = stringField(entry, 'window')
+  const efforts = effortsOf(field(entry, 'efforts'))
+  if (window === undefined || !WINDOW.test(window) || efforts === undefined) return undefined
+  return { kind: 'llm', window, efforts }
+}
+
+function statedLimit(entry: JsonValue, name: string): { value?: string } | undefined {
+  if (field(entry, name) === undefined) return {}
+  const value = stringField(entry, name)
+  return value !== undefined && WINDOW.test(value) ? { value } : undefined
+}
+
+function decisionsCatalogOf(entry: JsonValue): DecisionsCatalog | undefined {
+  const limit = statedLimit(entry, 'maxQuestions')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'decisions' }
+    : { kind: 'decisions', maxQuestions: limit.value }
+}
+
+function liveCatalogOf(entry: JsonValue): LiveCatalog | undefined {
+  const limit = statedLimit(entry, 'maxSessionSeconds')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'live' }
+    : { kind: 'live', maxSessionSeconds: limit.value }
+}
+
+function ownCatalogOf(entry: JsonValue): LlmCatalog | DecisionsCatalog | LiveCatalog | undefined {
+  switch (stringField(entry, 'kind')) {
+    case 'llm':
+      return llmCatalogOf(entry)
+    case 'decisions':
+      return decisionsCatalogOf(entry)
+    case 'live':
+      return liveCatalogOf(entry)
+  }
+  return undefined
+}
+
 function catalogModelOf(entry: JsonValue): CatalogModel | undefined {
   const model = stringField(entry, 'model')
   const title = stringField(entry, 'title')
-  const window = stringField(entry, 'window')
   const enabled = field(entry, 'enabled')
   const input = modalitiesOf(field(entry, 'input'))
   const output = modalitiesOf(field(entry, 'output'))
-  const efforts = effortsOf(field(entry, 'efforts'))
-  if (!model || !title || window === undefined || !WINDOW.test(window)) return undefined
+  const own = ownCatalogOf(entry)
+  if (!model || !title || own === undefined) return undefined
   if (enabled?.kind !== 'boolean' || input === undefined || output === undefined) return undefined
-  if (efforts === undefined) return undefined
-  return { model, title, input, output, window, efforts, enabled: enabled.value }
+  return { model, title, input, output, enabled: enabled.value, ...own }
 }
 
 function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
@@ -367,7 +445,11 @@ function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
   const out: CatalogModel[] = []
   for (const entry of value.items) {
     const model = catalogModelOf(entry)
-    if (model === undefined || out.some(other => other.model === model.model)) return undefined
+    if (
+      model === undefined ||
+      out.some(other => other.kind === model.kind && other.model === model.model)
+    )
+      return undefined
     out.push(model)
   }
   return out
@@ -384,11 +466,16 @@ export function preferencesOf(
   switches: unknown,
   efforts: unknown,
 ): ProviderPreferences {
-  const enabled = new Set<string>()
+  const enabled: Record<CatalogKind, Set<string>> = {
+    llm: new Set(),
+    decisions: new Set(),
+    live: new Set(),
+  }
   const chosen = new Map<string, ReasoningEffort>()
   for (const entry of body.models) {
-    const on = entryOf(switches, entry.model)
-    if (typeof on === 'boolean' ? on : entry.enabled) enabled.add(entry.model)
+    const on = entryOf(entryOf(switches, entry.kind), entry.model)
+    if (typeof on === 'boolean' ? on : entry.enabled) enabled[entry.kind].add(entry.model)
+    if (entry.kind !== 'llm') continue
     const effort = entryOf(efforts, entry.model)
     const supported = entry.efforts.find(level => level === effort)
     if (supported !== undefined) chosen.set(entry.model, supported)

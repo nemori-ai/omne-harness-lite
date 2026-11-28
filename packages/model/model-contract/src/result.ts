@@ -109,6 +109,8 @@ export type Settlement = Readonly<{
   cursor: OutputCursor
   source: DurableEvidence
   replay?: SettledReplay
+  /** A live call: the number of its last event, unknown when its runtime was lost before it settled. */
+  events?: Readonly<{ last: number }> | 'unknown'
 }>
 export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released'
 /** Why no consumer will ever save a settled result: its receiver refused it, or it cannot be read. */
@@ -162,6 +164,7 @@ export type ControlState =
   | Readonly<{ kind: 'none' }>
   | Readonly<{
       kind: 'requested'
+      intent: 'cancel' | 'end'
       operation: ModelOperationId
       propagation: 'pending' | 'sent' | 'unavailable'
       upstream: 'unknown' | 'stopped' | 'completed'

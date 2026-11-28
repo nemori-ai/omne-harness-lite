@@ -38,7 +38,7 @@ function effortOf(parameters: readonly Parameter[]): DispatchEffort {
 }
 
 const effortField = (request: CallDocument['request']) =>
-  request === null ? {} : { effort: effortOf(request.parameters) }
+  request?.kind === 'llm' ? { effort: effortOf(request.parameters) } : {}
 
 export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): DispatchFactDraft {
   const { record } = dispatch
@@ -48,7 +48,7 @@ export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): 
     consumer: call.state.consumer,
     profile: call.request?.profile ?? null,
     supplier: record.supplier,
-    contextWindow: call.request?.contextWindow ?? null,
+    contextWindow: (call.request?.kind === 'llm' ? call.request.contextWindow : undefined) ?? null,
     instants: record.instants ?? NO_INSTANTS,
     send: dispatchSend(record),
     outcome: dispatchOutcome(dispatch.logicalTerminal ?? record.terminal),

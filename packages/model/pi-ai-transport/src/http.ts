@@ -149,9 +149,17 @@ function refusalOf(
 }
 
 export function isPlainHttpsUrl(url: unknown): url is URL {
+  return isPlainUrl(url, 'https:')
+}
+
+export function isPlainWssUrl(url: unknown): url is URL {
+  return isPlainUrl(url, 'wss:')
+}
+
+function isPlainUrl(url: unknown, protocol: string): url is URL {
   return (
     url instanceof URL &&
-    url.protocol === 'https:' &&
+    url.protocol === protocol &&
     url.username === '' &&
     url.password === '' &&
     url.search === '' &&

@@ -157,7 +157,7 @@ describe('the cost lookup over a network that fails', () => {
 })
 
 describe('the cost lookup of a transport', () => {
-  it('asks the generation endpoint on the origin of an OpenRouter route, with the secret of the route', async () => {
+  it('asks the path its accounting states on the origin of the route, with the secret of the route', async () => {
     answer = { status: 200, body: JSON.stringify(WHOLE) }
     const transport = transportOver(resources, {
       url: new URL('/api/v1/chat/completions', server.url).href,
@@ -172,7 +172,7 @@ describe('the cost lookup of a transport', () => {
     await transport.close()
   })
 
-  it('answers unsupported for a supplier with no route or a route not accounted at OpenRouter, and unavailable without a secret or once closed', async () => {
+  it('answers unsupported for a supplier with no route or a route whose accounting states no generation, and unavailable without a secret or once closed', async () => {
     const url = new URL('/api/v1/chat/completions', server.url).href
     const signal = new AbortController().signal
     const transport = transportOver(resources, { url })

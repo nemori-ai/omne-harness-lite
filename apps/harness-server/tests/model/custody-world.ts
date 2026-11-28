@@ -32,7 +32,7 @@ import {
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, testLiveHosting } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -40,7 +40,7 @@ import {
   decodeProviderName,
   encodeModelInvocationRef,
   type ConsumerRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelResultReceiver,
 } from '@omne-harness/model-contract'
@@ -50,6 +50,7 @@ import {
   type ModelDriveInput,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import {
   ModelClockService,
@@ -126,7 +127,8 @@ const CONFIGURATION: ModelConfiguration = {
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
 }
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {
@@ -531,7 +533,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: ANSWER,
@@ -541,6 +543,9 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential: (materialized, _value, signal) => materialized.start(signal),
           release: async () => {},
         },
@@ -579,6 +584,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
     declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
@@ -615,6 +621,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
           retry: records.memory.dependencies.retry,
           instances: given.host,
           clock: given.clock,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       ),

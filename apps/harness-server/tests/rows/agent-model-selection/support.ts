@@ -2,6 +2,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
   decodeProviderName,
+  chatNeedOf,
   decodeRevision,
   type Adoption,
   type DurableEvidence,
@@ -10,7 +11,7 @@ import {
   type ProfileResolution,
 } from '@omne-harness/model-contract'
 import { ModelProfilesService, modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
-import { createScriptedModelProfiles } from '@omne-harness/model-contract/testing'
+import { createScriptedModelProfiles, resolutionOf } from '@omne-harness/model-contract/testing'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -200,15 +201,16 @@ const must = <T>(outcome: Outcome<T, unknown>): T => {
   throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
 }
 
-export function profileOf(route: string): ModelProfile {
+export function profileOf(route: string): ModelProfile<'llm'> {
   const upstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: { kind: 'factory' }, route },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route },
     adoption: adoption(`profile-${route}`),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: 'active',
     definition: {
+      kind: 'llm',
       suppliers: [
         {
           adoption: adoption('supplier'),
@@ -235,9 +237,9 @@ export function profileOf(route: string): ModelProfile {
 }
 
 export const resolvedOf = (
-  profile: ModelProfile,
-  over: Partial<Extract<ProfileResolution, { kind: 'resolved' }>> = {},
-): ProfileResolution => ({
+  profile: ModelProfile<'llm'>,
+  over: Partial<Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>> = {},
+): ProfileResolution<'llm'> => ({
   kind: 'resolved',
   profile,
   source: evidenceOf(`profile/${profile.identity.route}`),
@@ -269,7 +271,7 @@ export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace =
         principal: sessionAccess.principal,
         tenant: sessionAccess.tenant,
         route,
-        required: textRequirement,
+        required: chatNeedOf(textRequirement),
       },
       answer,
     )
@@ -280,11 +282,14 @@ export function profilesDoubleRow(answers: ProfilesTable, trace: ProfilesTrace =
     constructor(ctx: Context) {
       super(ctx)
       this.list = input => scripted.profiles.list(input)
-      this.resolve = input => {
+      this.resolve = async input => {
         trace.resolves.push(input)
-        return typeof answers === 'function'
-          ? answers(input.route)
-          : scripted.profiles.resolve(input)
+        if (typeof answers !== 'function') return scripted.profiles.resolve(input)
+        const answered = await answers(input.route)
+        if (!('ok' in answered)) return answered
+        const narrowed = resolutionOf(answered.ok, input.required.kind)
+        if (narrowed === null) throw new Error('the answer is of another model kind')
+        return { ok: narrowed }
       }
     }
   }

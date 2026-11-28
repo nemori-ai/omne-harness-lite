@@ -1,3 +1,4 @@
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
   accountCodec,
@@ -11,7 +12,7 @@ import {
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, testLiveHosting } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -19,7 +20,7 @@ import {
   decodeResultVersion,
   encodeModelInvocationRef,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelDelivery,
   type ModelDeliveryFailure,
@@ -82,7 +83,8 @@ const CONFIGURATION: ModelConfiguration = {
   readIdleMs: 1000,
 }
 
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {
@@ -346,7 +348,7 @@ export function world(
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: ANSWER,
@@ -356,6 +358,9 @@ export function world(
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential: (materialized, _value, signal) => materialized.start(signal),
           release: async () => {},
         },
@@ -399,6 +404,7 @@ export function world(
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
     declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
@@ -439,6 +445,7 @@ export function world(
           instances: given.host,
           clock: given.clock,
           liveness: given.liveness,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       )

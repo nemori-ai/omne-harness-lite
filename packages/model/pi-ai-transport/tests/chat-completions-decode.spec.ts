@@ -14,9 +14,9 @@ import {
 } from '../src/chat-completions/index.ts'
 import { decodeBody } from '../src/fact-stream.ts'
 import { ResponseBodyReadError, ResponseBodyStoppedError } from '../src/http.ts'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { terminationOf } from '../src/termination.ts'
-import { GATEWAY_END_MARKER, replayStream } from '../src/testing/fixtures.ts'
+import { GATEWAY_END_MARKER, OPENROUTER_ACCOUNTING, replayStream } from '../src/testing/fixtures.ts'
 import {
   LIMITS,
   engineProbe,
@@ -39,7 +39,7 @@ type Options = Readonly<{
   usage?: VendorHooks['usage']
 }>
 
-function bind(options: Options = {}): PiFamilyBinding {
+function bind(options: Options = {}): PiChatBinding {
   const record = options.record ?? testRecord()
   const probe = engineProbe()
   const tested = testHooks(probe, options.reasoning ?? true)
@@ -86,7 +86,7 @@ function sse(...events: readonly (Record<string, unknown> | string)[]): Uint8Arr
 }
 
 async function replay(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   ...events: readonly (Record<string, unknown> | string)[]
 ): Promise<readonly TransportFact[]> {
   const facts = await replayStream(binding, sse(...events), REQUEST)
@@ -1080,7 +1080,7 @@ describe('account of a response that fails after its finish', () => {
       })(),
       decoder: bind({ usage: keeping }).createDecoder({
         request: REQUEST,
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        accounting: OPENROUTER_ACCOUNTING,
       }),
       endMarker: GATEWAY_END_MARKER,
       limits: { maxEventBytes: 65_536, json: LIMITS.toolArguments },
@@ -1162,7 +1162,7 @@ describe('account of a response that fails after its finish', () => {
   it('the decoder gives the account and the fault from end() after it refused a frame', () => {
     const decoder = bind({ usage: keeping }).createDecoder({
       request: REQUEST,
-      accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      accounting: OPENROUTER_ACCOUNTING,
     })
     const frame = (value: Record<string, unknown>) => {
       const read = readJsonText(JSON.stringify(value), LIMITS.toolArguments)
@@ -1297,7 +1297,7 @@ describe('end of the stream', () => {
   it('an ended decoder refuses every later frame and a second end', () => {
     const decoder = bind().createDecoder({
       request: REQUEST,
-      accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+      accounting: OPENROUTER_ACCOUNTING,
     })
     expect(decoder.accept({ kind: 'end-marker' })).toEqual({ ok: [] })
     expect(decoder.end()).toMatchObject({ failure: { cause: 'stream-lost' } })

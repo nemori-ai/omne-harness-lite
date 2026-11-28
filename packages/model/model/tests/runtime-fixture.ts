@@ -6,9 +6,10 @@ import {
   type SendResources,
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import {
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelInstanceId,
 } from '@omne-harness/model-contract'
@@ -54,7 +55,7 @@ export function runtimeFixture(
   handoff?: MemoryModelEvidence['handoff'],
   liveness?: ModelLiveness,
   retry?: ModelRetryPolicy<ReturnType<typeof fixture>['principal']>,
-  fallbacks: readonly FixedModelRequest['suppliers'][number][] = [],
+  fallbacks: readonly LlmModelRequest['suppliers'][number][] = [],
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -190,7 +191,7 @@ export function runtimeFixture(
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: [],
@@ -205,6 +206,9 @@ export function runtimeFixture(
               stream.resent.push([...dispatch.resent])
               return script.transport.prepare(request, supplier, dispatch)
             },
+          },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
           },
           startWithCredential() {
             stream.starts++

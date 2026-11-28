@@ -6,12 +6,13 @@ import type {
   MaterializedMedium,
   TransportFailure,
 } from '@omne-harness/model-contract'
-import type {
-  IndependentModelFact,
-  MaterializedTransport,
-  ModelTransport,
-  PreparedTransport,
-  TransportFact,
+import {
+  requestRepresentation,
+  type IndependentModelFact,
+  type MaterializedTransport,
+  type ModelTransport,
+  type PreparedTransport,
+  type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from './adoption.ts'
@@ -137,7 +138,7 @@ async function* execute(
   const supplier = request.suppliers[0]
   const expected = {
     supplier: copyAdoption(supplier.adoption),
-    representation: copyAdoption(request.representation),
+    representation: copyAdoption(requestRepresentation(request)),
   }
   let prepared: PreparedTransport | undefined
   let materialized: MaterializedTransport | undefined
@@ -178,7 +179,13 @@ async function* execute(
 
     const materialization = await preparation(async (): Promise<Sendable> => {
       const outcome = await preparationResult.ok.materialize(signal)
-      if ('ok' in outcome) return outcome
+      if ('ok' in outcome) {
+        const materialized = outcome.ok
+        if (!('open' in materialized)) return { ok: materialized }
+        await materialized.close()
+        const adapter = materialized.receipt.supplier
+        return fail({ kind: 'unsupported', field: 'request.kind', adapter })
+      }
       const { failure } = outcome
       return fail(failure.kind === 'media' ? mediaRefusal(failure).failure : failure)
     }, 'materialize')

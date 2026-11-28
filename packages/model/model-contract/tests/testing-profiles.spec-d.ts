@@ -1,6 +1,6 @@
 import { expectTypeOf, it } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
-import type { ModalityRequirement, ProfileResolution } from '@omne-harness/model-contract'
+import type { ModelNeed, ProfileResolution } from '@omne-harness/model-contract'
 import type { ModelChoices, ModelProfiles } from '@omne-harness/model-contract/provider'
 import {
   createScriptedModelProfiles,
@@ -18,7 +18,11 @@ class Agent {
 type Other = Readonly<{ id: number }>
 
 const access: Access<Agent> = { tenant, principal: new Agent() }
-const required: ModalityRequirement = { modalities: ['text', 'video'], source: evidence }
+const required: ModelNeed = {
+  kind: 'llm',
+  modalities: { input: ['text', 'video'] },
+  source: evidence,
+}
 const absent: ProfileResolution = { kind: 'absent', reason: 'unknown-name' }
 
 it('the profile double offers the business port of its own principal and keeps the controls apart', () => {

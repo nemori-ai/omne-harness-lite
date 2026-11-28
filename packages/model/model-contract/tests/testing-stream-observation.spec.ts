@@ -199,6 +199,7 @@ describe('an observation of a published Model stream', () => {
       blocks: [growing('0', 'a')],
       control: {
         kind: 'requested',
+        intent: 'cancel',
         operation: must(decodeModelOperationId('mop_cancel')),
         propagation: 'pending',
         upstream: 'unknown',

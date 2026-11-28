@@ -85,23 +85,26 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
       ctxWith(async () => [view('model-switches'), view('model-reasoning-efforts')]),
     )
     if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-    expect(answer.ok.enabled.size).toBe(25)
-    expect(answer.ok.enabled.has('openai/gpt-6.1-sol')).toBe(true)
+    expect(answer.ok.enabled.llm.size).toBe(25)
+    expect(answer.ok.enabled.decisions.size).toBe(3)
+    expect(answer.ok.enabled.llm.has('openai/gpt-6.1-sol')).toBe(true)
     expect(answer.ok.efforts.size).toBe(0)
   })
 
   it('takes the tenant’s switches and efforts, and only for this provider', async () => {
     const answer = await read(
       ctxWith(async () => [
-        view('model-switches', { 'openai/gpt-6.1-sol': false, 'moonshotai/kimi-k3': true }),
+        view('model-switches', {
+          llm: { 'openai/gpt-6.1-sol': false, 'moonshotai/kimi-k3': true },
+        }),
         view('model-reasoning-efforts', { 'anthropic/claude-opus-5.5': 'high' }),
-        view('model-switches', { 'anthropic/claude-opus-5.5': false }, 'elsewhere'),
+        view('model-switches', { llm: { 'anthropic/claude-opus-5.5': false } }, 'elsewhere'),
       ]),
     )
     if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-    expect(answer.ok.enabled.has('openai/gpt-6.1-sol')).toBe(false)
-    expect(answer.ok.enabled.has('moonshotai/kimi-k3')).toBe(true)
-    expect(answer.ok.enabled.has('anthropic/claude-opus-5.5')).toBe(true)
+    expect(answer.ok.enabled.llm.has('openai/gpt-6.1-sol')).toBe(false)
+    expect(answer.ok.enabled.llm.has('moonshotai/kimi-k3')).toBe(true)
+    expect(answer.ok.enabled.llm.has('anthropic/claude-opus-5.5')).toBe(true)
     expect([...answer.ok.efforts]).toEqual([['anthropic/claude-opus-5.5', 'high']])
   })
 
@@ -114,21 +117,21 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
     for (const views of [[], [{ ...view('model-switches'), kind: 'secret' as const }]]) {
       const answer = await read(ctxWith(async () => views))
       if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-      expect(answer.ok.enabled.size).toBe(25)
+      expect(answer.ok.enabled.llm.size + answer.ok.enabled.decisions.size).toBe(28)
     }
   })
 
   it('reads the tenant’s settings again only after a write of them', async () => {
-    let switches: Record<string, boolean> = { 'openai/gpt-6.1-sol': false }
+    let switches: Record<string, Record<string, boolean>> = { llm: { 'openai/gpt-6.1-sol': false } }
     const ctx = ctxWith(async () => [view('model-switches', switches)])
     const preferences = createProviderPreferences(ctx)
     const enabled = async () => {
       const answer = await preferences.read({ provider: openrouter, access })
       if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
-      return answer.ok.enabled.has('openai/gpt-6.1-sol')
+      return answer.ok.enabled.llm.has('openai/gpt-6.1-sol')
     }
     expect([await enabled(), await enabled(), ctx.settings.reads()]).toEqual([false, false, 1])
-    switches = { 'openai/gpt-6.1-sol': true }
+    switches = { llm: { 'openai/gpt-6.1-sol': true } }
     expect(await enabled()).toBe(false)
     ctx.settings.write()
     expect([await enabled(), ctx.settings.reads()]).toEqual([true, 2])

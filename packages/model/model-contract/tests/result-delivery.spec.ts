@@ -250,6 +250,45 @@ function aborted(): AbortSignal {
   return controller.signal
 }
 
+type LiveDelivery = Extract<ModelDelivery, { kind: 'live' }>
+const at = '2026-11-27T00:00:00.000Z'
+function liveDelivery(from: number, to: number, frames: LiveDelivery['frames']): LiveDelivery {
+  return {
+    kind: 'live',
+    key: { kind: 'live', reference: reference(), from, to },
+    consumer: { ...consumer },
+    frames,
+  }
+}
+const event = (seq: number) => ({ seq, at, event: { t: 'asleep', on: false } as const })
+const gap = (from: number, to: number) => ({ gap: { from, to } })
+
+describe('the frames of a live delivery against its key', () => {
+  it('takes frames that cover the key exactly, events and gaps in order', () => {
+    for (const delivery of [
+      liveDelivery(1, 1, [event(1)]),
+      liveDelivery(3, 7, [event(3), gap(4, 5), event(6), event(7)]),
+      liveDelivery(2, 4, [gap(2, 4)]),
+    ])
+      expect(judge(delivery)).toEqual({ ok: delivery })
+  })
+  it.each([
+    ['frames that start after the key', liveDelivery(1, 2, [event(2)])],
+    ['frames that start before the key', liveDelivery(2, 3, [event(1), event(2), event(3)])],
+    ['a number twice', liveDelivery(1, 2, [event(1), event(1), event(2)])],
+    ['a hole between two frames', liveDelivery(1, 3, [event(1), event(3)])],
+    ['frames that end before the key', liveDelivery(1, 3, [event(1), event(2)])],
+    ['frames that run past the key', liveDelivery(1, 1, [event(1), event(2)])],
+    ['no frame at all', liveDelivery(1, 0, [])],
+    ['a key that starts at zero', liveDelivery(0, 0, [event(0)])],
+    ['a gap that runs backwards', liveDelivery(1, 2, [event(1), gap(2, 1), event(2)])],
+    ['a number that is no integer', liveDelivery(1.5, 1.5, [event(1.5)])],
+    ['a gap that ends between two numbers', liveDelivery(1, 2.5, [gap(1, 2.5)])],
+  ])('refuses %s', (_case, delivery) => {
+    expect(judge(delivery)).toEqual({ failure: { field: 'frames', reason: 'range-mismatch' } })
+  })
+})
+
 describe('receiver qualification and original ownership', () => {
   it('R01 denies an unminted tenant before querying owner or key', async () => {
     const store = fixture()

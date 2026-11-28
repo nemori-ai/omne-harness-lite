@@ -22,7 +22,8 @@ import type {
 export type ModelRecipient = Readonly<{ route: string; profile: Adoption }>
 export type SelectedModel = Readonly<{
   recipient: ModelRecipient
-  resolution: Extract<M.ProfileResolution, { kind: 'resolved' }> & Readonly<{ selectable: true }>
+  resolution: Extract<M.ProfileResolution<'llm'>, { kind: 'resolved' }> &
+    Readonly<{ selectable: true }>
   parameters: readonly M.Parameter[]
   tools: DurableEvidence
   evidence: DurableEvidence
@@ -59,7 +60,7 @@ export type Preparation = Readonly<{
       }>
     | Readonly<{
         kind: 'ready'
-        request: M.FixedModelRequest
+        request: M.LlmModelRequest
         budget: DurableEvidence
         recipient: ModelRecipient
         coverage: DurableEvidence
@@ -93,7 +94,7 @@ export type CompactionAssessment =
   | Readonly<{ kind: 'cannot-fit'; diagnostic: string }>
 export type FinalRequest = Readonly<{
   preparation: ActionId
-  request: M.FixedModelRequest
+  request: M.LlmModelRequest
   recipient: ModelRecipient
   coverage: DurableEvidence
   alterations: readonly DurableEvidence[]

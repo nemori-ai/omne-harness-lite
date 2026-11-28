@@ -9,7 +9,7 @@ import {
   type ConsumerRef,
   type DurableEvidence,
   type ResultVersion,
-  type FixedModelRequest,
+  type LlmModelRequest,
   decodeProviderName,
 } from '@omne-harness/model-contract'
 import {
@@ -50,7 +50,8 @@ export function createAcceptanceAssembly(script: {
     digest: '0'.repeat(64),
   }
   const provider = decoded(decodeProviderName('acceptance.invalid'))
-  const request: FixedModelRequest = {
+  const request: LlmModelRequest = {
+    kind: 'llm',
     profile: adoption,
     suppliers: [
       {
@@ -231,12 +232,15 @@ export function createAcceptanceAssembly(script: {
                   close: () => prepared.ok.close(),
                   async materialize(signal) {
                     const result = await prepared.ok.materialize(signal)
-                    if ('ok' in result) owned = result.ok
+                    if ('ok' in result && 'start' in result.ok) owned = result.ok
                     return result
                   },
                 },
               }
             },
+          },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
           },
           startWithCredential(materialized, _syntheticCredential, signal) {
             if (materialized !== owned) throw new Error('Foreign acceptance materialization')

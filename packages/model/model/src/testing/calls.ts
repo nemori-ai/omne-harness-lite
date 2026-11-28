@@ -7,7 +7,7 @@ import type { MemoryState } from './state.ts'
 
 export function callCommands<P>(
   store: MemoryState<P>,
-): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
+): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'settle'> {
   return coreCallCommands(store.core)
 }
 export function recoveryCommands<P>(

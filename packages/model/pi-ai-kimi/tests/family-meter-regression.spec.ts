@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import type {
-  FixedModelRequest,
+  LlmModelRequest,
   MediaMeasurementFact,
   ModelProfile,
   MeterRepresentation,
 } from '@omne-harness/model-contract'
 import { decodeRevision } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
-import { composeFamilies, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
+import { composeFamilies, type PiChatBinding } from '@omne-harness/pi-ai-transport'
 import { officialKimiProfiles, KIMI_RECORDS } from '../src/index.ts'
 import { FAMILY } from './support/kimi.ts'
 const root = fileURLToPath(new URL('./fixtures/records/', import.meta.url))
@@ -23,14 +23,14 @@ function fixture(record: (typeof KIMI_RECORDS)[number]) {
     ),
   ) as { request: object }
 }
-function checked(value: object): FixedModelRequest {
-  const result = judgeFixedModelRequest(value)
+function checked(value: object): LlmModelRequest {
+  const result = judgeModelRequest('llm', value)
   if (!('ok' in result)) throw Error(JSON.stringify(result.failure))
   return result.ok
 }
 async function withBinding(
   record: (typeof KIMI_RECORDS)[number],
-  fn: (binding: PiFamilyBinding, request: FixedModelRequest) => Promise<void>,
+  fn: (binding: PiChatBinding, request: LlmModelRequest) => Promise<void>,
 ) {
   const request = checked(fixture(record).request),
     acquired = await composeFamilies([FAMILY]).acquire(
@@ -44,7 +44,7 @@ async function withBinding(
     await acquired.ok.release()
   }
 }
-function profile(request: FixedModelRequest): ModelProfile {
+function profile(request: LlmModelRequest): ModelProfile<'llm'> {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw Error('revision')
   const definition = officialKimiProfiles({
@@ -53,7 +53,7 @@ function profile(request: FixedModelRequest): ModelProfile {
   }).find(x => x.suppliers[0].model === request.suppliers[0].model)
   if (!definition) throw Error('profile')
   return {
-    identity: { scope: { kind: 'factory' }, route: request.suppliers[0].model },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: request.suppliers[0].model },
     adoption: request.profile,
     revision: revision.ok,
     updatedAt: '2026-11-23T00:00:00Z',
@@ -61,15 +61,15 @@ function profile(request: FixedModelRequest): ModelProfile {
     definition,
   }
 }
-async function planned(binding: PiFamilyBinding, request: FixedModelRequest) {
+async function planned(binding: PiChatBinding, request: LlmModelRequest) {
   const p = profile(request),
     out = binding.rules.plan({ profile: p, supplier: request.suppliers[0], assembled: request })
   if (!('ok' in out)) throw Error(JSON.stringify(out.failure))
   return { p, ...out.ok }
 }
 async function measured(
-  binding: PiFamilyBinding,
-  request: FixedModelRequest,
+  binding: PiChatBinding,
+  request: LlmModelRequest,
   media: readonly MediaMeasurementFact[] = [],
 ) {
   const plan = await planned(binding, request)
@@ -105,7 +105,7 @@ const fact: MediaMeasurementFact = {
   widthPixels: '112',
   heightPixels: '112',
 }
-function imageRequest(request: FixedModelRequest, count = 1) {
+function imageRequest(request: LlmModelRequest, count = 1) {
   const message = request.messages[0]
   if (!message) throw Error('fixture message')
   return checked({

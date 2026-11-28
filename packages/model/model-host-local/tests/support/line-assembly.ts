@@ -12,6 +12,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
+import { testLiveHosting } from '@omne-harness/model/testing'
 import type { ModelCommandsCoreOptions, ModelSendSource } from '@omne-harness/model/commands'
 import {
   decodeModelCallId,
@@ -19,6 +20,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type ModalityRequirement,
+  chatNeedOf,
   type ModelCallId,
   type ModelDelivery,
   type ModelFailure,
@@ -404,7 +406,7 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
+function sourcesOf(profile: ModelProfile<'llm'>): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
     supplier: supplier.adoption,
@@ -415,7 +417,7 @@ function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[]
   }))
 }
 
-export function durableCommands(storage: Storage, profile?: ModelProfile) {
+export function durableCommands(storage: Storage, profile?: ModelProfile<'llm'>) {
   return createSqlModelCommands<Principal>({
     ...coreOptions(),
     storage,
@@ -506,6 +508,7 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
     declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
@@ -597,7 +600,7 @@ export async function assembleLine(input: LineInput) {
     updatedAt: '2026-11-02T00:00:00Z',
   })
   const resolution = decoded(
-    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: REQUIRED }),
+    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: chatNeedOf(REQUIRED) }),
   )
   if (resolution.kind !== 'resolved') throw new Error(`the profile ${ROUTE} did not resolve`)
   const { profile } = resolution
@@ -689,6 +692,7 @@ export async function assembleLine(input: LineInput) {
           retry: NO_RETRY,
           instances: given.host,
           clock: given.clock,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       ),

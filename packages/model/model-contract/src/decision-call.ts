@@ -1,8 +1,7 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
-import { judgeMessage, type Message } from '@omne-harness/message'
 import type { ResultPart } from './call-surface.ts'
 import type { ModelBlock } from './result.ts'
-import type { Adoption, FixedModelRequest } from './root.ts'
+import type { Adoption } from './root.ts'
 
 export type DecisionJson =
   | string
@@ -53,9 +52,9 @@ export const DECISION_REPRESENTATION: Adoption = Object.freeze({
   digest: '6f03fde97adcc0f91ae9d6c6e8e887d71d685acd774bce8b7fdb2e7d91a93889',
 })
 
-const DECISION_ASK_BLOCK = 'decision-ask'
 const DECISION_ANSWERS_BLOCK = 'decision-answers'
 const ANSWER_TYPES = new Set(['refusal', 'noul', 'choice', 'score'])
+const QUESTION_KEYS = new Set(['type', 'instructions', 'criteria'])
 
 type Dict = Readonly<Record<string, unknown>>
 const isDict = (value: unknown): value is Dict =>
@@ -80,43 +79,52 @@ function parsed(text: string): unknown {
   }
 }
 
-/** The one message of a decision request: the ask as one block of text. Null when the id is no message id. */
-export function decisionAskMessage(id: string, ask: DecisionAsk): Message | null {
-  const judged = judgeMessage({
-    id,
-    role: 'user',
-    blocks: [
-      {
-        kind: 'text',
-        id: DECISION_ASK_BLOCK,
-        visibility: { toHuman: false, toModel: true },
-        text: decisionText(ask),
-      },
-    ],
-  })
-  return 'rejected' in judged ? null : judged.ok
+function isState(value: unknown): value is DecisionState {
+  return typeof value === 'string' || Array.isArray(value) || isDict(value)
 }
 
-/** The text of the one block of the one user message a decision request is; null for a request of any other shape. */
-function askTextOf(
-  request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>,
-): string | null {
-  const [message, ...more] = request.messages
-  if (message?.role !== 'user' || more.length > 0) return null
-  if (request.system.length > 0 || request.tools.length > 0) return null
-  const [block, ...rest] = message.blocks
-  if (block?.kind !== 'text' || rest.length > 0) return null
-  return block.id === DECISION_ASK_BLOCK ? block.text : null
+function isGuidance(value: unknown): boolean {
+  return value === null || isState(value)
 }
 
-/** The ask a fixed request carries, as it was written; null when the request is not one decision message. */
-export function decisionAskOf(
-  request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>,
-): Readonly<{ state: unknown; questions: unknown }> | null {
-  const text = askTextOf(request)
-  const ask = text === null ? null : parsed(text)
-  if (!isDict(ask) || Object.keys(ask).toSorted().join() !== 'questions,state') return null
-  return { state: ask.state, questions: ask.questions }
+function isQuestion(value: unknown): value is DecisionQuestion {
+  if (!isDict(value)) return false
+  if (Object.keys(value).some(key => !QUESTION_KEYS.has(key))) return false
+  if (value.instructions !== undefined && !isGuidance(value.instructions)) return false
+  const { criteria } = value
+  switch (value.type) {
+    case 'noul':
+      return (
+        criteria === undefined ||
+        (isDict(criteria) &&
+          Object.entries(criteria).every(
+            ([key, entry]) => (key === 'true' || key === 'false') && isGuidance(entry),
+          ))
+      )
+    case 'choice':
+      return (
+        isDict(criteria) &&
+        Object.keys(criteria).length > 0 &&
+        Object.values(criteria).every(isGuidance)
+      )
+    case 'score':
+      return Array.isArray(criteria) && criteria.length > 0 && criteria.every(isState)
+    default:
+      return false
+  }
+}
+
+function isAsk(value: unknown): value is DecisionAsk {
+  if (!isDict(value) || Object.keys(value).toSorted().join() !== 'questions,state') return false
+  const { state, questions } = value
+  if (!isState(state) || !isDict(questions)) return false
+  const named = Object.entries(questions)
+  return named.length > 0 && named.every(([name, asked]) => name.length > 0 && isQuestion(asked))
+}
+
+/** The ask as a caller may write it: one material and at least one named question of a known type; null otherwise. */
+export function judgeDecisionAsk(value: unknown): DecisionAsk | null {
+  return isAsk(value) ? value : null
 }
 
 /** The one block of a decision result: the answers by the name of their question. */

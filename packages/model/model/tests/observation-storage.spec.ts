@@ -74,7 +74,9 @@ it('refuses current while a write of the call is unknown and recovers once the c
   expect(await t.current()).toHaveProperty('ok')
   const control = { ...t.f.admit, operation: op('unknown-control') }
   t.memory.control.injectUnknown({ ...control, method: 'control', effect: 'not-applied' })
-  expect(await t.commands.control(control)).toMatchObject({ failure: { kind: 'commit-unknown' } })
+  expect(await t.commands.control({ ...control, intent: 'cancel' })).toMatchObject({
+    failure: { kind: 'commit-unknown' },
+  })
   expect(await t.current()).toEqual({
     failure: {
       kind: 'unavailable',

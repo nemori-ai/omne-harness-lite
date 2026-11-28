@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   mediaLimitMetric,
+  meetsNeed,
   profileProblems,
   type ModelProfileDefinition,
 } from '@omne-harness/model-contract'
@@ -21,7 +22,8 @@ const limit = (provided: string, finite?: string) => ({
 })
 const metric = (name: string, provided = '1024') => ({ metric: name, ...limit(provided) }) as never
 
-const GOOD: ModelProfileDefinition = {
+const GOOD: ModelProfileDefinition<'llm'> = {
+  kind: 'llm',
   suppliers: [supplier],
   fallback: false,
   input: ['text', 'image', 'voice'],
@@ -45,7 +47,7 @@ const GOOD: ModelProfileDefinition = {
   retryPolicy: adoption,
 }
 
-const withContext = (change: Partial<ModelProfileDefinition['context']>) => ({
+const withContext = (change: Partial<ModelProfileDefinition<'llm'>['context']>) => ({
   ...GOOD,
   context: { ...GOOD.context, ...change },
 })
@@ -115,7 +117,87 @@ describe('profileProblems', () => {
     ['voice without a duration limit', without('voice-duration-ms'), ['limits.voice-duration-ms']],
     ['file types without a file byte limit', without('file-bytes'), ['limits.file-bytes']],
   ])('names the field for %s', (_name, definition, fields) => {
-    expect(profileProblems(definition as ModelProfileDefinition)).toEqual(fields)
+    expect(profileProblems(definition as ModelProfileDefinition<'llm'>)).toEqual(fields)
+  })
+})
+
+const common = {
+  suppliers: [supplier],
+  fallback: false,
+  input: ['text'],
+  output: ['text'],
+  retryPolicy: adoption,
+} as const
+const decisions = (maxQuestions: string | null): ModelProfileDefinition<'decisions'> => ({
+  ...common,
+  kind: 'decisions',
+  maxQuestions,
+})
+const live = (maxSessionSeconds: string | null): ModelProfileDefinition<'live'> => ({
+  ...common,
+  kind: 'live',
+  input: ['voice', 'text'],
+  output: ['voice', 'text'],
+  voices: ['marin'],
+  audioFormats: ['pcm16'],
+  maxSessionSeconds,
+})
+
+describe('meetsNeed', () => {
+  const source = {} as never
+  it('is met only by a profile of the kind asked, that takes and gives every modality asked', () => {
+    expect(meetsNeed(GOOD, { kind: 'llm', source })).toBe(true)
+    expect(
+      meetsNeed(GOOD, {
+        kind: 'llm',
+        modalities: { input: ['image', 'voice'], output: ['text'] },
+        source,
+      }),
+    ).toBe(true)
+    expect(meetsNeed(GOOD, { kind: 'live', source })).toBe(false)
+    expect(meetsNeed(live(null), { kind: 'llm', source })).toBe(false)
+    expect(meetsNeed(GOOD, { kind: 'llm', modalities: { output: ['voice'] }, source })).toBe(false)
+    expect(
+      meetsNeed(decisions(null), { kind: 'decisions', modalities: { input: ['image'] }, source }),
+    ).toBe(false)
+    expect(
+      meetsNeed(live(null), {
+        kind: 'live',
+        modalities: { input: ['voice'], output: ['voice'] },
+        source,
+      }),
+    ).toBe(true)
+  })
+
+  it('takes a file type only when a chat profile takes it natively', () => {
+    expect(meetsNeed(GOOD, { kind: 'llm', fileTypes: ['application/pdf'], source })).toBe(true)
+    expect(meetsNeed(GOOD, { kind: 'llm', fileTypes: ['text/csv'], source })).toBe(false)
+    expect(meetsNeed(live(null), { kind: 'live', fileTypes: ['application/pdf'], source })).toBe(
+      false,
+    )
+  })
+})
+
+describe('profileProblems of a decisions and a live profile', () => {
+  it.each([
+    [null, []],
+    ['12', []],
+    ['0', ['maxQuestions']],
+    ['1.5', ['maxQuestions']],
+  ])(
+    'holds the question count of a decisions profile %s to a positive decimal',
+    (count, fields) => {
+      expect(profileProblems(decisions(count))).toEqual(fields)
+    },
+  )
+
+  it.each([
+    [null, []],
+    ['600', []],
+    ['0', ['maxSessionSeconds']],
+    ['ten', ['maxSessionSeconds']],
+  ])('holds the session length of a live profile %s to a positive decimal', (seconds, fields) => {
+    expect(profileProblems(live(seconds))).toEqual(fields)
   })
 })
 

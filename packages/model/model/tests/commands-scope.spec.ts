@@ -60,6 +60,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
     recall: c => c.recall({ ...access, call, admission: op('admit') }),
     scanPending: c => c.scanPending({ ...access, after: null, limit: 1 }),
     loadRecovery: c => c.loadRecovery({ ...access, call }),
+    loadControl: c => c.loadControl({ ...access, call }),
     loadOrigin: c => c.loadOrigin({ ...access, call }),
     loadRequest: c => c.loadRequest({ ...access, call }),
     claim: c =>
@@ -110,7 +111,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
       }),
     settle: c =>
       c.settle({ ...write('settle'), termination: { kind: 'completed', reason: 'stop' } }),
-    control: c => c.control({ ...access, call, operation: op('control') }),
+    control: c => c.control({ ...access, call, operation: op('control'), intent: 'cancel' }),
     acquireRead: c =>
       c.acquireRead({
         ...access,
@@ -153,14 +154,14 @@ function everyMethod(f: ReturnType<typeof fixture>) {
   return calls
 }
 
-it('every one of the 26 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
+it('every one of the 27 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
   const f = fixture()
   const text = tenantCodec.encode(f.tenant)
   if (!text.ok) throw new Error('fixture tenant')
   const writes: readonly string[] = MODEL_WRITE_METHODS
   const calls = everyMethod(f)
   const methods = Object.keys(calls) as (keyof typeof calls)[]
-  expect(methods).toHaveLength(26)
+  expect(methods).toHaveLength(27)
   for (const method of methods) {
     const { commands, scopes } = recording(f)
     await calls[method](commands)

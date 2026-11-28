@@ -33,6 +33,7 @@ describe('assets/v1 lists the official assets every tenant holds', () => {
 
         const providers = await everyRow(assets, tenant, 'model-provider')
         expect(providers.map(row => [row.name, row.origin, row.enabled])).toEqual([
+          ['openai', 'official', true],
           ['openrouter', 'official', true],
         ])
         const converters = await everyRow(assets, tenant, 'converter')
@@ -71,7 +72,7 @@ describe('assets/v1 lists the official assets every tenant holds', () => {
           ['model-switches', expect.anything(), expect.anything()],
         ])
 
-        const [provider] = providers
+        const provider = providers.find(row => row.name === 'openrouter')
         if (provider === undefined) throw new Error('no provider row')
         expect(
           await assets['set-asset-enabled']({

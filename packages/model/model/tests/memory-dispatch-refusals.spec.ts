@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeDispatchId,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MaterializationReceipt,
 } from '@omne-harness/model-contract'
 import { type TransportFact } from '@omne-harness/model-contract/provider'
@@ -26,14 +26,14 @@ const second = {
   credential: { layer: 'official' },
 } as const
 
-const twoSuppliers: FixedModelRequest = {
+const twoSuppliers: LlmModelRequest = {
   ...request,
   suppliers: [request.suppliers[0], second],
   fallback: true,
   declarations: [request.declarations[0], request.declarations[0]],
 }
 
-async function claimed(fixed: FixedModelRequest = request) {
+async function claimed(fixed: LlmModelRequest = request) {
   const f = fixture()
   const admit = { ...f.admit, request: fixed }
   const { commands } = createMemoryModelCommands(f.options)

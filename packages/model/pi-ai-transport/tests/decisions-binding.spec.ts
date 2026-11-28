@@ -1,25 +1,40 @@
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import {
+  DECISION_REPRESENTATION,
   decisionAnswersOf,
-  decisionAskMessage,
   type DecisionAsk,
+  type DecisionsModelRequest,
   type FixedModelRequest,
   type Supplier,
 } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
-import {
-  decisionBinding,
-  decisionSupplierOf,
-  isDecisionSupplier,
-} from '../src/decisions/binding.ts'
+import { bindDecisions } from '../src/decisions/binding.ts'
+import { prepareDecision } from '../src/decisions/codec.ts'
+import { recordAdoption, recordProvider } from '../src/family-table.ts'
+import { isLiveSend, sendOf } from '../src/send.ts'
 import { LIMITS, REQUEST } from './support/test-family.ts'
 
 const MODEL = 'openai/gpt-6-luna-decisions'
-const known = decisionSupplierOf(MODEL)
-if (known === undefined) throw new Error('no supplier of the decision model')
-const SUPPLIER: Supplier = { ...known, credential: { layer: 'official' } }
-const ACCOUNTING = { place: 'openrouter', costUnit: 'openrouter-credit' }
+const OWNER = 'test-decisions'
+const RECORD = {
+  name: MODEL,
+  revision: '1',
+  route: { provider: 'openrouter', model: MODEL },
+  status: 'current',
+  decisions: { maxQuestions: '2' },
+} as const
+const SUPPLIER: Supplier = {
+  adoption: recordAdoption(OWNER, RECORD),
+  provider: recordProvider(RECORD),
+  model: MODEL,
+  credential: { layer: 'official' },
+}
+const ACCOUNTING = {
+  place: 'openrouter',
+  costUnit: 'openrouter-credit',
+  generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+}
 const ask: DecisionAsk = {
   state: { goal: 'faster home page' },
   questions: {
@@ -32,73 +47,127 @@ const answers = {
   X1: { type: 'noul', noul: 0.1 },
 }
 
-function requestOf(asked: DecisionAsk = ask): FixedModelRequest {
-  const message = decisionAskMessage(`msg_${'d'.repeat(40)}`, asked)
-  if (message === null) throw new Error('no message')
-  return { ...REQUEST, suppliers: [SUPPLIER], messages: [message] }
+function requestOf(asked: DecisionAsk = ask): DecisionsModelRequest {
+  return {
+    kind: 'decisions',
+    profile: REQUEST.profile,
+    suppliers: [SUPPLIER],
+    fallback: false,
+    retryPolicy: REQUEST.retryPolicy,
+    ask: asked,
+    source: REQUEST.source,
+  }
 }
-const binding = () => decisionBinding(SUPPLIER, { maxRequestBytes: 4096, json: LIMITS.json })
+const binding = () => bindDecisions(OWNER, RECORD, SUPPLIER, 'decisions')
+const pairing = (
+  request: FixedModelRequest = requestOf(),
+  maxDecisionBytes: number | undefined = 4096,
+) => sendOf(binding(), request, 0, { maxDecisionBytes, json: LIMITS.json })
+const send = (request?: FixedModelRequest, maxDecisionBytes?: number) => {
+  const paired = pairing(request, maxDecisionBytes)
+  if (!('ok' in paired) || isLiveSend(paired.ok)) throw new Error(JSON.stringify(paired))
+  return paired.ok
+}
 const frameOf = (body: unknown) => {
   const read = readJsonText(JSON.stringify(body), LIMITS.json)
   if (read.kind !== 'ok') throw new Error('no frame')
   return { kind: 'data', value: read.value } as const
 }
-const decoder = () =>
-  binding().createDecoder({ request: requestOf(), accounting: ACCOUNTING } as never)
+const decoder = () => send().createDecoder(ACCOUNTING)
 const factsOf = (step: { ok: readonly TransportFact[] } | { failure: unknown }) => {
   if (!('ok' in step)) throw new Error(JSON.stringify(step))
   return step.ok
 }
 
-describe('the supplier of a decision model', () => {
-  it('is known by its model, and is the one a request names only with this provider and this exact adoption', () => {
-    expect(decisionSupplierOf('openai/gpt-5.6-sol-pro')).toBeUndefined()
-    expect(isDecisionSupplier(SUPPLIER)).toBe(true)
-    expect(SUPPLIER.adoption).toMatchObject({
-      owner: '@omne-harness/pi-ai-transport/decisions',
-      name: MODEL,
-      revision: '1',
+describe('the binding of a decisions record', () => {
+  it('is the data of the record for its supplier, and holds nothing to release', async () => {
+    const made = binding()
+    expect(made).toMatchObject({
+      supplier: SUPPLIER,
+      adoption: SUPPLIER.adoption,
+      endpoint: 'decisions',
+      maxQuestions: 2,
     })
-    expect(isDecisionSupplier({ ...SUPPLIER, model: 'openai/gpt-5.6-sol-pro' })).toBe(false)
-    expect(isDecisionSupplier({ ...SUPPLIER, provider: 'another' as never })).toBe(false)
-    for (const field of ['owner', 'name', 'revision', 'digest'] as const) {
-      const adoption = { ...SUPPLIER.adoption, [field]: 'another' }
-      expect(isDecisionSupplier({ ...SUPPLIER, adoption })).toBe(false)
-    }
+    await expect(made.release()).resolves.toBeUndefined()
+  })
+
+  it('states no limit on the questions when the record states none', () => {
+    const unlimited = { ...RECORD, decisions: { maxQuestions: null } }
+    expect(bindDecisions(OWNER, unlimited, SUPPLIER, 'decisions').maxQuestions).toBeNull()
+  })
+
+  it('pairs only with a decisions request, and only when the assembly gave a byte limit', () => {
+    const adapter = SUPPLIER.adoption
+    expect(pairing({ ...REQUEST, suppliers: [SUPPLIER] })).toEqual({
+      failure: { kind: 'unsupported', field: 'request.kind', adapter },
+    })
+    const unlimited = { maxDecisionBytes: undefined, json: LIMITS.json }
+    expect(sendOf(binding(), requestOf(), 0, unlimited)).toEqual({
+      failure: { kind: 'unsupported', field: 'limits.decisions', adapter },
+    })
   })
 })
 
 describe('the body of a decision dispatch', () => {
   it('is the ask of the request under the model of the supplier, on the decisions endpoint', () => {
-    const made = binding()
+    const made = send()
     expect(made.endpoint).toBe('decisions')
     expect(made.adoption).toEqual(SUPPLIER.adoption)
-    const encoded = made.encode({ request: requestOf() } as never)
+    const encoded = made.encode([], [])
     if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded))
     expect(JSON.parse(writeJsonText(encoded.ok.body))).toEqual({ model: MODEL, ...ask })
   })
 
-  it('carries nothing of a replay and no media, and has no decoder for a request that is no decision', () => {
-    const made = binding()
-    const encoded = made.encode({ request: requestOf() } as never)
+  it('carries nothing of a replay and no media, and is written in the one form of a decision call', async () => {
+    const made = send()
+    const encoded = made.encode([], [])
     if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded))
     expect(encoded.ok).toMatchObject({ diagnostics: [], replayPrefix: '', replayCarried: false })
     expect(made.replayFormat).toBeNull()
-    expect(made.mediaLimits({} as never)).toBeNull()
-    expect(() => made.createDecoder({ request: REQUEST, accounting: ACCOUNTING } as never)).toThrow(
-      'not the decision that was encoded',
-    )
+    expect(made.representation).toEqual(DECISION_REPRESENTATION)
+    expect(await made.media(undefined, new AbortController().signal)).toEqual({ ok: [] })
   })
 
-  it('is refused for a request that is no decision, or one over the byte limit', () => {
-    const chat = binding().encode({ request: REQUEST } as never)
-    expect(chat).toEqual({
-      failure: { kind: 'invalid', field: 'request', reason: 'not-a-decision' },
-    })
-    const tight = decisionBinding(SUPPLIER, { maxRequestBytes: 16, json: LIMITS.json })
-    expect(tight.encode({ request: requestOf() } as never)).toMatchObject({
-      failure: { reason: 'not-a-decision' },
-    })
+  it('is refused for an ask over the byte limit, or one with more questions than the record takes', () => {
+    const refused = { failure: { kind: 'invalid', field: 'request', reason: 'not-a-decision' } }
+    const tight = send(requestOf(), 16)
+    expect(tight.encode([], [])).toEqual(refused)
+    expect(() => tight.createDecoder(ACCOUNTING)).toThrow('not the decision that was encoded')
+    const third = { ...ask.questions, X2: { type: 'noul' as const } }
+    expect(send(requestOf({ ...ask, questions: third })).encode([], [])).toEqual(refused)
+  })
+})
+
+describe('the request of a decision, as it is fixed before it is sent', () => {
+  const limits = { maxRequestBytes: 4096, maxQuestions: null }
+  const request = { model: MODEL, ...ask }
+
+  it('is the text of the model and the ask, with the questions the answer is checked against', () => {
+    const fixed = prepareDecision(request, limits)
+    expect(fixed?.questions).toEqual(ask.questions)
+    expect(JSON.parse(fixed?.body.toString('utf8') ?? 'null')).toEqual(request)
+  })
+
+  it('fits at exactly the byte limit, and not one byte under it', () => {
+    const bytes = prepareDecision(request, limits)?.body.byteLength ?? 0
+    expect(bytes).toBeGreaterThan(0)
+    expect(prepareDecision(request, { ...limits, maxRequestBytes: bytes })).not.toBeNull()
+    expect(prepareDecision(request, { ...limits, maxRequestBytes: bytes - 1 })).toBeNull()
+  })
+
+  it.each([
+    ['a model that is no text', { ...request, model: 5 }],
+    ['an empty model', { ...request, model: '' }],
+    ['a member beside the model and the ask', { ...request, extra: true }],
+    ['an ask without questions', { model: MODEL, state: 'text' }],
+  ])('is nothing for %s', (_name, value) => {
+    expect(prepareDecision(value as never, limits)).toBeNull()
+  })
+
+  it('takes any number of questions without a limit, and no more than a stated limit', () => {
+    expect(prepareDecision(request, { ...limits, maxQuestions: null })).not.toBeNull()
+    expect(prepareDecision(request, { ...limits, maxQuestions: 2 })).not.toBeNull()
+    expect(prepareDecision(request, { ...limits, maxQuestions: 1 })).toBeNull()
   })
 })
 

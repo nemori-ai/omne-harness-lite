@@ -4,26 +4,29 @@ import { savedTenant } from '../r9/support.ts'
 import { tenantOf } from './protocol-clients.ts'
 import type { ReleaseTree } from './release-tree.ts'
 
-const OPENROUTER = { kind: 'asset', category: 'model-provider', name: 'openrouter' } as const
+const providerAsset = (name: string) =>
+  ({ kind: 'asset', category: 'model-provider', name }) as const
 
 const objectOf = (entries: Readonly<Record<string, JsonValue>>): JsonValue => ({
   kind: 'object',
   entries: Object.entries(entries).map(([key, value]) => ({ key, value })),
 })
 
-// Writes one of the two model settings of OpenRouter for the tenant, the way the assets page writes it.
+// Writes one of the two model settings of a provider for the tenant, the way the assets page writes it.
 async function setModelSetting(
   tree: ReleaseTree,
   item: 'model-switches' | 'model-reasoning-efforts',
   entries: Readonly<Record<string, JsonValue>>,
+  provider = 'openrouter',
 ): Promise<void> {
   const tenant = tenantOf(savedTenant(tree.home))
   const assets = tree.clients.assets
-  const current = await assets['describe-setting']({ tenant, owner: OPENROUTER, item })
+  const owner = providerAsset(provider)
+  const current = await assets['describe-setting']({ tenant, owner, item })
   if (current.outcome !== 'succeeded') throw new Error(`describe: ${current.outcome}`)
   const written = await assets['set-setting']({
     tenant,
-    owner: OPENROUTER,
+    owner,
     item,
     operation: `${item}-${current.body.item.revision}-${Object.keys(entries).join('-')}`,
     expectedRevision: current.body.item.revision,
@@ -32,14 +35,24 @@ async function setModelSetting(
   expect(written).toMatchObject({ outcome: 'succeeded' })
 }
 
-/** Sets the tenant's on and off for some models of OpenRouter. */
-export const setModelSwitches = (tree: ReleaseTree, on: Readonly<Record<string, boolean>>) =>
+/** Sets the tenant's on and off for some models of one kind of a provider: chat models of OpenRouter unless named. */
+export const setModelSwitches = (
+  tree: ReleaseTree,
+  on: Readonly<Record<string, boolean>>,
+  kind: 'llm' | 'decisions' = 'llm',
+  provider = 'openrouter',
+) =>
   setModelSetting(
     tree,
     'model-switches',
-    Object.fromEntries(
-      Object.entries(on).map(([model, value]) => [model, { kind: 'boolean', value }]),
-    ),
+    {
+      [kind]: objectOf(
+        Object.fromEntries(
+          Object.entries(on).map(([model, value]) => [model, { kind: 'boolean', value }]),
+        ),
+      ),
+    },
+    provider,
   )
 
 /** Sets the tenant's default reasoning effort for some models of OpenRouter. */

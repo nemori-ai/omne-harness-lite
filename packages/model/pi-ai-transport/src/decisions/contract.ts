@@ -7,15 +7,10 @@ import type {
 
 export type { DecisionAnswer, DecisionQuestion, DecisionState }
 
-/** OpenRouter's common text/JSON Decisions vocabulary for Jev and GPT-6 Luna. */
-export const OPENROUTER_DECISION_MODELS = Object.freeze([
-  'typesafe/jev-1.13',
-  'typesafe/jev-1.14',
-  'openai/gpt-6-luna-decisions',
-] as const)
-export type DecisionModel = (typeof OPENROUTER_DECISION_MODELS)[number]
-
-export type DecisionRequest = DecisionAsk & Readonly<{ model: DecisionModel }>
+/** The body of one decisions request: the ask, and the model that answers it. */
+export type DecisionRequest = DecisionAsk & Readonly<{ model: string }>
+/** What bounds one request: the bytes the assembly allows, and the questions the model takes. */
+export type DecisionLimits = Readonly<{ maxRequestBytes: number; maxQuestions: number | null }>
 
 export type DecisionResponse = Readonly<{
   id?: string

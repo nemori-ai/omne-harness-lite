@@ -32,12 +32,22 @@ export declare const modelProtocol: {
                         readonly defaultReasoningEffort?: "high" | "low" | "medium" | "xhigh";
                         readonly enabled?: boolean;
                         readonly input: readonly ("image" | "text" | "voice")[];
+                        readonly kind?: "decisions" | "live" | "llm";
                         readonly output: readonly ("image" | "text" | "voice")[];
                         readonly reasoningEfforts?: readonly ("high" | "low" | "medium" | "xhigh")[];
                         readonly reasons: readonly ("locked" | "modality" | "scope")[];
                         readonly route: string;
                         readonly selectable: boolean;
                     }[];
+                    readonly supply?: {
+                        readonly by?: "credential" | "locked" | "no-offering" | "not-enabled" | "scope";
+                        readonly models?: readonly {
+                            readonly provider: string;
+                            readonly route: string;
+                        }[];
+                        readonly providers?: readonly string[];
+                        readonly state: "blocked" | "ready" | "unknown";
+                    };
                 }>;
                 readonly "basis-unavailable": true;
                 readonly denied: true;
@@ -47,6 +57,7 @@ export declare const modelProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly kind?: "decisions" | "live" | "llm";
                 readonly session?: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;

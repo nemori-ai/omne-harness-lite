@@ -15,7 +15,7 @@ import {
   decodeModelOperationId,
   decodeProviderName,
   encodeModelInvocationRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelRuntime,
 } from '@omne-harness/model-contract'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -69,7 +69,8 @@ const REFERENCE = must(
   encodeModelInvocationRef({ tenant: TENANT, call: CALL, admission: ADMISSION }),
 )
 const ADOPTION = { owner: 'o', name: 'lost-contact', revision: '1', digest: '0'.repeat(64) }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {

@@ -38,6 +38,9 @@
 - `DecisionJson` · `decision-call.d.ts`
 - `DecisionQuestion` · `decision-call.d.ts`
 - `DecisionState` · `decision-call.d.ts`
+- `DecisionsModelRequest` · `root.d.ts`
+- `DecisionsProfile` · `profile.d.ts`
+- `DecisionsRequest` · `root.d.ts`
 - `DispatchEffort` · `dispatch-facts.d.ts`
 - `DispatchId` · `root.d.ts`
 - `DispatchInstants` · `call-surface.d.ts`
@@ -49,17 +52,36 @@
 - `GrowingContentKind` · `call-surface.d.ts`
 - `Handoff` · `result.d.ts`
 - `Identity` · `root.d.ts`
+- `KIND_TRAITS` · `model-kind.d.ts`
+- `KindTraits` · `model-kind.d.ts`
 - `LIMIT_METRICS` · `profile.d.ts`
+- `LIVE_REPRESENTATION` · `live-call.d.ts`
 - `LimitMetric` · `profile.d.ts`
+- `LiveCommand` · `live-call.d.ts`
+- `LiveCommandOutcome` · `live-call.d.ts`
+- `LiveCommandReceipt` · `live-call.d.ts`
+- `LiveEvent` · `live-call.d.ts`
+- `LiveFrame` · `live-call.d.ts`
+- `LiveMedia` · `live-call.d.ts`
+- `LiveModelRequest` · `root.d.ts`
+- `LivePhaseRefusal` · `live-call.d.ts`
+- `LiveProfile` · `profile.d.ts`
+- `LiveRequest` · `root.d.ts`
 - `LiveRoute` · `call-surface.d.ts`
+- `LlmModelRequest` · `root.d.ts`
+- `LlmProfile` · `profile.d.ts`
+- `LlmRequest` · `root.d.ts`
 - `Lookup` · `result.d.ts`
 - `MODEL_IDENTITY_MAX_LENGTH` · `identity-values.d.ts`
 - `MODEL_IDENTITY_PREFIXES` · `identity-values.d.ts`
+- `MODEL_KINDS` · `model-kind.d.ts`
 - `MODEL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
 - `MaterializationReceipt` · `provider-protocol.d.ts`
 - `MaterializedMedium` · `provider-protocol.d.ts`
 - `Measurement` · `profile.d.ts`
+- `MediaFrame` · `live-call.d.ts`
 - `MediaMeasurementFact` · `profile.d.ts`
+- `MediaWrite` · `live-call.d.ts`
 - `MeterRepresentation` · `profile.d.ts`
 - `ModalityRequirement` · `profile.d.ts`
 - `ModelAccountSnapshot` · `result-delivery-values.d.ts`
@@ -93,8 +115,11 @@
 - `ModelInstanceId` · `root.d.ts`
 - `ModelInvocationParts` · `reference.d.ts`
 - `ModelInvocationRef` · `reference.d.ts`
+- `ModelKind` · `model-kind.d.ts`
 - `ModelLimit` · `profile.d.ts`
+- `ModelLiveCalls` · `live-call.d.ts`
 - `ModelModality` · `profile.d.ts`
+- `ModelNeed` · `profile.d.ts`
 - `ModelOperationId` · `root.d.ts`
 - `ModelOutputV1` · `model-output-v1.d.ts`
 - `ModelOutputV1Delta` · `model-output-v1.d.ts`
@@ -126,9 +151,13 @@
 - `Parameter` · `root.d.ts`
 - `ParameterAdoption` · `profile.d.ts`
 - `PreparationLineage` · `profile-source.d.ts`
+- `ProfileCommon` · `profile.d.ts`
 - `ProfileIdentity` · `profile.d.ts`
+- `ProfileKind` · `profile.d.ts`
+- `ProfileListInput` · `profile.d.ts`
 - `ProfileReplay` · `profile.d.ts`
 - `ProfileResolution` · `profile.d.ts`
+- `ProfileResolveInput` · `profile.d.ts`
 - `ProfileScope` · `profile.d.ts`
 - `ProfileSupplier` · `profile.d.ts`
 - `ProviderName` · `root.d.ts`
@@ -141,6 +170,7 @@
 - `ReplayDeclaration` · `profile.d.ts`
 - `Reply` · `result.d.ts`
 - `RequestBudget` · `profile.d.ts`
+- `RequestCommon` · `root.d.ts`
 - `ResultPage` · `call-surface.d.ts`
 - `ResultPart` · `call-surface.d.ts`
 - `ResultTrim` · `call-surface.d.ts`
@@ -163,12 +193,11 @@
 - `VisibleBlock` · `call-surface.d.ts`
 - `accountUndelivered` · `cost-lookup.d.ts`
 - `applyModelStreamDelta` · `model-stream-values.d.ts`
+- `chatNeedOf` · `profile.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
 - `costLookupOf` · `cost-lookup.d.ts`
 - `decisionAnswersBlock` · `decision-call.d.ts`
 - `decisionAnswersOf` · `decision-call.d.ts`
-- `decisionAskMessage` · `decision-call.d.ts`
-- `decisionAskOf` · `decision-call.d.ts`
 - `decodeDispatchId` · `identity-values.d.ts`
 - `decodeModelCallId` · `identity-values.d.ts`
 - `decodeModelDiagnosticCursor` · `identity-values.d.ts`
@@ -188,13 +217,16 @@
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
 - `faultProblem` · `fault-shape.d.ts`
+- `isModelKind` · `model-kind.d.ts`
 - `isNativeFileType` · `profile.d.ts`
+- `isProfileOf` · `profile.d.ts`
 - `isReasoningEffort` · `root.d.ts`
+- `judgeDecisionAsk` · `decision-call.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `judgeModelParameters` · `profile-codec.d.ts`
 - `judgeToolDeclarations` · `profile-codec.d.ts`
 - `mediaLimitMetric` · `profile.d.ts`
-- `profileCovers` · `profile.d.ts`
+- `meetsNeed` · `profile.d.ts`
 - `profileProblems` · `profile-problems.d.ts`
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
@@ -210,6 +242,7 @@
 - `ConformanceAction` · `conformance/conformance-types.d.ts`
 - `ConformanceCall` · `conformance/conformance-types.d.ts`
 - `ConformanceHooks` · `conformance/conformance-types.d.ts`
+- `ConformanceLive` · `conformance/conformance-types.d.ts`
 - `ConformanceObligation` · `conformance/conformance-types.d.ts`
 - `ConformanceOptions` · `conformance/conformance-types.d.ts`
 - `ConformanceReport` · `conformance/conformance-types.d.ts`
@@ -239,6 +272,7 @@
 - `CallAccountReport` · `provider-protocol.d.ts`
 - `CallOrigin` · `provider-protocol.d.ts`
 - `CommitQuery` · `provider-protocol.d.ts`
+- `ControlRecord` · `provider-protocol.d.ts`
 - `CostLookupAnswer` · `provider-protocol.d.ts`
 - `CredentialFailure` · `credential.d.ts`
 - `CredentialItemState` · `credential.d.ts`
@@ -253,9 +287,13 @@
 - `FixedRequestHead` · `root.d.ts`
 - `IndependentModelFact` · `provider-protocol.d.ts`
 - `LateDispatchFact` · `provider-protocol.d.ts`
+- `LiveFact` · `provider-protocol.d.ts`
+- `LiveInput` · `provider-protocol.d.ts`
+- `LiveSession` · `provider-protocol.d.ts`
 - `MODEL_INPUT_LIMITS` · `input-tree.d.ts`
 - `MODEL_SEND` · `credential.d.ts`
 - `MaterializeFailure` · `provider-protocol.d.ts`
+- `MaterializedLiveTransport` · `provider-protocol.d.ts`
 - `MaterializedTransport` · `provider-protocol.d.ts`
 - `MediaRefusal` · `provider-protocol.d.ts`
 - `MeterCalibration` · `profile.d.ts`
@@ -275,6 +313,7 @@
 - `ModelInputRejection` · `judge-request.d.ts`
 - `ModelInstanceDirectory` · `provider-protocol.d.ts`
 - `ModelInstanceHost` · `provider-protocol.d.ts`
+- `ModelLivePreparation` · `live-preparation.d.ts`
 - `ModelMedia` · `provider-protocol.d.ts`
 - `ModelMediaFailure` · `provider-protocol.d.ts`
 - `ModelMediaLimits` · `provider-protocol.d.ts`
@@ -290,6 +329,7 @@
 - `ModelRequestPreparation` · `profile.d.ts`
 - `ModelRetryPolicy` · `provider-protocol.d.ts`
 - `ModelSendBoundary` · `provider-protocol.d.ts`
+- `ModelSupply` · `supply.d.ts`
 - `ModelTextTokenizer` · `tokenizer.d.ts`
 - `ModelToolPayloadAdapter` · `provider-protocol.d.ts`
 - `ModelTransport` · `provider-protocol.d.ts`
@@ -320,23 +360,32 @@
 - `encodeModelOperationRef` · `reference.d.ts`
 - `judgeAdmit` · `judge-request.d.ts`
 - `judgeFixedModelRequest` · `judge-request.d.ts`
+- `judgeModelRequest` · `judge-request.d.ts`
 - `judgeReplayDeclaration` · `replay-values.d.ts`
 - `projectReplay` · `replay-values.d.ts`
 - `readCredentialLayer` · `credential-values.d.ts`
 - `requestHead` · `request-head.d.ts`
+- `requestRepresentation` · `request-head.d.ts`
 - `resolveModelOperationRef` · `reference.d.ts`
 - `selectCredentialLayer` · `credential-values.d.ts`
+- `supplyOf` · `supply.d.ts`
 
 ## 入口 `./provider-asset` · `provider-asset.d.ts`
 
+- `CATALOG_KINDS` · `provider-asset.d.ts`
+- `CatalogKind` · `provider-asset.d.ts`
 - `CatalogModel` · `provider-asset.d.ts`
 - `CredentialItemDeclaration` · `provider-asset.d.ts`
+- `DecisionsCatalog` · `provider-asset.d.ts`
+- `LiveCatalog` · `provider-asset.d.ts`
+- `LlmCatalog` · `provider-asset.d.ts`
 - `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
 - `MODEL_REASONING_EFFORTS` · `provider-asset.d.ts`
 - `MODEL_SWITCHES` · `provider-asset.d.ts`
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
 - `ModelProviderEndpoint` · `provider-asset.d.ts`
+- `ProviderAccounting` · `provider-asset.d.ts`
 - `ProviderPreferences` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
 - `modelProviderCategoryDisplay` · `provider-asset.d.ts`
@@ -379,6 +428,7 @@
 - `ScriptedTransportEnding` · `testing/transport.d.ts`
 - `ScriptedTransportScript` · `testing/transport.d.ts`
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
+- `createLiveDouble` · `testing/live.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
 - `createScriptedCredentialPort` · `testing/credential.d.ts`
 - `createScriptedModelProfiles` · `testing/profiles.d.ts`
@@ -388,6 +438,8 @@
 - `createScriptedStreamObservation` · `testing/stream-observation.d.ts`
 - `createScriptedStreamReferences` · `testing/stream-references.d.ts`
 - `createScriptedTransport` · `testing/transport.d.ts`
+- `ofKind` · `testing/values.d.ts`
+- `resolutionOf` · `testing/profile-values.d.ts`
 
 ## 声明文件 `call-surface.d.ts`
 
@@ -567,11 +619,11 @@ export declare function controlChecks<P>(): readonly Check<P>[];
 ## 声明文件 `conformance/conformance-defaults.d.ts`
 
 ```ts
-import type { ConsumerRef, FixedModelRequest, Supplier } from '../index.ts';
+import type { ConsumerRef, FixedModelRequest, LlmModelRequest, Supplier } from '../index.ts';
 export declare const DEFAULT_SUPPLIER: Supplier;
-export declare const DEFAULT_REQUEST: FixedModelRequest;
+export declare const DEFAULT_REQUEST: LlmModelRequest;
 export declare const DEFAULT_CONSUMER: ConsumerRef;
-export declare function variantOf(request: FixedModelRequest): FixedModelRequest;
+export declare function variantOf<R extends FixedModelRequest>(request: R): R;
 ```
 
 ## 声明文件 `conformance/conformance-kit.d.ts`
@@ -706,6 +758,13 @@ export declare function replaceFact(index: string, value: string): TransportFact
 export declare function sealFact(index: string, block: ModelBlock): TransportFact;
 ```
 
+## 声明文件 `conformance/conformance-live.d.ts`
+
+```ts
+import type { Check } from './conformance-types.ts';
+export declare function liveChecks<P>(): readonly Check<P>[];
+```
+
 ## 声明文件 `conformance/conformance-observation.d.ts`
 
 ```ts
@@ -806,6 +865,7 @@ export declare function transportChecks<P>(): readonly Check<P>[];
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ConsumerRef, DispatchId, DurableEvidence, FixedModelRequest, ResultPart, ModelCallId, ModelInstanceId, ModelOperationId, Supplier, Termination } from '../index.ts';
+import type { ModelLiveCalls } from '../live-call.ts';
 import type { ModelProvider, ModelTransport, TransportFact } from '../provider/index.ts';
 export type ConformanceCall = Readonly<{
     tenant: TenantId;
@@ -854,6 +914,14 @@ export type ConformanceTransport = Readonly<{
     request?: FixedModelRequest;
     supplier?: Supplier;
 }>;
+export type ConformanceLive<P> = Readonly<{
+    calls: ModelLiveCalls<P>;
+    admit(label: string): Promise<ConformanceCall>;
+    upstream(input: ConformanceCall & Readonly<{
+        step: 'open' | 'close';
+    }>): Promise<void>;
+    loseBody(input: ConformanceCall): Promise<void>;
+}>;
 export type ConformanceSubject<P> = Readonly<{
     provider: ModelProvider<P>;
     principal: P;
@@ -863,6 +931,7 @@ export type ConformanceSubject<P> = Readonly<{
     consumer?: ConsumerRef;
     hooks?: ConformanceHooks<P>;
     transport?: ConformanceTransport;
+    live?: ConformanceLive<P>;
     dispose?(): Promise<void>;
 }>;
 export declare const CONFORMANCE_OBLIGATIONS: readonly [
@@ -923,7 +992,17 @@ export declare const CONFORMANCE_OBLIGATIONS: readonly [
     'materialization-receipt-matches-request',
     'fact-stream-ends-once',
     'interruption-is-confirmed',
-    'transport-close-is-idempotent'
+    'transport-close-is-idempotent',
+    'live-command-before-open-refused',
+    'live-command-taken-once',
+    'live-command-outside-profile-refused',
+    'live-command-after-settle-refused',
+    'live-end-before-open-refused',
+    'live-end-durable-and-idempotent',
+    'live-end-after-settle-idempotent',
+    'live-media-by-phase-and-modality',
+    'live-call-of-another-tenant-unknown',
+    'live-lost-body-unavailable'
 ];
 export type ConformanceObligation = (typeof CONFORMANCE_OBLIGATIONS)[number];
 export type ObligationResult = Readonly<{
@@ -945,7 +1024,7 @@ export type Scene<P> = Readonly<{
     consumer: ConsumerRef;
     waitMs: number;
 }>;
-export type Requirement = HookName | 'transport';
+export type Requirement = HookName | 'transport' | 'live';
 export type Check<P> = Readonly<{
     name: ConformanceObligation;
     requires: readonly Requirement[];
@@ -1051,7 +1130,7 @@ export declare function checkCredentialPortConformance<P>(options: CredentialCon
 ```ts
 export { checkModelProviderConformance } from './conformance.ts';
 export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts';
-export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
+export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceLive, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
 export { checkCredentialPortConformance } from './credential.ts';
 export { CREDENTIAL_CONFORMANCE_OBLIGATIONS } from './credential-types.ts';
 export type { CredentialConformanceControls, CredentialConformanceSubject, CredentialConformanceObligation, CredentialConformanceResult, CredentialConformanceReport, CredentialConformanceOptions, CredentialTarget, } from './credential-types.ts';
@@ -1153,10 +1232,9 @@ export type ModelPreferencesPort<P = unknown> = {
 ## 声明文件 `decision-call.d.ts`
 
 ```ts
-import { type Message } from '@omne-harness/message';
 import type { ResultPart } from './call-surface.ts';
 import type { ModelBlock } from './result.ts';
-import type { Adoption, FixedModelRequest } from './root.ts';
+import type { Adoption } from './root.ts';
 export type DecisionJson = string | number | boolean | null | {
     readonly [key: string]: DecisionJson;
 } | readonly DecisionJson[];
@@ -1197,11 +1275,7 @@ export type DecisionAnswer = Readonly<{
 }>;
 export type DecisionAnswers = Readonly<Record<string, DecisionAnswer>>;
 export declare const DECISION_REPRESENTATION: Adoption;
-export declare function decisionAskMessage(id: string, ask: DecisionAsk): Message | null;
-export declare function decisionAskOf(request: Pick<FixedModelRequest, 'system' | 'messages' | 'tools'>): Readonly<{
-    state: unknown;
-    questions: unknown;
-}> | null;
+export declare function judgeDecisionAsk(value: unknown): DecisionAsk | null;
 export declare function decisionAnswersBlock(answers: DecisionAnswers): ModelBlock;
 export declare function decisionAnswersOf(parts: readonly ResultPart[]): DecisionAnswers | null;
 ```
@@ -1211,14 +1285,13 @@ export declare function decisionAnswersOf(parts: readonly ResultPart[]): Decisio
 ```ts
 import type { DecisionAsk } from './decision-call.ts';
 import type { Reply } from './result.ts';
-import type { Access, Adoption, FixedModelRequest } from './root.ts';
+import type { Access, Adoption, DecisionsModelRequest } from './root.ts';
 export interface ModelDecisionPreparation<P> {
     prepare(input: Access<P> & Readonly<{
         model: string;
-        message: string;
         ask: DecisionAsk;
         source: Adoption;
-    }>): Reply<FixedModelRequest>;
+    }>): Reply<DecisionsModelRequest>;
 }
 ```
 
@@ -1429,8 +1502,10 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ReasoningEffort, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ReasoningEffort, RequestCommon, LlmRequest, DecisionsRequest, LlmModelRequest, DecisionsModelRequest, LiveModelRequest, LiveRequest, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export { REASONING_EFFORTS, isReasoningEffort } from './root.ts';
+export { KIND_TRAITS, MODEL_KINDS, isModelKind } from './model-kind.ts';
+export type { KindTraits, ModelKind } from './model-kind.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
 export { faultProblem } from './fault-shape.ts';
@@ -1448,11 +1523,13 @@ export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from 
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
 export type * from './decision-call.ts';
-export { DECISION_REPRESENTATION, decisionAnswersBlock, decisionAnswersOf, decisionAskMessage, decisionAskOf, } from './decision-call.ts';
+export { DECISION_REPRESENTATION, decisionAnswersBlock, decisionAnswersOf, judgeDecisionAsk, } from './decision-call.ts';
 export type * from './dispatch-facts.ts';
+export type * from './live-call.ts';
+export { LIVE_REPRESENTATION } from './live-call.ts';
 export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
-export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
-export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, profileCovers, supportedReasoningEfforts, } from './profile.ts';
+export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelNeed, ProfileListInput, ProfileResolveInput, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, LlmProfile, DecisionsProfile, LiveProfile, ProfileKind, ParameterAdoption, ProfileCommon, ProfileIdentity, ProfileReplay, ProfileResolution, ReasoningEffortMapping, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export { isNativeFileType, LIMIT_METRICS, mediaLimitMetric, OVER_LIMIT_METRICS, chatNeedOf, isProfileOf, meetsNeed, supportedReasoningEfforts, } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
@@ -1516,7 +1593,106 @@ export type ModelAdmitCandidate<P> = Access<P> & Readonly<{
     consumer: unknown;
 }>;
 export declare function judgeFixedModelRequest(value: unknown): Outcome<FixedModelRequest, ModelInputRejection>;
+export declare function judgeModelRequest<K extends FixedModelRequest['kind']>(kind: K, value: unknown): Outcome<Extract<FixedModelRequest, {
+    kind: K;
+}>, ModelInputRejection>;
 export declare function judgeAdmit<P>(value: ModelAdmitCandidate<P>): Outcome<Admit<P>, ModelInputRejection>;
+```
+
+## 声明文件 `live-call.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { ModelModality } from './profile.ts';
+import type { ControlState, Reply } from './result.ts';
+import type { Adoption, CallAccess, ModelOperationId, Mutation } from './root.ts';
+export declare const LIVE_REPRESENTATION: Adoption;
+export type LiveCommand = Readonly<{
+    type: 'say';
+    use: 'directive' | 'context' | 'speak';
+    about: string | null;
+    content: readonly ContentBlock[];
+}>;
+export type LiveCommandOutcome = 'accepted' | Readonly<{
+    rejected: Readonly<{
+        code: string | null;
+        message: string;
+    }>;
+}>;
+export type LiveCommandReceipt = Readonly<{
+    state: 'taken';
+}> | Readonly<{
+    state: 'seen';
+    outcome: LiveCommandOutcome | 'pending';
+}>;
+export type LivePhaseRefusal = 'not-open' | 'closing' | 'settled';
+export type LiveEvent = Readonly<{
+    t: 'started';
+    expiresAt: string | null;
+}> | Readonly<{
+    t: 'transcript';
+    who: 'caller' | 'model';
+    startMs: number;
+    endMs: number;
+    text: string;
+}> | Readonly<{
+    t: 'delegation';
+    id: string;
+    offsetMs: number;
+}> | Readonly<{
+    t: 'asleep';
+    on: boolean;
+}> | Readonly<{
+    t: 'command';
+    id: ModelOperationId;
+    outcome: LiveCommandOutcome;
+}>;
+export type LiveFrame = Readonly<{
+    seq: number;
+    at: string;
+    event: LiveEvent;
+}> | Readonly<{
+    gap: Readonly<{
+        from: number;
+        to: number;
+    }>;
+}>;
+export type MediaFrame = Readonly<{
+    modality: ModelModality;
+    bytes: Uint8Array;
+}>;
+export type MediaWrite = 'sent' | 'dropped' | Readonly<{
+    refused: 'modality';
+}>;
+export type LiveMedia = Readonly<{
+    write(frame: MediaFrame): MediaWrite;
+    frames: AsyncIterable<MediaFrame>;
+    release(): void;
+}>;
+export interface ModelLiveCalls<P> {
+    command(input: Mutation<P> & Readonly<{
+        command: LiveCommand;
+    }>): Reply<LiveCommandReceipt>;
+    end(input: Mutation<P>): Reply<ControlState>;
+    media(input: CallAccess<P>): Reply<LiveMedia>;
+}
+```
+
+## 声明文件 `live-preparation.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { Reply } from './result.ts';
+import type { Access, Adoption, LiveModelRequest } from './root.ts';
+export interface ModelLivePreparation<P> {
+    prepare(input: Access<P> & Readonly<{
+        model: string;
+        instructions: string;
+        history?: readonly Message[];
+        voice?: string;
+        source: Adoption;
+    }>): Reply<LiveModelRequest>;
+}
 ```
 
 ## 声明文件 `mint.d.ts`
@@ -1527,6 +1703,36 @@ import type { ModelInvocationRef, ModelOperationRef } from './reference.ts';
 export declare function mintIdentity<K extends ModelIdentityKey>(text: string): Identity<K>;
 export declare function mintInvocationReference(text: string): ModelInvocationRef;
 export declare function mintOperationReference(text: string): ModelOperationRef;
+```
+
+## 声明文件 `model-kind.d.ts`
+
+```ts
+export declare const MODEL_KINDS: readonly [
+    'llm',
+    'decisions',
+    'live'
+];
+export type ModelKind = (typeof MODEL_KINDS)[number];
+export declare function isModelKind(value: unknown): value is ModelKind;
+export type KindTraits = Readonly<{
+    input: boolean;
+    usage: 'token' | 'second';
+}>;
+export declare const KIND_TRAITS: {
+    readonly llm: {
+        readonly input: false;
+        readonly usage: 'token';
+    };
+    readonly decisions: {
+        readonly input: false;
+        readonly usage: 'token';
+    };
+    readonly live: {
+        readonly input: true;
+        readonly usage: 'second';
+    };
+};
 ```
 
 ## 声明文件 `model-output-v1-blocks.d.ts`
@@ -1694,11 +1900,11 @@ export interface ModelStreamReferences<P> {
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import { type ProfileResolution } from './profile.ts';
+import { type ProfileKind, type ProfileResolution } from './profile.ts';
 import { type Parameter, type ToolDeclaration } from './root.ts';
 import type { ModelInputRejection } from './judge-request.ts';
 export declare function profileResolutionValue(value: ProfileResolution): Outcome<unknown, ModelInputRejection>;
-export declare function readProfileResolution(value: unknown): Outcome<ProfileResolution, ModelInputRejection>;
+export declare function readProfileResolution<K extends ProfileKind>(value: unknown, kind: K): Outcome<ProfileResolution<K>, ModelInputRejection>;
 export declare function judgeModelParameters(value: unknown): Outcome<readonly Parameter[], ModelInputRejection>;
 export declare function judgeToolDeclarations(value: unknown): Outcome<readonly ToolDeclaration[], ModelInputRejection>;
 ```
@@ -1737,7 +1943,7 @@ export interface ModelProfileSource<P> {
 }
 export interface ModelRequestRules {
     plan(input: Readonly<{
-        profile: ModelProfile;
+        profile: ModelProfile<'llm'>;
         supplier: Supplier;
         assembled: AssembledModelInput;
     }>): Outcome<Readonly<{
@@ -1773,7 +1979,7 @@ export type PreparationLineage = Readonly<{
 }>;
 export interface ModelPreparationResources<P> {
     acquire(input: Access<P> & Readonly<{
-        profile: ModelProfile;
+        profile: ModelProfile<'llm'>;
         lineage?: PreparationLineage;
     }>): Reply<ModelPreparationLease>;
 }
@@ -1800,7 +2006,8 @@ import { type Modality } from '@omne-harness/modality';
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block';
 import type { Message, MessageId } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { Access, Adoption, FixedModelRequest, ModelOperationId, Parameter, ReasoningEffort, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { Access, Adoption, LlmModelRequest, LlmRequest, ModelOperationId, Parameter, ReasoningEffort, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { ModelKind } from './model-kind.ts';
 import type { DurableEvidence, Reply } from './result.ts';
 import type { CommitQuery, TransportFailure } from './provider-protocol.ts';
 import type { ModelCountingBasis } from './tokenizer.ts';
@@ -1816,6 +2023,7 @@ export type ProfileScope = Readonly<{
 }>;
 export type ProfileIdentity = Readonly<{
     scope: ProfileScope;
+    kind: ModelKind;
     route: string;
 }>;
 export declare const LIMIT_METRICS: readonly [
@@ -1877,8 +2085,8 @@ export type ProfileSupplier = Omit<Supplier, 'credential'> & Readonly<{
     replay?: ProfileReplay;
 }>;
 export type ReasoningEffortMapping = Readonly<Partial<Record<ReasoningEffort, ReasoningEffort | 'max'>>>;
-export declare function supportedReasoningEfforts(definition: Pick<ModelProfileDefinition, 'reasoningEfforts'>): readonly ReasoningEffort[];
-export type ModelProfileDefinition = Readonly<{
+export declare function supportedReasoningEfforts(definition: Pick<LlmProfile, 'reasoningEfforts'>): readonly ReasoningEffort[];
+export type ProfileCommon = Readonly<{
     suppliers: readonly [
         ProfileSupplier,
         ...ProfileSupplier[]
@@ -1888,27 +2096,50 @@ export type ModelProfileDefinition = Readonly<{
         ModelModality,
         ...ModelModality[]
     ];
-    fileTypes?: readonly string[];
     output: readonly [
         ModelModality,
         ...ModelModality[]
     ];
+    retryPolicy: Adoption;
+}>;
+export type LlmProfile = Readonly<{
+    kind: 'llm';
+    fileTypes?: readonly string[];
     context: ContextLimits;
     limits: readonly ModelLimit[];
     parameters: readonly Parameter[];
     reasoningEfforts?: ReasoningEffortMapping;
     representation: Adoption;
     meter: Adoption;
-    retryPolicy: Adoption;
 }>;
-export type ModelProfile = Readonly<{
+export type DecisionsProfile = Readonly<{
+    kind: 'decisions';
+    maxQuestions: string | null;
+}>;
+export type LiveProfile = Readonly<{
+    kind: 'live';
+    voices: readonly string[];
+    audioFormats: readonly [
+        string,
+        ...string[]
+    ];
+    maxSessionSeconds: string | null;
+}>;
+export type ProfileKind = ModelKind;
+export type ModelProfileDefinition<K extends ProfileKind = ProfileKind> = Readonly<{
+    llm: ProfileCommon & LlmProfile;
+    decisions: ProfileCommon & DecisionsProfile;
+    live: ProfileCommon & LiveProfile;
+}>[K];
+export type ModelProfile<K extends ProfileKind = ProfileKind> = Readonly<{
     identity: ProfileIdentity;
     adoption: Adoption;
     revision: Revision;
     updatedAt: string;
     availability: 'active' | 'withdrawn';
-    definition: ModelProfileDefinition;
+    definition: ModelProfileDefinition<K>;
 }>;
+export declare function isProfileOf<K extends ProfileKind>(profile: ModelProfile, kind: K): profile is ModelProfile<K>;
 export type ModalityRequirement = Readonly<{
     modalities: readonly [
         Modality,
@@ -1919,10 +2150,20 @@ export type ModalityRequirement = Readonly<{
 }>;
 export declare function mediaLimitMetric(mediaType: string): 'image-bytes' | 'voice-bytes' | 'file-bytes';
 export declare function isNativeFileType(value: string): boolean;
-export declare function profileCovers(definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>, required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>): boolean;
-export type ProfileResolution = Readonly<{
+export type ModelNeed<K extends ProfileKind = ProfileKind> = Readonly<{
+    kind: K;
+    modalities?: Readonly<{
+        input?: readonly Modality[];
+        output?: readonly Modality[];
+    }>;
+    fileTypes?: readonly string[];
+    source: DurableEvidence;
+}>;
+export declare function chatNeedOf(content: ModalityRequirement): ModelNeed<'llm'>;
+export declare function meetsNeed(definition: ModelProfileDefinition, need: ModelNeed): boolean;
+export type ProfileResolution<K extends ProfileKind = ProfileKind> = Readonly<{
     kind: 'resolved';
-    profile: ModelProfile;
+    profile: ModelProfile<K>;
     source: DurableEvidence;
     selectable: boolean;
     reasons: readonly ('modality' | 'locked' | 'scope' | 'not-enabled')[];
@@ -1933,23 +2174,25 @@ export type ProfileResolution = Readonly<{
     kind: 'absent';
     reason: 'unknown-name' | 'withdrawn' | 'excluded';
 }>;
-export type ModelChoices = Readonly<{
-    choices: readonly ProfileResolution[];
+export type ModelChoices<K extends ProfileKind = ProfileKind> = Readonly<{
+    choices: readonly ProfileResolution<K>[];
     selected: Readonly<{
         route: string;
-        resolution: ProfileResolution;
+        resolution: ProfileResolution<K>;
     }> | null;
     source: DurableEvidence;
 }>;
+export type ProfileListInput<P, K extends ProfileKind = ProfileKind> = Access<P> & Readonly<{
+    selected: string | null;
+    required: ModelNeed<K>;
+}>;
+export type ProfileResolveInput<P, K extends ProfileKind = ProfileKind> = Access<P> & Readonly<{
+    route: string;
+    required: ModelNeed<K>;
+}>;
 export interface ModelProfiles<P> {
-    list(input: Access<P> & Readonly<{
-        selected: string | null;
-        required: ModalityRequirement;
-    }>): Reply<ModelChoices>;
-    resolve(input: Access<P> & Readonly<{
-        route: string;
-        required: ModalityRequirement;
-    }>): Reply<ProfileResolution>;
+    list<K extends ProfileKind>(input: ProfileListInput<P, K>): Reply<ModelChoices<K>>;
+    resolve<K extends ProfileKind>(input: ProfileResolveInput<P, K>): Reply<ProfileResolution<K>>;
 }
 export type ProfileChange = Readonly<{
     kind: 'create';
@@ -2054,7 +2297,7 @@ export type AssembledModelInput = Readonly<{
     system: readonly ContentBlock[];
     messages: readonly Message[];
     tools: readonly ToolDeclaration[];
-    toolChoice: FixedModelRequest['toolChoice'];
+    toolChoice: LlmRequest['toolChoice'];
     parameters: readonly Parameter[];
     replay?: 'off';
     representation: Adoption;
@@ -2062,10 +2305,10 @@ export type AssembledModelInput = Readonly<{
 }>;
 export interface ModelRequestPreparation<P> {
     prepare(input: Access<P> & Readonly<{
-        profile: ModelProfile;
+        profile: ModelProfile<'llm'>;
         required: ModalityRequirement;
         assembled: AssembledModelInput;
-    }>): Reply<FixedModelRequest>;
+    }>): Reply<LlmModelRequest>;
 }
 export type MediaMeasurementFact = Readonly<{
     reference: ContentReference;
@@ -2172,27 +2415,50 @@ export type ModelProviderEndpoint = Readonly<{
     url: string;
     endMarker?: string;
 }>;
-export type CatalogModel = Readonly<{
+type CatalogCommon = Readonly<{
     model: string;
     title: string;
     input: readonly ModelModality[];
     output: readonly ModelModality[];
+    enabled: boolean;
+}>;
+export type LlmCatalog = Readonly<{
+    kind: 'llm';
     window: string;
     efforts: readonly ReasoningEffort[];
-    enabled: boolean;
+}>;
+export type DecisionsCatalog = Readonly<{
+    kind: 'decisions';
+    maxQuestions?: string;
+}>;
+export type LiveCatalog = Readonly<{
+    kind: 'live';
+    maxSessionSeconds?: string;
+}>;
+export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog | LiveCatalog);
+export type CatalogKind = CatalogModel['kind'];
+export declare const CATALOG_KINDS: readonly [
+    "llm",
+    "decisions",
+    "live"
+];
+export type ProviderAccounting = Readonly<{
+    place: string;
+    costUnit: string;
+    generation?: Readonly<{
+        requestHeader: string;
+        path: string;
+    }>;
 }>;
 export type ModelProviderBody = Readonly<{
     name: ProviderName;
     endpoints: readonly ModelProviderEndpoint[];
-    accounting: Readonly<{
-        place: string;
-        costUnit: string;
-    }>;
+    accounting: ProviderAccounting;
     credentials: readonly CredentialItemDeclaration[];
     models: readonly CatalogModel[];
 }>;
 export type ProviderPreferences = Readonly<{
-    enabled: ReadonlySet<string>;
+    enabled: Readonly<Record<CatalogKind, ReadonlySet<string>>>;
     efforts: ReadonlyMap<string, ReasoningEffort>;
 }>;
 export declare const MODEL_SWITCHES = "model-switches";
@@ -2202,6 +2468,7 @@ export declare function parseModelProviderBody(body: unknown, capabilityName?: s
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;
 export declare function preferencesOf(body: ModelProviderBody, switches: unknown, efforts: unknown): ProviderPreferences;
+export {};
 ```
 
 ## 声明文件 `provider-name.d.ts`
@@ -2220,6 +2487,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
 import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, FixedRequestHead, ModelCallId, ModelInstanceId, ModelOperationId, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
+import type { LiveCommand, LiveCommandOutcome, LiveEvent, MediaFrame } from './live-call.ts';
 import type { AbandonInput, AbandonReceipt, AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { ConnectRetryReason, DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
@@ -2363,8 +2631,44 @@ export interface MaterializedTransport {
     start(signal: AbortSignal): AsyncIterable<TransportFact>;
     close(): Promise<void>;
 }
+export type LiveFact = Readonly<{
+    kind: 'opened';
+    expiresAt: string | null;
+}> | Readonly<{
+    kind: 'event';
+    event: Extract<LiveEvent, {
+        t: 'transcript' | 'delegation' | 'asleep';
+    }>;
+}> | Readonly<{
+    kind: 'command';
+    id: ModelOperationId;
+    outcome: LiveCommandOutcome;
+}> | Readonly<{
+    kind: 'media';
+    frame: MediaFrame;
+}> | Readonly<{
+    kind: 'account';
+    event: string;
+    value: CallAccountReport;
+}> | Readonly<{
+    kind: 'closed';
+}>;
+export interface LiveInput {
+    send(command: LiveCommand, id: ModelOperationId): 'sent' | 'closed';
+    media(frame: MediaFrame): 'sent' | 'dropped';
+    close(): void;
+}
+export type LiveSession = Readonly<{
+    facts: AsyncIterable<LiveFact>;
+    input: LiveInput;
+}>;
+export interface MaterializedLiveTransport {
+    readonly receipt: MaterializationReceipt;
+    open(signal: AbortSignal): LiveSession;
+    close(): Promise<void>;
+}
 export interface PreparedTransport {
-    materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, MaterializeFailure>>;
+    materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport | MaterializedLiveTransport, MaterializeFailure>>;
     close(): Promise<void>;
 }
 export type TransportDispatch = Readonly<{
@@ -2438,6 +2742,10 @@ export type RecoveryRecord = Readonly<{
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
+export type ControlRecord = Readonly<{
+    state: CallState;
+    request: FixedRequestHead | null;
+}>;
 export type CallOrigin = Readonly<{
     admission: ModelOperationId;
     consumer: ConsumerRef;
@@ -2481,6 +2789,7 @@ export interface ModelCommands<P> {
         next: string | null;
     }>>;
     loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>;
+    loadControl(input: CallAccess<P>): Reply<ControlRecord>;
     loadOrigin(input: CallAccess<P>): Reply<CallOrigin>;
     loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>;
     claim(input: CallAccess<P> & Readonly<{
@@ -2531,8 +2840,13 @@ export interface ModelCommands<P> {
     }>): Reply<Revision>;
     settle(input: WriteContext & Readonly<{
         termination: Termination;
+        events?: Settlement['events'];
     }>): Reply<Settlement>;
-    control(input: Mutation<P>): Reply<ControlState>;
+    control(input: Mutation<P> & Readonly<{
+        intent: Extract<ControlState, {
+            kind: 'requested';
+        }>['intent'];
+    }>): Reply<ControlState>;
     acquireRead(input: Mutation<P> & Readonly<{
         result: ResultVersion;
     }>): Reply<ReadStart>;
@@ -2573,6 +2887,10 @@ export type SendResult = Readonly<{
     kind: 'started';
     window: string;
     facts: AsyncIterable<TransportFact>;
+}> | Readonly<{
+    kind: 'started-live';
+    window: string;
+    session: LiveSession;
 }> | Readonly<{
     kind: 'not-started';
     failure: ModelFailure;
@@ -2637,10 +2955,11 @@ export interface ModelProvider<P> {
 
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
-export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, LiveFact, LiveInput, LiveSession, MaterializedLiveTransport, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, ControlRecord, CallOrigin, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelDecisionPreparation } from '../decision-preparation.ts';
+export type { ModelLivePreparation } from '../live-preparation.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';
@@ -2651,9 +2970,10 @@ export { compareRevisions, decodeReadId } from '../identity-values.ts';
 export type { ModelOperationParts, ModelOperationRef } from '../reference.ts';
 export { decodeModelOperationRef, encodeModelOperationRef, resolveModelOperationRef, } from '../reference.ts';
 export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.ts';
-export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest } from '../judge-request.ts';
-export { requestHead } from '../request-head.ts';
+export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest, judgeModelRequest, } from '../judge-request.ts';
+export { requestHead, requestRepresentation } from '../request-head.ts';
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts';
+export { supplyOf, type ModelSupply } from '../supply.ts';
 ```
 
 ## 声明文件 `reference.d.ts`
@@ -2721,8 +3041,9 @@ export declare function replaySourceCall(message: Message): ModelCallId | null;
 ## 声明文件 `request-head.d.ts`
 
 ```ts
-import type { FixedModelRequest, FixedRequestHead } from './root.ts';
+import type { Adoption, FixedModelRequest, FixedRequestHead } from './root.ts';
 export declare function requestHead(request: FixedModelRequest): FixedRequestHead;
+export declare function requestRepresentation(request: FixedModelRequest | FixedRequestHead): Adoption;
 ```
 
 ## 声明文件 `request-shape.d.ts`
@@ -2765,6 +3086,9 @@ export type ModelDeliveryRejection = Readonly<{
 }> | Readonly<{
     field: 'accounts';
     reason: 'duplicate-dispatch' | 'call-mismatch';
+}> | Readonly<{
+    field: 'frames';
+    reason: 'range-mismatch';
 }>;
 export declare function judgeModelDelivery(input: Readonly<{
     tenant: TenantId;
@@ -2777,6 +3101,7 @@ export declare function judgeModelDelivery(input: Readonly<{
 ```ts
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ResultPart } from './call-surface.ts';
+import type { LiveFrame } from './live-call.ts';
 import type { ModelInvocationRef } from './reference.ts';
 import type { Settlement } from './result.ts';
 import type { ConsumerRef, DispatchId, ResultVersion } from './root.ts';
@@ -2789,6 +3114,11 @@ export type ModelDeliveryKey = Readonly<{
     reference: ModelInvocationRef;
     dispatch: DispatchId;
     revision: CallAccount['revision'];
+}> | Readonly<{
+    kind: 'live';
+    reference: ModelInvocationRef;
+    from: number;
+    to: number;
 }>;
 export type ModelAccountSnapshot = Readonly<{
     dispatch: DispatchId;
@@ -2810,6 +3140,13 @@ export type ModelDelivery = Readonly<{
     }>;
     consumer: ConsumerRef;
     account: CallAccount;
+}> | Readonly<{
+    kind: 'live';
+    key: Extract<ModelDeliveryKey, {
+        kind: 'live';
+    }>;
+    consumer: ConsumerRef;
+    frames: readonly LiveFrame[];
 }>;
 ```
 
@@ -2940,6 +3277,9 @@ export type Settlement = Readonly<{
     cursor: OutputCursor;
     source: DurableEvidence;
     replay?: SettledReplay;
+    events?: Readonly<{
+        last: number;
+    }> | 'unknown';
 }>;
 export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released';
 export type AbandonBasis = Readonly<{
@@ -2995,6 +3335,7 @@ export type ControlState = Readonly<{
     kind: 'none';
 }> | Readonly<{
     kind: 'requested';
+    intent: 'cancel' | 'end';
     operation: ModelOperationId;
     propagation: 'pending' | 'sent' | 'unavailable';
     upstream: 'unknown' | 'stopped' | 'completed';
@@ -3065,7 +3406,8 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import type { Message } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { ModelInvocationRef } from './reference.ts';
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts';
+import type { DecisionAsk } from './decision-call.ts';
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts';
 declare const identity: unique symbol;
 export type Identity<K extends string> = string & {
     readonly [identity]: K;
@@ -3166,15 +3508,19 @@ export type ContextWindow = Readonly<{
     tokens: string;
     compactionTriggerPercent: string;
 }>;
-export type FixedModelRequest = Readonly<{
+export type RequestCommon = Readonly<{
     profile: Adoption;
-    contextWindow?: ContextWindow;
     suppliers: readonly [
         Supplier,
         ...Supplier[]
     ];
     fallback: boolean;
     retryPolicy: Adoption;
+    source: Adoption;
+}>;
+export type LlmRequest = Readonly<{
+    kind: 'llm';
+    contextWindow?: ContextWindow;
     parameters: readonly Parameter[];
     system: readonly ContentBlock[];
     messages: readonly Message[];
@@ -3189,15 +3535,73 @@ export type FixedModelRequest = Readonly<{
     ];
     representation: Adoption;
     parameterAdoptions: readonly ParameterAdoption[];
-    source: Adoption;
 }>;
-export type FixedRequestHead = Readonly<Omit<FixedModelRequest, 'system' | 'messages' | 'tools'> & {
+export type DecisionsRequest = Readonly<{
+    kind: 'decisions';
+    ask: DecisionAsk;
+}>;
+export type LiveRequest = Readonly<{
+    kind: 'live';
+    input: readonly ModelModality[];
+    instructions: string;
+    history: readonly Message[];
+    voice: string | null;
+    standby?: Readonly<{
+        idleSeconds: string;
+    }>;
+    media: Readonly<{
+        via: 'link';
+        audio: string;
+    }>;
+}>;
+export type LlmModelRequest = RequestCommon & LlmRequest;
+export type DecisionsModelRequest = RequestCommon & DecisionsRequest;
+export type LiveModelRequest = RequestCommon & LiveRequest;
+export type FixedModelRequest = LlmModelRequest | DecisionsModelRequest | LiveModelRequest;
+export type LlmRequestHead = Readonly<Omit<LlmModelRequest, 'system' | 'messages' | 'tools'> & {
     messageIds: readonly Message['id'][];
 }>;
+export type DecisionsRequestHead = Readonly<Omit<DecisionsModelRequest, 'ask'>>;
+export type LiveRequestHead = Readonly<Omit<LiveModelRequest, 'instructions' | 'history'> & {
+    messageIds: readonly Message['id'][];
+}>;
+export type FixedRequestHead = LlmRequestHead | DecisionsRequestHead | LiveRequestHead;
 export type Admit<P> = Mutation<P> & Readonly<{
     request: FixedModelRequest;
     consumer: ConsumerRef;
 }>;
+```
+
+## 声明文件 `supply.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { ModelChoices, ProfileKind, ProfileResolution } from './profile.ts';
+import type { ModelFailure } from './result.ts';
+import type { ProviderName } from './root.ts';
+export type ModelSupply<K extends ProfileKind = ProfileKind> = Readonly<{
+    state: 'ready';
+    choices: readonly Extract<ProfileResolution<K>, {
+        kind: 'resolved';
+    }>[];
+}> | Readonly<{
+    state: 'blocked';
+    by: 'no-offering';
+}> | Readonly<{
+    state: 'blocked';
+    by: 'credential';
+    providers: readonly ProviderName[];
+}> | Readonly<{
+    state: 'blocked';
+    by: 'not-enabled' | 'locked' | 'scope';
+    models: readonly Readonly<{
+        provider: ProviderName;
+        route: string;
+    }>[];
+}> | Readonly<{
+    state: 'unknown';
+}>;
+export declare function supplyOf<K extends ProfileKind>(listed: Outcome<ModelChoices<K>, ModelFailure>): ModelSupply<K>;
 ```
 
 ## 声明文件 `testing/access.d.ts`
@@ -3500,6 +3904,7 @@ export type { ScriptedTransport, ScriptedTransportCounts, ScriptedTransportEndin
 export { ScriptedModelError } from './error.ts';
 export type { ScriptedModelErrorReason } from './error.ts';
 export { createScriptedConformanceSubject } from './conformance-scripted.ts';
+export { createLiveDouble } from './live.ts';
 export type { ScriptedPrincipal } from './conformance-scripted.ts';
 export { createScriptedResultPusher } from './pusher.ts';
 export type { AckRecord, PushFailure, PushRecord, ScriptedResultPusher, ScriptedResultPusherOptions, } from './pusher.ts';
@@ -3514,6 +3919,20 @@ export type { ScriptedModelPreparationCall, ScriptedModelPreparationMatch, Scrip
 export type { ScriptedAccessDecision } from './access.ts';
 export { createScriptedCredentialPort } from './credential.ts';
 export type { ScriptedCredentialPort, ScriptedCredentialPortOptions, ScriptedCredentialProvider, } from './credential.ts';
+export { ofKind } from './values.ts';
+export { resolutionOf } from './profile-values.ts';
+```
+
+## 声明文件 `testing/live.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ConformanceLive } from '../conformance/conformance-types.ts';
+import type { ModelModality } from '../profile.ts';
+export declare function createLiveDouble<P>(input: Readonly<{
+    tenant: TenantId;
+    input?: readonly ModelModality[];
+}>): ConformanceLive<P>;
 ```
 
 ## 声明文件 `testing/mint.d.ts`
@@ -3541,18 +3960,18 @@ export declare function endObservations<P>(record: CallRecord<P>, reason: Observ
 import { type Outcome } from '@omne-harness/operation-result';
 import { type Access } from '@omne-harness/legal-identity';
 import type { ModelFailure } from '../result.ts';
-import type { FixedModelRequest } from '../root.ts';
+import type { LlmModelRequest } from '../root.ts';
 import type { AssembledModelInput, ModalityRequirement, ModelProfile, ModelRequestPreparation } from '../profile.ts';
 import type { ModelTransport } from '../provider-protocol.ts';
 import { type ScriptedAccessDecision } from './access.ts';
 export type ScriptedModelPreparationMatch<P> = Access<P> & Readonly<{
-    profile: ModelProfile;
+    profile: ModelProfile<'llm'>;
     required: ModalityRequirement;
     parameters: AssembledModelInput['parameters'];
 }>;
 export type ScriptedModelPreparationPlan = Readonly<{
-    suppliers: FixedModelRequest['suppliers'];
-    parameterAdoptions: FixedModelRequest['parameterAdoptions'];
+    suppliers: LlmModelRequest['suppliers'];
+    parameterAdoptions: LlmModelRequest['parameterAdoptions'];
 }>;
 export type ScriptedModelPreparationCall<P> = Readonly<{
     sequence: number;
@@ -3576,11 +3995,12 @@ export declare function createScriptedModelRequestPreparation<P>(options: Script
 import { type Outcome } from '@omne-harness/operation-result';
 import { type Access, type TenantId } from '@omne-harness/legal-identity';
 import type { ModelFailure } from '../result.ts';
-import type { ModalityRequirement, ModelChoices, ModelProfile, ProfileResolution, ProfileScope } from '../profile.ts';
+import type { ModalityRequirement, ModelChoices, ModelProfile, ProfileKind, ProfileResolution, ProfileScope } from '../profile.ts';
 export declare function profileScopeFailure(scope: ProfileScope, tenant: TenantId): 'invalid-identity' | 'foreign' | null;
 export declare function covers(profile: ModelProfile, required: ModalityRequirement): boolean;
-export declare function copyProfile(profile: ModelProfile): ModelProfile;
+export declare function copyProfile<K extends ProfileKind>(profile: ModelProfile<K>): ModelProfile<K>;
 export declare function copyResolution(resolution: ProfileResolution): ProfileResolution;
+export declare function resolutionOf<K extends ProfileKind>(resolution: ProfileResolution, kind: K): ProfileResolution<K> | null;
 export declare function copyChoices(choices: ModelChoices): ModelChoices;
 export declare function frozenAnswer<T>(answer: Outcome<T, ModelFailure>, copy: (value: T) => T): Outcome<T, ModelFailure>;
 export declare function refusal(failure: ModelFailure): Outcome<never, ModelFailure>;
@@ -3598,7 +4018,7 @@ export declare function findRow<P, K, T>(rows: readonly ScriptRow<P, K, T>[], ac
 
 ```ts
 import { type Access } from '@omne-harness/legal-identity';
-import type { ModelProfiles } from '../profile.ts';
+import { type ModelProfiles } from '../profile.ts';
 import { type ScriptedAccessDecision } from './access.ts';
 export type ScriptedModelProfileCall<P> = Readonly<{
     sequence: number;
@@ -3871,6 +4291,11 @@ export declare function tenantText(tenant: TenantId): string;
 export declare function frozenCopy<T>(value: T): T;
 export declare function sameValue(left: unknown, right: unknown): boolean;
 export declare function laterDecimal(left: string, right: string): boolean;
+export declare function ofKind<T extends Readonly<{
+    kind: string;
+}>, K extends T['kind']>(value: T, kind: K): Extract<T, Readonly<{
+    kind: K;
+}>>;
 ```
 
 ## 声明文件 `testing/writes.d.ts`

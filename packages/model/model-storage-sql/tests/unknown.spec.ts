@@ -74,7 +74,13 @@ describe('a saved write whose reply is lost', () => {
   it('gives back the original control state on a retry and writes it once', async () => {
     const { commands, sqlite, admit, count, domain } = setup()
     await commands.admit(admit)
-    const control = { principal: admit.principal, tenant: A, call: CALL, operation: opId('stop') }
+    const control = {
+      principal: admit.principal,
+      tenant: A,
+      call: CALL,
+      operation: opId('stop'),
+      intent: 'cancel',
+    } as const
     sqlite.hooks.loseNextReply = true
     expect(await commands.control(control)).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('stop') },
@@ -83,6 +89,7 @@ describe('a saved write whose reply is lost', () => {
     expect(await commands.control(control)).toEqual({
       ok: {
         kind: 'requested',
+        intent: 'cancel',
         operation: opId('stop'),
         propagation: 'pending',
         upstream: 'unknown',
@@ -98,7 +105,13 @@ describe('a saved write whose reply is lost', () => {
   it('answers the lost operation as committed to a query, with the revision it wrote', async () => {
     const { commands, sqlite, admit } = setup()
     await commands.admit(admit)
-    const control = { principal: admit.principal, tenant: A, call: CALL, operation: opId('stop') }
+    const control = {
+      principal: admit.principal,
+      tenant: A,
+      call: CALL,
+      operation: opId('stop'),
+      intent: 'cancel',
+    } as const
     sqlite.hooks.loseNextReply = true
     expect(await commands.control(control)).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('stop') },

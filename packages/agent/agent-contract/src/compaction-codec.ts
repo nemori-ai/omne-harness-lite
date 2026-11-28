@@ -105,7 +105,7 @@ const frame = z.strictObject({
   tools: checked(judgeToolDeclarations),
 })
 const selectedProfile = checked(value => {
-  const parsed = readProfileResolution(value)
+  const parsed = readProfileResolution(value, 'llm')
   return 'ok' in parsed && parsed.ok.kind === 'resolved' && parsed.ok.selectable
     ? succeed({ ...parsed.ok, selectable: true as const })
     : fail('profile')

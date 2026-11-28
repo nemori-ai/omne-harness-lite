@@ -37,6 +37,7 @@ describe('cancelling a scripted call', () => {
     const first = must(await calls.cancel(cancelOf('a', 'cancel-1')))
     expect(first).toEqual({
       kind: 'requested',
+      intent: 'cancel',
       operation: operation('cancel-1'),
       propagation: 'pending',
       upstream: 'unknown',
@@ -94,6 +95,7 @@ describe('cancelling a scripted call', () => {
       state: {
         control: {
           kind: 'requested',
+          intent: 'cancel',
           operation: operation('cancel-1'),
           propagation: 'unavailable',
           upstream: 'unknown',
@@ -111,6 +113,7 @@ describe('cancelling a scripted call', () => {
     scripted.controller.advanceControl({ ...callRef('a'), propagation: 'sent', upstream })
     expect(must(await calls.cancel(cancelOf('a', 'cancel-2')))).toEqual({
       kind: 'requested',
+      intent: 'cancel',
       operation: operation('cancel-1'),
       propagation: 'sent',
       upstream,
@@ -143,7 +146,7 @@ describe('cancelling a scripted call', () => {
       state: {
         phase: 'settled',
         settlement: { termination: { kind: 'completed', reason: 'stop' } },
-        control: { kind: 'requested', operation: operation('cancel-1') },
+        control: { kind: 'requested', intent: 'cancel', operation: operation('cancel-1') },
         custody: { kind: 'producer' },
       },
     })

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { FixedModelRequest, ReplayDeclaration } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ReplayDeclaration } from '@omne-harness/model-contract'
 import type { TransportDispatch } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
@@ -9,7 +9,7 @@ import {
   type GatewayParam,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
-import { composeFamilies, defineFamily, type PiFamilyBinding } from '../src/index.ts'
+import { composeFamilies, defineFamily, type PiChatBinding } from '../src/index.ts'
 import {
   EXTENSION,
   LIMITS,
@@ -56,7 +56,7 @@ function bind(
   record: ChatCompletionsRecord = testRecord(),
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
-): PiFamilyBinding {
+): PiChatBinding {
   return bindChatCompletions({
     record,
     supplier: supplierOf(record),
@@ -69,9 +69,9 @@ function bind(
   })
 }
 
-type Media = Parameters<PiFamilyBinding['encode']>[0]['media']
+type Media = Parameters<PiChatBinding['encode']>[0]['media']
 function inputOf(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   resent: TransportDispatch['resent'] = [],
   media: Media = [],
 ) {
@@ -1119,9 +1119,9 @@ describe('encode: a file by reference, and words kept apart (chat-completions)',
   const sent = (
     record: typeof plain,
     parts: RequestParts,
-    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+    media: Parameters<PiChatBinding['encode']>[0]['media'],
   ) => {
-    const request: FixedModelRequest = fixedRequest(record, parts)
+    const request: LlmModelRequest = fixedRequest(record, parts)
     const outcome = bind(record).encode({
       request,
       media,

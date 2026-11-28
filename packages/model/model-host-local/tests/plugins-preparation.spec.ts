@@ -13,7 +13,7 @@ import {
   type Adoption,
   type ProviderName,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelCountingBasis,
   type ModelProfile,
@@ -59,13 +59,14 @@ const SUPPLIER = {
   model: 'test',
   credential: { layer: 'official' as const },
 }
-const PROFILE: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'test' },
+const PROFILE: ModelProfile<'llm'> = {
+  identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption: ADOPTION,
   revision: unbox(decodeRevision('1')),
   updatedAt: '2026-10-23T00:00:00Z',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [{ adoption: ADOPTION, provider: providerName('test.invalid'), model: 'test' }],
     fallback: false,
     input: ['text'],
@@ -91,8 +92,9 @@ const user = (id: string, text = 'hello') => ({
   role: 'user',
   blocks: [{ kind: 'text', id: `b-${id}`, visibility: SHOWN, text }],
 })
-function requestWith(messages: readonly unknown[]): FixedModelRequest {
+function requestWith(messages: readonly unknown[]): LlmModelRequest {
   const judged = judgeFixedModelRequest({
+    kind: 'llm',
     profile: ADOPTION,
     contextWindow: {
       tokens: PROFILE.definition.context.window.provided,
@@ -113,9 +115,9 @@ function requestWith(messages: readonly unknown[]): FixedModelRequest {
     parameterAdoptions: [],
     source: ADOPTION,
   })
-  return unbox(judged as { ok: FixedModelRequest } | { failure: unknown })
+  return unbox(judged as { ok: LlmModelRequest } | { failure: unknown })
 }
-function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
+function assembledOf(fixed: LlmModelRequest): AssembledModelInput {
   return {
     system: fixed.system,
     messages: fixed.messages,
@@ -272,7 +274,7 @@ const ACCOUNT_FACT: TransportFact = {
 async function settleCall(
   commands: ModelCommands<unknown>,
   call: ModelCallId,
-  request: FixedModelRequest,
+  request: LlmModelRequest,
 ) {
   const access = { principal: PRINCIPAL, tenant: TENANT, call }
   unbox(
@@ -343,6 +345,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
     declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
@@ -388,7 +391,7 @@ async function loaded(commands: ModelCommands<unknown> = memoryCommands()) {
 
 const access = { principal: PRINCIPAL, tenant: TENANT }
 
-async function measure(lease: ModelPreparationLease, request: FixedModelRequest) {
+async function measure(lease: ModelPreparationLease, request: LlmModelRequest) {
   const [binding] = lease.bindings
   const assembled = assembledOf(request)
   const planned = binding.rules.plan({ profile: PROFILE, supplier: binding.supplier, assembled })
@@ -432,7 +435,11 @@ it('refuses a profile that cannot serve the input before it takes a lease', asyn
   })
   const foreign = {
     ...PROFILE,
-    identity: { scope: { kind: 'tenant' as const, tenant: { ...TENANT } }, route: 'x' },
+    identity: {
+      scope: { kind: 'tenant' as const, tenant: { ...TENANT } },
+      kind: 'llm' as const,
+      route: 'x',
+    },
   }
   expect(await ctx.modelRequestPreparation.prepare({ ...base, profile: foreign })).toMatchObject({
     failure: { kind: 'denied' },

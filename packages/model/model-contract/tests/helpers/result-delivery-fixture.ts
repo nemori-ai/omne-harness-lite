@@ -381,6 +381,7 @@ export function createDeliveryFixture<P>(
       return original.dispatches.includes(delivery.key.dispatch)
         ? null
         : invalid('key.dispatch', 'not-original')
+    if (delivery.kind !== 'result') return invalid('kind', 'not-a-result')
     const actual = new Set(delivery.accounts.map(item => item.dispatch))
     return actual.size === original.dispatches.length &&
       original.dispatches.every(item => actual.has(item))

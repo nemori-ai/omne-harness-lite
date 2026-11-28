@@ -13,7 +13,7 @@ import {
   decodeProviderName,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
 } from '@omne-harness/model-contract'
 import { type ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
 import type {
@@ -47,7 +47,8 @@ export const owner: ModelConsumerOwnerDeclaration = {
   work: { kind: 'exempt' },
   evidence: adoption,
 }
-export const request: FixedModelRequest = {
+export const request: LlmModelRequest = {
+  kind: 'llm',
   profile: adoption,
   suppliers: [
     {

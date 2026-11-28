@@ -4,6 +4,7 @@ import {
   decisionAnswersBlock,
   resolveModelInvocationRef,
   type DecisionAnswers,
+  type DecisionsModelRequest,
   type FixedModelRequest,
   type ModelRuntime,
   type ResultPart,
@@ -176,7 +177,8 @@ export function world() {
       log.push('prepare')
       prepared.push(input)
       if (state.fail.has('prepare')) return AWAY
-      return { ok: { messages: [{ id: input.message }] } as unknown as FixedModelRequest }
+      const formed = { kind: 'decisions', ask: input.ask, source: input.source }
+      return { ok: formed as unknown as DecisionsModelRequest }
     },
   }
   const decisions = createGoalDecisions<unknown>({

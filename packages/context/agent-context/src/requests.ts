@@ -209,10 +209,10 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
 
   async function fix(
     access: Access<P>,
-    profile: M.ModelProfile,
+    profile: M.ModelProfile<'llm'>,
     required: M.ModalityRequirement,
     assembled: M.AssembledModelInput,
-  ): Promise<Answer<M.FixedModelRequest>> {
+  ): Promise<Answer<M.LlmModelRequest>> {
     let prepared
     try {
       prepared = await model.prepare({ ...access, profile, required, assembled })

@@ -4,7 +4,7 @@ import {
   type ContentBlock,
   type ContentReference,
 } from '@omne-harness/content-block'
-import type { FixedModelRequest, ReplayDeclaration, Supplier } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ReplayDeclaration, Supplier } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
   PreparedTransport,
@@ -42,7 +42,7 @@ function setup(
 ): {
   network: NetworkInternals
   probe: FamilyProbe
-  prepare(request?: FixedModelRequest, dispatch?: TransportDispatch): Promise<PreparedTransport>
+  prepare(request?: LlmModelRequest, dispatch?: TransportDispatch): Promise<PreparedTransport>
 } {
   const network = openNetwork({ maxConnections, idleConnectionTimeoutMs: 1_000 })
   networks.push(network)
@@ -79,6 +79,7 @@ async function materialized(
 ): Promise<MaterializedTransport> {
   const outcome = await prepared.materialize(signal)
   if (!('ok' in outcome)) throw new Error(`expected a materialization: ${JSON.stringify(outcome)}`)
+  if (!('start' in outcome.ok)) throw new Error('expected a chat materialization, not a live one')
   return outcome.ok
 }
 
@@ -166,7 +167,7 @@ describe('materialize', () => {
       foreignThinking: 'text',
     }
     const [own] = REQUEST.declarations
-    const request: FixedModelRequest = {
+    const request: LlmModelRequest = {
       ...REQUEST,
       suppliers: [other, SUPPLIER],
       declarations: [otherDeclaration, own],

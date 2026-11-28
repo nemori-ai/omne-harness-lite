@@ -548,7 +548,7 @@ export type CompactionHistory = Readonly<{
     protected: readonly RecordEntryRef[];
 }>;
 export type CompactionTarget = Readonly<{
-    profile: Extract<M.ProfileResolution, {
+    profile: Extract<M.ProfileResolution<'llm'>, {
         kind: 'resolved';
     }> & Readonly<{
         selectable: true;
@@ -3233,7 +3233,7 @@ export type Subject = Readonly<{
 }> | Readonly<{
     purpose: 'main';
     call: M.ModelCallId;
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     fault: M.ModelFault;
     dispatches: readonly M.DispatchRecord[];
     retry: M.RetryResolution | null;
@@ -3848,7 +3848,7 @@ export type ModelRecipient = Readonly<{
 }>;
 export type SelectedModel = Readonly<{
     recipient: ModelRecipient;
-    resolution: Extract<M.ProfileResolution, {
+    resolution: Extract<M.ProfileResolution<'llm'>, {
         kind: 'resolved';
     }> & Readonly<{
         selectable: true;
@@ -3883,7 +3883,7 @@ export type Preparation = Readonly<{
     coverage: DurableEvidence;
 }> | Readonly<{
     kind: 'ready';
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     budget: DurableEvidence;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
@@ -3924,7 +3924,7 @@ export type CompactionAssessment = Readonly<{
 }>;
 export type FinalRequest = Readonly<{
     preparation: ActionId;
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
     alterations: readonly DurableEvidence[];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
-import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
+import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/testing'
 import {
   bindingOf,
   encodeInput,

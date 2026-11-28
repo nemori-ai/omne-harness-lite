@@ -37,7 +37,7 @@ async function answersOfB(
     loadRecovery: await commands.loadRecovery(access),
     dispatches: await commands.dispatches(access),
     scanPending: await commands.scanPending({ principal, tenant: B, after: null, limit: 2 }),
-    control: await commands.control({ ...access, operation: ADMISSION }),
+    control: await commands.control({ ...access, operation: ADMISSION, intent: 'cancel' }),
   }
 }
 
@@ -210,6 +210,7 @@ describe('the writes of one tenant in a domain shared with another', () => {
       tenant: A,
       call: CALL,
       operation: opId('a-control'),
+      intent: 'cancel',
     })
     expect('ok' in controlled && controlled.ok.kind).toBe('requested')
     expect(rowOf(A)[0]?.[0]).toBe(2n)

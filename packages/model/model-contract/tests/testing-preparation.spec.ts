@@ -117,18 +117,19 @@ const second: ProfileSupplier = {
 function profileOf(
   over: Readonly<{
     suppliers?: readonly [ProfileSupplier, ...ProfileSupplier[]]
-    availability?: ModelProfile['availability']
-    scope?: ModelProfile['identity']['scope']
+    availability?: ModelProfile<'llm'>['availability']
+    scope?: ModelProfile<'llm'>['identity']['scope']
   }> = {},
-): ModelProfile {
+): ModelProfile<'llm'> {
   const upstream = [{ supplier: adoption('first'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: over.scope ?? { kind: 'factory' }, route: 'default' },
+    identity: { kind: 'llm', scope: over.scope ?? { kind: 'factory' }, route: 'default' },
     adoption: adoption('profile'),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
+      kind: 'llm',
       suppliers: over.suppliers ?? [first, second],
       fallback: true,
       input: ['text', 'image'],

@@ -1,9 +1,9 @@
 // Properties P2 to P4 of the replay design, over generated sequences of conversation operations
 // encoded by the real Messages engine. Not a proof: no counterexample on the generated sequences.
 import { writeJsonText } from '@omne-harness/json-text'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { bindMessages, type MessagesRecord } from '../src/messages/index.ts'
 import { sealThinking } from '../src/messages/reasoning.ts'
 import {
@@ -25,12 +25,12 @@ const RECORDS: Readonly<Record<Model, MessagesRecord>> = {
   a: messagesRecord(),
   b: messagesRecord({ name: 'model-b', route: { provider: 'gateway', model: 'lab/model-b' } }),
 }
-const BINDINGS: Readonly<Record<Model, PiFamilyBinding>> = {
+const BINDINGS: Readonly<Record<Model, PiChatBinding>> = {
   a: bind(RECORDS.a),
   b: bind(RECORDS.b),
 }
 
-function bind(record: MessagesRecord): PiFamilyBinding {
+function bind(record: MessagesRecord): PiChatBinding {
   return bindMessages({
     record,
     supplier: supplierOf(record),
@@ -64,7 +64,7 @@ type World = {
 
 const id = (world: World, kind: string) => `${kind}${String(world.serial++).padStart(4, '0')}`
 
-function request(world: World, model: Model): FixedModelRequest {
+function request(world: World, model: Model): LlmModelRequest {
   return fixedRequest(RECORDS[model], {
     system: [textBlock('s1', 'brief')],
     messages: world.messages,

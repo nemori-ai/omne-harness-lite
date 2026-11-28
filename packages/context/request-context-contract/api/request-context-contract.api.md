@@ -556,7 +556,7 @@ export type MeasurementFailure = AssemblyFailure | AssemblyUnknown;
 type Failure = MeasurementFailure;
 export declare function leaseFailure(failure: M.ModelFailure): Failure;
 export declare function measureCandidate<P>(context: MeasureContext<P>, selection: SelectedModel, lineage: M.PreparationLineage, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
-export declare function measureWithLease(lease: M.ModelPreparationLease, profile: M.ModelProfile, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
+export declare function measureWithLease(lease: M.ModelPreparationLease, profile: M.ModelProfile<'llm'>, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
 export {};
 ```
 
@@ -895,7 +895,7 @@ import { type Message, type MessageId } from '@omne-harness/message';
 import { type Modality } from '@omne-harness/modality';
 import type { RepresentationChoice } from './values.js';
 import type { RepresentationPolicyPort } from './ports.js';
-export type NativeCapability = Pick<M.ModelProfileDefinition, 'input' | 'fileTypes'>;
+export type NativeCapability = Pick<M.ModelProfileDefinition<'llm'>, 'input' | 'fileTypes'>;
 export type RepresentationResult = Readonly<{
     kind: 'chosen';
     choices: readonly RepresentationChoice[];
@@ -1414,7 +1414,7 @@ export declare function message(raw: string, id?: string): Extract<Message, {
 }>;
 export declare function row(index?: number): HistoryRow;
 export declare function fixtureTenant(account?: string): TenantId;
-export declare const profile: ModelProfile;
+export declare const profile: ModelProfile<'llm'>;
 export declare const countingBasis: ModelCountingBasis;
 export declare function fixtureBudget(amount?: string): RequestBudget;
 export declare function testingAccess<P>(principal: P, tenant: TenantId): import('../refs.js').Access<P>;
@@ -1627,7 +1627,7 @@ export type SelectedModel = Readonly<{
         route: string;
         model: string;
     }>;
-    profile: M.ModelProfile;
+    profile: M.ModelProfile<'llm'>;
     parameters: readonly M.ParameterAdoption[];
     replay: 'on' | 'off';
     toolsEvidence: DurableEvidence;

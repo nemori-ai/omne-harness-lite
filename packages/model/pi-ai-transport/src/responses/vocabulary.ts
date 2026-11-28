@@ -29,7 +29,8 @@ export type ResponsesAccepts = Readonly<{
 export type ResponsesRecord = PiModelRecordHead &
   Readonly<{
     engine: 'responses'
-    serving: ServingPin
+    /** The upstream a gateway must route to; null when the provider serves the model itself. */
+    serving: ServingPin | null
     wire: ResponsesWire
     parameters: ParameterTable
     extensions: readonly ExtensionRule[]

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FixedModelRequest, ModelFailure } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ModelFailure } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { tapResponseBodies } from './body-tap.ts'
 import {
@@ -43,7 +43,7 @@ export type RecordOutcome =
 
 export type RecordInput = Readonly<{
   name: string
-  request: FixedModelRequest
+  request: LlmModelRequest
   requiresReasoningState: boolean
   requiresToolCall?: boolean
   gateway: Gateway

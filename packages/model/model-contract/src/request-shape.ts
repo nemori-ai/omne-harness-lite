@@ -7,15 +7,19 @@ import { decodeProviderName } from './provider-name.ts'
 import type {
   Adoption,
   ConsumerRef,
+  DecisionsModelRequest,
+  LiveModelRequest,
   FixedModelRequest,
+  LlmModelRequest,
   Parameter,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts'
 import type { ModelInputRejection } from './judge-request.ts'
 import { rejected } from './input-tree.ts'
 import { judgeReplayDeclaration } from './replay-values.ts'
+import { judgeDecisionAsk } from './decision-call.ts'
 
 type Checked<T> = Outcome<T, ModelInputRejection>
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -238,7 +242,7 @@ function toolChoice(
   value: unknown,
   field: string,
   tools: readonly ToolDeclaration[],
-): Checked<FixedModelRequest['toolChoice']> {
+): Checked<LlmModelRequest['toolChoice']> {
   if (value === 'none' || value === 'auto' || value === 'required') return succeed(value)
   const record = closed(value, ['name'], field)
   if ('failure' in record) return record
@@ -249,10 +253,10 @@ function toolChoice(
 
 type RequestRouting = Pick<FixedModelRequest, 'profile' | 'suppliers' | 'fallback' | 'retryPolicy'>
 type RequestContent = Pick<
-  FixedModelRequest,
+  LlmModelRequest,
   'parameters' | 'system' | 'messages' | 'tools' | 'toolChoice'
 >
-type RequestProvenance = Pick<FixedModelRequest, 'representation' | 'parameterAdoptions' | 'source'>
+type RequestProvenance = Pick<LlmModelRequest, 'representation' | 'parameterAdoptions' | 'source'>
 function requestSuppliers(value: unknown, field: string): Checked<FixedModelRequest['suppliers']> {
   const suppliers = sequence(value, field, supplier)
   if ('failure' in suppliers) return suppliers
@@ -277,10 +281,7 @@ function requestRouting(input: Record<string, unknown>, field: string): Checked<
     retryPolicy: retryPolicy.ok,
   })
 }
-function requestParameters(
-  value: unknown,
-  field: string,
-): Checked<FixedModelRequest['parameters']> {
+function requestParameters(value: unknown, field: string): Checked<LlmModelRequest['parameters']> {
   const parameters = sequence(value, field, parameter)
   if ('failure' in parameters) return parameters
   const parameterKeys = parameters.ok.map(item =>
@@ -292,7 +293,7 @@ function requestParameters(
 function requestTools(
   input: Record<string, unknown>,
   field: string,
-): Checked<Pick<FixedModelRequest, 'tools' | 'toolChoice'>> {
+): Checked<Pick<LlmModelRequest, 'tools' | 'toolChoice'>> {
   const tools = sequence(input.tools, `${field}/tools`, tool)
   if ('failure' in tools) return tools
   if (new Set(tools.ok.map(item => item.name)).size !== tools.ok.length)
@@ -343,7 +344,7 @@ function requestProvenance(
     source: source.ok,
   })
 }
-type RequestReplay = Pick<FixedModelRequest, 'replay' | 'declarations'>
+type RequestReplay = Pick<LlmModelRequest, 'replay' | 'declarations'>
 const DECLARATION_REJECTIONS: Readonly<
   Record<string, Readonly<{ key: string; reason: ModelInputRejection['reason'] }>>
 > = {
@@ -389,27 +390,21 @@ function requestReplay(
   return succeed(input.replay === 'off' ? { replay: 'off', ...fixed } : fixed)
 }
 
-export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
-  const record = closed(
-    value,
-    [
-      'profile',
-      'suppliers',
-      'fallback',
-      'retryPolicy',
-      'parameters',
-      'system',
-      'messages',
-      'tools',
-      'toolChoice',
-      'declarations',
-      'representation',
-      'parameterAdoptions',
-      'source',
-    ],
-    field,
-    ['replay', 'contextWindow'],
-  )
+const COMMON_KEYS = ['kind', 'profile', 'suppliers', 'fallback', 'retryPolicy', 'source']
+const LLM_KEYS = [
+  ...COMMON_KEYS,
+  'parameters',
+  'system',
+  'messages',
+  'tools',
+  'toolChoice',
+  'declarations',
+  'representation',
+  'parameterAdoptions',
+]
+
+function llmRequest(value: unknown, field: string): Checked<LlmModelRequest> {
+  const record = closed(value, LLM_KEYS, field, ['replay', 'contextWindow'])
   if ('failure' in record) return record
   const window = contextWindowOf(record.ok, field)
   if ('failure' in window) return window
@@ -421,12 +416,120 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in provenance) return provenance
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
-  return succeed({ ...routing.ok, ...window.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+  return succeed({
+    kind: 'llm',
+    ...routing.ok,
+    ...window.ok,
+    ...content.ok,
+    ...replay.ok,
+    ...provenance.ok,
+  })
+}
+
+function decisionsRequest(value: unknown, field: string): Checked<DecisionsModelRequest> {
+  const record = closed(value, [...COMMON_KEYS, 'ask'], field)
+  if ('failure' in record) return record
+  const routing = requestRouting(record.ok, field)
+  if ('failure' in routing) return routing
+  const source = adoption(record.ok.source, `${field}/source`)
+  if ('failure' in source) return source
+  const ask = judgeDecisionAsk(record.ok.ask)
+  if (ask === null) return rejected(`${field}/ask`, 'value')
+  return succeed({ kind: 'decisions', ...routing.ok, ask, source: source.ok })
+}
+
+const LIVE_KEYS = [...COMMON_KEYS, 'input', 'instructions', 'history', 'voice', 'media']
+const LIVE_MODALITIES: ReadonlySet<string> = new Set<ModelModality>(['text', 'image', 'voice'])
+const isModality = (item: unknown): item is ModelModality =>
+  typeof item === 'string' && LIVE_MODALITIES.has(item)
+
+function liveInput(value: unknown, field: string): Checked<LiveModelRequest['input']> {
+  const listed = sequence(value, field, (item, at) =>
+    isModality(item) ? succeed(item) : rejected(at, 'value'),
+  )
+  if ('failure' in listed) return listed
+  return listed.ok.length > 0 && new Set(listed.ok).size === listed.ok.length
+    ? listed
+    : rejected(field, 'value')
+}
+
+function liveMedia(value: unknown, field: string): Checked<LiveModelRequest['media']> {
+  const record = closed(value, ['via', 'audio'], field)
+  if ('failure' in record) return record
+  if (record.ok.via !== 'link') return rejected(`${field}/via`, 'value')
+  const audio = text(record.ok.audio, `${field}/audio`)
+  return 'failure' in audio ? audio : succeed({ via: 'link', audio: audio.ok })
+}
+
+function liveStandby(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<LiveModelRequest, 'standby'>> {
+  if (!Object.hasOwn(input, 'standby')) return succeed({})
+  const record = closed(input.standby, ['idleSeconds'], `${field}/standby`)
+  if ('failure' in record) return record
+  const idle = integer(record.ok.idleSeconds, `${field}/standby/idleSeconds`, true)
+  return 'failure' in idle ? idle : succeed({ standby: { idleSeconds: idle.ok } })
+}
+
+function liveContent(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<LiveModelRequest, 'instructions' | 'history' | 'voice'>> {
+  if (typeof input.instructions !== 'string') return rejected(`${field}/instructions`, 'type')
+  const history = sequence(input.history, `${field}/history`, (item, at) => {
+    const parsed = judgeMessage(item)
+    return 'rejected' in parsed ? rejected(at, 'message') : succeed(parsed.ok)
+  })
+  if ('failure' in history) return history
+  const voice = input.voice === null ? succeed(null) : text(input.voice, `${field}/voice`)
+  if ('failure' in voice) return voice
+  return succeed({ instructions: input.instructions, history: history.ok, voice: voice.ok })
+}
+
+function liveRequest(value: unknown, field: string): Checked<LiveModelRequest> {
+  const record = closed(value, LIVE_KEYS, field, ['standby'])
+  if ('failure' in record) return record
+  const routing = requestRouting(record.ok, field)
+  if ('failure' in routing) return routing
+  const source = adoption(record.ok.source, `${field}/source`)
+  if ('failure' in source) return source
+  const content = liveContent(record.ok, field)
+  if ('failure' in content) return content
+  const input = liveInput(record.ok.input, `${field}/input`)
+  if ('failure' in input) return input
+  const media = liveMedia(record.ok.media, `${field}/media`)
+  if ('failure' in media) return media
+  const standby = liveStandby(record.ok, field)
+  if ('failure' in standby) return standby
+  return succeed({
+    kind: 'live',
+    ...routing.ok,
+    input: input.ok,
+    ...content.ok,
+    ...standby.ok,
+    media: media.ok,
+    source: source.ok,
+  })
+}
+
+export function requestShape(value: unknown, field: string): Checked<FixedModelRequest> {
+  if (!isRecord(value)) return rejected(field, 'type')
+  switch (value.kind) {
+    case 'llm':
+      return llmRequest(value, field)
+    case 'decisions':
+      return decisionsRequest(value, field)
+    case 'live':
+      return liveRequest(value, field)
+    default:
+      return rejected(`${field}/kind`, Object.hasOwn(value, 'kind') ? 'value' : 'missing')
+  }
 }
 function contextWindowOf(
   input: Record<string, unknown>,
   field: string,
-): Checked<Pick<FixedModelRequest, 'contextWindow'>> {
+): Checked<Pick<LlmModelRequest, 'contextWindow'>> {
   if (!Object.hasOwn(input, 'contextWindow')) return succeed({})
   const at = `${field}/contextWindow`
   const record = closed(input.contextWindow, ['tokens', 'compactionTriggerPercent'], at)

@@ -1,9 +1,10 @@
+import { judgeDecisionAsk, type DecisionAsk } from '@omne-harness/model-contract'
 import { canonicalJson } from '../canonical-json.ts'
-import {
-  OPENROUTER_DECISION_MODELS,
-  type DecisionQuestion,
-  type DecisionRequest,
-  type DecisionResponse,
+import type {
+  DecisionLimits,
+  DecisionQuestion,
+  DecisionRequest,
+  DecisionResponse,
 } from './contract.ts'
 
 type Dict = Record<string, unknown>
@@ -13,65 +14,43 @@ function object(value: unknown): value is Dict {
 function state(value: unknown): boolean {
   return typeof value === 'string' || Array.isArray(value) || object(value)
 }
-function guidance(value: unknown): boolean {
-  return value === null || state(value)
-}
-function question(value: unknown): boolean {
-  if (
-    !object(value) ||
-    Object.keys(value).some(key => !['type', 'instructions', 'criteria'].includes(key))
-  )
-    return false
-  if (value.instructions !== undefined && !guidance(value.instructions)) return false
-  const criteria = value.criteria
-  switch (value.type) {
-    case 'noul':
-      return (
-        criteria === undefined ||
-        (object(criteria) &&
-          Object.entries(criteria).every(
-            ([key, entry]) => (key === 'true' || key === 'false') && guidance(entry),
-          ))
-      )
-    case 'choice':
-      return (
-        object(criteria) &&
-        Object.keys(criteria).length > 0 &&
-        Object.values(criteria).every(guidance)
-      )
-    case 'score':
-      return Array.isArray(criteria) && criteria.length > 0 && criteria.every(state)
-    default:
-      return false
+
+/** A request as an owned snapshot: its model, and its ask judged and within the question limit. */
+export type OwnedAsk = Readonly<{ model: string; ask: DecisionAsk }>
+export type PreparedDecision = Readonly<{ body: Buffer; questions: DecisionRequest['questions'] }>
+
+// A request that holds what is not JSON has no snapshot.
+function snapshotOf(request: DecisionRequest): unknown {
+  try {
+    return JSON.parse(canonicalJson(request))
+  } catch {
+    return undefined
   }
 }
 
-/** The bytes sent and the questions used to check the answer are the same owned snapshot. */
-export function prepareDecision(request: DecisionRequest, limit: number) {
-  try {
-    const text = canonicalJson(request)
-    if (Buffer.byteLength(text) > limit) return null
-    const snapshot: DecisionRequest = JSON.parse(text)
-    if (
-      !object(snapshot) ||
-      Object.keys(snapshot).some(key => !['model', 'state', 'questions'].includes(key)) ||
-      !OPENROUTER_DECISION_MODELS.includes(snapshot.model) ||
-      !state(snapshot.state) ||
-      !object(snapshot.questions)
-    )
-      return null
-    const questions = Object.entries(snapshot.questions)
-    if (
-      questions.length === 0 ||
-      (snapshot.model === 'openai/gpt-6-luna-decisions' && questions.length > 200) ||
-      !questions.every(([name, value]) => name.length > 0 && question(value))
-    )
-      return null
-    return { body: Buffer.from(text), questions: snapshot.questions }
-  } catch {
+function ownedAsk(request: DecisionRequest, maxQuestions: number | null): OwnedAsk | null {
+  const snapshot = snapshotOf(request)
+  if (!object(snapshot) || typeof snapshot.model !== 'string' || snapshot.model.length === 0)
     return null
+  const ask = judgeDecisionAsk({ state: snapshot.state, questions: snapshot.questions })
+  if (ask === null || Object.keys(snapshot).length !== 3) return null
+  if (maxQuestions !== null && Object.keys(ask.questions).length > maxQuestions) return null
+  return { model: snapshot.model, ask }
+}
+
+/** Prepares a request in one wire shape: the bytes sent and the questions used to check the answer are the same owned snapshot. */
+export function preparedIn(write: (owned: OwnedAsk) => string) {
+  return (request: DecisionRequest, limits: DecisionLimits): PreparedDecision | null => {
+    const owned = ownedAsk(request, limits.maxQuestions)
+    if (owned === null) return null
+    const text = write(owned)
+    if (Buffer.byteLength(text) > limits.maxRequestBytes) return null
+    return { body: Buffer.from(text), questions: owned.ask.questions }
   }
 }
+
+/** The request as this interface takes it: the ask itself beside the model. */
+export const prepareDecision = preparedIn(({ model, ask }) => canonicalJson({ model, ...ask }))
 
 function probability(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
