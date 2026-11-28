@@ -78,6 +78,27 @@ describe('subscribing chooses how the events come (C302)', () => {
     expect(made.streams).toHaveLength(0)
   })
 
+  it('subscribing answers once the peer gave the position to start from, so what happens after the answer comes in', async () => {
+    const pushed = arranged()
+    const bound = millisOf(10_000)
+    const streaming = pushed.services.subscriptions.subscribe(alice, desk, {
+      ...created,
+      connectBound: bound,
+    })
+    await settle()
+    let answered = false
+    void streaming.then(() => (answered = true))
+    await settle()
+    expect(answered).toBe(false)
+    pushed.streams[0]?.send({ kind: 'active', cursor: 'c0', truncated: false, heartbeatMs: 0 })
+    expect(await streaming).toMatchObject({ ok: { delivery: 'push' } })
+    const polled = arranged(listed(typeOf('incident.created', ['poll'])))
+    const page = { events: [], cursor: 'c0', truncated: false, hasMore: false, nextPollMs: 100 }
+    polled.answer({ ok: page })
+    await polled.services.subscriptions.subscribe(alice, desk, { ...created, connectBound: bound })
+    expect(polled.polls).toHaveLength(1)
+  })
+
   it('a type the peer only sends to a webhook cannot be subscribed, nor one it does not list, nor any of a peer with no events', async () => {
     const webhook = arranged(listed(typeOf('incident.created', ['webhook'])))
     expect(await webhook.services.subscriptions.subscribe(alice, desk, created)).toEqual({
@@ -453,12 +474,13 @@ describe('an endpoint with no connect timeout of its own (C302, C303)', () => {
       failure: { kind: 'config-missing', item: 'connect-timeout' },
     })
     const bound = millisOf(10_000)
-    const subscribed = await first.services.subscriptions.subscribe(alice, desk, {
+    const subscribing = first.services.subscriptions.subscribe(alice, desk, {
       ...created,
       connectBound: bound,
     })
-    expect(subscribed).toMatchObject({ ok: { delivery: 'push' } })
     await settle()
+    first.streams[0]?.send({ kind: 'active', cursor: 'c0', truncated: false, heartbeatMs: 0 })
+    expect(await subscribing).toMatchObject({ ok: { delivery: 'push' } })
     first.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
     await settle()
     await first.services.connections.closeAll()

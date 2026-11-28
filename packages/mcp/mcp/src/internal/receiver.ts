@@ -43,6 +43,7 @@ export type ReceiverContext = Readonly<{
   ready(): Promise<Ready>
   changed(): void
   deliver(): void
+  started(): void
 }>
 
 type Gap = Extract<GapReason, 'peer-truncated' | 'possibly-missed'> | null
@@ -175,7 +176,9 @@ async function streamed(
     if (message.kind === 'active') {
       const opened = message.truncated ? 'peer-truncated' : gap
       gap = null
-      return stored(intake.store([], message.cursor, opened))
+      await stored(intake.store([], message.cursor, opened))
+      if (ended === undefined) context.started()
+      return
     }
     if (message.kind === 'event') {
       const occurrence = readOccurrence(message.event)
@@ -220,6 +223,7 @@ async function polled(
     gap = null
     const result = await intake.store(events, answer.cursor, opened)
     if (result !== 'ok') return endOf(result, intake)
+    context.started()
     cursor = answer.cursor ?? cursor
     if (answer.hasMore) continue
     const wait = Number.isFinite(answer.nextPollMs) ? answer.nextPollMs : 0

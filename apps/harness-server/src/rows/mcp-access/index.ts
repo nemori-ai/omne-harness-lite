@@ -13,7 +13,7 @@ import {
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
-import { principalKey } from '../mcp/principal-key.ts'
+import { subscriberOf } from '../mcp/principal-key.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -29,7 +29,7 @@ function mcpPrincipals(ctx: Context): McpPrincipals {
       const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
-    subscriberOf: principal => `person:${principalKey(principal)}`,
+    subscriberOf,
   }
 }
 

@@ -47,7 +47,14 @@ const deliveryOf = (type: EventType): 'push' | 'poll' | undefined =>
 export function createEventSubscriptions<P, S>(
   deps: SubscriptionsDependencies<P, S>,
 ): ClosableSubscriptions<P> {
-  const { changes } = deps
+  const { changes, timer } = deps
+  // A new subscription answers once the peer gave its starting position, or when the bound is up.
+  async function startedWithin(started: Promise<void>, bound: number | undefined): Promise<void> {
+    if (bound === undefined) return
+    const stop = new AbortController()
+    await Promise.race([started, timer(bound, stop.signal)])
+    stop.abort()
+  }
   const { prepare, keyOf, typeFor, resume, stopReceiving, deliver, close } =
     createSubscriptionLinks(deps)
 
@@ -99,7 +106,10 @@ export function createEventSubscriptions<P, S>(
         const written = await write(prepared, key, row, existing?.revision ?? 'absent')
         if ('failure' in written && written.failure === 'unavailable') return fail(UNKNOWN)
         if ('failure' in written) continue
-        resume(prepared, ref, key, existing === undefined)
+        await startedWithin(
+          resume(prepared, ref, key, existing === undefined),
+          prepared.connectBound,
+        )
         changes.changed(access.tenant, 'events')
         return succeed(viewOf(key, row))
       }

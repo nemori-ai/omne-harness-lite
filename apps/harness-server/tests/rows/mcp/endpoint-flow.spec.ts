@@ -1376,14 +1376,16 @@ it(
               /^Subscription: incident\.created, push, terminated \(refused\)\n/u,
             )
             expect(tail).toMatch(/\n\d+ {2}-- ended: refused\n$/u)
-            at('the last subscriber leaves: the subscription goes')
+            at('the person logs in again and leaves as the same subscriber: the subscription goes')
+            await tree.relogin()
+            const again = clientOf(tree)
             for (const event of ['incident.created', 'watch.tick'])
-              expect(await mcp['unsubscribe-events'](named(w.tenant, event))).toEqual({
+              expect(await again['unsubscribe-events'](named(w.tenant, event))).toEqual({
                 outcome: 'succeeded',
                 body: { unsubscribed: 'unsubscribed' },
               })
             expect(
-              await mcp['read-events']({ ...named(w.tenant, 'watch.tick'), after: 0, limit: 50 }),
+              await again['read-events']({ ...named(w.tenant, 'watch.tick'), after: 0, limit: 50 }),
             ).toEqual({ outcome: 'not-found', body: {} })
             expect(peer.log.open()).toBe(0)
           }),

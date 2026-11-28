@@ -55,6 +55,26 @@ async function typesOf(store: McpPorts<unknown, unknown>['eventStore'], ensured:
   return 'failure' in read ? fail(UNKNOWN) : succeed(read.ok)
 }
 
+/** The event type of this name, the catalog taken first if it never was; a peer with no events has none to subscribe to. */
+async function typeNamed(
+  read: () => ReturnType<typeof typesOf>,
+  publish: () => Promise<void>,
+  name: string,
+): Promise<Outcome<EventType, SubscribeFailure>> {
+  let catalog = await read()
+  if ('ok' in catalog && catalog.ok === 'absent') {
+    await publish()
+    catalog = await read()
+  }
+  if ('failure' in catalog) return catalog
+  if (catalog.ok === 'absent' || !catalog.ok.declared)
+    return fail({ kind: 'not-subscribable', reason: 'no-events' })
+  const type = catalog.ok.types.find(each => each.name === name)
+  return type === undefined
+    ? fail({ kind: 'not-subscribable', reason: 'no-such-type' })
+    : succeed(type)
+}
+
 async function ensureIn<P>(
   table: ConnectionTable<P>,
   admitted: AdmittedEndpoint,
@@ -122,26 +142,11 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       : ensureOn(admitted.ok, receiver.access, receiver.connectBound)
   }
 
-  async function typeFor(
-    prepared: Prepared<P>,
-    admitted: AdmittedEndpoint,
-    name: string,
-  ): Promise<Outcome<EventType, SubscribeFailure>> {
-    const { access } = prepared
-    const ensured = await ensureOn(admitted, access, prepared.connectBound)
+  async function typeFor(prepared: Prepared<P>, admitted: AdmittedEndpoint, name: string) {
+    const ensured = await ensureOn(admitted, prepared.access, prepared.connectBound)
     if ('failure' in ensured) return ensured
-    let catalog = await typesIn(ensured.ok)
-    if ('ok' in catalog && catalog.ok === 'absent') {
-      await eventTypes.publish(ensured.ok, access)
-      catalog = await typesIn(ensured.ok)
-    }
-    if ('failure' in catalog) return catalog
-    if (catalog.ok === 'absent' || !catalog.ok.declared)
-      return fail({ kind: 'not-subscribable', reason: 'no-events' })
-    const type = catalog.ok.types.find(each => each.name === name)
-    return type === undefined
-      ? fail({ kind: 'not-subscribable', reason: 'no-such-type' })
-      : succeed(type)
+    const publish = () => eventTypes.publish(ensured.ok, prepared.access)
+    return typeNamed(() => typesIn(ensured.ok), publish, name)
   }
 
   async function ready(receiver: Receiver<P>, key: SubscriptionKey): Promise<Ready> {
@@ -166,15 +171,24 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
   }
 
   /** A standing subscription is received by whoever touched it last; a restart takes it up again at the next touch. */
-  function resume(prepared: Prepared<P>, ref: EndpointRef, key: SubscriptionKey, fresh: boolean) {
+  function resume(
+    prepared: Prepared<P>,
+    ref: EndpointRef,
+    key: SubscriptionKey,
+    fresh: boolean,
+  ): Promise<void> {
     const text = keyText(key)
     const running = receivers.get(text)
     if (running !== undefined) {
       running.access = prepared.access
       running.ref = ref
       running.connectBound = prepared.connectBound ?? running.connectBound
-      return
+      return Promise.resolve()
     }
+    let started = (): void => undefined
+    const establishing = new Promise<void>(resolve => {
+      started = resolve
+    })
     const receiver: Receiver<P> = {
       access: prepared.access,
       ref,
@@ -196,12 +210,15 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       ready: () => ready(receiver, key),
       changed: () => changes.changed(key.tenant, 'events'),
       deliver,
+      started: () => started(),
     })
       .catch(() => undefined)
       .finally(() => {
+        started()
         if (receivers.get(text) === receiver) receivers.delete(text)
       })
     table.runtime.scope.spawn(work)
+    return establishing
   }
 
   function stopReceiving(key: SubscriptionKey): void {
