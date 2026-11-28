@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   byteLimitOf,
@@ -15,7 +15,7 @@ import { KIMI_RECORDS } from './records.ts'
 export type KimiFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createKimiFamily(config: KimiFamilyConfig): PiFamily {
+export function createKimiFamily(config: KimiFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: KIMI_OWNER,
     title: 'Kimi',

@@ -1,6 +1,7 @@
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
-import { OPENROUTER_ACCOUNTING } from '../src/chat-completions/openrouter.ts'
+import { OPENROUTER_ACCOUNTING } from '../src/testing/fixtures.ts'
+import type { RouteAccounting } from '../src/config.ts'
 import { factsOfSend } from '../src/fact-stream.ts'
 import type { PiResponseDecoder } from '../src/family.ts'
 import type { ExchangeResult, HttpExchange, ResponseHeaders } from '../src/http.ts'
@@ -38,7 +39,7 @@ const answered = (headers: ResponseHeaders): ExchangeResult => ({
 async function factsOf(
   result: ExchangeResult,
   options: Readonly<{
-    place?: string
+    accounting?: RouteAccounting
     retries?: readonly ('connect-failed' | 'connect-timeout')[]
   }> = {},
 ): Promise<TransportFact[]> {
@@ -50,7 +51,7 @@ async function factsOf(
       url: new URL('https://gateway.test/'),
       endMarker: null,
       framing: 'events',
-      accounting: { ...OPENROUTER_ACCOUNTING, place: options.place ?? OPENROUTER_ACCOUNTING.place },
+      accounting: options.accounting ?? OPENROUTER_ACCOUNTING,
       auth: null,
     },
     limits: LIMITS,
@@ -72,8 +73,9 @@ describe('the response fact of a send', () => {
     expect(await factsOf(answered(headers))).toEqual([{ kind: 'response', request }, COMPLETED])
   })
 
-  it('names no request at a place whose header it does not know', async () => {
-    expect(await factsOf(answered({ 'x-generation-id': 'gen-4' }), { place: 'direct' })).toEqual([
+  it('names no request when the accounting of the route states no header that names it', async () => {
+    const accounting = { place: 'direct', costUnit: 'usd' }
+    expect(await factsOf(answered({ 'x-generation-id': 'gen-4' }), { accounting })).toEqual([
       { kind: 'response', request: null },
       COMPLETED,
     ])

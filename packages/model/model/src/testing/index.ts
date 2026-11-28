@@ -2,6 +2,7 @@ import {
   createScriptedTransport,
   type ScriptedTransportScript,
 } from '@omne-harness/model-contract/testing'
+import type { LiveHosting } from '../live/hosting.ts'
 import type { ModelDependencies } from '../runtime.ts'
 import { createManualModelClock } from './clock.ts'
 import { createMemoryInstanceHost } from './host.ts'
@@ -74,6 +75,7 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
     retry: retry.retry,
     instances: instances.host,
     clock: clock.clock,
+    live: testLiveHosting(),
   } satisfies ModelDependencies<P>
   return {
     dependencies,
@@ -84,6 +86,15 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
       instances: instances.control,
       clock: clock.control,
     },
+  }
+}
+/** Live hosting for a test that runs no live call of its own: every delivery is saved at once. */
+export function testLiveHosting(overrides: Partial<LiveHosting> = {}): LiveHosting {
+  return {
+    events: { deliver: async () => 'saved', exited: () => {} },
+    capacity: 64,
+    deadlines: { openMs: 5000, closeMs: 6000, drainMs: 7000, redeliverMs: 10 },
+    ...overrides,
   }
 }
 export { createModelCommandsCore, modelCommands } from '../commands/index.ts'

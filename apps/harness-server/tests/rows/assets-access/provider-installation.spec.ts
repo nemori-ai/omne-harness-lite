@@ -66,6 +66,7 @@ describe('the release installs its model provider into each tenant (C3)', () => 
         })
         if (listed.outcome !== 'succeeded') throw new Error(`list: ${listed.outcome}`)
         expect(listed.body.items.map(row => [row.name, row.origin, row.holding])).toEqual([
+          ['openai', 'official', 'harness.preinstalled.model-provider.openai'],
           ['openrouter', 'official', 'harness.preinstalled.model-provider.openrouter'],
         ])
 

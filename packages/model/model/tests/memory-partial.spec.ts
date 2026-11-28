@@ -101,7 +101,7 @@ for (const content of [
       const f = await running()
       const control = op('cancel')
       if (ending === 'interrupted')
-        unbox(await f.commands.control({ ...f.admit, operation: control }))
+        unbox(await f.commands.control({ ...f.admit, operation: control, intent: 'cancel' }))
       const value = content === 'tool-arguments' ? '{"unfinished":' : `${content}原值\ud800`
       const facts: TransportFact[] = [
         { kind: 'block-open', index: '0', content, mode: 'append' },

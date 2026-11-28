@@ -842,10 +842,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transport: transport.transport,
   })
   preparationDouble.setAccess({ principal: COORDINATOR, tenant: TENANT }, 'allow')
-  const fixtureProfile: ModelProfile = fixture.sources.values().model.profile
+  const fixtureProfile: ModelProfile<'llm'> = fixture.sources.values().model.profile
   const [fixtureSupplier] = fixtureProfile.definition.suppliers
   const supplier = { ...fixtureSupplier, adoption: testAdoption('cp3-supplier') }
-  const profile: ModelProfile = {
+  const profile: ModelProfile<'llm'> = {
     ...fixtureProfile,
     adoption: testAdoption('cp3-profile'),
     definition: {

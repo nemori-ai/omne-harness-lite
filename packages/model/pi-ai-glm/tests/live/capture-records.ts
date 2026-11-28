@@ -4,10 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeJsonText } from '@omne-harness/json-text'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
 import { GLM_OWNER, GLM_RECORDS, type GlmRecord } from '../../src/index.ts'
@@ -33,6 +30,7 @@ function requestFor(record: GlmRecord) {
   if ('failure' in replay) throw Error(JSON.stringify(replay.failure))
   const output = { kind: 'max-output-tokens', value: '1024' }
   const input = {
+    kind: 'llm',
     profile: source,
     retryPolicy: source,
     source,
@@ -87,7 +85,7 @@ function requestFor(record: GlmRecord) {
     ],
     toolChoice: 'auto',
   }
-  const judged = judgeFixedModelRequest(input)
+  const judged = judgeModelRequest('llm', input)
   if ('failure' in judged) throw Error(JSON.stringify(judged.failure))
   return { input, request: judged.ok }
 }

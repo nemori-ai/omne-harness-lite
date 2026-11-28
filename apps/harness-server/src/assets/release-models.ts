@@ -26,4 +26,7 @@ export const RELEASE_ENABLED_MODELS: ReadonlySet<string> = new Set([
   'z-ai/glm-5.3-flashx',
   'z-ai/glm-5.3-flashx-legal',
   'z-ai/glm-5.3-prime',
+  'openai/gpt-6-luna-decisions',
+  'typesafe/jev-1.13',
+  'typesafe/jev-1.14',
 ])

@@ -8,6 +8,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
+  MaterializedLiveTransport,
   MaterializedTransport,
   ModelMediaSource,
   ModelTransport,
@@ -35,6 +36,9 @@ import {
   recordingFacts,
   type ModelReceiveEvidenceReader,
 } from './receive-evidence.ts'
+
+type Materialized = MaterializedTransport | MaterializedLiveTransport
+type Secrets = ReadonlyMap<string, string>
 
 export type RequestDisclosure = (request: FixedModelRequest) => TransportFailure | null
 
@@ -103,6 +107,17 @@ export function createPiSendResources<P>(config: PiSendResourcesConfig<P>): PiSe
   return sendResourcesOver<P>({ config, createTransport: createPiTransport })
 }
 
+function connectRetryOf<P>(
+  report: PiSendResourcesConfig<P>['onConnectRetry'],
+  demand: SendDemand<P>,
+): Pick<PiTransportConfig, 'onConnectRetry'> {
+  if (report === undefined) return {}
+  return {
+    onConnectRetry: ({ attempt, delayMs, reason }) =>
+      report({ call: demand.call, dispatch: demand.dispatch, attempt, delayMs, reason }),
+  }
+}
+
 export function sendResourcesOver<P>(
   input: Readonly<{
     config: PiSendResourcesConfig<P>
@@ -125,7 +140,7 @@ export function sendResourcesOver<P>(
 
   function acquireOne(demand: SendDemand<P>, owner: object): SendResource {
     let secrets: ReadonlyMap<string, string> | undefined
-    const produced = new WeakSet<MaterializedTransport>()
+    const produced = new WeakSet<Materialized>()
     let released: Promise<void> | undefined
     let inactive = false
     let preparation: ReturnType<ModelTransport['prepare']> | undefined
@@ -135,18 +150,7 @@ export function sendResourcesOver<P>(
       credential: { read: () => secrets },
       onResponseBody: () => received?.bodyClaimed(),
       ...(media === undefined ? {} : { media: mediaReadOf(media, demand) }),
-      ...(onConnectRetry === undefined
-        ? {}
-        : {
-            onConnectRetry: event =>
-              onConnectRetry({
-                call: demand.call,
-                dispatch: demand.dispatch,
-                attempt: event.attempt,
-                delayMs: event.delayMs,
-                reason: event.reason,
-              }),
-          }),
+      ...connectRetryOf(onConnectRetry, demand),
     })
     const transport: ModelTransport = {
       prepare(request, supplier, dispatch) {
@@ -179,19 +183,26 @@ export function sendResourcesOver<P>(
         return preparation
       },
     }
+    // The secrets are readable only while the request starts or the session opens.
+    function withSecrets<T>(materialized: Materialized, value: Secrets, begin: () => T): T {
+      if (inactive) throw new SendResourceDefect('resource-released')
+      if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
+      secrets = value
+      try {
+        return begin()
+      } finally {
+        secrets = undefined
+      }
+    }
     const resource: SendResource = {
       transport,
-      startWithCredential(materialized, value, signal) {
-        if (inactive) throw new SendResourceDefect('resource-released')
-        if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
-        secrets = value
-        try {
+      startWithCredential: (materialized, value, signal) =>
+        withSecrets(materialized, value, () => {
           const facts = materialized.start(signal)
           return received === null ? facts : recordingFacts(facts, received)
-        } finally {
-          secrets = undefined
-        }
-      },
+        }),
+      openWithCredential: (materialized, value, signal) =>
+        withSecrets(materialized, value, () => materialized.open(signal)),
       release() {
         inactive = true
         proofs.release(owner, demand)
@@ -252,8 +263,8 @@ export function sendResourcesOver<P>(
 
 function recordingPrepared(
   prepared: PreparedTransport,
-  produced: WeakSet<MaterializedTransport>,
-  record: (materialized: MaterializedTransport) => TransportFailure | null,
+  produced: WeakSet<Materialized>,
+  record: (materialized: Materialized) => TransportFailure | null,
 ): PreparedTransport {
   let result: ReturnType<PreparedTransport['materialize']> | undefined
   return {

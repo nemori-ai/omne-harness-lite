@@ -47,6 +47,13 @@ describe('the body of list-models', () => {
     expect(readSample(operation.body, { tenant, selected: 'x' }).ok).toBe(false)
   })
 
+  it('may name a kind of model from revision 5 on; an end at revision 4 is not sent one', () => {
+    for (const kind of ['llm', 'decisions', 'live'])
+      expectRoundTrip(operation.body, { tenant, kind })
+    expect(readSample(operation.body, { tenant, kind: 'image' }).ok).toBe(false)
+    expect(operation.body.read(tree({ tenant, kind: 'llm' }), limits, 4).ok).toBe(false)
+  })
+
   it('may name a session from revision 4 on; an end at revision 3 is not sent one', () => {
     expectRoundTrip(operation.body, { tenant, session })
     expect(readSample(operation.body, { tenant, session: 'not a session' }).ok).toBe(false)
@@ -106,6 +113,34 @@ describe('what list-models answers', () => {
     if (!read.ok) throw new Error('not read')
     const told = answered.write(read.value, limits, 3)
     expect(told.ok && JSON.stringify(told.value).includes('blocks')).toBe(false)
+  })
+
+  it('names, from revision 5 on, the kind of each model and whether the need is met', () => {
+    const judge = { ...sonnet, route: 'vendor/judge', kind: 'decisions', input: ['text'] }
+    for (const supply of [
+      { state: 'ready' },
+      { state: 'unknown' },
+      { state: 'blocked', by: 'no-offering' },
+      { state: 'blocked', by: 'credential', providers: ['openai'] },
+      { state: 'blocked', by: 'not-enabled', models: [{ provider: 'openrouter', route: 'a/b' }] },
+      { state: 'blocked', by: 'locked', models: [{ provider: 'openrouter', route: 'a/b' }] },
+      { state: 'blocked', by: 'scope', models: [{ provider: 'openrouter', route: 'a/b' }] },
+    ])
+      expectRoundTrip(answered, { models: [{ ...sonnet, kind: 'llm' }, judge], supply })
+    expect(readSample(answered, { models: [{ ...sonnet, kind: 'image' }] }).ok).toBe(false)
+    expect(readSample(answered, { models: [], supply: { state: 'gone' } }).ok).toBe(false)
+    expect(
+      readSample(answered, { models: [], supply: { state: 'blocked', by: 'weather' } }).ok,
+    ).toBe(false)
+    expect(answered.read(tree({ models: [judge] }), limits, 4).ok).toBe(false)
+    expect(answered.read(tree({ models: [], supply: { state: 'ready' } }), limits, 4).ok).toBe(
+      false,
+    )
+    const read = readSample(answered, { models: [judge], supply: { state: 'ready' } })
+    if (!read.ok) throw new Error('not read')
+    const told = answered.write(read.value, limits, 4)
+    expect(told.ok && JSON.stringify(told.value).includes('decisions')).toBe(false)
+    expect(told.ok && JSON.stringify(told.value).includes('supply')).toBe(false)
   })
 
   it('refuses a page without the list', () => {

@@ -3,7 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   ReasoningEffortMapping,
-  FixedModelRequest,
+  LlmModelRequest,
   MeterRepresentation,
   ModelProfile,
   Parameter,
@@ -51,7 +51,7 @@ export function sameAdoption(left: Adoption, right: Adoption): boolean {
 /** The replay declaration of this binding's entry in the profile, or why there is none. */
 export function profileDeclaration(
   binding: EngineBinding,
-  profile: ModelProfile,
+  profile: ModelProfile<'llm'>,
   supplier: Supplier,
 ): Outcome<ReplayDeclaration, TransportFailure> {
   if (
@@ -71,10 +71,7 @@ export function profileDeclaration(
 }
 
 /** The parameters a fixed request applies through this binding. */
-export function appliedFor(
-  binding: EngineBinding,
-  request: FixedModelRequest,
-): readonly Parameter[] {
+export function appliedFor(binding: EngineBinding, request: LlmModelRequest): readonly Parameter[] {
   return request.parameterAdoptions
     .filter(adoption => sameAdoption(adoption.supplier, binding.adapter))
     .map(adoption => adoption.applied)

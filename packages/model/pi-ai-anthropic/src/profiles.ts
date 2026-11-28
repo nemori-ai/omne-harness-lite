@@ -24,6 +24,6 @@ export function effortMapping(record: AnthropicRecord): ReasoningEffortMapping {
 
 export function officialAnthropicProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(ANTHROPIC_OWNER, ANTHROPIC_RECORDS, input, effortMapping)
 }

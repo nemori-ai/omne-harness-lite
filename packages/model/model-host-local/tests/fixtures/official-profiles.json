@@ -1,5 +1,6 @@
 [
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -139,6 +140,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -277,6 +279,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -416,6 +419,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -554,6 +558,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -693,6 +698,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -831,6 +837,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -970,6 +977,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1109,6 +1117,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1247,6 +1256,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1385,6 +1395,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1524,6 +1535,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1662,6 +1674,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1821,6 +1834,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -1959,6 +1973,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2098,6 +2113,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2237,6 +2253,147 @@
     }
   },
   {
+    "kind": "llm",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "gpt-6-luna",
+          "revision": "1",
+          "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+        },
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "replay": {}
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text",
+      "image"
+    ],
+    "output": [
+      "text"
+    ],
+    "context": {
+      "window": {
+        "provided": "1050000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "1050000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "provided": "922000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "922000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "output": {
+        "provided": "128000",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "finite",
+              "amount": "128000",
+              "source": {
+                "owner": "@omne-harness/pi-ai-openai",
+                "name": "gpt-6-luna#evidence",
+                "revision": "1",
+                "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+              }
+            }
+          }
+        ]
+      },
+      "compactionTriggerPercent": "80"
+    },
+    "limits": [
+      {
+        "metric": "image-bytes",
+        "provided": "4194304",
+        "upstream": [
+          {
+            "supplier": {
+              "owner": "@omne-harness/pi-ai-openai",
+              "name": "gpt-6-luna",
+              "revision": "1",
+              "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+            },
+            "limit": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ],
+    "parameters": [],
+    "reasoningEfforts": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    },
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "gpt-6-luna#representation",
+      "revision": "1",
+      "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+    },
+    "meter": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "gpt-6-luna#meter",
+      "revision": "1",
+      "digest": "46e2f0345eda9bb6464a610bd9ea8d04fe5561dc15b6af00ff6132da00f682fc"
+    },
+    "retryPolicy": {
+      "owner": "@omne-harness/model-host-local-tests",
+      "name": "retry-policy",
+      "revision": "1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2369,6 +2526,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2501,6 +2659,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2633,6 +2792,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2765,6 +2925,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -2897,6 +3058,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3029,6 +3191,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3181,6 +3344,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3336,6 +3500,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3452,6 +3617,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3568,6 +3734,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3680,6 +3847,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3796,6 +3964,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -3912,6 +4081,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4028,6 +4198,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4125,6 +4296,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4222,6 +4394,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4318,6 +4491,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4414,6 +4588,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4507,6 +4682,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4600,6 +4776,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4693,6 +4870,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4789,6 +4967,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -4886,6 +5065,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5002,6 +5182,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5118,6 +5299,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5230,6 +5412,7 @@
     }
   },
   {
+    "kind": "llm",
     "suppliers": [
       {
         "adoption": {
@@ -5324,6 +5507,159 @@
       "name": "retry-policy",
       "revision": "1",
       "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/decisions",
+          "name": "openai/gpt-6-luna-decisions",
+          "revision": "1",
+          "digest": "3e6306aac111a597a18cbb596376c83d62c3a3696373ef9f968500ce4678ffca"
+        },
+        "provider": "openrouter",
+        "model": "openai/gpt-6-luna-decisions"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": "200",
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/direct-decisions",
+          "name": "gpt-6-luna",
+          "revision": "1",
+          "digest": "11fa38696606388b1d754b7e8d9947593e6674c622d5ce0c8db3f132130114ef"
+        },
+        "provider": "openai",
+        "model": "gpt-6-luna"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": "400",
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-jev",
+          "name": "typesafe/jev-1.13",
+          "revision": "1",
+          "digest": "81481ac64fcab8e9b380ceaf96ac19c140ab7c1ec70b53f0a3e5c7a9cc12836d"
+        },
+        "provider": "openrouter",
+        "model": "typesafe/jev-1.13"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "decisions",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-jev",
+          "name": "typesafe/jev-1.14",
+          "revision": "1",
+          "digest": "69a117cf82111a599c7fb1243fbb5dadef2aebcf0030d3b4c0d79c9f4673fcb0"
+        },
+        "provider": "openrouter",
+        "model": "typesafe/jev-1.14"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "text"
+    ],
+    "output": [
+      "text"
+    ],
+    "maxQuestions": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
+    }
+  },
+  {
+    "kind": "live",
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai/live",
+          "name": "gpt-live-1.1",
+          "revision": "1",
+          "digest": "e709d11d17ba389b81291833c328116e687475b78d9ac0f1efc6a6caad51b1b7"
+        },
+        "provider": "openai",
+        "model": "gpt-live-1.1"
+      }
+    ],
+    "fallback": false,
+    "input": [
+      "voice",
+      "text"
+    ],
+    "output": [
+      "voice",
+      "text"
+    ],
+    "voices": [
+      "marin"
+    ],
+    "audioFormats": [
+      "pcm16"
+    ],
+    "maxSessionSeconds": null,
+    "retryPolicy": {
+      "owner": "@omne-harness/model",
+      "name": "retry-policy/no-resend",
+      "revision": "1",
+      "digest": "3e1f84daa8210a4a3a0d9663f87239463caffca22dfff21d65e03124f2be2866"
     }
   }
 ]

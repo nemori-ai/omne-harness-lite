@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeRevision, type ModelProfile, type Supplier } from '@omne-harness/model-contract'
 import { createTiktokenExecutor, type TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
-import { composeFamilies, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, type PiChatBinding } from '@omne-harness/pi-ai-transport'
 import {
   createOpenAiFamily,
   officialOpenAiProfiles,
@@ -26,7 +26,7 @@ const RECORD = 'openai/gpt-6.1-sol'
 const hex = (name: string) => ({ owner: 'test', name, revision: '1', digest: 'a'.repeat(64) })
 const evidence = { owner: 'test', record: 'test', revision: '1', digest: 'd' }
 
-function officialProfile(): ModelProfile {
+function officialProfile(): ModelProfile<'llm'> {
   const definition = officialOpenAiProfiles({
     retryPolicy: hex('retry'),
     compactionTriggerPercent: '80',
@@ -34,7 +34,7 @@ function officialProfile(): ModelProfile {
   const revision = decodeRevision('1')
   if (definition === undefined || 'failure' in revision) throw new Error('fixture')
   return {
-    identity: { scope: { kind: 'factory' }, route: RECORD },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: RECORD },
     adoption: hex('profile'),
     revision: revision.ok,
     updatedAt: '2026-11-04T00:00:00Z',
@@ -51,7 +51,7 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 let executor: TiktokenExecutor
-let binding: PiFamilyBinding
+let binding: PiChatBinding
 beforeAll(async () => {
   const resources = openAiTokenizerResources()
   const created = await createTiktokenExecutor({

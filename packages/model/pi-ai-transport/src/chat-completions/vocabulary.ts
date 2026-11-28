@@ -3,7 +3,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
-  FixedModelRequest,
+  LlmModelRequest,
   MeterRepresentation,
   ModelFault,
   Parameter,
@@ -20,7 +20,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiModelRecordHead } from '../family-table.ts'
 
-export type ChatMessage = FixedModelRequest['messages'][number]
+export type ChatMessage = LlmModelRequest['messages'][number]
 export type ChatMessageId = ChatMessage['id']
 export type ChatUsageItem = Extract<TransportFact, { kind: 'account' }>['value']['usage'][number]
 export type UsageDiagnostic = Extract<ProviderDiagnostic, { kind: 'usage-inconsistent' }>
@@ -194,7 +194,7 @@ export type ProjectedRequest = Readonly<{
   instruction: readonly ContentBlock[]
   turns: readonly ProjectedTurn[]
   tools: readonly ToolDeclaration[]
-  toolChoice: FixedModelRequest['toolChoice']
+  toolChoice: LlmModelRequest['toolChoice']
   applied: readonly Parameter[]
 }>
 

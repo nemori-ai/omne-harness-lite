@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   byteLimitOf,
@@ -15,7 +15,7 @@ import { QWEN_RECORDS } from './records.ts'
 export type QwenFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createQwenFamily(config: QwenFamilyConfig): PiFamily {
+export function createQwenFamily(config: QwenFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: QWEN_OWNER,
     title: 'Qwen',

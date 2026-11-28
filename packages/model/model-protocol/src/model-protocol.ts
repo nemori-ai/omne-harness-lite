@@ -13,11 +13,13 @@ const literal = <const V extends readonly string[]>(...values: V) =>
 const array = <const R extends Rule>(item: R) => ({ kind: 'array', item }) as const
 
 const modalities = { rule: array(literal('text', 'image', 'voice')) } as const
+const kind = literal('llm', 'decisions', 'live')
 const blockPosition = object({ message: { rule: text }, block: { rule: text } })
 
 // One profile as it resolves for the tenant now. A route that lacks its credential stays
 // selectable: `credential` says a call to it cannot go out yet.
 const model = object({
+  kind: { rule: kind, optional: true, since: 5 },
   route: { rule: text },
   selectable: { rule: boolean },
   reasons: { rule: array(literal('modality', 'locked', 'scope')) },
@@ -41,6 +43,19 @@ const model = object({
   blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true, since: 4 },
 })
 
+const supply = object({
+  state: { rule: literal('ready', 'blocked', 'unknown') },
+  by: {
+    rule: literal('no-offering', 'credential', 'not-enabled', 'locked', 'scope'),
+    optional: true,
+  },
+  providers: { rule: array(text), optional: true },
+  models: {
+    rule: array(object({ provider: { rule: text }, route: { rule: text } })),
+    optional: true,
+  },
+})
+
 export const modelProtocol = defineProtocol({
   name: 'model',
   major: 1,
@@ -50,9 +65,21 @@ export const modelProtocol = defineProtocol({
       effect: 'read',
       limit: 'small',
       body: ruleCodec(
-        object({ tenant: { rule: tenant }, session: { rule: session, optional: true, since: 4 } }),
+        object({
+          tenant: { rule: tenant },
+          session: { rule: session, optional: true, since: 4 },
+          // Without a kind the list is of chat models; a session is read for chat models only.
+          kind: { rule: kind, optional: true, since: 5 },
+        }),
       ),
-      outcomes: { succeeded: ruleCodec(object({ models: { rule: array(model) } })) },
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            models: { rule: array(model) },
+            supply: { rule: supply, optional: true, since: 5 },
+          }),
+        ),
+      },
       countsAsAccess: true,
     },
   },

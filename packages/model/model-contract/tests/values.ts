@@ -16,7 +16,7 @@ import type {
   ContextLimits,
   DispatchId,
   DurableEvidence,
-  FixedModelRequest,
+  LlmModelRequest,
   ModelCallId,
   ModelCountingBasis,
   ModelDiagnosticCursor,
@@ -112,7 +112,8 @@ export const budget: RequestBudget = {
   counting: [counting],
   kind: 'complete',
 }
-export const request: FixedModelRequest = {
+export const request: LlmModelRequest = {
+  kind: 'llm',
   profile: adoption,
   suppliers: [supplier],
   fallback: false,

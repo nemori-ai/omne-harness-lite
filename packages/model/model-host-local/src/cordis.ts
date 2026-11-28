@@ -1,9 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialPort, ModelPreferencesPort } from '@omne-harness/model-contract/provider'
-import type { ModelDecisionPreparation } from '@omne-harness/model-contract/provider'
+import type {
+  ModelDecisionPreparation,
+  ModelLivePreparation,
+} from '@omne-harness/model-contract/provider'
 import {
   ModelCredentialService,
   ModelDecisionPreparationService,
+  ModelLivePreparationService,
   ModelPreferencesService,
 } from '@omne-harness/model-cordis-contract/cordis'
 
@@ -54,6 +58,24 @@ export function serveModelDecisionPreparation<P>(
   }
   return new PortDecisionPreparation()
 }
+
+/** Serves the live preparation on this context: it leaves with the scope that asked for it. */
+export function serveModelLivePreparation<P>(
+  ctx: Context,
+  port: ModelLivePreparation<P>,
+): ModelLivePreparationService<P> {
+  class PortLivePreparation extends ModelLivePreparationService<P> {
+    readonly prepare: ModelLivePreparation<P>['prepare']
+
+    constructor() {
+      super(ctx)
+      this.prepare = input => port.prepare(input)
+    }
+  }
+  return new PortLivePreparation()
+}
+
+export { serveModelLiveCalls } from './plugins/live-calls.ts'
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
 export { createModelRequestPreparationPlugin } from './plugins/preparation.ts'

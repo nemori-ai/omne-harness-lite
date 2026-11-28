@@ -22,6 +22,7 @@ import {
   expect,
   imageBlock,
   profile,
+  need,
   readFileTool,
   required,
   textBlock,
@@ -54,7 +55,7 @@ function setup(
   })
   const profiles = createScriptedModelProfiles<Principal>()
   profiles.setAccess(access, 'allow')
-  const resolved: ProfileResolution = {
+  const resolved: ProfileResolution<'llm'> = {
     kind: 'resolved',
     profile,
     source: evidence('profile'),
@@ -63,9 +64,12 @@ function setup(
     credential: 'available',
     shadowed: [],
   }
-  profiles.setResolution({ ...access, route: profile.identity.route, required }, { ok: resolved })
+  profiles.setResolution(
+    { ...access, route: profile.identity.route, required: need },
+    { ok: resolved },
+  )
   profiles.setList(
-    { ...access, selected: profile.identity.route, required },
+    { ...access, selected: profile.identity.route, required: need },
     {
       ok: {
         choices: [resolved],
@@ -150,6 +154,7 @@ async function toolsStayNeutralDeclarations(): Promise<void> {
 const SENT_FIELDS = [
   'declarations',
   'fallback',
+  'kind',
   'messages',
   'parameterAdoptions',
   'parameters',
@@ -188,7 +193,11 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
 
 async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void> {
   const { services, profiles } = setup()
-  const resolution = await services.profiles.resolve({ ...access, route: 'default', required })
+  const resolution = await services.profiles.resolve({
+    ...access,
+    route: 'default',
+    required: need,
+  })
   expect('ok' in resolution, 'the profile service refused the route')
   expect(resolution.ok.kind === 'resolved', 'the route did not resolve')
   const { context } = resolution.ok.profile.definition

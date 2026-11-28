@@ -25,6 +25,6 @@ export function effortMapping(record: DeepSeekRecord): ReasoningEffortMapping {
 
 export function officialDeepSeekProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(DEEPSEEK_OWNER, DEEPSEEK_RECORDS, input, effortMapping)
 }

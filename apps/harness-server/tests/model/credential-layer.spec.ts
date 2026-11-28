@@ -14,11 +14,11 @@ async function inputOf() {
     retryPolicy: { owner: 'test', name: 'retry', revision: '1', digest: '0'.repeat(64) },
     compactionTriggerPercent: '80',
   }).find(profile => profile.suppliers[0].model === 'moonshotai/kimi-k3')
-  if (definition === undefined) throw new Error('Kimi profile missing')
+  if (definition?.kind !== 'llm') throw new Error('Kimi profile missing')
   const revision = decodeRevision(definition.suppliers[0].adoption.revision)
   if (!('ok' in revision)) throw new Error('profile revision invalid')
-  const profile: ModelProfile = {
-    identity: { scope: { kind: 'factory' }, route: 'moonshotai/kimi-k3' },
+  const profile: ModelProfile<'llm'> = {
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'moonshotai/kimi-k3' },
     adoption: officialProfileAdoption(definition),
     revision: revision.ok,
     updatedAt: '2026-11-23T00:00:00Z',
@@ -104,7 +104,7 @@ describe('the release credential layer supplier', () => {
         credential: { layer: 'tenant' },
       },
     })
-    const tenantProfile: ModelProfile = {
+    const tenantProfile: ModelProfile<'llm'> = {
       ...input.profile,
       identity: { ...input.profile.identity, scope: { kind: 'tenant', tenant: access.tenant } },
     }

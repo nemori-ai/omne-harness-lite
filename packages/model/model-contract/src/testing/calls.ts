@@ -172,6 +172,7 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
       if (record.control.kind === 'none') {
         record.control = {
           kind: 'requested',
+          intent: 'cancel',
           operation: input.operation,
           propagation: 'pending',
           upstream: 'unknown',

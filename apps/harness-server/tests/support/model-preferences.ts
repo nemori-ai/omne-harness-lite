@@ -1,11 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
 import {
+  CATALOG_KINDS,
   MODEL_PROVIDER_CATEGORY,
   MODEL_SWITCHES,
+  type CatalogKind,
 } from '@omne-harness/model-contract/provider-asset'
 import { modelPreferencesKey } from '@omne-harness/model-cordis-contract/cordis'
-import { officialCatalog } from '@omne-harness/model-host-local'
+import { officialCatalog, officialSupplierProviders } from '@omne-harness/model-host-local'
 import { serveModelPreferences } from '@omne-harness/model-host-local/cordis'
 import { defineRow } from '../../src/row.ts'
 import {
@@ -13,14 +15,24 @@ import {
   tenantAssetSettingsKey,
 } from '../../src/rows/governance/tenant-settings-service.ts'
 
-// Trees whose cases are about something other than a tenant's choice of models: every model is on.
+// Trees whose cases are about something other than a tenant's choice of models: every model of every
+// provider the release brings is on.
 
-const openrouter: ProviderName = (() => {
-  const decoded = decodeProviderName('openrouter')
+const providerOf = (name: string): ProviderName => {
+  const decoded = decodeProviderName(name)
   if (!('ok' in decoded)) throw new Error('provider name')
   return decoded.ok
-})()
-const everyModel = () => officialCatalog(openrouter, () => true).map(entry => entry.model)
+}
+const PROVIDERS = officialSupplierProviders()
+const modelsOf = (provider: ProviderName, kind: CatalogKind) =>
+  officialCatalog(provider, () => true)
+    .filter(entry => entry.kind === kind)
+    .map(entry => entry.model)
+const allOn = (provider: ProviderName) => ({
+  llm: new Set(modelsOf(provider, 'llm')),
+  decisions: new Set(modelsOf(provider, 'decisions')),
+  live: new Set(modelsOf(provider, 'live')),
+})
 
 /** Serves the preferences directly, for a tree without the model-credential row. */
 export const everyModelOnRow = defineRow({
@@ -31,8 +43,11 @@ export const everyModelOnRow = defineRow({
   plugin: {
     name: 'every-model-on',
     apply(ctx: Context) {
-      const enabled = new Set(everyModel())
-      serveModelPreferences(ctx, { read: async () => ({ ok: { enabled, efforts: new Map() } }) })
+      serveModelPreferences(ctx, {
+        read: async ({ provider }) => ({
+          ok: { enabled: allOn(providerOf(provider)), efforts: new Map() },
+        }),
+      })
     },
   },
 })
@@ -46,15 +61,24 @@ export const everyModelSwitchedOnRow = defineRow({
   plugin: {
     name: 'every-model-switched-on',
     apply(ctx: Context) {
-      const switches = Object.fromEntries(everyModel().map(model => [model, true]))
-      const view = {
-        owner: { kind: 'asset', category: MODEL_PROVIDER_CATEGORY, name: 'openrouter' },
+      const views = PROVIDERS.map(provider => ({
+        owner: { kind: 'asset', category: MODEL_PROVIDER_CATEGORY, name: provider },
         item: MODEL_SWITCHES,
         kind: 'ordinary',
-        effective: { value: { kind: 'set', value: switches } },
-      }
+        effective: {
+          value: {
+            kind: 'set',
+            value: Object.fromEntries(
+              CATALOG_KINDS.map(kind => [
+                kind,
+                Object.fromEntries(modelsOf(provider, kind).map(model => [model, true])),
+              ]),
+            ),
+          },
+        },
+      }))
       class EveryModelSwitchedOn extends TenantAssetSettingsService {
-        readonly items = async () => [view] as never
+        readonly items = async () => views as never
         readonly writes = () => 0
         readonly declared = async () => 'unknown' as const
       }

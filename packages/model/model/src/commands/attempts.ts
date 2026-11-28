@@ -33,10 +33,10 @@ export function withoutReplayOf(call: CallDocument): DispatchRecord['withoutRepl
 export function beginDispatch(
   call: CallDocument,
   input: Readonly<{ dispatch: DispatchId; supplier: Supplier; operation: ModelOperationId }>,
-  messages: NonNullable<DispatchRecord['messages']>,
   prepared: string | null,
 ): void {
   const withoutReplay = withoutReplayOf(call)
+  const { request } = call
   call.dispatches.push({
     record: {
       dispatch: input.dispatch,
@@ -47,7 +47,7 @@ export function beginDispatch(
       terminal: null,
       account: null,
       materialization: null,
-      messages: [...messages],
+      messages: request?.kind === 'llm' ? [...request.messageIds] : [],
       ...(withoutReplay === undefined ? {} : { withoutReplay }),
       instants: { ...NO_INSTANTS, prepared },
       connectRetries: [],

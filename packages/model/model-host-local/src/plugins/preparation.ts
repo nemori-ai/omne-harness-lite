@@ -11,8 +11,9 @@ import {
   type SupplierPort,
 } from '@omne-harness/model'
 import {
-  profileCovers,
-  type FixedModelRequest,
+  chatNeedOf,
+  meetsNeed,
+  type LlmModelRequest,
   type ModelFailure,
   type ModelPreparationLease,
   type ModelPreparationResources,
@@ -23,7 +24,7 @@ import {
   type Reply,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type ModelCommands,
   type ModelRequestPreparation,
@@ -65,7 +66,7 @@ function qualify(input: PrepareInput): ModelFailure | null {
   if (scope !== null) return scope
   if (input.profile.availability === 'withdrawn')
     return { kind: 'invalid', field: 'profile', reason: 'withdrawn' }
-  if (!profileCovers(input.profile.definition, input.required))
+  if (!meetsNeed(input.profile.definition, chatNeedOf(input.required)))
     return { kind: 'invalid', field: 'required.modalities', reason: 'modality' }
   return null
 }
@@ -88,7 +89,7 @@ function declarationsOf(
 function requestOf(
   input: PrepareInput,
   lease: ModelPreparationLease,
-): { ok: FixedModelRequest } | Failed {
+): { ok: LlmModelRequest } | Failed {
   const { profile, assembled } = input
   const adoptions: ParameterAdoption[] = []
   for (const binding of lease.bindings) {
@@ -98,7 +99,8 @@ function requestOf(
   }
   const declarations = declarationsOf(profile.definition.suppliers)
   if (!('ok' in declarations)) return declarations
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
+    kind: 'llm',
     profile: profile.adoption,
     contextWindow: {
       tokens: profile.definition.context.window.provided,
@@ -164,7 +166,7 @@ function createPluginClass(
 ): ModelRequestPreparationPluginClass {
   const leases = gate(live)
 
-  async function prepareOver(input: PrepareInput): Reply<FixedModelRequest> {
+  async function prepareOver(input: PrepareInput): Reply<LlmModelRequest> {
     const refused = qualify(input)
     if (refused !== null) return { failure: refused }
     const leased = await leases.acquire({
@@ -173,7 +175,7 @@ function createPluginClass(
       profile: input.profile,
     })
     if (!('ok' in leased)) return leased
-    let formed: { ok: FixedModelRequest } | Failed
+    let formed: { ok: LlmModelRequest } | Failed
     try {
       formed = requestOf(input, leased.ok)
     } catch (error) {

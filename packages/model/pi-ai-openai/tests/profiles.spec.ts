@@ -39,7 +39,15 @@ describe('officialOpenAiProfiles', () => {
         { supplier, limit: { kind: 'finite', amount, source: evidence } },
       ]
       expect(PROFILES[index]).toEqual({
-        suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
+        kind: 'llm',
+        suppliers: [
+          {
+            adoption: supplier,
+            provider: record.route.provider,
+            model: record.route.model,
+            replay: {},
+          },
+        ],
         fallback: false,
         input: ['text', 'image'],
         ...(record.name === 'openai/gpt-5.6-luna' ? { fileTypes: ['application/pdf'] } : {}),

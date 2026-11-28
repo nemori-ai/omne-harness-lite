@@ -31,6 +31,7 @@ describe('officialAnthropicProfiles', () => {
           : unknown
       const { context } = record.profile
       expect(PROFILES[index]).toEqual({
+        kind: 'llm',
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],

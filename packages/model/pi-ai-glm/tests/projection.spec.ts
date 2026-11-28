@@ -3,10 +3,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import {
   composeFamilies,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiMaterializedMedia,
 } from '@omne-harness/pi-ai-transport'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
@@ -21,13 +21,13 @@ const directory = join(
   fixtureDirectory(record),
 )
 const checked = (input: unknown) => {
-  const result = judgeFixedModelRequest(input)
+  const result = judgeModelRequest('llm', input)
   if ('failure' in result) throw Error(JSON.stringify(result.failure))
   return result.ok
 }
 const request = checked(JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8')).request)
 async function withBinding(
-  test: (binding: PiFamilyBinding) => Promise<void>,
+  test: (binding: PiChatBinding) => Promise<void>,
   supplier = request.suppliers[0],
 ) {
   const result = await composeFamilies([FAMILY]).acquire(supplier, new AbortController().signal)
@@ -39,7 +39,7 @@ async function withBinding(
   }
 }
 function encoded(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   input = request,
   media: readonly PiMaterializedMedia[] = [],
 ) {

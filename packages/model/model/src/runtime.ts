@@ -4,7 +4,16 @@ import { referenceFailure } from './reference.ts'
 import { contactOf, type ModelLiveness } from './contact.ts'
 import { createModelDriver } from './driver.ts'
 import { createSendInterruption } from './send/interruption.ts'
-import type { ModelCallId, Reply } from '@omne-harness/model-contract'
+import { liveStarter, validLive, type LiveHosting } from './live/hosting.ts'
+import { LiveBodies, createLiveCalls } from './live/registry.ts'
+import { newOperation } from './receive.ts'
+import type {
+  ControlState,
+  ModelCallId,
+  ModelLiveCalls,
+  Mutation,
+  Reply,
+} from '@omne-harness/model-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   ModelCommands,
@@ -31,11 +40,16 @@ export type ModelDependencies<P> = Readonly<{
   instances: ModelInstanceHost<P>
   clock: ModelClock
   liveness?: ModelLiveness
+  live: LiveHosting
 }>
 export type ModelRuntimeProvider<P> = ModelProvider<P> &
   Readonly<{
     driver: ModelDriver<P>
     released(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
+    /** The three entries of the live calls this process runs. */
+    live: ModelLiveCalls<P>
+    /** Whether this process still holds the body of the call: its result is pushed only once it is gone. */
+    holdsLiveBody(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): boolean
   }>
 const METHODS = {
   commands: [
@@ -43,6 +57,7 @@ const METHODS = {
     'recall',
     'scanPending',
     'loadRecovery',
+    'loadControl',
     'loadOrigin',
     'loadRequest',
     'claim',
@@ -86,6 +101,7 @@ function validate(dependencies: unknown, configuration: unknown): void {
     )
       throw new TypeError('invalid Model instance directory')
   }
+  if (!validLive(dependencies.live)) throw new TypeError('invalid Model dependency live')
   validateConfiguration(configuration)
 }
 function validateConfiguration(configuration: unknown): void {
@@ -112,6 +128,18 @@ function validateConfiguration(configuration: unknown): void {
       throw new RangeError(`Model configuration ${field} is out of range`)
   }
 }
+const reserved = (operation: string) =>
+  operation.startsWith('mop_--')
+    ? Promise.resolve({
+        failure: { kind: 'invalid', field: 'operation', reason: 'reserved' },
+      } as const)
+    : null
+/** Asks the host to drive the call; a host that cannot answer now finds it in its next scan. */
+async function wake<P>(instances: ModelInstanceHost<P>, target: Mutation<P>): Promise<void> {
+  try {
+    await instances.schedule({ tenant: target.tenant, call: target.call })
+  } catch {}
+}
 function unavailable(operation: string, stage: string): Reply<never> {
   return Promise.resolve({
     failure: {
@@ -128,6 +156,10 @@ export function createModelRuntime<P>(
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
   const interruption = createSendInterruption(dependencies.send)
+  const bodies = new LiveBodies()
+  const live = liveStarter<P>(dependencies.live, dependencies.clock, bodies, async demand => {
+    await cancel({ ...demand, operation: newOperation() })
+  })
   const activity = createModelDriver(
     commands,
     instances,
@@ -135,6 +167,7 @@ export function createModelRuntime<P>(
     configuration,
     interruption.send,
     dependencies.retry,
+    live,
   )
   let quiesced = false
   const admitting = new Set<Promise<unknown>>()
@@ -142,7 +175,7 @@ export function createModelRuntime<P>(
     const result = await commands.admit(input)
     if ('ok' in result) {
       if (!result.ok.recovered) activity.admitted(input)
-      await wake({ tenant: input.tenant, call: input.call })
+      await wake(instances, input)
     }
     return result
   }
@@ -156,17 +189,16 @@ export function createModelRuntime<P>(
       } as const
     return admitNew(input)
   }
-  async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
-    try {
-      await instances.schedule(input)
-    } catch {}
+  async function cancel(input: Mutation<P>): Reply<ControlState> {
+    const result = await commands.control({ ...input, intent: 'cancel' })
+    if ('ok' in result) {
+      interruption.interrupt(input)
+      bodies.cancelled(input, result.ok)
+      activity.requestRefresh(input)
+      await wake(instances, input)
+    }
+    return result
   }
-  const reserved = (operation: string) =>
-    operation.startsWith('mop_--')
-      ? Promise.resolve({
-          failure: { kind: 'invalid', field: 'operation', reason: 'reserved' },
-        } as const)
-      : null
   return {
     runtime: {
       calls: {
@@ -194,16 +226,7 @@ export function createModelRuntime<P>(
         contact: input => contactOf(commands, dependencies.liveness, input),
         dispatches: ({ principal, tenant, call }) =>
           commands.dispatches({ principal, tenant, call }),
-        cancel: async ({ principal, tenant, call, operation }) => {
-          const input = { principal, tenant, call, operation }
-          const result = await commands.control(input)
-          if ('ok' in result) {
-            interruption.interrupt(input)
-            activity.requestRefresh(input)
-            await wake({ tenant: input.tenant, call: input.call })
-          }
-          return result
-        },
+        cancel,
       },
       consumption: {
         beginRead: async ({ principal, tenant, reference, operation, result }) => {
@@ -269,5 +292,7 @@ export function createModelRuntime<P>(
     },
     driver: activity.driver,
     released: activity.released,
+    live: createLiveCalls(commands, bodies),
+    holdsLiveBody: target => bodies.holds(target),
   }
 }

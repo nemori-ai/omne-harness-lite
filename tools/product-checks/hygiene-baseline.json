@@ -80,7 +80,7 @@
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2328,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
-      "packages/model/model/src/commands/commands.ts": 1054,
+      "packages/model/model/src/commands/commands.ts": 1025,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1603,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
@@ -167,7 +167,7 @@
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
-        "longest": 312
+        "longest": 294
       },
       "packages/agent/agent/src/testing/journal-finishing.ts": {
         "count": 1,
@@ -431,7 +431,7 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 505
+        "longest": 501
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
@@ -451,7 +451,7 @@
       },
       "packages/model/model/src/driver.ts": {
         "count": 1,
-        "longest": 578
+        "longest": 571
       },
       "packages/model/model/src/observation.ts": {
         "count": 1,
@@ -463,7 +463,7 @@
       },
       "packages/model/model/src/send/attempt.ts": {
         "count": 1,
-        "longest": 451
+        "longest": 440
       },
       "packages/model/model/src/stream-observation.ts": {
         "count": 3,

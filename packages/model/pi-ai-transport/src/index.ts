@@ -1,5 +1,9 @@
+export { chatBindingsOf, isBindingOf } from './family.ts'
 export type {
+  PiChatBinding,
+  PiDecisionsBinding,
   PiFamilyBinding,
+  PiLiveBinding,
   PiFamilyContributions,
   PiMaterializedMedia,
   PiProtocolFrame,
@@ -20,14 +24,17 @@ export type {
   PiCredentialSlot,
   PiRoute,
   PiRouteEndpoint,
+  DecisionsEndpoint,
   EngineEndpoint,
+  LiveEndpoint,
   ProviderEndpoint,
   PiRouteAuth,
   PiTransportConfig,
   PiTransportLimits,
   RouteAccounting,
 } from './config.ts'
-export { isEngineEndpoint, isProviderEndpoint } from './config.ts'
+export { isEngineEndpoint, isProviderEndpoint, PROTOCOLS } from './config.ts'
+export type { LiveSocket, LiveSocketFactory } from './live/session.ts'
 export {
   RECORD_FACTS,
   type FactSource,

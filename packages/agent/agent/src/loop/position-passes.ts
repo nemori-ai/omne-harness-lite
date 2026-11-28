@@ -144,7 +144,7 @@ async function afterFailure<P>(
   action: string,
   call: M.ModelCallId,
   fault: M.ModelFault,
-  request: M.FixedModelRequest | null,
+  request: M.LlmModelRequest | null,
   refused: (failure: M.ModelFailure) => Failure,
 ) {
   const { access, ports, runner } = host

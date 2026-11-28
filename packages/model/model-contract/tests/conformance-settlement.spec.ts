@@ -988,7 +988,7 @@ it('bounds promptly repeated next pages, disposes the subject and continues late
   expect(subjects).toHaveLength(report.results.length)
   expect(subjects.every(subject => subject.disposed)).toBe(true)
   expect(report.results.at(-1)).toEqual({
-    obligation: 'transport-close-is-idempotent',
+    obligation: 'live-lost-body-unavailable',
     status: 'pass',
     detail: '',
   })

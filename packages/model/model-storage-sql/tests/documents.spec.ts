@@ -99,6 +99,7 @@ function documentOf(): CallDocument {
   return {
     state: STATE,
     request: {
+      kind: 'llm',
       profile: ADOPTION,
       suppliers: [SUPPLIER],
       fallback: false,

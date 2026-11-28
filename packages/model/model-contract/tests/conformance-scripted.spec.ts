@@ -4,6 +4,7 @@ import {
   checkModelProviderConformance,
 } from '@omne-harness/model-contract/conformance'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import {
   acknowledged,
   ackInput,
@@ -174,7 +175,7 @@ describe('the transport of the scripted conformance subject', () => {
     const prepared = await transport.transport.prepare(request, supplier, { resent: [] })
     if (!('ok' in prepared)) throw new Error('prepare')
     const materialized = await prepared.ok.materialize(new AbortController().signal)
-    if (!('ok' in materialized)) throw new Error('materialize')
+    if (!('ok' in materialized) || !('start' in materialized.ok)) throw new Error('materialize')
     expect(transport.sends()).toBe(0)
     const facts = []
     for await (const fact of materialized.ok.start(new AbortController().signal)) facts.push(fact)
@@ -190,7 +191,7 @@ describe('the transport of the scripted conformance subject', () => {
       'supplier',
     ])
     expect(materialized.ok.receipt.supplier).toEqual(supplier.adoption)
-    expect(materialized.ok.receipt.representation).toEqual(request.representation)
+    expect(materialized.ok.receipt.representation).toEqual(requestRepresentation(request))
     await materialized.ok.close()
     await prepared.ok.close()
   })
@@ -204,7 +205,7 @@ describe('the transport of the scripted conformance subject', () => {
     const prepared = await transport.transport.prepare(scene.request, supplier, { resent: [] })
     if (!('ok' in prepared)) throw new Error('prepare')
     const materialized = await prepared.ok.materialize(new AbortController().signal)
-    if (!('ok' in materialized)) throw new Error('materialize')
+    if (!('ok' in materialized) || !('start' in materialized.ok)) throw new Error('materialize')
     const signal = new AbortController().signal
     for await (const fact of materialized.ok.start(signal)) void fact
     try {

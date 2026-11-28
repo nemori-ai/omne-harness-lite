@@ -167,6 +167,41 @@
               "pending": false
             },
             {
+              "name": "RequestCommon",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveModelRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "Admit",
               "kind": "type",
               "pending": false
@@ -239,6 +274,31 @@
             {
               "name": "decodeProviderName",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "KIND_TRAITS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MODEL_KINDS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isModelKind",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "KindTraits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelKind",
+              "kind": "type",
               "pending": false
             }
           ]
@@ -868,8 +928,33 @@
               "pending": false
             },
             {
-              "name": "profileCovers",
+              "name": "isProfileOf",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "chatNeedOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "meetsNeed",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ModelNeed",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileListInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileResolveInput",
+              "kind": "type",
               "pending": false
             },
             {
@@ -895,6 +980,31 @@
             {
               "name": "replaySourceCall",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "LlmProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveProfile",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProfileCommon",
+              "kind": "type",
               "pending": false
             }
           ]
@@ -1033,17 +1143,67 @@
               "pending": false
             },
             {
-              "name": "decisionAskMessage",
+              "name": "LIVE_REPRESENTATION",
               "kind": "value",
               "pending": false
             },
             {
-              "name": "decisionAskOf",
-              "kind": "value",
+              "name": "LiveCommand",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCommandOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCommandReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LivePhaseRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveEvent",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveFrame",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MediaFrame",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MediaWrite",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveMedia",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelLiveCalls",
+              "kind": "type",
               "pending": false
             },
             {
               "name": "decisionAnswersBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeDecisionAsk",
               "kind": "value",
               "pending": false
             },
@@ -1079,6 +1239,21 @@
             {
               "name": "judgeFixedModelRequest",
               "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeModelRequest",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "supplyOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ModelSupply",
+              "kind": "type",
               "pending": false
             },
             {
@@ -1192,6 +1367,26 @@
               "pending": false
             },
             {
+              "name": "LiveFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveSession",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MaterializedLiveTransport",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "MaterializedTransport",
               "kind": "type",
               "pending": false
@@ -1242,6 +1437,11 @@
               "pending": false
             },
             {
+              "name": "ControlRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CallOrigin",
               "kind": "type",
               "pending": false
@@ -1253,6 +1453,11 @@
             },
             {
               "name": "requestHead",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "requestRepresentation",
               "kind": "value",
               "pending": false
             },
@@ -1565,6 +1770,11 @@
               "name": "ModelDecisionPreparation",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "ModelLivePreparation",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -1602,6 +1812,11 @@
             },
             {
               "name": "ConformanceHooks",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConformanceLive",
               "kind": "type",
               "pending": false
             },
@@ -1915,6 +2130,11 @@
               "pending": false
             },
             {
+              "name": "createLiveDouble",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ScriptedPrincipal",
               "kind": "type",
               "pending": false
@@ -1942,6 +2162,16 @@
             {
               "name": "ScriptedCredentialProvider",
               "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ofKind",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "resolutionOf",
+              "kind": "value",
               "pending": false
             }
           ]
@@ -2000,6 +2230,36 @@
             },
             {
               "name": "CatalogModel",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LlmCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DecisionsCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LiveCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CatalogKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CATALOG_KINDS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProviderAccounting",
               "kind": "type",
               "pending": false
             },

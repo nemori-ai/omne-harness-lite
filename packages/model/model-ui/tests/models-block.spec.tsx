@@ -48,6 +48,7 @@ const tree = (value: unknown): JsonValue => {
 const plain = (value: JsonValue): unknown => JSON.parse(writeJsonText(value))
 
 const GLM53 = {
+  kind: 'llm',
   model: 'z-ai/glm-5.3',
   title: 'GLM 5.3',
   input: ['text'],
@@ -70,7 +71,26 @@ const VISION = {
   input: ['text', 'image', 'audio', 'video', 'file'],
   efforts: [],
 }
+const JUDGE = {
+  kind: 'decisions',
+  model: 'z-ai/glm-5.3',
+  title: 'GLM 5.3 判定',
+  input: ['text'],
+  output: ['text'],
+  maxQuestions: '200',
+  enabled: true,
+}
+const TALK = {
+  kind: 'live',
+  model: 'openai/gpt-live',
+  title: 'GPT Live',
+  input: ['text', 'voice'],
+  output: ['text', 'voice'],
+  maxSessionSeconds: '1800',
+  enabled: false,
+}
 const BODY = { name: 'openrouter', models: [GLM53, GLM52, VISION] }
+const BOTH = { name: 'openrouter', models: [GLM53, GLM52, VISION, JUDGE] }
 
 type Own = Readonly<{ kind: 'unset' } | { kind: 'set'; value: JsonValue }>
 type Write = Readonly<{ kind: string; notice?: Readonly<{ text: string }> }>
@@ -226,7 +246,7 @@ it('claims the two model settings, and draws a row for each model of the catalog
 })
 
 it('each switch is as this layer holds it over the release default, and says which', async () => {
-  await shown(BODY, { switches: setTo({ 'z-ai/glm-5.2': true }), efforts: UNSET })
+  await shown(BODY, { switches: setTo({ llm: { 'z-ai/glm-5.2': true } }), efforts: UNSET })
   const on = (title: string) =>
     rowOf(title)
       .getByRole('switch', { name: `启用 ${title}` })
@@ -237,11 +257,59 @@ it('each switch is as this layer holds it over the release default, and says whi
 })
 
 it('turning a switch writes the whole map of this layer with that model changed', async () => {
-  const fake = await shown(BODY, { switches: setTo({ 'z-ai/glm-5.2': true }), efforts: UNSET })
+  const fake = await shown(BODY, {
+    switches: setTo({ llm: { 'z-ai/glm-5.2': true } }),
+    efforts: UNSET,
+  })
   fireEvent.click(rowOf('GLM 5.3').getByRole('switch', { name: '启用 GLM 5.3' }))
   expect(fake.writes).toEqual([
-    { key: 'k-switches', value: { 'z-ai/glm-5.2': true, 'z-ai/glm-5.3': false } },
+    { key: 'k-switches', value: { llm: { 'z-ai/glm-5.2': true, 'z-ai/glm-5.3': false } } },
   ])
+})
+
+it('draws one group for each kind of model, chat first, each with its own rows', async () => {
+  await shown(BOTH, { switches: UNSET, efforts: UNSET })
+  const groups = screen.getAllByRole('table')
+  expect(groups.map(group => group.getAttribute('aria-label'))).toEqual(['聊天', '判定'])
+  expect(screen.getByRole('heading', { name: '聊天' })).toBeTruthy()
+  expect(screen.getByRole('heading', { name: '判定' })).toBeTruthy()
+  expect(within(groups[0] as HTMLElement).getAllByRole('row')).toHaveLength(3)
+  expect(within(groups[1] as HTMLElement).getAllByRole('row')).toHaveLength(1)
+})
+
+it('a decisions model shows its question limit, takes no effort, and its switch writes under its own kind', async () => {
+  const fake = await shown(BOTH, {
+    switches: setTo({ llm: { 'z-ai/glm-5.3': true } }),
+    efforts: UNSET,
+  })
+  const judge = rowOf('GLM 5.3 判定')
+  expect(judge.getByText('每次至多 200 题')).toBeTruthy()
+  expect(judge.queryByText(/窗口/u)).toBeNull()
+  expect(judge.queryByRole('combobox')).toBeNull()
+  expect(judge.queryByText('不能调推理强度')).toBeNull()
+  fireEvent.click(judge.getByRole('switch', { name: '启用 GLM 5.3 判定' }))
+  expect(fake.writes).toEqual([
+    {
+      key: 'k-switches',
+      value: { llm: { 'z-ai/glm-5.3': true }, decisions: { 'z-ai/glm-5.3': false } },
+    },
+  ])
+})
+
+it('a live model shows its session limit under its own group, takes no effort, and its switch writes under its own kind', async () => {
+  const fake = await shown(
+    { name: 'openai', models: [TALK, JUDGE] },
+    { switches: UNSET, efforts: UNSET },
+  )
+  expect(screen.getAllByRole('table').map(group => group.getAttribute('aria-label'))).toEqual([
+    '判定',
+    '实时',
+  ])
+  const talk = rowOf('GPT Live')
+  expect(talk.getByText('单次至多 1800 秒')).toBeTruthy()
+  expect(talk.queryByRole('combobox')).toBeNull()
+  fireEvent.click(talk.getByRole('switch', { name: '启用 GPT Live' }))
+  expect(fake.writes).toEqual([{ key: 'k-switches', value: { live: { 'openai/gpt-live': true } } }])
 })
 
 it('choosing a default effort writes it, and going back to the provider default takes it out', async () => {

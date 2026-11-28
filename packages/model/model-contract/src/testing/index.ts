@@ -13,6 +13,7 @@ export type {
 export { ScriptedModelError } from './error.ts'
 export type { ScriptedModelErrorReason } from './error.ts'
 export { createScriptedConformanceSubject } from './conformance-scripted.ts'
+export { createLiveDouble } from './live.ts'
 export type { ScriptedPrincipal } from './conformance-scripted.ts'
 export { createScriptedResultPusher } from './pusher.ts'
 export type {
@@ -46,3 +47,5 @@ export type {
   ScriptedCredentialPortOptions,
   ScriptedCredentialProvider,
 } from './credential.ts'
+export { ofKind } from './values.ts'
+export { resolutionOf } from './profile-values.ts'

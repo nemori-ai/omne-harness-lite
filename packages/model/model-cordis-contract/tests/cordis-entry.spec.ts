@@ -23,6 +23,8 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     ModelPublicationAuthorityService: 'modelPublicationAuthority',
     ModelRequestPreparationService: 'modelRequestPreparation',
     ModelDecisionPreparationService: 'modelDecisionPreparation',
+    ModelLivePreparationService: 'modelLivePreparation',
+    ModelLiveCallsService: 'modelLiveCalls',
     ModelRetryPolicyService: 'modelRetryPolicy',
     ModelRuntimeService: 'modelRuntime',
     ModelSendBoundaryService: 'modelSendBoundary',

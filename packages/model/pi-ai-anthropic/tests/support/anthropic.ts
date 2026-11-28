@@ -5,19 +5,19 @@ import {
   decodeRevision,
   type Adoption,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelProfile,
   type ReplayDeclaration,
   type Supplier,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   projectReplay,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
 import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
-import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding } from '@omne-harness/pi-ai-transport'
 import {
   createAnthropicFamily,
   officialAnthropicProfiles,
@@ -85,7 +85,7 @@ export function supplierOf(record: AnthropicRecord): Supplier {
   }
 }
 
-export async function bindingOf(record: AnthropicRecord): Promise<PiFamilyBinding> {
+export async function bindingOf(record: AnthropicRecord): Promise<PiChatBinding> {
   const acquired = await composeFamilies([FAMILY]).acquire(
     supplierOf(record),
     new AbortController().signal,
@@ -196,6 +196,7 @@ export function requestJson(record: AnthropicRecord, parts: RequestParts = {}): 
   const supplier = supplierOf(record)
   const parameters = parts.parameters ?? []
   return {
+    kind: 'llm',
     profile: PROFILE,
     suppliers: [supplier],
     fallback: false,
@@ -218,8 +219,8 @@ export function requestJson(record: AnthropicRecord, parts: RequestParts = {}): 
   }
 }
 
-export function fixedRequest(record: AnthropicRecord, parts: RequestParts = {}): FixedModelRequest {
-  const judged = judgeFixedModelRequest(requestJson(record, parts))
+export function fixedRequest(record: AnthropicRecord, parts: RequestParts = {}): LlmModelRequest {
+  const judged = judgeModelRequest('llm', requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
 }
@@ -244,13 +245,13 @@ export function prefixBefore(record: AnthropicRecord, parts: RequestParts, index
 }
 
 export function encodeInput(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   resent: TransportDispatch['resent'] = [],
-): Parameters<PiFamilyBinding['encode']>[0] {
+): Parameters<PiChatBinding['encode']>[0] {
   return { request, media: [], declaration: request.declarations[0], resent }
 }
 
-export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+export function assembledOf(request: LlmModelRequest): AssembledModelInput {
   return {
     system: request.system,
     messages: request.messages,
@@ -262,7 +263,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-export function officialProfile(record: AnthropicRecord): ModelProfile {
+export function officialProfile(record: AnthropicRecord): ModelProfile<'llm'> {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')
   const definition = officialAnthropicProfiles({
@@ -271,7 +272,7 @@ export function officialProfile(record: AnthropicRecord): ModelProfile {
   }).find(item => item.suppliers[0].model === record.route.model)
   if (definition === undefined) throw new Error(`no official profile of ${record.name}`)
   return {
-    identity: { scope: { kind: 'factory' }, route: record.name },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
     adoption: PROFILE,
     revision: revision.ok,
     updatedAt: '2026-10-22T00:00:00Z',

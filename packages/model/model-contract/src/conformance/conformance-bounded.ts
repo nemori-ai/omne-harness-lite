@@ -1,8 +1,14 @@
 import type { ModelRuntime } from '../index.ts'
-import type { ModelProvider, PreparedTransport, MaterializedTransport } from '../provider/index.ts'
+import type {
+  MaterializedLiveTransport,
+  MaterializedTransport,
+  ModelProvider,
+  PreparedTransport,
+} from '../provider/index.ts'
 import { within } from './conformance-kit.ts'
 import type {
   ConformanceHooks,
+  ConformanceLive,
   ConformanceSubject,
   ConformanceTransport,
   HookName,
@@ -105,16 +111,27 @@ function boundedHooks<P>(hooks: ConformanceHooks<P>, waitMs: number): Conformanc
 }
 
 function boundedMaterialized(
-  materialized: MaterializedTransport,
+  materialized: MaterializedTransport | MaterializedLiveTransport,
   waitMs: number,
-): MaterializedTransport {
+): MaterializedTransport | MaterializedLiveTransport {
+  const close = bounded(waitMs, 'the close of the materialized transport', () =>
+    materialized.close(),
+  )
+  // Read the receipt on every access: a transport whose receipt changes between reads must stay visible.
+  if ('open' in materialized)
+    return {
+      get receipt() {
+        return materialized.receipt
+      },
+      open: signal => materialized.open(signal),
+      close,
+    }
   return {
-    // Read on every access: a transport whose receipt changes between reads must stay visible.
     get receipt() {
       return materialized.receipt
     },
     start: signal => materialized.start(signal),
-    close: bounded(waitMs, 'the close of the materialized transport', () => materialized.close()),
+    close,
   }
 }
 
@@ -150,6 +167,20 @@ function boundedTransport(given: ConformanceTransport, waitMs: number): Conforma
   }
 }
 
+function boundedLive<P>(live: ConformanceLive<P>, waitMs: number): ConformanceLive<P> {
+  const { calls } = live
+  return {
+    calls: {
+      command: bounded(waitMs, 'live command', input => calls.command(input)),
+      end: bounded(waitMs, 'live end', input => calls.end(input)),
+      media: bounded(waitMs, 'live media', input => calls.media(input)),
+    },
+    admit: bounded(waitMs, 'live admit', label => live.admit(label)),
+    upstream: bounded(waitMs, 'live upstream', input => live.upstream(input)),
+    loseBody: bounded(waitMs, 'live lose body', input => live.loseBody(input)),
+  }
+}
+
 export function boundedSubject<P>(
   subject: ConformanceSubject<P>,
   waitMs: number,
@@ -163,5 +194,6 @@ export function boundedSubject<P>(
     ...(subject.consumer && { consumer: subject.consumer }),
     ...(subject.hooks && { hooks: boundedHooks(subject.hooks, waitMs) }),
     ...(subject.transport && { transport: boundedTransport(subject.transport, waitMs) }),
+    ...(subject.live && { live: boundedLive(subject.live, waitMs) }),
   }
 }

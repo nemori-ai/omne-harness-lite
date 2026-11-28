@@ -319,7 +319,7 @@ export async function createWorld(options: WorldOptions = {}) {
     transport: transport.transport,
   })
   modelDouble.setAccess(access, 'allow')
-  const profile: ModelProfile = f.sources.values().model.profile
+  const profile: ModelProfile<'llm'> = f.sources.values().model.profile
   const [supplier] = profile.definition.suppliers
   const plan = {
     suppliers: [

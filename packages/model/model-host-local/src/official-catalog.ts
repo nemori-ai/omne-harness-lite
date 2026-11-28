@@ -19,14 +19,39 @@ const CATALOG_INPUT = {
 
 function catalogModel(definition: ModelProfileDefinition, enabled: boolean): CatalogModel {
   const [supplier] = definition.suppliers
-  return {
+  const common = {
     model: supplier.model,
     title: supplier.model,
     input: definition.input,
     output: definition.output,
-    window: definition.context.window.provided,
-    efforts: supportedReasoningEfforts(definition),
     enabled,
+  }
+  switch (definition.kind) {
+    case 'llm':
+      return {
+        ...common,
+        kind: 'llm',
+        window: definition.context.window.provided,
+        efforts: supportedReasoningEfforts(definition),
+      }
+    case 'decisions':
+      return {
+        ...common,
+        kind: 'decisions',
+        ...(definition.maxQuestions === null ? {} : { maxQuestions: definition.maxQuestions }),
+      }
+    case 'live':
+      return {
+        ...common,
+        kind: 'live',
+        ...(definition.maxSessionSeconds === null
+          ? {}
+          : { maxSessionSeconds: definition.maxSessionSeconds }),
+      }
+    default: {
+      const _exhaustive: never = definition
+      return _exhaustive
+    }
   }
 }
 

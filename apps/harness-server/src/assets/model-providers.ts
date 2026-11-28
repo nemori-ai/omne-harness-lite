@@ -13,16 +13,15 @@ import {
 } from '@omne-harness/model-host-local'
 import {
   isProviderEndpoint,
+  PROTOCOLS,
   type ProviderEndpoint,
   type PiRoute,
   type PiRouteEndpoint,
 } from '@omne-harness/pi-ai-transport'
-import { OPENROUTER_PROVIDER_BODY_TEXT } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harness/settings'
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
+import { RELEASE_PROVIDER_TEXTS } from './providers.ts'
 import { RELEASE_ENABLED_MODELS } from './release-models.ts'
-
-const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
 const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {
@@ -124,7 +123,8 @@ export function credentialProviders(): ReadonlyMap<ProviderName, CredentialProvi
   )
 }
 
-// An operator address replaces the address of every endpoint of the provider.
+// An operator address replaces the address of every endpoint of the provider; an interface over a
+// socket takes the same address as wss.
 function routeOf(provider: ReleaseProvider, url: string | undefined): PiRoute {
   const { body } = provider
   const endpoints: Partial<Record<ProviderEndpoint, PiRouteEndpoint>> = {}
@@ -133,8 +133,9 @@ function routeOf(provider: ReleaseProvider, url: string | undefined): PiRoute {
       throw new Error(
         `the provider ${body.name} speaks ${endpoint.protocol}, which this release cannot send`,
       )
+    const socket = PROTOCOLS[endpoint.protocol].framing === 'socket'
     endpoints[endpoint.protocol] = {
-      url: url ?? endpoint.url,
+      url: url === undefined ? endpoint.url : socket ? url.replace(/^https:/u, 'wss:') : url,
       endMarker: endpoint.endMarker ?? null,
     }
   }

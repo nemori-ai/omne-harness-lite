@@ -18,6 +18,8 @@ export const agentModelDeliverySchema: Adoption = Object.freeze({
   revision: '1',
   digest: 'agent:received-model-delivery/1',
 })
+/** The deliveries of Model that the Agent receives: a result and a late account. The events of a live call it refuses. */
+export type ReceivedModelDelivery = Exclude<ModelDelivery, { kind: 'live' }>
 type Account = Extract<ModelDelivery, { kind: 'account' }>['account']
 type Amount = Account['trimmed']
 const decimal = (value: unknown) =>
@@ -57,7 +59,7 @@ export function account(value: unknown): value is Account {
 }
 export function modelDeliveryMaterial<P>(
   access: Access<P>,
-  delivery: ModelDelivery,
+  delivery: ReceivedModelDelivery,
 ): Material<ContentBlock> {
   const tenant = tenantCodec.encode(access.tenant)
   if (!tenant.ok) throw new TypeError('invalid tenant')
@@ -68,7 +70,7 @@ export function modelDeliveryMaterial<P>(
   }
 }
 export function modelReceivedDraft(
-  delivery: ModelDelivery,
+  delivery: ReceivedModelDelivery,
   consumption: ReceivedEntry['consumption'],
 ): Omit<ReceivedEntry, 'material'> {
   const common = { kind: 'received' as const, consumer: delivery.consumer, consumption }
@@ -80,7 +82,7 @@ export function readModelDeliveryMaterial<P>(
   access: Access<P>,
   material: Material<ContentBlock>,
   expected: Omit<ReceivedEntry, 'material'>,
-): ModelDelivery | null {
+): ReceivedModelDelivery | null {
   try {
     if (
       material.kind !== 'facts' ||
@@ -115,7 +117,7 @@ export function readModelDeliveryMaterial<P>(
     const consumer = { owner, work, position, purpose }
     const reference = decodeModelInvocationRef(value.key.reference)
     if ('failure' in reference) return null
-    let delivery: ModelDelivery
+    let delivery: ReceivedModelDelivery
     if (value.kind === 'result' && value.key.kind === 'result') {
       const result = decodeResultVersion(value.key.result),
         terminal = settlement(value.settlement),

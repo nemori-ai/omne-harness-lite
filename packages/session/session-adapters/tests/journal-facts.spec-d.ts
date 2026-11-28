@@ -1,7 +1,7 @@
 import { expectTypeOf, it } from 'vitest'
 import type { AgentJournalEntry, ProducedResult } from '@omne-harness/agent-contract'
 import type { Message } from '@omne-harness/message'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import type { ToolInvokeRequest } from '@omne-harness/tool-contract'
 import type { FactBody, NoContent, Ref } from '../src/journal/index.ts'
 
@@ -23,7 +23,7 @@ it('refuses the content types of other owners at any depth', () => {
   expectTypeOf<NoContent<{ message: Message }>>().toBeNever()
   expectTypeOf<NoContent<{ result: ProducedResult }>>().toBeNever()
   expectTypeOf<NoContent<{ request: ToolInvokeRequest }>>().toBeNever()
-  expectTypeOf<NoContent<{ request: FixedModelRequest }>>().toBeNever()
+  expectTypeOf<NoContent<{ request: LlmModelRequest }>>().toBeNever()
   expectTypeOf<NoContent<{ entry: AgentJournalEntry }>>().toBeNever()
   expectTypeOf<NoContent<{ nested: { deep: readonly Message[] } }>>().toBeNever()
 })
@@ -32,7 +32,7 @@ declare function append<F>(fact: NoContent<F>): void
 declare const message: Message
 declare const result: ProducedResult
 declare const request: ToolInvokeRequest
-declare const fixed: FixedModelRequest
+declare const fixed: LlmModelRequest
 
 it('negative control: a fact built with content does not type-check', () => {
   append({ kind: 'input.accepted', message: { digest: 'd', size: 1 } as Ref<Message> })

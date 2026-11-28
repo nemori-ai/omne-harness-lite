@@ -1,5 +1,5 @@
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
-import type { FixedModelRequest, MediaMeasurementFact } from '@omne-harness/model-contract'
+import type { LlmModelRequest, MediaMeasurementFact } from '@omne-harness/model-contract'
 import type {
   MaterializeFailure,
   ModelMedia,
@@ -9,7 +9,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import { list, object, text } from './chat-completions/json.ts'
-import type { PiFamilyBinding, PiMaterializedMedia } from './family.ts'
+import type { PiChatBinding, PiMaterializedMedia } from './family.ts'
 
 /** Reads one medium for the send it was made for: the access is already bound into it. */
 export type PiMediaReader = (
@@ -39,7 +39,7 @@ const WORDS: AcceptedMedia = {
   maxBytes: undefined,
 }
 
-export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiFamilyBinding['mediaLimits'] {
+export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiChatBinding['mediaLimits'] {
   return reference => {
     const kind = accepted.find(each => reference.mediaType.startsWith(each.prefix))
     if (kind === undefined) return null
@@ -52,7 +52,7 @@ export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiFamilyBind
 export function wireLimits(
   wire: MediaWire,
   bytes: Readonly<{ image?: number | undefined; voice?: number | undefined }>,
-): PiFamilyBinding['mediaLimits'] {
+): PiChatBinding['mediaLimits'] {
   const { image, voice, file } = wire
   return acceptedLimits([
     ...(image === null ? [] : [{ prefix: 'image/', ...image, maxBytes: bytes.image }]),
@@ -69,7 +69,7 @@ export function wireLimits(
 }
 
 type Seen = Readonly<{ path: string; reference: ContentReference }>
-function referencesOf(request: FixedModelRequest): readonly Seen[] {
+function referencesOf(request: LlmModelRequest): readonly Seen[] {
   const seen: Seen[] = []
   const visit = (block: ContentBlock, path: string): void => {
     if (!block.visibility.toModel || !('ref' in block)) return
@@ -122,8 +122,8 @@ async function readOne(
 /** Reads what the request refers to, at this materialization and by reference (MD-45). */
 export async function gatherMedia(
   input: Readonly<{
-    request: FixedModelRequest
-    binding: Pick<PiFamilyBinding, 'mediaLimits' | 'adoption'>
+    request: LlmModelRequest
+    binding: Pick<PiChatBinding, 'mediaLimits' | 'adoption'>
     read: PiMediaReader | undefined
     signal: AbortSignal
   }>,

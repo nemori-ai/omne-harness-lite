@@ -5,7 +5,7 @@ import {
   decodeModelCallId,
   decodeModelOperationId,
   decodeProviderName,
-  type FixedModelRequest,
+  type LlmModelRequest,
 } from '@omne-harness/model-contract'
 import type { SessionId } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
@@ -211,7 +211,8 @@ describe('session observation on the release tree', () => {
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)
       const adoption = { owner: 'o', name: 'observer-admit', revision: '1', digest: '0'.repeat(64) }
-      const request: FixedModelRequest = {
+      const request: LlmModelRequest = {
+        kind: 'llm',
         profile: adoption,
         suppliers: [
           {

@@ -131,7 +131,7 @@ export async function sendFixture(
                 ok: {
                   async materialize(abort) {
                     const result = await prepared.ok.materialize(abort)
-                    if ('failure' in result) return result
+                    if ('failure' in result || !('start' in result.ok)) return result
                     materialization = { ...result.ok, close: () => close('materialized') }
                     return { ok: materialization }
                   },
@@ -139,6 +139,9 @@ export async function sendFixture(
                 },
               }
             },
+          },
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
           },
           startWithCredential(actual, value, abort) {
             valueMatches = value.get('apiKey') === synthetic && actual === materialization

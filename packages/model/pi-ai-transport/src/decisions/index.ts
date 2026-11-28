@@ -12,26 +12,22 @@ import { networkInternalsOf, type NetworkResources } from '../network.ts'
 import { isDecisionResponse, prepareDecision } from './codec.ts'
 import type { DecisionFailure, DecisionRequest, DecisionResponse } from './contract.ts'
 
-export { OPENROUTER_DECISION_MODELS } from './contract.ts'
-export {
-  DECISIONS_OWNER,
-  decisionSupplierOf,
-  isDecisionSupplier,
-  type DecisionSupplier,
-} from './binding.ts'
+export { bindDecisions, type DecisionsRecordData } from './binding.ts'
 export type * from './contract.ts'
 
-export type OpenRouterDecisionsConfig = Readonly<{
+export type DecisionsConfig = Readonly<{
   network: NetworkResources
   credential: PiCredentialSlot
   /** The provider asset supplies the endpoint and the bearer item. */
   route: PiRoute
   timeoutMs: number
   maxRequestBytes: number
+  /** The most questions one request may ask; null when the model states no limit. */
+  maxQuestions: number | null
   responseLimits: JsonLimits
 }>
 
-export interface OpenRouterDecisions {
+export interface Decisions {
   decide(
     request: DecisionRequest,
     signal: AbortSignal,
@@ -104,28 +100,29 @@ async function readAnswer(
 }
 
 /** One authorized dispatch through the caller's network pool. Never retries after an uncertain send. */
-export function createOpenRouterDecisions(config: OpenRouterDecisionsConfig): OpenRouterDecisions {
+export function createDecisions(config: DecisionsConfig): Decisions {
   const network = networkInternalsOf(config.network)
   const endpoint = config.route.endpoints.decisions
   if (endpoint === undefined || endpoint.endMarker !== null || config.route.auth?.kind !== 'bearer')
     throw new RangeError('a Decisions JSON endpoint with bearer credentials is required')
   const url = new URL(endpoint.url)
   const item = config.route.auth.item
-  const { timeoutMs: timeout, maxRequestBytes: requestLimit, credential } = config
+  const { timeoutMs: timeout, maxRequestBytes: requestLimit, maxQuestions, credential } = config
   const limits = checkJsonLimits(config.responseLimits)
   if (
     !isPlainHttpsUrl(url) ||
     !item ||
     !isTimerDuration(timeout) ||
     !isPositiveInteger(requestLimit) ||
+    (maxQuestions !== null && !isPositiveInteger(maxQuestions)) ||
     typeof credential?.read !== 'function'
   )
-    throw new RangeError('invalid OpenRouter Decisions configuration')
+    throw new RangeError('invalid Decisions configuration')
   return {
     async decide(request, signal) {
       if (signal.aborted) return failure('cancelled', 'not-sent')
       if (network.closed) return failure('unavailable', 'not-sent')
-      const fixed = prepareDecision(request, requestLimit)
+      const fixed = prepareDecision(request, { maxRequestBytes: requestLimit, maxQuestions })
       if (fixed === null) return failure('invalid-request', 'not-sent')
       const deadline = AbortSignal.timeout(timeout)
       const until = AbortSignal.any([signal, deadline])

@@ -204,6 +204,7 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
     state: { kind: 'null' },
     schema: testAdoption('preparation-state'),
     request: {
+      kind: 'llm',
       profile,
       suppliers: [
         {

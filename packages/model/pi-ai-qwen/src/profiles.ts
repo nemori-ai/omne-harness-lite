@@ -18,6 +18,6 @@ export function effortMapping(record: QwenRecord): ReasoningEffortMapping {
 
 export function officialQwenProfiles(
   input: OfficialProfilesInput,
-): readonly ModelProfileDefinition[] {
+): readonly ModelProfileDefinition<'llm'>[] {
   return officialProfilesOf(QWEN_OWNER, QWEN_RECORDS, input, effortMapping)
 }

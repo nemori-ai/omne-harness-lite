@@ -1,9 +1,10 @@
 import { succeed } from '@omne-harness/operation-result'
-import type {
-  MaterializedTransport,
-  ModelTransport,
-  PreparedTransport,
-  TransportFact,
+import {
+  requestRepresentation,
+  type MaterializedTransport,
+  type ModelTransport,
+  type PreparedTransport,
+  type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { terminationOfRefusal, type SupplierRefusal } from './author-response.ts'
 
@@ -43,7 +44,7 @@ export function createAuthorTransport(
       const ready: MaterializedTransport = {
         receipt: {
           supplier: supplier.adoption,
-          representation: request.representation,
+          representation: requestRepresentation(request),
           payloadDigest: `payload-${request.source.digest}`,
         },
         start(signal) {

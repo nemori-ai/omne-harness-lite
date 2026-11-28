@@ -22,6 +22,7 @@ import type {
   Supplier,
   ToolDeclaration,
 } from './root.ts'
+import type { LiveCommand, LiveCommandOutcome, LiveEvent, MediaFrame } from './live-call.ts'
 import type {
   AbandonInput,
   AbandonReceipt,
@@ -143,8 +144,31 @@ export interface MaterializedTransport {
   start(signal: AbortSignal): AsyncIterable<TransportFact>
   close(): Promise<void>
 }
+export type LiveFact =
+  | Readonly<{ kind: 'opened'; expiresAt: string | null }>
+  | Readonly<{
+      kind: 'event'
+      event: Extract<LiveEvent, { t: 'transcript' | 'delegation' | 'asleep' }>
+    }>
+  | Readonly<{ kind: 'command'; id: ModelOperationId; outcome: LiveCommandOutcome }>
+  | Readonly<{ kind: 'media'; frame: MediaFrame }>
+  | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
+  | Readonly<{ kind: 'closed' }>
+export interface LiveInput {
+  send(command: LiveCommand, id: ModelOperationId): 'sent' | 'closed'
+  media(frame: MediaFrame): 'sent' | 'dropped'
+  close(): void
+}
+export type LiveSession = Readonly<{ facts: AsyncIterable<LiveFact>; input: LiveInput }>
+export interface MaterializedLiveTransport {
+  readonly receipt: MaterializationReceipt
+  open(signal: AbortSignal): LiveSession
+  close(): Promise<void>
+}
 export interface PreparedTransport {
-  materialize(signal: AbortSignal): Promise<Outcome<MaterializedTransport, MaterializeFailure>>
+  materialize(
+    signal: AbortSignal,
+  ): Promise<Outcome<MaterializedTransport | MaterializedLiveTransport, MaterializeFailure>>
   close(): Promise<void>
 }
 export type TransportDispatch = Readonly<{
@@ -211,6 +235,7 @@ export type RecoveryRecord = Readonly<{
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
+export type ControlRecord = Readonly<{ state: CallState; request: FixedRequestHead | null }>
 export type CallOrigin = Readonly<{
   admission: ModelOperationId
   consumer: ConsumerRef
@@ -232,6 +257,7 @@ export interface ModelCommands<P> {
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ModelCallId[]; next: string | null }>>
   loadRecovery(input: CallAccess<P>): Reply<RecoveryRecord>
+  loadControl(input: CallAccess<P>): Reply<ControlRecord>
   loadOrigin(input: CallAccess<P>): Reply<CallOrigin>
   loadRequest(input: CallAccess<P>): Reply<FixedModelRequest>
   claim(
@@ -279,8 +305,13 @@ export interface ModelCommands<P> {
     input: WriteContext &
       Readonly<{ position: RetryPosition; decision: RetryDecision; source: DurableEvidence }>,
   ): Reply<Revision>
-  settle(input: WriteContext & Readonly<{ termination: Termination }>): Reply<Settlement>
-  control(input: Mutation<P>): Reply<ControlState>
+  settle(
+    input: WriteContext & Readonly<{ termination: Termination; events?: Settlement['events'] }>,
+  ): Reply<Settlement>
+  control(
+    input: Mutation<P> &
+      Readonly<{ intent: Extract<ControlState, { kind: 'requested' }>['intent'] }>,
+  ): Reply<ControlState>
   acquireRead(input: Mutation<P> & Readonly<{ result: ResultVersion }>): Reply<ReadStart>
   nextRead(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
@@ -314,6 +345,7 @@ export type SendDemand<P> = CallAccess<P> &
   }>
 export type SendResult =
   | Readonly<{ kind: 'started'; window: string; facts: AsyncIterable<TransportFact> }>
+  | Readonly<{ kind: 'started-live'; window: string; session: LiveSession }>
   | Readonly<{ kind: 'not-started'; failure: ModelFailure }>
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {

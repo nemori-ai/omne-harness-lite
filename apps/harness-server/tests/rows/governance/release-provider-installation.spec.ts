@@ -45,7 +45,10 @@ it('installs every release provider as an official holding of the tenant, pinned
   const installed = await installReleaseProviders(input)
   const [openrouter] = releaseProviders()
   if (openrouter === undefined) throw new Error('the release brings no provider')
-  expect(installed).toEqual([{ provider: 'openrouter', kind: 'ready', target: expect.anything() }])
+  expect(installed).toEqual([
+    { provider: 'openrouter', kind: 'ready', target: expect.anything() },
+    { provider: 'openai', kind: 'ready', target: expect.anything() },
+  ])
   const lookup = {
     holdingRef: 'harness.preinstalled.model-provider.openrouter',
     scopeRef: w.domain.scope.tenant,
@@ -80,12 +83,15 @@ it('a holding that could not be made is made at the next opening, and the failur
     providers: releaseProviders(),
     warn: log.warn,
   }
+  // Only the first holding is refused: OpenRouter's; OpenAI's is made on the first opening.
   expect(await installReleaseProviders(input)).toEqual([
     { provider: 'openrouter', kind: 'unavailable', phase: 'holding' },
+    { provider: 'openai', kind: 'ready', target: expect.anything() },
   ])
   expect(log.said).toEqual(['the release provider openrouter is not installed yet (holding)'])
   expect(await installReleaseProviders(input)).toMatchObject([
     { provider: 'openrouter', kind: 'ready' },
+    { provider: 'openai', kind: 'ready' },
   ])
   expect(log.said).toHaveLength(1)
 })
@@ -109,6 +115,7 @@ it('a holding whose reply was lost is recognised rather than made twice', async 
   }
   expect(await installReleaseProviders(input)).toMatchObject([
     { provider: 'openrouter', kind: 'ready' },
+    { provider: 'openai', kind: 'ready' },
   ])
   expect(log.said).toEqual([])
 })

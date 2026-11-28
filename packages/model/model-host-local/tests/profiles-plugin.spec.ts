@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Adoption, ModalityRequirement } from '@omne-harness/model-contract'
+import type { Adoption, ModalityRequirement, ModelNeed } from '@omne-harness/model-contract'
 import type { ModelChoices } from '@omne-harness/model-contract/provider'
 import { createScriptedModelProfiles } from '@omne-harness/model-contract/testing'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
@@ -47,8 +47,9 @@ const MODALITY_SOURCE = {
   revision: '1',
   digest: 'digest-modality',
 }
-const requirement = (modalities: ModalityRequirement['modalities']): ModalityRequirement => ({
-  modalities,
+const requirement = (modalities: ModalityRequirement['modalities']): ModelNeed<'llm'> => ({
+  kind: 'llm',
+  modalities: { input: modalities },
   source: MODALITY_SOURCE,
 })
 
@@ -97,11 +98,16 @@ it('resolves every official route of the installed families to the profile defin
   expect(official).toHaveLength(ROUTES.length)
   for (const [index, route] of ROUTES.entries()) {
     const resolved = must(
-      await service.resolve({ principal, tenant: TENANT, route, required: requirement(['text']) }),
+      await service.resolve({
+        principal,
+        tenant: TENANT,
+        route,
+        required: requirement(['text']),
+      }),
     )
     if (resolved.kind !== 'resolved') throw new Error(`route ${route} is ${resolved.kind}`)
     expect(resolved.profile.definition).toEqual(official[index])
-    expect(resolved.profile.identity).toEqual({ scope: { kind: 'factory' }, route })
+    expect(resolved.profile.identity).toEqual({ scope: { kind: 'factory' }, kind: 'llm', route })
   }
 })
 
@@ -109,7 +115,7 @@ it('lists every current record as a selectable choice, all with an unavailable c
   const { ctx } = await loaded()
   const service = ctx.modelProfiles
   if (service === undefined) throw new Error('no modelProfiles service')
-  const choices: ModelChoices = must(
+  const choices: ModelChoices<'llm'> = must(
     await service.list({
       principal,
       tenant: TENANT,
@@ -139,7 +145,12 @@ it('answers a voice requirement as unselectable with only the modality reason, o
   if (service === undefined) throw new Error('no modelProfiles service')
   const route = ROUTES[0] ?? ''
   const plain = must(
-    await service.resolve({ principal, tenant: TENANT, route, required: requirement(['text']) }),
+    await service.resolve({
+      principal,
+      tenant: TENANT,
+      route,
+      required: requirement(['text']),
+    }),
   )
   const voice = must(
     await service.resolve({
@@ -331,17 +342,34 @@ it('agrees with the scripted double on the answers it can register, and on the t
     ok: real,
   })
   expect(
-    await scripted.profiles.list({ principal, tenant: TENANT, selected: route, required }),
+    await scripted.profiles.list({
+      principal,
+      tenant: TENANT,
+      selected: route,
+      required,
+    }),
   ).toEqual({ ok: realList })
 
   const unscripted = { ...principal, subject: 'other' }
   expect(
-    await scripted.profiles.resolve({ principal: unscripted, tenant: TENANT, route, required }),
+    await scripted.profiles.resolve({
+      principal: unscripted,
+      tenant: TENANT,
+      route,
+      required,
+    }),
   ).toEqual({
     failure: { kind: 'denied', action: 'profiles.resolve' },
   })
   expect(
-    must(await service.resolve({ principal: unscripted, tenant: TENANT, route, required })).kind,
+    must(
+      await service.resolve({
+        principal: unscripted,
+        tenant: TENANT,
+        route,
+        required,
+      }),
+    ).kind,
   ).toBe('resolved')
 
   const copied = structuredClone(TENANT)
@@ -372,7 +400,12 @@ it('serves a reloaded plugin from its own snapshot while the removed handle stay
   if (served.kind !== 'resolved') throw new Error('expected resolved')
   expect(served.profile.definition.context.compactionTriggerPercent).toBe('90')
   expect(
-    await oldHandle.resolve({ principal, tenant: TENANT, route, required: requirement(['text']) }),
+    await oldHandle.resolve({
+      principal,
+      tenant: TENANT,
+      route,
+      required: requirement(['text']),
+    }),
   ).toEqual({
     failure: { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'plugin-removed' },
   })
@@ -381,10 +414,10 @@ it('serves a reloaded plugin from its own snapshot while the removed handle stay
 it('reads the current trusted credential service for the caller without consuming a secret', async () => {
   const ctx = new Context()
   let configured = false
-  let reads = 0
+  const reads: string[] = []
   serveModelCredential(ctx, {
     layerOf: query => {
-      reads += 1
+      reads.push(query.provider)
       expect(query.access).toEqual({ principal, tenant: TENANT })
       expect(query.official).toBe(true)
       return configured ? { ok: { layer: 'official' } } : { failure: { kind: 'missing' } }
@@ -397,7 +430,12 @@ it('reads the current trusted credential service for the caller without consumin
   try {
     const service = ctx.modelProfiles
     if (service === undefined) throw new Error('profiles not installed')
-    const input = { principal, tenant: TENANT, selected: null, required: requirement(['text']) }
+    const input = {
+      principal,
+      tenant: TENANT,
+      selected: null,
+      required: requirement(['text']),
+    } as const
     const first = must(await service.list(input))
     expect(
       first.choices.every(
@@ -405,7 +443,8 @@ it('reads the current trusted credential service for the caller without consumin
           choice.kind === 'resolved' && choice.selectable && choice.credential === 'missing',
       ),
     ).toBe(true)
-    expect(reads).toBe(1)
+    // One read per provider of the official profiles, each once.
+    expect(reads.toSorted()).toEqual(['openai', 'openrouter'])
     configured = true
     const second = must(await service.list(input))
     expect(
@@ -414,7 +453,7 @@ it('reads the current trusted credential service for the caller without consumin
           choice.kind === 'resolved' && choice.selectable && choice.credential === 'available',
       ),
     ).toBe(true)
-    expect(reads).toBe(2)
+    expect(reads.toSorted()).toEqual(['openai', 'openai', 'openrouter', 'openrouter'])
   } finally {
     await ctx.fiber.dispose()
   }

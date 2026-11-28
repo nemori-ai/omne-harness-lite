@@ -1,10 +1,6 @@
+import type { FixedModelRequest, Supplier, TransportFailure } from '@omne-harness/model-contract'
 import type {
-  FixedModelRequest,
-  ReplayDeclaration,
-  Supplier,
-  TransportFailure,
-} from '@omne-harness/model-contract'
-import type {
+  MaterializedLiveTransport,
   MaterializeFailure,
   CostLookupAnswer,
   ModelTransport,
@@ -19,26 +15,23 @@ import {
   type CheckedRoute,
   type PiTransportConfig,
 } from './config.ts'
-import { decisionBinding, isDecisionSupplier } from './decisions/binding.ts'
-import type { PiSendBinding } from './family.ts'
+import { isLiveSend, NOT_IN_REQUEST, sendOf, supplierIndex, type PiSend } from './send.ts'
+import { materializeLive } from './live/materialize.ts'
 import { lookupGenerationCost } from './cost-lookup.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
 export type PiTransport = Readonly<{
   transport: ModelTransport
-  /** Asks the route what one earlier request cost; only an OpenRouter route can answer. */
+  /** Asks the route what one earlier request cost; only a route whose accounting states it can answer. */
   lookupCost(supplier: Supplier, request: string, signal: AbortSignal): Promise<CostLookupAnswer>
   close(): Promise<void>
 }>
 
+type Child = MaterializedHandle | MaterializedLiveTransport
 type PreparedPhase =
-  | Readonly<{ kind: 'open'; binding: PiSendBinding }>
-  | Readonly<{
-      kind: 'materializing'
-      binding: PiSendBinding
-      settled: Promise<MaterializedHandle | null>
-    }>
-  | Readonly<{ kind: 'materialized'; binding: PiSendBinding; child: MaterializedHandle | null }>
+  | Readonly<{ kind: 'open'; send: PiSend }>
+  | Readonly<{ kind: 'materializing'; send: PiSend; settled: Promise<Child | null> }>
+  | Readonly<{ kind: 'materialized'; send: PiSend; child: Child | null }>
   | Readonly<{ kind: 'closing'; done: Promise<void> }>
   | Readonly<{ kind: 'closed'; done: Promise<void> }>
 
@@ -63,43 +56,38 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       return {
         failure: { kind: 'unsupported', field: 'supplier.provider', adapter: supplier.adoption },
       }
-    const declaration = declarationOf(request, supplier)
-    if (declaration === null) return { failure: NOT_IN_REQUEST }
-    const acquired = await bindingOf(supplier)
+    const index = supplierIndex(request, supplier)
+    if (index < 0) return { failure: NOT_IN_REQUEST }
+    const acquired = await checked.families.acquire(supplier, closing.signal)
     if (!('ok' in acquired)) return acquired
     if (phase.kind !== 'open') {
       await acquired.ok.release()
       return { failure: TRANSPORT_CLOSED }
     }
-    const route = routeFor(provider, acquired.ok.endpoint)
-    if (route === undefined) {
+    const paired = sendOf(acquired.ok, request, index, {
+      maxDecisionBytes: checked.limits.maxDecisionBytes,
+      json: checked.limits.json,
+    })
+    if (!('ok' in paired)) {
       await acquired.ok.release()
-      const adapter = acquired.ok.adoption
-      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter } }
+      return paired
+    }
+    const send = paired.ok
+    const route = routeFor(provider, send.endpoint)
+    if (route === undefined) {
+      await send.release()
+      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter: send.adoption } }
     }
     const prepared = createPrepared({
       config: checked,
       route,
-      request,
       supplier,
-      declaration,
       resent: Object.freeze([...dispatch.resent]),
-      binding: acquired.ok,
+      send,
       onClosed: () => open.delete(prepared),
     })
     open.add(prepared)
     return { ok: prepared }
-  }
-
-  // A decision model is no member of a family: its binding is this transport's own.
-  async function bindingOf(supplier: Supplier): Promise<Outcome<PiSendBinding, TransportFailure>> {
-    if (!isDecisionSupplier(supplier)) return checked.families.acquire(supplier, closing.signal)
-    const { maxDecisionBytes, json } = checked.limits
-    if (maxDecisionBytes === undefined)
-      return {
-        failure: { kind: 'unsupported', field: 'limits.decisions', adapter: supplier.adoption },
-      }
-    return { ok: decisionBinding(supplier, { maxRequestBytes: maxDecisionBytes, json }) }
   }
 
   async function drain(): Promise<void> {
@@ -109,25 +97,28 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     if (failed !== undefined) throw failed.reason
   }
 
+  function generationOf(supplier: Supplier) {
+    const provider = checked.routes.get(supplier.provider)
+    if (provider?.accounting.generation === undefined) return undefined
+    const [endpoint] = provider.endpoints.values()
+    if (endpoint === undefined) return undefined
+    return { provider, url: new URL(provider.accounting.generation.path, endpoint.url.origin) }
+  }
+
   function lookupCost(
     supplier: Supplier,
     request: string,
     signal: AbortSignal,
   ): Promise<CostLookupAnswer> {
-    const provider = checked.routes.get(supplier.provider)
-    const endpoint = provider?.endpoints.values().next().value
-    if (
-      provider === undefined ||
-      endpoint === undefined ||
-      provider.accounting.place !== 'openrouter'
-    )
-      return Promise.resolve({ kind: 'unsupported' })
+    const asked = generationOf(supplier)
+    if (asked === undefined) return Promise.resolve({ kind: 'unsupported' })
+    const { provider, url } = asked
     const secret =
       provider.auth === null ? undefined : checked.credential.read()?.get(provider.auth.item)
     if (phase.kind !== 'open' || secret === undefined)
       return Promise.resolve({ kind: 'unavailable', diagnostic: 'credential-missing' })
     const input = {
-      url: new URL('/api/v1/generation', endpoint.url.origin),
+      url,
       request,
       secret,
       place: provider.accounting.place,
@@ -154,29 +145,6 @@ const TRANSPORT_CLOSED: TransportFailure = Object.freeze({
   diagnostic: 'transport-closed',
 })
 
-const NOT_IN_REQUEST: TransportFailure = Object.freeze({
-  kind: 'invalid',
-  field: 'supplier',
-  reason: 'not-in-request',
-})
-
-function sameSupplier(left: Supplier, right: Supplier): boolean {
-  return (
-    left.credential.layer === right.credential.layer &&
-    left.provider === right.provider &&
-    left.model === right.model &&
-    left.adoption.owner === right.adoption.owner &&
-    left.adoption.name === right.adoption.name &&
-    left.adoption.revision === right.adoption.revision &&
-    left.adoption.digest === right.adoption.digest
-  )
-}
-
-function declarationOf(request: FixedModelRequest, supplier: Supplier): ReplayDeclaration | null {
-  const index = request.suppliers.findIndex(item => sameSupplier(item, supplier))
-  return index < 0 ? null : (request.declarations[index] ?? null)
-}
-
 const PREPARED_CLOSED: TransportFailure = Object.freeze({
   kind: 'unavailable',
   dependency: 'pi-transport',
@@ -193,31 +161,32 @@ function createPrepared(
   input: Readonly<{
     config: CheckedConfig
     route: CheckedRoute
-    request: FixedModelRequest
     supplier: Supplier
-    declaration: ReplayDeclaration
     resent: TransportDispatch['resent']
-    binding: PiSendBinding
+    send: PiSend
     onClosed: () => void
   }>,
 ): PreparedTransport {
-  const { config, route, request, supplier, declaration, resent, onClosed } = input
+  const { config, route, supplier, resent, onClosed } = input
   const closing = new AbortController()
-  let phase: PreparedPhase = { kind: 'open', binding: input.binding }
+  let phase: PreparedPhase = { kind: 'open', send: input.send }
 
   async function runMaterialize(
-    binding: PiSendBinding,
+    send: PiSend,
     signal: AbortSignal,
-  ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
+  ): Promise<Outcome<Child, MaterializeFailure>> {
+    const either = AbortSignal.any([signal, closing.signal])
+    if (isLiveSend(send)) return materializeLive({ config, route, supplier, send, signal: either })
+    const { framing } = route
+    if (framing === 'socket')
+      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter: send.adoption } }
     return materialize({
       config,
-      route,
-      request,
+      route: { ...route, framing },
       supplier,
-      declaration,
       resent,
-      binding,
-      signal: AbortSignal.any([signal, closing.signal]),
+      send,
+      signal: either,
     })
   }
 
@@ -252,7 +221,7 @@ function createPrepared(
       if (child !== null) await child.close()
     } finally {
       onClosed()
-      await from.binding.release()
+      await from.send.release()
     }
   }
 
@@ -262,17 +231,17 @@ function createPrepared(
       if (current.kind === 'closing' || current.kind === 'closed')
         return { failure: PREPARED_CLOSED }
       if (current.kind !== 'open') return { failure: REPEATED_MATERIALIZE }
-      const running = runMaterialize(current.binding, signal)
+      const running = runMaterialize(current.send, signal)
       const settled = running.then(
         outcome => ('ok' in outcome ? outcome.ok : null),
         () => null,
       )
-      phase = { kind: 'materializing', binding: current.binding, settled }
+      phase = { kind: 'materializing', send: current.send, settled }
       const outcome = await running
       if (phase.kind !== 'materializing') return { failure: PREPARED_CLOSED }
       phase = {
         kind: 'materialized',
-        binding: current.binding,
+        send: current.send,
         child: 'ok' in outcome ? outcome.ok : null,
       }
       return outcome
@@ -283,7 +252,7 @@ function createPrepared(
 
 async function childOf(
   phase: Exclude<PreparedPhase, Readonly<{ kind: 'closing' | 'closed' }>>,
-): Promise<MaterializedHandle | null> {
+): Promise<Child | null> {
   switch (phase.kind) {
     case 'open':
       return null

@@ -4,6 +4,7 @@ import { contactChecks } from './conformance-contact.ts'
 import { controlChecks } from './conformance-control.ts'
 import { DEFAULT_CONSUMER, DEFAULT_REQUEST } from './conformance-defaults.ts'
 import { within } from './conformance-kit.ts'
+import { liveChecks } from './conformance-live.ts'
 import { observationChecks } from './conformance-observation.ts'
 import { routeChecks } from './conformance-routes.ts'
 import { settlementChecks } from './conformance-settlement.ts'
@@ -31,13 +32,17 @@ function checksOf<P>(): readonly Check<P>[] {
     ...observationChecks<P>(),
     ...routeChecks<P>(),
     ...transportChecks<P>(),
+    ...liveChecks<P>(),
   ]
 }
 
 function unmet<P>(subject: ConformanceSubject<P>, requires: readonly Requirement[]): string[] {
-  return requires.filter(
-    name => (name === 'transport' ? subject.transport : subject.hooks?.[name]) === undefined,
-  )
+  return requires.filter(name => partOf(subject, name) === undefined)
+}
+
+function partOf<P>(subject: ConformanceSubject<P>, name: Requirement): unknown {
+  if (name === 'transport') return subject.transport
+  return name === 'live' ? subject.live : subject.hooks?.[name]
 }
 
 function describe(error: unknown): string {

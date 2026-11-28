@@ -139,6 +139,10 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       maxPendingAccounts: 16,
       maxCostMisses: 5,
     },
+    live: {
+      capacity: 64,
+      deadlines: { openMs: 15_000, closeMs: 10_000, drainMs: 30_000, redeliverMs: 1000 },
+    },
   }
   const records = {
     owners: [
@@ -196,7 +200,10 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       },
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
-      endpoints: { openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE },
+      endpoints: {
+        openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE,
+        openai: options.modelRoute ?? UNUSED_MODEL_ROUTE,
+      },
       transportLimits: {
         connectTimeoutMs: 5000,
         connectRetry: { backoffMs: [500, 1000] },
@@ -229,23 +236,27 @@ export function testVaultPath(storageRoot: string): string {
 }
 
 export const TEST_DEPLOYMENT_KEY = 'r9-test-factory-secret'
+/** The deployment key of OpenAI in a test tree: another value, so a request shows whose key it carries. */
+export const TEST_OPENAI_DEPLOYMENT_KEY = 'r9-test-openai-factory-secret'
+const TEST_DEPLOYMENT_KEYS: Readonly<Record<string, string>> = {
+  openrouter: TEST_DEPLOYMENT_KEY,
+  openai: TEST_OPENAI_DEPLOYMENT_KEY,
+}
 
 export function seedTestVault(path: string): string {
   if (existsSync(path)) return path
-  const provider = releaseProvider('openrouter')
-  const secret = parseSecretText(TEST_DEPLOYMENT_KEY)
-  if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
-  mkdirSync(dirname(path), { recursive: true })
-  const created = createSecretVault({
-    path,
-    seed: [
-      {
-        key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
-        secret: secret.value,
-        configuredAt: null,
-      },
-    ],
+  const seed = Object.entries(TEST_DEPLOYMENT_KEYS).map(([name, key]) => {
+    const provider = releaseProvider(name)
+    const secret = parseSecretText(key)
+    if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
+    return {
+      key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
+      secret: secret.value,
+      configuredAt: null,
+    }
   })
+  mkdirSync(dirname(path), { recursive: true })
+  const created = createSecretVault({ path, seed })
   if (created.kind !== 'open') throw new Error(`the test vault: ${created.kind}`)
   created.vault.close()
   return path

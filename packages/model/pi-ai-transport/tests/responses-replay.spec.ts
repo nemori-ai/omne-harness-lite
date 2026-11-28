@@ -3,7 +3,7 @@
 import { writeJsonText } from '@omne-harness/json-text'
 import type { ModelBlock } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { bindResponses } from '../src/responses/index.ts'
 import {
   LIMITS,
@@ -27,7 +27,7 @@ import {
 const RECORD = responsesRecord()
 const TOOLS = [tool('get_weather')]
 
-function bind(): PiFamilyBinding {
+function bind(): PiChatBinding {
   return bindResponses({
     record: RECORD,
     supplier: supplierOf(RECORD),

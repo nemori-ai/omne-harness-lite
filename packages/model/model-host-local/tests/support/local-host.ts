@@ -13,7 +13,7 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelFailure,
 } from '@omne-harness/model-contract'
 import { type ModelSendBoundary, type TransportFact } from '@omne-harness/model-contract/provider'
@@ -146,7 +146,7 @@ function recording<P>(send: ModelSendBoundary<P>) {
 }
 
 export type LocalHostInput = Readonly<{
-  request: FixedModelRequest
+  request: LlmModelRequest
   requestDisclosure?: LocalModelConfig<unknown>['requestDisclosure']
   label: string
   directory: string

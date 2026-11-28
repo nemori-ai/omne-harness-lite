@@ -18,6 +18,7 @@ import {
   type ModelDelivery,
 } from '@omne-harness/model-contract'
 import { decodeAgentExecutionId } from '@omne-harness/agent-contract'
+import { canonical } from '../src/canonical.ts'
 import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
@@ -30,6 +31,7 @@ import {
   ok,
   openInput,
   operation,
+  otherTenant,
   tenantB,
   loadWithEntries,
 } from './journal-support.ts'
@@ -486,6 +488,92 @@ describe('reception capacity', () => {
         .entries,
     ).toEqual([])
   })
+  describe('counting what is already in custody', () => {
+    type Capacity = ReturnType<ModelReceiverDependencies<string>['capacity']>
+    const ROOMY: Capacity = { records: 10, bytes: 1000000, attachments: 10, inFlight: 2 }
+    async function retainedOne(s: Awaited<ReturnType<typeof setup>>) {
+      const received = s.dependencies.provider.received
+      if (!received) throw new Error('joint required')
+      const state = createModelReceiverState<string>()
+      const receiver = createAgentModelReceiver(
+        {
+          ...s.dependencies,
+          provider: {
+            ...s.dependencies.provider,
+            received: {
+              ...received,
+              async commit() {
+                throw new Error('the store does not answer')
+              },
+            },
+          },
+        },
+        state,
+      )
+      const signal = new AbortController().signal
+      expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toEqual({
+        failure: { kind: 'outcome-unknown' },
+      })
+      await drainTasks(state)
+      const [kept] = state.receptions.values()
+      if (kept === undefined) throw new Error('a retained reception expected')
+      return kept
+    }
+    async function pushOver(
+      s: Awaited<ReturnType<typeof setup>>,
+      held: readonly Parameters<ModelReceiverState<string>['receptions']['set']>[1][],
+      capacity: Partial<Capacity>,
+      delivery: ModelDelivery = s.delivery,
+    ) {
+      const state = createModelReceiverState<string>()
+      held.forEach((reception, index) => state.receptions.set(`held-${index}`, reception))
+      const receiver = createAgentModelReceiver(
+        { ...s.dependencies, capacity: () => ({ ...ROOMY, ...capacity }) },
+        state,
+      )
+      return receiver.push({ access: alice, delivery, signal: new AbortController().signal })
+    }
+
+    it('keeps what a new custody takes: its bytes and its attachment references', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      expect(kept).toMatchObject({
+        bytes: Buffer.byteLength(canonical(s.delivery)),
+        attachments: 0,
+      })
+    })
+
+    it('counts the custody of its own tenant only', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const theirs = { ...kept, access: otherTenant }
+      expect(await pushOver(s, [theirs], { records: 1 })).toHaveProperty('ok')
+      expect(await pushOver(s, [kept], { records: 1 })).toEqual({
+        failure: { kind: 'backpressured', resource: 'records' },
+      })
+    })
+
+    it('takes a custody that fills the bytes exactly, and refuses one byte more', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const own = Buffer.byteLength(canonical(s.delivery))
+      const full = { ...kept, bytes: 500 }
+      expect(await pushOver(s, [full], { bytes: 500 + own })).toHaveProperty('ok')
+      expect(await pushOver(s, [full, { ...kept, bytes: 1 }], { bytes: 500 + own })).toEqual({
+        failure: { kind: 'backpressured', resource: 'bytes' },
+      })
+    })
+
+    it('takes a custody that fills the attachments exactly, and refuses one more', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const holding = { ...kept, attachments: 3 }
+      expect(await pushOver(s, [holding], { attachments: 3 })).toHaveProperty('ok')
+      expect(await pushOver(s, [holding, { ...kept, attachments: 1 }], { attachments: 3 })).toEqual(
+        { failure: { kind: 'backpressured', resource: 'attachments' } },
+      )
+    })
+  })
   it('cancels before acceptance without a write and retains actual in-flight capacity after an aborted wait', async () => {
     const s = await setup(),
       stop = new AbortController()
@@ -595,6 +683,45 @@ describe('receiver failure boundaries', () => {
       expect(receiver.inspect().diagnostics).toHaveLength(1)
     },
   )
+  it('refuses the events of a live call as a kind it does not receive, before any check, read or write', async () => {
+    const s = await setup()
+    const touched: string[] = []
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('joint required')
+    const state = createModelReceiverState<string>()
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          received: {
+            ...received,
+            commit: input => (touched.push('received.commit'), received.commit(input)),
+            query: input => (touched.push('received.query'), received.query(input)),
+          },
+        },
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve: input => (
+            touched.push('targets.resolve'),
+            s.dependencies.targets.resolve(input)
+          ),
+        },
+      },
+      state,
+    )
+    const live: ModelDelivery = {
+      kind: 'live',
+      key: { kind: 'live', reference: s.delivery.key.reference, from: 1, to: 1 },
+      consumer: s.delivery.consumer,
+      frames: [{ seq: 1, at: '2026-11-27T00:00:00.000Z', event: { t: 'asleep', on: true } }],
+    }
+    expect(
+      await receiver.push({ access: alice, delivery: live, signal: new AbortController().signal }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'kind', reason: 'unsupported' } })
+    expect(touched).toEqual([])
+    expect(state.receptions.size).toBe(0)
+  })
   it('recognizes saved under an already cancelled signal and verifies the original readable material', async () => {
     const s = await setup(),
       saved = ok(await s.push()),

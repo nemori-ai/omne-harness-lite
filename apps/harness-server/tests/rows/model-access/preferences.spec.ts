@@ -42,8 +42,10 @@ describe('a tenant chooses which models of the provider are on (C4, C5, C10)', (
         await settledSession(tree, 'hello')
         const first = await listOf(tree.cli)
         expect(first.filter(model => model.selectable)).toHaveLength(25)
+        // 18 chat models through OpenRouter start off, and the one OpenAI serves itself.
         const off = first.filter(model => model.enabled === false)
-        expect(off).toHaveLength(18)
+        expect(off).toHaveLength(19)
+        expect(off.filter(model => model.route === 'gpt-6-luna')).toHaveLength(1)
         for (const model of off) expect([model.selectable, model.reasons]).toEqual([false, []])
 
         await setModelSwitches(tree, { 'moonshotai/kimi-k3': true, 'openai/gpt-6.1-sol': false })

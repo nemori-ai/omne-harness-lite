@@ -1,6 +1,6 @@
 import { succeed } from '@omne-harness/operation-result'
 import type {
-  FixedModelRequest,
+  LlmModelRequest,
   ModelCountingBasis,
   ModelInputMeter,
   ModelCallId,
@@ -64,7 +64,7 @@ export function createMeter(): CountingMeter {
   })
 }
 
-export type SentCall = Readonly<{ call: ModelCallId; request: FixedModelRequest }>
+export type SentCall = Readonly<{ call: ModelCallId; request: LlmModelRequest }>
 
 export interface Sender {
   send(input: SentCall): Promise<Termination>

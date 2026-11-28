@@ -5,12 +5,12 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   decodeModelCallId,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelBlock,
   type PreparationLineage,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
@@ -110,17 +110,19 @@ function replyOf(
   }
 }
 
-function replyId(request: FixedModelRequest) {
+function replyId(request: LlmModelRequest) {
   const message = request.messages.find(item => item.id === ASSISTANT_ID)
   if (message === undefined) throw new Error('the next request has no reply')
   return message.id
 }
 
-function nextRequest(fixture: RecordFixture, appended: readonly unknown[]): FixedModelRequest {
+function nextRequest(fixture: RecordFixture, appended: readonly unknown[]): LlmModelRequest {
   const json: unknown = fixture.requestJson
   const messages: unknown = Reflect.get(Object(json), 'messages')
   if (!Array.isArray(messages)) throw new Error('fixture request without messages')
-  return decoded(judgeFixedModelRequest({ ...Object(json), messages: [...messages, ...appended] }))
+  return decoded(
+    judgeModelRequest('llm', { ...Object(json), messages: [...messages, ...appended] }),
+  )
 }
 
 const ceilMargin = (estimated: bigint): bigint => (estimated * MARGIN_PERCENT + 99n) / 100n

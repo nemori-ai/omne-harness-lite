@@ -1,4 +1,4 @@
-import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
+import { requestRepresentation, type FixedRequestHead } from '@omne-harness/model-contract/provider'
 import { randomUUID } from 'node:crypto'
 import { judgePart, parseMessageId } from '@omne-harness/message'
 import { assembleStream } from '@omne-harness/stream-arrival'
@@ -13,6 +13,7 @@ import {
   faultProblem,
 } from '@omne-harness/model-contract'
 import type {
+  ControlState,
   MaterializationReceipt,
   ModelBlock,
   ModelCallId,
@@ -199,7 +200,7 @@ export function receiptBinds(
 ): boolean {
   return (
     digest(receipt.supplier) === digest(supplier.adoption) &&
-    digest(receipt.representation) === digest(request.representation) &&
+    digest(receipt.representation) === digest(requestRepresentation(request)) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
     replayMarksBind(receipt) &&
     mediaBind(receipt)
@@ -512,8 +513,9 @@ function finishReplay(
       : { kind: 'none' }
   const { replayFormat: format, replayPrefix: prefix } = receipt
   const supplier = digest(dispatch.record.supplier)
+  const declarations = call.request?.kind === 'llm' ? call.request.declarations : []
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
-  const scope = call.request?.declarations[index]?.produces
+  const scope = declarations[index]?.produces
   if (scope !== undefined)
     return { kind: 'range', range: { scope, format, ...(prefix === undefined ? {} : { prefix }) } }
   if (!state) return { kind: 'none' }
@@ -530,10 +532,17 @@ function settledReplay(call: CallDocument, termination: Termination): SettledRep
   const replay = finishReplay(call, latest, sealed)
   return replay.kind === 'range' ? replay.range : undefined
 }
+export function requestedControl(
+  input: Readonly<{ intent: unknown; operation: ModelOperationId }>,
+): ControlState | null {
+  const { intent, operation } = input
+  if (intent !== 'cancel' && intent !== 'end') return null
+  return { kind: 'requested', intent, operation, propagation: 'pending', upstream: 'unknown' }
+}
 /** The settlement a call records at a version: how it ended, where its output stops, its replay. */
 export function settlementOf(
   call: CallDocument,
-  input: Readonly<{ call: ModelCallId; termination: Termination }>,
+  input: Readonly<{ call: ModelCallId; termination: Termination; events?: Settlement['events'] }>,
   version: Settlement['version'],
 ): Settlement {
   const replay = settledReplay(call, input.termination)
@@ -548,6 +557,7 @@ export function settlementOf(
       digest: digest(input.termination),
     },
     ...(replay === undefined ? {} : { replay: { ...replay, call: String(input.call) } }),
+    ...(input.events === undefined ? {} : { events: input.events }),
   }
 }
 export function completionOf(
@@ -556,6 +566,9 @@ export function completionOf(
   termination: Termination | Extract<TransportFact, { kind: 'ended' }>['termination'],
 ): Completion {
   if (termination.kind !== 'completed' || termination.reason === 'limit') return { kind: 'formed' }
+  return call.request?.kind === 'live' ? { kind: 'formed' } : sealedCompletion(call, dispatch)
+}
+function sealedCompletion(call: CallDocument, dispatch: DispatchDocument): Completion {
   const sealed = dispatch.blocks.flatMap(b => (b.kind === 'sealed' ? [b] : []))
   if (sealed.length === 0 || sealed.length !== dispatch.blocks.length)
     return { kind: 'refused', failure: invalid('termination', 'unsealed-or-empty') }

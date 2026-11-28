@@ -24,7 +24,7 @@ const ACCESS = (() => {
   return { principal: { subject: 'tests' }, tenant: tenant(organization.value, account.value) }
 })()
 
-function openAiProfile(): ModelProfile {
+function openAiProfile(): ModelProfile<'llm'> {
   return officialProfile({
     family: 'pi-ai-openai',
     model: MODEL,
@@ -32,7 +32,7 @@ function openAiProfile(): ModelProfile {
   })
 }
 
-async function measureOn(lease: ModelPreparationLease, profile: ModelProfile) {
+async function measureOn(lease: ModelPreparationLease, profile: ModelProfile<'llm'>) {
   const record = OPENAI_RECORDS.find(item => item.name === MODEL)
   if (record === undefined) throw new Error(`no record ${MODEL}`)
   const { request } = readRecordFixture('pi-ai-openai', record)

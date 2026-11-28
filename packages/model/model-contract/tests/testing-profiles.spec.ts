@@ -13,8 +13,8 @@ import {
   decodeRevision,
   type Adoption,
   type DurableEvidence,
-  type ModalityRequirement,
   type ModelModality,
+  type ModelNeed,
   type ModelProfile,
   type ProfileResolution,
   type ProfileScope,
@@ -71,7 +71,11 @@ const evidence = (label: string): DurableEvidence => ({
 const requirement = (
   modalities: readonly [Modality, ...Modality[]] = ['text'],
   revision = '1',
-): ModalityRequirement => ({ modalities, source: { ...evidence('modality'), revision } })
+): ModelNeed<'llm'> => ({
+  kind: 'llm',
+  modalities: { input: modalities },
+  source: { ...evidence('modality'), revision },
+})
 
 function profileOf(
   over: Readonly<{
@@ -80,15 +84,20 @@ function profileOf(
     input?: readonly [ModelModality, ...ModelModality[]]
     availability?: ModelProfile['availability']
   }> = {},
-): ModelProfile {
+): ModelProfile<'llm'> {
   const upstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
   return {
-    identity: { scope: over.scope ?? { kind: 'factory' }, route: over.route ?? 'default' },
+    identity: {
+      kind: 'llm',
+      scope: over.scope ?? { kind: 'factory' },
+      route: over.route ?? 'default',
+    },
     adoption: adoption(`profile-${over.route ?? 'default'}`),
     revision: must(decodeRevision('1')),
     updatedAt: '2026-11-01T00:00:00Z',
     availability: over.availability ?? 'active',
     definition: {
+      kind: 'llm',
       suppliers: [{ adoption: adoption('supplier'), provider: PROVIDER, model: 'model' }],
       fallback: false,
       input: over.input ?? ['text', 'image'],
@@ -156,7 +165,11 @@ describe('the principal and the access (M01, M02)', () => {
     const required = requirement()
     const answer = resolvedOf(profileOf())
     scripted.setResolution({ ...access, route: 'default', required }, { ok: answer })
-    const outcome = await scripted.profiles.resolve({ ...access, route: 'default', required })
+    const outcome = await scripted.profiles.resolve({
+      ...access,
+      route: 'default',
+      required,
+    })
     expect(must(outcome)).toEqual(answer)
     const [call] = scripted.calls()
     expect(call?.input.principal).toBe(principal)
@@ -179,7 +192,11 @@ describe('the principal and the access (M01, M02)', () => {
       failure: { kind: 'denied', action: 'profiles.resolve' },
     })
     expect(
-      await scripted.profiles.list({ ...access, selected: null, required: requirement() }),
+      await scripted.profiles.list({
+        ...access,
+        selected: null,
+        required: requirement(),
+      }),
     ).toEqual({ failure: { kind: 'denied', action: 'profiles.list' } })
     scripted.setAccess(access, 'allow')
     const lookalike: Access<Agent> = { tenant: access.tenant, principal: new Agent('alice') }
@@ -295,7 +312,7 @@ describe('tenant partitions (M03)', () => {
     const outcome = await scripted.preparation.prepare({
       ...second,
       profile: profileOf({ scope: { kind: 'tenant', tenant: first.tenant } }),
-      required: requirement(),
+      required: { modalities: ['text'], source: evidence('modality') },
       assembled: {
         system: [],
         messages: [],
@@ -323,7 +340,13 @@ describe('the requirement takes part in the match (M04)', () => {
       { ok: resolvedOf(profileOf()) },
     )
     expect(
-      must(await scripted.profiles.resolve({ ...access, route: 'default', required: registered })),
+      must(
+        await scripted.profiles.resolve({
+          ...access,
+          route: 'default',
+          required: registered,
+        }),
+      ),
     ).toMatchObject({ kind: 'resolved' })
     for (const required of [
       requirement(['text', 'image'], '2'),
@@ -354,7 +377,11 @@ describe('the requirement takes part in the match (M04)', () => {
       must(await scripted.profiles.list({ ...access, selected: 'default', required })),
     ).toEqual(answer)
     const error = await rejection(
-      scripted.profiles.list({ ...access, selected: 'default', required: requirement(['text']) }),
+      scripted.profiles.list({
+        ...access,
+        selected: 'default',
+        required: requirement(['text']),
+      }),
     )
     expect(error).toMatchObject({ message: 'no scripted profiles.list answer' })
   })
@@ -430,7 +457,7 @@ describe('resolutions keep reasons and credentials as scripted (M06)', () => {
     const scripted = createScriptedModelProfiles<Agent>()
     scripted.setAccess(access, 'allow')
     const textOnly = profileOf({ input: ['text'] })
-    const cases: [ModalityRequirement, ProfileResolution][] = [
+    const cases: [ModelNeed<'llm'>, ProfileResolution][] = [
       [
         requirement(['text', 'voice']),
         resolvedOf(textOnly, { selectable: false, reasons: ['modality'] }),
@@ -489,7 +516,11 @@ describe('failures stay what they are (M07)', () => {
     })
     expect(gone).not.toEqual(down)
     expect(
-      await scripted.profiles.list({ ...access, selected: null, required: requirement() }),
+      await scripted.profiles.list({
+        ...access,
+        selected: null,
+        required: requirement(),
+      }),
     ).toEqual(notSettled)
   })
 
@@ -503,7 +534,11 @@ describe('failures stay what they are (M07)', () => {
     )
     scripted.setAccess(access, 'unavailable')
     expect(
-      await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        route: 'default',
+        required: requirement(),
+      }),
     ).toEqual({
       failure: {
         kind: 'unavailable',
@@ -831,7 +866,7 @@ describe('copies and minted scopes (M09)', () => {
     scripted.setAccess(access, 'allow')
     const modalities: [Modality, ...Modality[]] = ['text']
     const source = { ...evidence('modality') }
-    const required = { modalities, source }
+    const required: ModelNeed<'llm'> = { kind: 'llm', modalities: { input: modalities }, source }
     const input: [ModelModality, ...ModelModality[]] = ['text', 'image']
     const base = profileOf()
     const definition = { ...base.definition, input }
@@ -864,7 +899,11 @@ describe('copies and minted scopes (M09)', () => {
     source.revision = '7'
     expect(
       must(
-        await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+        await scripted.profiles.resolve({
+          ...access,
+          route: 'default',
+          required: requirement(),
+        }),
       ),
     ).toEqual(expected)
     const frozen = (value: unknown): boolean =>
@@ -898,10 +937,18 @@ describe('copies and minted scopes (M09)', () => {
       { ok: resolvedOf(organizationProfile) },
     )
     const byTenant = must(
-      await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        route: 'default',
+        required: requirement(),
+      }),
     )
     const byOrganization = must(
-      await scripted.profiles.resolve({ ...access, route: 'shared', required: requirement() }),
+      await scripted.profiles.resolve({
+        ...access,
+        route: 'shared',
+        required: requirement(),
+      }),
     )
     if (byTenant.kind !== 'resolved' || byOrganization.kind !== 'resolved')
       throw new Error('expected resolved profiles')
@@ -922,9 +969,17 @@ describe('copies and minted scopes (M09)', () => {
     const principal = new Agent('alice')
     const access: Access<Agent> = { tenant: tenantA(), principal }
     const scripted = createScriptedModelProfiles<Agent>()
-    await scripted.profiles.list({ ...access, selected: null, required: requirement() })
+    await scripted.profiles.list({
+      ...access,
+      selected: null,
+      required: requirement(),
+    })
     const before = scripted.calls()
-    await scripted.profiles.resolve({ ...access, route: 'default', required: requirement() })
+    await scripted.profiles.resolve({
+      ...access,
+      route: 'default',
+      required: requirement(),
+    })
     expect(before.map(call => [call.sequence, call.kind])).toEqual([[1, 'list']])
     expect(scripted.calls().map(call => [call.sequence, call.kind])).toEqual([
       [1, 'list'],

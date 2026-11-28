@@ -1,4 +1,4 @@
-import type { PiFamily } from '@omne-harness/pi-ai-transport'
+import type { PiChatBinding, PiFamily } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   defineGatewayFamily,
@@ -15,7 +15,7 @@ import { hooksOf } from './rules.ts'
 export type DeepSeekFamilyConfig = GatewayFamilyConfig &
   Readonly<{ tokenizer: TiktokenResources; executor: Pick<TiktokenExecutor, 'acquire'> }>
 
-export function createDeepSeekFamily(config: DeepSeekFamilyConfig): PiFamily {
+export function createDeepSeekFamily(config: DeepSeekFamilyConfig): PiFamily<PiChatBinding> {
   return defineGatewayFamily({
     owner: DEEPSEEK_OWNER,
     title: 'DeepSeek',

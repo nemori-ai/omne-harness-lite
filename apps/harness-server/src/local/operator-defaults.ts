@@ -166,6 +166,10 @@ const MODEL_HOST = {
     maxCostMisses: 5,
     delaysMs: [1000, 5000, 30_000],
   },
+  live: {
+    capacity: 256,
+    deadlines: { openMs: 15_000, closeMs: 10_000, drainMs: 30_000, redeliverMs: 1000 },
+  },
 } as const
 
 const MAX_COMMAND_BYTES = 1_048_576

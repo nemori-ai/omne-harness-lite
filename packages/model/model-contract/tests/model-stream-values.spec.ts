@@ -201,6 +201,7 @@ describe('Model stream changes', () => {
       revision: revision('3'),
       control: {
         kind: 'requested',
+        intent: 'cancel',
         operation: operationId(),
         propagation: 'pending',
         upstream: 'unknown',
@@ -555,6 +556,7 @@ describe('projection progress and state', () => {
             revision: revision('1'),
             control: {
               kind: 'requested',
+              intent: 'cancel',
               operation: operationId(),
               propagation: 'pending',
               upstream: 'unknown',
@@ -576,6 +578,7 @@ describe('projection progress and state', () => {
             revision: revision('1'),
             control: {
               kind: 'requested',
+              intent: 'cancel',
               operation: operationId(),
               propagation: 'pending',
               upstream: 'unknown',

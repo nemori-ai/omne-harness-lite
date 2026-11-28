@@ -60,8 +60,9 @@ const METER: Adoption = {
 
 const UPDATED_AT = '2026-11-01T00:00:00Z'
 
-function definitionOf(route: string): ModelProfileDefinition {
+function definitionOf(route: string): ModelProfileDefinition<'llm'> {
   return {
+    kind: 'llm',
     suppliers: [
       {
         adoption: adoptionOf(route),
@@ -110,8 +111,8 @@ function profilesOfRoute(profile: ModelProfile): Adoption {
   return profile.adoption
 }
 
-const DEFINITION_DIGEST = '936a8c89f93b6f943bf7e7b55af590a5c9e16d7f46c74e16c91c84de6c71a40b'
-const SNAPSHOT_DIGEST = '3252c6c3908c2223dfa1add8afcfd61948e63b5183d6027de4919d8547837795'
+const DEFINITION_DIGEST = '2160ea858ba33e5ed479cd1933b34fabfa4c74adb23ce7c57b727dd593b102a6'
+const SNAPSHOT_DIGEST = 'f571de4c9f2af816d34f7ee0a1a432827454693aba5c22e40cd20e9eec736045'
 
 it('turns each definition into a factory profile whose route is the first supplier model', async () => {
   const snapshot = await snapshotOf(['alpha/route', 'beta/route'])
@@ -120,7 +121,7 @@ it('turns each definition into a factory profile whose route is the first suppli
   for (const [index, route] of ['alpha/route', 'beta/route'].entries()) {
     const candidate = snapshot.candidates[index]
     if (candidate === undefined) throw new Error('missing candidate')
-    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, route })
+    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, kind: 'llm', route })
     expect(candidate.profile.availability).toBe('active')
     expect(candidate.profile.updatedAt).toBe(UPDATED_AT)
     expect(candidate.excluded).toBe(false)
@@ -165,14 +166,14 @@ it('makes every official profile resolvable, with no credential and no reason', 
   const source = sourceOf(['alpha/route', 'beta/route'])
   const profiles = createModelProfiles(source)
   const required = {
-    modalities: ['text'] as const,
+    kind: 'llm',
     source: { owner: 'model-host-local-tests', record: 'modality', revision: '1', digest: 'm' },
-  }
+  } as const
   const resolved = await profiles.resolve({
     principal,
     tenant: TENANT,
     route: 'alpha/route',
-    required: { ...required, modalities: ['text'] },
+    required: { ...required, modalities: { input: ['text'] } },
   })
   if ('failure' in resolved) throw new Error(`resolve failure ${JSON.stringify(resolved.failure)}`)
   expect(resolved.ok).toMatchObject({ kind: 'resolved', selectable: true, reasons: [] })
@@ -185,7 +186,7 @@ it('refuses two definitions on one route at construction instead of serving half
 })
 
 it('refuses a supplier adoption whose revision is not a revision', () => {
-  const broken: ModelProfileDefinition = {
+  const broken: ModelProfileDefinition<'llm'> = {
     ...definitionOf('alpha/route'),
     suppliers: [
       {
@@ -288,7 +289,8 @@ it('keeps uncertain credential presence unknown while the official profiles rema
       tenant: TENANT,
       route: 'alpha/route',
       required: {
-        modalities: ['text'],
+        kind: 'llm',
+        modalities: { input: ['text'] },
         source: { owner: 'test', record: 'text', revision: '1', digest: '0'.repeat(64) },
       },
     })
@@ -331,7 +333,12 @@ function withPreferences(port: (() => ModelPreferencesPort | undefined) | undefi
 const chosen = (enabled: readonly string[], efforts: readonly (readonly [string, 'high'])[] = []) =>
   ({
     async read() {
-      return { ok: { enabled: new Set(enabled), efforts: new Map(efforts) } }
+      return {
+        ok: {
+          enabled: { llm: new Set(enabled), decisions: new Set(), live: new Set() },
+          efforts: new Map(efforts),
+        },
+      }
     },
   }) satisfies ModelPreferencesPort
 
@@ -379,7 +386,12 @@ it('reads the preferences once per provider and with the access of the reader', 
   await withPreferences(() => ({
     async read(input) {
       seen.push(input)
-      return { ok: { enabled: new Set(['on/route']), efforts: new Map() } }
+      return {
+        ok: {
+          enabled: { llm: new Set(['on/route']), decisions: new Set(), live: new Set() },
+          efforts: new Map(),
+        },
+      }
     },
   })).read({ principal, tenant: TENANT })
   expect(seen).toEqual([{ provider: 'openrouter', access: { principal, tenant: TENANT } }])

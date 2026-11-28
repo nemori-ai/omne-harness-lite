@@ -188,7 +188,8 @@ describe('a start that sends nothing', () => {
       })
       const prepared = await prepare()
       const outcome = await prepared.materialize(new AbortController().signal)
-      if (!('ok' in outcome)) throw new Error('expected a materialization')
+      if (!('ok' in outcome) || !('start' in outcome.ok))
+        throw new Error('expected a chat materialization')
       const materialized = outcome.ok
       switch (closer) {
         case 'materialized':

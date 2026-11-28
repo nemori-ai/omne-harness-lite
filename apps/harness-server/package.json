@@ -152,6 +152,7 @@
     "@omne-harness/pi-ai-anthropic": "workspace:*",
     "@omne-harness/pi-ai-deepseek": "workspace:*",
     "@omne-harness/pi-ai-glm": "workspace:*",
+    "@omne-harness/pi-ai-jev": "workspace:*",
     "@omne-harness/pi-ai-kimi": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-qwen": "workspace:*",

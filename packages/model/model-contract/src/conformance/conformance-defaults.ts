@@ -1,4 +1,11 @@
-import type { Adoption, ConsumerRef, FixedModelRequest, ProviderName, Supplier } from '../index.ts'
+import type {
+  Adoption,
+  ConsumerRef,
+  FixedModelRequest,
+  LlmModelRequest,
+  ProviderName,
+  Supplier,
+} from '../index.ts'
 import { decodeProviderName } from '../provider-name.ts'
 
 const decoded = decodeProviderName('provider')
@@ -16,7 +23,8 @@ export const DEFAULT_SUPPLIER: Supplier = {
   credential: { layer: 'official' },
 }
 
-export const DEFAULT_REQUEST: FixedModelRequest = {
+export const DEFAULT_REQUEST: LlmModelRequest = {
+  kind: 'llm',
   profile: adoption('profile'),
   suppliers: [DEFAULT_SUPPLIER],
   fallback: false,
@@ -41,7 +49,7 @@ export const DEFAULT_CONSUMER: ConsumerRef = {
   purpose: 'purpose',
 }
 
-export function variantOf(request: FixedModelRequest): FixedModelRequest {
+export function variantOf<R extends FixedModelRequest>(request: R): R {
   return {
     ...request,
     source: {

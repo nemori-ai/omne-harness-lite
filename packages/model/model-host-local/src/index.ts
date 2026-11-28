@@ -23,6 +23,7 @@ export {
   createDecisionPreparation,
   type DecisionPreparationOptions,
 } from './decision-preparation.ts'
+export { createLivePreparation, type LivePreparationOptions } from './live-preparation.ts'
 export { officialProfiles } from './official-profiles.ts'
 export { officialCatalog, officialSupplierProviders } from './official-catalog.ts'
 export { COST_LOOKUP_OWNER } from './plugins/cost-lookups.ts'

@@ -135,13 +135,18 @@ const MATRIX: Readonly<Partial<Record<RecordFact, string>>> = {
 
 // Every fact cites the real stream of this record on the Responses interface; the facts that
 // stream cannot show also name the measurement that showed them.
-function provenanceOf(name: string, revision: string): RecordProvenance {
+function provenanceOf(
+  name: string,
+  revision: string,
+  measured: string = MEASURED,
+  notes: Readonly<Partial<Record<RecordFact, string>>> = MATRIX,
+): RecordProvenance {
   const evidence = `packages/model/pi-ai-openai/tests/fixtures/records/${encodeURIComponent(name)}/${revision}/stream.sse`
   const fact = (key: RecordFact) => {
-    const note = MATRIX[key]
+    const note = notes[key]
     return note === undefined
-      ? { measuredAt: MEASURED, evidence }
-      : { measuredAt: MEASURED, evidence, note }
+      ? { measuredAt: measured, evidence }
+      : { measuredAt: measured, evidence, note }
   }
   return {
     engine: fact('engine'),
@@ -196,6 +201,33 @@ function recordOf(item: Measured) {
     provenance: provenanceOf(name, item.revision),
   } as const satisfies OpenAiResponsesRecord
 }
+
+const DIRECT_MEASURED = '2026-11-27'
+
+const DIRECT_NOTES: Readonly<Partial<Record<RecordFact, string>>> = {
+  engine:
+    'one streamed request: the events of the Responses interface, ending at response.completed with no end marker',
+  efforts:
+    "one request per effort: none, low, medium, high, xhigh and max accepted; minimal refused with 400 \"Unsupported value: 'minimal' is not supported with the 'gpt-6-luna' model\"",
+  'reasoning-off':
+    'reasoning.enabled false, one request: refused with 400 "Unknown parameter: \'reasoning.enabled\'"; effort none is accepted, but no record maps effort none, by the project convention',
+  'forced-tool-choice': 'tool_choice required and a named function, one request each: accepted',
+  'ends-with-assistant': 'a request ending with an assistant message, one request: accepted',
+  'replay-binding':
+    'one reasoning item carried back, with and without an earlier user message edited: it counted 29 input tokens both times, so no binding',
+  cache:
+    'a three-turn session that only appends, with automatic caching and a session key: the second request read 1392 of 1416 input tokens from the cache, the third 1413 of 1475',
+  'system-placement':
+    'one developer message first in the input asking for capital letters: the reply was in capitals',
+  'usage-fields':
+    'input_tokens counts the cache reads (input_tokens_details.cached_tokens) and writes (input_tokens_details.cache_write_tokens); output_tokens_details.reasoning_tokens; no cost',
+}
+
+const DIRECT_LUNA_PROFILE = {
+  ...ENDPOINT_PROFILE,
+  evidence:
+    'The OpenAI model page read 2026-11-26: a 1050000-token window, a 922000-token max input and a 128000-token max output, not measured, since a request that fills the window costs dollars. One 8x8 PNG read 2026-11-27: the reply named its color. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
+} as const
 
 export const OPENAI_RECORDS = [
   recordOf({
@@ -335,4 +367,16 @@ export const OPENAI_RECORDS = [
     profile: gpt62Profile('gpt-6.2-sol'),
     image: 'sol-luna-auto-proxy/1',
   }),
+  {
+    name: 'gpt-6-luna',
+    revision: '1',
+    route: { provider: 'openai', model: 'gpt-6-luna' },
+    status: 'current',
+    ...RESPONSES,
+    serving: null,
+    replay: replayOf('none'),
+    profile: DIRECT_LUNA_PROFILE,
+    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
+    provenance: provenanceOf('gpt-6-luna', '1', DIRECT_MEASURED, DIRECT_NOTES),
+  },
 ] as const satisfies readonly OpenAiRecord[]

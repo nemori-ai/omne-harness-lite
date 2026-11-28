@@ -162,6 +162,7 @@ it('ControlState and CustodyState record intent and handover as separate states'
   const none: ControlState = { kind: 'none' }
   const requested: ControlState = {
     kind: 'requested',
+    intent: 'cancel',
     operation,
     propagation: 'pending',
     upstream: 'unknown',

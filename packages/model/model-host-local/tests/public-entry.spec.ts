@@ -7,6 +7,7 @@ it('the root entry exports the credential port over the secret custody, the send
     'SendResourceDefect',
     'assembleLocalModel',
     'createDecisionPreparation',
+    'createLivePreparation',
     'createPiSendResources',
     'createSecretCredentialPort',
     'officialCatalog',

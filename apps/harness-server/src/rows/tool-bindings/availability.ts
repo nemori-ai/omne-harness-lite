@@ -12,11 +12,15 @@ import {
   notificationSendingKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import type { ModalityRequirement } from '@omne-harness/model-contract'
 import {
-  modelProfilesKey,
-  type ModelProfilesService,
-} from '@omne-harness/model-cordis-contract/cordis'
+  chatNeedOf,
+  type ModalityRequirement,
+  type ModelFailure,
+  type ProfileResolution,
+  type ProfileResolveInput,
+} from '@omne-harness/model-contract'
+import type { Outcome } from '@omne-harness/operation-result'
+import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
@@ -103,7 +107,6 @@ async function workSession(
 }
 
 type Modality = ModalityRequirement['modalities'][number]
-type Resolve = ModelProfilesService<unknown>['resolve']
 type SessionAccessOf = Readonly<{ principal: unknown; tenant: TenantId; session: string }>
 type Unreadable = Readonly<{ unreadable: string }>
 /** Whether the model a session now uses takes these modalities natively. */
@@ -116,7 +119,9 @@ export type ModelReadPorts = Readonly<{
   readSelection(
     access: SessionAccessOf,
   ): ReturnType<SessionWork<unknown>['readModelSelection']> | undefined
-  resolveProfile(input: Parameters<Resolve>[0]): ReturnType<Resolve> | undefined
+  resolveProfile(
+    input: ProfileResolveInput<unknown, 'llm'>,
+  ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
 }>
 
 const RESULT_REQUIREMENT_SOURCE = Object.freeze({
@@ -139,7 +144,10 @@ export function modelReadsOver(ports: ModelReadPorts): ModelReads {
         principal: access.principal,
         tenant: access.tenant,
         route,
-        required: { modalities: ['text', ...modalities], source: RESULT_REQUIREMENT_SOURCE },
+        required: chatNeedOf({
+          modalities: ['text', ...modalities],
+          source: RESULT_REQUIREMENT_SOURCE,
+        }),
       })
       if (resolved === undefined)
         return { unreadable: 'the model profiles service is not available' }

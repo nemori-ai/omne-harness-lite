@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -28,6 +27,7 @@ import type {
   ModelHostAuthority,
   ModelSendBoundary,
 } from '@omne-harness/model-contract/provider'
+import type { LiveEventPort } from '@omne-harness/model'
 import {
   ModelRuntimeService,
   createModelResultReceiverTable,
@@ -39,15 +39,18 @@ import { createCustodyEnd, savedResultOf } from './push-custody.ts'
 import { createCostLookups } from './cost-lookups.ts'
 import { createLateAccounts } from './late-accounts.ts'
 import {
+  answerOf,
   awaitsReceiver,
   custodyEnded,
   definite,
   due,
+  frozen,
   isDelayTable,
   laterRevision,
   unfinished,
 } from './push-values.ts'
 import { whenEmpty } from './idle.ts'
+import { createLiveEvents } from './live-events.ts'
 import { createStartScan } from './start-scan.ts'
 
 const DEPENDENCY = 'model-result-push'
@@ -236,37 +239,10 @@ function newOperation(): ModelOperationId {
   throw new Error('invalid generated Model operation')
 }
 
-function frozen<T>(value: T): T {
-  const copy = structuredClone(value)
-  const freeze = (item: unknown): void => {
-    if (typeof item !== 'object' || item === null || Object.isFrozen(item)) return
-    Object.freeze(item)
-    for (const child of Object.values(item)) freeze(child)
-  }
-  freeze(copy)
-  return copy
-}
-
 function replaces(standing: DeliveryStanding, next: DeliveryStanding): boolean {
   if (standing.status === 'saved') return false
   if (standing.status === 'unknown') return next.status === 'saved'
   return true
-}
-
-type PushAnswer =
-  | Readonly<{ saved: ModelSavedReceipt }>
-  | Readonly<{ failure: ModelDeliveryFailure; foreign: boolean }>
-
-/** A receipt for another key or owner proves neither a save nor a refusal: its outcome is unknown. */
-function answerOf(
-  delivery: ModelDelivery,
-  outcome: Awaited<ReturnType<ModelResultReceiver<unknown>['push']>>,
-): PushAnswer {
-  if (!('ok' in outcome)) return { failure: outcome.failure, foreign: false }
-  return isDeepStrictEqual(outcome.ok.key, delivery.key) &&
-    outcome.ok.evidence.owner === delivery.consumer.owner
-    ? { saved: frozen(outcome.ok) }
-    : { failure: { kind: 'outcome-unknown' }, foreign: true }
 }
 
 function dropBody(record: ResultPushRecord): ResultPushRecord {
@@ -297,6 +273,8 @@ type StageInput = Readonly<{
   released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
   /** Wakes the drive of a call the start scan found not settled. */
   schedule?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
+  /** Whether this process still holds the live body of the call; its result waits until it is gone. */
+  holdsLiveBody?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): boolean
 }>
 
 export type RuntimeStage = Readonly<{
@@ -307,6 +285,8 @@ export type RuntimeStage = Readonly<{
   delivering(target: Target): boolean
   /** Whether the start scan has looked at this call, or has looked at every call. */
   scanned(call: ModelCallId): boolean
+  /** Where the events of a live call go: the receiver of its consumer. */
+  liveEvents: LiveEventPort
 }>
 
 class RuntimeContribution extends ModelRuntimeService<unknown> {
@@ -357,6 +337,7 @@ export function createRuntimeStage(
       stop: async () => {},
       delivering: () => false,
       scanned: () => true,
+      liveEvents: { deliver: async () => 'waiting', exited: () => {} },
     }
   return createResultPush(input, { ...options, limits: checkedLimits(options.limits) })
 }
@@ -398,6 +379,20 @@ async function advanceCleanup(
   }
   report({ kind: 'cleanup-pending', reason: 'steps' })
   return false
+}
+
+function blankRecord(target: Target): ResultPushRecord {
+  return {
+    tenant: target.tenant,
+    call: target.call,
+    operations: { read: newOperation(), ack: newOperation(), abandon: newOperation() },
+    origin: null,
+    result: null,
+    acknowledgement: 'none',
+    cleanup: 'pending',
+    delivered: {},
+    accounts: [],
+  }
 }
 
 function createResultPush(input: StageInput, options: ResultPushOptions): RuntimeStage {
@@ -455,19 +450,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     return record
   }
 
-  function fresh(target: Target): ResultPushRecord {
-    return save({
-      tenant: target.tenant,
-      call: target.call,
-      operations: { read: newOperation(), ack: newOperation(), abandon: newOperation() },
-      origin: null,
-      result: null,
-      acknowledgement: 'none',
-      cleanup: 'pending',
-      delivered: {},
-      accounts: [],
-    })
-  }
+  const fresh = (target: Target) => save(blankRecord(target))
 
   async function work(target: Target): Promise<void> {
     try {
@@ -687,6 +670,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
   async function pushResult(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const held = record.result
     if (held === null || custodyEnded(record.acknowledgement) || !due(held)) return record
+    if (input.holdsLiveBody?.(record) === true) return record
     return save({ ...record, result: await push(held, access) })
   }
 
@@ -882,6 +866,13 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     },
     idle: signal => whenEmpty(running, signal),
     scanned: call => scan.scanned(call),
+    liveEvents: createLiveEvents({
+      authority,
+      reference: async (target, principal) =>
+        (await originRead(input, target, principal))?.origin.reference ?? null,
+      receiver: owner => resolveReceiver(owner),
+      exited: wake,
+    }),
     delivering(target) {
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false

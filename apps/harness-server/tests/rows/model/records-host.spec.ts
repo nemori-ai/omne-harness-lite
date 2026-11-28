@@ -221,6 +221,7 @@ describe('the model-records and model-host rows', () => {
       manifest: {
         provides: [
           'modelRuntime',
+          'modelLiveCalls',
           'modelInstanceHost',
           'modelStreamReferences',
           'modelStreamObservation',

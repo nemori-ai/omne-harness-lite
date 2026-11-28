@@ -7,6 +7,10 @@ export type {
   ExecutionRef,
   IndependentModelFact,
   LateDispatchFact,
+  LiveFact,
+  LiveInput,
+  LiveSession,
+  MaterializedLiveTransport,
   MaterializedTransport,
   ModelClock,
   ModelCommands,
@@ -27,6 +31,7 @@ export type {
   ProviderDiagnostic,
   Publication,
   RecoveryRecord,
+  ControlRecord,
   CallOrigin,
   SendDemand,
   SendResult,
@@ -53,6 +58,7 @@ export type {
 } from '../profile.ts'
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts'
 export type { ModelDecisionPreparation } from '../decision-preparation.ts'
+export type { ModelLivePreparation } from '../live-preparation.ts'
 export type {
   ModelBindingFailure,
   ModelDriveInput,
@@ -91,6 +97,12 @@ export {
   resolveModelOperationRef,
 } from '../reference.ts'
 export type { ModelAdmitCandidate, ModelInputRejection } from '../judge-request.ts'
-export { MODEL_INPUT_LIMITS, judgeAdmit, judgeFixedModelRequest } from '../judge-request.ts'
-export { requestHead } from '../request-head.ts'
+export {
+  MODEL_INPUT_LIMITS,
+  judgeAdmit,
+  judgeFixedModelRequest,
+  judgeModelRequest,
+} from '../judge-request.ts'
+export { requestHead, requestRepresentation } from '../request-head.ts'
 export { continuedMessages, judgeReplayDeclaration, projectReplay } from '../replay-values.ts'
+export { supplyOf, type ModelSupply } from '../supply.ts'

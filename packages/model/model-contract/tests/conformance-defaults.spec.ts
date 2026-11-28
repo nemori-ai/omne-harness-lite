@@ -1,4 +1,5 @@
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { judgeModelRequest, requestRepresentation } from '@omne-harness/model-contract/provider'
+import { ofKind } from '@omne-harness/model-contract/testing'
 import type {
   Admit,
   ConsumerRef,
@@ -84,6 +85,7 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(Object.keys(request).sort()).toEqual([
       'declarations',
       'fallback',
+      'kind',
       'messages',
       'parameterAdoptions',
       'parameters',
@@ -103,7 +105,7 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(supplier.provider).not.toBe('')
     expect(supplier.model).not.toBe('')
     const identity = `${supplier.provider}/${supplier.model}`
-    expect(request.declarations).toEqual([
+    expect(ofKind(request, 'llm').declarations).toEqual([
       { produces: identity, accepts: [identity], foreignThinking: 'omit' },
     ])
   })
@@ -113,7 +115,7 @@ describe('the values that the conformance suite sends when the subject gives non
     for (const adoption of [
       request.profile,
       request.retryPolicy,
-      request.representation,
+      requestRepresentation(request),
       request.source,
       request.suppliers[0]?.adoption,
     ]) {
@@ -261,7 +263,7 @@ it('checks a different valid fixed request when the original digest starts with 
     ...standard,
     source: { ...standard.source, digest: '1' + '0'.repeat(63) },
   }
-  expect(judgeFixedModelRequest(request)).toEqual({ ok: request })
+  expect(judgeModelRequest('llm', request)).toEqual({ ok: request })
   const log: Log = { admitted: [], prepared: [], pages: [], closed: [] }
   const correct = await checkModelProviderConformance({
     subject: () => recorded({ ...createScriptedConformanceSubject(), request }, log),
@@ -277,7 +279,7 @@ it('checks a different valid fixed request when the original digest starts with 
   expect(variants).toHaveLength(1)
   const variant = variants[0]
   if (variant === undefined) throw new Error('the conflict check submitted a different request')
-  expect(judgeFixedModelRequest(variant)).toEqual({ ok: variant })
+  expect(judgeModelRequest('llm', variant)).toEqual({ ok: variant })
   expect(variant).toEqual({
     ...request,
     source: { ...request.source, digest: '0'.repeat(64) },

@@ -36,3 +36,19 @@ export function laterDecimal(left: string, right: string): boolean {
   if (left.length !== right.length) return left.length > right.length
   return left > right
 }
+
+/** The value as the member of its union of one kind; a value of another kind is a misuse of the test. */
+export function ofKind<T extends Readonly<{ kind: string }>, K extends T['kind']>(
+  value: T,
+  kind: K,
+): Extract<T, Readonly<{ kind: K }>> {
+  if (isOfKind(value, kind)) return value
+  throw new TypeError(`expected a value of kind ${kind}, got ${value.kind}`)
+}
+
+function isOfKind<T extends Readonly<{ kind: string }>, K extends T['kind']>(
+  value: T,
+  kind: K,
+): value is Extract<T, Readonly<{ kind: K }>> {
+  return value.kind === kind
+}

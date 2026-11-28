@@ -54,6 +54,24 @@ export function judgeFixedModelRequest(
   return 'failure' in parsed ? parsed : succeed(freezeTree(parsed.ok))
 }
 
+/** Judges a request that must be of one model kind; a request of another kind is refused at its kind. */
+export function judgeModelRequest<K extends FixedModelRequest['kind']>(
+  kind: K,
+  value: unknown,
+): Outcome<Extract<FixedModelRequest, { kind: K }>, ModelInputRejection> {
+  const judged = judgeFixedModelRequest(value)
+  if ('failure' in judged) return judged
+  const request = judged.ok
+  return isRequestOf(request, kind) ? succeed(request) : rejected('/kind', 'value')
+}
+
+function isRequestOf<K extends FixedModelRequest['kind']>(
+  request: FixedModelRequest,
+  kind: K,
+): request is Extract<FixedModelRequest, { kind: K }> {
+  return request.kind === kind
+}
+
 const admitKeys = ['principal', 'tenant', 'call', 'operation', 'request', 'consumer']
 function captureAdmitFields(
   value: unknown,

@@ -1,6 +1,6 @@
 import { judgeMessage, judgePart } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
-import type { FixedModelRequest, ModelFault, RetryDecision } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ModelFault, RetryDecision } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy, TransportFact } from '@omne-harness/model-contract/provider'
 import { beginAttempt, initialAttempts, recordRetryDecision } from '../src/commands/attempts.ts'
 import type { CallDocument } from '../src/commands/types.ts'
@@ -562,7 +562,7 @@ describe('the default policy with fallback over three suppliers', () => {
     })
     const f = runtimeFixture({}, undefined, undefined, undefined, policy, others)
     const [declaration] = request.declarations
-    const fixed: FixedModelRequest = {
+    const fixed: LlmModelRequest = {
       ...request,
       suppliers: [first, ...others],
       fallback: true,
@@ -740,7 +740,7 @@ describe('a refusal of the reasoning state the dispatch carried', () => {
     role: 'assistant',
     blocks: [{ kind: 'text', id: 'p', visibility: seen, text: 'a reply without a mark' }],
   })
-  const fixed: FixedModelRequest = {
+  const fixed: LlmModelRequest = {
     ...request,
     messages: [
       ask('msg_ask0000000000000000000'),

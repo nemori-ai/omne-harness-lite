@@ -63,7 +63,7 @@ function identitiesOf(tenant: TenantId, text: string, input: DecisionAsk) {
     purpose: 'judge',
   }
   const reference = value(encodeModelInvocationRef({ tenant, call, admission: operation('admit') }))
-  return { call, operation, consumer, reference, message: `msg_${key}` }
+  return { call, operation, consumer, reference }
 }
 
 /** The proof that a settled decision was taken into a judging: it names the call and the version of its result. */
@@ -105,7 +105,6 @@ export function createGoalDecisions<P>(ports: DecisionPorts<P>): GoalDecisions {
     const prepared = await preparation.prepare({
       ...access,
       model: input.model,
-      message: ids.message,
       ask,
       source: GOAL_DECISIONS_SOURCE,
     })

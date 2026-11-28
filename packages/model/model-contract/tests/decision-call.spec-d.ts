@@ -5,7 +5,7 @@ import type {
   DecisionJson,
   DecisionQuestion,
   DecisionState,
-  FixedModelRequest,
+  DecisionsModelRequest,
 } from '@omne-harness/model-contract'
 import type { ModelDecisionPreparation } from '@omne-harness/model-contract/provider'
 import { expectTypeOf, it } from 'vitest'
@@ -23,10 +23,10 @@ it('the answers are by the name of their question, and an answer may be a refusa
   expectTypeOf<DecisionAnswer['type']>().toEqualTypeOf<'refusal' | 'noul' | 'choice' | 'score'>()
 })
 
-it('the preparation forms a fixed request from a model, a message id, an ask and its source', () => {
+it('the preparation forms a decisions request from a model, an ask and its source', () => {
   type Prepare = ModelDecisionPreparation<string>['prepare']
   expectTypeOf<Parameters<Prepare>[0]['ask']>().toEqualTypeOf<DecisionAsk>()
   expectTypeOf<Awaited<ReturnType<Prepare>>>().toExtend<
-    { ok: FixedModelRequest } | { failure: unknown }
+    { ok: DecisionsModelRequest } | { failure: unknown }
   >()
 })

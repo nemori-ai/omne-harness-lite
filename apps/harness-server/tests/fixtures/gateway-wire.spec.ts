@@ -1,25 +1,24 @@
 import { writeJsonText } from '@omne-harness/json-text'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type { Adoption, LlmModelRequest, Supplier } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import {
   recordAdoption,
   recordProvider,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiModelRecordHead,
 } from '@omne-harness/pi-ai-transport'
-import {
-  OPENROUTER_ACCOUNTING,
-  type ChatCompletionsLimits,
-  type FamilyMeter,
-  type ParameterTable,
+import type {
+  ChatCompletionsLimits,
+  FamilyMeter,
+  ParameterTable,
 } from '@omne-harness/pi-ai-transport/chat-completions'
 import { bindMessages } from '@omne-harness/pi-ai-transport/messages'
 import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
-import { replayStream } from '@omne-harness/pi-ai-transport/testing'
+import { OPENROUTER_ACCOUNTING, replayStream } from '@omne-harness/pi-ai-transport/testing'
 import { request as httpsRequest } from 'node:https'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -115,13 +114,14 @@ function meterOf(supplier: Supplier): FamilyMeter {
   }
 }
 
-function requestOf(supplier: Supplier): FixedModelRequest {
+function requestOf(supplier: Supplier): LlmModelRequest {
   const declaration = judgeReplayDeclaration(
     { provider: HEAD.route.provider, model: HEAD.route.model, replay: {} },
     0,
   )
   if (!('ok' in declaration)) throw new Error('test declaration refused')
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
+    kind: 'llm',
     profile: adoption('profile'),
     suppliers: [supplier],
     fallback: false,
@@ -148,7 +148,7 @@ function requestOf(supplier: Supplier): FixedModelRequest {
   return judged.ok
 }
 
-type Engine = Readonly<{ binding: PiFamilyBinding; request: FixedModelRequest }>
+type Engine = Readonly<{ binding: PiChatBinding; request: LlmModelRequest }>
 
 function responsesEngine(): Engine {
   const record = {

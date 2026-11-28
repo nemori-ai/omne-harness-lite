@@ -563,6 +563,7 @@ describe('the observation helpers of the conformance kit', () => {
     expect(
       requestedOperation({
         kind: 'requested',
+        intent: 'cancel',
         operation,
         propagation: 'pending',
         upstream: 'unknown',

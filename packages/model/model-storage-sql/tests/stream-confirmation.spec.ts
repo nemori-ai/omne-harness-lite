@@ -170,7 +170,7 @@ it('a real SQL CAS retry publishes only the final state, never the first staged 
     )
   }
   const commits = s.sqlite.commits()
-  unbox(await s.commands.control({ ...s.admit, operation: opId('control') }))
+  unbox(await s.commands.control({ ...s.admit, operation: opId('control'), intent: 'cancel' }))
   expect(s.sqlite.commits() - commits).toBe(2)
   expect(await iterator.next()).toMatchObject({
     value: {
@@ -231,7 +231,7 @@ it('a real SQL unknown write ends the stream before any staged state can escape'
   expect(await iterator.next()).toMatchObject({ value: { kind: 'snapshot' } })
   s.sqlite.hooks.holdNext = true
   expect(
-    await s.commands.control({ ...s.admit, operation: opId('unknown-control') }),
+    await s.commands.control({ ...s.admit, operation: opId('unknown-control'), intent: 'cancel' }),
   ).toMatchObject({ failure: { kind: 'commit-unknown' } })
   expect(await iterator.next()).toMatchObject({ value: { kind: 'ended', reason: 'unavailable' } })
   expect(await iterator.next()).toEqual({ done: true, value: undefined })
@@ -275,7 +275,7 @@ it('memory and SQL expose the same confirmed origin, state and private channel b
   const right = unbox(await sql.channel.prepare(sql.admit))
   expect(await memory.commands.claim(left)).toEqual(await sql.commands.claim(right))
   expect(await channel.commands.claim(left)).toEqual(await sql.channel.commands.claim(right))
-  const control = { ...sql.admit, operation: opId('parity-control') }
+  const control = { ...sql.admit, operation: opId('parity-control'), intent: 'cancel' } as const
   expect(await memory.commands.control(control)).toEqual(await sql.commands.control(control))
   expect(await host.references.current({ access: sql.access, reference: sql.reference })).toEqual(
     await sql.host.references.current({ access: sql.access, reference: sql.reference }),

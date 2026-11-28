@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { RouteAccounting } from '../config.ts'
+import { unreportedCost } from '../cost-lookup.ts'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
 import { plainDecimal } from '../chat-completions/decimal.ts'
 import type { ToolNames } from '../chat-completions/tool-names.ts'
@@ -465,7 +466,7 @@ function accountFact(input: MessagesDecoderInput, phase: Finished): TransportFac
       counted('cache-write', usage?.cacheWrite ?? null),
       counted('reasoning', usage?.thinking ?? null),
     ],
-    cost: costOf(usage, input.accounting.costUnit),
+    cost: costOf(usage, input.accounting),
     trimmed: { state: 'unknown', unit: 'token' },
     place: `${input.accounting.place}/${phase.provider}`,
     duration: { state: 'unknown' },
@@ -474,8 +475,9 @@ function accountFact(input: MessagesDecoderInput, phase: Finished): TransportFac
   return { kind: 'account', event: ACCOUNT_EVENT, value: report }
 }
 
-function costOf(usage: Usage | null, costUnit: string): CallAccountReport['cost'] {
-  if (usage?.cost === null || usage?.cost === undefined) return []
+function costOf(usage: Usage | null, accounting: RouteAccounting): CallAccountReport['cost'] {
+  const { costUnit } = accounting
+  if (usage?.cost === null || usage?.cost === undefined) return unreportedCost(accounting)
   const lexeme = plainDecimal(usage.cost)
   if (lexeme !== null) return [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }]
   return [{ state: 'unknown', unit: costUnit, source: 'billable' }]
