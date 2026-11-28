@@ -16,6 +16,7 @@ it('exports exactly the declared root runtime surface', () => {
     'PENDING_PAGE_LIMIT',
     'PENDING_PREVIEW_CHARS',
     'RELATIONS_TO_REFERENCE',
+    'SESSION_ENTRY_KINDS',
     'UNKNOWN_MODEL_PROVENANCE',
     'admitDerived',
     'admitDerivedOf',

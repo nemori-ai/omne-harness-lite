@@ -46,7 +46,7 @@ product-checks 是本仓库的产品规则检查器。规则写死本仓库的�
 
 ### 扫描与报告
 
-- CLI 在给出的包根上跑包规则（成员脚本 `scan` 给的是 `packages` 与 `apps`），再在被检查的仓库上跑仓库路径规则、验收覆盖声明与提交署名；给 `--hygiene` 时另跑整洁检查。仓库路径规则扫描 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 下的执行模块（含 `.tsx`、`.jsx`）及配置别名的解析结果。另有一条不限于执行模块：被跟踪的文本文件里不许有合并冲突标记行，即行首是七个 `<` 或七个 `>` 后接一个空格的行；它的扫描范围是全部被跟踪的文本文件。
+- CLI 在给出的包根上跑包规则（成员脚本 `scan` 给的是 `packages` 与 `apps`），再在被检查的仓库上跑仓库路径规则、验收覆盖声明与提交署名；给 `--hygiene` 时另跑整洁检查。仓库路径规则扫描 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/`、`benchmarks/` 下的执行模块（含 `.tsx`、`.jsx`）及配置别名的解析结果。另有一条不限于执行模块：被跟踪的文本文件里不许有合并冲突标记行，即行首是七个 `<` 或七个 `>` 后接一个空格的行；它的扫描范围是全部被跟踪的文本文件。
 - 运行检查器的仓库取 `OMNE_RUNNER_ROOT`，缺省为本工具所在的检出。被检查的仓库取 `OMNE_SUBJECT_ROOT`，缺省同运行检查器的仓库。不在 Git 检出里时，整洁检查与提交署名写明未检查。
 - 有违反时逐条写 `<路径>:<行> [<规则>] <说明>`，退出 1。没有违反时写一行汇总，退出 0。
 - 仓库收集器先规范化仓库根。配置的 `extends` 写相对路径时按文件读，写包名时按 Node 的规则从该配置所在目录解析，读锁文件钉住的那份安装，解析不到就报错停止。
@@ -114,6 +114,8 @@ product-checks 是本仓库的产品规则检查器。规则写死本仓库的�
 
 `asset-category-names` 登记在 `REPOSITORY_RULES`，守资产规格[不变式](../../packages/assets/SPEC.md#不变式)里的 AS-22。
 
+`evaluation-not-product-source` 登记在 `REPOSITORY_RULES`，守评测的两个成员：顶层 `benchmarks/` 的模块只许导入 Node 内建、设施 `@omne-harness/perf-harness`、产品给客户端的 `@omne-harness/sdk`、`@omne-harness/public-contract` 与 `@omne-harness/session-protocol`、vitest 与本目录之内的文件；`tools/perf-harness/` 的模块只许导入 Node 内建、vitest 与本目录之内的文件。别的导入，不论写成包名还是相对路径，都报违例。它替 `lint:deps` 守「评测不导入产品源码」：依赖方向检查的扫描根看不到顶层的 `benchmarks/`。
+
 - 扫描资产的协议契约、接入插件与界面模块三个成员的 `src/`，以及命令行的两条资产命令 `apps/cli/src/asset-command.ts`、`apps/cli/src/setting-command.ts`。测试路径不扫。
 - 报出：引号或反引号里恰好是一个类别名的字符串。类别名的清单在规则源码里：本仓库贡献的类别，加上服务端的测试加的两个测试类别。
 - 不覆盖：运行时拼出来的类别名；注释里的；清单之外的类别，加一个类别时把它的名字加进清单；命令行里资产命令以外的文件，那里的 `'tool'` 指调用的种类，不是资产类别。
@@ -177,6 +179,7 @@ product-checks 是本仓库的产品规则检查器。规则写死本仓库的�
 - `hygiene-baseline.json` 记线（文件行数、函数行数、规格行数、注释）与存量例外：文档、注释、超线文件、超线函数。它只由 `hygiene:baseline` 写，命令从当前树重算并覆盖整份文件。
 - 基线只能收窄。基线里多出不再需要的条目也报出，所以删掉一处例外之后要重新生成基线。
 - 一个成员随包发布的技能包是运行时交给 agent 读的内容，不是约束后来者的文档。白名单放行包根的 `<成员>/skills/<名字>/SKILL.md` 与它 `references/` 下一层的 Markdown，不放行那个目录里别的 Markdown，不记进基线。
+- 顶层 `benchmarks/` 是一个成员，它的规格 `benchmarks/SPEC.md` 在白名单里；那个目录下别的 Markdown 不放行。
 - `.meta_harness/design/architecture/` 与 `.meta_harness/design/basis/` 是给统筹用的留存设计，不约束实现。文档白名单放行这两个目录，不记进基线。别的目录不照这个例子加：要留一份不约束实现的设计，放进这两个目录之一。
 
 ## 原则与约束

@@ -1,0 +1,30 @@
+{
+  "name": "@omne-harness/perf-harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "性能评测设施：运行环境记录与可比性、计数门与规模门、成对比较的判定、基线与报告；与被测对象无关，不发布",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "devDependencies": {
+    "@omne-harness/repo-toolchain": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

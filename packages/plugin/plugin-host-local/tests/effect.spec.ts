@@ -339,8 +339,14 @@ describe('where a held plugin is placed now', () => {
       server: null,
     })
     expect(answer.places).toEqual([
-      { point: 'shell.part-style', key: 'session.composer.send', standing: 'in effect', says: '' },
-      { point: 'session.tool-call', key: 'Web', standing: 'in effect', says: '' },
+      {
+        point: 'shell.part-style',
+        key: 'session.composer.send',
+        side: 'client',
+        standing: 'in effect',
+        says: '',
+      },
+      { point: 'session.tool-call', key: 'Web', side: 'client', standing: 'in effect', says: '' },
     ])
     expect(answer.clients).toEqual([{ label: 'desktop-1, connected', says: 'loaded' }])
     expect(answer.advice).toBeNull()
@@ -400,6 +406,7 @@ describe('where a held plugin is placed now', () => {
     })
     expect(answer.places[0]).toEqual({
       point: 'shell.part-style',
+      side: 'client',
       key: 'session.composer.send',
       standing: 'conflict',
       says: 'with plugin round; neither is in effect, the built-in shows',

@@ -32,7 +32,7 @@ function subjectWith(wrap?: Wrap, controlOverride?: 'noop-close'): SqlConformanc
         storage: wrapped,
         control:
           controlOverride === 'noop-close'
-            ? { close: () => Promise.resolve({ kind: 'closed' }), assemblyReportSettled() {} }
+            ? { ...control, close: () => Promise.resolve({ kind: 'closed' }) }
             : control,
       }
     },

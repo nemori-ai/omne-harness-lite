@@ -275,6 +275,7 @@ describe('where a held plugin is placed now', () => {
         {
           point: 'shell.part-style',
           key: 'session.composer.send',
+          side: 'client',
           standing: 'in effect',
           says: '',
         },

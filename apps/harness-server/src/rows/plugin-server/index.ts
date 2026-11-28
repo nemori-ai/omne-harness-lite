@@ -31,6 +31,7 @@ import {
   type PortItem,
   type ServerEntry,
   type ServerPoint,
+  PLUGIN_CATEGORY,
 } from '@omne-harness/plugin-host-local'
 import {
   bindPorts,
@@ -115,9 +116,15 @@ function needsOf(ctx: Context, tenant: string, names: readonly string[]): Needed
   return { kind: 'adopted', bind: principal => bindPorts(factories, { principal, tenant }) }
 }
 
-const heldWithin =
-  (held: HeldRef | undefined) =>
-  (directory: string): HeldItem => {
+type Placing = Readonly<{ directory(at: string): unknown; data(at: string): unknown }>
+
+const nowhere = (): never => {
+  throw new Error('nothing is placed here')
+}
+const NOWHERE: Placing = { directory: nowhere, data: nowhere }
+
+function heldIn(held: HeldRef | undefined, plugin: string): Placing {
+  const item = (where: Pick<HeldItem, 'within' | 'valueAt'>): HeldItem => {
     if (held === undefined) throw new Error('the tenant no longer holds this version')
     const { asset, version } = held
     return {
@@ -126,18 +133,17 @@ const heldWithin =
       disabled: false,
       immutable: true,
       replaceLocked: false,
-      within: directory,
+      from: `${PLUGIN_CATEGORY}:${plugin}`,
+      ...where,
     }
   }
-
-const DATA_HELD = 'this tree does not yet make a held item of a category from data'
+  return { directory: within => item({ within }), data: valueAt => item({ valueAt }) }
+}
 
 export function serverPointOf(
   ctx: Context,
   name: string,
-  place: (directory: string) => unknown = () => {
-    throw new Error('nothing is placed here')
-  },
+  placing: Placing = NOWHERE,
 ): ServerPoint | undefined {
   const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
   const declared = registry === undefined ? undefined : standingOf(registry, name, [])
@@ -150,19 +156,12 @@ export function serverPointOf(
   if (why !== undefined)
     return { kind: 'category', category: named, takes: 'none', why, place: () => undefined }
   if (made === 'data')
-    return {
-      kind: 'category',
-      category: named,
-      takes: 'data',
-      place: () => {
-        throw new Error(DATA_HELD)
-      },
-    }
+    return { kind: 'category', category: named, takes: 'data', place: at => placing.data(at) }
   return {
     kind: 'category',
     category: named,
     takes: 'directory',
-    place: what => place(String(what)),
+    place: at => placing.directory(at),
   }
 }
 
@@ -231,7 +230,7 @@ export const pluginServerRow = defineRow({
       const held = refs.get(tenant)?.get(`${wanted.name}\n${wanted.version}`)
       return serverInstall({
         scope: scopeOfLayer('tenant', tenant),
-        point: name => serverPointOf(ctx, name, heldWithin(held)),
+        point: name => serverPointOf(ctx, name, heldIn(held, wanted.name)),
         guestForm: point => guestFormOf(ctx, point),
         needs: names => needsOf(ctx, tenant, names),
         async load(file) {

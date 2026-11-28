@@ -15,6 +15,8 @@ export type AssetEntry = Readonly<{
   version: string
   selection: AssetVersionSelection['kind']
   enabled: boolean
+  /** What brought this definition, as `<category>:<name>`; it has no holding of its own. */
+  from?: string
 }>
 
 export type AssetPage = Readonly<{

@@ -1,6 +1,7 @@
 import {
   packageBody,
   packageDigest,
+  packageValue,
   withinDirectory,
   type AssetLayerSource,
   type BodyContract,
@@ -107,11 +108,18 @@ export function tenantLayers(
 ): TenantAssetLayers {
   const places = new Map<string, Within>()
   const judged = new Map<string, Judged>()
+  const values = new Map<string, JsonValue>()
   const whole = (assetRef: string, version: string) => assets.packages.reader({ assetRef, version })
   return {
     sources,
     async body(candidate) {
-      const { asset, version, within } = candidate
+      const { asset, version, within, valueAt } = candidate
+      if (valueAt !== undefined) {
+        const tag = `${asset}\n${version}\n${valueAt}`
+        const known = values.get(tag) ?? (await packageValue(whole(asset, version), valueAt))
+        if (known !== undefined) values.set(tag, known)
+        return known
+      }
       if (within === undefined) {
         const brought = officialAt(official, asset, version)
         if (brought !== undefined) return brought.body

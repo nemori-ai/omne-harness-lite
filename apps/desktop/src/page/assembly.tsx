@@ -40,7 +40,7 @@ import {
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
 import { createInterfaceUiModule } from '@omne-harness/interface-ui/cordis'
-import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
+import { createPluginUiModule, createPluginViewModule } from '@omne-harness/plugin-ui/cordis'
 import '@omne-harness/plugin-ui/plugin-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import * as React from 'react'
@@ -135,6 +135,11 @@ export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
       calendarUiModule,
       assetsUiModule,
       createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+      createPluginViewModule({
+        page: assetsCategoryPage,
+        governance: assetGovernanceKey,
+        target: assetsPageTarget,
+      }),
       createToolUiModule({ callDetail: sessionCallDetail, toolCall: sessionToolCall }),
       createModelUiModule({
         runFailure: sessionRunFailure,

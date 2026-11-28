@@ -233,6 +233,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`；只消费已有正文不加载 | 对人、找差异、拆 |
 | 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |
 | 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡、合入、提升与接受加载 `omne-card`；环境准备见 [CONTRIBUTING](CONTRIBUTING.md#开始工作) | 转手、证、对人 |
+| 量性能、比两个提交、判一处改动有没有让读写量变差 | 加载 `perf-evaluation`：选套件、跑、比、读报告都在里面；命令是 `pnpm run perf`。判定与可比性归 [`tools/perf-harness/SPEC.md`](tools/perf-harness/SPEC.md)，套件与代价模型归 [`benchmarks/SPEC.md`](benchmarks/SPEC.md)。读完报告的结局与每道门就停 | 证、找差异 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 | 证、找差异 |
 
 ## Cursor Cloud specific instructions

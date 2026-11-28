@@ -156,6 +156,13 @@
               "source": {
                 "category": "mcp"
               }
+            },
+            {
+              "id": "plugin-tools",
+              "effect": "allow",
+              "source": {
+                "category": "plugin"
+              }
             }
           ]
         },
@@ -218,6 +225,17 @@
               {
                 "id": "invoke",
                 "title": "调用这个接入点的动作",
+                "default": "ask"
+              }
+            ]
+          },
+          {
+            "category": "plugin",
+            "ownerId": "plugin.tool-gates",
+            "gates": [
+              {
+                "id": "invoke",
+                "title": "调用这份 Plugin 的工具",
                 "default": "ask"
               }
             ]

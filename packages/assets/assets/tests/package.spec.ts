@@ -4,7 +4,9 @@ import {
   isReadBody,
   packageBody,
   packageDigest,
+  packageValue,
   type JsonValue,
+  type PackageReader,
 } from '../src/index.ts'
 
 const encoder = new TextEncoder()
@@ -112,5 +114,74 @@ describe('packageBody', () => {
     expect(packageBody(long, manifest)).toEqual({
       failure: { kind: 'record-rejected', reason: 'limit_exceeded' },
     })
+  })
+})
+
+describe('packageValue', () => {
+  const files: Readonly<Record<string, string>> = {
+    'plugin.json': JSON.stringify({
+      server: { members: [{ key: 'a' }, { key: 'b', data: { 'a/b': 1, 'm~n': [true, 'x'] } }] },
+    }),
+    'notes.txt': 'not json',
+  }
+  const reader: PackageReader = {
+    manifest: async () => ({
+      ok: {
+        entries: Object.entries(files).map(([path, text]) => ({
+          path,
+          bytes: encoder.encode(text).length,
+          digest: digestBytes(encoder.encode(text)),
+        })),
+      },
+    }),
+    open: async (path, expected) => {
+      const text = files[path]
+      return text === undefined || digestBytes(encoder.encode(text)) !== expected
+        ? { failure: 'entry-not-found' }
+        : { ok: encoder.encode(text) }
+    },
+  }
+
+  it('is the value a JSON Pointer names in a JSON file of the package, as a body read by the assets', async () => {
+    const data = await packageValue(reader, 'plugin.json#/server/members/1/data')
+    expect(isReadBody(data)).toBe(true)
+    expect(data).toEqual({
+      kind: 'object',
+      entries: [
+        { key: 'a/b', value: { kind: 'number', lexeme: '1' } },
+        {
+          key: 'm~n',
+          value: {
+            kind: 'array',
+            items: [
+              { kind: 'boolean', value: true },
+              { kind: 'string', value: 'x' },
+            ],
+          },
+        },
+      ],
+    })
+    const data1 = '#/server/members/1/data'
+    expect(await packageValue(reader, `plugin.json${data1}/a~1b`)).toEqual({
+      kind: 'number',
+      lexeme: '1',
+    })
+    expect(await packageValue(reader, `plugin.json${data1}/m~0n/1`)).toEqual({
+      kind: 'string',
+      value: 'x',
+    })
+  })
+
+  it.each([
+    ['no pointer', 'plugin.json'],
+    ['no such file', 'other.json#/server'],
+    ['a file that is no JSON', 'notes.txt#'],
+    ['a pointer that does not start with a slash', 'plugin.json#server'],
+    ['no such member', 'plugin.json#/server/members/2'],
+    ['an index with a leading zero', 'plugin.json#/server/members/01'],
+    ['a step into a value that is no container', 'plugin.json#/server/members/0/key/x'],
+    ['no such key', 'plugin.json#/client'],
+  ])('is undefined for %s', async (_case, valueAt) => {
+    expect(await packageValue(reader, valueAt)).toBeUndefined()
   })
 })

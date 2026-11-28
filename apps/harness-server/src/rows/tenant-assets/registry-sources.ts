@@ -1,10 +1,10 @@
 import {
   heldLayerSource,
+  withPlaced,
   type AssetEntry,
   type AssetLayerListing,
   type AssetLayerSource,
   type AssetListRequest,
-  type AssetPage,
   type CapabilityId,
   type HeldReading,
   type OfficialAsset,
@@ -25,8 +25,6 @@ export type RegistrySourcePorts = Readonly<{
 }>
 
 const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
-
-const orderOf = (category: string, name: string): string => JSON.stringify([category, name])
 
 const officialEntry = ({ capability, asset, version }: OfficialAsset): AssetEntry => ({
   capability,
@@ -53,33 +51,6 @@ function officialListing(ports: RegistrySourcePorts, request: AssetListRequest):
   const items = named.slice(0, request.limit)
   const next = named.length > items.length ? (items.at(-1)?.capability.name ?? null) : null
   return { layer: 'official', state: 'read', page: { items, next, completeness: 'complete' } }
-}
-
-/** A page of the ledger with the placed definitions it does not hold, in the ledger's order; the cursor stays a name. */
-export function withPlaced(
-  page: AssetPage,
-  placed: readonly AssetEntry[],
-  request: AssetListRequest,
-): AssetPage {
-  const keyOf = ({ capability }: AssetEntry) => orderOf(capability.category, capability.name)
-  const after = request.after === null ? '' : orderOf(request.category, request.after)
-  const last = page.items.at(-1)
-  const bound = page.next === null || last === undefined ? undefined : keyOf(last)
-  const held = new Set(page.items.map(each => each.capability.name))
-  const extra = placed.filter(
-    each =>
-      each.capability.category === request.category &&
-      !held.has(each.capability.name) &&
-      keyOf(each) > after &&
-      (bound === undefined || keyOf(each) <= bound),
-  )
-  if (extra.length === 0) return page
-  const items = [...page.items, ...extra].sort((left, right) =>
-    keyOf(left) < keyOf(right) ? -1 : 1,
-  )
-  if (items.length <= request.limit) return { ...page, items }
-  const kept = items.slice(0, request.limit)
-  return { ...page, items: kept, next: kept.at(-1)?.capability.name ?? null }
 }
 
 /** The official and the tenant layer of one tenant: candidates from the registry, listing from the ledger. */
