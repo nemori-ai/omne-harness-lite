@@ -1,7 +1,14 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { advance, placingsOf, problemsOf, type Entered, type Phase } from '../src/create-steps.ts'
+import {
+  advance,
+  bodyOf,
+  placingsOf,
+  problemsOf,
+  type Entered,
+  type Phase,
+} from '../src/create-steps.ts'
 import { McpCreateForm } from '../src/create-form.tsx'
 import type { McpCreating, McpRow, McpSnapshot } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -294,5 +301,96 @@ describe('the form', () => {
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '再确认一次' }))
     expect(fake.calls).toContain('confirmCreate')
+  })
+})
+
+describe('the edges the mutation found unguarded', () => {
+  it('C1c spaces around the name and the address are not a problem; 64 characters is the longest name', () => {
+    expect(
+      problemsOf({ ...ENTERED, name: '  docs  ', target: '  https://docs.example/mcp ' }, nobody),
+    ).toEqual({})
+    expect(problemsOf({ ...ENTERED, name: 'a'.repeat(64) }, nobody)).toEqual({})
+    expect(placingsOf({ ...ENTERED, target: ' https://docs.example/mcp ' })).toEqual([
+      { item: 'target', secret: false, value: 'https://docs.example/mcp' },
+    ])
+  })
+
+  it('C1b the body is the name without spaces around it, streamable-http and the auth chosen', () => {
+    expect(bodyOf({ ...ENTERED, name: ' docs ', auth: 'oauth' })).toEqual({
+      kind: 'object',
+      entries: [
+        { key: 'name', value: { kind: 'string', value: 'docs' } },
+        { key: 'transport', value: { kind: 'string', value: 'streamable-http' } },
+        { key: 'auth', value: { kind: 'string', value: 'oauth' } },
+      ],
+    })
+  })
+
+  it('C3b creating waits while nothing is sent yet; made, it writes to the endpoint of its own name among others', () => {
+    const before: McpCreating = { kind: 'done', text: '已新建 old。' }
+    const creating: Phase = {
+      kind: 'creating',
+      name: 'docs',
+      placings: placingsOf(ENTERED),
+      before,
+    }
+    expect(advance(creating, withCreating({ kind: 'none' })).phase).toBe(creating)
+    const done = { kind: 'done', text: '已新建 docs。' } as const
+    const other = endpoint('other', [otherRow('other/target', 'ordinary', 'target')])
+    expect(advance(creating, withCreating(done, other, endpoint('docs', rowsOf()))).act?.key).toBe(
+      'docs/target',
+    )
+  })
+
+  it('F0 before anything is sent no field says it is wrong; after, each wrong one is marked', async () => {
+    const fake = fakeGovernance(readOf())
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    expect(screen.getByText('小写字母、数字和短横。agent 用这个名字叫它。')).toBeTruthy()
+    fill('名字（必填）', 'Docs')
+    expect(screen.queryByText('名字只能有小写字母、数字和短横，不超过 64 个字。')).toBeNull()
+    expect(screen.getByLabelText('名字（必填）').getAttribute('aria-invalid')).toBe('false')
+    fill('地址（必填）', 'docs.example')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(screen.getByLabelText('名字（必填）').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('地址（必填）').getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('F1b one field wrong is enough to send nothing; a name the tenant holds is said and nothing is sent', async () => {
+    const fake = fakeGovernance(readOf(endpoint('docs', rowsOf())))
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    fill('名字（必填）', 'fresh')
+    fill('地址（必填）', 'docs.example')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(screen.getByLabelText('名字（必填）').getAttribute('aria-invalid')).toBe('false')
+    fill('名字（必填）', 'docs')
+    fill('地址（必填）', 'https://docs.example/mcp')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(
+      screen.getByText('已经有一个叫 docs 的接入点：换一个名字，或者到它那一段里改地址。'),
+    ).toBeTruthy()
+    expect(fake.calls.filter(call => call.startsWith('create'))).toEqual([])
+  })
+
+  it('F1c while a 新建 is on its way 添加 cannot be pressed and the form says what it is doing', async () => {
+    const fake = fakeGovernance(readOf())
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    fill('名字（必填）', 'docs')
+    fill('地址（必填）', 'https://docs.example/mcp')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect((screen.getByRole('button', { name: '添加' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('正在加 docs……')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    expect(fake.calls.filter(call => call.startsWith('create'))).toHaveLength(1)
+    act(() => fake.show(withCreating({ kind: 'done', text: '已新建 docs。' })))
+    await settle()
+    expect(screen.getByText('正在设 docs 的地址……')).toBeTruthy()
+    expect((screen.getByRole('button', { name: '添加' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

@@ -1,4 +1,3 @@
-export { McpCreateForm, type McpCreateFormProps } from './create-form.tsx'
 export { McpPage, type McpPageProps } from './mcp-page.tsx'
 export type {
   McpBody,

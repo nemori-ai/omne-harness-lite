@@ -479,3 +479,16 @@ it('E19 a grant that wants a new connection offers 重新连接, one that is the
   expect(await screen.findByText('已连上')).toBeTruthy()
   expect(section().querySelector('[data-omne-part="mcp.endpoint.connect"]')).toBeNull()
 })
+
+it('E22 an OAuth endpoint from a server that does not say where its consent comes back shows no address line (C8)', async () => {
+  shownWith(
+    fakeStatus(
+      answered(
+        stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+        null,
+      ),
+    ).status,
+  )
+  expect(await screen.findByText('这个接入点要先经 OAuth 连上。')).toBeTruthy()
+  expect(screen.queryByText('回跳地址', { exact: false })).toBeNull()
+})
