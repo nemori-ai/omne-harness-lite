@@ -29,6 +29,7 @@ describe('createMcp', () => {
       'discovery',
       'inspection',
       'invoker',
+      'skills',
       'status',
       'subscriptions',
     ])

@@ -83,6 +83,8 @@ export { boundInstructions } from './instructions.ts'
 export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
 export type { PlainJson, PlainRecord } from './plain.ts'
 export {
+  EVENTS_EXTENSION,
+  SKILLS_EXTENSION,
   clientEnvelopeOf,
   mcpRequestHeadersOf,
   type ClientInfo,
@@ -90,7 +92,21 @@ export {
 } from './envelope.ts'
 export { withheldTools } from './withheld.ts'
 export {
-  EVENTS_EXTENSION,
+  SKILL_BYTE_LIMIT,
+  SKILL_FILE_LIMIT,
+  declaresSkills,
+  judgeSkills,
+  readResourceContent,
+  readSkillEntry,
+  type McpSkill,
+  type RefusedSkill,
+  type ResourceContent,
+  type SkillCatalogRecord,
+  type SkillFileEntry,
+  type SkillListingPage,
+  type SkillRefusal,
+} from './skills.ts'
+export {
   declaresEvents,
   eventParamHeadersOf,
   eventStreamMessageOf,
@@ -188,6 +204,9 @@ export {
   legacyInitializeParamsOf,
   listActionsRequest,
   listEventTypesRequest,
+  listSkillsRequest,
+  getSkillRequest,
+  readResourceRequest,
   pollEventsRequest,
   notificationTextOf,
   peerRequestAnswerOf,
@@ -235,6 +254,11 @@ export type {
   CancelAnswer,
   CatalogView,
   EventCatalogView,
+  PeerSkills,
+  SkillCatalogView,
+  SkillFileFailure,
+  SkillFileRequest,
+  SkillFileText,
   ChangeAbout,
   EventsConfig,
   EventSubscriptionRequest,

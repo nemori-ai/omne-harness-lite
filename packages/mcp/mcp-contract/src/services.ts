@@ -14,6 +14,7 @@ import type {
 } from './brands.ts'
 import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
 import type { EventCatalogRecord, EventType } from './events.ts'
+import type { McpSkill, RefusedSkill, SkillCatalogRecord } from './skills.ts'
 import type {
   EventConsumer,
   EventRecords,
@@ -81,9 +82,46 @@ export type EventCatalogView =
       types: readonly EventType[]
     }>
 
+export type SkillCatalogView =
+  | Readonly<{ kind: 'not-acquired' }>
+  | Readonly<{ kind: 'not-declared'; freshness: Freshness }>
+  | Readonly<{
+      kind: 'acquired'
+      revision: CatalogRevision
+      freshness: Freshness
+      skills: readonly McpSkill[]
+      refused: readonly RefusedSkill[]
+    }>
+
+export type SkillFileRequest = Readonly<{
+  skill: string
+  path: string
+  range: Readonly<{ start: number; length: number }>
+  connectBound?: Millis
+  signal?: AbortSignal
+}>
+
+export type SkillFileText = Readonly<{ text: string; start: number; total: number }>
+
+export type SkillFileFailure =
+  | ReadFailure
+  | Readonly<{ kind: 'skill-not-found' }>
+  | Readonly<{ kind: 'file-not-found' }>
+  | Readonly<{ kind: 'not-text' }>
+  | Readonly<{ kind: 'changed' }>
+
+export interface PeerSkills<P> {
+  read(
+    access: Access<P>,
+    ref: EndpointRef,
+    request: SkillFileRequest,
+  ): Promise<Outcome<SkillFileText, SkillFileFailure>>
+}
+
 export interface ActionDiscovery<P> {
   current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, ReadFailure>>
   eventTypes(access: Access<P>, ref: EndpointRef): Promise<Outcome<EventCatalogView, ReadFailure>>
+  skills(access: Access<P>, ref: EndpointRef): Promise<Outcome<SkillCatalogView, ReadFailure>>
   refresh(
     access: Access<P>,
     request: Readonly<{ ref: EndpointRef; connectBound?: Millis; signal?: AbortSignal }>,
@@ -243,6 +281,7 @@ export type McpPorts<P, S> = Readonly<{
   credentials: CredentialUse<P>
   store: CatalogStore
   eventStore?: CatalogStore<EventCatalogRecord>
+  skillStore?: CatalogStore<SkillCatalogRecord>
   eventRecords?: EventRecords
   eventConsumer?: EventConsumer
   tasks: TaskRecords
@@ -354,4 +393,5 @@ export type McpServices<P, S> = Readonly<{
   connections: Connections<P>
   connect: EndpointConnect<P>
   subscriptions: EventSubscriptions<P>
+  skills: PeerSkills<P>
 }>

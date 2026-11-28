@@ -10,6 +10,8 @@ import type {
   EventSubscriptions,
   McpConfig,
   McpPorts,
+  PeerSkills,
+  SkillCatalogRecord,
   TaskWatch,
   TaskWatchConfig,
 } from '@omne-harness/mcp-contract'
@@ -33,6 +35,7 @@ import {
   EndpointConnectService,
   EndpointStatusService,
   EventSubscriptionsService,
+  PeerSkillsService,
   TaskWatchService,
   mcpAdoptionViewKey,
   mcpCallbackReceiverKey,
@@ -41,6 +44,7 @@ import {
   mcpEventCatalogStoreKey,
   mcpEventConsumerKey,
   mcpEventRecordsKey,
+  mcpSkillCatalogStoreKey,
   mcpTaskRecordsKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
@@ -251,6 +255,16 @@ function eventStoreOf(ctx: Context): CatalogStore<EventCatalogRecord> {
   }
 }
 
+function skillStoreOf(ctx: Context): CatalogStore<SkillCatalogRecord> {
+  return {
+    read: key =>
+      ctx.get(mcpSkillCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpSkillCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
 function eventRecordsOf(ctx: Context): EventRecords {
   const away = () => Promise.resolve(fail('unavailable' as const))
   const records = () => ctx.get(mcpEventRecordsKey)
@@ -319,6 +333,17 @@ class HostActionDiscovery extends ActionDiscoveryService<unknown> {
   }
   eventTypes(...args: Parameters<ActionDiscovery<unknown>['eventTypes']>) {
     return this.discovery.eventTypes(...args)
+  }
+  skills(...args: Parameters<ActionDiscovery<unknown>['skills']>) {
+    return this.discovery.skills(...args)
+  }
+}
+
+class HostPeerSkills extends PeerSkillsService<unknown> {
+  readonly read: PeerSkills<unknown>['read']
+  constructor(ctx: Context, skills: PeerSkills<unknown>) {
+    super(ctx)
+    this.read = (...args) => skills.read(...args)
   }
 }
 
@@ -434,6 +459,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         credentials: credentialsOf(ctx),
         store: storeOf(ctx),
         eventStore: eventStoreOf(ctx),
+        skillStore: skillStoreOf(ctx),
         eventRecords: eventRecordsOf(ctx),
         eventConsumer: eventConsumerOf(ctx),
         tasks: tasksOf(ctx),
@@ -473,6 +499,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostEndpointStatus(ctx, services.status)
       new HostEndpointConnect(ctx, services.connect)
       new HostEventSubscriptions(ctx, services.subscriptions)
+      new HostPeerSkills(ctx, services.skills)
       if (services.tasks !== undefined) new HostTaskWatch(ctx, services.tasks)
     },
   })
