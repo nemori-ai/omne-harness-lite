@@ -235,7 +235,7 @@ describe('the form', () => {
       fake.show(withCreating({ kind: 'done', text: '已新建 docs。' }, endpoint('docs', rowsOf()))),
     )
     await settle()
-    expect(fake.calls).toContain('setValue docs/target https://docs.example/mcp')
+    expect(fake.calls).toContain('setValue docs/target string:https://docs.example/mcp')
     act(() =>
       fake.show(
         withCreating(
@@ -392,5 +392,124 @@ describe('the edges the mutation found unguarded', () => {
     await settle()
     expect(screen.getByText('正在设 docs 的地址……')).toBeTruthy()
     expect((screen.getByRole('button', { name: '添加' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
+describe('the form, second round of the mutation', () => {
+  it('F5 starts empty with 不用 chosen and its hint; 密钥 shows the key field only then', async () => {
+    const fake = fakeGovernance(readOf())
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    expect((screen.getByLabelText('名字（必填）') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('地址（必填）') as HTMLInputElement).value).toBe('')
+    expect(screen.getByRole('button', { name: '不用' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText('对方不要求登录，例如 DeepWiki。')).toBeTruthy()
+    expect(screen.getByText('服务的 MCP 地址，一般以 /mcp 结尾。')).toBeTruthy()
+    expect(screen.getByLabelText('地址（必填）').getAttribute('aria-invalid')).toBe('false')
+    expect(screen.queryByLabelText('密钥')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '密钥' }))
+    await settle()
+    expect((screen.getByLabelText('密钥') as HTMLInputElement).value).toBe('')
+    expect(screen.queryByText('对方不要求登录，例如 DeepWiki。')).toBeNull()
+  })
+
+  it('F6 a name with spaces around it is sent without them; without a status the end does not fail', async () => {
+    const fake = fakeGovernance(readOf())
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    fill('名字（必填）', '  docs ')
+    fill('地址（必填）', 'https://docs.example/mcp')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(fake.calls).toContain('create docs name=docs,transport=streamable-http,auth=none')
+    act(() =>
+      fake.show(withCreating({ kind: 'done', text: '已新建 docs。' }, endpoint('docs', rowsOf()))),
+    )
+    await settle()
+    act(() =>
+      fake.show(
+        withCreating(
+          { kind: 'done', text: '已新建 docs。' },
+          endpoint('docs', rowsOf({ target: { kind: 'succeeded' } })),
+        ),
+      ),
+    )
+    await settle()
+    expect(screen.getByText('已加上 docs。它在下面，连上之后列出它的动作。')).toBeTruthy()
+  })
+
+  it('F7 while the governance port is still reading the form is drawn and 添加 sends nothing', async () => {
+    const fake = fakeGovernance({ kind: 'reading' })
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+    await settle()
+    fill('名字（必填）', 'docs')
+    fill('地址（必填）', 'https://docs.example/mcp')
+    fireEvent.click(screen.getByRole('button', { name: '添加' }))
+    await settle()
+    expect(fake.calls.filter(call => call.startsWith('create'))).toEqual([])
+  })
+
+  it.each([
+    ['target', '地址'],
+    ['credential', '密钥'],
+  ] as const)(
+    'F8 a write of %s refused stops the form and names that item',
+    async (item, label) => {
+      const fake = fakeGovernance(readOf())
+      render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
+      await settle()
+      fill('名字（必填）', 'docs')
+      fill('地址（必填）', 'https://docs.example/mcp')
+      fireEvent.click(screen.getByRole('button', { name: '密钥' }))
+      await settle()
+      fill('密钥', 'sk-1')
+      fireEvent.click(screen.getByRole('button', { name: '添加' }))
+      await settle()
+      const refused = { kind: 'refused', notice: notice('被拒了。') } as const
+      const writes =
+        item === 'target'
+          ? { target: refused }
+          : { target: { kind: 'succeeded' } as const, credential: refused }
+      act(() =>
+        fake.show(
+          withCreating({ kind: 'done', text: '已新建 docs。' }, endpoint('docs', rowsOf())),
+        ),
+      )
+      await settle()
+      if (item === 'credential') {
+        act(() =>
+          fake.show(
+            withCreating(
+              { kind: 'done', text: '已新建 docs。' },
+              endpoint('docs', rowsOf({ target: { kind: 'succeeded' } })),
+            ),
+          ),
+        )
+        await settle()
+      }
+      act(() =>
+        fake.show(
+          withCreating({ kind: 'done', text: '已新建 docs。' }, endpoint('docs', rowsOf(writes))),
+        ),
+      )
+      await settle()
+      expect(
+        screen.getByText(`docs 已经加上，${label}没设上：被拒了。 在下面 docs 那一段里改。`),
+      ).toBeTruthy()
+    },
+  )
+
+  it('C1d the name and the address are matched whole', () => {
+    for (const name of ['docs-', '-docs', 'do--cs', 'docs!', 'docs x'])
+      expect(problemsOf({ ...ENTERED, name }, nobody).name).toBeDefined()
+    expect(problemsOf({ ...ENTERED, name: 'my-docs-2' }, nobody)).toEqual({})
+    for (const target of [
+      'xhttps://docs.example/mcp',
+      'http://127.0.0.1.evil.example/mcp',
+      'http://localhost:80x/mcp',
+      'http://127.0.0.1/a b',
+    ])
+      expect(problemsOf({ ...ENTERED, target }, nobody).target).toBeDefined()
+    expect(problemsOf({ ...ENTERED, target: 'http://127.0.0.1' }, nobody)).toEqual({})
   })
 })

@@ -492,3 +492,42 @@ it('E22 an OAuth endpoint from a server that does not say where its consent come
   expect(await screen.findByText('这个接入点要先经 OAuth 连上。')).toBeTruthy()
   expect(screen.queryByText('回跳地址', { exact: false })).toBeNull()
 })
+
+it.each([
+  ['disabled', '这个接入点停用了。'],
+  ['target-missing', '还没有地址：在下面「连接目标」一行填上。'],
+  ['target-invalid', '地址不对：要 https，或本机回环地址上的 http。'],
+  ['client-id-invalid', '「客户端标识」的配值不对，在下面那一行改。'],
+  ['no-resource-metadata', '对方没有说明它要怎样授权，这个地址接不了 OAuth。'],
+  ['no-authorization-server', '对方没有给出授权服务器，这个地址接不了 OAuth。'],
+  ['issuer-mismatch', '授权服务器说的身份和它的地址对不上，不连。'],
+  ['no-pkce', '授权服务器不支持 PKCE（S256），不连。'],
+  ['insecure-endpoint', '授权服务器给的地址不是 https，不连。'],
+  ['malformed', '授权服务器的说明读不懂。'],
+  [
+    'registration-refused',
+    '对方拒绝了自动登记：在对方那里登记一个应用，回跳地址填下面这个，客户端标识填进下面「客户端标识」一行。',
+  ],
+  ['something-new', '连不上：the server said so'],
+] as const)(
+  'E23 a connection refused as %s says it in Chinese; an unknown reason keeps the server sentence (C8)',
+  async (reason, said) => {
+    const fake = fakeStatus(
+      answered(
+        stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+        null,
+      ),
+    )
+    const status: McpStatus = {
+      ...fake.status,
+      'begin-connect': () =>
+        Promise.resolve({
+          outcome: 'not-committed',
+          body: { reason, text: 'the server said so' },
+        } as never),
+    }
+    shownWith(status)
+    fireEvent.click(await screen.findByRole('button', { name: '连接' }))
+    expect(await screen.findByText(said)).toBeTruthy()
+  },
+)

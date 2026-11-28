@@ -70,7 +70,7 @@ export function fakeGovernance(initial: McpSnapshot): FakeGovernance {
     getSnapshot: () => snapshot,
     read: () => void calls.push('read'),
     set: (key, pick) => void calls.push(`set ${key} ${pick}`),
-    setValue: (key, value) => void calls.push(`setValue ${key} ${value.value}`),
+    setValue: (key, value) => void calls.push(`setValue ${key} ${value.kind}:${value.value}`),
     setSecret: key => void calls.push(`setSecret ${key}`),
     createFromData: (name, body) =>
       void calls.push(
