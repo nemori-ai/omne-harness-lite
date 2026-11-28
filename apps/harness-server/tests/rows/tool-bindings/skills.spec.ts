@@ -62,6 +62,7 @@ async function setup(
     needs: Readonly<Record<string, readonly string[]>>
     missingTools: SkillsBindingPorts['missingTools']
     sources: readonly SkillEntrySource<unknown>[] | 'throws'
+    sourceListMs: number
   }> = {},
 ) {
   const fixture = fixtureEnv([principalIssuerKey])
@@ -150,6 +151,7 @@ async function setup(
       if (overrides.sources === 'throws') throw new Error('the point is gone')
       return overrides.sources ?? []
     },
+    ...(overrides.sourceListMs === undefined ? {} : { sourceListMs: overrides.sourceListMs }),
   }
   const bound = createBoundSkills(
     { principal, tenant, request: {} as FixedToolRequest } as never,
@@ -624,7 +626,7 @@ describe('Skills binding: Skills from an entry source (C401, C404, C405)', () =>
   }, 10_000)
 
   it('a late source is left out of the search after the bound', async () => {
-    const { bound } = await setup({ sources: [late, docs()] })
+    const { bound } = await setup({ sources: [late, docs()], sourceListMs: 50 })
     const found = await bound.search({ query: 'style', after: null, limit: 10 }, signal)
     expect(found).toMatchObject({ ok: { entries: [{ name: 'mcp__docs__style' }] } })
   }, 10_000)

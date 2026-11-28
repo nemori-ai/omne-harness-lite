@@ -76,6 +76,7 @@ export type SkillsBindingPorts = Readonly<{
   ): Promise<ReadonlySet<string> | 'unknown'>
   /** The Skill entry sources in service for this asker now. */
   sources(access: Access<unknown>): readonly SkillEntrySource<unknown>[]
+  sourceListMs?: number
 }>
 
 const unavailable = (reason: string) => fail({ kind: 'unavailable', reason } as const)
@@ -344,7 +345,7 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
       const { access, scope } = caller.ok
       const [found, sourced] = await Promise.all([
         catalog.search(access, scope, { text: input.query }),
-        listSourcedSkills(sourcesOf(ports, access), access, SOURCE_LIST_MS),
+        listSourcedSkills(sourcesOf(ports, access), access, ports.sourceListMs ?? SOURCE_LIST_MS),
       ])
       if (!('ok' in found)) return unavailable('the Skill store cannot be read now')
       const merged = mergeSearched(input.query, found.ok, sourced, (text, documents) =>
