@@ -23,7 +23,6 @@ export type CodecResult<T> =
 
 const GIVEN_LIMIT = 120
 
-/** The path of a rejection as one reads it: `items[3].name`; the root is `the value`. */
 export function pathText(at: readonly (string | number)[]): string {
   if (at.length === 0) return 'the value'
   return at
@@ -40,7 +39,6 @@ export function withheld(rejection: Rejection): Rejection {
   return { ...rejection, given: WITHHELD }
 }
 
-/** One sentence for a rejection, the way an error message or a tool result writes it. */
 export function rejectionText(rejection: Rejection): string {
   return `${pathText(rejection.at)} is ${rejection.given}; allows ${rejection.allows}`
 }
@@ -165,10 +163,7 @@ function engineCodec(rule: Rule): Codec<unknown> {
   }
 }
 
-/**
- * The body of the fixed outcome protocol-rejected, the same for every protocol: why the message was refused.
- * The rejection is optional: a peer that does not say why answers an empty body.
- */
+/** The body of protocol-rejected for every protocol; a peer that does not say why answers an empty body. */
 export const REJECTION_BODY = ruleCodec({
   kind: 'object',
   fields: {

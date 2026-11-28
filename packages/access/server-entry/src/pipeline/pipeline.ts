@@ -232,7 +232,7 @@ type Opening =
       kind: 'refused'
       code: 'access.message-id-rejected' | 'access.revision-rejected'
       carried: Readonly<{ messageId?: string }>
-      rejection?: Rejection
+      rejection: Rejection
     }>
 
 /** The message id, then the revision the call is read and written at: the lesser of the two ends'. */
@@ -295,6 +295,15 @@ const quietly =
       sink?.(event)
     } catch {}
   }
+
+const refused = (rejection: Rejection, close: boolean) =>
+  ({ outcome: 'protocol-rejected', body: rejectedBody(rejection), close }) as const
+
+const overLimit = (maxBytes: number): Rejection => ({
+  at: [],
+  given: 'a body past the limit',
+  allows: `a body of at most ${String(maxBytes)} bytes`,
+})
 
 type BodyOutcome =
   | Readonly<{ kind: 'read'; value: unknown }>
@@ -439,12 +448,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     const opening = openingOf(req, entered)
     if (opening.kind === 'refused') {
       note(opening.code)
-      const refusal = {
-        outcome: 'protocol-rejected',
-        body: opening.rejection === undefined ? EMPTY_BODY : rejectedBody(opening.rejection),
-        close: true,
-      } as const
-      writeAnswer(res, { ...refusal, ...opening.carried })
+      writeAnswer(res, { ...refused(opening.rejection, true), ...opening.carried })
       entered.leave()
       return
     }
@@ -486,22 +490,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
           return interrupted(failure.by)
         case 'over':
           note('access.body-over-limit')
-          return early(
-            'protocol-rejected',
-            rejectedBody({
-              at: [],
-              given: 'a body past the limit',
-              allows: `a body of at most ${String(failure.maxBytes)} bytes`,
-            }),
-          )
+          return early('protocol-rejected', rejectedBody(overLimit(failure.maxBytes)))
         case 'rejected':
           note('access.body-rejected')
-          writeAnswer(res, {
-            outcome: 'protocol-rejected',
-            body: rejectedBody(failure.rejection),
-            messageId,
-            close: false,
-          })
+          writeAnswer(res, { ...refused(failure.rejection, false), messageId })
           entered.leave()
       }
     }

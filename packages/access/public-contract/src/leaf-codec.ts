@@ -17,7 +17,6 @@ import { livesAt } from './revision.ts'
 
 export type Fields = Readonly<Record<string, unknown>>
 export type Converted = { readonly local: unknown; readonly wire: JsonValue }
-/** Why a value did not fit: where it is, what was given there and what the rule allows. */
 export type Refused = {
   readonly refused: true
   readonly at: readonly (string | number)[]
@@ -390,7 +389,6 @@ function bytes(input: unknown, direction: Direction): Converted | undefined {
   return local === undefined ? undefined : { local, wire: node }
 }
 
-/** What each leaf allows, said once: the leaves check the same bounds these sentences name. */
 export const LEAF_ALLOWS: { readonly [K in LeafKind]: string } = {
   'positive-integer': `a whole number from 1 to ${String(Number.MAX_SAFE_INTEGER)}`,
   count: 'a whole number from 0 up, without a leading zero',
@@ -446,7 +444,6 @@ function isLeaf(rule: Rule): rule is Extract<Rule, { readonly kind: LeafKind }> 
 const literalAllows = (values: readonly (string | boolean)[]): string =>
   `one of ${values.map(value => JSON.stringify(value)).join(', ')}`
 
-/** One sentence for what a rule allows; a field-by-field account is the rule data itself. */
 export function allowsOf(rule: Rule): string {
   if (isLeaf(rule)) return LEAF_ALLOWS[rule.kind]
   switch (rule.kind) {
