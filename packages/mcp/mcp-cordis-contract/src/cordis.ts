@@ -16,6 +16,7 @@ import type {
   CatalogStore,
   ContinuationRecords,
   CredentialUse,
+  EventConsumer,
   EventRecords,
   GrantConnector,
   HoldingRows,
@@ -325,9 +326,22 @@ export abstract class EventRecordsService extends Service implements EventRecord
   abstract readonly remove: EventRecords['remove']
   abstract readonly receive: EventRecords['receive']
   abstract readonly occurrences: EventRecords['occurrences']
+  abstract readonly end: EventRecords['end']
+  abstract readonly acknowledge: EventRecords['acknowledge']
 }
 
 export const mcpEventRecordsKey = EventRecordsService.provide
+
+export abstract class EventConsumerService extends Service implements EventConsumer {
+  static readonly provide = 'mcpEventConsumer'
+  constructor(ctx: Context) {
+    super(ctx, EventConsumerService.provide)
+  }
+  abstract readonly deliver: EventConsumer['deliver']
+  abstract readonly report: EventConsumer['report']
+}
+
+export const mcpEventConsumerKey = EventConsumerService.provide
 
 export abstract class EventSubscriptionsService<P>
   extends Service
@@ -364,6 +378,7 @@ declare module '@deepseek-ai/cordis' {
     mcpCallbackReceiver: CallbackReceiverService
     mcpEndpointConnect: EndpointConnectService<unknown>
     mcpEventRecords: EventRecordsService
+    mcpEventConsumer: EventConsumerService
     mcpEventSubscriptions: EventSubscriptionsService<unknown>
   }
 }

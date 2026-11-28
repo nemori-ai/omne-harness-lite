@@ -2,31 +2,38 @@ import type { SqlPort } from './rows.ts'
 
 export type SubscriptionCells = Readonly<{ tenant: string; subKey: string }>
 
-type Stored = Readonly<{ revision: number; cursor: string | null; row: unknown }>
+type Stored = Readonly<{
+  revision: number
+  cursor: string | null
+  delivered: number
+  row: unknown
+}>
 
 const LISTED = 1000
 
 export function loadSubscription(port: SqlPort, cells: SubscriptionCells): Stored | null {
   const found = port.execute(
-    'SELECT revision, cursor, row FROM mcp_subscriptions WHERE tenant = ? AND sub_key = ? LIMIT 1',
+    'SELECT revision, cursor, delivered, row FROM mcp_subscriptions WHERE tenant = ? AND sub_key = ? LIMIT 1',
     [cells.tenant, cells.subKey],
   ).rows[0]
   if (found === undefined) return null
   const cursor = found[1] === null ? null : String(found[1])
-  return { revision: Number(found[0]), cursor, row: JSON.parse(String(found[2])) as unknown }
+  const row = JSON.parse(String(found[3])) as unknown
+  return { revision: Number(found[0]), cursor, delivered: Number(found[2]), row }
 }
 
 export function listSubscriptions(port: SqlPort, tenant: string) {
   return port
     .execute(
-      `SELECT sub_key, revision, cursor, row FROM mcp_subscriptions WHERE tenant = ? ORDER BY sub_key LIMIT ${String(LISTED)}`,
+      `SELECT sub_key, revision, cursor, delivered, row FROM mcp_subscriptions WHERE tenant = ? ORDER BY sub_key LIMIT ${String(LISTED)}`,
       [tenant],
     )
     .rows.map(row => ({
       subKey: String(row[0]),
       revision: Number(row[1]),
       cursor: row[2] === null ? null : String(row[2]),
-      row: JSON.parse(String(row[3])) as unknown,
+      delivered: Number(row[3]),
+      row: JSON.parse(String(row[4])) as unknown,
     }))
 }
 
@@ -73,7 +80,7 @@ function insert(
   port: SqlPort,
   cells: SubscriptionCells,
   seq: number,
-  kind: 'event' | 'gap',
+  kind: 'event' | 'gap' | 'ended',
   eventId: string | null,
   at: string,
   row: unknown,
@@ -138,6 +145,31 @@ export function receiveBatch(
       cells.subKey,
     ])
   return stored
+}
+
+/** One commit: the row turns terminated with its reason a revision on, and the sequence ends with that. */
+export function endSubscription(
+  port: SqlPort,
+  cells: SubscriptionCells,
+  reason: string,
+  at: string,
+): 'ended' | 'absent' {
+  const stored = loadSubscription(port, cells)
+  if (stored === null) return 'absent'
+  insert(port, cells, next(port, cells), 'ended', null, at, { reason })
+  const row = { ...(stored.row as object), state: 'terminated', reason }
+  port.execute(
+    'UPDATE mcp_subscriptions SET revision = ?, row = ? WHERE tenant = ? AND sub_key = ?',
+    [stored.revision + 1, JSON.stringify(row), cells.tenant, cells.subKey],
+  )
+  return 'ended'
+}
+
+export function acknowledgeThrough(port: SqlPort, cells: SubscriptionCells, seq: number): void {
+  port.execute(
+    'UPDATE mcp_subscriptions SET delivered = MAX(delivered, ?) WHERE tenant = ? AND sub_key = ?',
+    [seq, cells.tenant, cells.subKey],
+  )
 }
 
 export function readOccurrences(

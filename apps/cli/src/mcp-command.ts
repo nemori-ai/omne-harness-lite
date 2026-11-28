@@ -112,8 +112,8 @@ const stateOf = ({ state, reason }: Subscription) =>
   reason === null ? state : `${state} (${reason})`
 
 const itemLine = (item: Item) =>
-  item.kind === 'gap'
-    ? `${String(item.seq)}  -- gap: ${item.reason ?? ''}`
+  item.kind === 'gap' || item.kind === 'ended'
+    ? `${String(item.seq)}  -- ${item.kind}: ${item.reason ?? ''}`
     : `${String(item.seq)}  ${item.timestamp ?? ''}  ${item.eventId ?? ''}  ${JSON.stringify(item.data)}`
 
 const RENDER = {

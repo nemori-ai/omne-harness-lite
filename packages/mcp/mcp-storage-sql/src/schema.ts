@@ -28,6 +28,8 @@ export const SCRIPTS = [
   'writeSubscription',
   'removeSubscription',
   'receiveEvents',
+  'endSubscription',
+  'acknowledgeEvents',
 ] as const
 export type ScriptName = (typeof SCRIPTS)[number]
 

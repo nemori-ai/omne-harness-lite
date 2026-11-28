@@ -58,6 +58,9 @@ export type {
   EventStreamMessage,
 } from './events.ts'
 export type {
+  ConsumerAnswer,
+  ConsumerNotice,
+  EventConsumer,
   EventRecords,
   GapReason,
   Occurrence,
@@ -65,6 +68,7 @@ export type {
   RetentionBounds,
   StoredOccurrence,
   SubscriptionKey,
+  SubscriptionRef,
   SubscriptionRow,
   SubscriptionState,
   TerminationReason,

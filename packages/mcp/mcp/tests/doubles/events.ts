@@ -1,6 +1,7 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { EventCatalogRecord, EventsConfig } from '@omne-harness/mcp-contract'
 import type {
+  EventConsumer,
   EventPollAnswer,
   EventRequest,
   EventStreamMessage,
@@ -64,6 +65,7 @@ export function eventWorld(
     records?: MemoryEventRecords
     eventStore?: ReturnType<typeof createMemoryCatalogStore<EventCatalogRecord>>
     settings?: Settings
+    consumer?: EventConsumer
   }>,
 ) {
   const w = world({ script: options.script, config: { events: EVENTS } })
@@ -95,7 +97,13 @@ export function eventWorld(
     ...(options.settings === undefined ? {} : { settings: options.settings }),
   })
   const { services } = assemble(
-    { ...w.ports, eventStore, eventRecords: records, transports },
+    {
+      ...w.ports,
+      eventStore,
+      eventRecords: records,
+      transports,
+      ...(options.consumer === undefined ? {} : { eventConsumer: options.consumer }),
+    },
     w.config,
     undefined,
     async ms => {

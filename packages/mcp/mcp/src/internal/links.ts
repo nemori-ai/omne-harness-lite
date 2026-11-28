@@ -16,9 +16,10 @@ import type { SubscriptionsDependencies } from '../subscriptions.ts'
 import type { AdmittedEndpoint } from './gate.ts'
 import { admitForUse, type UseGate } from './guard.ts'
 import { ask } from './port.ts'
+import { createDeliveries } from './delivery.ts'
 import { receive, type Ready } from './receiver.ts'
 import { readAccountOf } from './settings.ts'
-import { ensureOptionsOf, type Ensured } from './table.ts'
+import { ensureOptionsOf, type ConnectionTable, type Ensured } from './table.ts'
 import { tenantTextOf } from './text.ts'
 
 type Receiver<P> = {
@@ -54,6 +55,18 @@ async function typesOf(store: McpPorts<unknown, unknown>['eventStore'], ensured:
   return 'failure' in read ? fail(UNKNOWN) : succeed(read.ok)
 }
 
+async function ensureIn<P>(
+  table: ConnectionTable<P>,
+  admitted: AdmittedEndpoint,
+  access: Access<P>,
+  connectBound: Millis | undefined,
+) {
+  const ensured = await table.ensure(admitted, access, ensureOptionsOf(connectBound))
+  if ('ok' in ensured) return ensured
+  const { reason } = ensured.failure
+  return fail(reason.kind === 'effect-unknown' ? UNKNOWN : reason)
+}
+
 async function allowedFor<P, S>(gate: UseGate<P, S>, receiver: Receiver<P>) {
   const now = await admitForUse(gate, receiver.access, receiver.ref)
   if ('ok' in now) return 'yes' as const
@@ -68,6 +81,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
   const { ports, config, table, clock, changes, eventTypes, pause, timer } = deps
   const gate: UseGate<P, S> = { ports, table }
   const receivers = new Map<string, Receiver<P>>()
+  const deliveries = createDeliveries(ports.eventConsumer, pause)
   let closed = false
 
   async function prepare(access: Access<P>, ref: EndpointRef, connectBound?: Millis) {
@@ -99,18 +113,9 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
 
   const typesIn = (ensured: Ensured) => typesOf(ports.eventStore, ensured)
 
-  async function ensureOn(
-    admitted: AdmittedEndpoint,
-    access: Access<P>,
-    connectBound: Millis | undefined,
-  ) {
-    const ensured = await table.ensure(admitted, access, ensureOptionsOf(connectBound))
-    if ('ok' in ensured) return ensured
-    const { reason } = ensured.failure
-    return fail(reason.kind === 'effect-unknown' ? UNKNOWN : reason)
-  }
-
-  async function ensuredFor(receiver: Receiver<P>) {
+  const ensureOn = (admitted: AdmittedEndpoint, access: Access<P>, bound: Millis | undefined) =>
+    ensureIn(table, admitted, access, bound)
+  const ensuredFor = async (receiver: Receiver<P>) => {
     const admitted = await admitForUse(gate, receiver.access, receiver.ref)
     return 'failure' in admitted
       ? admitted
@@ -177,6 +182,8 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       stop: new AbortController(),
     }
     receivers.set(text, receiver)
+    const deliver = () => deliverTo(prepared, key)
+    deliver()
     const work = receive({
       key,
       records: prepared.records,
@@ -188,6 +195,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       fresh,
       ready: () => ready(receiver, key),
       changed: () => changes.changed(key.tenant, 'events'),
+      deliver,
     })
       .catch(() => undefined)
       .finally(() => {
@@ -200,13 +208,19 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
     const text = keyText(key)
     receivers.get(text)?.stop.abort()
     receivers.delete(text)
+    deliveries.forget(text)
+  }
+
+  function deliverTo(prepared: Prepared<P>, key: SubscriptionKey): void {
+    deliveries.nudge(keyText(key), key, prepared.records, prepared.bounds.backoffCapMs)
   }
 
   function close(): void {
     closed = true
+    deliveries.close()
     for (const receiver of receivers.values()) receiver.stop.abort()
     receivers.clear()
   }
 
-  return { prepare, keyOf, typeFor, resume, stopReceiving, close }
+  return { prepare, keyOf, typeFor, resume, stopReceiving, deliver: deliverTo, close }
 }

@@ -101,12 +101,14 @@ const eventType = object({
   delivery: { rule: array(literal('poll', 'push', 'webhook')) },
 })
 
+const ending = literal('refused', 'type-gone', 'schema-changed', 'unavailable')
+
 const subscription = object({
   name: { rule: text },
   arguments: { rule: parameters },
   delivery: { rule: literal('poll', 'push') },
   state: { rule: literal('receiving', 'waiting', 'terminated') },
-  reason: { rule: nullable(literal('refused', 'type-gone', 'schema-changed', 'unavailable')) },
+  reason: { rule: nullable(ending) },
   subscribers: { rule: count },
 })
 
@@ -126,6 +128,7 @@ const occurrence = oneOf(
     kind: { rule: literal('gap') },
     reason: { rule: literal('peer-truncated', 'trimmed', 'possibly-missed') },
   }),
+  object({ ...received, kind: { rule: literal('ended') }, reason: { rule: ending } }),
 )
 
 const eventTypes = oneOf(

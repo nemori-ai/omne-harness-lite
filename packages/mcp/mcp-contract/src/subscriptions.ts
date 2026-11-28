@@ -26,6 +26,7 @@ export type SubscriptionRow = Readonly<{
   reason: TerminationReason | null
   subscribers: readonly string[]
   revision: number
+  delivered: number
 }>
 
 export type Occurrence = Readonly<{
@@ -40,6 +41,7 @@ export type GapReason = 'peer-truncated' | 'trimmed' | 'possibly-missed'
 export type StoredOccurrence =
   | (Readonly<{ seq: number; kind: 'event'; receivedAt: string }> & Occurrence)
   | Readonly<{ seq: number; kind: 'gap'; receivedAt: string; reason: GapReason }>
+  | Readonly<{ seq: number; kind: 'ended'; receivedAt: string; reason: TerminationReason }>
 
 /** What one commit takes in: the events, the position after them, and whether the peer said some were missed. */
 export type ReceivedBatch = Readonly<{
@@ -51,7 +53,7 @@ export type ReceivedBatch = Readonly<{
 
 export type RetentionBounds = Readonly<{ maxEvents: number; maxAgeMs: number }>
 
-/** The position of a subscription moves only with a batch it took in; writing its row keeps the position. */
+/** The position moves only with a batch taken in and the delivered mark only forward with an acknowledgement; writing the row keeps both; ending is one commit with its last item. */
 export interface EventRecords {
   list(
     tenant: TenantId,
@@ -75,6 +77,36 @@ export interface EventRecords {
     after: number,
     limit: number,
   ): Promise<Outcome<readonly StoredOccurrence[], 'unavailable'>>
+  end(
+    key: SubscriptionKey,
+    reason: TerminationReason,
+    at: string,
+  ): Promise<Outcome<'ended' | 'absent', 'unavailable' | 'unknown'>>
+  acknowledge(key: SubscriptionKey, seq: number): Promise<Ack<'unavailable'>>
+}
+
+export type SubscriptionRef = Readonly<{
+  tenant: TenantId
+  holding: EndpointHolding
+  endpoint: EndpointName
+  name: string
+  arguments: string
+  subscribers: readonly string[]
+}>
+
+export type ConsumerNotice =
+  | Readonly<{ kind: 'gap'; seq: number; reason: GapReason }>
+  | Readonly<{ kind: 'terminated'; seq: number; reason: TerminationReason }>
+
+export type ConsumerAnswer = 'accepted' | 'not-now' | 'unknown'
+
+/** Where kept events go; what was not accepted comes again with the same identifiers, so the consumer keeps one of each. */
+export interface EventConsumer {
+  deliver(
+    ref: SubscriptionRef,
+    events: readonly (Occurrence & Readonly<{ seq: number }>)[],
+  ): Promise<ConsumerAnswer>
+  report(ref: SubscriptionRef, notice: ConsumerNotice): Promise<ConsumerAnswer>
 }
 
 const sorted = (value: JsonValue): JsonValue => {

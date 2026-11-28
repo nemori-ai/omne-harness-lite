@@ -19,6 +19,7 @@ import type {
   CatalogStore,
   CredentialFailure,
   CredentialUse,
+  EventConsumer,
   EventRecords,
   GrantConnector,
   HttpCredentialHandle,
@@ -38,6 +39,7 @@ import {
   mcpGrantConnectorKey,
   mcpCatalogStoreKey,
   mcpEventCatalogStoreKey,
+  mcpEventConsumerKey,
   mcpEventRecordsKey,
   mcpTaskRecordsKey,
   mcpCredentialUseKey,
@@ -259,6 +261,17 @@ function eventRecordsOf(ctx: Context): EventRecords {
     remove: key => records()?.remove(key) ?? away(),
     receive: (key, batch, bounds) => records()?.receive(key, batch, bounds) ?? away(),
     occurrences: (key, after, limit) => records()?.occurrences(key, after, limit) ?? away(),
+    end: (key, reason, at) => records()?.end(key, reason, at) ?? away(),
+    acknowledge: (key, seq) => records()?.acknowledge(key, seq) ?? away(),
+  }
+}
+
+// The consumer is asked at each delivery; while none is there the events stay and are handed over later.
+function eventConsumerOf(ctx: Context): EventConsumer {
+  const later = () => Promise.resolve('not-now' as const)
+  return {
+    deliver: (ref, events) => ctx.get(mcpEventConsumerKey)?.deliver(ref, events) ?? later(),
+    report: (ref, notice) => ctx.get(mcpEventConsumerKey)?.report(ref, notice) ?? later(),
   }
 }
 
@@ -422,6 +435,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
         store: storeOf(ctx),
         eventStore: eventStoreOf(ctx),
         eventRecords: eventRecordsOf(ctx),
+        eventConsumer: eventConsumerOf(ctx),
         tasks: tasksOf(ctx),
         grants: grantsOf(ctx),
         callbacks: callbacksOf(ctx),

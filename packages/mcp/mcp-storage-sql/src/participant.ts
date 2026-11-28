@@ -13,7 +13,9 @@ import {
 } from './rows-grants.ts'
 import { forgetHolding } from './rows-holdings.ts'
 import {
+  acknowledgeThrough,
   dropSubscription,
+  endSubscription,
   loadSubscription,
   receiveBatch,
   saveSubscription,
@@ -116,6 +118,13 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   },
   receiveEvents(port, input: Readonly<{ cells: SubscriptionCells; batch: Batch }>) {
     return { ok: receiveBatch(port, input.cells, input.batch) }
+  },
+  endSubscription(port, input: Readonly<{ cells: SubscriptionCells; reason: string; at: string }>) {
+    return { ok: endSubscription(port, input.cells, input.reason, input.at) }
+  },
+  acknowledgeEvents(port, input: Readonly<{ cells: SubscriptionCells; seq: number }>) {
+    acknowledgeThrough(port, input.cells, input.seq)
+    return { ok: 'acknowledged' }
   },
 }
 

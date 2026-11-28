@@ -48,7 +48,8 @@ export function createEventSubscriptions<P, S>(
   deps: SubscriptionsDependencies<P, S>,
 ): ClosableSubscriptions<P> {
   const { changes } = deps
-  const { prepare, keyOf, typeFor, resume, stopReceiving, close } = createSubscriptionLinks(deps)
+  const { prepare, keyOf, typeFor, resume, stopReceiving, deliver, close } =
+    createSubscriptionLinks(deps)
 
   const read = (prepared: Prepared<P>, key: SubscriptionKey) =>
     ask(() => prepared.records.read(key), fail('unavailable' as const))
@@ -93,6 +94,7 @@ export function createEventSubscriptions<P, S>(
               reason: null,
               subscribers: [request.subscriber],
               revision: 1,
+              delivered: 0,
             }
         const written = await write(prepared, key, row, existing?.revision ?? 'absent')
         if ('failure' in written && written.failure === 'unavailable') return fail(UNKNOWN)
@@ -151,6 +153,7 @@ export function createEventSubscriptions<P, S>(
       )
       for (const { key, row } of mine)
         if (row.state !== 'terminated') resume(prepared, ref, key, false)
+        else deliver(prepared, key)
       return succeed(mine.map(({ key, row }) => viewOf(key, row)))
     },
 
@@ -163,6 +166,7 @@ export function createEventSubscriptions<P, S>(
       if ('failure' in current) return fail(UNKNOWN)
       if (current.ok === 'absent') return fail({ kind: 'not-subscribed' })
       if (current.ok.state !== 'terminated') resume(prepared, ref, key, false)
+      else deliver(prepared, key)
       const items = await ask(
         () => prepared.records.occurrences(key, request.after, request.limit),
         fail('unavailable' as const),

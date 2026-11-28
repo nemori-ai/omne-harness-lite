@@ -3,7 +3,7 @@
     "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c",
     "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d",
     "3": "sha256:a8ef438f329c39157d9da7ede88792035647099486a931fd39a928cf4c9232c0",
-    "4": "sha256:a611b409199e6599d8b0e44fe5698ca746fb17c08a2747087f9b4ecbdc9187cd"
+    "4": "sha256:a3eb483ebe545634553ed02b1cb8e6919c83bd4c2e046dda669b986a94145d9a"
   },
   "major": 1,
   "name": "mcp",
@@ -868,6 +868,40 @@
                                 "peer-truncated",
                                 "trimmed",
                                 "possibly-missed"
+                              ]
+                            }
+                          },
+                          "receivedAt": {
+                            "rule": {
+                              "kind": "instant"
+                            }
+                          },
+                          "seq": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      {
+                        "fields": {
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "ended"
+                              ]
+                            }
+                          },
+                          "reason": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "refused",
+                                "type-gone",
+                                "schema-changed",
+                                "unavailable"
                               ]
                             }
                           },

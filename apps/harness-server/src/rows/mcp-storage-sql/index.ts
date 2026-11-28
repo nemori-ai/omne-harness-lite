@@ -143,6 +143,8 @@ class SqlEventRecords extends EventRecordsService {
   declare readonly remove: EventRecords['remove']
   declare readonly receive: EventRecords['receive']
   declare readonly occurrences: EventRecords['occurrences']
+  declare readonly end: EventRecords['end']
+  declare readonly acknowledge: EventRecords['acknowledge']
 
   constructor(ctx: Context) {
     super(ctx)

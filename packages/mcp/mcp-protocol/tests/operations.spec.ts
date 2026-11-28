@@ -81,6 +81,7 @@ describe('mcp/v1', () => {
           data: { id: 'e1' },
         },
         { seq: 2, receivedAt: '2026-11-27T22:00:00.000Z', kind: 'gap', reason: 'possibly-missed' },
+        { seq: 3, receivedAt: '2026-11-27T22:00:00.000Z', kind: 'ended', reason: 'type-gone' },
       ],
     })
   })

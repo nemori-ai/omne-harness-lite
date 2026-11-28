@@ -15,6 +15,7 @@ import type {
 import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
 import type { EventCatalogRecord, EventType } from './events.ts'
 import type {
+  EventConsumer,
   EventRecords,
   StoredOccurrence,
   SubscriptionState,
@@ -243,6 +244,7 @@ export type McpPorts<P, S> = Readonly<{
   store: CatalogStore
   eventStore?: CatalogStore<EventCatalogRecord>
   eventRecords?: EventRecords
+  eventConsumer?: EventConsumer
   tasks: TaskRecords
   transports: McpTransportFactory
   checkOutput: OutputValidator

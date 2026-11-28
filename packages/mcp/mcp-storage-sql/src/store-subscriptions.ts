@@ -7,6 +7,7 @@ import type {
   StoredOccurrence,
   SubscriptionKey,
   SubscriptionRow,
+  TerminationReason,
 } from '@omne-harness/mcp-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SubscriptionCells } from './rows-subscriptions.ts'
@@ -37,12 +38,18 @@ function keyOf(tenant: TenantId, subKey: string): SubscriptionKey | undefined {
   }
 }
 
-type StoredRow = Readonly<{ revision: number; cursor: string | null; row: SubscriptionRow }>
+type StoredRow = Readonly<{
+  revision: number
+  cursor: string | null
+  delivered: number
+  row: SubscriptionRow
+}>
 
 const rowOf = (stored: StoredRow): SubscriptionRow => ({
   ...stored.row,
   revision: stored.revision,
   cursor: stored.cursor,
+  delivered: stored.delivered,
 })
 
 function occurrenceOf(
@@ -54,6 +61,13 @@ function occurrenceOf(
       kind: 'gap',
       receivedAt: item.receivedAt,
       reason: (item.row as { reason: GapReason }).reason,
+    }
+  if (item.kind === 'ended')
+    return {
+      seq: item.seq,
+      kind: 'ended',
+      receivedAt: item.receivedAt,
+      reason: (item.row as { reason: TerminationReason }).reason,
     }
   return { seq: item.seq, kind: 'event', receivedAt: item.receivedAt, ...(item.row as Occurrence) }
 }
@@ -96,7 +110,7 @@ export function createSqlEventRecords(options: McpSqlOptions): EventRecords {
     async write(key, row, expected) {
       try {
         const cells = cellsOf(key)
-        const { revision, cursor, ...rest } = row
+        const { revision, cursor, delivered: _delivered, ...rest } = row
         const done = await commit(cells.tenant, 'writeSubscription', {
           cells,
           revision,
@@ -142,6 +156,28 @@ export function createSqlEventRecords(options: McpSqlOptions): EventRecords {
         if (done.kind === 'unknown') return fail('unknown')
         const stored = (done.response as { ok?: unknown }).ok
         return stored === 'absent' ? succeed('absent') : succeed({ stored: Number(stored) })
+      } catch {
+        return fail('unavailable')
+      }
+    },
+    async end(key, reason, at) {
+      try {
+        const cells = cellsOf(key)
+        const done = await commit(cells.tenant, 'endSubscription', { cells, reason, at })
+        if (done === null) return fail('unavailable')
+        if (done.kind === 'unknown') return fail('unknown')
+        const ended = (done.response as { ok?: unknown }).ok
+        return ended === 'absent' ? succeed('absent') : succeed('ended')
+      } catch {
+        return fail('unavailable')
+      }
+    },
+    async acknowledge(key, seq) {
+      try {
+        const cells = cellsOf(key)
+        return answered(await commit(cells.tenant, 'acknowledgeEvents', { cells, seq })) === null
+          ? fail('unavailable')
+          : succeed(true)
       } catch {
         return fail('unavailable')
       }

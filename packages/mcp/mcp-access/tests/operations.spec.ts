@@ -855,6 +855,7 @@ describe('step 5: subscribe-events, unsubscribe-events, read-events (C302, C304,
             data: QUEUE,
           },
           { seq: 5, kind: 'gap', receivedAt, reason: 'possibly-missed' },
+          { seq: 6, kind: 'ended', receivedAt, reason: 'refused' },
         ],
       }),
     })
@@ -866,11 +867,13 @@ describe('step 5: subscribe-events, unsubscribe-events, read-events (C302, C304,
         items: [
           { seq: 4, kind: 'event', eventId: 'e4', data: QUEUE },
           { seq: 5, kind: 'gap', reason: 'possibly-missed' },
+          { seq: 6, kind: 'ended', reason: 'refused' },
         ],
       },
     })
     if (read.outcome !== 'succeeded') throw new Error('not read')
     expect(read.body.items.map(item => encodeInstant(item.receivedAt))).toEqual([
+      receivedAt,
       receivedAt,
       receivedAt,
     ])

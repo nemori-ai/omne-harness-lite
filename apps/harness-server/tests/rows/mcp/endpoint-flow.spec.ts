@@ -1371,9 +1371,11 @@ it(
               read => read.outcome === 'succeeded' && read.body.subscription.state === 'terminated',
             )
             expect(ended).toMatchObject({ body: { subscription: { reason: 'refused' } } })
-            expect((await tree.cli(['mcp', 'tail', 'live', 'incident.created'])).stdout).toMatch(
+            const tail = (await tree.cli(['mcp', 'tail', 'live', 'incident.created'])).stdout
+            expect(tail).toMatch(
               /^Subscription: incident\.created, push, terminated \(refused\)\n/u,
             )
+            expect(tail).toMatch(/\n\d+ {2}-- ended: refused\n$/u)
             at('the last subscriber leaves: the subscription goes')
             for (const event of ['incident.created', 'watch.tick'])
               expect(await mcp['unsubscribe-events'](named(w.tenant, event))).toEqual({
@@ -1468,7 +1470,10 @@ it(
           outcome: 'succeeded',
           body: { subscription: { state: 'terminated', reason: 'unavailable' } },
         })
-        expect(ended.outcome === 'succeeded' && ended.body.items.length).toBe(1)
+        expect(ended.outcome === 'succeeded' && ended.body.items.map(item => item.kind)).toEqual([
+          'event',
+          'ended',
+        ])
         at(
           'the peer ends another because its type is gone: ended, and the kinds of events are listed again',
         )

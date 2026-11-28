@@ -41,6 +41,7 @@ export const sampleSubscription = (revision = 1): SubscriptionRow => ({
   reason: null,
   subscribers: ['person'],
   revision,
+  delivered: 0,
 })
 
 export const occurrenceOf = (eventId: string): Occurrence => ({
@@ -191,6 +192,13 @@ export function mcpEventRecordsConformance(): readonly ConformanceCase<EventReco
         assert.deepEqual(ids(rest.ok), ['c'])
       },
     ),
+    ...laterCases(),
+  ]
+}
+
+function laterCases(): readonly ConformanceCase<EventRecordsFixture>[] {
+  type F = EventRecordsFixture
+  return [
     conformanceCase<F>(
       'ER6',
       'removing a subscription takes its events with it; a position of none stays none',
@@ -212,6 +220,53 @@ export function mcpEventRecordsConformance(): readonly ConformanceCase<EventReco
         const moved = { ...sampleSubscription(2), subscribers: ['person', 'notice'], cursor: null }
         assert.deepEqual(await f.records.write(key, moved, 1), succeed('written'))
         assert.deepEqual(await f.records.read(key), succeed({ ...moved, cursor: 'c1' }))
+      },
+    ),
+    conformanceCase<F>(
+      'ER8',
+      'ending a subscription is one commit: terminated with its reason, a revision on, and its sequence ends with that',
+      async f => {
+        const key = await subscribed(f)
+        await f.records.receive(key, batchOf([occurrenceOf('a')], 'c1'), WIDE)
+        const at = '2026-11-27T23:00:00.000Z'
+        assert.deepEqual(await f.records.end(key, 'refused', at), succeed('ended'))
+        assert.deepEqual(
+          await f.records.read(key),
+          succeed({
+            ...sampleSubscription(2),
+            state: 'terminated',
+            reason: 'refused',
+            cursor: 'c1',
+          }),
+        )
+        const read = await f.records.occurrences(key, 0, 10)
+        assert.ok('ok' in read)
+        assert.deepEqual(
+          read.ok.map(item => item.kind),
+          ['event', 'ended'],
+        )
+        assert.deepEqual(read.ok.at(-1), {
+          seq: read.ok.at(-1)?.seq,
+          kind: 'ended',
+          receivedAt: at,
+          reason: 'refused',
+        })
+        const none = subscriptionKeyOf(f.tenant, 'other.kind')
+        assert.deepEqual(await f.records.end(none, 'refused', at), succeed('absent'))
+      },
+    ),
+    conformanceCase<F>(
+      'ER9',
+      'the delivered mark moves only forward, and writing the row keeps it',
+      async f => {
+        const key = await subscribed(f)
+        assert.deepEqual(await f.records.acknowledge(key, 3), succeed(true))
+        assert.deepEqual(await f.records.acknowledge(key, 2), succeed(true))
+        assert.deepEqual(await f.records.write(key, sampleSubscription(2), 1), succeed('written'))
+        assert.deepEqual(
+          await f.records.read(key),
+          succeed({ ...sampleSubscription(2), delivered: 3 }),
+        )
       },
     ),
   ]
@@ -249,8 +304,9 @@ export function createMemoryEventRecords(): MemoryEventRecords {
       if (down) return away()
       const current = rows.get(keyText(key))?.row.revision ?? 'absent'
       if (current !== expected) return fail('conflict')
-      const cursor = rows.get(keyText(key))?.row.cursor ?? row.cursor
-      rows.set(keyText(key), { key, row: { ...row, cursor } })
+      const kept = rows.get(keyText(key))?.row
+      const cursor = kept?.cursor ?? row.cursor
+      rows.set(keyText(key), { key, row: { ...row, cursor, delivered: kept?.delivered ?? 0 } })
       return succeed('written')
     },
     async remove(key) {
@@ -287,6 +343,29 @@ export function createMemoryEventRecords(): MemoryEventRecords {
       if (batch.cursor !== null)
         rows.set(keyText(key), { key, row: { ...entry.row, cursor: batch.cursor } })
       return succeed({ stored: count })
+    },
+    async end(key, reason, at) {
+      if (down) return away()
+      const entry = rows.get(keyText(key))
+      if (entry === undefined) return succeed('absent')
+      const items = stored.get(keyText(key)) ?? []
+      items.push({ seq: (seq += 1), kind: 'ended', receivedAt: at, reason })
+      stored.set(keyText(key), items)
+      const row = {
+        ...entry.row,
+        state: 'terminated' as const,
+        reason,
+        revision: entry.row.revision + 1,
+      }
+      rows.set(keyText(key), { key, row })
+      return succeed('ended')
+    },
+    async acknowledge(key, through) {
+      if (down) return away()
+      const entry = rows.get(keyText(key))
+      if (entry !== undefined && through > entry.row.delivered)
+        rows.set(keyText(key), { key, row: { ...entry.row, delivered: through } })
+      return succeed(true)
     },
     async occurrences(key, after, limit) {
       if (down) return away()

@@ -8,6 +8,7 @@ import type {
   ReadFailure,
   StoredOccurrence,
   SubscriptionView,
+  TerminationReason,
 } from '@omne-harness/mcp-contract'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import type { McpFaces } from './ports.ts'
@@ -39,6 +40,7 @@ const subscriptionOf = (view: SubscriptionView) => ({
 
 type Item =
   | Readonly<{ seq: number; receivedAt: Instant; kind: 'gap'; reason: GapReason }>
+  | Readonly<{ seq: number; receivedAt: Instant; kind: 'ended'; reason: TerminationReason }>
   | Readonly<{
       seq: number
       receivedAt: Instant
@@ -54,6 +56,8 @@ function itemOf(item: StoredOccurrence): readonly Item[] {
   if (!parsed.ok) return []
   const receivedAt = parsed.value
   if (item.kind === 'gap') return [{ seq: item.seq, receivedAt, kind: 'gap', reason: item.reason }]
+  if (item.kind === 'ended')
+    return [{ seq: item.seq, receivedAt, kind: 'ended', reason: item.reason }]
   const { seq, eventId, name, timestamp, data } = item
   return [{ seq, receivedAt, kind: 'event', eventId, name, timestamp, data }]
 }

@@ -425,9 +425,9 @@ describe('missed events, ends and the last subscriber (C304, C305)', () => {
       })
       expect(made.streams[0]?.signal.aborted, change).toBe(true)
       const kept = await made.records.occurrences(KEY, 0, 10)
-      expect('ok' in kept && kept.ok.map(item => item.kind === 'event' && item.eventId)).toEqual([
-        'a',
-      ])
+      expect(
+        'ok' in kept && kept.ok.map(item => (item.kind === 'event' ? item.eventId : item.kind)),
+      ).toEqual(['a', 'ended'])
       expect(made.streams, change).toHaveLength(1)
     }
   })

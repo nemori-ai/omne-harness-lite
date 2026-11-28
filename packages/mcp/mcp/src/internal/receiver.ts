@@ -42,6 +42,7 @@ export type ReceiverContext = Readonly<{
   fresh: boolean
   ready(): Promise<Ready>
   changed(): void
+  deliver(): void
 }>
 
 type Gap = Extract<GapReason, 'peer-truncated' | 'possibly-missed'> | null
@@ -106,7 +107,10 @@ class Intake {
     if (got.ok === 'absent') return 'absent'
     if (cursor !== null) this.last = cursor
     this.progressed = true
-    if (got.ok.stored > 0 || gap !== null) context.changed()
+    if (got.ok.stored > 0 || gap !== null) {
+      context.changed()
+      context.deliver()
+    }
     return 'ok'
   }
 }
@@ -149,7 +153,6 @@ async function streamed(
     if (!(heartbeatMs > 0)) return
     const armed = new AbortController()
     watch = armed
-    // Three heartbeats of silence and the stream is taken as dead.
     void context.timer(3 * heartbeatMs, armed.signal).then(() => {
       if (!armed.signal.aborted) stop.abort()
     })
@@ -250,6 +253,19 @@ async function marked(
   }
 }
 
+/** Ends the subscription with its reason in one commit; the consumer hears of it after what came before. */
+async function ended(context: ReceiverContext, reason: TerminationReason): Promise<void> {
+  const at = context.clock.now().toISOString()
+  const done = await ask(
+    () => context.records.end(context.key, reason, at),
+    fail('unavailable' as const),
+  )
+  if ('ok' in done && done.ok === 'ended') {
+    context.changed()
+    context.deliver()
+  }
+}
+
 /** One subscription being received: opened with its position, opened again after a break, ended when the peer ends it. */
 export async function receive(context: ReceiverContext): Promise<void> {
   let attempt = 0
@@ -268,7 +284,7 @@ export async function receive(context: ReceiverContext): Promise<void> {
     const row = read.ok
     const ready = await context.ready()
     if (context.signal.aborted) return
-    if (ready.kind === 'ended') return marked(context, 'terminated', ready.reason)
+    if (ready.kind === 'ended') return ended(context, ready.reason)
     if (ready.kind === 'waiting') {
       await marked(context, 'waiting', null)
       await backoff()
@@ -283,7 +299,7 @@ export async function receive(context: ReceiverContext): Promise<void> {
     const end = await run(context, ready.transport, request, intake, first)
     if (end.kind === 'stopped') return
     if (end.kind === 'terminated') {
-      await marked(context, 'terminated', end.reason)
+      await ended(context, end.reason)
       if (end.reason === 'type-gone' || end.reason === 'schema-changed') await ready.refetch()
       return
     }

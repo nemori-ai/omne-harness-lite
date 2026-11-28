@@ -417,6 +417,7 @@ describe('mcp subscribe, unsubscribe and tail (C302, C304)', () => {
             kind: 'gap',
             reason: 'possibly-missed',
           },
+          { seq: 6, receivedAt: '2026-11-27T22:00:00.000Z', kind: 'ended', reason: 'refused' },
         ],
       }),
     )
@@ -427,6 +428,7 @@ describe('mcp subscribe, unsubscribe and tail (C302, C304)', () => {
         'Subscription: incident.created, push, terminated (refused)',
         '4  2026-11-27T21:59:59Z  e4  {"id":"e4","level":2}',
         '5  -- gap: possibly-missed',
+        '6  -- ended: refused',
         '',
       ].join('\n'),
     )
