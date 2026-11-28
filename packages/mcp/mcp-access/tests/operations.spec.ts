@@ -126,6 +126,46 @@ describe('step 3: the faces are taken on each call', () => {
 })
 
 describe('step 4: list-endpoints', () => {
+  it('C406 says of each endpoint how many skills it brings and how they stand, and nothing when that cannot be read', async () => {
+    const world = setup()
+    const acquiredAt = '2026-11-28T04:00:00.000Z'
+    const freshness = { acquiredAt, changedNotified: false }
+    const skill = { name: 's' } as never
+    world.define(alice, 'docs', {
+      status: readyStatus(ref('docs')),
+      skills: succeed({
+        kind: 'acquired',
+        revision: 1 as never,
+        freshness,
+        skills: [skill, skill],
+        refused: [{ name: 'live', uri: 'skill://live/SKILL.md', reason: 'dynamic' }],
+      }),
+    })
+    world.define(alice, 'notes', {
+      status: readyStatus(ref('notes')),
+      skills: succeed({ kind: 'not-declared', freshness }),
+    })
+    world.define(alice, 'plain', {
+      status: readyStatus(ref('plain')),
+      skills: succeed({ kind: 'not-acquired' }),
+    })
+    world.define(alice, 'gone', { status: readyStatus(ref('gone')) })
+    const answer = await world.list(alice)
+    if (answer.outcome !== 'succeeded') throw new Error(JSON.stringify(answer))
+    const columns = Object.fromEntries(
+      (answer.body as { items: readonly { name: string; skills?: unknown }[] }).items.map(item => [
+        item.name,
+        item.skills ?? 'none',
+      ]),
+    )
+    expect(columns).toMatchObject({
+      docs: { kind: 'acquired', taken: 2, refused: 1 },
+      notes: { kind: 'not-offered' },
+      plain: { kind: 'not-acquired' },
+      gone: 'none',
+    })
+  })
+
   it('lists each endpoint with its connection, credential, use and catalog', async () => {
     const world = setup()
     world.define(alice, 'notes', {

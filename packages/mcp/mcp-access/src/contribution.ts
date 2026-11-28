@@ -12,7 +12,12 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { failureText } from '@omne-harness/mcp-bridge'
-import type { CatalogView, EndpointStatusView, RefreshResult } from '@omne-harness/mcp-contract'
+import type {
+  CatalogView,
+  EndpointStatusView,
+  RefreshResult,
+  SkillCatalogView,
+} from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
 import { beginOn, disconnectOn } from './connect.ts'
@@ -106,10 +111,17 @@ function credentialStateOf(status: EndpointStatusView): NonNullable<Endpoint['cr
   return status.credential === 'present' && refused && !oauth ? 'rejected' : status.credential
 }
 
+function skillsOf(view: SkillCatalogView): NonNullable<Endpoint['skills']> {
+  if (view.kind === 'acquired')
+    return { kind: 'acquired', taken: view.skills.length, refused: view.refused.length }
+  return { kind: view.kind === 'not-declared' ? 'not-offered' : 'not-acquired' }
+}
+
 function endpointOf(
   adopted: AdoptedEndpoint,
   status: EndpointStatusView,
   catalog: Endpoint['catalog'],
+  skills: SkillCatalogView | null,
 ): Endpoint {
   return {
     name: adopted.ref.name,
@@ -122,6 +134,7 @@ function endpointOf(
         ? { kind: 'usable' }
         : { kind: 'blocked', reason: blockedText(status.use) },
     catalog,
+    ...(skills === null ? {} : { skills: skillsOf(skills) }),
   }
 }
 
@@ -224,8 +237,10 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
       return status.failure.kind === 'not-available-to-you' ? 'not-visible' : 'basis-unavailable'
     const current = await readCall(() => faces.discovery.current(access, ref))
     if (current === 'basis-unavailable') return current
+    const skills = await readCall(() => faces.discovery.skills(access, ref))
+    const known = skills === 'basis-unavailable' || 'failure' in skills ? null : skills.ok
     return {
-      endpoint: endpointOf(adopted, status.ok, catalogOf(current, adopted, status.ok)),
+      endpoint: endpointOf(adopted, status.ok, catalogOf(current, adopted, status.ok), known),
       catalog: 'failure' in current ? null : current.ok,
     }
   }

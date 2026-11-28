@@ -109,6 +109,21 @@ it('E11 a tenant text the page cannot read: nothing is asked, the status cannot 
   expect(fake.calls).toEqual([])
 })
 
+it('C406 the status line says how many skills the endpoint brings, and how many were not taken', async () => {
+  shownWith(
+    fakeStatus(answered(stood({ skills: { kind: 'acquired', taken: 3, refused: 1 } }), [])).status,
+  )
+  expect(await screen.findByText('已连上；带 3 个技能（1 个没收）')).toBeTruthy()
+  cleanup()
+  shownWith(
+    fakeStatus(answered(stood({ skills: { kind: 'acquired', taken: 2, refused: 0 } }), [])).status,
+  )
+  expect(await screen.findByText('已连上；带 2 个技能')).toBeTruthy()
+  cleanup()
+  shownWith(fakeStatus(answered(stood({ skills: { kind: 'not-offered' } }), [])).status)
+  expect(await screen.findByText('已连上')).toBeTruthy()
+})
+
 it('E2 it cannot be used: the status line says why, the credential that is missing too', async () => {
   const blocked = stood({
     connection: { state: 'none', reason: null },

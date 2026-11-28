@@ -119,12 +119,20 @@ const CREDENTIAL: Readonly<Partial<Record<NonNullable<Endpoint['credentialState'
   'reconnect-required': '要重新连接',
 }
 
-function statusText({ connection, credential, credentialState, use }: Endpoint): string {
+function skillsText(skills: Endpoint['skills']): string | undefined {
+  if (skills?.kind !== 'acquired' || skills.taken + skills.refused === 0) return undefined
+  const refused = skills.refused === 0 ? '' : `（${String(skills.refused)} 个没收）`
+  return `带 ${String(skills.taken)} 个技能${refused}`
+}
+
+function statusText({ connection, credential, credentialState, use, skills }: Endpoint): string {
   const said = CONNECTION[connection.state]
   const parts = [connection.reason === null ? said : `${said}：${connection.reason}`]
   const credentialSaid = CREDENTIAL[credentialState ?? credential]
   if (credentialSaid !== undefined) parts.push(credentialSaid)
   if (use.kind === 'blocked') parts.push(`不能用：${use.reason}`)
+  const skillsSaid = skillsText(skills)
+  if (skillsSaid !== undefined) parts.push(skillsSaid)
   return parts.join('；')
 }
 

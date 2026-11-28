@@ -45,6 +45,7 @@ const docs = {
   credential: 'present',
   use: { kind: 'usable' },
   catalog: { kind: 'acquired', actions: 2 },
+  skills: { kind: 'acquired', taken: 3, refused: 1 },
 }
 const notes = {
   name: 'notes',
@@ -62,6 +63,7 @@ const vault = {
   credentialState: 'rejected',
   use: { kind: 'usable' },
   catalog: { kind: 'not-acquired', reason: REJECTED_TEXT },
+  skills: { kind: 'not-acquired' },
 }
 const actions = [
   { name: 'search', summary: '[peer] Search the docs.', available: true, reason: null },
@@ -130,6 +132,13 @@ describe('mcp list', () => {
 })
 
 describe('mcp show', () => {
+  it('C406 writes how many skills an endpoint brings, that none were acquired, or that it offers none', async () => {
+    await loggedIn(answers)
+    expect((await cli(['mcp', 'show', 'vault'])).stdout).toContain('\nSkills: not acquired\n')
+    const offering = await cli(['mcp', 'show', 'docs'])
+    expect(offering.stdout).toContain('\nSkills: 3 (1 not taken)\n')
+  })
+
   it('writes each field and the actions, the unavailable one with its reason', async () => {
     const service = await loggedIn(answers)
     const shown = await cli(['mcp', 'show', 'docs'])
@@ -141,6 +150,7 @@ describe('mcp show', () => {
         'Credential: present',
         'Use: usable',
         'Catalog: 2 actions',
+        'Skills: 3 (1 not taken)',
         'Actions:',
         '  search  [peer] Search the docs.',
         '  fetch (unavailable: the credential of the endpoint is not usable)  The endpoint gave no description.',
@@ -160,6 +170,7 @@ describe('mcp show', () => {
       'Catalog: not acquired: the address of the endpoint is not set\n',
     )
     expect(shown.stdout).not.toContain('Actions:')
+    expect(shown.stdout).not.toContain('Skills:')
   })
 
   it('says the credential was rejected and how to set the right one (C101)', async () => {

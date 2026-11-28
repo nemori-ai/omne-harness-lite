@@ -5002,6 +5002,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../../skills/skill-contract
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
