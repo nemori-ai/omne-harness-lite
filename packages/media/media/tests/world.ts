@@ -228,8 +228,23 @@ export function world(config: Partial<MediaConfig> = {}) {
         entry.fire()
       }
     },
-    async upload(tenant: TenantId, upload: string, bytes: Uint8Array, mediaType = 'image/png') {
-      ok(await w.media.uploads.begin({ tenant, upload, mediaType, bytes: bytes.byteLength }))
+    async upload(
+      tenant: TenantId,
+      upload: string,
+      bytes: Uint8Array,
+      mediaType = 'image/png',
+      name?: string,
+    ) {
+      const named = name === undefined ? {} : { name }
+      ok(
+        await w.media.uploads.begin({
+          tenant,
+          upload,
+          mediaType,
+          bytes: bytes.byteLength,
+          ...named,
+        }),
+      )
       let sequence = 0
       for (let at = 0; at < bytes.byteLength; at += CONFIG.partBytes) {
         const part = bytes.subarray(at, at + CONFIG.partBytes)
@@ -242,8 +257,9 @@ export function world(config: Partial<MediaConfig> = {}) {
       upload: string,
       bytes: Uint8Array,
       mediaType = 'image/png',
+      name?: string,
     ): Promise<Committed> {
-      await w.upload(tenant, upload, bytes, mediaType)
+      await w.upload(tenant, upload, bytes, mediaType, name)
       return ok(await w.media.uploads.commit({ tenant, upload, digest: digestOf(bytes) }))
     },
     async liveKeys(): Promise<string[]> {

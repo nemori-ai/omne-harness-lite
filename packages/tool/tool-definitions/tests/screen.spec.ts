@@ -1,5 +1,5 @@
 import sharp from 'sharp'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   FacilityResult,
   ScreenFrame,
@@ -21,6 +21,18 @@ import {
   type ScreenAuthorEnvironment,
 } from '@omne-harness/tool-definitions'
 import { run, runRaw, value } from './run-author.ts'
+
+const encoding = vi.hoisted(() => ({ fails: false }))
+vi.mock('@omne-harness/image', async original => {
+  const real = await original<typeof import('@omne-harness/image')>()
+  const open: typeof real.open = async input => {
+    const opened = await real.open(input)
+    if (!encoding.fails || opened.kind !== 'opened') return opened
+    const encode = async () => ({ kind: 'rejected' as const, reason: 'encode' as const })
+    return { ...opened, handle: { ...opened.handle, encode, close: opened.handle.close } }
+  }
+  return { ...real, open }
+})
 
 type Result = ToolResult<ToolMessageContentBlock>
 type Put = Parameters<ToolMediaSink['put']>[0]
@@ -52,10 +64,11 @@ async function frameOf(
   screen: ScreenInfo,
   width = screen.pixels.width,
   height = screen.pixels.height,
+  region = { x: 0, y: 0, ...screen.pixels },
 ) {
   const frame: ScreenFrame = {
     screen,
-    region: { x: 0, y: 0, ...screen.pixels },
+    region,
     image: { mediaType: 'image/png', bytes: await png(width, height), width, height },
     takenAt: TAKEN,
   }
@@ -90,11 +103,21 @@ function world(limits?: Readonly<Record<string, number>>) {
       requestId: id,
       value: [LEFT, RIGHT],
     }),
-    capture: async (id: string, screen: string | null): Promise<FacilityResult<ScreenFrame>> => ({
-      kind: 'done',
-      requestId: id,
-      value: await frameOf(screen === 'right' ? RIGHT : LEFT),
-    }),
+    capture: async (
+      id: string,
+      screen: string | null,
+      region: Readonly<{ x: number; y: number; width: number; height: number }> | null = null,
+    ): Promise<FacilityResult<ScreenFrame>> => {
+      const info = screen === 'right' ? RIGHT : LEFT
+      return {
+        kind: 'done',
+        requestId: id,
+        value:
+          region === null
+            ? await frameOf(info)
+            : await frameOf(info, region.width, region.height, region),
+      }
+    },
     put: (put: Put): Outcome<ToolMediaProduct, ToolPrimitiveFailure> =>
       succeed({
         ref: {
@@ -112,7 +135,7 @@ function world(limits?: Readonly<Record<string, number>>) {
       list: async () => script.list('fixture'),
       capture: async request => {
         asked.push(request)
-        return script.capture('fixture', request.screen)
+        return script.capture('fixture', request.screen, request.region)
       },
     },
     media: {
@@ -147,7 +170,7 @@ describe('Screen lists the screens of the machine', () => {
     const { script, screens } = world()
     script.list = id => ({ kind: 'rejected', requestId: id, reason: 'notAuthorized' })
     expect(await screens()).toMatch(
-      /^rejected reason=notAuthorized the system has not permitted reading the screen/u,
+      /^rejected reason=notAuthorized the system has not permitted reading the screen\. On macOS the permission is Screen Recording \(System Settings > Privacy & Security > Screen Recording\), held by the application that started this server/u,
     )
     script.list = id => ({ kind: 'unknown', requestId: id })
     expect(await screens()).toBe('unknown request="fixture"')
@@ -176,13 +199,61 @@ describe('Screen capture hands one frame to the store of products', () => {
           kind: 'text',
           id: 'Screen.capture.text',
           visibility: { toHuman: true, toModel: true },
-          text: `done Screen capture screen="left" name="Built-in" screen_pixels=64x48 scale=2 image_pixels=64x48 taken_at=${TAKEN}`,
+          text: `done Screen capture screen="left" name="Built-in" screen_pixels=64x48 scale=2 region=0,0,64x48 image_pixels=64x48 taken_at=${TAKEN}`,
         },
       ],
       data: { kind: 'none' },
       original: { kind: 'none' },
       attachments: [],
     })
+  })
+
+  it('a region of the screen: the facility is asked for that rectangle, and the line says which rectangle the picture covers', async () => {
+    const { capture, asked } = world()
+    const region = { x: 8, y: 4, width: 16, height: 12 }
+    const text = textOf(await capture({ screen: 'right', region }))
+    expect(asked).toEqual([{ screen: 'right', region }])
+    expect(text).toContain('screen_pixels=64x48 scale=1 region=8,4,16x12 image_pixels=16x12')
+  })
+
+  it.each([
+    ['a negative corner', { x: -1, y: 0, width: 4, height: 4 }],
+    ['an empty width', { x: 0, y: 0, width: 0, height: 4 }],
+    ['an empty height', { x: 0, y: 0, width: 4, height: 0 }],
+    ['a missing side', { x: 0, y: 0, width: 4 }],
+    ['a key of its own', { x: 0, y: 0, width: 4, height: 4, depth: 1 }],
+    ['a fraction', { x: 0.5, y: 0, width: 4, height: 4 }],
+    ['not an object', '0,0,4,4'],
+  ])('a region with %s is refused before the facility is asked', async (_case, region) => {
+    const { capture, asked } = world()
+    await expect(capture({ region })).rejects.toThrow(/region/u)
+    expect(asked).toEqual([])
+  })
+
+  it('the help of capture gives the region as an object of four whole numbers, the corner from 0 and the sides from 1', async () => {
+    const { author } = world()
+    const help = await run(author, 'help', { name: 'capture' }, {} as never)
+    const side = (minimum: number) =>
+      `{"type":"integer","minimum":${String(minimum)},"maximum":${String(Number.MAX_SAFE_INTEGER)}}`
+    expect(help).toContain(
+      `"region":{"type":"object","additionalProperties":false,"required":["x","y","width","height"],"properties":{"x":${side(0)},"y":${side(0)},"width":${side(1)},"height":${side(1)}}}`,
+    )
+  })
+
+  it('a screen it does not know is still not found when a region is given, not a region outside it', async () => {
+    const { capture, script } = world()
+    script.capture = async id => ({ kind: 'rejected', requestId: id, reason: 'notFound' })
+    expect(
+      textOf(await capture({ screen: 'gone', region: { x: 0, y: 0, width: 4, height: 4 } })),
+    ).toMatch(/^rejected reason=notFound screen="gone"/u)
+  })
+
+  it('a region the screen does not hold: says so and how to find the pixels of a screen', async () => {
+    const { capture, script } = world()
+    script.capture = async id => ({ kind: 'rejected', requestId: id, reason: 'invalidInput' })
+    expect(textOf(await capture({ region: { x: 60, y: 0, width: 16, height: 12 } }))).toBe(
+      'rejected reason=invalidInput region=60,0,16x12 is not inside the screen; screens gives the pixels of each screen',
+    )
   })
 
   it('the named screen', async () => {
@@ -197,11 +268,22 @@ describe('Screen capture hands one frame to the store of products', () => {
     const meta = await sharp(Buffer.from(puts[0]!.bytes)).metadata()
     expect([meta.format, meta.width, meta.height]).toEqual(['png', 32, 24])
     expect(textOf(result)).toBe(
-      `<image>|done Screen capture screen="left" name="Built-in" screen_pixels=64x48 scale=2 image_pixels=32x24 taken_at=${TAKEN}`,
+      `<image>|done Screen capture screen="left" name="Built-in" screen_pixels=64x48 scale=2 region=0,0,64x48 image_pixels=32x24 taken_at=${TAKEN}`,
     )
     const exact = world({ captureMaxLongSide: 64 })
     await exact.capture()
     expect(Buffer.from(exact.puts[0]!.bytes).equals(await png(64, 48))).toBe(true)
+  })
+
+  it('a frame the library cannot make smaller is damaged, and nothing is stored', async () => {
+    const { capture, puts } = world({ captureMaxLongSide: 32 })
+    encoding.fails = true
+    try {
+      expect(textOf(await capture())).toBe('rejected reason=damaged screen="left"')
+    } finally {
+      encoding.fails = false
+    }
+    expect(puts).toEqual([])
   })
 
   it('a tall frame is limited by its height', async () => {

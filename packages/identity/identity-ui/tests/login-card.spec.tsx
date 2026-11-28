@@ -43,6 +43,18 @@ async function fillAndSubmit(identifier: string, secret: string): Promise<void> 
 const alert = () => screen.queryByRole('alert')?.textContent ?? null
 
 describe('登录门', () => {
+  it('P0 每个部位都在自己的元素上', () => {
+    setup()
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('identity.login')).toHaveLength(1)
+    expect(on('identity.login')[0]?.classList.contains('identity-login')).toBe(true)
+    expect(on('identity.login.form')[0]?.tagName).toBe('FORM')
+    expect(on('identity.login.submit')[0]?.getAttribute('type')).toBe('submit')
+    expect(
+      on('identity.login.submit')[0]?.closest('[data-omne-part="identity.login.form"]'),
+    ).not.toBeNull()
+  })
+
   it('登录：凭据经外壳交出，交出之后表单立刻清空', async () => {
     const t = setup()
     fireEvent.change(input('loginIdentifier'), { target: { value: ' alice ' } })
@@ -92,7 +104,14 @@ describe('登录门', () => {
 
   it('注册的请求被协议拒绝时说填写的内容不合规则', async () => {
     setup({
-      register: () => Promise.reject(new ClientRequestError('register-and-activate')),
+      register: () =>
+        Promise.reject(
+          new ClientRequestError('register-and-activate', {
+            at: ['loginIdentifier'],
+            given: '""',
+            allows: 'a text that is not empty',
+          }),
+        ),
     })
     fireEvent.click(screen.getByRole('button', { name: '第一次使用' }))
     await fillAndSubmit('bob', 'pw')

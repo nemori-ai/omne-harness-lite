@@ -49,7 +49,9 @@ export type {
 export {
   mcpCategoryDisplay,
   mcpEndpointBodyContract,
+  mcpEndpointGates,
   parseEndpointBody,
+  PROGRAM_CALLS_SETTING,
   type EndpointBodyRejection,
 } from './endpoint.ts'
 export {
@@ -61,7 +63,6 @@ export {
   type ListingRead,
 } from './listing.ts'
 export {
-  actionPermissionItems,
   markUnavailable,
   mergeListing,
   type ActionCatalogRecord,
@@ -82,6 +83,8 @@ export { boundInstructions } from './instructions.ts'
 export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
 export type { PlainJson, PlainRecord } from './plain.ts'
 export {
+  EVENTS_EXTENSION,
+  SKILLS_EXTENSION,
   clientEnvelopeOf,
   mcpRequestHeadersOf,
   type ClientInfo,
@@ -89,8 +92,36 @@ export {
 } from './envelope.ts'
 export { withheldTools } from './withheld.ts'
 export {
+  SKILL_BYTE_LIMIT,
+  SKILL_FILE_LIMIT,
+  declaresSkills,
+  judgeSkills,
+  readResourceContent,
+  readSkillEntry,
+  type McpSkill,
+  type RefusedSkill,
+  type ResourceContent,
+  type SkillCatalogRecord,
+  type SkillFileEntry,
+  type SkillListingPage,
+  type SkillRefusal,
+} from './skills.ts'
+export {
+  declaresEvents,
+  eventParamHeadersOf,
+  eventStreamMessageOf,
+  readEventPollAnswer,
+  readEventType,
+  readOccurrence,
+  type EventCatalogRecord,
+  type EventDelivery,
+  type EventType,
+  type EventTypeRefusal,
+} from './events.ts'
+export {
   authorizationChallengeOf,
   authorizationDiscoveryOf,
+  credentialRefusalOf,
   discoverAuthorization,
   metadataCandidatesOf,
   startAuthorizationDiscovery,
@@ -127,6 +158,9 @@ export {
   PROBE_REQUESTS,
   RESENT_REQUESTS,
   authorizationRequiredAnswerOf,
+  credentialRejectedAnswerOf,
+  listenEndOf,
+  listenEventOf,
   concludeAnswer,
   concludeProbe,
   fallbackGetConclusionOf,
@@ -154,6 +188,7 @@ export {
   callAnswerOf,
   interpretAnswer,
   legacyIdentityOf,
+  eventPollAnswerOf,
   listingPageOf,
   readerOf,
   taskAnswerOf,
@@ -168,6 +203,11 @@ export {
   getTaskResultRequest,
   legacyInitializeParamsOf,
   listActionsRequest,
+  listEventTypesRequest,
+  listSkillsRequest,
+  getSkillRequest,
+  readResourceRequest,
+  pollEventsRequest,
   notificationTextOf,
   peerRequestAnswerOf,
   requestMetaOf,
@@ -213,10 +253,26 @@ export type {
   ActionInvoker,
   CancelAnswer,
   CatalogView,
+  EventCatalogView,
+  PeerSkills,
+  SkillCatalogView,
+  SkillFileFailure,
+  SkillFileRequest,
+  SkillFileText,
+  ChangeAbout,
+  EventsConfig,
+  EventSubscriptionRequest,
+  EventSubscriptions,
+  SubscribeFailure,
+  SubscriptionView,
+  ConnectFailure,
   ConnectionState,
   Connections,
   ContinueRequest,
   DegradedReason,
+  EndpointChangeListener,
+  EndpointChanges,
+  EndpointConnect,
   EndpointInspection,
   EndpointStatus,
   EndpointStatusView,
@@ -226,10 +282,21 @@ export type {
   McpConfig,
   McpPorts,
   McpServices,
+  OAuthConfig,
   RefreshResult,
   ReleaseReport,
   TaskControl,
   TaskRef,
+  TaskWatch,
+  TaskWatchConfig,
+  FollowedTask,
 } from './services.ts'
-export type { McpClock } from './ports.ts'
+export type { McpClock, TaskArrival, TaskRowState } from './ports.ts'
 export type { PeerNotification } from './transport.ts'
+export type {
+  GapReason,
+  StoredOccurrence,
+  SubscriptionState,
+  TerminationReason,
+} from './subscriptions.ts'
+export { subscriptionArgumentsText } from './subscriptions.ts'

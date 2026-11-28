@@ -1,11 +1,16 @@
-import type { ModelProfile, Parameter, ParameterAdoption } from '@omne-harness/model-contract'
+import type {
+  ModelProfile,
+  Parameter,
+  ParameterAdoption,
+  ReasoningEffortMapping,
+} from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
 import {
   bindChatCompletions,
   type ChatCompletionsRecord,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { serializeBody } from '../src/payload.ts'
 import {
   EXTENSION,
@@ -39,8 +44,10 @@ function bind(
   record: ChatCompletionsRecord = testRecord(),
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
-): PiFamilyBinding {
+  bindingEfforts?: ReasoningEffortMapping,
+): PiChatBinding {
   return bindChatCompletions({
+    bindingEfforts,
     record,
     supplier: supplierOf(record),
     hooks,
@@ -53,7 +60,7 @@ function bind(
 }
 
 function plan(
-  binding: PiFamilyBinding,
+  binding: PiChatBinding,
   record: ChatCompletionsRecord,
   parts: RequestParts = {},
   profile = profileOf(record),
@@ -124,7 +131,7 @@ describe('rules.plan: the replay declaration', () => {
     const wider = profileOf(record, {
       replay: { accepts: [SCOPE, 'gateway/other'], foreignThinking: 'text' },
     })
-    const cases: readonly (readonly [ModelProfile, boolean])[] = [
+    const cases: readonly (readonly [ModelProfile<'llm'>, boolean])[] = [
       [profileOf(record), false],
       [wider, true],
     ]
@@ -177,6 +184,60 @@ describe('rules.plan: parameters', () => {
     expect(plan(bind(record), record, { parameters: [{ kind: 'top-p', value: 0.5 }] })).toEqual({
       failure: { kind: 'unsupported', field: 'top-p', adapter },
     })
+  })
+
+  it('retains both the selected effort and its mapped value, and rejects a forged fourth tier', () => {
+    const mapping = { low: 'low', medium: 'high', high: 'max' } as const
+    const bound = bind(record, undefined, undefined, mapping)
+    const profile = profileOf(record)
+    const withEfforts = (reasoningEfforts: ReasoningEffortMapping) => ({
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts },
+    })
+    const medium = { kind: 'reasoning-effort', scale: 'unified', value: 'medium' } as const
+    expect(
+      adoptionsOf(plan(bound, record, { parameters: [medium] }, withEfforts(mapping))),
+    ).toContainEqual({
+      origin: { kind: 'explicit', requested: medium, source: SOURCE },
+      supplier: adapter,
+      applied: { kind: 'reasoning-effort', value: 'high' },
+    })
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    for (const native of ['high', 'max', 'xhigh'] as const) {
+      expect(
+        plan(bound, record, { parameters: [xhigh] }, withEfforts({ xhigh: native })),
+      ).toMatchObject({
+        failure: { kind: 'unsupported', field: xhigh.kind },
+      })
+    }
+  })
+
+  it('requires both the profile and the bound model to declare xhigh', () => {
+    const xhigh = { kind: 'reasoning-effort', scale: 'unified', value: 'xhigh' } as const
+    const mapping = { xhigh: 'xhigh' } as const
+    const profile = profileOf(record)
+    const declared = {
+      ...profile,
+      definition: { ...profile.definition, reasoningEfforts: mapping },
+    }
+    const bound = bind(record, undefined, undefined, mapping)
+    const undeclared = bind(record)
+    const request = { parameters: [xhigh] }
+    const refusal = { failure: { kind: 'unsupported', field: 'reasoning-effort', adapter } }
+    expect(plan(bound, record, request, profile)).toEqual(refusal)
+    expect(plan(undeclared, record, request, declared)).toEqual(refusal)
+    expect(plan(undeclared, record, request, profile)).toEqual(refusal)
+    const adoptions = adoptionsOf(plan(bound, record, request, declared))
+    const fixed = fixedRequest(record, { parameterAdoptions: adoptions })
+    const encoded = bound.encode({
+      request: fixed,
+      media: [],
+      declaration: fixed.declarations[0],
+      resent: [],
+    })
+    if (!('ok' in encoded)) throw new Error('encode failed')
+    const body: unknown = JSON.parse(new TextDecoder().decode(serializeBody(encoded.ok.body)))
+    expect(body).toMatchObject({ reasoning: { effort: 'xhigh' } })
   })
 
   it('refuses a reasoning effort that the record maps to unsupported', () => {

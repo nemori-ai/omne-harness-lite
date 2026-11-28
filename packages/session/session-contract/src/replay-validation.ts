@@ -1,5 +1,5 @@
 import type { SessionLogObservation } from './projection.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { RunEnd, RunFailure, WorkSnapshot } from './values.ts'
 import {
   CallConflict,
   associated,
@@ -10,7 +10,60 @@ import {
   validateResult,
 } from './call-state.ts'
 import { validateControlIdentity } from './control-state.ts'
-import { equalValue, evidenceFields, nonempty, unavailableAt } from './session-validation.ts'
+import { equalValue, evidenceFields, invalidAt, missingAt, nonempty } from './session-validation.ts'
+
+const CONCLUSIONS: ReadonlySet<string> = new Set(['complete', 'fail', 'cancelled'])
+const KINDS_WITHOUT_DETAIL: ReadonlySet<string> = new Set([
+  'request-rejected',
+  'compaction-invalid',
+  'compaction-failed',
+  'message-rejected',
+  'extension-stop',
+  'guard',
+])
+
+const textOrNull = (value: unknown, field: string): void => {
+  if (value !== null && typeof value !== 'string') invalidAt(field, 'expected text or null')
+}
+
+type Failure<K extends RunFailure['kind']> = Extract<RunFailure, { kind: K }>
+
+function validateNodeFailure(failure: Failure<'node-failed'>): void {
+  nonempty(failure.node, 'ended.end.failure.node')
+  nonempty(failure.category, 'ended.end.failure.category')
+  nonempty(failure.failureKind, 'ended.end.failure.failureKind')
+  if (failure.diagnostic !== undefined) nonempty(failure.diagnostic, 'ended.end.failure.diagnostic')
+}
+
+function validateNoReply(failure: Failure<'no-reply'>): void {
+  textOrNull(failure.cause, 'ended.end.failure.cause')
+  textOrNull(failure.upstreamStatus, 'ended.end.failure.upstreamStatus')
+  textOrNull(failure.diagnostic, 'ended.end.failure.diagnostic')
+  if (failure.throttled !== undefined && failure.throttled !== true)
+    invalidAt('ended.end.failure.throttled', 'not true')
+}
+
+function validateRunEnd(end: RunEnd): void {
+  if (!CONCLUSIONS.has(end.conclusion)) invalidAt('ended.end.conclusion', 'not a conclusion')
+  const { failure } = end
+  if (failure === null) return
+  switch (failure.kind) {
+    case 'node-failed':
+      validateNodeFailure(failure)
+      return
+    case 'model-refused':
+      nonempty(failure.failure, 'ended.end.failure.failure')
+      return
+    case 'no-reply':
+      validateNoReply(failure)
+      return
+    case 'cannot-fit':
+      nonempty(failure.reason, 'ended.end.failure.reason')
+      return
+    default:
+      if (!KINDS_WITHOUT_DETAIL.has(failure.kind)) invalidAt('ended.end.failure.kind', 'unknown')
+  }
+}
 
 export function validateReplayedConsequences(
   snapshot: WorkSnapshot,
@@ -24,7 +77,7 @@ export function validateReplayedConsequences(
         const prior = snapshot.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (prior === undefined) unavailableAt('registration.original')
+        if (prior === undefined) missingAt('registration.original')
         let original = prior.registration
         if (
           consequence.registration.kind === 'tool-intent' &&
@@ -44,7 +97,7 @@ export function validateReplayedConsequences(
         const prior = snapshot.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (prior === undefined) unavailableAt('association.registration')
+        if (prior === undefined) missingAt('association.registration')
         if (
           !equalValue(prior.registration, associated(consequence.binding, 'action')) ||
           !equalValue(prior.association, consequence.source)
@@ -61,7 +114,7 @@ export function validateReplayedConsequences(
           const prior = snapshot.consumptions
             .find(item => item.id === consequence.consumption)
             ?.results.find(item => item.result.version === consequence.result?.version)
-          if (prior === undefined) unavailableAt('result.original')
+          if (prior === undefined) missingAt('result.original')
           if (!equalValue(prior.result, consequence.result)) throw new CallConflict('result')
         }
         break
@@ -77,7 +130,7 @@ export function validateReplayedConsequences(
               item.registration.kind === 'associated' &&
               equalValue(item.registration.binding, wait.binding),
           )
-          if (prior === undefined) unavailableAt('waiting.registration')
+          if (prior === undefined) missingAt('waiting.registration')
           return [{ consumption: prior.consumption, position: wait.position }]
         })
         registeredWaiting(
@@ -94,6 +147,7 @@ export function validateReplayedConsequences(
       case 'ended':
         evidenceFields(consequence.disposition, 'ended.disposition')
         if (consequence.cause !== null) evidenceFields(consequence.cause, 'ended.cause')
+        if (consequence.end !== null) validateRunEnd(consequence.end)
         break
       case 'input-taken':
       case 'observed':

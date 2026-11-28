@@ -21,6 +21,8 @@ export type SettleInput = {
   readonly entered: Entered
   readonly principal: PrincipalFor<OperationContract['identity']>
   readonly messageId: string
+  /** The revision the answer is written at: the lesser of the protocol's and the caller's. */
+  readonly revision?: number
   readonly body: unknown
   readonly limits: JsonLimits
   readonly config: SettleConfig
@@ -49,6 +51,7 @@ function written(
   contract: OperationContract,
   answer: unknown,
   limits: JsonLimits,
+  revision: number | undefined,
 ): SettledAnswer | undefined {
   if (typeof answer !== 'object' || answer === null) return undefined
   const { outcome, body } = answer as { readonly outcome?: unknown; readonly body?: unknown }
@@ -56,7 +59,7 @@ function written(
   const codec = (contract.outcomes as Readonly<Record<string, true | Codec<unknown>>>)[outcome]
   if (codec === undefined) return undefined
   if (codec === true) return emptyAnswer(outcome as Outcome)
-  const wire = codec.write(body, limits)
+  const wire = codec.write(body, limits, revision)
   return wire.ok ? { outcome: outcome as Outcome, body: wire.value } : undefined
 }
 
@@ -71,7 +74,7 @@ async function handled(
       { principal: input.principal, messageId: input.messageId, signal: input.entered.signal },
       input.body,
     )
-    settled = written(contract, answer, input.limits)
+    settled = written(contract, answer, input.limits, input.revision)
   } catch {
     noted(input, 'access.request-fault')
     return failureOf(contract)

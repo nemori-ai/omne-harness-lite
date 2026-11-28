@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { createModelAccessContribution } from '@omne-harness/model-access'
 import {
-  profileCovers,
-  type ModalityRequirement,
+  chatNeedOf,
+  meetsNeed,
+  type ModelNeed,
   type ModelProfile,
   type ProfileResolution,
 } from '@omne-harness/model-contract'
@@ -11,6 +14,7 @@ import {
   SELECTION_REQUIREMENT_SOURCE,
   modelTargetsOf,
   readModelView,
+  sessionRequirementOf,
   targetOf,
 } from '../../../src/rows/session-access/model-targets.ts'
 
@@ -26,11 +30,14 @@ const source = {
   revision: '1',
   digest: 'e'.repeat(64),
 }
-const profile = { adoption } as unknown as ModelProfile
+const profile = {
+  adoption,
+  definition: { reasoningEfforts: { low: 'low', high: 'high' } },
+} as unknown as ModelProfile<'llm'>
 
 function resolved(
-  changes: Partial<Extract<ProfileResolution, { kind: 'resolved' }>> = {},
-): ProfileResolution {
+  changes: Partial<Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>> = {},
+): ProfileResolution<'llm'> {
   return {
     kind: 'resolved',
     profile,
@@ -76,6 +83,7 @@ describe('what a resolved route means for a selection', () => {
       expect(targetOf(resolved({ credential }))).toEqual({
         kind: 'selectable',
         credential: expected,
+        reasoningEfforts: ['low', 'high'],
         basis: {
           owner: adoption.owner,
           record: adoption.name,
@@ -105,7 +113,10 @@ describe('the port over the profiles service', () => {
     const call = { principal: { id: 'p' } as never, tenant: 't' as never, route: adoption.name }
     expect((await port?.check(call))?.kind).toBe('selectable')
     expect(asked).toEqual([
-      { ...call, required: { modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE } },
+      {
+        ...call,
+        required: chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }),
+      },
     ])
     answer = { failure: { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'x' } }
     expect(await port?.check(call)).toEqual({ kind: 'unavailable' })
@@ -145,13 +156,20 @@ describe('a target judged for the history of a session', () => {
   }
 
   /** Profiles whose one route takes what `definition` says: it judges the requirement as Model does. */
-  function world(definition: Pick<ModelProfile['definition'], 'input' | 'fileTypes'>) {
-    const asked: ModalityRequirement[] = []
-    const taking = { adoption, definition } as unknown as ModelProfile
+  function world(definition: Pick<ModelProfile<'llm'>['definition'], 'input' | 'fileTypes'>) {
+    const asked: ModelNeed[] = []
+    const taking = { adoption, definition } as unknown as ModelProfile<'llm'>
     const profiles = {
-      resolve: async (input: { required: ModalityRequirement }) => {
+      resolve: async (input: { required: ModelNeed }) => {
         asked.push(input.required)
-        const covered = profileCovers(definition, input.required)
+        const covered = meetsNeed(
+          {
+            kind: 'llm',
+            output: ['text'],
+            ...definition,
+          } as unknown as ModelProfile<'llm'>['definition'],
+          input.required,
+        )
         return {
           ok: resolved({
             profile: taking,
@@ -182,11 +200,11 @@ describe('a target judged for the history of a session', () => {
     })
     expect(reads).toEqual([{ tenant: 't', session }])
     expect(asked).toEqual([
-      {
+      chatNeedOf({
         modalities: ['text', 'image'],
         fileTypes: ['application/pdf'],
         source: SELECTION_REQUIREMENT_SOURCE,
-      },
+      }),
     ])
   })
 
@@ -208,7 +226,9 @@ describe('a target judged for the history of a session', () => {
     expect((await modelTargetsOf(plain.profiles, wordsOnly.read)?.check(call))?.kind).toBe(
       'selectable',
     )
-    expect(plain.asked).toEqual([{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }])
+    expect(plain.asked).toEqual([
+      chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }),
+    ])
   })
 
   it('a history that cannot be read is unavailable, never an empty history; Model is not asked', async () => {
@@ -229,7 +249,119 @@ describe('a target judged for the history of a session', () => {
     expect((await modelTargetsOf(profiles, read)?.check(creating))?.kind).toBe('selectable')
     expect([reads, asked]).toEqual([
       [],
-      [{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }],
+      [chatNeedOf({ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE })],
+    ])
+  })
+})
+
+describe('the list of models for a session and selecting a model in it (I-4)', () => {
+  const visibility = { toHuman: true, toModel: true }
+  const ref = (id: string, mediaType: string) => ({
+    storage: 'local',
+    key: `k-${id}`,
+    mediaType,
+    bytes: '3',
+    digest: `sha256:${id}`,
+  })
+  const HISTORY = [
+    {
+      id: 'msg_1',
+      role: 'user',
+      blocks: [
+        {
+          kind: 'image',
+          id: 'blk_picture',
+          visibility,
+          ref: ref('p', 'image/png'),
+          transcript: null,
+        },
+      ],
+    },
+    {
+      id: 'msg_2',
+      role: 'user',
+      blocks: [
+        {
+          kind: 'file',
+          id: 'blk_scan',
+          visibility,
+          ref: ref('s', 'application/pdf'),
+          transcript: null,
+        },
+      ],
+    },
+  ] as unknown as readonly Message[]
+  const DEFINITIONS: Readonly<
+    Record<string, Pick<ModelProfile<'llm'>['definition'], 'input' | 'fileTypes'>>
+  > = {
+    'text-only': { input: ['text'] },
+    pictures: { input: ['text', 'image'] },
+    everything: { input: ['text', 'image'], fileTypes: ['application/pdf'] },
+  }
+  function resolutionOf(route: string, required: ModelNeed): ProfileResolution<'llm'> {
+    const definition = { kind: 'llm', ...DEFINITIONS[route], output: ['text'] }
+    const covered = meetsNeed(definition as unknown as ModelProfile<'llm'>['definition'], required)
+    return resolved({
+      profile: {
+        adoption: { ...adoption, name: route },
+        identity: { kind: 'llm', scope: { kind: 'factory' }, route },
+        definition,
+      } as unknown as ModelProfile<'llm'>,
+      selectable: covered,
+      reasons: covered ? [] : ['modality'],
+    })
+  }
+  const profiles = {
+    resolve: async (input: { route: string; required: ModelNeed }) => ({
+      ok: resolutionOf(input.route, input.required),
+    }),
+    list: async (input: { required: ModelNeed }) => ({
+      ok: { choices: Object.keys(DEFINITIONS).map(route => resolutionOf(route, input.required)) },
+    }),
+  } as unknown as ModelProfiles<unknown>
+  const body = 'abcdefghjkmnpqrstvwxyz2345'
+  const parsed = <T>(result: { ok: true; value: T } | { ok: false }): T => {
+    if (!result.ok) throw new Error('fixture')
+    return result.value
+  }
+  const owner = tenant(
+    parsed(organizationCodec.parse(`org_${body}`)),
+    parsed(accountCodec.parse(`acc_${body}`)),
+  )
+  const session = '0123456789abcdef'.repeat(4)
+
+  it('a model the list says this session stops is refused in it, with the same blocks; the others are selectable', async () => {
+    const read = async () => HISTORY
+    const contribution = createModelAccessContribution({
+      profiles: () => profiles as never,
+      principals: { actingFor: async () => ({ ok: { id: 'p' } as never }) },
+      settings: { required: { modalities: ['text'], source } },
+      sessions: () => ({ of: at => sessionRequirementOf(read, at as never) }),
+    })
+    const listed = await contribution.operations['list-models'](
+      { principal: {} as never, messageId: 'm-1', signal: new AbortController().signal },
+      { tenant: owner, session } as never,
+    )
+    if (listed.outcome !== 'succeeded') throw new Error(listed.outcome)
+    const targets = modelTargetsOf(profiles, read)
+    const call = { principal: { id: 'p' } as never, tenant: owner, session: session as never }
+    const judged = await Promise.all(
+      listed.body.models.map(async model => {
+        const target = await targets?.check({ ...call, route: model.route })
+        const blocks = target?.kind === 'refused' ? (target.blocks ?? []) : []
+        return {
+          list: [model.selectable, model.blocks ?? []],
+          select: [target?.kind === 'selectable', blocks],
+        }
+      }),
+    )
+    for (const each of judged) expect(each.list).toEqual(each.select)
+    expect(
+      listed.body.models.map(model => [model.route, model.selectable, model.blocks?.length]),
+    ).toEqual([
+      ['text-only', false, 2],
+      ['pictures', false, 1],
+      ['everything', true, undefined],
     ])
   })
 })

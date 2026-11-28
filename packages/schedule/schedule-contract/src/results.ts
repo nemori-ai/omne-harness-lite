@@ -5,7 +5,6 @@ export const ScheduleErrorCodeSchema = z.enum([
   'unauthenticated',
   'not_found',
   'forbidden',
-  'consent_required',
   'invalid_input',
   'unsupported_rule',
   'invalid_timezone',

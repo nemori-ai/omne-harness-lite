@@ -15,8 +15,10 @@ export {
   candidates,
   CATALOG,
   catalogContract,
+  closedBy,
   declare,
   list,
+  lockOver,
   report,
   standingOf,
   withdrawOf,
@@ -25,6 +27,7 @@ export {
   type Effect,
   type FieldKind,
   type PointStanding,
+  type Scopes,
 } from './catalog.ts'
 export {
   adopt,

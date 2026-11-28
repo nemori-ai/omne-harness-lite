@@ -15,6 +15,7 @@ export function initialState(): DefaultExecutionState {
     attempt: 1,
     processed: [],
     fixed: {
+      kind: 'llm',
       profile: profile.adoption,
       suppliers: [{ ...profile.definition.suppliers[0], credential: { layer: 'official' } }],
       fallback: false,

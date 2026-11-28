@@ -1,0 +1,21 @@
+{
+  "gate": "classes",
+  "entries": {
+    "apps/desktop/src/page/shell/item.tsx | .shell-item-failed": 1,
+    "packages/assets/assets-ui/src/view/assets-page.tsx | .assets-page-body": 1,
+    "packages/assets/assets-ui/src/view/category-page.tsx | .assets-category-head": 1,
+    "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create": 1,
+    "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-hint": 1,
+    "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-note": 3,
+    "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-pick": 1,
+    "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-switch": 1,
+    "packages/assets/assets-ui/src/view/setting-row.tsx | .assets-setting-choice-label": 1,
+    "packages/assets/assets-ui/src/view/setting-row.tsx | .assets-setting-secret-input": 1,
+    "packages/frontend/ui-kit/src/charts/series.tsx | .omne-chart-point": 1,
+    "packages/frontend/ui-kit/src/charts/simple.tsx | .omne-share": 1,
+    "packages/frontend/ui-kit/src/charts/simple.tsx | .omne-share-unknown": 1,
+    "packages/frontend/ui-kit/src/controls/select.tsx | .choice-menu-check": 1,
+    "packages/frontend/ui-kit/src/controls/select.tsx | .choice-menu-row": 1,
+    "packages/schedule/schedule-ui/src/view/activation.tsx | .schedule-activation": 1
+  }
+}

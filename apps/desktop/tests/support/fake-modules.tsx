@@ -10,39 +10,46 @@ export const placeholder = (text: string, scope?: string) => (
 export function fakeGate(text = '登录门占位'): Plugin.Object {
   return defineUiModule({
     name: 'fake-gate',
-    inject: [],
+    needs: {},
     apply(shell) {
       shell.contribute('gate', { id: 'fake.gate', render: () => placeholder(text) })
     },
   })
 }
 
+/** A module the case loads when it gives the named thing, and unloads when it takes it back. */
+export type Gated = Plugin.Object & Readonly<{ gatedBy: string }>
+
 export function fakePage(page: {
   id: string
   title: string
   order: number
   service: string
-  icon?: string
-}): Plugin.Object {
-  return defineUiModule({
+  icon: string
+}): Gated {
+  const module = defineUiModule({
     name: `fake-page-${page.id}`,
-    inject: [page.service],
+    needs: {},
     apply(shell) {
       shell.contribute('pages', {
         id: page.id,
         title: page.title,
         order: page.order,
-        ...(page.icon === undefined ? {} : { icon: page.icon }),
+        icon: page.icon,
         render: ({ scope }) => placeholder(`${page.title}占位`, scope),
       })
     },
   })
+  return Object.assign(module, { gatedBy: page.service })
 }
 
-export function fakeSidebar(item: { id: string; order: number; text: string }): Plugin.Object {
+export function fakeSidebar(
+  item: { id: string; order: number; text: string },
+  name = `fake-sidebar-${item.id}`,
+): Plugin.Object {
   return defineUiModule({
-    name: `fake-sidebar-${item.id}`,
-    inject: [],
+    name,
+    needs: {},
     apply(shell) {
       shell.contribute('sidebar', {
         id: item.id,

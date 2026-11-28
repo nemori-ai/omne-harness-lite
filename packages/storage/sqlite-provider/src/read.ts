@@ -9,6 +9,22 @@ import { DOMAIN_BYTES, decodeScope, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 
 export function createRead(core: Core): SqlStorage['read'] {
+  const answer = answerRead(core)
+  return async (input: ReadRequest, options): Promise<ReadResult> => {
+    const result = await answer(input, options)
+    const raw = input as Partial<ReadRequest> | null
+    const domain = raw?.domain?.transactionDomain
+    const known = core.catalog.readHandlers.some(item => item.handler === raw?.handler)
+    core.readings.read(
+      isName(domain, DOMAIN_BYTES) ? domain : '',
+      known ? String(raw?.handler) : '',
+      result.kind,
+    )
+    return result
+  }
+}
+
+function answerRead(core: Core): SqlStorage['read'] {
   const { config } = core
   return async (input: ReadRequest, options): Promise<ReadResult> => {
     const raw = input as Partial<ReadRequest> | null
@@ -33,10 +49,8 @@ export function createRead(core: Core): SqlStorage['read'] {
       !isStrictJson(raw.input)
     )
       return unavailable('invalid')
-    const shape = jsonShape(raw.input)
     if (
-      shape.depth > config.maxJsonDepth ||
-      shape.members > config.maxJsonMembers ||
+      jsonShape(raw.input).depth > config.maxJsonDepth ||
       utf8Length(canonicalJson(raw.input)) > config.maxReadInputBytes
     )
       return unavailable('read_limit', 'input_limit')

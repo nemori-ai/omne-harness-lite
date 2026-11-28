@@ -135,13 +135,14 @@ const lookupInput = (s: SqlScene, input: ReturnType<typeof submit>) => ({
   kind: 'input-entry' as const,
   execution: s.execution,
   operation: input.request.reference.entry,
+  input: input.request.reference.input,
 })
 
 function invoke(
   s: SqlScene,
   scope = sessionScopeEvidence(s.tenantText(s.access.tenant), s.access.session),
 ) {
-  const request = s.openInput.original.outcome.request
+  const request = s.openInput.originals[0].outcome.request
   if (request.kind !== 'input') throw new Error('fixture: an external request')
   return {
     ...agentAccess(s),
@@ -197,7 +198,7 @@ describe('the invoke and submit branches', () => {
     const first = ok(await f.handoff().prepare(input))
     const record = await recordOf(
       f.s,
-      JSON.stringify([f.s.execution, input.request.reference.entry]),
+      JSON.stringify([f.s.execution, input.request.reference.entry, input.request.reference.input]),
     )
     if (record === null || record === 'malformed') throw new Error('no record')
     console.info(
@@ -269,7 +270,7 @@ describe('the invoke and submit branches', () => {
     expect(await f.handoff().prepare(input)).toMatchObject({ failure: { kind: 'unavailable' } })
     const record = await recordOf(
       f.s,
-      JSON.stringify([f.s.execution, input.request.reference.entry]),
+      JSON.stringify([f.s.execution, input.request.reference.entry, input.request.reference.input]),
     )
     if (record === null || record === 'malformed') throw new Error('the intent was not saved')
     expect(record.outcome).toBeNull()
@@ -447,7 +448,7 @@ describe('the invoke and submit branches', () => {
     expect(outcome.provider).toEqual(PROVIDER)
     const record = await recordOf(
       f.s,
-      JSON.stringify([f.s.execution, input.request.reference.entry]),
+      JSON.stringify([f.s.execution, input.request.reference.entry, input.request.reference.input]),
     )
     if (record === null || record === 'malformed') throw new Error('no record')
     expect(record.session).toBe(f.s.access.session)
@@ -459,7 +460,10 @@ describe('the invoke and submit branches', () => {
   })
 
   it.each([
-    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
+    [
+      'command_limit',
+      { kind: 'invalid', field: 'storage', reason: 'command_limit', disclosed: 'command_limit' },
+    ],
     ['combination_unregistered', { kind: 'unsupported' }],
   ] as const)(
     'a preadmission write the storage refuses for the definite reason %s is a definite failure',
@@ -474,6 +478,48 @@ describe('the invoke and submit branches', () => {
     expect(await f.handoff().prepare(invoke(f.s))).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining('queue_full') },
     })
+  })
+
+  it('each input an invoke carries has its own outcome, and each is recalled by its own reference', async () => {
+    const f = await provided('handoff-batch')
+    const first = invoke(f.s)
+    if (first.request.entry.kind !== 'invoke') throw new Error('an invoke entry is expected')
+    const other = ok(decodeInputId('input-other'))
+    const second = {
+      ...first,
+      request: {
+        ...first.request,
+        reference: { ...first.request.reference, input: other },
+        entry: {
+          ...first.request.entry,
+          initial: {
+            ...first.request.entry.initial,
+            id: other,
+            content: assistantMessage('the other input of the batch'),
+          },
+        },
+        source: { kind: 'external-input' as const, input: other },
+      },
+    }
+    const outcomes = [ok(await f.handoff().prepare(first)), ok(await f.handoff().prepare(second))]
+    expect(outcomes.map(outcome => outcome.decision.kind)).toEqual(['prepared', 'prepared'])
+    expect(outcomes[1]?.request).toEqual(second.request)
+    const before = writes(f.s)
+    expect(ok(await f.handoff().prepare(first))).toEqual(outcomes[0])
+    expect(ok(await f.handoff().prepare(second))).toEqual(outcomes[1])
+    expect(writes(f.s)).toBe(before)
+    for (const [at, input] of [first, second].entries())
+      expect(
+        ok(
+          await f.handoff().lookup({
+            ...agentAccess(f.s),
+            kind: 'input-entry',
+            execution: f.s.execution,
+            operation: input.request.reference.entry,
+            input: input.request.reference.input,
+          }),
+        ),
+      ).toEqual({ kind: 'recorded', outcome: outcomes[at] })
   })
 
   it('the same Ki again recalls the original H and outcome, and writes nothing', async () => {
@@ -663,6 +709,7 @@ describe('lookup', () => {
           kind: 'input-entry',
           execution: f.s.execution,
           operation: input.request.reference.entry,
+          input: input.request.reference.input,
         }),
       ),
     ).toEqual({ kind: 'recorded', outcome })
@@ -673,6 +720,7 @@ describe('lookup', () => {
           kind: 'input-entry',
           execution: f.s.execution,
           operation: operation('never'),
+          input: input.request.reference.input,
         }),
       ),
     ).toEqual({ kind: 'unknown', original: null })
@@ -690,6 +738,7 @@ describe('lookup', () => {
       kind: 'input-entry',
       execution: f.s.execution,
       operation: input.request.reference.entry,
+      input: input.request.reference.input,
     })
     expect('ok' in answer && answer.ok.kind === 'recorded').toBe(false)
   })

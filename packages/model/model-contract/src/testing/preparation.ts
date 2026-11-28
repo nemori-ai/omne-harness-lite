@@ -1,7 +1,7 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import type { ModelFailure } from '../result.ts'
-import type { FixedModelRequest, Supplier } from '../root.ts'
+import type { LlmModelRequest, Supplier } from '../root.ts'
 import type {
   AssembledModelInput,
   ModalityRequirement,
@@ -28,14 +28,14 @@ import { frozenCopy, sameValue, tenantText } from './values.ts'
 
 export type ScriptedModelPreparationMatch<P> = Access<P> &
   Readonly<{
-    profile: ModelProfile
+    profile: ModelProfile<'llm'>
     required: ModalityRequirement
     parameters: AssembledModelInput['parameters']
   }>
 
 export type ScriptedModelPreparationPlan = Readonly<{
-  suppliers: FixedModelRequest['suppliers']
-  parameterAdoptions: FixedModelRequest['parameterAdoptions']
+  suppliers: LlmModelRequest['suppliers']
+  parameterAdoptions: LlmModelRequest['parameterAdoptions']
 }>
 
 export type ScriptedModelPreparationCall<P> = Readonly<{
@@ -58,14 +58,14 @@ export type ScriptedModelRequestPreparation<P> = Readonly<{
 }>
 
 type PlanKey = Readonly<{
-  profile: ModelProfile
+  profile: ModelProfile<'llm'>
   required: ModalityRequirement
   parameters: AssembledModelInput['parameters']
 }>
 
 type PrepareInput<P> = Parameters<ModelRequestPreparation<P>['prepare']>[0]
 
-type Declarations = FixedModelRequest['declarations']
+type Declarations = LlmModelRequest['declarations']
 
 type ProfileRefusal = Readonly<{ failure: ModelFailure; misuse: string }>
 
@@ -190,9 +190,10 @@ function formRequest(
   input: PrepareInput<unknown>,
   plan: ScriptedModelPreparationPlan,
   declarations: Declarations,
-): FixedModelRequest {
+): LlmModelRequest {
   const { profile, assembled } = input
   return Object.freeze({
+    kind: 'llm',
     profile: profile.adoption,
     suppliers: plan.suppliers,
     fallback: profile.definition.fallback,
@@ -237,7 +238,7 @@ export function createScriptedModelRequestPreparation<P>(
       const snapshot: PrepareInput<P> = Object.freeze({
         tenant: input.tenant,
         principal: input.principal,
-        profile: copyProfile(input.profile),
+        profile: copyProfile<'llm'>(input.profile),
         required: frozenCopy(input.required),
         assembled: frozenCopy(input.assembled),
       })
@@ -275,7 +276,7 @@ export function createScriptedModelRequestPreparation<P>(
         tenant,
         principal: input.principal,
         key: Object.freeze({
-          profile: copyProfile(input.profile),
+          profile: copyProfile<'llm'>(input.profile),
           required: frozenCopy(input.required),
           parameters: frozenCopy(input.parameters),
         }),

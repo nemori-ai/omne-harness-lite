@@ -390,7 +390,7 @@ describe('the late account of an ended call: who may confirm it, and what work i
     ).toMatchObject({ kind: 'abandoned', cleanup: 'released' })
   })
 
-  it('judges a late fact with the request id the dispatch kept, and refuses a terminal past the byte limit', async () => {
+  it('judges a late fact with the request id the dispatch kept, and refuses a terminal past the byte limit or with a malformed cause', async () => {
     const s = await ended(withRequest)
     unbox(await s.late('found', { kind: 'account', event: 'cost-lookup', value: found('1') }))
     expect(s.seen).toMatchObject([{ upstreamRequest: 'gen-17950-abc' }])
@@ -404,5 +404,12 @@ describe('the late account of an ended call: who may confirm it, and what work i
     expect(await s.late('huge', { kind: 'terminal', event: 'huge', actual: huge })).toMatchObject({
       failure: { kind: 'invalid', field: 'termination', reason: 'encoded-byte-limit' },
     })
+    const malformed = {
+      kind: 'failed',
+      fault: { cause: 'rate-limited', diagnostic: 'late', upstreamStatus: null },
+    } as unknown as Termination
+    expect(
+      await s.late('malformed', { kind: 'terminal', event: 'malformed', actual: malformed }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'termination', reason: 'fault-shape' } })
   })
 })

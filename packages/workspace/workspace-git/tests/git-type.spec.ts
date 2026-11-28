@@ -1,4 +1,4 @@
-import { rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DirectoryType } from '@omne-harness/workspace-filesystem'
@@ -98,12 +98,18 @@ describe('a look at a Git instance', () => {
   it('gives the directory and the commit it is at now', async () => {
     const root = await repository(box.root, next())
     const { material } = await recognised(root)
-    expect(await git.inspect(material)).toEqual({ ok: { directory: root, basis: COMMIT } })
+    const info = await lstat(root, { bigint: true })
+    const rootIdentity = `${info.dev}:${info.ino}`
+    expect(await git.inspect(material)).toEqual({
+      ok: { directory: root, basis: COMMIT, rootIdentity },
+    })
     await writeFile(join(root, '.git', 'refs', 'heads', 'main'), `${LATER}\n`)
-    expect(await git.inspect(material)).toEqual({ ok: { directory: root, basis: LATER } })
+    expect(await git.inspect(material)).toEqual({
+      ok: { directory: root, basis: LATER, rootIdentity },
+    })
     await rm(join(root, '.git', 'refs', 'heads', 'main'))
     expect(await git.inspect(material)).toEqual({
-      ok: { directory: root, basis: 'unborn:refs/heads/main' },
+      ok: { directory: root, basis: 'unborn:refs/heads/main', rootIdentity },
     })
   })
 

@@ -1,8 +1,7 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // @module-tag slow
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -15,6 +14,7 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   agentExecutionControlKey,
+  agentNestedActionsKey,
   agentExecutionRecoveryKey,
   agentInstanceProvisionKey,
   agentInstancesKey,
@@ -121,7 +121,12 @@ async function turns(count = 20): Promise<void> {
 
 describe('the agent-host row: declaration and configuration', () => {
   it('is the real row and equals the table row of the assembly page, in the business phase', () => {
-    const declaration = rowDeclarationOf(agentHostRow)
+    // Each row has its own entries; what they are entries of is the same.
+    const told = (row: Plugin) => {
+      const declared = rowDeclarationOf(row)
+      return { ...declared, entries: declared?.entries?.map(entry => entry.key) }
+    }
+    const declaration = told(agentHostRow)
     expect(declaration).toEqual({
       row: 'agent-host',
       implementation: 'real',
@@ -130,18 +135,30 @@ describe('the agent-host row: declaration and configuration', () => {
           'agentPublicationAuthority',
           'agentExecutionRecovery',
           'agentExecutionControl',
+          'agentNestedActions',
           'agentInstanceProvision',
+          'toolProgramAdmission',
         ],
         injects: [...INJECTS, 'telemetry'],
         phase: 'business',
         sameProviderGroup: null,
       },
       lifecycle: { kind: 'body', phase: 'business' },
+      swap: 'implementation',
+      entries: [
+        'agentPublicationAuthority',
+        'agentExecutionRecovery',
+        'agentExecutionControl',
+        'agentNestedActions',
+        'agentInstanceHost',
+        'agentInstanceProvision',
+        'toolProgramAdmission',
+      ],
     })
     const table = serveProfile().stubManifests.get('agent-host' as RowId)
-    expect(declaration?.manifest).toEqual(table)
+    expect(declaration.manifest).toEqual(table)
     const withInputs = createAgentHostRow({ measure: () => {} })
-    expect(rowDeclarationOf(withInputs)).toEqual(declaration)
+    expect(told(withInputs)).toEqual(declaration)
   })
 
   it('accepts the factory configuration with `instanceIdleMs` and `jointCommits` that list `message`', () => {
@@ -179,6 +196,7 @@ describe('the agent-host row: on test stand-ins of its eighteen injects', () => 
       agentPublicationAuthorityKey,
       agentExecutionRecoveryKey,
       agentExecutionControlKey,
+      agentNestedActionsKey,
       agentInstanceProvisionKey,
     ])
       expect(tree.service(key), key).toBeDefined()
@@ -248,6 +266,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 const selected = {
@@ -294,30 +313,10 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   const judged = judgeToolInvokeRequest({
     availability: {
       kind: 'available',
+      definition: adoption('read_file'),
+      name: 'read_file',
       executor: adoption('executor'),
       layer: { kind: 'official' },
-      definition: {
-        adoption: adoption('read_file'),
-        name: 'read_file',
-        description: 'Read a file.',
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: {
-          adoption: adoption('tool-declarations'),
-          environment: null,
-          attachments: [],
-          inputModalities: [],
-          outputModalities: [],
-          settings: null,
-        },
-        kind: 'function',
-        parameters: {
-          schema: { kind: 'object', entries: [] },
-          vocabulary: adoption('json-schema'),
-          descriptions: [],
-        },
-        returns: ordinaryReturnFixture(adoption('codec')),
-      },
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
@@ -325,7 +324,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: { ref: 'tool-scope' },
     resources: [],
     scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },
@@ -342,7 +340,9 @@ function countingSource() {
   const source = {
     async describe() {
       seen.describe += 1
-      return { ok: { kind: 'tool' as const, definition: adoption('read_file') } }
+      return {
+        ok: { kind: 'tool' as const, definition: testToolDefinition(adoption('read_file')) },
+      }
     },
     async prepare(request: { consumer: ToolInvokeRequest['consumer'] }) {
       seen.prepare += 1
@@ -390,7 +390,7 @@ async function invoke(row: Plugin, execution: AgentExecutionId) {
     ...caller,
     execution,
     operation: ok(decodeAgentOperationId(`${execution}-invoke`)),
-    initial: acceptedInput(),
+    initial: [acceptedInput()],
     grant: evidence('grant'),
   })
   return { ...started, answer }

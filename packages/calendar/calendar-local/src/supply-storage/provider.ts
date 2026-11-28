@@ -7,13 +7,16 @@ import type { CalendarSupplyJournal, CalendarSourceMaterialStore } from '@omne-h
 import { ackSchema, operationQuerySchema } from '../storage/schema.ts'
 import { read, write, query, recover, type AccessOptions } from './access.ts'
 import { custody, materialLimit, type CalendarSeedPackRegistry } from './custody.ts'
-import { canonical, digest, identity, intent } from './encoding.ts'
+import { canonical, digest, identity, intent, operationRef } from './encoding.ts'
+import { settledRun } from './run.ts'
 import {
   DOMAIN,
   PARTICIPANT,
   text,
   probeQuerySchema,
   runSchema,
+  settledRunSchema,
+  journalRunSchema,
   healthSchema,
   acknowledgementQuerySchema,
 } from './schema.ts'
@@ -43,11 +46,31 @@ export function createCalendarSqlSupplyStorage(
     )
   const registry = new Map(options.seedPackRegistry)
   const scope = options.systemScopeRef
+  const storedRun = (ref: string) =>
+    read(
+      options,
+      { kind: 'run', systemScopeRef: scope, operationRef: ref },
+      journalRunSchema.nullable(),
+    )
   return {
     materials: custody(options, registry, materialLimit(options.maxMaterialBytes)),
     journal: {
-      prepareRun: payload =>
-        write(options, { action: 'run.prepare', systemScopeRef: scope, payload }, runSchema),
+      async prepareRun(payload) {
+        const written = await write(
+          options,
+          { action: 'run.prepare', systemScopeRef: scope, payload },
+          settledRunSchema,
+        )
+        if (written.kind !== 'ok') return written
+        if (canonical(written.value) === canonical(settledRun(payload)))
+          return { kind: 'ok', value: payload }
+        const stored = await storedRun(operationRef(payload.command.address))
+        if (stored.kind !== 'ok') return stored
+        if (stored.value === null) return { kind: 'unavailable', reason: 'preparedRunMissing' }
+        return stored.value.state === 'pending'
+          ? { kind: 'ok', value: stored.value.run }
+          : { kind: 'conflict', reason: 'runCompleted' }
+      },
       completeRun: payload =>
         write(options, { action: 'run.complete', systemScopeRef: scope, payload }, z.null()),
       recordProbe: payload =>
@@ -74,18 +97,12 @@ export function createCalendarSqlSupplyStorage(
         if (input.systemScopeRef !== scope) return { kind: 'conflict', reason: 'scopeMismatch' }
         if (!/^calendar-operation:[a-f0-9]{64}$/.test(input.operationRef))
           return { kind: 'conflict', reason: 'invalidInput' }
-        const id = {
-          ...identity('run.prepare', scope, {}),
-          operationKey: input.operationRef.slice('calendar-operation:'.length),
-        }
-        const schema = runSchema.refine(
-          value =>
-            value.command.address.systemScopeRef === scope &&
-            `calendar-operation:${digest(value.command.address)}` === input.operationRef,
-        )
-        return recover(options, id, schema, payload =>
-          intent({ action: 'run.prepare', systemScopeRef: scope, payload }),
-        )
+        const found = await storedRun(input.operationRef)
+        if (found.kind !== 'ok' || found.value === null) return found
+        const { address } = found.value.run.command
+        return address.systemScopeRef === scope && operationRef(address) === input.operationRef
+          ? found
+          : { kind: 'unavailable', reason: 'invalidStoredRun' }
       },
       health: input => read(options, { kind: 'health', ...input }, healthSchema),
       pending: input => read(options, { kind: 'pending', ...input }, z.array(runSchema)),
@@ -97,22 +114,14 @@ export function createCalendarSqlSupplyStorage(
           return { kind: 'conflict', reason: 'scopeMismatch' }
         try {
           canonical(input)
-          return await query(
-            options,
-            identity('run.prepare', scope, parsed.data.address),
-            {
-              action: 'run.prepare',
-              systemScopeRef: scope,
-              intentDigest: digest({
-                address: parsed.data.address,
-                fingerprint: parsed.data.expectedFingerprint,
-              }),
-            },
-            runSchema,
-          )
         } catch {
           return { kind: 'conflict', reason: 'invalidInput' }
         }
+        const found = await storedRun(operationRef(parsed.data.address))
+        if (found.kind !== 'ok' || found.value === null) return found
+        return found.value.run.command.expectedFingerprint === parsed.data.expectedFingerprint
+          ? found
+          : { kind: 'conflict', reason: 'intentMismatch' }
       },
       async readProbe(input) {
         const parsed = probeQuerySchema.safeParse(input)

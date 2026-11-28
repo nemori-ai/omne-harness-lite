@@ -1,4 +1,5 @@
 import {
+  digestBytes,
   isReadBody,
   readBodyText,
   readSnapshot,
@@ -54,10 +55,19 @@ export function parseEndpointBody(
 
 const TARGET = 'setting:placement-identity:target'
 const CREDENTIAL = 'setting:placement-identity:credential'
+const CLIENT_ID = 'setting:placement-identity:client-id'
+const CLIENT_SECRET = 'setting:placement-identity:client-secret'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
+/** The setting by which the holder opens the actions of an endpoint to programs. */
+export const PROGRAM_CALLS_SETTING = 'program-calls'
+const PROGRAM_CALLS = `setting:preference:${PROGRAM_CALLS_SETTING}`
+
+// Static and OAuth share one set of items, so a body that changes between them keeps what was set.
+const CREDENTIALED = [CREDENTIAL, CLIENT_ID, CLIENT_SECRET]
+const AUTH_DECLARATIONS = { none: [], static: CREDENTIALED, oauth: CREDENTIALED } as const
 
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
-  return [TARGET, ...(definition.auth === 'none' ? [] : [CREDENTIAL]), CONNECT_TIMEOUT]
+  return [TARGET, ...AUTH_DECLARATIONS[definition.auth], CONNECT_TIMEOUT, PROGRAM_CALLS]
 }
 
 const SCHEMA_LIMITS = {
@@ -93,6 +103,145 @@ function judgedDefinition(body: unknown, context?: JudgeContext): EndpointDefini
   return parsed.ok
 }
 
+/** The gates of the category: one for each endpoint, calling its actions. The assembly names it. */
+export const mcpEndpointGates = Object.freeze({
+  category: 'mcp',
+  ownerId: 'mcp.endpoint-gates',
+  gates: Object.freeze([
+    Object.freeze({ id: 'invoke', title: '调用这个接入点的动作', default: 'ask' as const }),
+  ]),
+})
+
+type EndpointSettingDefinitions = NonNullable<ReturnType<NonNullable<BodyContract['settings']>>>
+type EndpointSettingItem = EndpointSettingDefinitions['items'][number]
+
+const CONNECTION_GROUP = 'connection'
+const USE_GROUP = 'use'
+const NO_DEFAULT = { kind: 'absent' as const }
+
+function settingItem(
+  item: Pick<EndpointSettingItem, 'id' | 'category' | 'valueSchema' | 'sensitivity'> &
+    Pick<EndpointSettingItem['presentation'], 'title' | 'description' | 'impact' | 'clear'> &
+    Readonly<{ unit?: string }>,
+): EndpointSettingItem {
+  const { title, description, impact, clear, unit, ...rest } = item
+  return {
+    ...rest,
+    groupId: CONNECTION_GROUP,
+    presentation: {
+      title,
+      description,
+      impact,
+      clear,
+      adoption: 'next-read',
+      ...(unit === undefined ? {} : { unit }),
+    },
+    default: NO_DEFAULT,
+    merge: 'override',
+  }
+}
+
+const TARGET_ITEM = settingItem({
+  id: 'target',
+  category: 'placement-identity',
+  title: '连接目标',
+  description: '这个接入点的地址：https，或本机回环地址上的 http。',
+  impact: '下一次连接按这个地址去连；没有设时连不上。',
+  clear: '这一层不再提供地址。',
+  valueSchema: { type: 'string', minLength: 1, maxLength: 2048 },
+  sensitivity: 'ordinary',
+})
+const CREDENTIAL_ITEM = settingItem({
+  id: 'credential',
+  category: 'placement-identity',
+  title: '凭据',
+  description: '认证方式是 static 时，连接这个接入点出示的凭据；oauth 时不用它。',
+  impact: '下一次连接带这份凭据；没有设时对端会拒绝。',
+  clear: '这一层不再提供凭据。',
+  valueSchema: { type: 'string', minLength: 1 },
+  sensitivity: 'secret',
+})
+const CLIENT_ID_ITEM = settingItem({
+  id: 'client-id',
+  category: 'placement-identity',
+  title: '客户端标识',
+  description: '认证方式是 oauth 时，在对方授权服务器那里登记的应用的客户端标识；不填时自动登记。',
+  impact: '下一次点「连接」时用这个标识；没有设时按对方支持的方式自动登记。',
+  clear: '这一层不再提供客户端标识。',
+  valueSchema: { type: 'string', minLength: 1, maxLength: 2048 },
+  sensitivity: 'ordinary',
+})
+const CLIENT_SECRET_ITEM = settingItem({
+  id: 'client-secret',
+  category: 'placement-identity',
+  title: '客户端密钥',
+  description: '认证方式是 oauth 时，登记的应用带的客户端密钥；公开客户端不填。',
+  impact: '换令牌与续期时用这份密钥向授权服务器证明身份。',
+  clear: '这一层不再提供客户端密钥。',
+  valueSchema: { type: 'string', minLength: 1 },
+  sensitivity: 'secret',
+})
+const CONNECT_TIMEOUT_ITEM = settingItem({
+  id: 'connect-timeout',
+  category: 'preference',
+  title: '连接超时',
+  description: '建立连接最多等多久。',
+  impact: '下一次连接等这么久；没有设时连不上。',
+  clear: '这一层不再提供连接超时。',
+  unit: '毫秒',
+  valueSchema: { type: 'integer', minimum: 1 },
+  sensitivity: 'ordinary',
+})
+const PROGRAM_CALLS_ITEM: EndpointSettingItem = {
+  ...settingItem({
+    id: PROGRAM_CALLS_SETTING,
+    category: 'preference',
+    title: '程序调用',
+    description: '这个接入点的动作许不许被 agent 写的程序调用。',
+    impact: '开启后，agent 写的程序可以直接调用这个接入点的动作；每次调用仍各自过放行判断。',
+    clear: '这一层不再表态；各层都没有设时不许。',
+    valueSchema: { type: 'boolean' },
+    sensitivity: 'ordinary',
+  }),
+  groupId: USE_GROUP,
+  default: { kind: 'value', value: false },
+}
+
+const CREDENTIALED_ITEMS = [CREDENTIAL_ITEM, CLIENT_ID_ITEM, CLIENT_SECRET_ITEM]
+const AUTH_ITEMS = { none: [], static: CREDENTIALED_ITEMS, oauth: CREDENTIALED_ITEMS } as const
+
+// The version is the digest of the content: a new body that keeps the same settings keeps the values set.
+function settingsOf(definition: EndpointDefinition): EndpointSettingDefinitions {
+  const content = settingsContentOf(definition)
+  return { ...content, version: digestBytes(new TextEncoder().encode(JSON.stringify(content))) }
+}
+
+function settingsContentOf(
+  definition: EndpointDefinition,
+): Omit<EndpointSettingDefinitions, 'version'> {
+  return {
+    providerId: mcpEndpointGates.ownerId,
+    definitionId: definition.name,
+    groups: [
+      {
+        id: CONNECTION_GROUP,
+        parentId: null,
+        title: '连接',
+        description: `怎样连到接入点 ${definition.name}。`,
+        order: 0,
+      },
+      {
+        id: USE_GROUP,
+        parentId: null,
+        title: '使用',
+        description: `agent 可以怎样用接入点 ${definition.name} 的动作。`,
+        order: 1,
+      },
+    ],
+    items: [TARGET_ITEM, ...AUTH_ITEMS[definition.auth], CONNECT_TIMEOUT_ITEM, PROGRAM_CALLS_ITEM],
+  }
+}
+
 export function mcpEndpointBodyContract(): BodyContract {
   return {
     category: 'mcp',
@@ -100,6 +249,9 @@ export function mcpEndpointBodyContract(): BodyContract {
     judge,
     deriveDeclarations(body, context) {
       return { entries: declarationsOf(judgedDefinition(body, context)) }
+    },
+    settings(body, context) {
+      return settingsOf(judgedDefinition(body, context))
     },
     references(body, context) {
       judgedDefinition(body, context)

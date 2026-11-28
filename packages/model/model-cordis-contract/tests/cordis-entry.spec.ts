@@ -17,10 +17,14 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     ModelInstanceHostService: 'modelInstanceHost',
     ModelInstancesService: 'modelInstances',
     ModelMediaSourceService: 'modelMediaSource',
+    ModelPreferencesService: 'modelPreferences',
     ModelProfileMaintenanceService: 'modelProfileMaintenance',
     ModelProfilesService: 'modelProfiles',
     ModelPublicationAuthorityService: 'modelPublicationAuthority',
     ModelRequestPreparationService: 'modelRequestPreparation',
+    ModelDecisionPreparationService: 'modelDecisionPreparation',
+    ModelLivePreparationService: 'modelLivePreparation',
+    ModelLiveCallsService: 'modelLiveCalls',
     ModelRetryPolicyService: 'modelRetryPolicy',
     ModelRuntimeService: 'modelRuntime',
     ModelSendBoundaryService: 'modelSendBoundary',
@@ -34,6 +38,7 @@ it('the cordis entry exports the service definitions with their keys, and no oth
       ...Object.keys(definitions).map(keyName),
       'ModelResultReceiverConflictError',
       'createModelResultReceiverTable',
+      'modelProvidersPoint',
     ].sort(),
   )
   for (const [service, key] of Object.entries(definitions)) {

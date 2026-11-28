@@ -17,6 +17,26 @@ const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
+const seen = object({
+  command: { rule: nullable(text) },
+  references: { rule: { kind: 'array', item: text, max: 64 } },
+})
+const commandOperation = object({
+  name: { rule: text },
+  outcome: { rule: text },
+  detail: { rule: nullable(text) },
+})
+const refusal = ruleCodec(
+  object({
+    field: { rule: text, optional: true, since: 3 },
+    reason: { rule: text, optional: true, since: 3 },
+  }),
+)
+
+const modelSelection = {
+  model: { rule: text },
+  reasoningEffort: { rule: literal('low', 'medium', 'high', 'xhigh'), optional: true, since: 2 },
+} as const
 
 const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
 const toolCall = object({ kind: { rule: literal('tool') }, call: { rule: text } })
@@ -201,7 +221,23 @@ const waiting = object({
         run: { rule: text },
         pending: { rule: { kind: 'count' } },
         cause: {
-          rule: nullable(object({ kind: { rule: text }, detail: { rule: nullable(text) } })),
+          rule: nullable(
+            object({
+              kind: { rule: text },
+              detail: { rule: nullable(text) },
+              fault: {
+                rule: nullable(
+                  object({
+                    cause: { rule: text },
+                    upstreamStatus: { rule: nullable(text) },
+                    throttled: { rule: boolean },
+                  }),
+                ),
+                optional: true,
+                since: 5,
+              },
+            }),
+          ),
         },
       }),
     ),
@@ -414,12 +450,19 @@ export const sessionProtocol = defineProtocol({
           acceptId: { rule: text },
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
+          seen: { rule: seen, optional: true, since: 3 },
+          afterRun: { rule: literal('yes'), optional: true, since: 3 },
         }),
       ),
       outcomes: {
-        succeeded: ruleCodec(object({ recovered: { rule: boolean } })),
+        succeeded: ruleCodec(
+          object({
+            recovered: { rule: boolean },
+            operation: { rule: commandOperation, optional: true, since: 3 },
+          }),
+        ),
         limited,
-        invalid: empty,
+        invalid: refusal,
         archived: empty,
         frozen: empty,
         conflict: empty,
@@ -437,14 +480,19 @@ export const sessionProtocol = defineProtocol({
           acceptId: { rule: text },
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
+          seen: { rule: seen, optional: true, since: 3 },
         }),
       ),
       outcomes: {
         succeeded: ruleCodec(
-          object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
+          object({
+            recovered: { rule: boolean },
+            as: { rule: literal('interrupt', 'ordinary') },
+            operation: { rule: commandOperation, optional: true, since: 3 },
+          }),
         ),
         limited,
-        invalid: empty,
+        invalid: refusal,
         archived: empty,
         frozen: empty,
         conflict: empty,
@@ -668,12 +716,12 @@ export const sessionProtocol = defineProtocol({
       identity: 'login',
       effect: 'commit',
       limit: 'small',
-      body: ruleCodec(object({ ...target, controlId: { rule: text }, model: { rule: text } })),
+      body: ruleCodec(object({ ...target, controlId: { rule: text }, ...modelSelection })),
       outcomes: {
         succeeded: ruleCodec(
           object({
             controlId: { rule: text },
-            model: { rule: text },
+            ...modelSelection,
             credential: { rule: literal('available', 'missing', 'unknown') },
           }),
         ),
@@ -682,6 +730,7 @@ export const sessionProtocol = defineProtocol({
             reason: {
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
+            detail: { rule: literal('unsupported-effort'), optional: true, since: 2 },
             blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
           }),
         ),
@@ -736,13 +785,32 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'reload-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ kind: { rule: literal('handed-over', 'adopted', 'no-change') } }),
+        ),
+        invalid: ruleCodec(object({ reason: { rule: anyText } })),
+        archived: empty,
+        frozen: ruleCodec(object({ capability: { rule: nullable(text) } })),
+        conflict: ruleCodec(
+          object({ reason: { rule: literal('cancelled', 'not-current', 'changed') } }),
+        ),
+      },
+      countsAsAccess: true,
+      since: 4,
+    },
     'read-model-selection': {
       identity: 'login',
       effect: 'read',
       limit: 'small',
       body: ruleCodec(object(target)),
       outcomes: {
-        succeeded: ruleCodec(object({ model: { rule: text }, revision: { rule: anyText } })),
+        succeeded: ruleCodec(object({ ...modelSelection, revision: { rule: anyText } })),
         invalid: empty,
       },
       countsAsAccess: true,

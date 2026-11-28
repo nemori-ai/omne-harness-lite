@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mediaProtocol } from '@omne-harness/media-protocol'
-import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
+import { expectRoundTrip, limits, readSample, tenant, tree } from './fixtures/samples.ts'
 
 const operations = mediaProtocol.operations
 const ref = {
@@ -64,6 +64,30 @@ describe('the bodies of media/v1 go to the wire and back unchanged', () => {
     expectRoundTrip(operations[name].body, body)
   })
 
+  it('a name is read from revision 3 on, and an end at revision 2 is neither sent nor told one', () => {
+    const named = {
+      tenant,
+      upload: 'up-1',
+      mediaType: 'application/pdf',
+      bytes: 10,
+      name: '季度报告.pdf',
+    }
+    expectRoundTrip(operations['begin-upload'].body, named)
+    expect(operations['begin-upload'].body.read(tree(named), limits, 3).ok).toBe(true)
+    expect(operations['begin-upload'].body.read(tree(named), limits, 2).ok).toBe(false)
+    const described = operations['describe-media'].outcomes.succeeded
+    const answer = {
+      state: 'held',
+      facts: { kind: 'file' },
+      preprocess: { kind: 'not-needed' },
+      name: '季度报告.pdf',
+    } as const
+    const now = described.write(answer as never, limits, 3)
+    const before = described.write(answer as never, limits, 2)
+    expect(now.ok && JSON.stringify(now.value)).toContain('季度报告.pdf')
+    expect(before.ok && JSON.stringify(before.value)).not.toContain('季度报告.pdf')
+  })
+
   it('a part is bytes in the process and base64 on the wire', () => {
     const body = expectRoundTrip(operations['append-upload-part'].body, {
       tenant,
@@ -86,7 +110,7 @@ describe('the bodies of media/v1 go to the wire and back unchanged', () => {
     ['read-media-page', { tenant, ref, offset: 0, limit: 10, target: { maxBytes: 1 } }],
     ['describe-media', { tenant, ref: { ...ref, bytes: 39458 } }],
   ] as const)('%s refuses a body outside its rule', (name, body) => {
-    expect(readSample(operations[name].body, body)).toEqual({ ok: false })
+    expect(readSample(operations[name].body, body).ok).toBe(false)
   })
 })
 
@@ -177,7 +201,7 @@ describe('the outcomes of media/v1 go to the wire and back unchanged', () => {
     ],
   ] as const)('%s %s refuses %j', (name, outcome, body) => {
     const outcomes = operations[name].outcomes as Record<string, unknown>
-    expect(readSample(outcomes[outcome] as never, body)).toEqual({ ok: false })
+    expect(readSample(outcomes[outcome] as never, body).ok).toBe(false)
   })
 })
 
@@ -197,7 +221,7 @@ describe('what preprocessing came to goes to the wire and back unchanged', () =>
     expectRoundTrip(observation.frame, { kind: 'changed' })
     expect(
       readSample(observation.frame, { kind: 'changed', preprocess: { kind: 'running' } }),
-    ).toEqual({ ok: false })
-    expect(readSample(observation.open, { tenant })).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
+    expect(readSample(observation.open, { tenant }).ok).toBe(false)
   })
 })

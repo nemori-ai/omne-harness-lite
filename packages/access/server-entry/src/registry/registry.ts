@@ -1,10 +1,12 @@
-import {
-  AccessAssemblyError,
-  type AccessContribution,
-  type FrameSource,
-  type OperationHandler,
-  type ProtocolKey,
+import type { GuestContractData } from '@omne-harness/public-contract'
+import type {
+  AccessContribution,
+  FrameSource,
+  OperationHandler,
+  ProtocolKey,
 } from '@omne-harness/access-cordis-contract'
+import type { Scope } from '@omne-harness/dynamis'
+import type { ScopedProtocol } from './table.ts'
 import type {
   ObservationContract,
   OperationContract,
@@ -23,54 +25,75 @@ export type Entered = {
         readonly contract: ObservationContract
         readonly source: FrameSource<any>
       }
+  readonly revision: number
   readonly signal: AbortSignal
   readonly leave: () => void
 }
 
-type Generation = {
-  readonly key: ProtocolKey
-  readonly contribution: AccessContribution<ProtocolContract>
-  readonly controller: AbortController
-  readonly inFlight: Set<symbol>
-  drain?: { readonly promise: Promise<void>; readonly resolve: () => void }
+/** A protocol the entry serves: its key, the revision of its contract, and the contract itself. */
+export type ServedProtocol = ProtocolKey & {
+  readonly revision: number
+  readonly contract: ProtocolContract
 }
 
-export type AvailabilityChange = {
-  readonly revision: number
-  readonly change: 'mounted' | 'unmounted'
-  readonly protocol: ProtocolKey
-}
+/** A declared extension point: its rules as text, and its keys when the point makes them public. */
+export type PointFact = Readonly<{
+  name: string
+  major: number
+  revision: number
+  rules: string
+  keys?: readonly string[]
+}>
+
+export type AvailabilityChange =
+  | {
+      readonly revision: number
+      readonly change: 'mounted' | 'unmounted'
+      readonly protocol: ServedProtocol
+      /** The protocols that two instances hold at once, after this change. */
+      readonly conflicts: readonly ProtocolKey[]
+    }
+  | { readonly revision: number; readonly change: 'points'; readonly points: readonly PointFact[] }
+  | { readonly revision: number; readonly change: 'scoped'; readonly scoped: number }
 
 export type AvailabilitySubscription = {
   readonly revision: number
-  readonly protocols: readonly ProtocolKey[]
+  readonly protocols: readonly ServedProtocol[]
+  readonly conflicts: readonly ProtocolKey[]
+  readonly points: readonly PointFact[]
+  readonly scoped: number
   readonly unsubscribe: () => void
 }
 
+/** A call that was not taken: not there, held by two instances, no such name, or the point is unread. */
+export type Refusal = Readonly<{
+  refused: 'not-mounted' | 'not-offered' | 'conflict' | 'unavailable'
+  by?: readonly string[]
+}>
+
 export type RegistryForPipeline = {
-  readonly enter: (key: ProtocolKey, name: string) => Entered | undefined
+  readonly enter: (key: ProtocolKey, name: string, scope?: Scope) => Entered | Refusal
   readonly subscribe: (listener: (change: AvailabilityChange) => void) => AvailabilitySubscription
+  readonly scoped: (asker: Scope) => readonly ScopedProtocol[] | undefined
 }
 
-export type AccessRegistry = RegistryForPipeline & {
+type Mount = <P extends ProtocolContract>(
+  contribution: AccessContribution<P>,
+) => () => Promise<void>
+
+/** What the entry needs besides the pipeline's part: a way to put its own protocol and take it back. */
+export type RegistryForEntry = RegistryForPipeline & { readonly own: Mount }
+
+export type HeldFor = Readonly<{ scope: Scope; data: GuestContractData }>
+
+export type StandaloneRegistry = RegistryForEntry & {
   readonly mount: <P extends ProtocolContract>(
     contribution: AccessContribution<P>,
+    held?: HeldFor,
   ) => () => Promise<void>
 }
 
-export type AccessRegistryOptions = {
-  readonly onListenerError?: (error: unknown) => void
-}
-
-function keyText(key: ProtocolKey): string {
-  return `${key.name}/v${key.major}`
-}
-
-function settleIfDrained(generation: Generation): void {
-  if (generation.inFlight.size === 0) generation.drain?.resolve()
-}
-
-function memberOf(
+export function memberOf(
   contribution: AccessContribution<ProtocolContract>,
   name: string,
 ): Entered['member'] | undefined {
@@ -89,84 +112,4 @@ function memberOf(
       source: contribution.observations[name] as FrameSource<any>,
     }
   return undefined
-}
-
-export function createAccessRegistry(options: AccessRegistryOptions = {}): AccessRegistry {
-  const entries = new Map<string, Generation>()
-  const listeners = new Set<(change: AvailabilityChange) => void>()
-  let revision = 0
-
-  function announce(change: AvailabilityChange['change'], protocol: ProtocolKey): void {
-    revision += 1
-    const event: AvailabilityChange = { revision, change, protocol }
-    for (const listener of Array.from(listeners)) {
-      try {
-        listener(event)
-      } catch (error) {
-        options.onListenerError?.(error)
-      }
-    }
-  }
-
-  function takeDown(generation: Generation): Promise<void> {
-    if (generation.drain !== undefined) return generation.drain.promise
-    let resolve!: () => void
-    const promise = new Promise<void>(settle => {
-      resolve = settle
-    })
-    generation.drain = { promise, resolve }
-    entries.delete(keyText(generation.key))
-    generation.controller.abort()
-    announce('unmounted', generation.key)
-    settleIfDrained(generation)
-    return promise
-  }
-
-  function mount<P extends ProtocolContract>(typed: AccessContribution<P>): () => Promise<void> {
-    const contribution = typed as unknown as AccessContribution<ProtocolContract>
-    const key: ProtocolKey = {
-      name: contribution.protocol.name,
-      major: contribution.protocol.major,
-    }
-    if (entries.has(keyText(key))) throw new AccessAssemblyError(key)
-    const generation: Generation = {
-      key,
-      contribution,
-      controller: new AbortController(),
-      inFlight: new Set(),
-    }
-    entries.set(keyText(key), generation)
-    announce('mounted', key)
-    return () => takeDown(generation)
-  }
-
-  function enter(key: ProtocolKey, name: string): Entered | undefined {
-    const generation = entries.get(keyText(key))
-    if (generation === undefined) return undefined
-    const member = memberOf(generation.contribution, name)
-    if (member === undefined) return undefined
-    const token = Symbol(name)
-    generation.inFlight.add(token)
-    return {
-      member,
-      signal: generation.controller.signal,
-      leave: () => {
-        if (!generation.inFlight.delete(token)) return
-        settleIfDrained(generation)
-      },
-    }
-  }
-
-  function subscribe(listener: (change: AvailabilityChange) => void): AvailabilitySubscription {
-    listeners.add(listener)
-    return {
-      revision,
-      protocols: [...entries.values()].map(generation => generation.key),
-      unsubscribe: () => {
-        listeners.delete(listener)
-      },
-    }
-  }
-
-  return { mount, enter, subscribe }
 }

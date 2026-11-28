@@ -59,12 +59,10 @@ export { Textarea } from './controls/textarea.tsx'
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './controls/tooltip.tsx'
 
 export { Ago } from './patterns/ago.tsx'
-export { CopyButton } from './patterns/ai/copy-button.tsx'
 export { type DataAttributes } from './patterns/ai/data-attributes.ts'
 export { EntityChip, type EntityKind, EntityKindIcon } from './patterns/ai/entity-chip.tsx'
 export { GlideMenu } from './patterns/ai/glide-menu.tsx'
 export { ReceiptPill, type ReceiptTone } from './patterns/ai/receipt-pill.tsx'
-export { Shimmer } from './patterns/ai/shimmer.tsx'
 export { STATE_FACT, STATE_LABELS, type StateLabel } from './patterns/ai/state-labels.ts'
 export { StateWord } from './patterns/ai/state-word.tsx'
 export { type MarkPhase, StatusMark } from './patterns/ai/status-mark.tsx'
@@ -78,10 +76,14 @@ export {
   type TraceStatus,
 } from './patterns/ai/trace.tsx'
 export { ValuePill } from './patterns/ai/value-pill.tsx'
+export { ChoiceList, ChoiceRow } from './patterns/choice-list.tsx'
+export { CommandPalette, type PaletteItem } from './patterns/command-palette.tsx'
 export { CodeSurface } from './patterns/code-surface.tsx'
+export { CountPill } from './patterns/count-pill.tsx'
 export { ImpactPanel } from './patterns/confirm/impact-panel.tsx'
 export { type ConfirmTone, InlineConfirm } from './patterns/confirm/inline-confirm.tsx'
 export { Disclosure, DisclosureContent, DisclosureTrigger } from './patterns/disclosure.tsx'
+export { type DotMark, DotPager, type PagerDot } from './patterns/dot-pager.tsx'
 export { EmptyState } from './patterns/empty-state.tsx'
 export { FactList, FactRow } from './patterns/fact-list.tsx'
 export { ActionTooltip, AppTooltipProvider, IconButton } from './patterns/icon-button.tsx'
@@ -91,22 +93,42 @@ export {
   type NoticeAction,
 } from './patterns/inline-notice.tsx'
 export { LoadingIndicator, LoadingState, useLoopPause } from './patterns/loading-state.tsx'
+export {
+  DirectorySearch,
+  ListReadingDirectory,
+  ListReadingMain,
+  ListReadingPage,
+  ListReadingRow,
+  ListReadingWorkspace,
+  ReadingDocument,
+  ReadingState,
+  ReadingToolbar,
+} from './patterns/list-reading.tsx'
 export { PageColumn } from './patterns/page-column.tsx'
 export { PageHeader } from './patterns/page-header.tsx'
 export { SaveReceipt } from './patterns/save-receipt.tsx'
+export { SettingRow } from './patterns/setting-row.tsx'
 export {
-  ToastItem,
-  type ToastItemProps,
-  ToastStack,
-  type ToastStackProps,
-  type ToastTone,
-} from './patterns/toast.tsx'
-export { AGE_TICK_MS, formatInstant, formatRelative, useAgeClock } from './patterns/time.ts'
+  AGE_TICK_MS,
+  formatInstant,
+  formatRelative,
+  RELATIVE_WORDS,
+  type RelativeWords,
+  useAgeClock,
+} from './patterns/time.ts'
 
 export { Prose, type ProseProps } from './prose/prose.tsx'
 export { PROSE_TRANSLATIONS } from './prose/translations.ts'
 
 export * from './icons/index.ts'
+export { iconNames } from './icons/glyph.ts'
+export {
+  PIECES,
+  RedrawProvider,
+  type Piece,
+  type Redraw,
+  type RedrawKind,
+} from './redraw/redraw.ts'
 
 export {
   blockingOverlay,
@@ -115,6 +137,7 @@ export {
   moveRegion,
   navigateWithin,
   ownsTyping,
+  reachable,
   rememberFocus,
 } from './lib/focus.ts'
 export { cn, joinFacts } from './lib/utils.ts'
@@ -146,7 +169,78 @@ export {
   type ThemeControllerInput,
   type ThemeRoot,
 } from './theme/controller.ts'
-export { type ChartFormat, type ChartRow, type ChartSeries } from './charts/frame.tsx'
+export {
+  createSizeController,
+  SIZE_TIERS,
+  type SizeController,
+  type SizeControllerInput,
+  type SizeKeyPlatform,
+  type SizeRoot,
+  type SizeStep,
+  type SizeTier,
+  stepSize,
+} from './size/controller.ts'
+export { useSizeFactor } from './size/use-size-factor.ts'
+export {
+  CHART_COPY,
+  type ChartCopy,
+  type ChartFormat,
+  type ChartRow,
+  type ChartSeries,
+} from './charts/frame.tsx'
 export { formatAmount, formatNumber, formatPercent, UNKNOWN_TEXT } from './charts/format.ts'
 export { AreaChart, LineChart, StackedBarChart, type SeriesChartProps } from './charts/series.tsx'
-export { ReadingMeter, ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'
+export { ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'
+export { type Doing, type FigureMoment } from './ink/body.ts'
+export { InkBubble } from './ink/ink-bubble.tsx'
+export { inkLookChanged } from './ink/ink-canvas.ts'
+export { InkMotes, type InkMotesDoing } from './ink/motes-ink.tsx'
+export { type BubbleInk } from './ink/note-ink.ts'
+export { FigureSeat } from './ink/seat.tsx'
+export { FigureStage, type FigureControl } from './ink/figure-stage.tsx'
+export { LooseFigure, type LooseControl, type LooseFigureProps } from './ink/loose-figure.tsx'
+export { SayBubble, type SayBubbleProps, type SayControl, type SaySaid } from './ink/say-bubble.tsx'
+export {
+  type SayAct,
+  type SayFate,
+  type SayInside,
+  type SayNote,
+  type SayPhrase,
+  type SayPicture,
+  type SayReply,
+  type SayReplyState,
+  type SayTarget,
+  type SayTold,
+  type SayWords,
+} from './ink/say.ts'
+export { FigureLabel, type FigureLabelLine } from './ink/figure-label.tsx'
+export { ObservationFrame, type ObservationFrameProps } from './ink/observation-frame.tsx'
+export { pointPicture, type PicturePoint, type PointedPictures } from './ink/point-picture.ts'
+export { type LooseHands, type LooseMode, type LooseWhere } from './ink/loose.ts'
+export { type FigureHand } from './ink/hand.ts'
+export { FIGURE_SIZE } from './ink/store.ts'
+export { ToldNote, type Told } from './ink/told-note.tsx'
+export { type Box } from './ink/travel.ts'
+export {
+  PAPER_NAME_LINE,
+  type PaperBox,
+  type PaperPoint,
+  type PaperSheet,
+  type PaperView,
+  type SizeLimits,
+  type ZoomLimits,
+} from './paper/geometry.ts'
+export { type PaperGesture, type PlaceBox } from './paper/carry.ts'
+export { PaperPage } from './paper/paper-page.tsx'
+export { PaperStatus } from './paper/paper-status.tsx'
+export { PaperPile, type PileLeaf } from './paper/paper-pile.tsx'
+export { FlipLayer, useFaceFlip } from './paper/flip-layer.tsx'
+export {
+  type FaceFlip,
+  type FlipPhase,
+  type FlipPlan,
+  type FlipState,
+  type FlipToward,
+} from './paper/flip.ts'
+export { PaperSpot } from './paper/paper-spot.tsx'
+export { PaperSurface, usePaperAt } from './paper/paper-surface.tsx'

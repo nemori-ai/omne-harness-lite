@@ -4,7 +4,8 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ModelInvocationRef } from './reference.ts'
-import type { ParameterAdoption, ReplayDeclaration } from './profile.ts'
+import type { DecisionAsk } from './decision-call.ts'
+import type { ModelModality, ParameterAdoption, ReplayDeclaration } from './profile.ts'
 
 declare const identity: unique symbol
 export type Identity<K extends string> = string & { readonly [identity]: K }
@@ -42,12 +43,29 @@ export type ActorRef = Readonly<{ owner: string; subject: string; revision: stri
 export type ModelReferenceAccess<P> = Access<P> & Readonly<{ reference: ModelInvocationRef }>
 export type CallAccess<P> = Access<P> & Readonly<{ call: ModelCallId }>
 export type Mutation<P> = CallAccess<P> & Readonly<{ operation: ModelOperationId }>
+export const REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
+export function isReasoningEffort(value: unknown): value is ReasoningEffort {
+  return REASONING_EFFORTS.some(effort => effort === value)
+}
 export type Parameter =
   | Readonly<{ kind: 'temperature'; value: number }>
   | Readonly<{ kind: 'top-p'; value: number }>
   | Readonly<{ kind: 'max-output-tokens'; value: string }>
   | Readonly<{ kind: 'stop'; value: readonly string[] }>
-  | Readonly<{ kind: 'reasoning-effort'; value: 'none' | 'low' | 'medium' | 'high' | 'max' }>
+  | Readonly<{
+      kind: 'reasoning-effort'
+      value: ReasoningEffort | 'none' | 'max'
+      scale?: never
+      basis?: never
+    }>
+  | Readonly<{
+      kind: 'reasoning-effort'
+      value: ReasoningEffort
+      scale: 'unified'
+      /** Present when the effort is the tenant's default for the model, not the session's choice. */
+      basis?: 'preference'
+    }>
   | Readonly<{ kind: 'seed'; value: string }>
   | Readonly<{ kind: 'frequency-penalty'; value: number }>
   | Readonly<{ kind: 'presence-penalty'; value: number }>
@@ -69,12 +87,17 @@ export type Supplier = Readonly<{
 }>
 /** The context window of the profile a request was prepared on, as the profile said then. */
 export type ContextWindow = Readonly<{ tokens: string; compactionTriggerPercent: string }>
-export type FixedModelRequest = Readonly<{
+/** What a fixed request of every kind states. */
+export type RequestCommon = Readonly<{
   profile: Adoption
-  contextWindow?: ContextWindow
   suppliers: readonly [Supplier, ...Supplier[]]
   fallback: boolean
   retryPolicy: Adoption
+  source: Adoption
+}>
+export type LlmRequest = Readonly<{
+  kind: 'llm'
+  contextWindow?: ContextWindow
   parameters: readonly Parameter[]
   system: readonly ContentBlock[]
   messages: readonly Message[]
@@ -84,13 +107,33 @@ export type FixedModelRequest = Readonly<{
   declarations: readonly [ReplayDeclaration, ...ReplayDeclaration[]]
   representation: Adoption
   parameterAdoptions: readonly ParameterAdoption[]
-  source: Adoption
 }>
-export type FixedRequestHead = Readonly<
-  Omit<FixedModelRequest, 'system' | 'messages' | 'tools'> & {
+export type DecisionsRequest = Readonly<{ kind: 'decisions'; ask: DecisionAsk }>
+/** A live session: what it is told first, the conversation it continues, its voice, and how its media go. */
+export type LiveRequest = Readonly<{
+  kind: 'live'
+  /** The modalities the profile takes in, fixed with the request: commands and media outside them are refused. */
+  input: readonly ModelModality[]
+  instructions: string
+  history: readonly Message[]
+  voice: string | null
+  standby?: Readonly<{ idleSeconds: string }>
+  media: Readonly<{ via: 'link'; audio: string }>
+}>
+export type LlmModelRequest = RequestCommon & LlmRequest
+export type DecisionsModelRequest = RequestCommon & DecisionsRequest
+export type LiveModelRequest = RequestCommon & LiveRequest
+export type FixedModelRequest = LlmModelRequest | DecisionsModelRequest | LiveModelRequest
+export type LlmRequestHead = Readonly<
+  Omit<LlmModelRequest, 'system' | 'messages' | 'tools'> & {
     messageIds: readonly Message['id'][]
   }
 >
+export type DecisionsRequestHead = Readonly<Omit<DecisionsModelRequest, 'ask'>>
+export type LiveRequestHead = Readonly<
+  Omit<LiveModelRequest, 'instructions' | 'history'> & { messageIds: readonly Message['id'][] }
+>
+export type FixedRequestHead = LlmRequestHead | DecisionsRequestHead | LiveRequestHead
 export type Admit<P> = Mutation<P> &
   Readonly<{
     request: FixedModelRequest

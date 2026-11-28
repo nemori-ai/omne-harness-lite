@@ -8,6 +8,7 @@ import {
   readModelDeliveryMaterial,
 } from '@omne-harness/agent'
 import {
+  OVER_LIMIT_METRICS,
   decodeDispatchId,
   decodeModelCallId,
   decodeModelOperationId,
@@ -17,6 +18,7 @@ import {
   type ModelDelivery,
 } from '@omne-harness/model-contract'
 import { decodeAgentExecutionId } from '@omne-harness/agent-contract'
+import { canonical } from '../src/canonical.ts'
 import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
@@ -29,6 +31,7 @@ import {
   ok,
   openInput,
   operation,
+  otherTenant,
   tenantB,
   loadWithEntries,
 } from './journal-support.ts'
@@ -57,7 +60,7 @@ async function setup() {
     access: alice,
     execution: execution(),
     operation: operation('invoke-receiver'),
-    initial: acceptedInput('input-receiver'),
+    initial: [acceptedInput('input-receiver')],
     grant: null,
     idle() {},
   })
@@ -103,6 +106,61 @@ async function setup() {
 }
 
 describe('host Model receiver', () => {
+  it('answers saved with the pushed key and the settlement evidence when the consuming execution has settled, without reading or writing, and still refuses an execution it never knew', async () => {
+    const s = await setup()
+    const settlement = evidence('settled')
+    const touched: string[] = []
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('joint provider expected')
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          materials: {
+            ...s.dependencies.provider.materials,
+            read: input => {
+              touched.push('materials.read')
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+          received: {
+            ...received,
+            commit: input => {
+              touched.push('received.commit')
+              return received.commit(input)
+            },
+            query: input => {
+              touched.push('received.query')
+              return received.query(input)
+            },
+          },
+        },
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve: async input =>
+            input.execution === execution()
+              ? { ok: { kind: 'settled', evidence: settlement } }
+              : { failure: { kind: 'denied', action: 'resolve' } },
+        },
+      },
+      createModelReceiverState<string>(),
+    )
+    const signal = new AbortController().signal
+    expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toEqual({
+      ok: { key: s.delivery.key, evidence: settlement },
+    })
+    const foreign = { ...s.delivery.consumer, owner: 'another-owner' }
+    expect(
+      await receiver.push({
+        access: alice,
+        delivery: { ...s.delivery, consumer: foreign },
+        signal,
+      }),
+    ).toEqual({ failure: { kind: 'denied' } })
+    expect(touched).toEqual([])
+  })
+
   it('routes standalone material by explicit execution and retains its access boundary', async () => {
     const s = await setup()
     const consumer = {
@@ -430,6 +488,92 @@ describe('reception capacity', () => {
         .entries,
     ).toEqual([])
   })
+  describe('counting what is already in custody', () => {
+    type Capacity = ReturnType<ModelReceiverDependencies<string>['capacity']>
+    const ROOMY: Capacity = { records: 10, bytes: 1000000, attachments: 10, inFlight: 2 }
+    async function retainedOne(s: Awaited<ReturnType<typeof setup>>) {
+      const received = s.dependencies.provider.received
+      if (!received) throw new Error('joint required')
+      const state = createModelReceiverState<string>()
+      const receiver = createAgentModelReceiver(
+        {
+          ...s.dependencies,
+          provider: {
+            ...s.dependencies.provider,
+            received: {
+              ...received,
+              async commit() {
+                throw new Error('the store does not answer')
+              },
+            },
+          },
+        },
+        state,
+      )
+      const signal = new AbortController().signal
+      expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toEqual({
+        failure: { kind: 'outcome-unknown' },
+      })
+      await drainTasks(state)
+      const [kept] = state.receptions.values()
+      if (kept === undefined) throw new Error('a retained reception expected')
+      return kept
+    }
+    async function pushOver(
+      s: Awaited<ReturnType<typeof setup>>,
+      held: readonly Parameters<ModelReceiverState<string>['receptions']['set']>[1][],
+      capacity: Partial<Capacity>,
+      delivery: ModelDelivery = s.delivery,
+    ) {
+      const state = createModelReceiverState<string>()
+      held.forEach((reception, index) => state.receptions.set(`held-${index}`, reception))
+      const receiver = createAgentModelReceiver(
+        { ...s.dependencies, capacity: () => ({ ...ROOMY, ...capacity }) },
+        state,
+      )
+      return receiver.push({ access: alice, delivery, signal: new AbortController().signal })
+    }
+
+    it('keeps what a new custody takes: its bytes and its attachment references', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      expect(kept).toMatchObject({
+        bytes: Buffer.byteLength(canonical(s.delivery)),
+        attachments: 0,
+      })
+    })
+
+    it('counts the custody of its own tenant only', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const theirs = { ...kept, access: otherTenant }
+      expect(await pushOver(s, [theirs], { records: 1 })).toHaveProperty('ok')
+      expect(await pushOver(s, [kept], { records: 1 })).toEqual({
+        failure: { kind: 'backpressured', resource: 'records' },
+      })
+    })
+
+    it('takes a custody that fills the bytes exactly, and refuses one byte more', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const own = Buffer.byteLength(canonical(s.delivery))
+      const full = { ...kept, bytes: 500 }
+      expect(await pushOver(s, [full], { bytes: 500 + own })).toHaveProperty('ok')
+      expect(await pushOver(s, [full, { ...kept, bytes: 1 }], { bytes: 500 + own })).toEqual({
+        failure: { kind: 'backpressured', resource: 'bytes' },
+      })
+    })
+
+    it('takes a custody that fills the attachments exactly, and refuses one more', async () => {
+      const s = await setup()
+      const kept = await retainedOne(s)
+      const holding = { ...kept, attachments: 3 }
+      expect(await pushOver(s, [holding], { attachments: 3 })).toHaveProperty('ok')
+      expect(await pushOver(s, [holding, { ...kept, attachments: 1 }], { attachments: 3 })).toEqual(
+        { failure: { kind: 'backpressured', resource: 'attachments' } },
+      )
+    })
+  })
   it('cancels before acceptance without a write and retains actual in-flight capacity after an aborted wait', async () => {
     const s = await setup(),
       stop = new AbortController()
@@ -539,6 +683,45 @@ describe('receiver failure boundaries', () => {
       expect(receiver.inspect().diagnostics).toHaveLength(1)
     },
   )
+  it('refuses the events of a live call as a kind it does not receive, before any check, read or write', async () => {
+    const s = await setup()
+    const touched: string[] = []
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('joint required')
+    const state = createModelReceiverState<string>()
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          received: {
+            ...received,
+            commit: input => (touched.push('received.commit'), received.commit(input)),
+            query: input => (touched.push('received.query'), received.query(input)),
+          },
+        },
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve: input => (
+            touched.push('targets.resolve'),
+            s.dependencies.targets.resolve(input)
+          ),
+        },
+      },
+      state,
+    )
+    const live: ModelDelivery = {
+      kind: 'live',
+      key: { kind: 'live', reference: s.delivery.key.reference, from: 1, to: 1 },
+      consumer: s.delivery.consumer,
+      frames: [{ seq: 1, at: '2026-11-27T00:00:00.000Z', event: { t: 'asleep', on: true } }],
+    }
+    expect(
+      await receiver.push({ access: alice, delivery: live, signal: new AbortController().signal }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'kind', reason: 'unsupported' } })
+    expect(touched).toEqual([])
+    expect(state.receptions.size).toBe(0)
+  })
   it('recognizes saved under an already cancelled signal and verifies the original readable material', async () => {
     const s = await setup(),
       saved = ok(await s.push()),
@@ -648,7 +831,7 @@ it.each(['same', 'different'] as const)(
             operation: operation(`open-${id}`),
             instance: instance(),
             grant: null,
-            initial: acceptedInput(`input-${id}`),
+            initial: [acceptedInput(`input-${id}`)],
             checkpoint: { ...checkpoint('M6'), calls: [pending] },
           }),
         ),
@@ -660,6 +843,7 @@ it.each(['same', 'different'] as const)(
         consumer: later.position,
       }),
     )
+    if ('kind' in target) throw new Error('a target expected')
     expect(target.execution).toBe(execution())
     expect(target.pending).toEqual(s.pending)
     const foreignTarget = ok(
@@ -669,6 +853,7 @@ it.each(['same', 'different'] as const)(
         consumer: later.position,
       }),
     )
+    if ('kind' in foreignTarget) throw new Error('a target expected')
     expect(foreignTarget.pending.reference).toBe(foreignReference)
     expect(foreignTarget.pending.consumption).toBe(later.consumption)
     expect(foreignReference).toBe(s.pending.reference)
@@ -838,6 +1023,33 @@ async function drainTasks(state: ModelReceiverState<string>) {
   while (state.tasks.size) await Promise.all(state.tasks)
 }
 
+it('accepts every metric an over-limit failure may report, the file one and none included', async () => {
+  const s = await setup()
+  if (s.delivery.kind !== 'result') throw new Error('result required')
+  const base = s.delivery
+  for (const metric of [...OVER_LIMIT_METRICS, null]) {
+    const delivery: ModelDelivery = {
+      ...base,
+      settlement: {
+        ...base.settlement,
+        termination: {
+          kind: 'failed',
+          fault: {
+            cause: 'input-over-limit',
+            diagnostic: 'too-large',
+            upstreamStatus: null,
+            reported: { metric, limit: '4', actual: '5' },
+          },
+        },
+      },
+    }
+    const material = modelDeliveryMaterial(alice, delivery)
+    const expected = modelReceivedDraft(delivery, s.pending.consumption)
+    expect(readModelDeliveryMaterial(alice, material, expected)).not.toBeNull()
+  }
+  expect(OVER_LIMIT_METRICS).toContain('file-bytes')
+})
+
 it('rejects an arbitrary OverLimitMetric in persisted received facts', async () => {
   const s = await setup()
   if (s.delivery.kind !== 'result') throw new Error('result required')
@@ -894,7 +1106,7 @@ it.each(['retry', 'recover'] as const)(
             operation: operation(`open-${suffix}`),
             instance: instance(suffix),
             grant: null,
-            initial: acceptedInput(suffix),
+            initial: [acceptedInput(suffix)],
             checkpoint: { ...checkpoint(), calls: [pending] },
           }),
         ),

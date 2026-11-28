@@ -89,6 +89,10 @@ export type {
   RevokeLoginOutcome,
   SwitchCurrentTenantInput,
   SwitchCurrentTenantOutcome,
+  AccountPreferenceOutcome,
+  ReadAccountPreferenceInput,
+  WriteAccountPreferenceInput,
+  WriteAccountPreferenceOutcome,
   ValidLogin,
 } from './governance.ts'
 export {
@@ -106,6 +110,7 @@ export type {
   StandingReserveOutcome,
   StandingObservation,
   StandingSettleOutcome,
+  StandingReleaseOutcome,
   StandingRecoveryPage,
   StandingReservations,
 } from './reservations.ts'
@@ -114,3 +119,4 @@ export type {
   GovernanceRecoveryOutcome,
   IdentityGovernanceRecovery,
 } from './governance.ts'
+export { ACCOUNT_PREFERENCE_LIMITS } from './governance.ts'

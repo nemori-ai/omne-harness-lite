@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AttachmentTray, type DraftOffer, type PickedFile } from '../src/model/attachment-tray.ts'
+import { statusOf } from '../src/view/attachment-tray.tsx'
 import { fakeMedia, TENANT, type FakeMedia } from './fixtures/fake-media.ts'
 
 const picked = (name: string, bytes: number[], type = 'image/png'): PickedFile => ({
@@ -301,6 +302,67 @@ describe('附件的预处理', () => {
       attachments: [{ kind: 'file' }, { kind: 'file' }, { kind: 'image' }],
       ready: true,
     })
+  })
+
+  it('转不出且服务端说了原因：附件条照实说读不出与原因；没说原因的照旧', async () => {
+    const media = fakeMedia(4)
+    for (const reason of ['encrypted', 'damaged', 'no-text'] as const)
+      media.once('prepare-media', done({ outcome: 'inconvertible', definition, engine, reason }))
+    media.once('prepare-media', done({ outcome: 'inconvertible', definition, engine }))
+    const { tray, last } = trayOver(media)
+    for (const name of ['locked.pdf', 'broken.pdf', 'scan.pdf', 'old.pdf']) {
+      tray.add([picked(name, [7], 'application/pdf')])
+      await settled()
+    }
+    expect(tray.read().map(statusOf)).toEqual([
+      '已附上，读不出：文件加密了',
+      '已附上，读不出：文件损坏了',
+      '已附上，里面没有能提取的文字（例如扫描件）',
+      '已备好，没有可转出的文字',
+    ])
+    expect(last()).toMatchObject({ ready: true })
+  })
+
+  it('开始上传时带上文件名；对方收不了名字（答不可用）时不带名字再开始一次，照样传完', async () => {
+    const media = fakeMedia(4)
+    const { tray } = trayOver(media)
+    tray.add([picked('季度报告.pdf', [7], 'application/pdf')])
+    await settled()
+    const begins = () =>
+      media.calls.filter(call => call.operation === 'begin-upload').map(call => call.body)
+    expect(begins()).toEqual([expect.objectContaining({ name: '季度报告.pdf' })])
+    media.once('begin-upload', () => ({ outcome: 'unavailable' }))
+    tray.add([picked('旧服务端.pdf', [8], 'application/pdf')])
+    await settled()
+    expect(
+      begins()
+        .slice(1)
+        .map(body => (body as { name?: string }).name),
+    ).toEqual(['旧服务端.pdf', undefined])
+    media.once('begin-upload', () => ({ outcome: 'protocol-rejected', body: {} }))
+    tray.add([picked('不报修订的服务端.pdf', [9], 'application/pdf')])
+    await settled()
+    expect(
+      begins()
+        .slice(3)
+        .map(body => (body as { name?: string }).name),
+    ).toEqual(['不报修订的服务端.pdf', undefined])
+    expect(tray.read().map(item => item.state.kind)).toEqual(['ready', 'ready', 'ready'])
+  })
+
+  it('文件名是空的，开始上传时就不带名字这一项', async () => {
+    const media = fakeMedia(4)
+    const { tray } = trayOver(media)
+    tray.add([picked('', [7], 'application/pdf')])
+    await settled()
+    const [begin] = media.calls.filter(call => call.operation === 'begin-upload')
+    expect(Object.keys(begin?.body ?? {}).sort()).toEqual([
+      'bytes',
+      'mediaType',
+      'tenant',
+      'upload',
+    ])
+    expect(tray.read().map(item => item.state.kind)).toEqual(['ready'])
   })
 
   it('转换失败时说原因，整份草稿没备好；重试一次再请服务端备好', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
-import { expectRoundTrip, readSample, session, tenant } from './fixtures/samples.ts'
+import { expectRoundTrip, limits, readSample, session, tenant, tree } from './fixtures/samples.ts'
 
 const operation = sessionDiagnosticsProtocol.operations['read-session-diagnostics']
 const target = { tenant, session }
@@ -162,7 +162,7 @@ describe('read-session-diagnostics request body', () => {
     ['a session that is no session', { tenant, session: 'short', cursor: 'c' }],
     ['a field it does not have', { ...target, cursor: 'c', extra: 1 }],
   ])('refuses %s', (_label, sample) => {
-    expect(readSample(operation.body, sample)).toEqual({ ok: false })
+    expect(readSample(operation.body, sample).ok).toBe(false)
   })
 })
 
@@ -185,7 +185,41 @@ describe('read-session-diagnostics outcome bodies', () => {
     expectRoundTrip(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'unknown' }))
     expect(
       readSample(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'maybe' })),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
+  })
+
+  it('carries, from revision 2 on, the reasoning effort of each attempt and where it came from, or that it is not known', () => {
+    const withAttempt = (dispatch: unknown) => ({
+      ...page,
+      runs: [{ ...run, modelCalls: [{ ...run.modelCalls[0], dispatches: [dispatch] }] }],
+    })
+    const answered = operation.outcomes.succeeded
+    for (const effort of [
+      { value: 'high', basis: 'selection' },
+      { value: 'medium', basis: 'preference' },
+      { value: null, basis: 'provider' },
+      { value: 'max', basis: 'selection' },
+      unknownValue,
+    ])
+      expectRoundTrip(answered, withAttempt({ ...attempt, effort }))
+    expect(
+      readSample(answered, withAttempt({ ...attempt, effort: { value: 'high', basis: 'guess' } })),
+    ).toMatchObject({ ok: false })
+    const profile = {
+      owner: 'model',
+      name: 'anthropic/claude-sonnet-5',
+      revision: '3',
+      digest: 'd',
+    }
+    expectRoundTrip(answered, withAttempt({ ...attempt, profile }))
+    expectRoundTrip(answered, withAttempt({ ...attempt, profile: unknownValue }))
+    expect(answered.read(tree(withAttempt({ ...attempt, profile })), limits, 1).ok).toBe(false)
+    const told = withAttempt({ ...attempt, effort: { value: 'high', basis: 'selection' } })
+    expect(answered.read(tree(told), limits, 1).ok).toBe(false)
+    const read = readSample(answered, told)
+    if (!read.ok) throw new Error('not read')
+    const older = answered.write(read.value, limits, 1)
+    expect(older.ok && JSON.stringify(older.value).includes('effort')).toBe(false)
   })
 
   it('carries the moments, the span to the response, the connect retries and the dispatch progress, and takes a recording without them', () => {
@@ -225,7 +259,7 @@ describe('read-session-diagnostics outcome bodies', () => {
       }),
       withCall({ ...found, progress: { ...progress, made: 2 } }, attempt),
     ])
-      expect(readSample(operation.outcomes.succeeded, broken)).toEqual({ ok: false })
+      expect(readSample(operation.outcomes.succeeded, broken).ok).toBe(false)
   })
 
   it('round-trips a page of no runs and a run without a terminal', () => {
@@ -301,11 +335,11 @@ describe('read-session-diagnostics outcome bodies', () => {
     ],
     ['with a field it does not have', { ...page, extra: 1 }],
   ])('refuses a succeeded page %s', (_label, sample) => {
-    expect(readSample(operation.outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readSample(operation.outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it('writes an empty body for invalid and refuses a body with a member', () => {
     expect(expectRoundTrip(operation.outcomes.invalid, {})).toEqual({})
-    expect(readSample(operation.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
+    expect(readSample(operation.outcomes.invalid, { reason: 'x' }).ok).toBe(false)
   })
 })

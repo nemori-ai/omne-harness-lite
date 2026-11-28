@@ -224,12 +224,23 @@ describe('the processor media.references', () => {
     it('a medium that cannot be converted says so in the snapshot', async () => {
       const { w, ref } = await prepared(async () => ({ kind: 'inconvertible' }))
       const [, block] = blocksOf(await runOver(w, ref)) as [unknown, Record<string, unknown>]
-      expect(block.snapshot).toEqual({
+      expect(block.snapshot).toStrictEqual({
         outcome: 'inconvertible',
         definition: VOICE,
         engine: ENGINE,
       })
       expect(block.transcript).toBeNull()
+    })
+
+    it('says in the snapshot why a medium cannot be converted, when its engine says', async () => {
+      const { w, ref } = await prepared(async () => ({ kind: 'inconvertible', reason: 'damaged' }))
+      const [, block] = blocksOf(await runOver(w, ref)) as [unknown, Record<string, unknown>]
+      expect(block.snapshot).toEqual({
+        outcome: 'inconvertible',
+        definition: VOICE,
+        engine: ENGINE,
+        reason: 'damaged',
+      })
     })
 
     it('a medium whose preprocessing has not started, or has failed, is blocked by name and not held', async () => {

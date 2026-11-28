@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import {
-  adoption,
+  available,
   functionDefinition,
   harness,
   principalA,
@@ -12,21 +12,16 @@ function boundedTo(maxInlineUtf8Bytes: number) {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('fixture must define a function')
   return request({
-    availability: {
-      kind: 'available',
-      definition: {
-        ...definition,
-        returns: {
-          ...definition.returns,
-          offloading: {
-            inline: { kind: 'bounded', maxInlineUtf8Bytes },
-            retention: { kind: 'system' },
-          },
+    availability: available({
+      ...definition,
+      returns: {
+        ...definition.returns,
+        offloading: {
+          inline: { kind: 'bounded', maxInlineUtf8Bytes },
+          retention: { kind: 'system' },
         },
       },
-      executor: adoption('exec'),
-      layer: { kind: 'official' },
-    },
+    }),
   })
 }
 

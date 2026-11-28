@@ -1,5 +1,7 @@
 import canonicalize from 'canonicalize'
 import {
+  scheduleDispatchRequirement,
+  ScheduleDispatchRequirementSchema,
   scheduleManagementGuardRequirement,
   ScheduleManagementGuardRequirementSchema,
   scheduleManagementGuardsFact,
@@ -41,6 +43,27 @@ export default {
   participant: 'fixture.schedule.guards',
   protocol: 'schedule-management-guards/1',
   execute(facts, port) {
+    if (facts.dispatch !== undefined) {
+      const requirement = ScheduleDispatchRequirementSchema.parse(facts.dispatch)
+      const { command, scope } = requirement.dispatch
+      if (!same(requirement, scheduleDispatchRequirement(scope, command)))
+        return { kind: 'conflict', basis: { forbidden: true } }
+      const effect = requirement.quotaEffect
+      if (effect.kind === 'release') {
+        const held = port.execute(
+          'SELECT reservation, held FROM fixture_schedule_quota WHERE schedule_id = ? LIMIT 1',
+          [effect.scheduleId],
+        ).rows[0]
+        if (held?.[0] !== effect.reservationRef || held[1] !== 1n)
+          return { kind: 'conflict', basis: { stale: true } }
+        port.execute('UPDATE fixture_schedule_quota SET held=0 WHERE schedule_id = ?', [
+          effect.scheduleId,
+        ])
+      }
+      const fact = { ...requirement, decisionAt: command.at }
+      port.provideFact(scheduleManagementGuardsFact, fact)
+      return { kind: 'participated', response: fact }
+    }
     if (facts.action === 'configure') {
       port.execute(
         'INSERT INTO fixture_schedule_authority (scope, access, basis_guard, quota_guard, mode, decision_at, capacity, actions, purposes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(scope) DO UPDATE SET access=excluded.access, basis_guard=excluded.basis_guard, quota_guard=excluded.quota_guard, mode=excluded.mode, decision_at=excluded.decision_at, capacity=excluded.capacity, actions=excluded.actions, purposes=excluded.purposes',
@@ -105,7 +128,6 @@ export default {
       return fail('forbidden')
     const mode = authority[3]
     if (mode === 'deny') return fail('forbidden')
-    if (mode === 'consent') return fail('consent_required')
     const failure = quota(port, requirement, authority[5])
     if (failure !== null) return fail(failure)
     if (mode === 'sql') {

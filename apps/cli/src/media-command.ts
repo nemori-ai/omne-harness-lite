@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
-import { extname } from 'node:path'
+import { basename, extname } from 'node:path'
 import { mediaProtocol, type MediaProtocol } from '@omne-harness/media-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { BodyOf } from '@omne-harness/sdk/core'
@@ -13,6 +13,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -25,7 +26,7 @@ type Sender = Omit<Context, 'name'>
 export type MediaReference = Reference
 /** What an action ends with: a result to print with what it repeats, or the exit a local fault gives. */
 type Ending =
-  | Readonly<{ result: CallResult | undefined; echo: RequestEcho; uncertain?: string }>
+  | Readonly<{ result: CallResult; echo: RequestEcho; uncertain?: string }>
   | Readonly<{ local: string }>
   | Readonly<{ usage: string }>
 
@@ -39,9 +40,7 @@ const TYPES: Readonly<Record<string, string>> = {
   '.pdf': 'application/pdf',
 }
 const digestOf = (bytes: Uint8Array) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`
-const succeeded = (
-  result: CallResult | undefined,
-): result is Extract<CallResult, { kind: 'response' }> =>
+const succeeded = (result: CallResult): result is Extract<CallResult, { kind: 'response' }> =>
   result?.kind === 'response' && result.outcome === 'succeeded'
 
 function call<K extends keyof Operations & string>(
@@ -67,7 +66,7 @@ async function sendParts(
   upload: string,
   bytes: Uint8Array,
   from: Readonly<{ nextSequence: number; partBytes: number }>,
-): Promise<{ result: CallResult | undefined } | null> {
+): Promise<{ result: CallResult } | null> {
   const { partBytes } = from
   for (let sequence = from.nextSequence; sequence * partBytes < bytes.byteLength; sequence += 1) {
     const part = bytes.subarray(sequence * partBytes, (sequence + 1) * partBytes)
@@ -97,15 +96,13 @@ async function sendUpload(
   context: Sender,
   read: Extract<ReadFile, { file: string }>,
   upload: string,
-): Promise<Readonly<{ result: CallResult | undefined; ref: Reference | null }>> {
+): Promise<Readonly<{ result: CallResult; ref: Reference | null }>> {
   const { tenant } = context
   const { mediaType, bytes } = read
-  const begun = await call(context, 'begin-upload', {
-    tenant,
-    upload,
-    mediaType,
-    bytes: bytes.byteLength,
-  })
+  const plain = { tenant, upload, mediaType, bytes: bytes.byteLength }
+  let begun = await call(context, 'begin-upload', { ...plain, name: basename(read.file) })
+  if (begun?.kind === 'response' && begun.outcome === 'protocol-rejected')
+    begun = await call(context, 'begin-upload', plain)
   if (!succeeded(begun)) return { result: begun, ref: null }
   const { status } = begun.body as {
     status: { kind: string; nextSequence: number; partBytes: number }
@@ -124,9 +121,7 @@ async function prepareUpload(
   context: Sender,
   ref: Reference,
 ): Promise<
-  | Readonly<{ ready: true }>
-  | Readonly<{ result: CallResult | undefined }>
-  | Readonly<{ unready: string }>
+  Readonly<{ ready: true }> | Readonly<{ result: CallResult }> | Readonly<{ unready: string }>
 > {
   const result = await call(context, 'prepare-media', { tenant: context.tenant, ref })
   if (!succeeded(result)) return { result }
@@ -255,7 +250,8 @@ async function runMedia(
   const ending = await spec.run({ name, link, tenant, newId: environment.services.newId }, values)
   if ('usage' in ending) return usageError(output, `omne ${name}: ${ending.usage}\n`)
   if ('local' in ending) return localFailure(output, `omne ${name}: ${ending.local}\n`)
-  if (ending.result === undefined) return usageError(output, unrecognized(name))
+  if (ending.result.kind === 'rejected')
+    return usageError(output, refusedRequest(name, ending.result.rejection))
   const echo = { tenant: encodeTenantText(tenant), ...ending.echo }
   const code = report(name, ending.result, echo, output)
   if (code === 5 && ending.uncertain !== undefined) output.stderr(ending.uncertain)

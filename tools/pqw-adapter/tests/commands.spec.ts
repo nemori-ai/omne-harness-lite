@@ -561,3 +561,16 @@ it('mutation names every member with an empty range on one line, and none when e
   expect(await closeoutMutation(['--base', 'B', '--out', scratch()], full)).toBe(0)
   expect(full.printed.some(line => line.startsWith('范围为空'))).toBe(false)
 })
+
+it('mutation with --tests says how many test files were named and what that does to the verdicts', async () => {
+  const { exec } = planned(['tools/t/src/a.ts:1-10'])
+  const named = deps({ repo, exec })
+  await closeoutMutation(
+    ['--base', 'B', '--tests', 'tools/t/tests/a.spec.ts', '--plan-only', '--out', scratch()],
+    named,
+  )
+  expect(named.printed.some(line => line.startsWith('点名用例 1 份'))).toBe(true)
+  const whole = deps({ repo, exec })
+  await closeoutMutation(['--base', 'B', '--plan-only', '--out', scratch()], whole)
+  expect(whole.printed.some(line => line.startsWith('点名用例'))).toBe(false)
+})

@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { type Context, type Fiber, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
@@ -13,8 +14,14 @@ import {
   type ToolResultReceiver,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import { declare, deployment, list, type Contract, type Scope } from '@omne-harness/dynamis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import type { Plugin } from '@deepseek-ai/cordis'
 import {
   describedAdoption,
+  isToolSourcePrefix,
+  TOOL_ENTRY_SOURCES_POINT,
+  type ToolEntrySource,
   type ResultPolicy,
   type ToolAccounts,
   type ToolAuthority,
@@ -22,6 +29,7 @@ import {
   type ToolBindingRegistry,
   type ToolBindingScope,
   type ToolBindings,
+  type ProgramActionAdmission,
   type ToolChildren,
   type ToolClock,
   type ToolCommands,
@@ -36,7 +44,6 @@ import {
   type ToolResourceResponses,
   type ToolStartAuthority,
   type ToolStartFence,
-  type ToolStartReleases,
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
@@ -174,12 +181,16 @@ export type ToolAuthorityFailure =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  /** The version is no longer the one its holder holds: the holding as it stands now is the durable evidence. */
+  | Readonly<{ kind: 'missing'; evidence: DurableEvidence }>
+/** What refuses a contribution outright: a version no longer held is refused at loading, never here. */
+export type Refusal = Exclude<ToolAuthorityFailure, { kind: 'missing' }>
 export interface ToolContributionAuthority<P> {
   verify(authority: ToolAuthority): Outcome<VerifiedAuthority, ToolAuthorityFailure>
   admits(
     access: Access<P>,
     layer: SourceLayer,
-  ): Outcome<void, Exclude<ToolAuthorityFailure, { kind: 'invalid' }>>
+  ): Outcome<void, Exclude<ToolAuthorityFailure, { kind: 'invalid' | 'missing' }>>
 }
 
 /** @owner packages/tool/tool-cordis-contract */
@@ -447,10 +458,122 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
     super(ctx, ToolCatalogService.provide)
   }
   abstract readonly inspect: ToolCatalog<P>['inspect']
+  abstract readonly inspectEach: ToolCatalog<P>['inspectEach']
   abstract readonly usage: ToolCatalog<P>['usage']
   abstract readonly search: ToolCatalog<P>['search']
 }
 export const toolCatalogKey = ToolCatalogService.provide
+
+const entrySourcesContract: Contract = Object.freeze({
+  name: TOOL_ENTRY_SOURCES_POINT,
+  title: '工具的条目来源',
+  tree: 'server',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key: 'the name prefix the source owns, for example mcp__',
+  gives:
+    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id, whether a program made the call, and abort signal when one is executed',
+  item: Object.freeze({
+    kind: 'effect',
+    fields: Object.freeze({
+      prefix: 'string',
+      list: 'function',
+      select: 'function',
+      execute: 'function',
+    }),
+  }),
+  resolve: 'conflict',
+  binding: 'run',
+  onError:
+    'a source whose listing throws, times out or names an entry outside its prefix answers unavailable; the other sources and the registry answer as usual',
+  version: 1,
+  revision: 3,
+  keys: 'public',
+  conformance: null,
+  summary:
+    'The sources of tool entries besides the binding registry: each item lists, selects and executes the entries under one name prefix. It is read as the tenant who asks: a source of the deployment is seen by every tenant and is locked, a source a tenant put by that tenant alone.',
+})
+
+/** @owner packages/tool/tool-cordis-contract */
+export class ToolEntrySourcesService<P, B extends ContentBlock> extends Service {
+  static readonly provide = 'toolEntrySources'
+  protected readonly tree: DynamisService
+  private readonly inflight = new Map<string, Set<symbol>>()
+  private readonly idle = new Map<string, (() => void)[]>()
+  constructor(ctx: Context) {
+    super(ctx, ToolEntrySourcesService.provide)
+    const tree = ctx.get(dynamisKey) as DynamisService
+    tree.put([declare(entrySourcesContract)])
+    this.tree = tree
+  }
+
+  /** The sources now in service for the one who asks. A prefix with two sources has none; a point that cannot be read gives none. */
+  sources(asker: Scope): readonly ToolEntrySource<P, B>[] {
+    const read = list<ToolEntrySource<P, B>>(
+      this.tree.registry(),
+      TOOL_ENTRY_SOURCES_POINT,
+      null,
+      asker,
+    )
+    return read.kind === 'read' ? read.items.map(({ entry }) => entry.item) : []
+  }
+
+  /** One call of an entry under this prefix is in flight until the returned function is called. */
+  hold(prefix: string): () => void {
+    const held = this.inflight.get(prefix) ?? new Set<symbol>()
+    this.inflight.set(prefix, held)
+    const mark = Symbol('source-call')
+    held.add(mark)
+    return () => {
+      held.delete(mark)
+      if (held.size > 0) return
+      for (const wake of this.idle.get(prefix) ?? []) wake()
+      this.idle.delete(prefix)
+    }
+  }
+
+  /** A source goes on the point as the one who contributes; it is taken off once its calls in flight have ended. */
+  contribute(source: ToolEntrySource<P, B>): void {
+    if (!isToolSourcePrefix(source.prefix))
+      throw new TypeError(`${JSON.stringify(source.prefix)} is not a tool source prefix`)
+    // Read from `this`, not captured: Cordis gives the caller its own view, so the item is put as the caller.
+    const { tree } = this
+    const drained = (): Promise<void> =>
+      (this.inflight.get(source.prefix)?.size ?? 0) === 0
+        ? Promise.resolve()
+        : new Promise(resolve => {
+            this.idle.set(source.prefix, [...(this.idle.get(source.prefix) ?? []), resolve])
+          })
+    this.ctx.effect(
+      () =>
+        tree.put(
+          by => [
+            {
+              point: TOOL_ENTRY_SOURCES_POINT,
+              key: source.prefix,
+              id: '',
+              scope: deployment,
+              rank: 0,
+              digest: `${source.prefix}@${by.fiber}#${by.generation}`,
+              item: source,
+              lock: true,
+            },
+          ],
+          { drain: drained },
+        ),
+      'toolEntrySources.contribute',
+    )
+  }
+}
+export const toolEntrySourcesKey = ToolEntrySourcesService.provide
+
+export const toolEntrySourcesPlugin: Plugin.Object = {
+  name: 'tool-entry-sources',
+  inject: [dynamisKey],
+  apply(ctx: Context) {
+    new ToolEntrySourcesService(ctx)
+  },
+}
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolReleaseDetailsService<P>
@@ -493,16 +616,6 @@ export abstract class ToolStartFenceService<P> extends Service implements ToolSt
 export const toolStartFenceKey = ToolStartFenceService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
-export abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
-  static readonly provide = 'toolStartReleases'
-  constructor(ctx: Context) {
-    super(ctx, ToolStartReleasesService.provide)
-  }
-  abstract readonly releaseOf: ToolStartReleases<P>['releaseOf']
-}
-export const toolStartReleasesKey = ToolStartReleasesService.provide
-
-/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>
   extends Service
   implements ToolResourceResponses<P>
@@ -526,16 +639,31 @@ export abstract class ToolChildrenService<P> extends Service implements ToolChil
   constructor(ctx: Context) {
     super(ctx, ToolChildrenService.provide)
   }
-  abstract readonly reserve: ToolChildren<P>['reserve']
-  abstract readonly admitted: ToolChildren<P>['admitted']
+  abstract readonly register: ToolChildren<P>['register']
+  abstract readonly exclude: ToolChildren<P>['exclude']
+  abstract readonly handOff: ToolChildren<P>['handOff']
+  abstract readonly background: ToolChildren<P>['background']
   abstract readonly retain: ToolChildren<P>['retain']
-  abstract readonly list: ToolChildren<P>['list']
+  abstract readonly seal: ToolChildren<P>['seal']
   abstract readonly close: ToolChildren<P>['close']
-  abstract readonly closure: ToolChildren<P>['closure']
-  abstract readonly confirmBarrier: ToolChildren<P>['confirmBarrier']
-  abstract readonly finish: ToolChildren<P>['finish']
+  abstract readonly stopping: ToolChildren<P>['stopping']
+  abstract readonly dispose: ToolChildren<P>['dispose']
+  abstract readonly table: ToolChildren<P>['table']
 }
 export const toolChildrenKey = ToolChildrenService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolProgramAdmissionService<P>
+  extends Service
+  implements ProgramActionAdmission<P>
+{
+  static readonly provide = 'toolProgramAdmission'
+  constructor(ctx: Context) {
+    super(ctx, ToolProgramAdmissionService.provide)
+  }
+  abstract readonly admit: ProgramActionAdmission<P>['admit']
+}
+export const toolProgramAdmissionKey = ToolProgramAdmissionService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolAccountsService<P> extends Service implements ToolAccounts<P> {
@@ -578,11 +706,13 @@ declare module '@deepseek-ai/cordis' {
     toolResultPolicy: ResultPolicyService<ContentBlock>
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
+    toolEntrySources: ToolEntrySourcesService<unknown, ContentBlock>
     toolReleaseDetails: ToolReleaseDetailsService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>
     toolChildren: ToolChildrenService<unknown>
+    toolProgramAdmission: ToolProgramAdmissionService<unknown>
     toolAccounts: ToolAccountsService<unknown>
     toolOffloader: ToolOffloaderService<unknown, ContentBlock>
   }
@@ -618,3 +748,11 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const toolToolsPoint = heldPoint({
+  name: 'tool.tools',
+  key: 'the tool name',
+  summary: 'The tool definitions each layer holds, by name; the names are told to the client.',
+  keys: 'public',
+})

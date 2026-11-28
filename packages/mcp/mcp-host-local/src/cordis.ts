@@ -1,25 +1,51 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createInMemoryCatalogStore, createMcp } from '@omne-harness/mcp'
+import { createMcp } from '@omne-harness/mcp'
 import type {
   ActionDiscovery,
   ActionInvoker,
+  EndpointConnect,
   EndpointStatus,
+  EventCatalogRecord,
+  EventsConfig,
+  EventSubscriptions,
   McpConfig,
   McpPorts,
+  PeerSkills,
+  SkillCatalogRecord,
+  TaskWatch,
+  TaskWatchConfig,
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CallbackReceiver,
+  CatalogStore,
   CredentialFailure,
   CredentialUse,
+  EventConsumer,
+  EventRecords,
+  GrantConnector,
   HttpCredentialHandle,
   HttpPurpose,
+  TaskRecords,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
   ActionDiscoveryService,
   ActionInvokerService,
+  EndpointConnectService,
   EndpointStatusService,
+  EventSubscriptionsService,
+  PeerSkillsService,
+  TaskWatchService,
   mcpAdoptionViewKey,
+  mcpCallbackReceiverKey,
+  mcpGrantConnectorKey,
+  mcpCatalogStoreKey,
+  mcpEventCatalogStoreKey,
+  mcpEventConsumerKey,
+  mcpEventRecordsKey,
+  mcpSkillCatalogStoreKey,
+  mcpTaskRecordsKey,
   mcpCredentialUseKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
@@ -39,19 +65,49 @@ export type McpPluginParts = Readonly<
     Pick<LocalTransportOptions, 'fetch'>
 >
 
+export type OAuthPluginConfig = Readonly<{
+  pendingMs: number
+  requestMs: number
+  metadataDocument: string | null
+}>
+
 export type McpPluginConfig = Readonly<
-  Omit<McpConfig<unknown>, 'principalKey'> & Omit<LocalTransportOptions, 'fetch'>
+  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch' | 'oauth' | 'events'> &
+    Omit<LocalTransportOptions, 'fetch'> & {
+      taskWatch: TaskWatchConfig
+      oauth: OAuthPluginConfig
+      events: EventsConfig
+    }
 >
 
 type ClientInfo = McpPluginConfig['clientInfo']
-type Bounds = Omit<McpPluginConfig, 'clientInfo'>
+type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch' | 'oauth' | 'events'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
 const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
   instructionsByteLimit: true,
+  maxLongRequests: true,
   clientInfo: true,
+  taskWatch: true,
+  oauth: true,
+  events: true,
+}
+const OAUTH_FIELDS: Readonly<Record<keyof OAuthPluginConfig, true>> = {
+  pendingMs: true,
+  requestMs: true,
+  metadataDocument: true,
+}
+const TASK_WATCH_FIELDS: Readonly<Record<keyof TaskWatchConfig, true>> = {
+  pollFloorMs: true,
+  backoffCapMs: true,
+}
+const EVENTS_FIELDS: Readonly<Record<keyof EventsConfig, true>> = {
+  maxEvents: true,
+  maxAgeMs: true,
+  pollFloorMs: true,
+  backoffCapMs: true,
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
 
@@ -76,11 +132,12 @@ function fieldsIssue(
 }
 
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
-  const { maxListingPages, maxActions, instructionsByteLimit } = record
+  const { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
   if (typeof maxActions !== 'number') return 'maxActions'
   if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
-  return { maxListingPages, maxActions, instructionsByteLimit }
+  if (typeof maxLongRequests !== 'number') return 'maxLongRequests'
+  return { maxListingPages, maxActions, instructionsByteLimit, maxLongRequests }
 }
 
 function clientInfoOf(value: unknown): ClientInfo | string {
@@ -91,6 +148,39 @@ function clientInfoOf(value: unknown): ClientInfo | string {
   if (typeof name !== 'string') return 'clientInfo.name must be a text'
   if (typeof version !== 'string') return 'clientInfo.version must be a text'
   return { name, version }
+}
+
+function taskWatchOf(value: unknown): TaskWatchConfig | string {
+  if (!isPlainRecord(value)) return 'taskWatch must be an object'
+  const fields = fieldsIssue(value, TASK_WATCH_FIELDS, 'taskWatch')
+  if (fields !== undefined) return fields
+  const { pollFloorMs, backoffCapMs } = value
+  if (typeof pollFloorMs !== 'number') return 'taskWatch.pollFloorMs must be a number'
+  if (typeof backoffCapMs !== 'number') return 'taskWatch.backoffCapMs must be a number'
+  return { pollFloorMs, backoffCapMs }
+}
+
+function oauthOf(value: unknown): OAuthPluginConfig | string {
+  if (!isPlainRecord(value)) return 'oauth must be an object'
+  const fields = fieldsIssue(value, OAUTH_FIELDS, 'oauth')
+  if (fields !== undefined) return fields
+  const { pendingMs, requestMs, metadataDocument } = value
+  if (typeof pendingMs !== 'number') return 'oauth.pendingMs must be a number'
+  if (typeof requestMs !== 'number') return 'oauth.requestMs must be a number'
+  if (metadataDocument !== null && typeof metadataDocument !== 'string')
+    return 'oauth.metadataDocument must be a text or null'
+  return { pendingMs, requestMs, metadataDocument }
+}
+
+function eventsOf(value: unknown): EventsConfig | string {
+  if (!isPlainRecord(value)) return 'events must be an object'
+  const fields = fieldsIssue(value, EVENTS_FIELDS, 'events')
+  if (fields !== undefined) return fields
+  const { maxEvents, maxAgeMs, pollFloorMs, backoffCapMs } = value
+  const bounds = { maxEvents, maxAgeMs, pollFloorMs, backoffCapMs }
+  const wrong = Object.entries(bounds).find(([, bound]) => typeof bound !== 'number')
+  if (wrong !== undefined) return `events.${wrong[0]} must be a number`
+  return bounds as EventsConfig
 }
 
 function issue(message: string): ConfigResult {
@@ -109,7 +199,13 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
       if (typeof bounds === 'string') return issue(`${bounds} must be a number`)
       const clientInfo = clientInfoOf(value['clientInfo'])
       if (typeof clientInfo === 'string') return issue(clientInfo)
-      return { value: { ...bounds, clientInfo } }
+      const taskWatch = taskWatchOf(value['taskWatch'])
+      if (typeof taskWatch === 'string') return issue(taskWatch)
+      const oauth = oauthOf(value['oauth'])
+      if (typeof oauth === 'string') return issue(oauth)
+      const events = eventsOf(value['events'])
+      if (typeof events === 'string') return issue(events)
+      return { value: { ...bounds, clientInfo, taskWatch, oauth, events } }
     },
   },
 }
@@ -136,6 +232,70 @@ function eligibilityOf(ctx: Context): UseEligibility<unknown> {
       if (port === undefined) return { kind: 'unknown' }
       return port.check(...args)
     },
+  }
+}
+
+// The catalog store is taken at each read and write; while it is away both answer unavailable.
+function storeOf(ctx: Context): CatalogStore {
+  return {
+    read: key => ctx.get(mcpCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
+function eventStoreOf(ctx: Context): CatalogStore<EventCatalogRecord> {
+  return {
+    read: key =>
+      ctx.get(mcpEventCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpEventCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
+function skillStoreOf(ctx: Context): CatalogStore<SkillCatalogRecord> {
+  return {
+    read: key =>
+      ctx.get(mcpSkillCatalogStoreKey)?.read(key) ?? Promise.resolve(fail('unavailable')),
+    write: (key, record, expected) =>
+      ctx.get(mcpSkillCatalogStoreKey)?.write(key, record, expected) ??
+      Promise.resolve(fail('unavailable')),
+  }
+}
+
+function eventRecordsOf(ctx: Context): EventRecords {
+  const away = () => Promise.resolve(fail('unavailable' as const))
+  const records = () => ctx.get(mcpEventRecordsKey)
+  return {
+    list: tenant => records()?.list(tenant) ?? away(),
+    read: key => records()?.read(key) ?? away(),
+    write: (key, row, expected) => records()?.write(key, row, expected) ?? away(),
+    remove: key => records()?.remove(key) ?? away(),
+    receive: (key, batch, bounds) => records()?.receive(key, batch, bounds) ?? away(),
+    occurrences: (key, after, limit) => records()?.occurrences(key, after, limit) ?? away(),
+    end: (key, reason, at) => records()?.end(key, reason, at) ?? away(),
+    acknowledge: (key, seq) => records()?.acknowledge(key, seq) ?? away(),
+  }
+}
+
+// The consumer is asked at each delivery; while none is there the events stay and are handed over later.
+function eventConsumerOf(ctx: Context): EventConsumer {
+  const later = () => Promise.resolve('not-now' as const)
+  return {
+    deliver: (ref, events) => ctx.get(mcpEventConsumerKey)?.deliver(ref, events) ?? later(),
+    report: (ref, notice) => ctx.get(mcpEventConsumerKey)?.report(ref, notice) ?? later(),
+  }
+}
+
+function tasksOf(ctx: Context): TaskRecords {
+  const unavailable = () => Promise.resolve(fail('unavailable' as const))
+  return {
+    record: (key, row) => ctx.get(mcpTaskRecordsKey)?.record(key, row) ?? unavailable(),
+    read: key => ctx.get(mcpTaskRecordsKey)?.read(key) ?? unavailable(),
+    move: (key, from, to) => ctx.get(mcpTaskRecordsKey)?.move(key, from, to) ?? unavailable(),
+    following: tenant => ctx.get(mcpTaskRecordsKey)?.following(tenant) ?? unavailable(),
   }
 }
 
@@ -171,6 +331,20 @@ class HostActionDiscovery extends ActionDiscoveryService<unknown> {
   peer(...args: Parameters<ActionDiscovery<unknown>['peer']>) {
     return this.discovery.peer(...args)
   }
+  eventTypes(...args: Parameters<ActionDiscovery<unknown>['eventTypes']>) {
+    return this.discovery.eventTypes(...args)
+  }
+  skills(...args: Parameters<ActionDiscovery<unknown>['skills']>) {
+    return this.discovery.skills(...args)
+  }
+}
+
+class HostPeerSkills extends PeerSkillsService<unknown> {
+  readonly read: PeerSkills<unknown>['read']
+  constructor(ctx: Context, skills: PeerSkills<unknown>) {
+    super(ctx)
+    this.read = (...args) => skills.read(...args)
+  }
 }
 
 class HostActionInvoker extends ActionInvokerService<unknown> {
@@ -202,6 +376,20 @@ class HostActionInvoker extends ActionInvokerService<unknown> {
   }
 }
 
+class HostTaskWatch extends TaskWatchService<unknown> {
+  readonly follow: TaskWatch<unknown>['follow']
+  readonly drop: TaskWatch<unknown>['drop']
+  readonly following: TaskWatch<unknown>['following']
+  readonly subscribe: TaskWatch<unknown>['subscribe']
+  constructor(ctx: Context, watch: TaskWatch<unknown>) {
+    super(ctx)
+    this.follow = (...args) => watch.follow(...args)
+    this.drop = (...args) => watch.drop(...args)
+    this.following = (...args) => watch.following(...args)
+    this.subscribe = (...args) => watch.subscribe(...args)
+  }
+}
+
 class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   private readonly status: EndpointStatus<unknown, unknown>
   constructor(ctx: Context, status: EndpointStatus<unknown, unknown>) {
@@ -214,6 +402,50 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   list(...args: Parameters<EndpointStatus<unknown, unknown>['list']>) {
     return this.status.list(...args)
   }
+  subscribe(...args: Parameters<EndpointStatus<unknown, unknown>['subscribe']>) {
+    return this.status.subscribe(...args)
+  }
+}
+
+class HostEndpointConnect extends EndpointConnectService<unknown> {
+  readonly begin: EndpointConnect<unknown>['begin']
+  readonly disconnect: EndpointConnect<unknown>['disconnect']
+  constructor(ctx: Context, connect: EndpointConnect<unknown>) {
+    super(ctx)
+    this.begin = (...args) => connect.begin(...args)
+    this.disconnect = (...args) => connect.disconnect(...args)
+  }
+}
+
+class HostEventSubscriptions extends EventSubscriptionsService<unknown> {
+  readonly subscribe: EventSubscriptions<unknown>['subscribe']
+  readonly unsubscribe: EventSubscriptions<unknown>['unsubscribe']
+  readonly list: EventSubscriptions<unknown>['list']
+  readonly read: EventSubscriptions<unknown>['read']
+  constructor(ctx: Context, subscriptions: EventSubscriptions<unknown>) {
+    super(ctx)
+    this.subscribe = (...args) => subscriptions.subscribe(...args)
+    this.unsubscribe = (...args) => subscriptions.unsubscribe(...args)
+    this.list = (...args) => subscriptions.list(...args)
+    this.read = (...args) => subscriptions.read(...args)
+  }
+}
+
+// Read at each call: a connector or a receiver that is away answers unavailable.
+function grantsOf(ctx: Context): GrantConnector {
+  const away = () => Promise.resolve(fail('unavailable' as const))
+  return {
+    begin: input => ctx.get(mcpGrantConnectorKey)?.begin(input) ?? away(),
+    disconnect: key => ctx.get(mcpGrantConnectorKey)?.disconnect(key) ?? away(),
+    standing: key => ctx.get(mcpGrantConnectorKey)?.standing(key) ?? away(),
+  }
+}
+
+function callbacksOf(ctx: Context): CallbackReceiver {
+  return {
+    open: until =>
+      ctx.get(mcpCallbackReceiverKey)?.open(until) ?? Promise.resolve(fail('unavailable' as const)),
+  }
 }
 
 export function createMcpPlugin(parts: McpPluginParts) {
@@ -225,9 +457,17 @@ export function createMcpPlugin(parts: McpPluginParts) {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
-        store: createInMemoryCatalogStore(),
+        store: storeOf(ctx),
+        eventStore: eventStoreOf(ctx),
+        skillStore: skillStoreOf(ctx),
+        eventRecords: eventRecordsOf(ctx),
+        eventConsumer: eventConsumerOf(ctx),
+        tasks: tasksOf(ctx),
+        grants: grantsOf(ctx),
+        callbacks: callbacksOf(ctx),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
+          maxLongRequests: config.maxLongRequests,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),
         }),
         checkOutput: parts.checkOutput,
@@ -238,6 +478,15 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxListingPages: config.maxListingPages,
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
+        taskWatch: config.taskWatch,
+        events: config.events,
+        oauth: {
+          pendingMs: config.oauth.pendingMs,
+          requestMs: config.oauth.requestMs,
+          ...(config.oauth.metadataDocument === null
+            ? {}
+            : { metadataDocument: config.oauth.metadataDocument }),
+        },
       })
       ctx.effect(
         () => async () => {
@@ -248,6 +497,10 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostActionDiscovery(ctx, services.discovery)
       new HostActionInvoker(ctx, services.invoker)
       new HostEndpointStatus(ctx, services.status)
+      new HostEndpointConnect(ctx, services.connect)
+      new HostEventSubscriptions(ctx, services.subscriptions)
+      new HostPeerSkills(ctx, services.skills)
+      if (services.tasks !== undefined) new HostTaskWatch(ctx, services.tasks)
     },
   })
 }

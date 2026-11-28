@@ -1,12 +1,15 @@
+import { GOAL_DECISIONS_CONSUMER } from '@omne-harness/goal-decisions'
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
-export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
+export const DEFAULT_READINESS_TIMEOUT_MS = 60_000
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
 export const DEFAULT_DRAIN_DEADLINE_MS = 120_000
+export const DEFAULT_ROOT_DISPOSAL_DEADLINE_MS = 10_000
+export const DEFAULT_DEPENDENCY_DEADLINE_MS = 30_000
 
 export const LOCAL_HISTORY_KINDS = [
   'message.user',
@@ -15,6 +18,9 @@ export const LOCAL_HISTORY_KINDS = [
   'message.system_reminder',
   'run.started',
   'run.terminal',
+  'session.command-recorded',
+  'session.frozen',
+  'session.adoption-noted',
 ] as const
 
 export const LOCAL_HISTORY_SEARCH = {
@@ -118,12 +124,16 @@ const PREPARATION = {
   openai: FAMILY,
   anthropic: FAMILY,
   qwen: FAMILY,
+  kimi: FAMILY,
+  deepseek: FAMILY,
+  glm: FAMILY,
 } as const
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
 const STORAGE_LOCK_WAIT_MS = 5000
 export const LOCAL_READ_WAIT_MS = 2 * STORAGE_LOCK_WAIT_MS
+export const LOCAL_MAX_RESPONSE_BYTES = 1_048_576
 
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
@@ -156,6 +166,10 @@ const MODEL_HOST = {
     maxCostMisses: 5,
     delaysMs: [1000, 5000, 30_000],
   },
+  live: {
+    capacity: 256,
+    deadlines: { openMs: 15_000, closeMs: 10_000, drainMs: 30_000, redeliverMs: 1000 },
+  },
 } as const
 
 const MAX_COMMAND_BYTES = 1_048_576
@@ -171,6 +185,11 @@ function modelRecords(combinationVersion: string) {
       {
         consumerOwner: '@omne-harness/context-compaction',
         evidence: { ...ADOPTION, name: 'local-single-user/compaction-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: GOAL_DECISIONS_CONSUMER,
+        evidence: { ...ADOPTION, name: 'local-single-user/goal-decisions-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -218,6 +237,7 @@ function modelRecords(combinationVersion: string) {
       transportLimits: {
         connectTimeoutMs: 10_000,
         connectRetry: { backoffMs: [500, 1000] },
+        maxDecisionBytes: 524_288,
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
         json: {
@@ -244,8 +264,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxCommandBytes: MAX_COMMAND_BYTES,
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
-    maxJsonMembers: 65_536,
-    maxResponseBytes: 1_048_576,
+    maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -334,7 +353,7 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
-const LOCAL_IMAGE_BUDGET = Object.freeze({
+export const LOCAL_IMAGE_BUDGET = Object.freeze({
   imageMaxWidth: 16384,
   imageMaxHeight: 16384,
   imageMaxDecodedBytes: 128 * 1024 * 1024,
@@ -347,6 +366,15 @@ export const LOCAL_OPEN_LIMITS = Object.freeze({
 export const LOCAL_SCREEN_LIMITS = Object.freeze({
   captureMaxLongSide: 2048,
   ...LOCAL_IMAGE_BUDGET,
+})
+
+export const LOCAL_PROGRAM_LIMITS = Object.freeze({
+  computeMs: 30_000,
+  memoryBytes: 64 * 1024 * 1024,
+  outputBytes: 512 * 1024,
+  calls: 200,
+  callsInFlight: 8,
+  sourceBytes: 65_536,
 })
 
 function toolRecords(combinationVersion: string) {
@@ -407,14 +435,29 @@ const AGENT_HOST = {
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 1000,
-  toolConcurrency: 1,
+  toolConcurrency: 8,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
+  haltLimit: 3,
+  maxRunSteps: 500,
 } as const
 
 const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
+
+const GOAL_POLICY = { reconcileIntervalMs: 5_000 }
+const GOAL_DECISIONS_POLICY = { pollMs: 50, deadlineMs: 30_000 }
+
+const CANVAS_POLICY = {
+  sheet: { width: 6400, height: 4000, grid: 8 },
+  limits: { placed: 200, away: 500, batch: 50 },
+  size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+  footprint: { width: 160, height: 80 },
+  admitTimeoutMs: 5_000,
+}
+
+export const LOCAL_GOVERNANCE_OPENING = { installationConcurrency: 8 } as const
 
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {
@@ -467,7 +510,13 @@ export type LocalOperatorInput = Readonly<{
   distribution: unknown
   locations: Pick<
     ServerLocations,
-    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot' | 'mediaRoot'
+    | 'vaultFile'
+    | 'storageRoot'
+    | 'hostFilesDir'
+    | 'assetsRoot'
+    | 'historyIndexRoot'
+    | 'mediaRoot'
+    | 'pluginFloorDir'
   >
   settings: ServerSettings
   shutdownDeadlineMs: number
@@ -481,6 +530,30 @@ export type ReplaceOperation = Readonly<{
 }>
 
 export type OperatorLayer = Readonly<{ ops: readonly ReplaceOperation[] }>
+
+const LOCAL_TOOL_CONSTRUCTION = Object.freeze({
+  Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
+  Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
+  TodoItems: { resultMaxBytes: 1_048_576 },
+  BkgToolCalls: { resultMaxBytes: 65_536 },
+  Ask: { resultMaxBytes: 1_048_576 },
+  Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+  Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+  Calendar: { resultMaxBytes: 65_536 },
+  Schedules: { resultMaxBytes: 65_536 },
+  Jobs: { resultMaxBytes: 65_536 },
+  Notifications: { resultMaxBytes: 65_536 },
+  Canvas: { resultMaxBytes: 65_536 },
+  AppView: { resultMaxBytes: 65_536, ...LOCAL_IMAGE_BUDGET },
+  Sessions: { resultMaxBytes: 131_072 },
+  Agents: { resultMaxBytes: 1_048_576 },
+  Goal: { resultMaxBytes: 1_048_576 },
+  SwitchWorkspace: { resultMaxBytes: 65_536 },
+  OmneExtensions: { resultMaxBytes: 131_072 },
+  OmneExtensionPoints: { resultMaxBytes: 131_072 },
+  Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+  Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
+})
 
 export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const rows = releaseRows(input.distribution)
@@ -499,6 +572,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         tenantBudget: rows.has('session-intake-budget'),
       },
     ],
+    ['governance', LOCAL_GOVERNANCE_OPENING],
     ...(rows.has('session-history-index')
       ? ([['session-history-index', { root: locations.historyIndexRoot }]] as const)
       : []),
@@ -520,20 +594,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             argsPrefix: shellArguments(platform, settings.shell),
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
-          Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
-          TodoItems: { resultMaxBytes: 1_048_576 },
-          BkgToolCalls: { resultMaxBytes: 65_536 },
-          Ask: { resultMaxBytes: 1_048_576 },
-          Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
-          Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
-          Calendar: { resultMaxBytes: 65_536 },
-          Schedules: { resultMaxBytes: 65_536 },
-          Notifications: { resultMaxBytes: 65_536 },
-          Sessions: { resultMaxBytes: 131_072 },
-          Agents: { resultMaxBytes: 1_048_576 },
-          SwitchWorkspace: { resultMaxBytes: 65_536 },
-          Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+          ...LOCAL_TOOL_CONSTRUCTION,
         },
       },
     ],
@@ -566,10 +627,14 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           },
           fetch: { maxRedirects: 5, timeoutMs: 30_000, maxBodyBytes: 5 * 1024 * 1024 },
         },
+        sources: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, listTimeoutMs: 5000 },
       },
     ],
     ...(rows.has('tenant-assets')
       ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
+      : []),
+    ...(rows.has('plugin-server')
+      ? ([['plugin-server', { floorDirectory: locations.pluginFloorDir }]] as const)
       : []),
     ...(rows.has('media-storage-local')
       ? ([['media-storage-local', { root: locations.mediaRoot }]] as const)
@@ -579,8 +644,22 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
     ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('goal') ? ([['goal', { policy: GOAL_POLICY }]] as const) : []),
+    ...(rows.has('goal-decisions') ? ([['goal-decisions', GOAL_DECISIONS_POLICY]] as const) : []),
+    ...(rows.has('canvas') ? ([['canvas', { policy: CANVAS_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],
+    [
+      'loop-extension',
+      {
+        commands: {
+          interpreters: { node: process.execPath },
+          env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
+          stateDirectory: path.join(locations.storageRoot, 'loop-extension-calls'),
+          workspace: settings.workspace,
+        },
+      },
+    ],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],

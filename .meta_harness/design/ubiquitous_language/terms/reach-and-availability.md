@@ -33,7 +33,7 @@
 > **它标的是「看不看得见」，不是「看见的是什么」**：可见时呈现成什么是装配时的策略——
 > 技能是 name 与说明进系统提示词，工具由各模型的适配按供应商的方式呈现。
 > **没标常驻的不是「不能用」，是「不占位置」**——它照样在动作空间里，经取用入口够得着。
-> 常驻的可以是工具、Skill 的简介，以及标了常驻的 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点的动作；后者在采用点成为常驻工具。
+> 常驻的可以是工具、Skill 的简介，以及标了常驻的 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点；后者在采用点成为一条常驻工具。
 > 引用可以在 Agent 定义里，也可以在会话执行类型的必需身份集合里；两处任一处标了常驻，就常驻。
 >
 > **EN**: **A tool's or skill's capability identity is always visible to the agent**, with
@@ -44,13 +44,13 @@
 > contributes its name and description to the system prompt, a tool is rendered by each
 > model adapter in its provider's way. **Not being resident does not mean unusable; it means
 > not occupying a slot** — it remains in the action space, reachable through the discovery entry.
-> What can be resident is a tool, a skill's summary, or the actions of an MCP access point marked
-> resident, which become resident tools at the adoption point. The reference may sit in the Agent
+> What can be resident is a tool, a skill's summary, or an MCP access point marked resident,
+> which becomes one resident tool at the adoption point. The reference may sit in the Agent
 > Definition or in the required identity set of the session's execution type; if either marks it
 > resident, it is resident.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 11） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 8）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上、或会话执行类型必需身份集合那一项上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -83,25 +83,25 @@
 > Registration keys come from adoption evidence and are not separate holder facts.
 
 - **形态**：视图
-- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 10）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[常驻持有者的现行定义](../index.md#ul-d-04-常驻持有者)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 15）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
-- **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作一般不常驻，不在这些规则的范围内；标了常驻的 MCP 接入点，它的动作在采用点成为常驻工具，适用这些规则
+- **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作一般不常驻，不在这些规则的范围内；标了常驻的 MCP 接入点在采用点成为一条常驻工具，适用这些规则
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
 
 ### UL-tool-entry · 工具条目 · Tool Entry
 
 > **中**：工具入口里可被发现、查看用法和调用的一项：一个工具，带它的名字、定义，以及此刻能不能调。
 > 它是视图，按调用主体此刻的事实现算，来自工具登记表或某个[工具条目来源](#ul-tool-entry-source--工具条目来源--tool-entry-source)；事实一变，下一次发现就不同。
-> [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 对端的一个动作，在工具入口里就是一个工具条目。
+> 一个 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点在工具入口里是一个工具条目，它的动作是这个工具的命令。
 >
 > **EN**: One item in the tool entry point that can be discovered, inspected for usage and called:
 > a tool, with its name, its definition and whether it can be called right now. It is a view,
 > computed from the calling subject's facts at that moment, and it comes from the tool registry or
-> from a tool entry source; when the facts change, the next discovery differs. One action on the
-> far side of an MCP access point is one tool entry.
+> from a tool entry source; when the facts change, the next discovery differs. One MCP access
+> point is one tool entry, and its actions are the commands of that tool.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 16） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 23） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 8）
 - **别混 ①**：**不是[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)**——定义是条目带着的那份内容；条目是这份内容此刻在入口里的那一项
 - **别混 ②**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里会话已知的那一项**——那一项按会话合法纳入的能力投影、在会话内只增不减；工具条目按主体此刻的事实现算。两者的关系见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)
 - **注意**：主体此刻没有使用资格的不出现；有资格但此刻调不动的，以不可用呈现并说明原因。调一个条目就是一次工具调用
@@ -109,20 +109,20 @@
 ### UL-tool-entry-source · 工具条目来源 · Tool Entry Source
 
 > **中**：另一个领域在与工具入口的关系里扮演的角色：它向工具入口登记，被问到时按调用主体此刻的事实交出一批[工具条目](#ul-tool-entry--工具条目--tool-entry)。
-> 它交出的是视图，不把工具登记进工具入口。调它交出的条目就是一次普通的工具调用，准入、结果保管、等待与取消归工具执行。
-> [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 是一个工具条目来源，交出它的接入点的动作。
+> 它交出的是视图，不把工具登记进工具入口。调它交出的条目就是一次普通的工具调用，[受理](execution-and-outcome.md#ul-call-acceptance--调用受理--call-acceptance)、结果保管、等待与取消归工具执行。
+> [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 是一个工具条目来源，交出它的接入点，一个接入点一个工具条目。
 >
 > **EN**: The role another domain plays toward the tool entry point: it registers with the tool
 > entry point and, when asked, hands over a set of tool entries computed from the calling subject's
 > facts at that moment. What it hands over is a view; it does not register tools into the entry
-> point. Calling an entry it hands over is an ordinary tool call, whose admission, result custody,
-> waiting and cancellation belong to tool execution. MCP is one tool entry source, handing over the
-> actions of its access points.
+> point. Calling an entry it hands over is an ordinary tool call, whose acceptance, result custody,
+> waiting and cancellation belong to tool execution. MCP is one tool entry source. It hands over
+> its access points, one tool entry for each access point.
 
 - **形态**：属性
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 8）
 - **别混**：**不是工具登记表里的一份贡献**——那是一个工具实现登记进去，由登记键区分；来源不登记工具，只在被问时交出条目。也不是[接入贡献](architecture-core-and-extension.md#ul-access-contribution--接入贡献--access-contribution)，那是接入层入口登记表上的一包协议处理
-- **注意**：来源只交出条目，不替工具执行决定准入、结局或结果怎样保管
+- **注意**：来源只交出条目，不替工具执行决定受理、结局或结果怎样保管
 
 ### UL-current-availability · 当下可用性 · Current Availability
 
@@ -131,8 +131,8 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 16） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
-- **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。执行权限准入仍单独适用。
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 11） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 23） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。一次动作许不许仍由[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)单独判。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
 ### UL-stand-in · 替换件 · Stand-in
@@ -178,7 +178,7 @@
 > in the comparison.
 
 - **形态**：规则
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 10）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 15）；比较的字段见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **别混**：不是「同一个能力身份」。同一个能力身份下，不同层的资产可以派生出不同形的定义
 - **注意**：比较按文本规范化进行。语义等价但文本不同的两份 schema 判为不同形，这时会话留在原版本，不会因此误判冻结
 
@@ -310,10 +310,32 @@
 > offered command is not assembled into that session.**
 
 - **形态**：属性
-- **出处**：[元能力：必需入口、常驻与命令可用性](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 16）
+- **出处**：[元能力：必需入口、常驻与命令可用性](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 23）
 - **别混 ①**：**不是权限。**权限答「许不许」，由治理定；条件答「这里成不成立」，由会话的事实定，对同一种会话人人相同
 - **别混 ②**：**不是[当下可用性](#ul-current-availability--当下可用性--current-availability)里的依赖缺失**——那是设施在不在，这是会话是哪一种
 - **注意**：条件写在命令的定义里，**装配不按入口或命令的名字判断**；一轮当中变得不成立时，调到它的调用不运行并得到原因
+
+### UL-canvas-renderable · 可画布渲染 · Canvas-Renderable
+
+> **中**：**一类对象的一项性质：拥有这一类的领域此刻声明着它，这一类的对象才摆得上[画布](interaction-and-dispatch.md#ul-canvas--画布--canvas)。**
+> 声明写明这一类叫什么、一句话说明它是什么、怎样指明这一类里的一个对象，并带来这一类在画布上的画法；拥有者还可以要求每个对象摆上之前先核一下。
+> 它是「一类」的性质，不是某一个对象的。声明撤下时，例如拥有它的领域没有开放，这一类就不再可画布渲染：
+> 已经摆着的[画布项](interaction-and-dispatch.md#ul-canvas-item--画布项--canvas-item)留着，摆法不变，画成写明「这一类现在没有声明」的一页。
+>
+> **EN**: **A property of one class of objects: objects of the class can be placed on a canvas only
+> while the domain that owns the class declares it.** The declaration gives the name of the class,
+> one sentence about what it is, how to identify one object of the class, and how the class is
+> drawn on the canvas. The owner can also require a check of each object before it is placed. The
+> property belongs to the class, not to one object. When the declaration is withdrawn, for example
+> because the owning domain is not open, the class is no longer canvas-renderable. Canvas items that
+> are already placed stay with the same arrangement, and each shows a page that says the class is
+> not declared now.
+
+- **形态**：属性
+- **出处**：[画布「能摆什么」](../../product/canvas/design.md#能摆什么) · [「画不出来的时候」](../../product/canvas/design.md#画不出来的时候)（rev 2）
+- **别混 ①**：不是允许。一类可画布渲染，不表示这一类的每个对象都摆得上：拥有者可以不接受某一个对象。它也不表示这个人能看某一个对象，那由这一类的画法说。
+- **别混 ②**：不是「能从查找里挑」。一类要出现在查找里，拥有者还要另外提供挑法。
+- **注意**：画布不认识任何一类，多一类是拥有它的领域多一份声明。产品要求三类可画布渲染：[媒体对象](record-and-context.md#ul-media-object--媒体对象--media-object)、[会话](agent-runtime-loop.md#ul-session--会话--session)与[画布小应用](capabilities-and-composition.md#ul-canvas-app--画布小应用--canvas-app)；画布小应用这一类由画布自己声明。
 
 ## MCP 对端够不够得着
 
@@ -336,7 +358,7 @@
 > own the result of any call.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 3）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 8）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
 - **⚠️ 别混 ①**：**不是[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)**。连接件把外部消息送进来，方向相反
 - **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**。连接目标是接入点上的一项设置，说连到对端的哪里；MCP 连接是按这项设置实际接通的结果
 - **别混 ③**：**不是接入点本身**。接入点是资产，身份是它的 name；同一个接入点可以同时有几条 MCP 连接，分属不同租户或不同对端账号
@@ -358,7 +380,7 @@
 > whole. A catalog that is part new and part old never occurs.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 3）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 8）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
 - **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话；MCP 动作清单属于租户、对端账号与接入点持有，不随会话结束
 - **别混 ②**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**，与一次装配无关
 - **注意**：发现或刷新失败时保持原清单并说明原因，不当成空清单。产品正文称它「合法清单」「最近合法清单」时，指的就是它
@@ -369,19 +391,117 @@
 > 它带着自己的身份，以及最近一次合法发现取得的定义形状。
 > 从未由合法发现取得的动作不是 MCP 已知动作，也不凭猜测为它生成定义。
 > 断线、撤权、禁用或必需依赖缺席时，不可用在接入点这一级说明，不逐个动作说明。
-> 它在工具入口里是一个[工具条目](#ul-tool-entry--工具条目--tool-entry)。
+> 在工具入口里，它是它的接入点那一个[工具条目](#ul-tool-entry--工具条目--tool-entry)的一个命令。
 >
 > **EN**: **One far-side action in an MCP action catalog that a lawful discovery obtained.** It
 > carries its identity and the definition shape from its latest lawful discovery. An action that no
 > lawful discovery obtained is not an MCP known action, and no definition is generated for it by
 > guess. When the connection is down, or on revocation, disablement or a missing required
 > dependency, unavailability is stated at the level of the access point, not per action. In the
-> tool entry point it is one tool entry.
+> tool entry point it is one command of the single tool entry of its access point.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 3）
-- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。常驻接入点的动作不可用时，按[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)的规则有同形替换件占在原位；不常驻接入点的动作没有替换件。MCP 已知动作是清单里的那一项
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 8）
+- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。常驻接入点整个用不了时，按[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)的规则有记下定义的替换件占在原位，它的单个动作用不了时，那一条命令答不可用；不常驻接入点的动作没有替换件。MCP 已知动作是清单里的那一项
 - **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
 - **注意**：裸写「已知动作」不作术语，跨 topic 写全称
+
+### UL-mcp-event-type · MCP 事件类型 · MCP Event Type
+
+> **中**：**一个 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点的对端声明的、它会发生的一类事件。**
+> 它有一个类型名、一段说明、订阅参数的形状与事件内容的形状。
+> 它由合法发现取得，按租户、对端账号与接入点持有保存。对端不再声明它时，它消失。
+> 说明与形状是对端写的，是外部内容。
+>
+> **EN**: **One kind of event that the far side of an MCP access point declares it can produce.** It
+> has a type name, a description, the shape of the subscription arguments and the shape of the event
+> content. A lawful discovery obtains it. It is kept per tenant, far-side account and access point
+> holding. It disappears when the far side no longer declares it. The far side wrote the description
+> and the shapes; they are external content.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 J-MC09](../../product/mcp/design.md#j-mc09-订阅并接收对端的事件)（rev 8）
+- **别混 ①**：**不是[连接件事件类型](capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)**。那一种由连接件的作者写在连接件正文里，事件由外面送进来。MCP 事件类型由对端在连接上声明，事件由本系统去订、去收
+- **别混 ②**：**不是[通知事件类型](interaction-and-dispatch.md#ul-notification-event-type--通知事件类型--notification-event-type)**。那是通知来源在通知这里声明的一类事
+- **注意**：裸写「事件类型」不作术语，跨 topic 写全称
+
+### UL-mcp-event-subscription · MCP 事件订阅 · MCP Event Subscription
+
+> **中**：**本系统向一个 MCP 接入点的对端要一类事件的一条耐久记录。**
+> 租户、接入点持有、对端账号、[MCP 事件类型](#ul-mcp-event-type--mcp-事件类型--mcp-event-type)的名字与订阅参数合起来确定它。
+> 它带着已经收到的位置与一个状态。正本在本系统：对端那边的订阅由它重建。
+> 没有订阅者时，它不存在。
+>
+> **EN**: **A durable record that this system asks the far side of an MCP access point for one kind
+> of event.** The tenant, the access point holding, the far-side account, the name of the MCP event
+> type and the subscription arguments together identify it. It carries the position received so far
+> and a state. This system holds the authoritative copy: the subscription on the far side is rebuilt
+> from it. It does not exist when it has no subscriber.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 J-MC09](../../product/mcp/design.md#j-mc09-订阅并接收对端的事件)（rev 8）
+- **⚠️ 别混 ①**：**不是[事件订阅](capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)**。那是连接件持有上的一项偏好类设置，取值是连接件事件目录的子集。两者范围重叠的地方见 [C-98](../conflicts.md#c-98连接件的事件目录与-mcp-事件类型)
+- **别混 ②**：**不是[通知订阅](interaction-and-dispatch.md#ul-notification-subscription--通知订阅--notification-subscription)**。通知订阅是一个收件人对一类通知事件的选择，定给谁、多急。MCP 事件订阅只定本系统向对端要哪一类事件
+- **注意**：裸写「订阅」「事件订阅」都不指它，跨 topic 写全称
+
+### UL-mcp-skill · MCP 技能 · MCP Skill
+
+> **中**：**一个 MCP 接入点的对端经连接提供的一个技能。**
+> 它有名称、说明、`SKILL.md` 正文，以及一份列出每个文件的路径、大小与摘要的清单。
+> 它由合法发现取得，随接入点的持有、配置与授权来去。
+> 它不是资产：没有自己的持有，不参加版本求值，也不发布。
+> 在 `Skills` 入口里，它的名字带接入点的前缀。
+>
+> **EN**: **One skill that the far side of an MCP access point provides over the connection.** It
+> has a name, a description, a `SKILL.md` body and a manifest that lists the path, size and digest of
+> each file. A lawful discovery obtains it. It comes and goes with the holding, configuration and
+> authorization of the access point. It is not an asset: it has no holding of its own, it takes no
+> part in version resolution, and it is not published. In the `Skills` entry point its name carries
+> the prefix of its access point.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 J-MC10](../../product/mcp/design.md#j-mc10-发现并读取随连接来的技能)（rev 8）
+- **⚠️ 别混**：**不是[技能](capabilities-and-composition.md#ul-skill--技能--skill)**。技能是一类资产，有持有、版本与发布，可以常驻，可以有本机目录。MCP 技能这几样都没有
+- **注意**：它的内容是外部内容。它声明的工具许可不生效
+
+### UL-skill-entry-source · 技能条目来源 · Skill Entry Source
+
+> **中**：另一个领域在与 `Skills` 入口的关系里扮演的角色：它向 `Skills` 入口登记，被问到时按发问主体此刻的事实交出一批不在资产里的技能，并按需交出它们的正文与文件。
+> 它交出的名字都带它独占的前缀，不参加资产里同名[技能](capabilities-and-composition.md#ul-skill--技能--skill)的求值。
+> [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 是一个技能条目来源，交出 [MCP 技能](#ul-mcp-skill--mcp-技能--mcp-skill)。
+>
+> **EN**: The role another domain plays toward the `Skills` entry point: it registers with the entry
+> point and, when asked, hands over a set of skills that are not assets, computed from the asking
+> subject's facts at that moment. On request it also hands over their bodies and files. Every name
+> it hands over carries a prefix that belongs to this source only, and takes no part in the
+> resolution of asset skills of the same name. MCP is one skill entry source. It hands over MCP
+> skills.
+
+- **形态**：属性
+- **出处**：[MCP 产品页 J-MC10](../../product/mcp/design.md#j-mc10-发现并读取随连接来的技能)（rev 8） · [Skill 产品：产品需求描述](../../product/skills/design.md#产品需求描述)（rev 11）
+- **别混 ①**：**不是[工具条目来源](#ul-tool-entry-source--工具条目来源--tool-entry-source)**。那一个向工具入口交出工具条目
+- **别混 ②**：**不是[入口来源](#ul-command-entry-source--入口来源--command-entry-source)**。Skill 是命令的一个入口来源，把自己的目录交给人点名。技能条目来源方向相反：别的领域把技能交给 `Skills` 入口
+
+### UL-command-entry · 入口项 · Command Entry
+
+> **中**：一个会话此刻能用一个名字点名的一件事，是这个会话的清单里的一项。入口项恰有三种：引用型（一份 Skill，写在一句话的任何位置）、提示词命令与系统命令（这两种只写在开头）。能写在哪里由种类决定。每一项带着它的[全名与短名](interaction-and-dispatch.md#ul-command-name--全名与短名--command-name)、给人看的一句话、此刻能不能用及原因。清单按发问的那个租户、主体与会话此刻的事实现算，不存。
+>
+> **EN**: One thing a session can name right now, as one item of that session's list. A command entry is one of exactly three kinds: a reference (a skill, written anywhere in a sentence), a prompt command, or a system command (these two are written only at the start). The kind decides where it may be written. Each item carries its full and short name, one line for people, and whether it can be used now and why not. The list is computed from the facts of the asking tenant, subject and session at that moment; it is not stored.
+
+- **形态**：视图
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新)（rev 5）
+- **别混**：不是[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)这一类资产——提示词命令是资产，Skill 与系统命令不是；入口项是它们在一个会话里能被点名的那一面。也不是[工具条目](#ul-tool-entry--工具条目--tool-entry)：工具条目给 agent 调，入口项给人点名
+- **注意**：客户端的控制与界面动作不在服务端的清单里，它们是[外壳动作](interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action)
+
+### UL-command-entry-source · 入口来源 · Command Entry Source
+
+> **中**：另一个领域在与命令的关系里扮演的角色：它向命令登记，被问到时按发问的租户、主体与会话此刻的事实交出一批[入口项](#ul-command-entry--入口项--command-entry)，被点名时连人敲的参数一起收到，交出这一项的内容、一个操作请求（哪个协议的哪个操作、带哪些字段）或「参数不对」；还可以答一个参数此刻的[参数候选](capabilities-and-composition.md#ul-argument-candidate--参数候选--argument-candidate)。Skill 领域是一个来源，交出可取用的 Skill；资产交出提示词命令；各流程的拥有者交出自己的系统命令。一个来源一个名字空间。
+>
+> **EN**: The role another domain plays toward commands: it registers with them and, when asked, hands over a set of command entries computed from the asking tenant's, subject's and session's facts at that moment; when one of its entries is named, it receives the arguments the person typed and hands over that entry's content, an operation request (which operation of which protocol, with which fields) or "the arguments are wrong"; it may also answer the argument candidates of a parameter. The skill domain is one source and hands over the skills that can be used; assets hand over prompt commands; each flow owner hands over its own system commands. One source has one namespace.
+
+- **形态**：属性
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置)（rev 5）
+- **别混**：不是[工具条目来源](#ul-tool-entry-source--工具条目来源--tool-entry-source)，那是对工具入口的同一种角色；两者同构，各归各的入口。来源不把任何东西存进命令，命令也不认识来源是谁
+- **注意**：一个来源此刻答不出，清单里只有它那一部分写明无法判断，不当成空
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

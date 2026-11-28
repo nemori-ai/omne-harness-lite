@@ -10,6 +10,8 @@ import type {
 import type {
   CostLookupAnswer,
   CredentialPort,
+  LiveSession,
+  MaterializedLiveTransport,
   MaterializedTransport,
   ModelCommands,
   ModelTransport,
@@ -23,6 +25,7 @@ export type CredentialSelection = Readonly<{
 }>
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
+  | Readonly<{ kind: 'started-live'; session: LiveSession }>
   | Readonly<{ kind: 'refused'; failure: ModelFailure; fault?: ModelFault }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
 
@@ -42,6 +45,12 @@ export interface SendResource {
     secrets: ReadonlyMap<string, string>,
     signal: AbortSignal,
   ): AsyncIterable<TransportFact>
+  /** Opens the live session of a live binding, with the secrets only in the connection. */
+  openWithCredential(
+    materialized: MaterializedLiveTransport,
+    secrets: ReadonlyMap<string, string>,
+    signal: AbortSignal,
+  ): LiveSession
   release(): Promise<void>
 }
 export interface SendResources<P> {

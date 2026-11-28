@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type FixedModelRequest } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
+import { type LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
   type ConformanceSubject,
@@ -21,7 +21,11 @@ import {
   type NetworkResources,
   type PiTransport,
 } from '@omne-harness/pi-ai-transport'
-import { fixtureDirectory, GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
+import {
+  fixtureDirectory,
+  GATEWAY_END_MARKER,
+  OPENROUTER_ACCOUNTING,
+} from '@omne-harness/pi-ai-transport/testing'
 import {
   createOpenAiFamily,
   OPENAI_RECORDS,
@@ -73,7 +77,7 @@ type RecordFixture = Readonly<{
   path: string
   name: string
   model: string
-  request: FixedModelRequest
+  request: LlmModelRequest
   body: unknown
   stream: string
   facts: unknown
@@ -91,7 +95,7 @@ function readFixture(
 ): RecordFixture {
   const directory = join(root, fixtureDirectory(record))
   const parsed: unknown = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8'))
-  const request = judgeFixedModelRequest(Reflect.get(Object(parsed), 'request'))
+  const request = judgeModelRequest('llm', Reflect.get(Object(parsed), 'request'))
   if (!('ok' in request)) throw new Error(`${record.name}: ${JSON.stringify(request.failure)}`)
   return {
     family,
@@ -143,26 +147,23 @@ function buildTransport(): Built {
     tls: { ca: certificate.cert },
   })
   let reads = 0
+  // Every record fixture was recorded under the gateway's accounting, a direct one too.
+  const route = {
+    endpoints: {
+      'chat-completions': {
+        url: new URL(PATHS['chat-completions'], server.url).href,
+        endMarker: GATEWAY_END_MARKER,
+      },
+      responses: { url: new URL(PATHS.responses, server.url).href, endMarker: GATEWAY_END_MARKER },
+      messages: { url: new URL(PATHS.messages, server.url).href, endMarker: null },
+    },
+    accounting: OPENROUTER_ACCOUNTING,
+    auth: { kind: 'bearer', item: 'apiKey' },
+  } as const
   const transport = createPiTransport({
     network,
     families: FAMILIES,
-    routes: {
-      openrouter: {
-        endpoints: {
-          'chat-completions': {
-            url: new URL(PATHS['chat-completions'], server.url).href,
-            endMarker: GATEWAY_END_MARKER,
-          },
-          responses: {
-            url: new URL(PATHS.responses, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
-          },
-          messages: { url: new URL(PATHS.messages, server.url).href, endMarker: null },
-        },
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
-        auth: { kind: 'bearer', item: 'apiKey' },
-      },
-    },
+    routes: { openrouter: route, openai: route },
     credential: {
       read: () => {
         reads += 1
@@ -174,7 +175,7 @@ function buildTransport(): Built {
   return { transport, network, sends: () => reads }
 }
 
-async function send(built: Built, request: FixedModelRequest): Promise<readonly TransportFact[]> {
+async function send(built: Built, request: LlmModelRequest): Promise<readonly TransportFact[]> {
   const prepared = await built.transport.transport.prepare(request, request.suppliers[0], {
     resent: [],
   })
@@ -183,12 +184,14 @@ async function send(built: Built, request: FixedModelRequest): Promise<readonly 
     const materialized = await prepared.ok.materialize(new AbortController().signal)
     if (!('ok' in materialized))
       throw new Error(`materialize: ${JSON.stringify(materialized.failure)}`)
+    const chat = materialized.ok
+    if (!('start' in chat)) throw new Error('materialize: a live binding')
     try {
       const facts: TransportFact[] = []
-      for await (const fact of materialized.ok.start(new AbortController().signal)) facts.push(fact)
+      for await (const fact of chat.start(new AbortController().signal)) facts.push(fact)
       return facts
     } finally {
-      await materialized.ok.close()
+      await chat.close()
     }
   } finally {
     await prepared.ok.close()

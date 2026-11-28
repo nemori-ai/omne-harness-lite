@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { FixedToolRequest } from './definitions.ts'
+import type { ToolCapabilityIdentity } from './entry-source.ts'
 import type { ToolActionGate } from './gates.ts'
 import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts'
 import type {
@@ -24,13 +25,15 @@ export type ToolForwardIntent = Readonly<{
 /** The action one tool call really performs: the tool it names, with the command and arguments it runs. */
 export type ToolActionTarget = Readonly<{
   name: string
+  /** The asset behind the target, when it is not a tool of its own name; permission is found by it. */
+  capability?: ToolCapabilityIdentity
   definition: Adoption
   command: string | null
   effectiveArguments: string
   gate: ToolActionGate
 }>
 export type ToolCallAction =
-  | Readonly<{ kind: 'own'; gate: ToolActionGate }>
+  | Readonly<{ kind: 'own'; gate: ToolActionGate; capability?: ToolCapabilityIdentity }>
   | Readonly<{
       kind: 'carried'
       carrier: Readonly<{ name: string; definition: Adoption; gate: ToolActionGate }>
@@ -64,6 +67,8 @@ export interface ToolForwardSource<P> {
   ): Reply<
     Readonly<{ kind: 'bound'; binding: ToolForwardBinding }> | Readonly<{ kind: 'unresolved' }>
   >
+  /** The parent brought its target's result back: what it received for the target may go when it ends. */
+  presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void
 }
 export interface ToolForwardRuntime<P> {
   invoke(
@@ -71,4 +76,5 @@ export interface ToolForwardRuntime<P> {
       Readonly<{ intent: ToolForwardIntent; target: ToolInvokeRequest }>,
   ): Promise<ToolInvokeOutcome>
   resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>
+  presented?(parent: Pick<ToolForwardParent<P>, 'tenant' | 'call'>): void
 }

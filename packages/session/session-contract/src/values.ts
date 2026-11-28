@@ -1,3 +1,4 @@
+import type { SavedModelSelection } from './control-values.ts'
 import type { SessionPermissions } from './permission-values.ts'
 import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
@@ -17,6 +18,7 @@ import type {
   ConsumerRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   ResidentKey,
   BatchId,
@@ -32,9 +34,18 @@ export type ResidentTool = Readonly<{
   version: string
   shape: JsonValue
   admitted: DurableEvidence
+  definition?: JsonValue
 }>
+export type ResidentSegment = Readonly<{
+  key: string
+  text: string
+  sources: readonly ResidentSegmentSource[]
+}>
+export type ResidentSegmentSource = Readonly<{ category: string; name: string; digest: string }>
+export type AdoptionNote = Readonly<{ kind: 'kept' | 'waiting'; reason: string }>
 export type SessionFrozen = Readonly<{
   cause: 'tool-shape-lost'
+  capability: string
   evidence: DurableEvidence
   commit: DurableEvidence
 }>
@@ -73,15 +84,53 @@ export type ResultConsumption = Readonly<{
   completion: DurableEvidence | null
   release: 'pending' | 'confirmed'
 }>
+export type WorkspaceDirectoryVisit = Readonly<{
+  batch?: string
+  workspace: string
+  instance: string
+  generation: string
+  directories: readonly string[]
+}>
 export type Consumption = Readonly<{
   id: ConsumptionId
   binding: CallBinding
   results: readonly ResultConsumption[]
+  delivered?: DurableEvidence
 }>
 export type InputBatch = Readonly<{
   id: BatchId
   watermark: DurableEvidence
   ordered: readonly InputId[]
+}>
+export type RunFailure =
+  | Readonly<{
+      kind: 'node-failed'
+      node: string
+      category: string
+      failureKind: string
+      diagnostic?: string
+    }>
+  | Readonly<{ kind: 'model-refused'; failure: string }>
+  | Readonly<{
+      kind: 'no-reply'
+      cause: string | null
+      upstreamStatus: string | null
+      diagnostic: string | null
+      throttled?: true
+    }>
+  | Readonly<{ kind: 'cannot-fit'; reason: string }>
+  | Readonly<{
+      kind:
+        | 'request-rejected'
+        | 'compaction-invalid'
+        | 'compaction-failed'
+        | 'message-rejected'
+        | 'extension-stop'
+        | 'guard'
+    }>
+export type RunEnd = Readonly<{
+  conclusion: 'complete' | 'fail' | 'cancelled'
+  failure: RunFailure | null
 }>
 export type RunTerminal = Readonly<{
   run: RunId
@@ -94,7 +143,7 @@ export type RunState =
       kind: 'active'
       run: RunId
       adoption: Adoption
-      first: InputId
+      initial: InitialBatch
       advance: AdvanceRef | null
       ordinal: string
       execution: ExecutionRef
@@ -135,6 +184,7 @@ export type RoutedInput =
       origin: DurableEvidence
       source: InputSourceName
       wake?: boolean
+      afterRun?: true
     }>
   | Readonly<{
       kind: 'card-decision'
@@ -227,11 +277,25 @@ export type BoundedClose =
       failure: 'invalid' | 'unsupported'
       field: string | null
       reason: string | null
-      input: InputId | null
+      inputs: readonly InputId[]
     }>
+export type ModelProvenance = Readonly<{ owner: string; key: string; blocks: readonly string[] }>
+
 export type DerivedMessage =
+  | Readonly<{
+      kind: 'model-projection'
+      epoch: string
+      restoreOriginals?: true
+      blocks: readonly string[]
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'compaction'; message: CompactionMessage; epoch: string }>
-  | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-reminder'
+      message: Message
+      source: DurableEvidence
+      provenance?: readonly ModelProvenance[]
+    }>
 
 export type Modes = Readonly<{
   permission: 'never' | 'auto_permission' | 'bypass-permissions'
@@ -251,7 +315,7 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
-  initialModelSelection?: import('./control-values.ts').SavedModelSelection
+  initialModelSelection?: SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
   relation?: Relation
@@ -324,7 +388,7 @@ export type DeclarationChange =
       workspaceAttachment: WorkspaceAttachment | null
       basis: DurableEvidence
     }>
-  | Readonly<{ kind: 'model'; name: string; basis: DurableEvidence }>
+  | (Readonly<{ kind: 'model' }> & SavedModelSelection)
   | Readonly<{ kind: 'declaration'; item: string; value: JsonValue | null; basis: DurableEvidence }>
   | Readonly<{
       kind: 'context-registration'
@@ -377,7 +441,11 @@ export type IdleObservation =
 export type AutoArchivePolicy =
   | Readonly<{ kind: 'disabled' }>
   | Readonly<{ kind: 'enabled'; idleMs: string }>
-export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
+export type FreezeVerdict = Readonly<{
+  cause: 'tool-shape-lost'
+  capability: string
+  evidence: DurableEvidence
+}>
 
 export type WorkSnapshot = Readonly<{
   workEntryIndex?: SessionWorkEntryIndex
@@ -409,6 +477,7 @@ export type WorkSnapshot = Readonly<{
   todos?: readonly TodoItem[]
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
+  segments?: readonly ResidentSegment[]
   relation?: Relation
   tree?: SessionTree
   attendance?: Attendance
@@ -425,11 +494,18 @@ export type WorkSnapshot = Readonly<{
   uncountedInputs?: readonly InputId[]
   /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
   quietInputs?: readonly InputId[]
+  deferredInputs?: readonly Readonly<{ input: InputId; run: RunId | null }>[]
   /** Inputs delivered to the model view since the last assistant message. */
   deliveredTail?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
+  workspaceVisit?: WorkspaceDirectoryVisit
+  workspaceBackgroundVisits?: readonly Readonly<{
+    consumption: ConsumptionId
+    visit: WorkspaceDirectoryVisit
+    input?: InputId
+  }>[]
   changes?: readonly DeclarationChange[]
   initialization?: InitializationState
   historyIndex?: SessionHistoryIndex
@@ -448,11 +524,13 @@ export type SessionWaiting = Readonly<{
 export type ResidentAdoption = Readonly<{
   residents: readonly ResidentTool[]
   keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]
+  segments?: readonly ResidentSegment[]
 }>
 export type RunExecution = Readonly<{
   run: RunId
   execution: ExecutionRef
   terminal: RunTerminal | null
+  uninterpretable?: true
 }>
 export type ContextScopeBinding = Readonly<{
   generation: string
@@ -506,6 +584,7 @@ export type InitializationAdoption = Readonly<{
   capabilities: ContextMaterial
   residentBindings: ResidentAdoption['keys']
   newResidents: ResidentAdoption['residents']
+  newSegments?: readonly ResidentSegment[]
 }>
 export type InitialAdoption = InitializationAdoption & Readonly<{ candidate: Adoption }>
 export type InitializationConsequence =

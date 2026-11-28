@@ -11,6 +11,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { readOptions } from './options.ts'
 import { report } from './report.ts'
@@ -119,7 +120,7 @@ async function runUsage(
   if (body === undefined) return usageError(output, unrecognized(name))
   const messageId = environment.services.newId()
   const result = await loaded.link.call(usageProtocol, name, body as never, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }
 

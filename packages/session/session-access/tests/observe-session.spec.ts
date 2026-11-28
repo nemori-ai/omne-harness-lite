@@ -46,6 +46,7 @@ async function drain<T, R>(frames: AsyncGenerator<T, R>): Promise<{ frames: T[];
 const context = (signal = new AbortController().signal) => ({
   principal: loginIdentity(ALICE),
   messageId: 'o-1',
+  revision: 1,
   signal,
 })
 

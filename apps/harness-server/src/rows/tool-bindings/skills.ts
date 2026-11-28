@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { capabilityId } from '@omne-harness/assets'
+import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { access as accessOf, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -11,25 +11,47 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
+  isSourcedSkillName,
+  listSourcedSkills,
+  mergeSearched,
+  sourceOfSkill,
+  type SearchedSkill,
+} from '@omne-harness/skill'
+import {
   isSkillName,
   type CatalogEntry,
   type ReadFailure,
   type ReadResult,
   type SkillAccess,
   type SkillCatalog,
+  type SkillEntrySource,
+  type SkillSourceEntry,
+  type SkillSourceFailure,
+  type SkillSourceText,
 } from '@omne-harness/skill-contract'
-import { skillAccessKey, skillCatalogKey } from '@omne-harness/skill-cordis-contract/cordis'
+import {
+  skillAccessKey,
+  skillCatalogKey,
+  skillEntrySourcesKey,
+  type SkillEntrySourcesService,
+} from '@omne-harness/skill-cordis-contract/cordis'
 import { decodeCursor, encodeCursor } from '@omne-harness/text-search'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   attachSkillsAccess,
   type SkillsAccess,
   type SkillsEntry,
   type SkillsFailure,
-  type SkillsPage,
+  type SkillsListing,
+  type SkillsMissingTools,
+  type SkillsSource,
   type SkillsText,
 } from '@omne-harness/tool-definitions'
+import { releaseToolConsumer } from '../../entry/tool-forward-requests.ts'
+import { entrySourceScope } from '../../entry/tool-entry-sources.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
@@ -38,6 +60,7 @@ type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
 /** One Skill page holds at most this many bytes; the Skill reader answers at most 64 KiB. */
 const PAGE_BYTES = 65_536
+const SOURCE_LIST_MS = 5000
 
 export type SkillsBindingPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
@@ -46,6 +69,14 @@ export type SkillsBindingPorts = Readonly<{
   ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   catalog(): SkillCatalog<unknown, unknown> | undefined
   access(): SkillAccess<unknown, unknown> | undefined
+  /** Which of these tools the asker does not have now, as the tool catalog sees it; unknown when it cannot tell. */
+  missingTools(
+    access: Access<unknown>,
+    names: readonly string[],
+  ): Promise<ReadonlySet<string> | 'unknown'>
+  /** The Skill entry sources in service for this asker now. */
+  sources(access: Access<unknown>): readonly SkillEntrySource<unknown>[]
+  sourceListMs?: number
 }>
 
 const unavailable = (reason: string) => fail({ kind: 'unavailable', reason } as const)
@@ -77,18 +108,47 @@ function readFailure(failure: ReadFailure): SkillsFailure {
   }
 }
 
-function entryOf(entry: CatalogEntry): SkillsEntry {
+const TOOL = 'tool'
+
+function toolsOf(entry: CatalogEntry | undefined): readonly string[] {
+  if (entry?.kind !== 'adopted') return []
+  return entry.dependencies.filter(id => id.category === TOOL).map(id => id.name)
+}
+
+function lacking(
+  needed: readonly string[],
+  missing: ReadonlySet<string> | 'unknown',
+): SkillsMissingTools | undefined {
+  if (needed.length === 0) return undefined
+  if (missing === 'unknown') return missing
+  const lacked = needed.filter(name => missing.has(name))
+  return lacked.length === 0 ? undefined : lacked
+}
+
+function entryOf(entry: CatalogEntry, needs: SkillsMissingTools | undefined): SkillsEntry {
   const description = entry.description === undefined ? {} : { description: entry.description }
   return entry.kind === 'adopted'
-    ? { kind: 'available', name: entry.name, ...description }
+    ? {
+        kind: 'available',
+        name: entry.name,
+        ...description,
+        ...(needs === undefined ? {} : { needs }),
+      }
     : { kind: 'disabled', name: entry.name, ...description, reason: entry.reason }
 }
 
-function bindingOf(query: string, entries: readonly CatalogEntry[]): string {
-  const text = JSON.stringify([
-    query.normalize('NFKC').trim(),
-    entries.map(entry => [entry.kind, entry.capability.category, entry.capability.name]),
-  ])
+function sourcedEntryOf(entry: SkillSourceEntry): SkillsEntry {
+  const { name, description, label } = entry
+  return { kind: 'available', name, description, origin: label }
+}
+
+const keyOf = ({ kind, entry }: SearchedSkill) =>
+  kind === 'asset'
+    ? [entry.kind, entry.capability.category, entry.capability.name]
+    : ['source', entry.label, entry.name]
+
+function bindingOf(query: string, items: readonly SearchedSkill[]): string {
+  const text = JSON.stringify([query.normalize('NFKC').trim(), items.map(keyOf)])
   return createHash('sha256').update(text).digest('hex')
 }
 
@@ -98,18 +158,23 @@ function pageOf(
   query: string,
   cursor: Cursor | null,
   limit: number,
-  found: readonly CatalogEntry[],
-): Outcome<SkillsPage, SkillsFailure> {
+  found: readonly SearchedSkill[],
+): Outcome<Readonly<{ entries: readonly SearchedSkill[]; next: string | null }>, SkillsFailure> {
   const binding = bindingOf(query, found)
   if (cursor !== null && (cursor.binding !== binding || cursor.offset >= found.length))
     return INVALID_CURSOR
   const offset = cursor?.offset ?? 0
   const end = offset + limit
   return succeed({
-    entries: found.slice(offset, end).map(entryOf),
+    entries: found.slice(offset, end),
     next: end < found.length ? encodeCursor({ binding, offset: end }) : null,
   })
 }
+
+const sourceOf = ({ basis }: Pick<ReadResult, 'basis'>): SkillsSource => ({
+  layer: basis.layer,
+  version: basis.assetVersion ?? basis.digest,
+})
 
 function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
   if (read.content.kind !== 'text') return fail({ kind: 'not-text' })
@@ -118,8 +183,20 @@ function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
     start: read.range.start,
     end: read.range.start + read.range.length,
     total: read.total,
+    source: sourceOf(read),
     ...(read.directory === undefined ? {} : { directory: read.directory }),
   })
+}
+
+function sourceFailure(failure: SkillSourceFailure): SkillsFailure {
+  if (failure !== 'unavailable') return { kind: failure }
+  return { kind: 'unavailable', reason: 'the source of this Skill cannot be read now' }
+}
+
+function sourcedText(read: SkillSourceText): SkillsText {
+  const { text, start, total, label } = read
+  const end = start + Buffer.byteLength(text, 'utf8')
+  return { text, start, end, total, source: { external: label } }
 }
 
 /** A call's scope: the key of the turn it is made in, once its session has stood at a workspace. */
@@ -131,6 +208,72 @@ export function turnScopeOf(snapshot: WorkSnapshot): Readonly<{ key: string }> |
 }
 
 type Caller = Readonly<{ access: Access<unknown>; scope: Readonly<{ key: string }> | null }>
+
+const rangeOf = (offset: number, maxBytes: number) => ({
+  start: offset,
+  length: Math.max(1, Math.min(maxBytes, PAGE_BYTES)),
+})
+
+function sourcesOf(ports: SkillsBindingPorts, access: Access<unknown>) {
+  try {
+    return ports.sources(access)
+  } catch {
+    return []
+  }
+}
+
+const mapped = <A, B, F>(answer: Outcome<A, F>, map: (value: A) => B): Outcome<B, F> =>
+  'ok' in answer ? succeed(map(answer.ok)) : answer
+
+/** Reads of a Skill whose name carries a source's prefix: that source alone answers, and one that throws answers unavailable for itself. */
+function createSourcedReads(
+  who: () => Promise<Outcome<Caller, SkillsFailure>>,
+  ports: SkillsBindingPorts,
+): Pick<SkillsAccess, 'read' | 'list' | 'readFile'> {
+  async function fromSource<T>(
+    skill: string,
+    signal: AbortSignal,
+    ask: (
+      source: SkillEntrySource<unknown>,
+      access: Access<unknown>,
+    ) => Promise<Outcome<T, SkillSourceFailure>>,
+  ): Promise<Outcome<T, SkillsFailure>> {
+    const caller = await who()
+    if (!('ok' in caller)) return caller
+    const source = sourceOfSkill(sourcesOf(ports, caller.ok.access), skill)
+    if (source === undefined) return NOT_FOUND
+    try {
+      const answer = await ask(source, caller.ok.access)
+      return 'ok' in answer ? answer : fail(sourceFailure(answer.failure))
+    } catch {
+      if (signal.aborted) throw new DOMException('The Skills call was cancelled', 'AbortError')
+      return unavailable('the source of this Skill cannot be read now')
+    }
+  }
+  return {
+    read: ({ skill, offset, maxBytes }, signal) =>
+      fromSource(skill, signal, async (source, access) =>
+        mapped(
+          await source.read(access, skill, { range: rangeOf(offset, maxBytes), signal }),
+          sourcedText,
+        ),
+      ),
+    list: ({ skill }, signal) =>
+      fromSource(skill, signal, async (source, access) =>
+        mapped(await source.listFiles(access, skill, signal), ({ files, label }) => ({
+          files,
+          source: { external: label },
+        })),
+      ),
+    readFile: ({ skill, path, offset, maxBytes }, signal) =>
+      fromSource(skill, signal, async (source, access) =>
+        mapped(
+          await source.readFile(access, skill, path, { range: rangeOf(offset, maxBytes), signal }),
+          sourcedText,
+        ),
+      ),
+  }
+}
 
 export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): SkillsAccess {
   async function who(): Promise<Outcome<Caller, SkillsFailure>> {
@@ -162,10 +305,35 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
     if (service === undefined) return unavailable('the Skill reader is not available')
     return succeed({ ...caller.ok, capability: id.id, service })
   }
-  const range = (offset: number, maxBytes: number) => ({
-    start: offset,
-    length: Math.max(1, Math.min(maxBytes, PAGE_BYTES)),
-  })
+  async function missingOf(access: Access<unknown>, names: readonly string[]) {
+    if (names.length === 0) return new Set<string>()
+    try {
+      return await ports.missingTools(access, names)
+    } catch {
+      return 'unknown' as const
+    }
+  }
+  async function needsOf(caller: Caller, capability: CapabilityId) {
+    let declared: Awaited<ReturnType<SkillCatalog<unknown, unknown>['summaries']>> | undefined
+    try {
+      declared = await ports.catalog()?.summaries(caller.access, caller.scope, [capability])
+    } catch {
+      declared = undefined
+    }
+    if (declared === undefined || !('ok' in declared)) return 'unknown' as const
+    const needed = toolsOf(declared.ok[0])
+    return lacking(needed, await missingOf(caller.access, needed))
+  }
+  async function withNeeds<T extends SkillsText | SkillsListing>(
+    caller: Caller,
+    capability: CapabilityId,
+    answer: Outcome<T, SkillsFailure>,
+  ): Promise<Outcome<T, SkillsFailure>> {
+    if (!('ok' in answer)) return answer
+    const missingTools = await needsOf(caller, capability)
+    return missingTools === undefined ? answer : succeed({ ...answer.ok, missingTools })
+  }
+  const sourced = createSourcedReads(who, ports)
   return {
     async search(input) {
       const cursor = input.after === null ? null : decodeCursor(input.after)
@@ -175,11 +343,29 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
       const catalog = ports.catalog()
       if (catalog === undefined) return unavailable('the Skill catalog is not available')
       const { access, scope } = caller.ok
-      const found = await catalog.search(access, scope, { text: input.query })
+      const [found, sourced] = await Promise.all([
+        catalog.search(access, scope, { text: input.query }),
+        listSourcedSkills(sourcesOf(ports, access), access, ports.sourceListMs ?? SOURCE_LIST_MS),
+      ])
       if (!('ok' in found)) return unavailable('the Skill store cannot be read now')
-      return pageOf(input.query, cursor, input.limit, found.ok)
+      const merged = mergeSearched(input.query, found.ok, sourced, (text, documents) =>
+        catalog.order(text, documents),
+      )
+      const page = pageOf(input.query, cursor, input.limit, merged)
+      if (!('ok' in page)) return page
+      const assets = page.ok.entries.flatMap(item => (item.kind === 'asset' ? [item.entry] : []))
+      const missing = await missingOf(access, [...new Set(assets.flatMap(toolsOf))])
+      return succeed({
+        entries: page.ok.entries.map(({ kind, entry }) =>
+          kind === 'asset'
+            ? entryOf(entry, lacking(toolsOf(entry), missing))
+            : sourcedEntryOf(entry),
+        ),
+        next: page.ok.next,
+      })
     },
     async read(input, signal) {
+      if (isSourcedSkillName(input.skill)) return sourced.read(input, signal)
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
       const { access, scope, capability, service } = target.ok
@@ -187,26 +373,34 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
         access,
         scope,
         { capability, part: { kind: 'body' } },
-        { range: range(input.offset, input.maxBytes), signal },
+        { range: rangeOf(input.offset, input.maxBytes), signal },
       )
-      return 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      const answer = 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      return withNeeds(target.ok, capability, answer)
     },
     async list(input, signal) {
+      if (isSourcedSkillName(input.skill)) return sourced.list(input, signal)
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
       const { access, scope, capability, service } = target.ok
       const listed = await service.list(access, scope, capability, { signal })
       if (!('ok' in listed)) return fail(readFailure(listed.failure))
-      return succeed({
-        files: listed.ok.resources.map(entry => ({
-          path: entry.path,
-          size: entry.size,
-          ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
-        })),
-        ...(listed.ok.directory === undefined ? {} : { directory: listed.ok.directory }),
-      })
+      return withNeeds(
+        target.ok,
+        capability,
+        succeed({
+          files: listed.ok.resources.map(entry => ({
+            path: entry.path,
+            size: entry.size,
+            ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
+          })),
+          source: sourceOf(listed.ok),
+          ...(listed.ok.directory === undefined ? {} : { directory: listed.ok.directory }),
+        }),
+      )
     },
     async readFile(input, signal) {
+      if (isSourcedSkillName(input.skill)) return sourced.readFile(input, signal)
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
       const { access, scope, capability, service } = target.ok
@@ -214,11 +408,37 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
         access,
         scope,
         { capability, part: { kind: 'resource', path: input.path } },
-        { range: range(input.offset, input.maxBytes), signal },
+        { range: rangeOf(input.offset, input.maxBytes), signal },
       )
-      return 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      const answer = 'ok' in read ? textOf(read.ok) : fail(readFailure(read.failure))
+      return withNeeds(target.ok, capability, answer)
     },
   }
+}
+
+async function missingToolsOf(
+  ctx: Context,
+  access: Access<unknown>,
+  names: readonly string[],
+): Promise<ReadonlySet<string> | 'unknown'> {
+  const catalog = ctx.get(toolCatalogKey, false)
+  const release = releaseOf(ctx)
+  if (catalog === undefined || release.kind !== 'trusted') return 'unknown'
+  const answer = await catalog.inspectEach({
+    ...access,
+    names,
+    consumer: releaseToolConsumer(release),
+  })
+  if (!('ok' in answer)) return 'unknown'
+  const missing = new Set<string>()
+  for (const [index, one] of answer.ok.entries()) {
+    const name = names[index] as string
+    if ('ok' in one) {
+      if (one.ok.kind !== 'available') missing.add(name)
+    } else if (one.failure.kind === 'invalid' && one.failure.field === 'name') missing.add(name)
+    else return 'unknown'
+  }
+  return missing
 }
 
 export function bindReleaseSkills(
@@ -233,6 +453,11 @@ export function bindReleaseSkills(
       readWork: sessionWorkReaderOf(ctx),
       catalog: () => ctx.get(skillCatalogKey),
       access: () => ctx.get(skillAccessKey),
+      missingTools: (access, names) => missingToolsOf(ctx, access, names),
+      sources: access =>
+        (
+          ctx.get(skillEntrySourcesKey, false) as SkillEntrySourcesService<unknown> | undefined
+        )?.sources(entrySourceScope(access)) ?? [],
     }),
   )
 }

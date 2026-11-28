@@ -1,9 +1,14 @@
 import { wireLimits } from '../media.ts'
 import type { RouteAccounting } from '../config.ts'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type {
+  Adoption,
+  LlmModelRequest,
+  ReasoningEffortMapping,
+  Supplier,
+} from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
 import { isPositiveInteger } from '../limits.ts'
-import type { PiFamilyBinding } from '../family.ts'
+import type { PiChatBinding } from '../family.ts'
 import { createChatCompletionsDecoder } from './decoder.ts'
 import { GATEWAY_FIELDS } from './gateway.ts'
 import { defaultParameter, judgeParameter, PARAMETER_KINDS } from './parameters.ts'
@@ -20,6 +25,7 @@ import type {
 } from './vocabulary.ts'
 
 export type ChatCompletionsBindingInput = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ChatCompletionsRecord
   supplier: Supplier
   hooks: VendorHooks
@@ -132,7 +138,7 @@ function checkFields(record: ChatCompletionsRecord): void {
 function decoderNames(
   record: ChatCompletionsRecord,
   adapter: Adoption,
-  request: FixedModelRequest,
+  request: LlmModelRequest,
 ): ToolNames {
   const names = toolNamesOf({
     profile: record.wire.toolNames,
@@ -147,7 +153,7 @@ function decoderNames(
   return names.ok
 }
 
-export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamilyBinding {
+export function bindChatCompletions(input: ChatCompletionsBindingInput): PiChatBinding {
   const { record, supplier, hooks, meter } = input
   const adoption = recordAdoption(supplier.adoption.owner, record)
   checkInput(input, adoption)
@@ -156,6 +162,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     maxReasoningText: input.limits.maxReasoningText,
   })
   const context: RequestContext = {
+    bindingEfforts: input.bindingEfforts,
     record,
     hooks,
     meter,
@@ -183,7 +190,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     createDecoder: ({
       request,
       accounting,
-    }: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>) =>
+    }: Readonly<{ request: LlmModelRequest; accounting: RouteAccounting }>) =>
       createChatCompletionsDecoder({
         record,
         accounting,
@@ -195,5 +202,5 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
       released ??= input.release()
       return released
     },
-  } satisfies PiFamilyBinding)
+  } satisfies PiChatBinding)
 }

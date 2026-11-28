@@ -30,7 +30,11 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     PRIMARY KEY (tenant, reason, session)) STRICT`,
   `CREATE TABLE sl_resident_idx (
     resident_key TEXT NOT NULL, tenant TEXT NOT NULL, session TEXT NOT NULL, capability TEXT NOT NULL,
-    shape TEXT NOT NULL, PRIMARY KEY (resident_key, tenant, session, capability)) STRICT`,
+    shape_digest TEXT NOT NULL, PRIMARY KEY (resident_key, tenant, session, capability)) STRICT`,
+  `CREATE INDEX sl_resident_shape_ref_idx ON sl_resident_idx (tenant, shape_digest)`,
+  `CREATE TABLE sl_resident_shape (
+    tenant TEXT NOT NULL, digest TEXT NOT NULL, shape TEXT NOT NULL,
+    PRIMARY KEY (tenant, digest)) STRICT`,
   `CREATE TABLE sl_released_scope_idx (
     tenant TEXT NOT NULL, session TEXT NOT NULL, scope TEXT NOT NULL, data TEXT NOT NULL,
     PRIMARY KEY (tenant, session, scope)) STRICT`,
@@ -46,6 +50,7 @@ export const SESSION_TABLES: readonly string[] = [
   'sl_annotation_idx',
   'sl_pending_idx',
   'sl_resident_idx',
+  'sl_resident_shape',
   'sl_released_scope_idx',
 ]
 

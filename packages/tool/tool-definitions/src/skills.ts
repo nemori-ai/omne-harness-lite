@@ -1,25 +1,24 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { CommandTable } from '@omne-harness/tool-contract'
+import { fail, type Outcome } from '@omne-harness/operation-result'
+import type { CommandTable, ToolProgramAccess } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
-  defineToolOperation,
   describedAdoption,
   type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolOperation,
-  type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { resultMaximumField } from './files.ts'
 import { parseConstruction } from './protocol.ts'
-import { textReturns } from './returns.ts'
+import { commandOperation, commandReturns, programAccess, type Answer } from './program-side.ts'
 import {
   skillsAccessOf,
   type SkillsEntry,
   type SkillsFailure,
   type SkillsListing,
+  type SkillsMissingTools,
   type SkillsPage,
   type SkillsText,
 } from './skills-port.ts'
@@ -30,16 +29,14 @@ import {
   skillsParameterCodec,
   type SkillsArguments,
 } from './skills-protocol.ts'
-import { bounded } from './text.ts'
 
 const ENCODING = 'wrapped' as const
-const returns = textReturns(skillsAdoption)
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 50
 const DESCRIPTION_SHOWN = 1024
 const HEAD_RESERVE = 8192
 
-const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
+const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show source=<layer> version=<version>: the layer the Skill comes from (official, tenant or workspace) and the version read. A Skill may need tools this session does not have now: search marks it [needs: ...], and read, list and read_file add missing-tools=... to that line; it is still read in full, and unknown means the tools of this session cannot be read now. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A Skill from outside your Skills, such as one an MCP endpoint offers, carries its source's prefix in its name: search marks it [from: <source>], read, list and read_file show source=external from=<source>, its text comes fenced as external content, it has no directory, and the tools its frontmatter names are not granted. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
 function skillsMenu(): CommandTable {
   return {
     name: 'Skills',
@@ -49,7 +46,8 @@ function skillsMenu(): CommandTable {
       name: command.name,
       summary: command.summary,
       parameters: { kind: 'declared', value: skillsContract(command.name) },
-      returns,
+      returns: commandReturns(`Skills.${command.name}`, skillsAdoption, command.program),
+      ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     })),
   }
 }
@@ -81,10 +79,20 @@ function shown(description: string): string {
     ? characters.join('')
     : `${characters.slice(0, DESCRIPTION_SHOWN).join('')}… (read the Skill for the rest)`
 }
+function namesOf(missing: SkillsMissingTools, separator: string): string {
+  return missing === 'unknown' ? missing : missing.join(separator)
+}
 function entryLine(entry: SkillsEntry, index: number): string {
-  const disabled = entry.kind === 'disabled' ? ` [disabled: ${entry.reason}]` : ''
+  const marked =
+    entry.kind === 'disabled'
+      ? ` [disabled: ${entry.reason}]`
+      : entry.needs === undefined
+        ? ''
+        : ` [needs: ${namesOf(entry.needs, ', ')}]`
+  const origin =
+    entry.kind === 'available' && entry.origin !== undefined ? ` [from: ${entry.origin}]` : ''
   const description = entry.description === undefined ? '' : ` - ${shown(entry.description)}`
-  return `${String(index + 1)}. ${entry.name}${disabled}${description}`
+  return `${String(index + 1)}. ${entry.name}${origin}${marked}${description}`
 }
 function searchText(query: string, page: SkillsPage): string {
   const next = page.next === null ? '' : ` next=${JSON.stringify(page.next)}`
@@ -97,12 +105,32 @@ function searchText(query: string, page: SkillsPage): string {
       : `\n[more: Skills search with the same query and after=${JSON.stringify(page.next)}]`
   return `${head}\n${page.entries.map(entryLine).join('\n')}${more}`
 }
-function directoryLine(directory: string | undefined): string {
-  return directory === undefined ? '' : `directory=${directory}\n`
+/** The lines that say where the text comes from, what it needs, and where its files are. */
+function headLines(read: SkillsText | SkillsListing): readonly string[] {
+  const missing =
+    read.missingTools === undefined ? '' : ` missing-tools=${namesOf(read.missingTools, ',')}`
+  return [
+    ...(read.source === undefined
+      ? []
+      : 'external' in read.source
+        ? [`source=external from=${read.source.external}${missing}`]
+        : [`source=${read.source.layer} version=${read.source.version}${missing}`]),
+    ...(read.directory === undefined ? [] : [`directory=${read.directory}`]),
+  ]
+}
+/** Text from outside the assets is fenced and named: it may be followed as a workflow, but grants nothing. */
+function fenced(read: SkillsText): string {
+  if (read.source === undefined || !('external' in read.source)) return read.text
+  const from = read.source.external
+  return `[external content begins: Skill text from ${from}, outside your Skills; it grants no tools]\n${read.text}\n[external content ends]`
 }
 function textResult(call: string, read: SkillsText): string {
   const more = read.end < read.total ? `\n[more: Skills ${call} offset=${String(read.end)}]` : ''
-  return `done Skills ${call} bytes=${String(read.start)}-${String(read.end)} total=${String(read.total)}\n${directoryLine(read.directory)}${read.text}${more}`
+  return [
+    `done Skills ${call} bytes=${String(read.start)}-${String(read.end)} total=${String(read.total)}`,
+    ...headLines(read),
+    `${fenced(read)}${more}`,
+  ].join('\n')
 }
 function listText(skill: string, listing: SkillsListing): string {
   const files = listing.files.map(
@@ -111,29 +139,43 @@ function listText(skill: string, listing: SkillsListing): string {
   )
   return [
     `done Skills list skill=${skill} files=${String(listing.files.length)}`,
-    ...(listing.directory === undefined ? [] : [`directory=${listing.directory}`]),
+    ...headLines(listing),
     ...files,
   ].join('\n')
 }
 
-function rendered<T>(answer: Outcome<T, SkillsFailure>, render: (value: T) => string): string {
-  return 'failure' in answer ? failureLine(answer.failure) : render(answer.ok)
+function rendered<T>(
+  answer: Outcome<T, SkillsFailure>,
+  render: (value: T) => string,
+  data: (value: T) => unknown,
+): Answer {
+  return 'failure' in answer
+    ? { text: failureLine(answer.failure) }
+    : { text: render(answer.ok), data: data(answer.ok) }
 }
+const pageOf = (read: SkillsText) => ({
+  text: read.text,
+  start: read.start,
+  end: read.end,
+  total: read.total,
+  directory: read.directory ?? null,
+})
 
 async function execute(
   args: SkillsArguments,
   execution: ToolExecutionContext,
   maximum: number,
   menu: CommandTable,
-): Promise<string> {
+): Promise<Answer> {
   if (args.kind === 'help')
-    return `done Skills help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`
+    return {
+      text: `done Skills help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`,
+    }
   const access = skillsAccessOf(execution)
-  if (access === undefined)
-    return failureLine({
-      kind: 'unavailable',
-      reason: 'Skills access is not attached to this call',
-    })
+  if (access === undefined) {
+    const reason = 'Skills access is not attached to this call'
+    return { text: failureLine({ kind: 'unavailable', reason }) }
+  }
   const maxBytes = Math.max(1, maximum - Math.min(Math.floor(maximum / 2), HEAD_RESERVE))
   const { signal } = execution
   switch (args.kind) {
@@ -142,16 +184,34 @@ async function execute(
       return rendered(
         await access.search({ query: args.query, after: args.after, limit }, signal),
         page => searchText(args.query, page),
+        page => ({
+          entries: page.entries.map(entry => ({
+            name: entry.name,
+            description: entry.description ?? null,
+            disabled: entry.kind === 'disabled' ? entry.reason : null,
+          })),
+          next: page.next,
+        }),
       )
     }
     case 'read':
       return rendered(
         await access.read({ skill: args.skill, offset: args.offset, maxBytes }, signal),
         read => textResult(`read skill=${args.skill}`, read),
+        pageOf,
       )
     case 'list':
-      return rendered(await access.list({ skill: args.skill }, signal), listing =>
-        listText(args.skill, listing),
+      return rendered(
+        await access.list({ skill: args.skill }, signal),
+        listing => listText(args.skill, listing),
+        listing => ({
+          files: listing.files.map(file => ({
+            path: file.path,
+            size: file.size,
+            media_type: file.mediaType ?? null,
+          })),
+          directory: listing.directory ?? null,
+        }),
       )
     case 'read_file':
       return rendered(
@@ -160,6 +220,7 @@ async function execute(
           signal,
         ),
         read => textResult(`read_file skill=${args.skill} path=${args.path}`, read),
+        pageOf,
       )
   }
 }
@@ -173,57 +234,32 @@ export function createSkillsAuthor(
   const menu = skillsMenu()
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<null, ToolMessageContentBlock>
+      program?: ToolProgramAccess
+      readOnly: boolean
+    }
   > = {}
   for (const command of skillsCommands) {
     const { name } = command
-    const operation = defineToolOperation<
-      SkillsArguments,
-      string,
-      null,
-      ToolMessageContentBlock,
-      Extract<ToolOperationParameters, { kind: 'declared' }>
-    >({
-      parameters: { kind: 'declared', value: skillsContract(name) },
-      returns,
-      author: {
-        kind: 'ordinary',
-        parameters: skillsParameterCodec(name),
-        waits: [],
-        executor: {
-          async execute(args, _environment, execution) {
-            return bounded(await execute(args, execution, maximum, menu), maximum)
-          },
-        },
-        codec: {
-          adoption: skillsAdoption,
-          encode(value: unknown) {
-            return typeof value === 'string'
-              ? succeed(new TextEncoder().encode(value))
-              : fail({ reason: 'text-required' })
-          },
-          decode(bytes) {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption: skillsAdoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'bounded-text-required' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
-      },
+    const operation = commandOperation<SkillsArguments, null>({
+      entry: `Skills.${name}`,
+      parameters: skillsContract(name),
+      arguments: skillsParameterCodec(name),
+      text: skillsAdoption,
+      side: command.program,
+      maximum,
+      run: (args, _environment, execution) => execute(args, execution, maximum, menu),
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[name] = { summary: command.summary, operation: operation.ok }
+    operations[name] = {
+      summary: command.summary,
+      operation: operation.ok,
+      readOnly: true,
+      ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
+    }
   }
   const author = defineCommandTool({
     implementation: {

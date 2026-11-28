@@ -17,11 +17,10 @@ import {
   installToolResultDisclosure,
 } from './model/tool-result-disclosure.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
-import {
-  LifecycleRegistry,
-  S0AssemblyLifecycleService,
-  S0_ASSEMBLY_LIFECYCLE_KEY,
-} from './lifecycle.ts'
+import { RowSupervisor } from '@omne-harness/assembly-cordis/cordis'
+import { declaredParts, S0AssemblyLifecycleService, S0_ASSEMBLY_LIFECYCLE_KEY } from './row.ts'
+import { rowOrder, startOrderOf, stopOrderOf } from './row-order.ts'
+import { serveUntilStop } from './serve-watch.ts'
 import {
   createSessionWorkPrincipals,
   disposeRow,
@@ -37,17 +36,25 @@ import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
-import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { LAST_FALL_KEY, takeLastFall } from './process-fall.ts'
+import { inTransit, stopOf } from './readiness.ts'
+import { refusedByStamp, stampState } from './state-stamp.ts'
+import { disposeWithin, monotonicClock, runShutdown, type RowSupervision } from './shutdown.ts'
+import { hostTime, holdRunTime } from './entry/time.ts'
+import { enabledExtensionsOf } from './rows/agent-host/enabled-extensions.ts'
+import { systemExtensionsOf } from './rows/system-extensions/index.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
 import { createModelRecordsRow } from './rows/model-records/index.ts'
 import { createToolRecordsRow } from './rows/tool-runtime/index.ts'
+import { refusedInstance, type Instance } from './state-instance.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
 import type {
   EntryEnv,
+  EntryTime,
   EntryObjectModule,
   Implementation,
   LifecycleHandle,
@@ -55,6 +62,7 @@ import type {
   RowId,
   RowManifest,
   ServiceName,
+  ShutdownReport,
   StopResult,
   TreeRow,
   Visibility,
@@ -123,11 +131,11 @@ type Probes = { started: string[]; applied: string[] }
 
 const SETTLED: StopResult = { kind: 'settled' }
 
-class ProbedRegistry extends LifecycleRegistry {
+class ProbedRegistry extends RowSupervisor<LifecycleHandle, ShutdownReport> {
   readonly #started: string[]
 
-  constructor(options: ConstructorParameters<typeof LifecycleRegistry>[0], started: string[]) {
-    super(options)
+  constructor(started: string[]) {
+    super({ clock: monotonicClock })
     this.#started = started
   }
 
@@ -315,21 +323,12 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
       monotonicClock,
       {
         log: write,
-        stopsFirst: stopPredecessors(rows),
+        stopsFirst: stopOrderOf(order),
         disposeRoot: () => disposeTree(root, loaded),
       },
     ))
-  const registry = new ProbedRegistry(
-    {
-      expected,
-      clock: monotonicClock,
-      requestStop: reason => {
-        stderr(`s0: stop requested: ${reason}`)
-        void shutdown()
-      },
-    },
-    probes.started,
-  )
+  const order = rowOrder(rows)
+  const registry = new ProbedRegistry(probes.started)
 
   const omitted = new Set(options.omitEntryObjects ?? [])
   if (!omitted.has(S0_ASSEMBLY_LIFECYCLE_KEY))
@@ -373,7 +372,8 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
   }
 
   loaded = started.rows
-  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
+  const startFailure =
+    barrierCalls > 0 ? await registry.startAll(startOrderOf(order, rows)) : undefined
   for (const state of started.report.rows) write({ kind: 'row-state', ...state })
   write({
     kind: 'startup-result',
@@ -401,6 +401,9 @@ export type RunServeOptions = Readonly<{
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
   drainDeadlineMs?: number
+  rootDisposalDeadlineMs?: number
+  dependencyDeadlineMs?: number
+  publisherKeys?: readonly string[]
   stateRoot: string
   stop: AbortSignal
   write: (record: S0Record) => void
@@ -411,6 +414,12 @@ export type RunServeOptions = Readonly<{
   visibility?: Visibility
   /** How the host row chooses its screen backend; absent: by the system this process runs on. */
   hostScreen?: Parameters<typeof createExecutionHostBinding>[1]
+  /** The one time of this run; absent: the system time. The release entry gives none. */
+  time?: EntryTime
+  /** Which kind of instance starts: a lab one only on a state root it made, a release one never there. */
+  instance?: Instance
+  /** Row plugins an entry adds to the release ones; the lab adds its programs, the release none. */
+  extraPlugins?: Readonly<Record<string, unknown>>
 }>
 
 export type ServeResult = Readonly<{
@@ -423,6 +432,34 @@ export type ServeResult = Readonly<{
 }>
 
 const SERVE_PREFIX = 'serve'
+const NO_ROWS_YET: Record<Implementation, number> = {
+  real: 0,
+  'contract-double': 0,
+  's0-double': 0,
+}
+const ROOT_DISPOSAL_DEADLINE_MS = 10_000
+const DEPENDENCY_DEADLINE_MS = 30_000
+const HOST_ROW = 'execution-host' as RowId
+const watchOf = (options: RunServeOptions) => ({
+  stop: options.stop,
+  stderr: options.stderr,
+  dependencyDeadlineMs: options.dependencyDeadlineMs ?? DEPENDENCY_DEADLINE_MS,
+  startDeadlineMs: options.readinessTimeoutMs,
+})
+const rootDeadlineOf = (options: RunServeOptions): number =>
+  options.rootDisposalDeadlineMs ?? ROOT_DISPOSAL_DEADLINE_MS
+
+/** The entry's environment for this run; the one time of the run is held on its root for the rows. */
+function entryEnvOf(root: Context, trust: Trust, options: RunServeOptions): EntryEnv {
+  const time = options.time ?? hostTime()
+  holdRunTime(root, time)
+  return {
+    stateRoot: options.stateRoot,
+    readTrusted: name => trust.contextForName(root, name),
+    once: createOnce(),
+    time,
+  }
+}
 
 function createOnce(): EntryEnv['once'] {
   const made = new Map<symbol, { create: () => unknown; value: unknown }>()
@@ -460,40 +497,48 @@ function placeholderNames(
   )
 }
 
-function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: () => void } {
-  const reasonOf = () => (typeof signal.reason === 'string' ? signal.reason : 'stop signal')
-  let onAbort = () => {}
-  const promise = new Promise<string>(resolve => {
-    if (signal.aborted) {
-      resolve(reasonOf())
-      return
-    }
-    onAbort = () => resolve(reasonOf())
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-  return { promise, cancel: () => signal.removeEventListener('abort', onAbort) }
-}
-
 export async function runServe(options: RunServeOptions): Promise<ServeResult> {
+  const wrongInstance = refusedInstance(options.stateRoot, options.instance ?? 'release')
+  if (wrongInstance !== undefined) {
+    options.stderr(`${SERVE_PREFIX}: ${wrongInstance}`)
+    return {
+      exitCode: 3,
+      accepting: false,
+      barrierCalls: 0,
+      startedRows: [],
+      appliedRows: [],
+      implementations: { real: 0, 'contract-double': 0, 's0-double': 0 },
+    }
+  }
   const hostFiles = createHostFilesRuntime({
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
   let lock: StateLock | undefined
+  // The stamp is read before the lock, so a refused directory is not written at all, and again under the lock.
   const lockState = (): string | null => {
     try {
+      const unknown = refusedByStamp(options.stateRoot)
+      if (unknown !== null) return unknown
       const taken = acquireStateLock(options.stateRoot)
       if (taken.kind === 'in-use')
         return `state-root-in-use: another serve process works on ${options.stateRoot}`
       lock = taken.lock
-      return null
+      const changed = refusedByStamp(options.stateRoot)
+      if (changed === null) return null
+      lock.release()
+      lock = undefined
+      return changed
     } catch (error) {
       return `state-root-unusable: ${error instanceof Error ? error.message : String(error)}`
     }
   }
   const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
     ...releasePlugins,
+    ...options.extraPlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
+      enabledExtensionsOf,
+      systemExtensionsOf,
       lostContact: lostContactBy(() => lock, 'instance'),
     }),
     modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),
@@ -502,8 +547,14 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
     }),
     toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock, 'instance') }),
   }
+  // A start that came to accept wrote this directory with the formats of this build: the stamp says so.
+  const write: RunServeOptions['write'] = record => {
+    if (record.kind === 'startup-result' && record['accepting'] === true)
+      stampState(options.stateRoot)
+    options.write(record)
+  }
   try {
-    return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)
+    return await runServeWithHostFiles({ ...options, plugins, write }, hostFiles, lockState)
   } finally {
     await hostFiles.close()
     lock?.release()
@@ -529,16 +580,11 @@ function rowSpecOf(
   if (declared === undefined)
     throw new ConfigError('unknown-plugin', `plugin "${row.plugin}" carries no row declaration`)
   const { declaration, plugin } = declared
-  const { lifecycle } = declaration
   return {
     row,
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin: declaredRowPlugin(row.id, plugin, probes),
-    implementation: declaration.implementation,
-    declared: {
-      row: declaration.row,
-      via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
-    },
+    shipped: plugin,
   }
 }
 
@@ -615,18 +661,25 @@ type StartFailure = Exclude<StartResult, { kind: 'started' }>
 
 async function startAndReport(
   input: Readonly<{
-    registry: LifecycleRegistry
+    registry: RowSupervision
+    order: Parameters<RowSupervision['startAll']>[0]
     started: Started
     barrierCalls: number
     enabledRows: number
     implementations: Record<Implementation, number>
     probes: Probes
     write: RunServeOptions['write']
+    options: RunServeOptions
   }>,
 ): Promise<0 | 3 | 4> {
-  const { registry, started, barrierCalls, probes, write } = input
-  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
-  const startCode = startFailure === undefined ? started.report.exitCode : 3
+  const { started, barrierCalls, probes, write } = input
+  const starts =
+    barrierCalls > 0
+      ? await startsWithin(input, input.options.readinessTimeoutMs, input.options.stop)
+      : undefined
+  const startFailure = typeof starts === 'string' ? undefined : starts
+  const startCode =
+    starts === undefined ? started.report.exitCode : typeof starts === 'string' ? 4 : 3
   for (const state of started.report.rows) write({ kind: 'row-state', ...state })
   write({
     kind: 'startup-result',
@@ -634,7 +687,13 @@ async function startAndReport(
     scope: 'serving',
     accepting: startCode === 0,
     enabledRows: input.enabledRows,
-    outcome: startFailure === undefined ? started.report.outcome : 'start-failed',
+    outcome:
+      starts === undefined
+        ? started.report.outcome
+        : typeof starts === 'string'
+          ? starts
+          : 'start-failed',
+    stuck: started.report.stuck,
     ...(startFailure === undefined ? {} : { startFailure }),
     implementations: input.implementations,
     barrierCalls,
@@ -644,15 +703,57 @@ async function startAndReport(
   return startCode
 }
 
-async function awaitStop(
-  signal: AbortSignal,
-  registryStop: Promise<void>,
+async function startsWithin(
+  {
+    registry,
+    order,
+  }: Readonly<{
+    registry: RowSupervision
+    order: Parameters<RowSupervision['startAll']>[0]
+  }>,
+  deadlineMs: number,
+  stop: AbortSignal,
+): Promise<Awaited<ReturnType<RowSupervision['startAll']>> | 'start-timeout' | 'stopped'> {
+  const timer = monotonicClock.after(deadlineMs)
+  const stopping = stopOf(stop)
+  try {
+    return await Promise.race([
+      registry.startAll(order),
+      timer.promise.then(() => 'start-timeout' as const),
+      stopping.asked.then(() => 'stopped' as const),
+    ])
+  } finally {
+    timer.cancel()
+    stopping.cancel()
+  }
+}
+
+function rootRetirement(
+  deadlineMs: number,
+  loaded: () => readonly LoadedRow[],
   stderr: RunServeOptions['stderr'],
-): Promise<void> {
-  const request = stopRequest(signal)
-  const reason = await Promise.race([request.promise, registryStop.then(() => null)])
-  request.cancel()
-  if (reason !== null) stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
+): Pick<
+  NonNullable<Parameters<typeof runShutdown>[4]>,
+  'disposeRootMs' | 'undisposedRows' | 'rootStuck'
+> {
+  return {
+    disposeRootMs: deadlineMs,
+    undisposedRows: () =>
+      loaded()
+        .filter(inTransit)
+        .map(row => row.id),
+    rootStuck: stuck =>
+      stderr(
+        `${SERVE_PREFIX}: root disposal did not settle within ${deadlineMs} ms; the process ends without it; stuck rows: ${stuck.join(', ') || 'none named'}`,
+      ),
+  }
+}
+
+/** The root of one run; it carries what the process before it left when it went down. */
+function rootOf(stateRoot: string): Context {
+  const root = new Context()
+  root.provide(LAST_FALL_KEY, takeLastFall(stateRoot))
+  return root
 }
 
 async function settleStartFailure(
@@ -662,23 +763,32 @@ async function settleStartFailure(
     stderr: RunServeOptions['stderr']
     root: Context
     shutdown: () => ReturnType<typeof runShutdown>
+    options: RunServeOptions
   }>,
 ): Promise<ServeResult['exitCode']> {
+  const past = (deadline: boolean): string => (deadline ? ': the start deadline passed' : '')
+  const retire = async (): Promise<void> => {
+    const dispose = () => io.root.fiber.dispose()
+    if ((await disposeWithin(dispose, rootDeadlineOf(io.options), monotonicClock)) === 'late')
+      io.stderr(`${SERVE_PREFIX}: root disposal did not settle; the process ends without it`)
+  }
   switch (started.kind) {
     case 'rejected':
       for (const diagnostic of started.diagnostics)
         io.stderr(`${SERVE_PREFIX}: ${describeDiagnostic(diagnostic)}`)
-      await io.root.fiber.dispose()
+      await retire()
       return started.exitCode
     case 'entry-failed': {
-      io.stderr(`${SERVE_PREFIX}: entry-object ${started.name}: install failed`)
+      io.stderr(
+        `${SERVE_PREFIX}: entry-object ${started.name}: install failed${past(started.deadline)}`,
+      )
       const report = await io.shutdown()
       io.write({ kind: 'shutdown-result', ...report })
       return started.exitCode
     }
     case 'preparation-failed':
-      io.stderr(`${SERVE_PREFIX}: tenant directory preparation failed`)
-      await io.root.fiber.dispose()
+      io.stderr(`${SERVE_PREFIX}: tenant directory preparation failed${past(started.deadline)}`)
+      await retire()
       return started.exitCode
   }
 }
@@ -698,18 +808,14 @@ async function runServeWithHostFiles(
     summary: line => stderr(`${SERVE_PREFIX}: ${line}`),
   })
   const profile = serveProfile({
-    ...(options.plugins ?? releasePlugins),
+    ...(options.plugins ?? { ...releasePlugins, ...options.extraPlugins }),
     executionHost: executionHost.plugin,
     telemetry: telemetry.plugin,
   })
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   let accepting = false
-  let implementations: Record<Implementation, number> = {
-    real: 0,
-    'contract-double': 0,
-    's0-double': 0,
-  }
+  let implementations = NO_ROWS_YET
   const result = (exitCode: ServeResult['exitCode']): ServeResult => ({
     exitCode,
     accepting,
@@ -769,7 +875,7 @@ async function runServeWithHostFiles(
   for (const record of entryObjectRecords(modules, placeholders, trust)) write(record)
 
   const expected = expectedPhases(rows)
-  const root = new Context()
+  const root = rootOf(options.stateRoot)
   root.logger.exporter(telemetry.bridge.exporter)
   installToolResultDisclosure(root, disclosure)
   let loaded: readonly LoadedRow[] = []
@@ -783,48 +889,33 @@ async function runServeWithHostFiles(
       monotonicClock,
       {
         log: write,
-        stopsFirst: stopPredecessors(rows),
+        stopsFirst: stopOrderOf(orderNow()),
         ...(options.drainDeadlineMs === undefined ? {} : { drainMs: options.drainDeadlineMs }),
-        ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
+        ...(finishHostFiles === undefined
+          ? {}
+          : { withRow: { row: HOST_ROW, run: finishHostFiles } }),
         afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),
         disposeRoot: async () => {
           await finishHostFiles?.()
           await hostFiles.close()
           await disposeTree(root, loaded)
         },
+        ...rootRetirement(rootDeadlineOf(options), () => loaded, stderr),
       },
     ))
   }
   const finishHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
     ? () =>
         hostFiles.finish(async () => {
-          const row = loaded.find(candidate => candidate.id === 'execution-host')
+          const row = loaded.find(candidate => candidate.id === HOST_ROW)
           if (row !== undefined) await disposeRow(row, () => hostFiles.request())
         })
     : undefined
-  let stoppedByRegistry = () => {}
-  const registryStop = new Promise<void>(resolve => {
-    stoppedByRegistry = resolve
-  })
-  const registry = new ProbedRegistry(
-    {
-      expected,
-      clock: monotonicClock,
-      requestStop: reason => {
-        stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
-        void shutdown()
-        stoppedByRegistry()
-      },
-    },
-    probes.started,
-  )
+  const orderNow = () => rowOrder(rows, loaded.length === 0 ? undefined : { root, loaded })
+  const registry = new ProbedRegistry(probes.started)
   await root.plugin(S0AssemblyLifecycleService, registry)
 
-  const env: EntryEnv = {
-    stateRoot: options.stateRoot,
-    readTrusted: name => trust.contextForName(root, name),
-    once: createOnce(),
-  }
+  const env = entryEnvOf(root, trust, options)
   const started = await startTree({
     root,
     trust,
@@ -835,24 +926,66 @@ async function runServeWithHostFiles(
     barrier: () => {
       barrierCalls += 1
     },
+    stop: options.stop,
   })
 
   if (started.kind !== 'started')
-    return result(await settleStartFailure(started, { write, stderr, root, shutdown }))
+    return result(await settleStartFailure(started, { write, stderr, root, shutdown, options }))
 
   loaded = started.rows
+  const serving = { registry, root, rows, loaded, order: orderNow(), named: tree.named ?? [] }
+  const io = { write, options, probes, shutdown }
+  const served = await serveAndClose(serving, io, { started, barrierCalls, implementations })
+  accepting = served.accepting
+  return result(served.exitCode)
+}
+
+async function serveAndClose(
+  tree: Readonly<{
+    registry: RowSupervision
+    root: Context
+    rows: readonly RowSpec[]
+    loaded: readonly LoadedRow[]
+    order: ReturnType<typeof rowOrder>
+    named: readonly string[]
+  }>,
+  io: Readonly<{
+    write: RunServeOptions['write']
+    options: RunServeOptions
+    probes: Probes
+    shutdown: () => ReturnType<typeof runShutdown>
+  }>,
+  start: Readonly<{
+    started: Started
+    barrierCalls: number
+    implementations: Record<Implementation, number>
+  }>,
+): Promise<Pick<ServeResult, 'accepting' | 'exitCode'>> {
+  const { registry, root, rows, loaded, order } = tree
+  const { write, options, probes } = io
   const startCode = await startAndReport({
     registry,
-    started,
-    barrierCalls,
-    enabledRows: tree.rows.length,
-    implementations,
+    order: startOrderOf(order, rows),
+    ...start,
+    enabledRows: rows.length,
     probes,
     write,
+    options,
   })
-  accepting = startCode === 0
-  if (accepting) await awaitStop(options.stop, registryStop, stderr)
-  const report = await shutdown()
+  const accepting = startCode === 0
+  const control = {
+    stateRoot: options.stateRoot,
+    rows,
+    trust: { publisherKeys: options.publisherKeys ?? [], named: tree.named },
+    applied: probes.applied,
+    stopWithin: { ms: options.shutdownDeadlineMs, now: monotonicClock.now },
+    wrap: (id: RowId, plugin: Plugin.Object) => declaredRowPlugin(id, plugin, probes),
+  }
+  const watch = { registry, root, loaded, undeclared: order.undeclared, write, control }
+  const left = accepting ? await serveUntilStop({ ...watch, ...watchOf(options) }) : undefined
+  const report = await io.shutdown()
   write({ kind: 'shutdown-result', ...report })
-  return result(finalExitCode(startCode, report.overall))
+  const exitCode =
+    left === undefined || left.code === 0 ? finalExitCode(startCode, report.overall) : left.code
+  return { accepting, exitCode }
 }

@@ -64,6 +64,7 @@ const runCause = {
       node: { rule: text },
       category: { rule: literal('exception', 'invariant', 'unsupported-path', 'rejected') },
       failureKind: { rule: text },
+      diagnostic: { rule: text, optional: true, since: 3 },
     }),
     unknownValue,
     object({ kind: { rule: literal('none') } }),
@@ -79,6 +80,7 @@ const runCause = {
       kind: { rule: literal('no-reply') },
       cause: { rule: nullable(text) },
       upstreamStatus: { rule: nullable(text) },
+      throttled: { rule: literal('yes'), optional: true, since: 3 },
     }),
     object({ kind: { rule: literal('request-rejected') } }),
     object({
@@ -177,6 +179,18 @@ const attempt = object({
   account: { rule: withUnknown(accountView) },
   /** Whether the request of this attempt carried reasoning state back; unknown before it was materialized. */
   reasoning: { rule: literal('carried', 'not-carried', 'unknown'), optional: true },
+  /** The profile the dispatch was made under, as Model kept it: its name is the model. */
+  profile: { rule: withUnknown(adoptionRef), optional: true, since: 2 },
+  effort: {
+    rule: withUnknown(
+      object({
+        value: { rule: nullable(literal('low', 'medium', 'high', 'xhigh', 'none', 'max')) },
+        basis: { rule: literal('selection', 'preference', 'provider') },
+      }),
+    ),
+    optional: true,
+    since: 2,
+  },
 })
 
 const modelCall = object({

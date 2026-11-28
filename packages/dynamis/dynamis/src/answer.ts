@@ -2,7 +2,7 @@ import { byScope, byText, type Instance, type Placed, type Scope } from './regis
 
 export type Filtered<I = unknown> = Readonly<{
   entry: Placed<I>
-  reason: 'overridden' | 'breach'
+  reason: 'overridden' | 'breach' | 'locked' | 'closed'
   detail: string
 }>
 
@@ -37,6 +37,51 @@ export type Listing<I = unknown> =
 /** An entry is seen by an asker whose scope starts with the scope of the entry. */
 export function visible(scope: Scope, asker: Scope): boolean {
   return scope.every((part, index) => part === asker[index])
+}
+
+const spotOf = (entry: Placed<unknown>): string => JSON.stringify([entry.key, entry.id])
+
+/** Parts the entries in two: those that stay, and those out, each with why. */
+function sift<I>(
+  entries: readonly Placed<I>[],
+  outOf: (entry: Placed<I>) => Omit<Filtered<I>, 'entry'> | undefined,
+): { entries: Placed<I>[]; out: Filtered<I>[] } {
+  const kept: Placed<I>[] = []
+  const out: Filtered<I>[] = []
+  for (const entry of entries) {
+    const why = outOf(entry)
+    if (why === undefined) kept.push(entry)
+    else out.push({ entry, ...why })
+  }
+  return { entries: kept, out }
+}
+
+/** On a point closed to all but the deployment, an entry at any deeper scope is out, with the reason of the rules. */
+export function opened<I>(entries: readonly Placed<I>[], closed: string | undefined) {
+  return sift(entries, entry =>
+    closed !== undefined && entry.scope.length > 0
+      ? { reason: 'closed' as const, detail: closed }
+      : undefined,
+  )
+}
+
+/** The lock comes before the rules: under a key and id with a locked entry, entries at a deeper scope are out. */
+export function unlocked<I>(entries: readonly Placed<I>[]): {
+  entries: Placed<I>[]
+  out: Filtered<I>[]
+} {
+  const locks = new Map<string, Placed<I>>()
+  for (const entry of entries) {
+    const held = locks.get(spotOf(entry))
+    if (entry.lock === true && (held === undefined || entry.scope.length < held.scope.length))
+      locks.set(spotOf(entry), entry)
+  }
+  return sift(entries, entry => {
+    const lock = locks.get(spotOf(entry))
+    return lock === undefined || entry.scope.length <= lock.scope.length
+      ? undefined
+      : { reason: 'locked' as const, detail: lock.instance.fiber }
+  })
 }
 
 /** Entries with one key, id, scope and digest are one item; the first in registry order stands for it. */

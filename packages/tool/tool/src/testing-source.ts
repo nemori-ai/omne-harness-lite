@@ -3,7 +3,9 @@ import { succeed } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
+  type ToolAvailabilityReference,
   type ToolCallId,
+  type ToolDefinition,
   type ToolInvocation,
   type ToolInvokeRequest,
   type ToolOperationId,
@@ -11,8 +13,13 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
+  fixToolRequest,
+  fixedRequestReference,
   judgeToolInvokeRequest,
+  namesDefinition,
+  toolAvailabilityOf,
   type ToolInvocationSourceIssuer,
+  type ToolInvocationSourceOutcome,
   type ToolOperationIdentities,
   type ToolInstanceIdentities,
   type Mutation,
@@ -40,12 +47,16 @@ export type TestInvocationSource<P> = Readonly<{
   bindings(): readonly TestSourceBinding<P>[]
 }>
 
-type Reservation<P> = Omit<TestSourceBinding<P>, 'invocation'> & Readonly<{ digest: string }>
+type Reservation<P> = Omit<TestSourceBinding<P>, 'invocation'> &
+  Readonly<{ digest: string; definition: ToolDefinition }>
 type SourceRecord<P> =
   | Readonly<{ kind: 'reserved'; reservation: Reservation<P> }>
   | Readonly<{ kind: 'issued'; reservation: Reservation<P>; binding: TestSourceBinding<P> }>
 
-function fingerprint<P>(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): string {
+function fingerprint<P>(
+  input: Mutation<P> &
+    Readonly<{ request: ToolInvokeRequest & Pick<FixedToolRequest, 'invocation'> }>,
+): string {
   return canonicalJson({
     tenant: [input.tenant.organization.text, input.tenant.account.text],
     call: input.call,
@@ -53,6 +64,11 @@ function fingerprint<P>(input: Mutation<P> & Readonly<{ request: FixedToolReques
     request: input.request,
   })
 }
+
+const unknownTool = {
+  kind: 'rejected',
+  failure: { kind: 'invalid', field: 'name', reason: 'unknown-tool' },
+} as const
 
 async function authorityVerdict(check: () => Promise<AccessVerdict>): Promise<AccessVerdict> {
   try {
@@ -65,13 +81,32 @@ async function authorityVerdict(check: () => Promise<AccessVerdict>): Promise<Ac
   }
 }
 
+type TestInvocationSourceOptions<P> = Readonly<{
+  authority: ToolInvokeAuthority<P>
+  snapshotPrincipal: (principal: P) => P
+  definition?: (reference: ToolAvailabilityReference) => ToolDefinition | undefined
+  beforeIssue?: () => void
+  throws?: string
+}>
+
+function admissibleDefinition<P>(
+  options: TestInvocationSourceOptions<P>,
+  input: Parameters<ToolInvocationSourceIssuer<P>['resolve']>[0],
+  request: ToolInvokeRequest,
+): ToolDefinition | Extract<ToolInvocationSourceOutcome, { kind: 'rejected' }> {
+  const definition = options.definition?.(request.availability)
+  if (definition === undefined || !namesDefinition(request.availability, definition))
+    return unknownTool
+  const availability = toolAvailabilityOf(request.availability, definition)
+  const refused = input.refusal?.({ ...request, availability }) ?? null
+  return refused === null ? definition : { kind: 'rejected', failure: refused }
+}
+
+const boundRequest = <P>(reservation: Reservation<P>, invocation: ToolInvocation) =>
+  structuredClone(fixToolRequest(reservation.request, reservation.definition, invocation))
+
 export function createTestInvocationSource<P>(
-  options: Readonly<{
-    authority: ToolInvokeAuthority<P>
-    snapshotPrincipal: (principal: P) => P
-    beforeIssue?: () => void
-    throws?: string
-  }>,
+  options: TestInvocationSourceOptions<P>,
 ): TestInvocationSource<P> {
   const saved = new Map<string, SourceRecord<P>>()
   const bySource = new Map<string, TestSourceBinding<P>>()
@@ -147,6 +182,8 @@ export function createTestInvocationSource<P>(
       }
       known = saved.get(key)
       if (known === undefined) {
+        const definition = admissibleDefinition(options, input, request)
+        if ('failure' in definition) return definition
         const call = decodeToolCallId(`call-${randomUUID()}`)
         const admission = decodeToolOperationId(`admit-${randomUUID()}`)
         if ('failure' in call || 'failure' in admission) throw new Error('invalid source identity')
@@ -159,6 +196,7 @@ export function createTestInvocationSource<P>(
             admission: admission.ok,
             request,
             digest: digestOf(request),
+            definition,
           }),
         }
         saved.set(key, known)
@@ -200,7 +238,7 @@ export function createTestInvocationSource<P>(
         kind: 'bound',
         call: known.binding.call,
         admission: known.binding.admission,
-        invocation: known.binding.invocation,
+        request: boundRequest(known.reservation, known.binding.invocation),
         recovered,
       }
     },
@@ -215,7 +253,7 @@ export function createTestInvocationSource<P>(
       )
       if (same.kind === 'unavailable') return same
       if (same.kind === 'denied') return { kind: 'forged', reason: 'different-subject' }
-      return fingerprint(input) ===
+      return fingerprint({ ...input, request: fixedRequestReference(input.request) }) ===
         fingerprint({
           ...input,
           tenant: binding.tenant,

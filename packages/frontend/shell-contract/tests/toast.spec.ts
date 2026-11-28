@@ -2,6 +2,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { Toast } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { startShell, type ReferenceShell } from './reference-shell.ts'
 
 const toast = (id: string, title = id): Toast => ({ id, tone: 'attention', title })
@@ -100,11 +101,9 @@ describe('ShellService.toast', () => {
       arranged(): null {
         return null
       }
-      protected place(): () => void {
-        return () => undefined
-      }
     }
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(Bare)
     const module = await caller(root, 'module')
     expect(() => module.shell.toast(toast('a'))).not.toThrow()

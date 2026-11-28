@@ -1,5 +1,8 @@
+import { createElement } from 'react'
+import { useRedrawn } from '../redraw/redraw.ts'
 import { defineIcon, type Icon } from './glyph.ts'
 import { GLYPHS } from './glyphs.ts'
+import { DisclosureIcon, UnknownIcon } from './kit-only.ts'
 
 export { type Icon } from './glyph.ts'
 export { MOTIONS } from './glyphs.ts'
@@ -24,7 +27,6 @@ export const AboutIcon = defineIcon('about', GLYPHS.about)
 export const CloseIcon = defineIcon('close', GLYPHS.close)
 export const AddIcon = defineIcon('add', GLYPHS.add)
 export const MoreIcon = defineIcon('more', GLYPHS.more)
-export const DisclosureIcon = defineIcon('disclosure', GLYPHS.disclosure)
 export const RetryIcon = defineIcon('retry', GLYPHS.retry)
 export const SendIcon = defineIcon('send', GLYPHS.send)
 export const OpenIcon = defineIcon('open', GLYPHS.open)
@@ -45,7 +47,6 @@ export const DoneIcon = defineIcon('done', GLYPHS.done)
 export const FailedIcon = defineIcon('failed', GLYPHS.failed)
 export const CancelledIcon = defineIcon('cancelled', GLYPHS.cancelled)
 export const WarningIcon = defineIcon('warning', GLYPHS.warning)
-export const UnknownIcon = defineIcon('unknown', GLYPHS.unknown)
 export const ProgressIcon = defineIcon('progress', GLYPHS.progress)
 export const TimeIcon = defineIcon('time', GLYPHS.time)
 
@@ -66,6 +67,8 @@ export const PermissionIcon = defineIcon('permission', GLYPHS.permission)
 export const ConnectionIcon = defineIcon('connection', GLYPHS.connection)
 export const AssistantIcon = defineIcon('assistant', GLYPHS.assistant)
 export const TurnIcon = defineIcon('turn', GLYPHS.turn)
+export const LockIcon = defineIcon('lock', GLYPHS.lock)
+export const MagnetIcon = defineIcon('magnet', GLYPHS.magnet)
 
 export const ICONS: Readonly<Record<string, Icon>> = {
   material: MaterialIcon,
@@ -127,4 +130,21 @@ export const ICONS: Readonly<Record<string, Icon>> = {
   connection: ConnectionIcon,
   assistant: AssistantIcon,
   turn: TurnIcon,
+  lock: LockIcon,
+  magnet: MagnetIcon,
+}
+
+type Named = Parameters<Icon>[0] & Readonly<{ name: string }>
+
+function Unnamed({ name, size = 24, className, ...props }: Named): React.JSX.Element {
+  return useRedrawn('icon', name, { name, size, className }, () =>
+    createElement(UnknownIcon, { size, className, ...props }),
+  )
+}
+
+export function NamedIcon({ name, ...props }: Named): React.JSX.Element {
+  const Known = ICONS[name]
+  return Known === undefined
+    ? createElement(Unnamed, { name, ...props })
+    : createElement(Known, props)
 }

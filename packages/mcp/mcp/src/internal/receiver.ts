@@ -1,0 +1,338 @@
+import type { EventsConfig, EventType, McpClock } from '@omne-harness/mcp-contract'
+import { eventParamHeadersOf, readOccurrence } from '@omne-harness/mcp-contract'
+import type {
+  EventRecords,
+  EventRequest,
+  EventStreamMessage,
+  GapReason,
+  McpTransport,
+  Occurrence,
+  SubscriptionKey,
+  SubscriptionRow,
+  SubscriptionState,
+  TerminationReason,
+  TransportFailure,
+} from '@omne-harness/mcp-contract/provider'
+import { fail } from '@omne-harness/operation-result'
+import type { TaskTimer } from '../watch.ts'
+import type { Pause } from './follow.ts'
+import { ask } from './port.ts'
+
+export type Ready =
+  | Readonly<{
+      kind: 'ready'
+      transport: McpTransport
+      type: EventType
+      refetch(): Promise<void>
+      /** Whether the endpoint may still be used now: asked before anything the peer sends is kept. */
+      allowed(): Promise<'yes' | 'no' | 'unknown'>
+    }>
+  | Readonly<{ kind: 'waiting' }>
+  | Readonly<{ kind: 'ended'; reason: TerminationReason }>
+
+export type ReceiverContext = Readonly<{
+  key: SubscriptionKey
+  records: EventRecords
+  bounds: EventsConfig
+  clock: McpClock
+  pause: Pause
+  timer: TaskTimer
+  signal: AbortSignal
+  /** A subscription made by this receiver's subscribe starts where the peer is; any other one with no position may have missed some. */
+  fresh: boolean
+  ready(): Promise<Ready>
+  changed(): void
+  deliver(): void
+  started(): void
+}>
+
+type Gap = Extract<GapReason, 'peer-truncated' | 'possibly-missed'> | null
+
+type RunEnd =
+  | Readonly<{ kind: 'stopped' }>
+  | Readonly<{ kind: 'terminated'; reason: TerminationReason }>
+  | Readonly<{ kind: 'header-mismatch' }>
+  | Readonly<{ kind: 'broken'; progressed: boolean }>
+
+const FORBIDDEN = -32024
+const NOT_FOUND = -32023
+const HEADER_MISMATCH = -32020
+const UNSUPPORTED = -32026
+const STOPPED: RunEnd = { kind: 'stopped' }
+const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
+
+const terminationOf = (code: number | null): TerminationReason =>
+  code === NOT_FOUND ? 'type-gone' : code === UNSUPPORTED ? 'schema-changed' : 'refused'
+
+function refusedEnd(failure: TransportFailure, progressed: boolean): RunEnd {
+  if (failure.kind !== 'error-answer') return { kind: 'broken', progressed }
+  if (failure.code === HEADER_MISMATCH) return { kind: 'header-mismatch' }
+  if ([FORBIDDEN, NOT_FOUND, UNSUPPORTED].includes(failure.code))
+    return { kind: 'terminated', reason: terminationOf(failure.code) }
+  return { kind: 'broken', progressed }
+}
+
+/** Takes in what one open request brings: each batch is stored, with the position after it, before anyone hears of it. */
+type Stored = 'ok' | 'absent' | 'failed' | 'withdrawn'
+
+class Intake {
+  progressed = false
+  private last: string | null
+  private readonly context: ReceiverContext
+  private readonly allowed: () => Promise<'yes' | 'no' | 'unknown'>
+
+  constructor(
+    context: ReceiverContext,
+    row: SubscriptionRow,
+    allowed: () => Promise<'yes' | 'no' | 'unknown'>,
+  ) {
+    this.context = context
+    this.last = row.cursor
+    this.allowed = allowed
+  }
+
+  async store(events: readonly Occurrence[], cursor: string | null, gap: Gap): Promise<Stored> {
+    const { context } = this
+    const allowed = await this.allowed().catch(() => 'unknown' as const)
+    if (allowed !== 'yes') return allowed === 'no' ? 'withdrawn' : 'failed'
+    if (events.length === 0 && gap === null && (cursor === null || cursor === this.last))
+      return 'ok'
+    const at = context.clock.now().toISOString()
+    const batch = { events, cursor, gap, at }
+    const bounds = { maxEvents: context.bounds.maxEvents, maxAgeMs: context.bounds.maxAgeMs }
+    const got = await ask(
+      () => context.records.receive(context.key, batch, bounds),
+      fail('unavailable' as const),
+    )
+    if ('failure' in got) return 'failed'
+    if (got.ok === 'absent') return 'absent'
+    if (cursor !== null) this.last = cursor
+    this.progressed = true
+    if (got.ok.stored > 0 || gap !== null) {
+      context.changed()
+      context.deliver()
+    }
+    return 'ok'
+  }
+}
+
+const WITHDRAWN: RunEnd = { kind: 'terminated', reason: 'unavailable' }
+
+const endOf = (result: Exclude<Stored, 'ok'>, intake: Intake): RunEnd =>
+  result === 'absent'
+    ? STOPPED
+    : result === 'withdrawn'
+      ? WITHDRAWN
+      : { kind: 'broken', progressed: intake.progressed }
+
+function requestOf(type: EventType, row: SubscriptionRow): EventRequest {
+  return {
+    name: type.name,
+    arguments: row.arguments,
+    cursor: row.cursor,
+    headers: eventParamHeadersOf(type.inputSchema, row.arguments),
+  }
+}
+
+async function streamed(
+  context: ReceiverContext,
+  transport: McpTransport,
+  request: EventRequest,
+  intake: Intake,
+  first: Gap,
+): Promise<RunEnd> {
+  if (transport.streamEvents === undefined) return { kind: 'broken', progressed: false }
+  const stop = new AbortController()
+  const onStop = () => stop.abort()
+  context.signal.addEventListener('abort', onStop)
+  let ended: RunEnd | undefined
+  let heartbeatMs = 0
+  let watch: AbortController | undefined
+  let gap = first
+  const arm = (): void => {
+    watch?.abort()
+    if (!(heartbeatMs > 0)) return
+    const armed = new AbortController()
+    watch = armed
+    void context.timer(3 * heartbeatMs, armed.signal).then(() => {
+      if (!armed.signal.aborted) stop.abort()
+    })
+  }
+  const stored = async (outcome: Promise<Stored>): Promise<void> => {
+    const result = await outcome
+    if (result === 'ok') return
+    ended = endOf(result, intake)
+    stop.abort()
+  }
+  const take = async (message: EventStreamMessage): Promise<void> => {
+    if (ended !== undefined) return
+    if (message.kind === 'terminated') {
+      ended = { kind: 'terminated', reason: terminationOf(message.code) }
+      stop.abort()
+      return
+    }
+    if (message.kind === 'active') heartbeatMs = message.heartbeatMs
+    arm()
+    if (message.kind === 'active') {
+      const opened = message.truncated ? 'peer-truncated' : gap
+      gap = null
+      await stored(intake.store([], message.cursor, opened))
+      if (ended === undefined) context.started()
+      return
+    }
+    if (message.kind === 'event') {
+      const occurrence = readOccurrence(message.event)
+      return stored(
+        intake.store(occurrence === undefined ? [] : [occurrence], message.cursor, null),
+      )
+    }
+    if (message.kind === 'heartbeat') return stored(intake.store([], message.cursor, null))
+  }
+  let chain = Promise.resolve()
+  const end = await transport
+    .streamEvents(request, stop.signal, message => {
+      chain = chain.then(() => take(message)).catch(() => undefined)
+    })
+    .catch(() => ({ kind: 'broken' as const }))
+  await chain
+  watch?.abort()
+  context.signal.removeEventListener('abort', onStop)
+  if (ended !== undefined) return ended
+  if (context.signal.aborted) return STOPPED
+  if (end.kind === 'refused') return refusedEnd(end.failure, intake.progressed)
+  return { kind: 'broken', progressed: intake.progressed }
+}
+
+async function polled(
+  context: ReceiverContext,
+  transport: McpTransport,
+  request: EventRequest,
+  intake: Intake,
+  first: Gap,
+): Promise<RunEnd> {
+  const poll = transport.pollEvents
+  if (poll === undefined) return { kind: 'broken', progressed: false }
+  let { cursor } = request
+  let gap = first
+  while (!context.signal.aborted) {
+    const asked = await ask(() => poll.call(transport, { ...request, cursor }), fail(ABANDONED))
+    if ('failure' in asked) return refusedEnd(asked.failure, intake.progressed)
+    const answer = asked.ok
+    const events = answer.events.flatMap(json => readOccurrence(json) ?? [])
+    const opened = answer.truncated ? 'peer-truncated' : gap
+    gap = null
+    const result = await intake.store(events, answer.cursor, opened)
+    if (result !== 'ok') return endOf(result, intake)
+    context.started()
+    cursor = answer.cursor ?? cursor
+    if (answer.hasMore) continue
+    const wait = Number.isFinite(answer.nextPollMs) ? answer.nextPollMs : 0
+    await context.timer(Math.max(wait, context.bounds.pollFloorMs), context.signal)
+  }
+  return STOPPED
+}
+
+async function rowOf(context: ReceiverContext) {
+  return ask(() => context.records.read(context.key), fail('unavailable' as const))
+}
+
+/** Writes a new state onto the row as it now is; a row that changed meanwhile is read again, a gone one is left gone. */
+async function marked(
+  context: ReceiverContext,
+  state: SubscriptionState,
+  reason: TerminationReason | null,
+): Promise<void> {
+  for (let tries = 0; tries < 3; tries += 1) {
+    const read = await rowOf(context)
+    if ('failure' in read || read.ok === 'absent') return
+    const row = read.ok
+    if (row.state === state && row.reason === reason) return
+    const next = { ...row, state, reason, revision: row.revision + 1 }
+    const written = await ask(
+      () => context.records.write(context.key, next, row.revision),
+      fail('unavailable' as const),
+    )
+    if ('ok' in written) return context.changed()
+    if (written.failure === 'unavailable') return
+  }
+}
+
+/** Ends the subscription with its reason in one commit; the consumer hears of it after what came before. */
+async function ended(context: ReceiverContext, reason: TerminationReason): Promise<void> {
+  const at = context.clock.now().toISOString()
+  const done = await ask(
+    () => context.records.end(context.key, reason, at),
+    fail('unavailable' as const),
+  )
+  if ('ok' in done && done.ok === 'ended') {
+    context.changed()
+    context.deliver()
+  }
+}
+
+type Opened = Extract<Ready, { kind: 'ready' }>
+type Opening =
+  | Readonly<{ kind: 'stop' }>
+  | Readonly<{ kind: 'again' }>
+  | Readonly<{ kind: 'open'; row: SubscriptionRow; ready: Opened }>
+
+const STOP = { kind: 'stop' } as const
+const AGAIN = { kind: 'again' } as const
+
+async function opening(context: ReceiverContext): Promise<Opening> {
+  const read = await rowOf(context)
+  if ('failure' in read) return AGAIN
+  if (read.ok === 'absent' || read.ok.state === 'terminated') return STOP
+  const ready = await context.ready()
+  if (context.signal.aborted) return STOP
+  if (ready.kind === 'ended') {
+    await ended(context, ready.reason)
+    return STOP
+  }
+  if (ready.kind === 'waiting') {
+    await marked(context, 'waiting', null)
+    return AGAIN
+  }
+  if (read.ok.state === 'waiting') await marked(context, 'receiving', null)
+  return { kind: 'open', row: read.ok, ready }
+}
+
+async function afterward(
+  context: ReceiverContext,
+  end: RunEnd,
+  ready: Opened,
+): Promise<'stop' | 'again' | 'progressed'> {
+  if (end.kind === 'stopped') return 'stop'
+  if (end.kind === 'terminated') {
+    await ended(context, end.reason)
+    if (end.reason === 'type-gone' || end.reason === 'schema-changed') await ready.refetch()
+    return 'stop'
+  }
+  if (end.kind === 'header-mismatch') await ready.refetch()
+  return end.kind === 'broken' && end.progressed ? 'progressed' : 'again'
+}
+
+/** One subscription being received: opened with its position, opened again after a break, ended when the peer ends it. */
+export async function receive(context: ReceiverContext): Promise<void> {
+  let attempt = 0
+  let opened = false
+  while (!context.signal.aborted) {
+    const step = await opening(context)
+    if (step.kind === 'stop') return
+    let next: 'stop' | 'again' | 'progressed' = 'again'
+    if (step.kind === 'open') {
+      const { row, ready } = step
+      const first: Gap =
+        row.cursor === null && (opened || !context.fresh) ? 'possibly-missed' : null
+      opened = true
+      const intake = new Intake(context, row, ready.allowed)
+      const run = row.delivery === 'push' ? streamed : polled
+      const end = await run(context, ready.transport, requestOf(ready.type, row), intake, first)
+      next = await afterward(context, end, ready)
+    }
+    if (next === 'stop') return
+    attempt = next === 'progressed' ? 0 : attempt
+    await context.pause(Math.min(250 * 2 ** attempt, context.bounds.backoffCapMs))
+    attempt += 1
+  }
+}

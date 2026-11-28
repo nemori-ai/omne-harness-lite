@@ -3,6 +3,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgeMessage, parseMessageId, parseRecordEntryRef } from '@omne-harness/message'
 import {
+  OVER_LIMIT_METRICS,
   decodeModelCallId,
   judgeModelParameters,
   judgeToolDeclarations,
@@ -104,7 +105,7 @@ const frame = z.strictObject({
   tools: checked(judgeToolDeclarations),
 })
 const selectedProfile = checked(value => {
-  const parsed = readProfileResolution(value)
+  const parsed = readProfileResolution(value, 'llm')
   return 'ok' in parsed && parsed.ok.kind === 'resolved' && parsed.ok.selectable
     ? succeed({ ...parsed.ok, selectable: true as const })
     : fail('profile')
@@ -120,15 +121,7 @@ const input = z.strictObject({
     measurement: adopted,
     goals: z.array(
       z.strictObject({
-        metric: z.enum([
-          'image-bytes',
-          'image-count',
-          'request-bytes',
-          'voice-bytes',
-          'voice-duration-ms',
-          'context-tokens',
-          'input-tokens',
-        ]),
+        metric: z.enum(OVER_LIMIT_METRICS),
         relation: z.enum(['less-than', 'at-most']),
         limit: integer,
       }),

@@ -34,6 +34,21 @@ const handler: ReadHandlerModule = {
           )
     if (rows.length > LEDGER_READ_ROWS)
       return { kind: 'failed', diagnostic: 'the domain holds more records than one read returns' }
+    const uses =
+      key === undefined
+        ? rowsOf(
+            port,
+            `SELECT DISTINCT digest FROM tl_definition_use WHERE tenant = ? AND kind = ? AND name = ?
+            LIMIT ?`,
+            [...domain, BigInt(LEDGER_READ_ROWS + 1)],
+          )
+        : rowsOf(
+            port,
+            `SELECT digest FROM tl_definition_use
+            WHERE tenant = ? AND kind = ? AND name = ? AND key = ? LIMIT 1`,
+            [...domain, key],
+          )
+    const digests = new Set(uses.map(row => text(row['digest'])))
     const output: LedgerReadOutput = {
       revision: head === undefined ? null : text(head['revision']),
       records: rows.map(row => ({
@@ -41,6 +56,16 @@ const handler: ReadHandlerModule = {
         record: JSON.parse(packed(row['record'])) as JsonValue,
         ...(row['fixed'] === null ? {} : { fixed: JSON.parse(packed(row['fixed'])) as JsonValue }),
       })),
+      definitions: [...digests].flatMap(digest => {
+        const held = oneRow(
+          port,
+          'SELECT body FROM tl_definition WHERE tenant = ? AND digest = ? LIMIT 1',
+          [address.tenant, digest],
+        )
+        return held === undefined
+          ? []
+          : [{ digest, definition: JSON.parse(packed(held['body'])) as JsonValue }]
+      }),
     }
     return { kind: 'read', output }
   },

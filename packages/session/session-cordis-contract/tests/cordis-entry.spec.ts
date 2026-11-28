@@ -37,6 +37,7 @@ const documentedPairs = {
   sessionReplayFactsKey: 'SessionReplayFactsService',
   sessionScopeLookupKey: 'SessionScopeLookupService',
   sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
+  sessionExecutionLogKey: 'SessionExecutionLogService',
   sessionInputSourcesKey: 'SessionInputSourcesService',
   sessionBeforeIntakeKey: 'SessionBeforeIntakeService',
   sessionDerivedInputsKey: 'SessionDerivedInputsService',
@@ -44,6 +45,7 @@ const documentedPairs = {
   sessionHistoryLogKey: 'SessionHistoryLogService',
   sessionSearchCursorsKey: 'SessionSearchCursorsService',
   sessionSearchKey: 'SessionSearchService',
+  sessionUtteranceResolverKey: 'SessionUtteranceResolverService',
 } as const
 
 const documentedKeys = {
@@ -73,8 +75,10 @@ const documentedKeys = {
   sessionReplayFactsKey: 'sessionReplayFacts',
   sessionScopeLookupKey: 'sessionScopeLookup',
   sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
+  sessionExecutionLogKey: 'sessionExecutionLog',
   sessionInputSourcesKey: 'sessionInputSources',
   sessionBeforeIntakeKey: 'sessionBeforeIntake',
+  sessionUtteranceResolverKey: 'sessionUtteranceResolver',
   sessionDerivedInputsKey: 'sessionDerivedInputs',
   sessionHistoryIndexKey: 'sessionHistoryIndex',
   sessionHistoryLogKey: 'sessionHistoryLog',

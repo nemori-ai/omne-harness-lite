@@ -8,6 +8,7 @@ import {
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { judgeMessage, parseMessageId, type Message, type MessagePart } from '@omne-harness/message'
 import {
+  chatNeedOf,
   decodeModelCallId,
   decodeProviderName,
   decodeRevision,
@@ -62,18 +63,20 @@ export const required: ModalityRequirement = {
   modalities: ['text'],
   source: evidence('modality'),
 }
+export const need = chatNeedOf(required)
 
 export const callId = (name: string): ModelCallId => must(decodeModelCallId(`mcall_${name}`))
 
 const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
 
-export const profile: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'default' },
+export const profile: ModelProfile<'llm'> = {
+  identity: { scope: { kind: 'factory' }, kind: 'llm', route: 'default' },
   adoption: adoption('profile'),
   revision: must(decodeRevision('1')),
   updatedAt: '2026-10-19T00:00:00Z',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [
       {
         adoption: adoption('supplier'),

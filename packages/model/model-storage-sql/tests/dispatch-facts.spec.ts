@@ -6,7 +6,7 @@ import {
   type ResultVersion,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type CallAccountReport,
   type TransportFact,
   type WriteContext,
@@ -72,7 +72,7 @@ function scene(window: typeof WINDOW | null = WINDOW) {
     },
   })
   const request = unbox(
-    judgeFixedModelRequest({
+    judgeModelRequest('llm', {
       ...REQUEST,
       ...(window === null ? {} : { contextWindow: window }),
       system: [
@@ -270,11 +270,38 @@ describe('the dispatch facts of the Model records (C17)', () => {
         connectRetries: 0,
         account: expect.objectContaining({ usage: REPORT.usage, cost: REPORT.cost }),
         costLookup: 'not-needed',
+        effort: { value: null, basis: 'provider' },
       },
     ])
     const text = JSON.stringify(page)
     expect(text).not.toContain(PROMPT_CANARY)
     expect(text).not.toContain(REPLY_CANARY)
+  })
+
+  it('reads the facts of one call with the effort its request carried; another tenant reads none', async () => {
+    const s = scene()
+    const { call, dispatch } = await s.dispatched('effort', { clean: true })
+    await s.dispatched('other')
+    const mine = { principal: s.principalOf(A), tenant: A, call }
+    const read = unbox(await s.facts.ofCall(mine))
+    expect(read.map(fact => [fact.dispatch, fact.effort])).toEqual([
+      [dispatch, { value: null, basis: 'provider' }],
+    ])
+    expect(
+      unbox(await s.facts.ofCall({ ...mine, principal: s.principalOf(B), tenant: B })),
+    ).toEqual([])
+    expect(await s.facts.ofCall({ ...mine, tenant: B })).toEqual({
+      failure: { kind: 'denied', action: 'read-account' },
+    })
+  })
+
+  it('reads a fact written before the effort was kept without one: not known', async () => {
+    const s = scene()
+    const { call, dispatch } = await s.dispatched('older')
+    s.built.sqlite.seed(s.built.domain, 'UPDATE md_dispatch_fact SET effort = NULL', [])
+    const [fact] = unbox(await s.facts.ofCall({ principal: s.principalOf(A), tenant: A, call }))
+    expect(fact?.dispatch).toBe(dispatch)
+    expect(fact !== undefined && 'effort' in fact).toBe(false)
   })
 
   it('keeps the fact, its profile and its window after the call is cleaned up', async () => {
@@ -391,6 +418,15 @@ function listOn(
     limit: 10,
     ...fields,
   })
+}
+
+function ofCallOn(s: Scene, replaced: Partial<FaceOptions> = {}) {
+  return createSqlModelDispatchFacts({
+    storage: s.built.sqlite.storage,
+    domains: lookup([textOf(A), textOf(B)], s.built.domain),
+    authority: s.built.core.options.authority,
+    ...replaced,
+  }).ofCall({ principal: s.principalOf(A), tenant: A, call: callId('kept') })
 }
 
 const answering = (s: Scene, output: unknown): Partial<FaceOptions> => ({
@@ -545,6 +581,43 @@ describe('what the read face refuses, and what it answers when it cannot read', 
     }
     expect(await listOn(s, { domains: failing })).toEqual({
       failure: unavailable('tenant domain: registry down'),
+    })
+  })
+
+  it('reads the facts of a call of an unregistered tenant domain as none, and a lookup that fails as unavailable', async () => {
+    const s = scene()
+    await s.dispatched('kept')
+    expect(unbox(await ofCallOn(s))).toHaveLength(1)
+    expect(await ofCallOn(s, { domains: lookup([], s.built.domain) })).toEqual({ ok: [] })
+    const failing = {
+      lookup: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'registry down' } as const),
+    }
+    expect(await ofCallOn(s, { domains: failing })).toEqual({
+      failure: unavailable('tenant domain: registry down'),
+    })
+  })
+
+  it.each([
+    [new Error('down'), 'read model.dispatch-facts: down'],
+    [null, 'stored dispatch fact read'],
+    [{ undated: 0, rows: 'x' }, 'stored dispatch fact read'],
+    [{ undated: 0, rows: [1] }, 'stored dispatch fact row'],
+  ])(
+    'answers unavailable for the facts of a call when the read gives %j',
+    async (output, diagnostic) => {
+      const s = scene()
+      expect(await ofCallOn(s, answering(s, output))).toEqual({ failure: unavailable(diagnostic) })
+    },
+  )
+
+  it('answers unavailable for a stored effort that is damaged', async () => {
+    const s = scene()
+    const { call } = await s.dispatched('kept')
+    s.built.sqlite.seed(s.built.domain, 'UPDATE md_dispatch_fact SET effort = ?', [
+      packText('not json'),
+    ])
+    expect(await s.facts.ofCall({ principal: s.principalOf(A), tenant: A, call })).toEqual({
+      failure: unavailable('stored dispatch fact effort'),
     })
   })
 

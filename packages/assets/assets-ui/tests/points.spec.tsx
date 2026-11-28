@@ -2,8 +2,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol, type SettingView } from '@omne-harness/assets-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import {
   ASSETS_CATEGORY,
   ASSETS_HOLDING,
@@ -12,6 +12,7 @@ import {
   assetsUiModule,
 } from '../src/cordis.tsx'
 import { assetsOf, serveAssetReads } from './fixtures/asset-reads.ts'
+import { assetPage, backToList, enterAsset } from './fixtures/asset-pages.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
@@ -19,7 +20,6 @@ import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
 
 beforeAll(stubAnimation)
 
@@ -36,7 +36,7 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   serveAssetReads(fake, assetsOf(items))
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, assetsProtocol, fake.client)
   await root.plugin(assetsUiModule)
   await root.plugin({ name: 'contributor', inject: ['shell'], apply: contribute })
   shell.tenant = TENANT
@@ -60,11 +60,8 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   return shell
 }
 
-/** Opens the detail of every asset listed in the shown tab: the holding slot is in the detail. */
 async function openListed(): Promise<void> {
   await settle()
-  await settle()
-  for (const button of screen.queryAllByRole('button', { expanded: false })) fireEvent.click(button)
   await settle()
 }
 
@@ -82,7 +79,7 @@ it('两个拓展点的名字：assets.category 与 assets.holding', () => {
   expect(assetsHolding.name).toBe(ASSETS_HOLDING)
 })
 
-it('往一个类别的 assets.holding 下放的项，出现在这一类每一份资产的详情里，收到类别、名字与租户', async () => {
+it('往一个类别的 assets.holding 下放的项，出现在这一类每一份资产自己的页上，收到类别、名字与租户', async () => {
   await shown([permissionView(), ordinaryView(), secretView()], ctx =>
     assetsHolding.contribute(ctx.shell, 'tool', {
       id: 'status',
@@ -93,11 +90,67 @@ it('往一个类别的 assets.holding 下放的项，出现在这一类每一份
     }),
   )
   await showTab('工具')
-  expect(within(block('shell')).getByText(`tool/shell|${TENANT}`)).toBeTruthy()
-  expect(within(block('files')).getByText(`tool/files|${TENANT}`)).toBeTruthy()
-  expect(document.querySelectorAll('[data-holding]')).toHaveLength(2)
+  expect(document.querySelectorAll('[data-holding]')).toHaveLength(0)
+  expect((await enterAsset('shell')).getByText(`tool/shell|${TENANT}`)).toBeTruthy()
+  await backToList()
+  expect((await enterAsset('files')).getByText(`tool/files|${TENANT}`)).toBeTruthy()
+  expect(document.querySelectorAll('[data-holding]')).toHaveLength(1)
   await showTab('模型')
-  expect(block('openai').querySelector('[data-holding]')).toBeNull()
+  await enterAsset('openai')
+  expect(assetPage().querySelector('[data-holding]')).toBeNull()
+})
+
+it('一项 assets.holding 认领的设置项不在「设置」段里画；这一份的项全被认领时，「设置」段不出现', async () => {
+  await shown([permissionView(), ordinaryView(), secretView()], ctx =>
+    assetsHolding.contribute(ctx.shell, 'tool', {
+      id: 'claims-files',
+      order: 0,
+      claims: ['max-read-bytes'],
+      render: ({ subject }) => <p data-holding={subject.name}>自己画</p>,
+    }),
+  )
+  await showTab('工具')
+  const files = await enterAsset('files')
+  expect(files.getByText('自己画')).toBeTruthy()
+  expect(files.queryByText('一次读取的上限')).toBeNull()
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
+  await backToList()
+  await enterAsset('shell')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  await showTab('模型')
+  const openai = await enterAsset('openai')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  expect(openai.queryByText('这一份没有可以改的设置。')).toBeNull()
+})
+
+it('认领只算自己那一类；页开着时才放进来的项也算；一项可以认领几项', async () => {
+  let later: Context | undefined
+  await shown([permissionView(), ordinaryView(), secretView()], ctx => {
+    later = ctx
+    assetsHolding.contribute(ctx.shell, 'model', {
+      id: 'claims-elsewhere',
+      order: 0,
+      claims: ['max-read-bytes', 'call-permission'],
+      render: () => null,
+    })
+  })
+  await showTab('工具')
+  const shell = await enterAsset('shell')
+  expect(assetPage().querySelector('#assets-asset-settings')).not.toBeNull()
+  await act(async () =>
+    assetsHolding.contribute(later!.shell, 'tool', {
+      id: 'claims-both',
+      order: 0,
+      claims: ['max-read-bytes', 'call-permission'],
+      render: () => <p>自己画两项</p>,
+    }),
+  )
+  await settle()
+  expect(shell.getByText('自己画两项')).toBeTruthy()
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
+  await backToList()
+  await enterAsset('files')
+  expect(assetPage().querySelector('#assets-asset-settings')).toBeNull()
 })
 
 it('往一个类别的 assets.category 下放的项，只在选中这一类时出现在这一类的上方，收到类别', async () => {
@@ -149,7 +202,7 @@ it('贡献可以先于它的类别放进去：列表里没有这一类时它不�
 it('对象编成文本再解回来不走样：名字里带冒号与数字也一样；读不懂的文本不画这一项', async () => {
   const trickyAsset = { category: '12:ab', name: ':7:x' }
   const { root, shell } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient().client)
+  await serveProtocol(root, assetsProtocol, createFakeClient().client)
   await root.plugin(assetsUiModule)
   const received: unknown[] = []
   await root.plugin({
@@ -195,5 +248,6 @@ it('没有贡献时，块里与类别上方没有多出来的元素', async () =
   await shown([permissionView()], () => undefined)
   await showTab('工具')
   expect(document.querySelector('.assets-category-slot')?.childElementCount).toBe(0)
-  expect(block('shell').querySelector('.assets-holding-slot')?.childElementCount).toBe(0)
+  await enterAsset('shell')
+  expect(assetPage().querySelector('.assets-holding-slot')?.childElementCount).toBe(0)
 })

@@ -24,8 +24,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--omne-space-block);
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 64px);
+  width: min(var(--omne-dialog-width), calc(100vw - 2 * var(--omne-space-block)));
+  max-height: calc(100dvh - 2 * var(--omne-space-page));
   overflow-y: auto;
   padding: var(--omne-space-section);
   border-radius: var(--omne-radius-window);
@@ -56,14 +56,14 @@
   line-height: var(--omne-leading-reading);
 }
 .omne-impact-section > h3 {
-  margin: 0 0 4px;
+  margin: 0 0 var(--spacing);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
   font-weight: var(--omne-weight-strong);
 }
 .omne-impact-section ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: calc(var(--spacing) * 4.5);
 }
 .omne-impact-actions {
   display: flex;

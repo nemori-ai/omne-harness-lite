@@ -1,18 +1,23 @@
 import type { ToolLedgerStore, ToolSourceGuard } from '@omne-harness/tool'
 import { canonicalDigest } from '@omne-harness/tool'
-
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import { fixedRequestReference } from '@omne-harness/tool-contract/provider'
 import {
   TOOL_FORWARDING_OWNER,
+  TOOL_PROGRAM_OWNER,
   type LocalToolCatalogViewSource,
-  type ToolRequestAccess,
+  type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
+import type { SourcedEntries } from '../../entry/tool-entry-sources.ts'
 import { targetResidency } from '../../entry/tool-target-residency.ts'
-import type { ToolTargetPolicy } from '../authorization/tool-target-policy.ts'
 
-export function withTargetAdmissionPolicy(
+const requestDigest = (request: FixedToolRequest): string =>
+  canonicalDigest(fixedRequestReference(request))
+
+export function withTargetResidency(
   original: ToolSourceGuard<unknown>,
   store: ToolLedgerStore,
-  policy: ToolTargetPolicy,
+  residency: ToolTargetAvailability<unknown>,
 ): ToolSourceGuard<unknown> {
   return {
     async verify(input) {
@@ -28,43 +33,40 @@ export function withTargetAdmissionPolicy(
           call.call !== input.call ||
           call.admission !== input.operation ||
           canonicalDigest(call.tenant) !== canonicalDigest(input.tenant) ||
-          canonicalDigest(call.request) !== canonicalDigest(input.request)
+          requestDigest(call.request) !== requestDigest(input.request)
         )
           return { kind: 'forged', reason: 'The source disagrees with the admitted Tool call.' }
-        // Start guards still recheck current execution policy before every new start.
         return source
       }
-      const verdict = await policy.qualify({ ...input, admission: input.operation })
+      const verdict = await residency.qualify(input)
       return verdict.kind === 'allowed' ? source : verdict
     },
   }
 }
 
-export function currentTargetPolicy(
-  ports: Readonly<{
-    authorization(): ToolTargetPolicy | undefined
-    view(): LocalToolCatalogViewSource<unknown> | undefined
-  }>,
-): ToolTargetPolicy {
+/** What the view must say of the target, by who consumes the call; a program may call any tool it lists. */
+const REQUIRED: Readonly<Partial<Record<string, Parameters<typeof targetResidency>[3]>>> = {
+  '@omne-harness/agent': 'resident',
+  [TOOL_FORWARDING_OWNER]: 'nonresident',
+  [TOOL_PROGRAM_OWNER]: 'listed',
+}
+
+export function currentTargetResidency(
+  view: () => LocalToolCatalogViewSource<unknown> | undefined,
+  sourced?: () => SourcedEntries,
+): ToolTargetAvailability<unknown> {
   return {
     async qualify(input) {
-      const policy = ports.authorization()
-      if (policy === undefined)
-        return {
-          kind: 'unavailable',
-          diagnostic: 'The current target authorization row is absent.',
-        }
-      const authorized = await policy.qualify(input)
-      if (authorized.kind !== 'allowed') return authorized
-      const owner = input.request.consumer.owner
-      if (owner !== TOOL_FORWARDING_OWNER && owner !== '@omne-harness/agent') return authorized
+      const required = REQUIRED[input.request.consumer.owner]
+      if (required === undefined) return { kind: 'allowed' }
       const target = await targetResidency(
-        ports.view(),
+        view(),
         input,
         input.request.availability,
-        owner === TOOL_FORWARDING_OWNER ? 'nonresident' : 'resident',
+        required,
+        sourced?.(),
       )
-      if ('ok' in target) return authorized
+      if ('ok' in target) return { kind: 'allowed' }
       return target.failure.kind === 'denied'
         ? { kind: 'denied', reason: target.failure.action }
         : { kind: 'unavailable', diagnostic: 'The current target residency cannot be verified.' }
@@ -72,11 +74,10 @@ export function currentTargetPolicy(
   }
 }
 
-/** Start-time policy uses the admission saved by the original Tool ledger, never the start operation. */
-export function admittedTargetAccess(
+export function admittedTargetResidency(
   store: ToolLedgerStore,
-  policy: ToolTargetPolicy,
-): ToolRequestAccess<unknown> {
+  residency: ToolTargetAvailability<unknown>,
+): ToolTargetAvailability<unknown> {
   const unavailable = () => ({
     kind: 'unavailable' as const,
     diagnostic: 'The original Tool admission is unavailable.',
@@ -92,10 +93,10 @@ export function admittedTargetAccess(
         if (
           call.call !== input.call ||
           canonicalDigest(call.tenant) !== canonicalDigest(input.tenant) ||
-          canonicalDigest(call.request) !== canonicalDigest(input.request)
+          requestDigest(call.request) !== requestDigest(input.request)
         )
           return { kind: 'denied', reason: 'The target disagrees with the original Tool call.' }
-        return await policy.qualify({ ...input, admission: call.admission })
+        return await residency.qualify(input)
       } catch {
         return unavailable()
       }

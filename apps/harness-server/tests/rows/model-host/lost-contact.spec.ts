@@ -15,7 +15,7 @@ import {
   decodeModelOperationId,
   decodeProviderName,
   encodeModelInvocationRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelRuntime,
 } from '@omne-harness/model-contract'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -37,6 +37,7 @@ import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { createModelHostRow, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
+import { everyModelOnRow } from '../../support/model-preferences.ts'
 import { modelRecordsRow } from '../../../src/rows/model-records/index.ts'
 import { modelRequestPreparationRow } from '../../../src/rows/model-request-preparation/index.ts'
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
@@ -68,7 +69,8 @@ const REFERENCE = must(
   encodeModelInvocationRef({ tenant: TENANT, call: CALL, admission: ADMISSION }),
 )
 const ADOPTION = { owner: 'o', name: 'lost-contact', revision: '1', digest: '0'.repeat(64) }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {
@@ -178,6 +180,7 @@ function rowsOf(storageRoot: string) {
       },
     },
     { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
+    { id: 'every-model-on', plugin: 'everyModelOnRow', config: {} },
     { id: 'model-profiles', plugin: 'modelProfilesRow', config: model.profiles },
     {
       id: 'model-request-preparation',
@@ -198,6 +201,7 @@ function pluginsWith(host: unknown) {
     authorization,
     sessionStorageRow,
     modelProfilesRow,
+    everyModelOnRow,
     modelRequestPreparationRow,
     modelRecordsRow,
     modelHostRow: host,

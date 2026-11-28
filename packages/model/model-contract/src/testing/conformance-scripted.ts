@@ -3,6 +3,7 @@ import type { ModelCallId } from '../index.ts'
 import { DEFAULT_REQUEST, DEFAULT_SUPPLIER } from '../conformance/conformance-defaults.ts'
 import { instanceId, operationId, versionId } from '../conformance/conformance-kit.ts'
 import type { ConformanceHooks, ConformanceSubject } from '../conformance/conformance-types.ts'
+import { createLiveDouble } from './live.ts'
 import { createScriptedModelProvider } from './provider.ts'
 import { createScriptedTransport } from './transport.ts'
 
@@ -122,15 +123,17 @@ export function createScriptedConformanceSubject(): ConformanceSubject<ScriptedP
     rejection: null,
   })
 
+  const tenant = tenantOf('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345')
   return {
     provider,
     principal,
-    tenant: tenantOf('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345'),
+    tenant,
     otherTenant: tenantOf('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346'),
     hooks,
     transport: {
       transport: scriptedTransport.transport,
       sends: () => Math.min(scriptedTransport.counts().start, 1),
     },
+    live: createLiveDouble<ScriptedPrincipal>({ tenant }),
   }
 }

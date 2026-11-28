@@ -64,7 +64,7 @@ import {
 } from './reads.ts'
 import { requestChunks } from './request-body.ts'
 import { DISPATCH_FACT_KEPT_COLUMNS, dispatchFactRows } from './dispatch-facts.ts'
-import { DISPATCH_FACT } from './fact-schema.ts'
+import { DISPATCH_FACT_WRITTEN } from './fact-effort-schema.ts'
 import { columnNames, cellValue, insert, upsertRows } from './rows.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
@@ -577,15 +577,16 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return current
   }
 
-  const identityOf = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
+  const withoutReceipt = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
     scope: domain.scope,
     transactionDomain: domain.transactionDomain,
     operation,
     protocolVersion: '2',
     operationKey: key,
+    recall: 'never',
   })
-  const generation = (domain: DomainRef, operation: ModelOperationId, at: number) =>
-    identityOf(domain, operation, `${operation}#${at}`)
+  const generation = (domain: DomainRef, operation: ModelOperationId, at: number): SqlIdentity =>
+    withoutReceipt(domain, operation, `${operation}#${at}`)
   const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
     JSON.stringify([
       domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
@@ -593,28 +594,15 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       operation,
     ])
 
-  async function freeGeneration(
-    domain: DomainRef,
-    operation: ModelOperationId,
-  ): Promise<number | 'unknown' | 'committed'> {
-    const key = generationsKey(domain, operation)
-    let at = generations.first(key)
-    let found = await storage.query(generation(domain, operation, at))
-    while (found.kind === 'rolled_back') {
-      generations.saw(key, at, found.kind)
-      at += 1
-      found = await storage.query(generation(domain, operation, at))
-    }
-    generations.saw(key, at, found.kind)
-    if (found.kind === 'not_committed') return at
-    return found.kind === 'not_recallable' ? 'unknown' : found.kind
+  async function settled(domain: DomainRef, operation: ModelOperationId): Promise<boolean> {
+    const at = generations.first(generationsKey(domain, operation))
+    return (await storage.query(generation(domain, operation, at))).kind === 'settled'
   }
 
   async function settleUnresolved(domain: DomainRef, scope: CallScope): Promise<void> {
     for (const [operation, binding] of unresolved.of(scope.tenant)) {
       if (binding.call !== scope.call) continue
-      if ((await freeGeneration(domain, operation)) !== 'unknown')
-        unresolved.remove(scope.tenant, operation)
+      if (await settled(domain, operation)) unresolved.remove(scope.tenant, operation)
     }
   }
 
@@ -644,7 +632,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   function identityFor(domain: DomainRef, tenant: string, staged: Staged): Target | Step {
     if (staged.kind === 'publish') {
       const operation = `${staged.call.state.call}#read`
-      return { identity: identityOf(domain, operation, `${operation}@${staged.expected}`) }
+      return { identity: withoutReceipt(domain, operation, `${operation}@${staged.expected}`) }
     }
     const { operation } = staged.write
     if (unresolved.full(tenant, operation))
@@ -754,7 +742,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   ): Promise<CommitResultV2> {
     const operation = `${call}#body`
     return storage.commit({
-      identity: identityOf(domain, operation, `${operation}@${randomUUID()}`),
+      identity: withoutReceipt(domain, operation, `${operation}@${randomUUID()}`),
       ...combination,
       commands: [{ participant: MODEL_PARTICIPANT, facts }],
     })
@@ -946,7 +934,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     row,
     binding,
     dispatches: rowList(facts['dispatches'], TABLES.dispatch, tenant, call),
-    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT, tenant, call),
+    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT_WRITTEN, tenant, call),
     removeParts: partKeys(facts['removeParts']),
     parts: rowList(facts['parts'], TABLES.part, tenant, call),
     share: shareOf(facts['share']),
@@ -984,7 +972,7 @@ function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
 function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   const { tenant, call } = facts
   upsertRows(port, TABLES.dispatch, facts.dispatches)
-  upsertRows(port, DISPATCH_FACT, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
+  upsertRows(port, DISPATCH_FACT_WRITTEN, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
   for (const key of facts.removeParts)
     port.execute(
       'DELETE FROM md_part WHERE tenant = ? AND call = ? AND seq = ? AND block = ? AND part = ?',

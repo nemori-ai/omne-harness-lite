@@ -6,13 +6,13 @@ import {
   decodeModelOperationId,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelInstanceId,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type ModelConsumerOwnerDeclaration,
 } from '@omne-harness/model-contract/provider'
 import type {
@@ -30,6 +30,7 @@ import {
   inputDigestV2,
   type CommitRequestV2,
   type CommitResultV2,
+  type QueryResultV2,
   type ReceiptV2,
   type SqlIdentity,
   type SqlStorage,
@@ -84,7 +85,7 @@ export const OWNER: ModelConsumerOwnerDeclaration = {
 }
 export const DIGEST = 'a'.repeat(64)
 
-export const REQUEST: FixedModelRequest = (() => {
+export const REQUEST: LlmModelRequest = (() => {
   const user = (id: string) => ({
     id: `msg_${id.padEnd(22, '0')}`,
     role: 'user',
@@ -92,7 +93,8 @@ export const REQUEST: FixedModelRequest = (() => {
       { kind: 'text', id: `b-${id}`, visibility: { toHuman: true, toModel: true }, text: 'hello' },
     ],
   })
-  const judged = judgeFixedModelRequest({
+  const judged = judgeModelRequest('llm', {
+    kind: 'llm',
     profile: ADOPTION,
     suppliers: [
       {
@@ -223,8 +225,17 @@ export function sqliteStorage() {
     beforeCommit: (() => void) | null
     rejectNext: 'writer_not_current' | 'queue_full' | null
     holdNext: boolean
-  } = { loseNextReply: false, beforeCommit: null, rejectNext: null, holdNext: false }
+    landLate: boolean
+  } = {
+    loseNextReply: false,
+    beforeCommit: null,
+    rejectNext: null,
+    holdNext: false,
+    landLate: false,
+  }
   const held = new Set<string>()
+  const asked: string[] = []
+  let late: Readonly<{ key: string; land: () => void }> | null = null
   let commits = 0
   const domainOf = (name: string): Domain => {
     const found = domains.get(name)
@@ -260,7 +271,19 @@ export function sqliteStorage() {
         held.add(key)
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: null })
       }
-      const existing = domain.receipts.get(key)
+      const keeps = request.identity.recall !== 'never'
+      if (hooks.landLate) {
+        hooks.landLate = false
+        late = {
+          key,
+          land: () => {
+            const receipt = executeCommit(domain, request)
+            if (keeps) domain.receipts.set(key, receipt)
+          },
+        }
+        return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: null })
+      }
+      const existing = keeps ? domain.receipts.get(key) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -268,7 +291,7 @@ export function sqliteStorage() {
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = executeCommit(domain, request)
-      domain.receipts.set(key, receipt)
+      if (keeps) domain.receipts.set(key, receipt)
       if (hooks.loseNextReply) {
         hooks.loseNextReply = false
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: null })
@@ -276,12 +299,25 @@ export function sqliteStorage() {
       return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity) {
-      if (held.has(keyOf(identity)))
-        return Promise.resolve({ kind: 'unknown', identity, diagnostic: null })
-      const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
-      return Promise.resolve(
-        found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
-      )
+      const answer = ((): QueryResultV2 => {
+        if (late !== null && late.key === keyOf(identity)) {
+          const { land } = late
+          late = null
+          land()
+        }
+        if (held.has(keyOf(identity))) return { kind: 'unknown', identity, diagnostic: null }
+        if (identity.recall === 'never')
+          return { kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS }
+        return (
+          domainOf(identity.transactionDomain).receipts.get(keyOf(identity)) ?? {
+            kind: 'not_committed',
+            identity,
+            proofs: NOT_COMMITTED_PROOFS,
+          }
+        )
+      })()
+      asked.push(`${identity.recall ?? 'recallable'} ${answer.kind}`)
+      return Promise.resolve(answer)
     },
     read(request) {
       const handler = MODULES.handlers.get(request.handler)
@@ -307,6 +343,7 @@ export function sqliteStorage() {
   return {
     storage,
     hooks,
+    asked,
     commits: () => commits,
     rows: (domain: string, sql: string, params: readonly SqlValue[] = []) =>
       rowsOf(domainOf(domain).db, sql, params).rows,

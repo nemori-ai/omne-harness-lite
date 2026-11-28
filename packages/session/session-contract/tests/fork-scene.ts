@@ -5,13 +5,7 @@ import type {
   ModelViewRow,
   SessionCreation,
 } from '@omne-harness/session-contract'
-import {
-  creation,
-  evidence,
-  operationId,
-  ordinaryInput,
-  succeeded,
-} from '@omne-harness/session-contract/testing'
+import { creation, evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { open, participation, scene } from './scene.ts'
 
 export type Scene = ReturnType<typeof scene>
@@ -74,10 +68,7 @@ export async function deliver(s: Scene, name: string, inputs: readonly string[])
         operation: `agent-deliver-${name}`,
       },
       value: {
-        deliveries: inputs.map(input => ({
-          input: input as InputId,
-          message: ordinaryInput(input).message,
-        })),
+        inputs: inputs as readonly InputId[],
         source: evidence(`agent/step/${name}`),
         admission: evidence(`agent/step/${name}`),
       },
@@ -161,8 +152,14 @@ export const rows = async (s: Scene): Promise<readonly ModelViewRow[]> => (await
 export const entryIds = (s: Scene): string[] =>
   s.port.controls.entriesOf(s.base.tenant, s.base.session).map(entry => entry.id)
 
+/** The id of the newest assistant message in the view: in these scenes, the one that makes the running call. */
+export async function latestAsking(s: Scene): Promise<string> {
+  return (await rows(s)).findLast(row => row.message.role === 'assistant')?.message.id ?? 'msg_none'
+}
+
 export async function pointOf(s: Scene): Promise<ForkPoint> {
-  const read = succeeded(await s.port.history.readForkPoint(s.access), 'fork point')
+  const asking = await latestAsking(s)
+  const read = succeeded(await s.port.history.readForkPoint({ ...s.access, asking }), 'fork point')
   if (read.kind !== 'point') throw new Error('a fork point is expected')
   return read.point
 }

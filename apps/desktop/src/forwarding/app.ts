@@ -2,6 +2,8 @@ import { Hono, type Context } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import type { LogoutResult } from '../shared/channel.ts'
 import { answerPageFile, type PageFileReader } from '../shared/page-files.ts'
+import { PLUGIN_FILES } from '../shared/plugin-path.ts'
+import { pluginFileAt } from './plugin-files.ts'
 import {
   BRIDGE,
   WIRE_LIMITS,
@@ -327,6 +329,47 @@ function standingRoute(app: Hono<Env>, rules: ForwardingRules, observations: Obs
   })
 }
 
+const PLUGIN_STATUS = { 'not-found': 404, denied: 403, unavailable: 503 } as const
+
+function bodyOf(parts: AsyncIterableIterator<Uint8Array>): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const next = await parts.next()
+        if (next.done === true) controller.close()
+        else controller.enqueue(new Uint8Array(next.value))
+      } catch (error) {
+        controller.error(error)
+      }
+    },
+    async cancel() {
+      await parts.return?.()
+    },
+  })
+}
+
+const PLUGIN_FILE_CACHE = 'private, max-age=31536000, immutable'
+const SHUT_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+
+function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
+  app.get(`${PLUGIN_FILES}*`, async c => {
+    const at = pluginFileAt(new URL(c.req.url).pathname)
+    if (at === undefined) return text(404, 'not found')
+    const login = c.get('login')
+    if (login === undefined) return text(401, 'not signed in')
+    const answer = await rules.pluginFile(at, login)
+    if (answer.kind !== 'file') return text(PLUGIN_STATUS[answer.kind], answer.kind)
+    const headers = {
+      'content-type': at.type,
+      'content-length': String(answer.bytes),
+      ...BASE_HEADERS,
+      'cache-control': PLUGIN_FILE_CACHE,
+      ...(at.shut && { 'content-security-policy': SHUT_POLICY }),
+    }
+    return new Response(bodyOf(answer.parts), { headers })
+  })
+}
+
 function fallbackRoutes(app: Hono<Env>, readPageFile: PageFileReader | undefined, log: Log): void {
   app.all(`${BRIDGE_PREFIX}*`, () => text(404, 'not found'))
 
@@ -357,6 +400,7 @@ export function createForwarding(options: ForwardingOptions): Forwarding {
   callRoute(app, rules)
   loginRoutes(app, rules, observations)
   standingRoute(app, rules, observations)
+  pluginRoute(app, rules)
   fallbackRoutes(app, options.readPageFile, log)
 
   return {

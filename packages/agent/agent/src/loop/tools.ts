@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   admissionPassageOf,
-  decodeActionId,
+  toolActionOf,
   type Access,
   type Action,
   type ActionBatch,
@@ -23,6 +23,7 @@ import {
   type Failure,
   type Material,
   type PendingCall,
+  type Waiting,
   type ProducedResult,
   type ReceivedEntry,
   type StepId,
@@ -32,6 +33,7 @@ import {
   resolveToolInvocationRef,
   type BackgroundSource,
   type ToolCallId,
+  type ToolInvokeOutcome,
   type ToolInvokeRequest,
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
@@ -41,6 +43,8 @@ import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json, plain } from '../receiving-values.ts'
 import { agentEvidence, toolConsumption, type Message } from './identities.ts'
+import { localFailure } from './node-failure.ts'
+import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -50,6 +54,12 @@ export const fixedToolRequestSchema = {
   revision: '1',
   digest: 'agent:fixed-tool-request/1',
 } as const
+
+export function toolRequestMaterial(
+  request: ToolInvokeRequest,
+): Extract<Material<ContentBlock>, { kind: 'facts' }> {
+  return { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) }
+}
 
 export const toolCallAnswerSchema = {
   owner: 'agent',
@@ -81,7 +91,7 @@ function argumentsText(value: ActionToolCall['arguments']): string {
 }
 
 export function actionOf(step: StepId, original: ActionToolCall, ordinal: number): Action {
-  const id = minted(decodeActionId(`${step}/tool/${ordinal}`))
+  const id = minted(toolActionOf(step, ordinal))
   return {
     id,
     original: { callId: original.callId },
@@ -104,6 +114,7 @@ export type ToolAdmission =
       evidence: DurableEvidence
       request: ToolInvokeRequest
       notice?: string
+      concurrent?: true
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
@@ -126,6 +137,9 @@ function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Fa
 
 const noticed = (notice: string | undefined): Readonly<{ notice?: string }> =>
   notice === undefined ? {} : { notice }
+
+const beside = (concurrent: boolean | undefined): Readonly<{ concurrent?: true }> =>
+  concurrent === true ? { concurrent: true } : {}
 
 function notAllowed(
   action: Action,
@@ -182,7 +196,8 @@ export async function admitToolAction<P>(
   if ('failure' in described) return notAnswered('agentToolRequests', described.failure)
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
-  const { definition } = described.ok
+  const definition = described.ok.definition.adoption
+  const { concurrent } = described.ok
   const admitted = await ports.admission.admit({
     ...input,
     advance,
@@ -194,11 +209,7 @@ export async function admitToolAction<P>(
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
-  const prepared = await ports.toolRequests.prepare({
-    ...input,
-    definition,
-    admission: admitted.ok.evidence,
-  })
+  const prepared = await ports.toolRequests.prepare({ ...input, definition })
   if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
@@ -208,6 +219,7 @@ export async function admitToolAction<P>(
     evidence: admitted.ok.evidence,
     request: request.ok,
     ...noticed(admitted.ok.notice),
+    ...beside(concurrent),
   })
 }
 
@@ -250,12 +262,19 @@ export async function preserveAllowedRequest<P>(
     execution,
     identity: `${execution}/${action.id}/request`,
     consumer: request.consumer,
-    value: { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) },
+    value: toolRequestMaterial(request),
+    readers: 'until-release',
   })
   if ('failure' in stored) return stored
   return succeed({
     ...action,
-    judgment: { kind: 'allowed', evidence, request: stored.ok, ...noticed(allowed.notice) },
+    judgment: {
+      kind: 'allowed',
+      evidence,
+      request: stored.ok,
+      ...noticed(allowed.notice),
+      ...beside(allowed.concurrent),
+    },
   })
 }
 
@@ -308,7 +327,7 @@ function checkedRequest(
     })
   const request = checked.ok
   const same =
-    canonical(request.availability.definition.adoption) === canonical(definition) &&
+    canonical(request.availability.definition) === canonical(definition) &&
     canonical(request.consumer) === canonical(consumer) &&
     request.arguments.original === argumentsText(original.arguments) &&
     request.arguments.effective === action.effectiveArguments
@@ -378,6 +397,13 @@ export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequ
 
 export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
 
+export const associationOf = (
+  invoked: Extract<ToolInvokeOutcome, { kind: 'accepted' | 'commit-unknown' }>,
+): Pick<AssociatedToolCall, 'reference' | 'acceptance'> => ({
+  reference: invoked.reference,
+  acceptance: invoked.kind === 'accepted' ? 'accepted' : 'unknown',
+})
+
 export function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
   return batch.slots.find(slot => slot.action === action)
 }
@@ -387,12 +413,21 @@ export function toolCall(action: Action): AssociatedToolCall | null {
   return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
 }
 
-export function unsent(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
-  return batch.actions.filter(action => {
-    if (action.judgment.kind !== 'allowed') return false
+/** The allowed actions to send now, in order: each goes once every allowed action before it has its slot filled or runs beside it (AG-33). */
+export function sendable(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
+  const ready: Action[] = []
+  let earlierOpen = false
+  for (const action of batch.actions) {
+    if (action.judgment.kind !== 'allowed') continue
     const slot = slotOf(batch, action.id)
-    return slot === undefined || (slot.kind === 'dispatched' && unaccepted.has(action.id))
-  })
+    if (slot !== undefined && slot.kind !== 'dispatched') continue
+    const together = action.judgment.concurrent === true
+    const unsent = slot === undefined || unaccepted.has(action.id)
+    if (unsent && (together || !earlierOpen)) ready.push(action)
+    if (!together) break
+    earlierOpen = true
+  }
+  return ready
 }
 
 export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
@@ -402,6 +437,10 @@ export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
       ? [action.call]
       : []
   })
+}
+
+export function producerWaits(calls: readonly PendingCall[]): Waiting[] {
+  return calls.map(pending => ({ kind: 'producer', pending }))
 }
 
 export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {
@@ -446,6 +485,54 @@ export function isToolReturnOf<K extends ReturnKind>(
     delivery.kind === entry.delivery.key.kind &&
     (kinds as readonly string[]).includes(delivery.kind)
   )
+}
+
+export const RETURN_KINDS = ['placeholder', 'result'] as const
+
+type DeliveryPorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'entries' | 'materials'>
+
+/** The kept delivery of the action's call, of one of the kinds and checked against its binding; null when none is kept. */
+export async function toolDeliveryOf<P, K extends ReturnKind>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  action: Action,
+  kinds: readonly K[],
+): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
+  const pending = toolCall(action)
+  if (pending === null) return succeed(null)
+  const consumption = pending.consumption
+  const received = await ports.entries.receivedOf({ ...access, execution, consumption })
+  if ('failure' in received) return received
+  const found = toolReceivedOf(received.ok, pending, kinds)
+  if (found === undefined) return succeed(null)
+  const { material: source, ...expected } = found
+  const material = await ports.materials.read({ ...access, source })
+  if ('failure' in material) return material
+  const delivery = readToolDeliveryMaterial(access, material.ok, expected)
+  if (!isToolReturnOf(delivery, kinds, found))
+    return fail({
+      kind: 'invalid',
+      field: 'received.material',
+      reason: 'invalid schema or original binding',
+    })
+  return succeed({ entry: found, delivery, pending })
+}
+
+/** Whether a call the batch still waits on already has its placeholder or result kept. */
+export async function anyToolReceived<P>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+): Promise<Outcome<boolean, Failure>> {
+  for (const action of batch.actions) {
+    if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
+    const received = await toolDeliveryOf(ports, access, execution, action, RETURN_KINDS)
+    if ('failure' in received) return received
+    if (received.ok !== null) return succeed(true)
+  }
+  return succeed(false)
 }
 
 /** The slot a kept placeholder or result fills, and the produced result it records. */
@@ -664,6 +751,16 @@ export function refusedTool(
   }
 }
 
+export function dispatchedSlot(action: Action) {
+  return {
+    kind: 'dispatched' as const,
+    action: action.id,
+    each: null,
+    candidateDigest: null,
+    handoff: null,
+  }
+}
+
 export function deniedSlot(action: Action, evidence: DurableEvidence) {
   return {
     kind: 'denied' as const,
@@ -677,4 +774,34 @@ export function deniedSlot(action: Action, evidence: DurableEvidence) {
 
 export function candidateDigest(message: Message): string {
   return `sha256:${createHash('sha256').update(canonical(message)).digest('hex')}`
+}
+
+export type AdmittedAction = Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>
+
+export async function preserveAllowed<P>(
+  ports: Ports<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  answers: readonly AdmittedAction[],
+  scopeBudget: number | undefined,
+): Promise<Outcome<Action[], Failure>> {
+  const actions: Action[] = []
+  for (const answer of answers) {
+    if (answer.kind === 'judged') {
+      actions.push(answer.action)
+      continue
+    }
+    if (scopeBudget === undefined)
+      return fail(
+        localFailure('invariant', {
+          kind: 'unavailable' as const,
+          owner: '@omne-harness/agent',
+          diagnostic: 'toolConcurrency is unavailable',
+        }),
+      )
+    const preserved = await preserveAllowedRequest(ports, access, execution, answer, scopeBudget)
+    if ('failure' in preserved) return preserved
+    actions.push(preserved.ok)
+  }
+  return succeed(actions)
 }

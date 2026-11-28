@@ -1,6 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
+import { OFFICIAL_SKILLS as SKIN_SKILLS } from '@omne-harness/plugin-host-local'
+import { OFFICIAL_SKILLS as SKILL_SKILLS } from '@omne-harness/skill-host-local'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
@@ -9,10 +13,15 @@ import {
   SkillCatalogService,
   skillAccessKey,
   skillCatalogKey,
+  skillEntrySourcesKey,
+  skillEntrySourcesPlugin,
+  skillSkillsPoint,
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
-import { routedSkills, tenantSkills, TenantSkillsHost } from './tenant-skills.ts'
+import { officialSkillPorts, officialSkills } from './official-skills.ts'
+import { provideSessionSkills, sessionSkillsKey } from './session-skills.ts'
+import { routedSkills, sessionSkillsOf, tenantSkills, TenantSkillsHost } from './tenant-skills.ts'
 
 export const skillsRowConfig = z.strictObject({
   ranking: z.strictObject({ k1: z.number().positive(), b: z.number().min(0).max(1) }),
@@ -32,6 +41,9 @@ class TenantSkillCatalog extends SkillCatalogService<unknown, unknown> {
   }
   search(...args: Parameters<Catalog['search']>) {
     return this.routed.search(...args)
+  }
+  order(...args: Parameters<Catalog['order']>) {
+    return this.routed.order(...args)
   }
 }
 
@@ -53,14 +65,19 @@ export const skillsRow = defineRow({
   row: 'skills',
   implementation: 'real',
   manifest: {
-    provides: [skillCatalogKey, skillAccessKey],
-    injects: [tenantAssetsKey, assetCategoriesKey],
+    provides: [skillCatalogKey, skillAccessKey, sessionSkillsKey, skillEntrySourcesKey],
+    injects: [tenantAssetsKey, assetCategoriesKey, dynamisKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     ctx.plugin(skillCategoryPlugin)
+    ctx.plugin(skillEntrySourcesPlugin)
+    const brought = await officialSkills([...SKIN_SKILLS, ...SKILL_SKILLS])
+    const held = brought.map(({ name, item, body, files }) => ({ name, item, body, files }))
+    ctx.plugin(broughtDefinitionsPlugin('skills-official', skillSkillsPoint.name, held))
+    const official = officialSkillPorts(brought, () => ctx.tenantAssets.official())
     const workspace = {
       sources: () => ctx.get(workspaceSourcesKey),
       contractOf: (category: string) => ctx.assetCategories.view.lookup(category),
@@ -70,12 +87,22 @@ export const skillsRow = defineRow({
         const assets = await ctx.tenantAssets.open(tenantRef)
         return assets === undefined
           ? undefined
-          : tenantSkills(assets, tenant, config.ranking, workspace)
+          : tenantSkills(
+              assets,
+              tenant,
+              config.ranking,
+              workspace,
+              ctx.tenantAssets.layerSources(tenantRef),
+              official,
+              category => ctx.tenantAssets.heldNames(tenantRef, category),
+            )
       },
     })
-    const routed = routedSkills(host)
+    const routed = routedSkills(host, config.ranking)
     new TenantSkillCatalog(ctx, routed.catalog)
     new TenantSkillAccess(ctx, routed.access)
+    provideSessionSkills(ctx, sessionSkillsOf(host))
+    ctx.on('dynamis-cordis/changed', () => void host.warm())
     ctx.effect(() => () => host.close(), 'skills.close')
     return {
       async stop() {

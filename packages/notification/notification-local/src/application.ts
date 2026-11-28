@@ -22,10 +22,10 @@ import {
   type NotificationChannels,
   type NotificationSources,
   type StandingItems,
-  type SubscriptionConsents,
+  type SubscriptionCreators,
 } from '@omne-harness/notification'
 import { createChanges, inAppChannel, observed } from './changes.ts'
-import { createWakeUps, realTimers, type Timers } from './hints.ts'
+import { createWakeUps, type Timers } from './hints.ts'
 import { parsePolicy } from './policy.ts'
 import { AGENT_POSTS, blockedItems, NOTIFICATION_SYSTEM } from './sources.ts'
 import { createSqlNotificationStore, type NotificationSqlOptions } from './storage/store.ts'
@@ -40,11 +40,11 @@ export type NotificationLocalOptions = Readonly<{
     }>
   ports: Readonly<{
     authority: NotificationAuthority
-    consent: SubscriptionConsents
+    creators: SubscriptionCreators
     standing: StandingItems
   }>
   clock: Clock
-  timers?: Timers
+  timers: Timers
   report?: (error: unknown) => void
 }>
 
@@ -108,7 +108,7 @@ export async function createNotificationLocalApplication(
   const policy = parsePolicy(options.policy)
   const { clock } = options
   const report = options.report ?? (() => {})
-  const { authority, consent, standing } = options.ports
+  const { authority, creators, standing } = options.ports
   const defaults = policy.recipients
   const changes = createChanges(report)
   const store = observed(createSqlNotificationStore(options.sql), changes)
@@ -120,7 +120,7 @@ export async function createNotificationLocalApplication(
   const advance = (tenant: TenantId) => {
     if (!lifetime.stopping) lifetime.track(delivery.advance(tenant)).catch(report)
   }
-  const hints = createWakeUps(clock, options.timers ?? realTimers, advance)
+  const hints = createWakeUps(options.timers, advance)
   const delivery = createDelivery({
     store,
     channels,
@@ -149,14 +149,13 @@ export async function createNotificationLocalApplication(
     if (tenants === null) return
     await Promise.all(tenants.map(tenant => lifetime.track(delivery.advance(tenant))))
   }
-  const timers = options.timers ?? realTimers
-  let periodic: unknown
+  let cancelPeriodic = (): void => {}
   const schedule = () => {
-    periodic = timers.set(() => {
+    cancelPeriodic = options.timers.after(policy.scanIntervalMs, () => {
       if (lifetime.stopping) return
       lifetime.track(scan()).catch(report)
       schedule()
-    }, policy.scanIntervalMs)
+    })
   }
 
   const limits = { bodyLength: policy.bodyLength, causalDepth: policy.causalDepth }
@@ -176,7 +175,7 @@ export async function createNotificationLocalApplication(
       authority,
       store,
       sources,
-      consent,
+      creators,
       clock,
       defaults,
       beatRange,
@@ -206,7 +205,7 @@ export async function createNotificationLocalApplication(
     close() {
       closing ??= (async () => {
         await lifetime.drain()
-        timers.clear(periodic)
+        cancelPeriodic()
         hints.stop()
         for (const undo of withdraw.reverse()) undo()
         changes.close()

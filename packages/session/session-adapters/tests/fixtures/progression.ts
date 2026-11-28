@@ -127,7 +127,7 @@ export async function freeze(s: Scene) {
         tenant: s.access.tenant,
         session: s.access.session,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     },
     guards: [],
@@ -160,7 +160,7 @@ export async function start(s: Scene, name = 'second') {
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution)),
     admitted = ok(
-      await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
+      await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.initial[0] }),
     )
   const initial = {
     id: ok(decodeInputId(admitted.input)),

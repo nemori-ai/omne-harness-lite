@@ -1,0 +1,7 @@
+export { createDeepSeekFamily, type DeepSeekFamilyConfig } from './family.ts'
+export type { MeterMargin } from './meter.ts'
+export { DEEPSEEK_OWNER } from './owner.ts'
+export { officialDeepSeekProfiles } from './profiles.ts'
+export type { OfficialProfilesInput } from '@omne-harness/pi-ai-transport/family-kit'
+export type { DeepSeekRecord } from './record.ts'
+export { DEEPSEEK_RECORDS } from './records.ts'

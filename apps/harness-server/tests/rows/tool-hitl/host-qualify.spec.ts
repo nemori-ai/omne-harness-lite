@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstantText } from '../../../src/entry/time.ts'
 import { inProcessPrincipalAuthority, type TenantStandingSource } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { createToolHitlHost } from '../../../src/rows/tool-hitl/host.ts'
@@ -34,6 +36,7 @@ function hostWith(
     verifier: () => verifier,
     standing: () => (standing === undefined ? undefined : { read: standing }),
     reservations: () => undefined,
+    now: () => readInstantText(systemTime()),
   })
 }
 

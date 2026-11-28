@@ -207,14 +207,6 @@ describe('single rejection reasons of commit', () => {
       expect(await passes({ maxJsonDepth: 2 }, request)).toBe('committed')
       expect(await over({ maxJsonDepth: 1 }, request)).toBe('command_limit')
     })
-
-    it('maxJsonMembers', async () => {
-      const request = commitRequest(fx.fixture(), {
-        commands: [command('session', { a: 1, b: 2 }), command('agent-journal', { c: 3 })],
-      })
-      expect(await passes({ maxJsonMembers: 3 }, request)).toBe('committed')
-      expect(await over({ maxJsonMembers: 2 }, request)).toBe('command_limit')
-    })
   })
 
   it('command_limit: more commands than the limit', async () => {
@@ -248,15 +240,6 @@ describe('single rejection reasons of commit', () => {
     const deep = { a: { b: { c: { d: 1 } } } }
     const result = await h.storage.commit(
       commitRequest(fx.fixture(), { commands: [command('session', deep)] }),
-    )
-    expect(rejection(result).reason).toBe('command_limit')
-  })
-
-  it('command_limit: more members than maxJsonMembers', async () => {
-    const h = await open(fx.fixture(), { maxJsonMembers: 3 })
-    await small(h)
-    const result = await h.storage.commit(
-      commitRequest(fx.fixture(), { commands: [command('session', { a: 1, b: 2, c: 3, d: 4 })] }),
     )
     expect(rejection(result).reason).toBe('command_limit')
   })

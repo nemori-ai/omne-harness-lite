@@ -10,10 +10,10 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import {
-  createAccessRegistry,
+  createStandaloneRegistry,
   type AccessDiagnostic,
   type Entered,
-  type AccessRegistry,
+  type StandaloneRegistry as AccessRegistry,
   type ServerEntryAccess,
   type ServerEntryConfig,
 } from '../../src/index.ts'
@@ -63,6 +63,7 @@ export type Behaviour<T> =
 export type IdentityCall =
   | { readonly method: 'identifyLogin'; readonly proof: string }
   | { readonly method: 'actFor'; readonly login: LoginIdentity; readonly tenant: string }
+  | { readonly method: 'resumeLogin'; readonly login: string; readonly tenant: string }
   | { readonly method: 'reportAccess'; readonly login: LoginIdentity }
 
 export type TestIdentity = {
@@ -72,6 +73,7 @@ export type TestIdentity = {
   readonly principalOf: (login: LoginIdentity, tenant: string) => Principal
   identifyLogin?: Behaviour<LoginResult>
   actFor?: Behaviour<ActForResult>
+  resumeLogin?: Behaviour<LoginResult>
   reportAccess?: Behaviour<void>
   readonly called: (method: IdentityCall['method'], count?: number) => Promise<void>
   readonly returned: (method: IdentityCall['method'], count?: number) => Promise<void>
@@ -165,6 +167,17 @@ export function testIdentity(): TestIdentity {
             principal: principalOf(login, tenant),
           })
         }),
+      resumeLogin: (login, tenant) =>
+        traced('resumeLogin', () => {
+          identity.calls.push({ method: 'resumeLogin', login, tenant })
+          if (identity.resumeLogin !== undefined) return run(identity.resumeLogin)
+          const found = [...logins.values()].find(
+            each => (each as unknown as { label: string }).label === login,
+          )
+          return Promise.resolve<LoginResult>(
+            found === undefined ? { outcome: 'denied' } : { outcome: 'identified', login: found },
+          )
+        }),
       reportAccess: login =>
         traced('reportAccess', () => {
           identity.calls.push({ method: 'reportAccess', login })
@@ -193,10 +206,12 @@ export function recordingRegistry(inner: AccessRegistry): RegistryLog {
     signals,
     registry: {
       mount: contribution => inner.mount(contribution),
+      own: contribution => inner.own(contribution),
       subscribe: listener => inner.subscribe(listener),
+      scoped: asker => inner.scoped(asker),
       enter: (key, name) => {
         const entered = inner.enter(key, name)
-        if (entered === undefined) return undefined
+        if ('refused' in entered) return entered
         const line = { name, left: false }
         const index = entries.push(line) - 1
         leaveCounts.push(0)
@@ -376,7 +391,7 @@ export function accessSide(
   options: AccessSideOptions,
   diagnostics: (event: AccessDiagnostic) => void,
 ): AccessSide {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   const log = recordingRegistry(registry)
   const identity = testIdentity()
   const notes = scriptedNotes()

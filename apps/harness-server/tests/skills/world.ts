@@ -20,19 +20,18 @@ import {
   routedSkills,
   tenantSkills,
   TenantSkillsHost,
+  type OfficialSkillPorts,
 } from '../../src/rows/skills/tenant-skills.ts'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { openTenantAssets, TenantAssetsHost } from '../../src/rows/tenant-assets/host.ts'
+import { heldRegistry } from '../support/held-registry.ts'
 import { createBoundSkills } from '../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../src/rows/storage/production-catalog.ts'
 import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
-import {
-  openSkillPublisher,
-  readWorkNowhere,
-  skillCategories,
-  writeSampleSkill,
-} from './support.ts'
+import { openSkillPublisher, readWorkNowhere, writeSampleSkill } from './support.ts'
 
+const NO_OFFICIAL: OfficialSkillPorts = { assets: () => [], directoryOf: () => undefined }
 const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 
 /** One tenant's Skills on real sqlite, called through the Skills author and its binding. */
@@ -53,7 +52,8 @@ const LIMITS = {
   maxNumberLength: 32,
 }
 
-function counted(storage: SqlStorage): { storage: SqlStorage; reads(): number } {
+/** The storage with a count of the reads and queries sent to it. */
+export function countedStorage(storage: SqlStorage): { storage: SqlStorage; reads(): number } {
   let reads = 0
   return {
     storage: {
@@ -100,21 +100,37 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     domain,
     packageRoot,
   })
-  const counter = counted(made.storage)
+  const counter = countedStorage(made.storage)
+  const registry = await heldRegistry([skillCategoryPlugin])
   const tenantAssets = new TenantAssetsHost({
     domains: { lookup: async () => ({ kind: 'ready', domain }) },
     open: where =>
       openTenantAssets(
-        { storage: counter.storage, materials, packageRoot, categories: skillCategories() },
+        {
+          storage: counter.storage,
+          materials,
+          packageRoot,
+          categories: registry.categories,
+          heldOf: registry.held.heldOf,
+        },
         where,
       ),
   })
+  const sourcesOf = registry.held.sourcesOf(ref => tenantAssets.open(ref))
   const host = new TenantSkillsHost({
     async open(who, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE)
+        : tenantSkills(
+            assets,
+            who,
+            SEARCH_RANKING,
+            NO_WORKSPACE,
+            sourcesOf(tenantRef),
+            NO_OFFICIAL,
+            category => registry.held.namesOf(tenantRef, category),
+          )
     },
   })
 
@@ -123,7 +139,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
   await fixture.install(principalIssuer)
   const issued = sessionWorkIssuerOf(fixture.env)({ tenant, session: 'skills-world' })
   if (!('ok' in issued)) throw new Error('principal')
-  const routed = routedSkills(host)
+  const routed = routedSkills(host, { k1: 1.2, b: 0.75 })
   const bound = createBoundSkills(
     { principal: issued.ok, tenant, request: {} as FixedToolRequest } as never,
     {
@@ -131,6 +147,8 @@ export async function skillsWorld(): Promise<SkillsWorld> {
       readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
+      missingTools: async () => new Set(),
+      sources: () => [],
     },
   )
   const settings = readJsonText(JSON.stringify({ resultMaxBytes: 65536 }), LIMITS)

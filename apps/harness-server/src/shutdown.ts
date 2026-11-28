@@ -1,9 +1,14 @@
-import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
-import { PHASE_ORDER } from './lifecycle.ts'
+import { edgesOf, stopsAfter } from '@omne-harness/assembly'
+import type {
+  HandleEntry,
+  RowSupervisor,
+  WithdrawnEntry,
+} from '@omne-harness/assembly-cordis/cordis'
 import type {
   DrainOutcome,
   HandleOutcome,
   HostFilesReport,
+  LifecycleHandle,
   LifecyclePhase,
   RowId,
   RowManifest,
@@ -11,6 +16,10 @@ import type {
   StopResult,
   TelemetryShutdownReport,
 } from './types.ts'
+
+export type RowSupervision = RowSupervisor<LifecycleHandle, ShutdownReport>
+
+type LifecycleEntry = HandleEntry<LifecycleHandle>
 
 export type { ShutdownReport }
 
@@ -56,55 +65,32 @@ export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
   stopsFirst?: ReadonlyMap<RowId, readonly RowId[]>
   drainMs?: number
-  afterBusiness?: () => Promise<HostFilesReport>
+  /** Work done in the step of `row`: after whoever needs that row has ended, before what it needs stops. */
+  withRow?: Readonly<{ row: RowId; run: () => Promise<HostFilesReport> }>
   afterStorage?: (deadlineMonotonicMs: number) => Promise<TelemetryShutdownReport>
   disposeRoot?: () => Promise<unknown> | unknown
+  /** How long the root disposal may take. Past it the shutdown goes on without it; absent, it waits. */
+  disposeRootMs?: number
+  /** The rows not disposed yet, asked when the root disposal passed its deadline. */
+  undisposedRows?: () => readonly string[]
+  rootStuck?: (rows: readonly string[]) => void
 }>
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 export function stopPredecessors(
   rows: readonly Readonly<{ row: Readonly<{ id: RowId }>; manifest: RowManifest }>[],
-): Map<RowId, RowId[]> {
-  const providers = new Map<string, RowId[]>()
-  for (const { row, manifest } of rows)
-    for (const name of manifest.provides)
-      providers.set(name, [...(providers.get(name) ?? []), row.id])
-  const direct = new Map<RowId, RowId[]>(
-    rows.map(({ row, manifest }) => [
-      row.id,
-      manifest.injects.flatMap(name => providers.get(name) ?? []).filter(id => id !== row.id),
-    ]),
-  )
-  const reach = (from: RowId): Set<RowId> => {
-    const seen = new Set<RowId>()
-    const pending = [...(direct.get(from) ?? [])]
-    for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-      if (seen.has(next) || next === from) continue
-      seen.add(next)
-      pending.push(...(direct.get(next) ?? []))
-    }
-    return seen
-  }
-  const phased = rows.filter(({ manifest }) => manifest.phase !== null)
-  const needs = new Map(phased.map(({ row }) => [row.id, reach(row.id)]))
-  return new Map(
-    phased.map(({ row: provider, manifest }) => [
-      provider.id,
-      phased
-        .filter(
-          ({ row: consumer, manifest: other }) =>
-            other.phase === manifest.phase &&
-            needs.get(consumer.id)?.has(provider.id) === true &&
-            needs.get(provider.id)?.has(consumer.id) !== true,
-        )
-        .map(({ row: consumer }) => consumer.id),
-    ]),
-  )
+): ReadonlyMap<RowId, readonly RowId[]> {
+  const declared = rows.map(({ row, manifest }) => ({
+    name: row.id,
+    provides: manifest.provides,
+    injects: manifest.injects,
+  }))
+  return stopsAfter(edgesOf(declared)) as ReadonlyMap<RowId, readonly RowId[]>
 }
 
 export function runShutdown(
-  registry: LifecycleRegistry,
+  registry: RowSupervision,
   expected: ReadonlyMap<RowId, LifecyclePhase>,
   deadlineMs: number,
   clock: ShutdownClock,
@@ -122,7 +108,10 @@ type StepLog = (
 
 type StopBudget = Readonly<{ deadline: number; clock: ShutdownClock; log: StepLog }>
 
-type Frozen = ReturnType<LifecycleRegistry['freeze']>
+type Frozen = Readonly<{
+  live: ReadonlyMap<RowId, LifecycleEntry>
+  withdrawn: ReadonlyMap<RowId, WithdrawnEntry<LifecycleHandle>>
+}>
 
 function numberedLog(sink: ShutdownOptions['log']): StepLog {
   let seq = 0
@@ -202,7 +191,7 @@ async function drainAll(
 }
 
 async function outcomeOfRow(
-  registry: LifecycleRegistry,
+  registry: RowSupervision,
   frozen: Frozen,
   phase: LifecyclePhase,
   row: RowId,
@@ -254,11 +243,10 @@ async function collectAppendix<T>(
 }
 
 const collectHostFiles = (
-  afterBusiness: () => Promise<HostFilesReport>,
-  phase: LifecyclePhase,
+  run: () => Promise<HostFilesReport>,
   budget: StopBudget,
 ): Promise<HostFilesReport> =>
-  collectAppendix(afterBusiness, 'host-files maintenance', phase, budget, {
+  collectAppendix(run, 'host-files maintenance', null, budget, {
     onFailure: () => ({ kind: 'unavailable', diagnostic: 'maintenance-failed' }),
     onDeadline: () => ({ kind: 'unavailable', diagnostic: 'deadline' }),
   })
@@ -286,18 +274,76 @@ function announceReportSettled(live: Frozen['live'], log: StepLog): void {
   }
 }
 
-async function retireRoot(dispose: ShutdownOptions['disposeRoot'], log: StepLog): Promise<void> {
-  if (dispose === undefined) return
+/** Waits for a disposal up to a deadline: 'late' means it had not settled and is left behind. */
+export async function disposeWithin(
+  dispose: () => Promise<unknown> | unknown,
+  deadlineMs: number | undefined,
+  clock: ShutdownClock,
+): Promise<'done' | 'late'> {
+  const disposal = Promise.resolve().then(dispose)
+  if (deadlineMs === undefined) return disposal.then(() => 'done')
+  const timer = clock.after(deadlineMs)
+  const won = await Promise.race([
+    disposal.then(() => 'done' as const),
+    timer.promise.then(() => 'late' as const),
+  ])
+  timer.cancel()
+  if (won === 'late') disposal.catch(() => {})
+  return won
+}
+
+async function retireRoot(
+  options: ShutdownOptions,
+  clock: ShutdownClock,
+  log: StepLog,
+): Promise<void> {
+  const { disposeRoot, disposeRootMs } = options
+  if (disposeRoot === undefined) return
   log('dispose-root', null, null)
   try {
-    await dispose()
+    if ((await disposeWithin(disposeRoot, disposeRootMs, clock)) === 'done') return
+    const rows = options.undisposedRows?.() ?? []
+    const named = rows.length === 0 ? '' : `; not disposed: ${rows.join(', ')}`
+    log('diagnostic', null, null, `root disposal did not settle within ${disposeRootMs} ms${named}`)
+    options.rootStuck?.(rows)
   } catch (error) {
     log('diagnostic', null, null, `root disposal failed: ${messageOf(error)}`)
   }
 }
 
+const ADMISSION: LifecyclePhase = 'entry'
+
+async function stopTheRest(
+  rows: readonly (readonly [RowId, LifecyclePhase])[],
+  options: ShutdownOptions,
+  stop: (row: RowId, phase: LifecyclePhase) => Promise<HandleOutcome>,
+  budget: () => StopBudget,
+): Promise<Readonly<{ outcomes: HandleOutcome[]; hostFiles: HostFilesReport | undefined }>> {
+  const { stopsFirst, withRow } = options
+  const phases = new Map(rows)
+  const steps = new Set([...phases.keys(), ...(withRow === undefined ? [] : [withRow.row])])
+  const settling = new Map<RowId, Promise<HandleOutcome | undefined>>()
+  let hostFiles: HostFilesReport | undefined
+  const ended = (row: RowId): Promise<HandleOutcome | undefined> => {
+    const known = settling.get(row)
+    if (known !== undefined) return known
+    const first = (stopsFirst?.get(row) ?? []).filter(other => other !== row && steps.has(other))
+    const outcome = Promise.all(first.map(ended)).then(async () => {
+      const phase = phases.get(row)
+      const stopped = phase === undefined ? undefined : await stop(row, phase)
+      if (withRow?.row === row) hostFiles = await collectHostFiles(withRow.run, budget())
+      return stopped
+    })
+    settling.set(row, outcome)
+    return outcome
+  }
+  for (const row of steps) void ended(row)
+  const outcomes = await Promise.all(settling.values())
+  return { outcomes: outcomes.filter(outcome => outcome !== undefined), hostFiles }
+}
+
 async function execute(
-  registry: LifecycleRegistry,
+  registry: RowSupervision,
   expected: ReadonlyMap<RowId, LifecyclePhase>,
   deadlineMs: number,
   clock: ShutdownClock,
@@ -305,38 +351,32 @@ async function execute(
 ): Promise<ShutdownReport> {
   const log = numberedLog(options.log)
   registry.enterStopping()
-  const frozen = registry.freeze()
+  const frozen = registry.freeze() as Frozen
   let budget: StopBudget = { deadline: clock.now() + deadlineMs, clock, log }
+  const stop = (row: RowId, phase: LifecyclePhase): Promise<HandleOutcome> =>
+    outcomeOfRow(registry, frozen, phase, row, budget)
 
-  const outcomes: HandleOutcome[] = []
+  // A handle of a row nobody expected is stopped and reported like the others: no row is left running.
+  const unexpected = [...frozen.live]
+    .filter(([row]) => !expected.has(row))
+    .map(([row, entry]) => [row, entry.handle.phase] as const)
+  const rows = [...expected, ...unexpected]
+  const admission = rows.filter(([, phase]) => phase === ADMISSION)
+  const admitted = await Promise.all(admission.map(([row, phase]) => stop(row, phase)))
   let drains: DrainOutcome[] = []
-  let hostFiles: HostFilesReport | undefined
-  for (const phase of PHASE_ORDER) {
-    if (phase === 'business' && options.drainMs !== undefined) {
-      const began = clock.now()
-      drains = await drainAll(frozen, { deadline: began + options.drainMs, clock, log })
-      budget = { ...budget, deadline: budget.deadline + (clock.now() - began) }
-    }
-    const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
-    const settling = new Map<RowId, Promise<HandleOutcome>>()
-    const outcomeAfterDependents = (row: RowId): Promise<HandleOutcome> => {
-      const known = settling.get(row)
-      if (known !== undefined) return known
-      const first = (options.stopsFirst?.get(row) ?? []).filter(
-        other => other !== row && expected.get(other) === phase,
-      )
-      const outcome = Promise.all(first.map(outcomeAfterDependents)).then(() =>
-        outcomeOfRow(registry, frozen, phase, row, budget),
-      )
-      settling.set(row, outcome)
-      return outcome
-    }
-    const phaseOutcomes = await Promise.all(rows.map(([row]) => outcomeAfterDependents(row)))
-    outcomes.push(...phaseOutcomes)
-    if (phase === 'business' && options.afterBusiness !== undefined) {
-      hostFiles = await collectHostFiles(options.afterBusiness, phase, budget)
-    }
+  if (options.drainMs !== undefined) {
+    const began = clock.now()
+    drains = await drainAll(frozen, { deadline: began + options.drainMs, clock, log })
+    budget = { ...budget, deadline: budget.deadline + (clock.now() - began) }
   }
+  const rest = await stopTheRest(
+    rows.filter(([, phase]) => phase !== ADMISSION),
+    options,
+    stop,
+    () => budget,
+  )
+  const outcomes = [...admitted, ...rest.outcomes]
+  const { hostFiles } = rest
   const telemetry =
     options.afterStorage === undefined
       ? undefined
@@ -356,6 +396,6 @@ async function execute(
   log('report-fixed', null, null, report.overall)
 
   announceReportSettled(frozen.live, log)
-  await retireRoot(options.disposeRoot, log)
+  await retireRoot(options, clock, log)
   return report
 }

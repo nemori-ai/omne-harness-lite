@@ -15,6 +15,12 @@ import {
   type SchedulesCommandName,
 } from '@omne-harness/schedule-tools'
 
+/** What a new session takes from the session of the call in these tests. */
+export const FOR_NEW = {
+  agentDefinitionRef: 'coding',
+  modes: { permission: 'never', environmentAdoptionRef: 'env@1', collaboration: 'co-work' },
+  workspace: { workspaceRef: 'w', instanceRef: 'i', basisRef: 'b' },
+} as const
 export const ID = '7d1c2c0e-3b1f-4a52-9c1b-8f3e2a6d5b40'
 export const TENANT = 'tenant/o/a'
 export const CALL = 'call-1'
@@ -53,7 +59,12 @@ export const view = (control = 'active', extra: object = {}) =>
   ({
     scheduleId: ID,
     owner: context.owner,
-    author: { kind: 'agent', actorRef: 'principal/1/p', originatingSessionRef: 'session-1' },
+    author: {
+      kind: 'agent',
+      actorRef: 'principal/1/p',
+      originatingSessionRef: 'session-1',
+      originatingCallRef: CALL,
+    },
     definition: {
       ...DEFINITION,
       binding: { kind: 'followUserEnvironment' },
@@ -63,7 +74,6 @@ export const view = (control = 'active', extra: object = {}) =>
     control,
     standing: { kind: 'ready' },
     nextOccurrence: null,
-    consentAdoption: null,
     createdAt: NOW,
     ...extra,
   }) as unknown as ScheduleView
@@ -148,6 +158,7 @@ export function bound(
     queries: () => service.queries,
     context: async () => context,
     now: () => NOW as never,
+    newSessionDefaults: async () => FOR_NEW,
     ...overrides,
   })
 }

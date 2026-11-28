@@ -1,4 +1,6 @@
-import { realpathSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { cpSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   _electron as electron,
   type ElectronApplication,
@@ -31,6 +33,32 @@ import { closeApplication, type MainProcess } from './close.ts'
 
 export type Target = LaunchTarget
 export const REPLY = 'hello from the e2e gateway'
+/** A message with this in it gets, after a pause, a turn that asks the person one question. */
+export const ASK_MARKER = 'ask-me-one-question'
+/** A message with this in it gets a reply that begins and never ends: its turn stays under way. */
+export const HOLD_MARKER = 'hold-this-turn-open'
+/** A message with one of these gets that upstream failure for as long as the session keeps the model it began with. */
+export const UPSTREAM_FAILURES = {
+  'upstream-answers-429': 429,
+  'upstream-answers-502': 502,
+  'upstream-answers-401': 401,
+} as const
+const ASK_PAUSE_MS = 3_000
+const ASK_ARGUMENTS = JSON.stringify({
+  command: 'ask',
+  params: {
+    questions: [
+      {
+        title: 'Which port should the dev server use?',
+        description: 'Port 8080 is taken.',
+        options: [
+          { label: '8081', description: 'The next free port.' },
+          { label: '3000', description: 'The default port.' },
+        ],
+      },
+    ],
+  },
+})
 
 /** The processes of a target still running, helpers included; a failed listing throws. */
 export function targetProcesses(target: Target): number[] {
@@ -48,17 +76,37 @@ export type Launched = Readonly<{
 // A launch whose exit is unconfirmed takes its directory off this list, so the fixture keeps it.
 const removableProfiles = new Set<string>()
 
-async function launch(target: Target, userDataDir: string, server: string): Promise<Launched> {
+/** What a test adds to a launch: variables of its own, and a place to keep what the main process writes. */
+export type LaunchExtra = Readonly<{ env?: Record<string, string>; output?: string[] }>
+
+/** A second start of the app on the same user data: it hands its command line to the one running, and leaves. */
+export function secondInstance(target: Target, userDataDir: string, args: readonly string[]): void {
+  const spec = launchSpec(target, 'test', { userDataDir })
+  const done = spawnSync(spec.command, [...spec.args, ...args], {
+    cwd: spec.cwd,
+    env: launchEnvironment(process.env),
+    timeout: 60_000,
+  })
+  if (done.error !== undefined) throw done.error
+}
+
+async function launch(
+  target: Target,
+  userDataDir: string,
+  server: string,
+  extra: LaunchExtra = {},
+): Promise<Launched> {
   const spec = launchSpec(target, 'test', { userDataDir })
   await checkLaunchInputs(spec)
   const app = await electron.launch({
     executablePath: spec.command,
     args: spec.args,
     cwd: spec.cwd,
-    env: launchEnvironment(process.env, { OMNE_SERVER: server }),
+    env: launchEnvironment(process.env, { OMNE_SERVER: server, ...extra.env }),
     chromiumSandbox: !spec.args.includes('--no-sandbox'),
   })
   const launcher = app.process()
+  launcher.stdout?.on('data', (chunk: Buffer) => extra.output?.push(chunk.toString('utf8')))
   let main: MainProcess | undefined
   const close = () =>
     closeApplication(app, launcher, main, () => {
@@ -94,36 +142,85 @@ async function launch(target: Target, userDataDir: string, server: string): Prom
   }
 }
 
+let firstModel: string | undefined
+
+function failureOf(body: string, model: string) {
+  const marked = Object.entries(UPSTREAM_FAILURES).find(([marker]) => body.includes(marker))
+  if (marked === undefined) return undefined
+  firstModel ??= model
+  if (model !== firstModel) return undefined
+  const [, status] = marked
+  return {
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: { message: 'e2e gateway: upstream failure', code: status } }),
+  }
+}
+
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
 export const quit = ({ close }: Launched): Promise<void> => close()
 
-/** A real server with a stand-in model gateway that answers every request with `REPLY`. */
-async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> {
+/**
+ * A real server with a stand-in model gateway that answers every request with `REPLY`. Given `pluginsFrom`, its
+ * subdirectories are copied into a fresh directory that the `plugin-access` row serves as its dev directory.
+ */
+async function startStack(
+  pluginsFrom?: string,
+): Promise<{ origin: string; stop(): Promise<void> }> {
   const scratch = newScratch('desktop-e2e-')
   let gateway: ModelGateway | undefined
   let server: ServerHandle | undefined
   try {
-    gateway = await startModelGateway(({ body }) => ({
-      status: 200,
-      contentType: 'text/event-stream',
-      body: [
-        {
-          model: JSON.parse(body).model ?? 'm',
-          provider: 'OpenAI',
-          choices: [{ delta: { content: REPLY } }],
-        },
-        { choices: [{ delta: {}, finish_reason: 'stop' }] },
-      ]
-        .map(event => `data: ${JSON.stringify(event)}\n\n`)
-        .concat('data: [DONE]\n\n')
-        .join(''),
-    }))
+    gateway = await startModelGateway(async ({ body }) => {
+      const model = JSON.parse(body).model ?? 'm'
+      const failing = failureOf(body, model)
+      if (failing !== undefined) return failing
+      if (body.includes(HOLD_MARKER))
+        return {
+          status: 200,
+          contentType: 'text/event-stream',
+          body: `data: ${JSON.stringify({ model, provider: 'OpenAI', choices: [{ delta: { content: '' } }] })}\n\n`,
+          rest: { after: new Promise<void>(() => undefined), body: '' },
+        }
+      const asks = body.includes(ASK_MARKER) && body.includes('"Ask"')
+      if (asks) await new Promise(done => setTimeout(done, ASK_PAUSE_MS))
+      const call = {
+        index: 0,
+        id: 'call_ask_e2e',
+        type: 'function',
+        function: { name: 'Ask', arguments: ASK_ARGUMENTS },
+      }
+      const events = asks
+        ? [
+            { model, provider: 'OpenAI', choices: [{ delta: { tool_calls: [call] } }] },
+            { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+          ]
+        : [
+            { model, provider: 'OpenAI', choices: [{ delta: { content: REPLY } }] },
+            { choices: [{ delta: {}, finish_reason: 'stop' }] },
+          ]
+      return {
+        status: 200,
+        contentType: 'text/event-stream',
+        body: events
+          .map(event => `data: ${JSON.stringify(event)}\n\n`)
+          .concat('data: [DONE]\n\n')
+          .join(''),
+      }
+    })
     const port = await freePort()
     const operatorPath = `${scratch.base}/operator.json`
-    writeOperator(
-      operatorPath,
-      operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url }),
-    )
+    const layer = operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url })
+    if (pluginsFrom !== undefined) {
+      const devDirectory = join(scratch.base, 'plugins')
+      cpSync(pluginsFrom, devDirectory, { recursive: true })
+      ;(layer as { ops: unknown[] }).ops.push({
+        kind: 'replace',
+        id: 'plugin-access',
+        config: { devDirectory },
+      })
+    }
+    writeOperator(operatorPath, layer)
     server = await startServer({
       stateRoot: scratch.stateRoot,
       operatorPath,
@@ -146,16 +243,16 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
   }
 }
 
-type Fixtures = { userDataDir: string; launchApp: () => Promise<Launched> }
+type Fixtures = { userDataDir: string; launchApp: (extra?: LaunchExtra) => Promise<Launched> }
 type Options = { target: Target }
-type Worker = { server: string }
+type Worker = { server: string; pluginsFrom: string | undefined }
 
 export const test = base.extend<Fixtures & Options, Worker>({
   target: ['unpackaged', { option: true }],
+  pluginsFrom: [undefined, { option: true, scope: 'worker' }],
   server: [
-    // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures destructure their dependencies
-    async ({}, provide) => {
-      const stack = await startStack()
+    async ({ pluginsFrom }, provide) => {
+      const stack = await startStack(pluginsFrom)
       await provide(stack.origin)
       await stack.stop()
     },
@@ -173,8 +270,8 @@ export const test = base.extend<Fixtures & Options, Worker>({
   },
   launchApp: async ({ target, server, userDataDir }, provide) => {
     const launched: Launched[] = []
-    await provide(async () => {
-      const app = await launch(target, userDataDir, server)
+    await provide(async extra => {
+      const app = await launch(target, userDataDir, server, extra)
       launched.push(app)
       return app
     })

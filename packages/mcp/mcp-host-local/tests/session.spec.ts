@@ -51,6 +51,11 @@ const target = (() => {
 const never = new AbortController().signal
 const echo = { action: actionNameOf('echo'), args: jsonOf({}) }
 const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
+const CREDENTIAL_REJECTED: TransportFailure = {
+  kind: 'not-sent',
+  cause: 'connection-unavailable',
+  unusable: 'credential-rejected',
+}
 const notSentAfter = (unusable: UnusableCause): TransportFailure => ({
   kind: 'not-sent',
   cause: 'connection-unavailable',
@@ -99,7 +104,7 @@ const metadata = new Map<string, PlainJson>()
 
 function open(
   script: Script,
-  options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig; gate?: Gate }> = {},
+  options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig; gate?: Gate; keyed?: false }> = {},
 ): Opened {
   const credential = countingCredential(options.gate)
   const line = new MemoryLine(
@@ -109,7 +114,7 @@ function open(
   const material: TransportMaterial = {
     kind: 'streamable-http',
     target,
-    credential,
+    ...(options.keyed === false ? {} : { credential }),
     generation: generationOf(1),
     instructionsByteLimit: 4096,
   }
@@ -298,7 +303,8 @@ function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined
             ? conclusion.failure.cause
             : undefined
         : undefined
-  if (ended === 'stream-broken' || ended === 'session-ended') return ended
+  if (ended === 'stream-broken' || ended === 'session-ended' || ended === 'credential-rejected')
+    return ended
   throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
 }
 
@@ -311,8 +317,9 @@ function failureOf(
   expected: ExpectedFailure,
   reply: Reply,
   unusable?: UnusableCause,
-): TransportFailure | undefined {
-  if (expected.kind === 'not-sent' && expected.cause === 'authorization-required') return undefined
+): TransportFailure {
+  if (expected.kind === 'not-sent' && expected.cause === 'credential-rejected')
+    return { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' }
   if (expected.kind === 'no-answer')
     return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind === 'not-sent') {
@@ -345,15 +352,7 @@ function assertFailure(
 ): void {
   expect('failure' in actual, JSON.stringify(actual)).toBe(true)
   if (!('failure' in actual)) return
-  const wanted = failureOf(expected, reply, unusable)
-  if (wanted === undefined) {
-    expect(
-      actual.failure.kind === 'not-sent' && actual.failure.cause === 'authorization-required',
-      JSON.stringify(actual),
-    ).toBe(true)
-    return
-  }
-  expect(actual.failure).toStrictEqual(wanted)
+  expect(actual.failure).toStrictEqual(failureOf(expected, reply, unusable))
 }
 
 function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
@@ -915,21 +914,23 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
   })
 
-  it('the GET answered 401 is authorization-required with reportRejection once; another 403 is connection-unavailable', async () => {
-    const refused = open(sseScript, {
-      sse: {
-        kind: 'status',
-        status: 401,
-        headers: { 'www-authenticate': 'Bearer scope="a"' },
-        body: '',
-      },
-    })
-    const failed = await refused.transport.discover()
+  it('the GET answered 401 is authorization-required without a credential and credential-rejected with one, reported once; another 403 is connection-unavailable', async () => {
+    const sse = {
+      kind: 'status',
+      status: 401,
+      headers: { 'www-authenticate': 'Bearer scope="a"' },
+      body: '',
+    } as const
+    const bare = open(sseScript, { sse, keyed: false })
+    const failed = await bare.transport.discover()
     expect(
       'failure' in failed &&
         failed.failure.kind === 'not-sent' &&
         failed.failure.cause === 'authorization-required',
     ).toBe(true)
+    await bare.transport.close()
+    const refused = open(sseScript, { sse })
+    expect(await refused.transport.discover()).toEqual({ failure: CREDENTIAL_REJECTED })
     expect(refused.credential.rejections()).toBe(1)
     await refused.transport.close()
 
@@ -1107,14 +1108,15 @@ describe('closing and the credential handle (T5, T9)', () => {
     await transport.close()
   })
 
-  it('close() while the metadata of a 401 is being fetched: the fetch ends, authorization-required with metadata unavailable, reportRejection once before close() returned', async () => {
+  it('close() while the metadata of a 401 is being fetched: the fetch ends, authorization-required with metadata unavailable', async () => {
     let fetching = (): void => undefined
     const started = new Promise<void>(resolve => {
       fetching = resolve
     })
-    const { transport, credential } = open(
+    const { transport } = open(
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: (_url, signal) =>
           new Promise(resolve => {
             fetching()
@@ -1125,10 +1127,7 @@ describe('closing and the credential handle (T5, T9)', () => {
     )
     const pending = transport.listActions()
     await started
-    let rejectionsAtClose = -1
-    await transport.close().then(() => {
-      rejectionsAtClose = credential.rejections()
-    })
+    await transport.close()
     expect(await settledWithin(pending)).toEqual({
       settled: {
         failure: {
@@ -1143,7 +1142,6 @@ describe('closing and the credential handle (T5, T9)', () => {
         },
       },
     })
-    expect(rejectionsAtClose).toBe(1)
   })
 
   it("the call's signal while the metadata of a 401 is being fetched: the same conclusion, the fetch ended by the signal", async () => {
@@ -1151,9 +1149,10 @@ describe('closing and the credential handle (T5, T9)', () => {
     const started = new Promise<void>(resolve => {
       fetching = resolve
     })
-    const { transport, credential } = open(
+    const { transport } = open(
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: (_url, signal) =>
           new Promise(resolve => {
             fetching()
@@ -1175,7 +1174,6 @@ describe('closing and the credential handle (T5, T9)', () => {
         },
       },
     })
-    expect(credential.rejections()).toBe(1)
     await transport.close()
   })
 
@@ -1264,9 +1262,12 @@ describe('closing and the credential handle (T5, T9)', () => {
     metadata.clear()
     metadata.set(root, { authorization_servers: ['https://issuer.test'], scopes_supported: ['s'] })
     metadata.set(path, 'not an object')
-    const { transport } = open({
-      'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
-    })
+    const { transport } = open(
+      {
+        'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
+      },
+      { keyed: false },
+    )
     const failed = await transport.listActions()
     expect(failed).toEqual({
       failure: {
@@ -1429,6 +1430,7 @@ describe('what the signal of a call and close() end (T5)', () => {
     const { line, transport } = open(
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: (_url, signal) =>
           new Promise(resolve => {
             fetching.resolve()
@@ -1685,12 +1687,12 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     expect(line.sent).toEqual([])
   })
 
-  it('reportRejection never answers after a 401: close() returns at once and the request is authorization-required with what was fetched', async () => {
+  it('reportRejection never answers after a 401: the request is credential-rejected at once and close() returns at once', async () => {
     const credential = countingCredential()
     const hanging: HttpCredentialHandle & typeof credential = {
       ...credential,
-      reportRejection: () => {
-        credential.reportRejection()
+      reportRejection: refusal => {
+        void credential.reportRejection(refusal)
         return new Promise<void>(() => undefined)
       },
     }
@@ -1716,29 +1718,16 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     const listing = transport.listActions()
     await credential.rejected
     expect(credential.rejections()).toBe(1)
+    expect(await settledWithin(listing)).toEqual({ settled: { failure: CREDENTIAL_REJECTED } })
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
-    expect(await settledWithin(listing)).toEqual({
-      settled: {
-        failure: {
-          kind: 'not-sent',
-          cause: 'authorization-required',
-          discovery: {
-            resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
-            metadata: 'unavailable',
-            issuers: [],
-            scopes: [],
-          },
-        },
-      },
-    })
   })
 
-  it("reportRejection never answers after a 401 to a call: the call's signal settles call() with authorization-required", async () => {
+  it('reportRejection never answers after a 401 to a call: call() settles credential-rejected without waiting for it', async () => {
     const credential = countingCredential()
     const hanging: HttpCredentialHandle & typeof credential = {
       ...credential,
-      reportRejection: () => {
-        credential.reportRejection()
+      reportRejection: refusal => {
+        void credential.reportRejection(refusal)
         return new Promise<void>(() => undefined)
       },
     }
@@ -1761,13 +1750,9 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         reportDefect,
       },
     )
-    const controller = new AbortController()
-    const calling = transport.call(echo, controller.signal)
+    const calling = transport.call(echo, new AbortController().signal)
     await credential.rejected
-    controller.abort()
-    expect(await settledWithin(calling)).toMatchObject({
-      settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
-    })
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: CREDENTIAL_REJECTED } })
     expect(credential.rejections()).toBe(1)
     await transport.close()
   })
@@ -1810,9 +1795,10 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 
   it('a metadata fetch that throws at every address counts as nothing fetched: authorization-required with the metadata unavailable, reportRejection once', async () => {
-    const { transport, credential } = open(
+    const { transport } = open(
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: () => {
           throw new Error('the fetch port is broken')
         },
@@ -1832,7 +1818,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         },
       },
     })
-    expect(credential.rejections()).toBe(1)
     await transport.close()
   })
 
@@ -1973,9 +1958,10 @@ describe('the line going away settles a request by its phase (T8 S07, the SSE mo
   it('a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends', async () => {
     const fetching = deferred<string>()
     const found = deferred<PlainJson | undefined>()
-    const { line, transport, credential } = open(
+    const { line, transport } = open(
       { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
       {
+        keyed: false,
         sse: { kind: 'entered' },
         fetchMetadata: url => {
           fetching.resolve(url)
@@ -1987,7 +1973,6 @@ describe('the line going away settles a request by its phase (T8 S07, the SSE mo
     )
     ok(await transport.discover(), 'discover')
     const listing = transport.listActions()
-    await credential.rejected
     await fetching.promise
     line.queue.push({ kind: 'broken' })
     expect(await settledWithin(listing, 30)).toBe('pending')
@@ -2001,7 +1986,6 @@ describe('the line going away settles a request by its phase (T8 S07, the SSE mo
         },
       },
     })
-    expect(credential.rejections()).toBe(1)
     expect(await transport.listActions()).toStrictEqual({
       failure: notSentAfter('stream-broken'),
     })
@@ -2041,9 +2025,10 @@ describe('an answer on the shared stream reaches a request only once it was hand
   it('a request refused with 401 keeps that conclusion when the shared stream later carries an answer with its id', async () => {
     const fetching = deferred<string>()
     const found = deferred<undefined>()
-    const { line, transport, credential } = open(
+    const { line, transport } = open(
       { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
       {
+        keyed: false,
         sse: { kind: 'entered' },
         fetchMetadata: url => {
           fetching.resolve(url)
@@ -2053,7 +2038,6 @@ describe('an answer on the shared stream reaches a request only once it was hand
     )
     ok(await transport.discover(), 'discover')
     const listing = transport.listActions()
-    await credential.rejected
     await fetching.promise
     const id = line.requests('tools/list')[0]?.message['id']
     line.push({ jsonrpc: '2.0', id: id ?? null, result: { tools: [] } })
@@ -2062,7 +2046,6 @@ describe('an answer on the shared stream reaches a request only once it was hand
     expect(await settledWithin(listing)).toMatchObject({
       settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
     })
-    expect(credential.rejections()).toBe(1)
     await transport.close()
   })
 })
@@ -2077,6 +2060,7 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
   it('a fetch that throws at one address counts as nothing fetched there; the next address is tried', async () => {
     const fetched: string[] = []
     const { transport } = open(refused, {
+      keyed: false,
       fetchMetadata: url => {
         fetched.push(url)
         if (url === path) throw new Error('the fetch port broke')
@@ -2107,6 +2091,7 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
     const { transport } = open(
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: (url, signal) => {
           fetched.push(url)
           started.resolve()
@@ -2150,6 +2135,7 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
     const { transport } = open(
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
+        keyed: false,
         fetchMetadata: (url, signal) => {
           fetched.push(url)
           started.resolve()

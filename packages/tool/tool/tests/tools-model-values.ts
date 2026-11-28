@@ -35,6 +35,7 @@ import { testAssembly } from './testing-values.ts'
 import {
   testSettlementPorts,
   adoption,
+  available,
   configurationOf,
   evidence,
   functionDefinition,
@@ -198,6 +199,7 @@ export async function modelHost(
                 descriptions: [],
               },
               maxBytes: options.replyMaxBytes,
+              external: false,
             }
           : { kind: 'none' },
     },
@@ -316,12 +318,10 @@ export async function modelHost(
     const invoked = await reader.invoke({
       ...access,
       request: request({
-        availability: {
-          kind: 'available',
-          definition: command === null ? sourceDefinition : tools.definition,
-          executor: adoption(command === null ? 'source-executor' : 'Tools-executor'),
-          layer: { kind: 'official' },
-        },
+        availability: available(
+          command === null ? sourceDefinition : tools.definition,
+          adoption(command === null ? 'source-executor' : 'Tools-executor'),
+        ),
         command,
         consumer: { ...request().consumer, position },
         arguments: (() => {

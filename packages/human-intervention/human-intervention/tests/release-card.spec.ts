@@ -45,6 +45,13 @@ describe('the release card is its own kind of card', () => {
     expect(QuestionSchema.safeParse(release).success).toBe(true)
   })
 
+  it('takes an origin that says a program made the action, and no other value of that fact', () => {
+    const made = (program: unknown) => ({ ...release, origin: { ...release.origin, program } })
+    expect(QuestionSchema.safeParse(made(true)).success).toBe(true)
+    expect(QuestionSchema.safeParse(made(false)).success).toBe(false)
+    expect(QuestionSchema.safeParse(made('yes')).success).toBe(false)
+  })
+
   it.each([
     ['no target', { target: undefined }],
     ['arguments over the bound', { arguments: { ...release.arguments, text: 'x'.repeat(4097) } }],
@@ -55,6 +62,25 @@ describe('the release card is its own kind of card', () => {
     ['no option', { options: [] }],
   ])('refuses a release card with %s before it is registered', (_name, change) => {
     expect(QuestionSchema.safeParse({ ...release, ...change }).success).toBe(false)
+  })
+
+  it('keeps the role the issuer gives an option as given, and takes options with none', () => {
+    const [deny, allow] = release.options
+    const roled = {
+      ...release,
+      options: [
+        { ...deny, role: 'reject' },
+        { ...allow, role: 'approve' },
+      ],
+    }
+    expect(QuestionSchema.parse(roled).options.map(option => option.role)).toEqual([
+      'reject',
+      'approve',
+    ])
+    expect(QuestionSchema.parse(release).options[0]).not.toHaveProperty('role')
+    expect(
+      QuestionSchema.safeParse({ ...release, options: [{ ...deny, role: 'maybe' }] }).success,
+    ).toBe(false)
   })
 
   it('takes the gate its lasting options are about, whole or not at all', () => {

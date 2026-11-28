@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import {
   mcpEndpointBodyContract,
+  mcpEndpointGates,
   parseEndpointBody,
   type EndpointDefinition,
 } from '@omne-harness/mcp-contract'
@@ -112,7 +113,11 @@ describe('mcpEndpointBodyContract', () => {
     [
       'Streamable HTTP without authentication',
       { ...http, auth: 'none' },
-      ['setting:placement-identity:target', 'setting:preference:connect-timeout'],
+      [
+        'setting:placement-identity:target',
+        'setting:preference:connect-timeout',
+        'setting:preference:program-calls',
+      ],
     ],
     [
       'Streamable HTTP with OAuth',
@@ -120,7 +125,10 @@ describe('mcpEndpointBodyContract', () => {
       [
         'setting:placement-identity:target',
         'setting:placement-identity:credential',
+        'setting:placement-identity:client-id',
+        'setting:placement-identity:client-secret',
         'setting:preference:connect-timeout',
+        'setting:preference:program-calls',
       ],
     ],
   ]
@@ -129,6 +137,17 @@ describe('mcpEndpointBodyContract', () => {
     it(`declares the fixed settings of ${name}`, () => {
       expect(contract.deriveDeclarations(readBody(body)).entries).toEqual(entries)
     })
+
+  it('the version of the settings follows their content, not the version of the asset: a new body keeps the set values (#1582, C105)', () => {
+    const settings = (body: object, definition: string) =>
+      contract.settings?.(readBody(body), { definition } as never)
+    const first = settings({ ...http, auth: 'static' }, 'sha256:1111')
+    const next = settings({ ...http, auth: 'oauth' }, 'sha256:2222')
+    expect(next?.version).toBe(first?.version)
+    expect(first?.version).toMatch(/^sha256:/u)
+    const bare = settings({ ...http, auth: 'none' }, 'sha256:1111')
+    expect(bare?.version).not.toBe(first?.version)
+  })
 
   it('throws instead of declaring settings for a rejected body', () => {
     expect(() => contract.deriveDeclarations(readBody({ ...http, auth: 'bearer' }))).toThrow(
@@ -144,6 +163,91 @@ describe('mcpEndpointBodyContract', () => {
     expect(() => contract.references(readBody({ ...http, transport: 'sse' }))).toThrow(
       /transport-unknown/,
     )
+  })
+
+  const settingsOf = (body: unknown, definition?: string) => {
+    const settings = contract.settings?.(readBody(body), {
+      capabilityName: 'search',
+      ...(definition === undefined ? {} : { definition }),
+    })
+    if (settings === null || settings === undefined) throw new Error('no settings')
+    return settings
+  }
+
+  it('defines the target and the connect timeout of an endpoint without authentication', () => {
+    const settings = settingsOf({ ...http, auth: 'none' })
+    expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+      ['target', 'placement-identity', 'ordinary'],
+      ['connect-timeout', 'preference', 'ordinary'],
+      ['program-calls', 'preference', 'ordinary'],
+    ])
+  })
+
+  // C203 with C105: static and OAuth share the items, so changing between them keeps what was set.
+  it.each(['static', 'oauth'])(
+    'adds the credential and the client identifier and secret when the endpoint uses %s',
+    auth => {
+      const settings = settingsOf({ ...http, auth })
+      expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+        ['target', 'placement-identity', 'ordinary'],
+        ['credential', 'placement-identity', 'secret'],
+        ['client-id', 'placement-identity', 'ordinary'],
+        ['client-secret', 'placement-identity', 'secret'],
+        ['connect-timeout', 'preference', 'ordinary'],
+        ['program-calls', 'preference', 'ordinary'],
+      ])
+    },
+  )
+
+  it('gives no connection item a default, and puts each of them in the connection group', () => {
+    const items = settingsOf(http).items.filter(item => item.id !== 'program-calls')
+    expect(items.map(item => item.default)).toEqual(items.map(() => ({ kind: 'absent' })))
+    expect(new Set(items.map(item => item.groupId))).toEqual(new Set(['connection']))
+  })
+
+  // MC-26: the holder opens the actions to programs; until then they are closed.
+  it('defines program calls as a boolean that is off until it is set, in a group of its own', () => {
+    const settings = settingsOf(http)
+    const item = settings.items.find(candidate => candidate.id === 'program-calls')
+    expect(item).toMatchObject({
+      groupId: 'use',
+      valueSchema: { type: 'boolean' },
+      default: { kind: 'value', value: false },
+      merge: 'override',
+    })
+    expect(item?.presentation.adoption).toBe('next-read')
+    expect(settings.groups.map(group => [group.id, group.order])).toEqual([
+      ['connection', 0],
+      ['use', 1],
+    ])
+  })
+
+  it('names the definition after the endpoint and the version after its own content, pinned or not', () => {
+    expect(settingsOf(http, 'sha256-abc')).toMatchObject({ definitionId: 'search' })
+    expect(settingsOf(http, 'sha256-abc').version).toBe(settingsOf(http).version)
+    expect(settingsOf(http).version).toMatch(/^sha256:/u)
+  })
+
+  it('gives the same body the same definition, byte for byte', () => {
+    expect(JSON.stringify(settingsOf(http, 'v'))).toBe(JSON.stringify(settingsOf(http, 'v')))
+    expect(JSON.stringify(settingsOf(http, 'v'))).not.toBe(
+      JSON.stringify(settingsOf({ ...http, auth: 'none' }, 'v')),
+    )
+  })
+
+  it('throws instead of defining settings for a rejected body', () => {
+    expect(() => contract.settings?.(readBody({ ...http, auth: 'bearer' }))).toThrow(/auth-unknown/)
+  })
+})
+
+describe('mcpEndpointGates', () => {
+  it('is one gate of the category mcp, asking by default', () => {
+    expect(mcpEndpointGates).toEqual({
+      category: 'mcp',
+      ownerId: 'mcp.endpoint-gates',
+      gates: [{ id: 'invoke', title: '调用这个接入点的动作', default: 'ask' }],
+    })
+    expect(Object.isFrozen(mcpEndpointGates) && Object.isFrozen(mcpEndpointGates.gates)).toBe(true)
   })
 })
 

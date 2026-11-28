@@ -5,8 +5,9 @@ import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
+  type ReasoningEffortMapping,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MeterRepresentation,
   type ModelProfile,
   type Parameter,
@@ -40,6 +41,7 @@ import type {
 } from './vocabulary.ts'
 
 export type RequestContext = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ChatCompletionsRecord
   hooks: VendorHooks
   meter: FamilyMeter
@@ -138,7 +140,11 @@ function shown(context: RequestContext, input: RepresentInput) {
 
 export function planRequest(
   context: RequestContext,
-  input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
+  input: Readonly<{
+    profile: ModelProfile<'llm'>
+    supplier: Supplier
+    assembled: AssembledModelInput
+  }>,
 ): Outcome<
   Readonly<{ parameters: readonly ParameterAdoption[]; representation: MeterRepresentation }>,
   TransportFailure
@@ -150,6 +156,8 @@ export function planRequest(
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
+    bindingEfforts: context.bindingEfforts,
+    reasoningEfforts: profile.definition.reasoningEfforts,
     outputLimit: profile.definition.context.output.provided,
     requested: assembled.parameters,
     supplier: context.adapter,
@@ -191,7 +199,7 @@ export function planRequest(
 export function encodeRequest(
   context: RequestContext,
   input: Readonly<{
-    request: FixedModelRequest
+    request: LlmModelRequest
     media: readonly PiMaterializedMedia[]
     declaration: ReplayDeclaration
     resent: TransportDispatch['resent']

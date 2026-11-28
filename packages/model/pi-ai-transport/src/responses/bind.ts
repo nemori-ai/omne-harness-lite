@@ -1,7 +1,12 @@
 import { wireLimits } from '../media.ts'
-import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
+import type {
+  Adoption,
+  LlmModelRequest,
+  ReasoningEffortMapping,
+  Supplier,
+} from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
-import type { PiFamilyBinding } from '../family.ts'
+import type { PiChatBinding } from '../family.ts'
 import { recordAdoption } from '../family-table.ts'
 import { sameAdoption } from '../engine-request.ts'
 import { isPositiveInteger } from '../limits.ts'
@@ -19,6 +24,7 @@ import { encodeResponses, planResponses, type ResponsesContext } from './request
 import type { ResponsesLimits, ResponsesRecord } from './vocabulary.ts'
 
 export type ResponsesBindingInput = Readonly<{
+  bindingEfforts?: ReasoningEffortMapping | undefined
   record: ResponsesRecord
   supplier: Supplier
   meter: FamilyMeter
@@ -52,6 +58,11 @@ function wiredFields(table: ParameterTable): readonly GatewayField[] {
   return fields
 }
 
+// The interface does not report which upstream served, so a pin must leave only one.
+function pinsOneUpstream({ serving }: ResponsesRecord): boolean {
+  return serving === null || (serving.order.length === 1 && serving.reports.length === 1)
+}
+
 function checkRecord(record: ResponsesRecord, adoption: Adoption): void {
   recordDeclaration(record)
   const { produces, accepts } = record.replay.formats
@@ -60,8 +71,7 @@ function checkRecord(record: ResponsesRecord, adoption: Adoption): void {
   const { toolNames } = record.wire
   if (!TOOL_NAME_RULES.includes(toolNames.rule) || !isPositiveInteger(toolNames.maxLength))
     throw new RangeError(`record ${record.name}: wire.toolNames is not an engine rule`)
-  // The interface does not report which upstream served, so the pin must leave only one.
-  if (record.serving.order.length !== 1 || record.serving.reports.length !== 1)
+  if (!pinsOneUpstream(record))
     throw new RangeError(`record ${record.name}: the serving pin must name one upstream`)
   const fields = [...wiredFields(record.parameters), ...record.extensions.map(rule => rule.field)]
   for (const field of fields)
@@ -92,7 +102,7 @@ function checkInput(input: ResponsesBindingInput, adoption: Adoption): void {
     throw new RangeError('limits must bound reasoning text and tool arguments')
 }
 
-export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
+export function bindResponses(input: ResponsesBindingInput): PiChatBinding {
   const { record, supplier, meter } = input
   const adoption = recordAdoption(supplier.adoption.owner, record)
   checkInput(input, adoption)
@@ -100,7 +110,13 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
     toolArguments: Object.freeze({ ...input.limits.toolArguments }),
     maxReasoningText: input.limits.maxReasoningText,
   })
-  const context: ResponsesContext = { record, meter, supplier, adapter: adoption }
+  const context: ResponsesContext = {
+    record,
+    meter,
+    supplier,
+    adapter: adoption,
+    bindingEfforts: input.bindingEfforts,
+  }
   let released: Promise<void> | undefined
   return Object.freeze({
     supplier,
@@ -122,7 +138,7 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
     createDecoder: ({
       request,
       accounting,
-    }: Readonly<{ request: FixedModelRequest; accounting: RouteAccounting }>) => {
+    }: Readonly<{ request: LlmModelRequest; accounting: RouteAccounting }>) => {
       const names = toolNamesOf({
         profile: record.wire.toolNames,
         tools: request.tools,
@@ -139,14 +155,14 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
       released ??= input.release()
       return released
     },
-  } satisfies PiFamilyBinding)
+  } satisfies PiChatBinding)
 }
 
 function toolPayloadOf(
   record: ResponsesRecord,
-  tool: Parameters<PiFamilyBinding['tools']['convertToModelPayload']>[0],
+  tool: Parameters<PiChatBinding['tools']['convertToModelPayload']>[0],
   adapter: Adoption,
-): ReturnType<PiFamilyBinding['tools']['convertToModelPayload']> {
+): ReturnType<PiChatBinding['tools']['convertToModelPayload']> {
   const name = declarationName(record.wire.toolNames, tool.name, adapter)
   if (!('ok' in name)) return name
   if (tool.argumentsSchema.kind !== 'object')

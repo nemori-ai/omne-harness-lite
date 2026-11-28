@@ -57,7 +57,8 @@ export type CompactionHistory = Readonly<{
 }>
 
 export type CompactionTarget = Readonly<{
-  profile: Extract<M.ProfileResolution, { kind: 'resolved' }> & Readonly<{ selectable: true }>
+  profile: Extract<M.ProfileResolution<'llm'>, { kind: 'resolved' }> &
+    Readonly<{ selectable: true }>
   parameters: readonly M.Parameter[]
   representation: Adoption
   measurement: Adoption

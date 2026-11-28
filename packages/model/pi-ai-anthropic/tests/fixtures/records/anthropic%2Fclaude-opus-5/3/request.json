@@ -1,5 +1,6 @@
 {
   "request": {
+    "kind": "llm",
     "profile": {
       "owner": "pi-ai-anthropic-tests",
       "name": "profile",

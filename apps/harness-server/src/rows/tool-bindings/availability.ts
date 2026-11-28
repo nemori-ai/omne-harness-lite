@@ -1,7 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
+import { canvasKey } from '@omne-harness/canvas-cordis-contract/cordis'
+import { interfaceInspectionsKey } from '@omne-harness/interface-access/cordis'
 import {
   scheduleCommandsKey,
+  scheduleJobsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import {
@@ -9,16 +12,22 @@ import {
   notificationSendingKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import type { ModalityRequirement } from '@omne-harness/model-contract'
 import {
-  modelProfilesKey,
-  type ModelProfilesService,
-} from '@omne-harness/model-cordis-contract/cordis'
+  chatNeedOf,
+  type ModalityRequirement,
+  type ModelFailure,
+  type ProfileResolution,
+  type ProfileResolveInput,
+} from '@omne-harness/model-contract'
+import type { Outcome } from '@omne-harness/operation-result'
+import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
@@ -26,9 +35,10 @@ import { toolEnvironmentsKey, toolMediaStoreKey } from '@omne-harness/tool-cordi
 import type { SessionWork } from '@omne-harness/session-contract'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
+import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
-import { hostOffers } from '../execution-host/offers.ts'
+import { hostOffers, programOffered } from '../execution-host/offers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
 const unavailable = (diagnostic: string) =>
@@ -97,7 +107,6 @@ async function workSession(
 }
 
 type Modality = ModalityRequirement['modalities'][number]
-type Resolve = ModelProfilesService<unknown>['resolve']
 type SessionAccessOf = Readonly<{ principal: unknown; tenant: TenantId; session: string }>
 type Unreadable = Readonly<{ unreadable: string }>
 /** Whether the model a session now uses takes these modalities natively. */
@@ -110,7 +119,9 @@ export type ModelReadPorts = Readonly<{
   readSelection(
     access: SessionAccessOf,
   ): ReturnType<SessionWork<unknown>['readModelSelection']> | undefined
-  resolveProfile(input: Parameters<Resolve>[0]): ReturnType<Resolve> | undefined
+  resolveProfile(
+    input: ProfileResolveInput<unknown, 'llm'>,
+  ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
 }>
 
 const RESULT_REQUIREMENT_SOURCE = Object.freeze({
@@ -133,7 +144,10 @@ export function modelReadsOver(ports: ModelReadPorts): ModelReads {
         principal: access.principal,
         tenant: access.tenant,
         route,
-        required: { modalities: ['text', ...modalities], source: RESULT_REQUIREMENT_SOURCE },
+        required: chatNeedOf({
+          modalities: ['text', ...modalities],
+          source: RESULT_REQUIREMENT_SOURCE,
+        }),
       })
       if (resolved === undefined)
         return { unreadable: 'the model profiles service is not available' }
@@ -167,6 +181,22 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
+function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolean {
+  const key = { layer, asset: { name: definition.name, adoption: definition.adoption } }
+  const loaded = heldDefinitionOf(ctx, key)
+  return (
+    loaded !== undefined &&
+    canonicalDigest(loaded) === canonicalDigest(definition) &&
+    isHeldNow(ctx, tenant, key)
+  )
+}
+
+// A source entry belongs to the asking tenant, and its source lists the name to this asker now.
+function fromSource(ctx: Context, input: JudgeInput): boolean {
+  const asked = { kind: 'available', definition: input.definition, layer: input.layer } as const
+  return sourceListsName(sourcedEntriesOf(ctx), input, asked)
+}
+
 function environmentInstalled(ctx: Context): boolean {
   return (
     ctx.get(executionEnvironmentKey) !== undefined && ctx.get(toolEnvironmentsKey) !== undefined
@@ -176,11 +206,15 @@ function environmentInstalled(ctx: Context): boolean {
 /** What each release capability stands for: it is there while its service is, or while its test holds. */
 const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => boolean)>> = {
   'screen.read': ctx => hostOffers(ctx)?.has('screen') === true,
+  'program.run': programOffered,
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,
+  'schedule.jobs': scheduleJobsKey,
   'notification.read': notificationInboxKey,
   'notification.write': notificationSendingKey,
+  'canvas.arrangement': canvasKey,
+  'interface.inspect': interfaceInspectionsKey,
   'session.read': sessionKey,
   'session.search': sessionSearchKey,
   'workspace.switch': workspaceInstancesKey,
@@ -244,7 +278,12 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
   const work = await workSession(ctx, input.principal, input.tenant)
   if ('problem' in work) return unavailable(work.problem)
-  if (!inRelease(release, input.definition, input.layer)) return denied
+  if (
+    !inRelease(release, input.definition, input.layer) &&
+    !heldBy(ctx, input) &&
+    !fromSource(ctx, input)
+  )
+    return denied
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')

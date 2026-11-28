@@ -139,7 +139,7 @@ export type Subject =
   | Readonly<{
       purpose: 'main'
       call: M.ModelCallId
-      request: M.FixedModelRequest
+      request: M.LlmModelRequest
       fault: M.ModelFault
       dispatches: readonly M.DispatchRecord[]
       retry: M.RetryResolution | null
@@ -168,8 +168,53 @@ export type Subject =
     }>
   | Readonly<{ proposed: AgentConclusion; basis: DurableEvidence }>
   | Readonly<{ terminal: AgentConclusion; disposition: DurableEvidence }>
+/** Where a member of an extension chain comes from; the chain keeps this order. */
+export type ChainSource = 'definition' | 'tenant' | 'system'
+export type ChainMember = Readonly<{
+  source: ChainSource
+  declaration: LoopExtensionDeclaration
+  implementation: Adoption
+}>
+/** The extension chain of one pass: read once when the pass begins, saved with the first requested call, then fixed. */
+export type ExtensionChain = Readonly<{
+  pass: string
+  position: Position
+  dimension: Dimension | null
+  purpose: 'main' | null
+  members: readonly ChainMember[]
+  /** What the tenant-enabled members were read from; null when the assembly has no tenant source. */
+  basis: DurableEvidence | null /** Set when the tenant-enabled members could not be read after the terminal: this pass was not observed. */
+  unread?: DurableEvidence
+}>
+export type EnabledExtension = Readonly<{
+  declaration: LoopExtensionDeclaration
+  implementation: Adoption
+}>
+/** The extensions the tenant has enabled right now, in chain order. Unreadable is a failure, never an empty list. */
+export interface EnabledExtensions<P> {
+  read(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        position: Position
+        dimension: Dimension | null
+        purpose: 'main' | null
+      }>,
+  ): Reply<Readonly<{ members: readonly EnabledExtension[]; basis: DurableEvidence }>>
+}
 export interface ExtensionImplementations<P> {
   resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
+}
+export interface SystemExtensions<P> extends ExtensionImplementations<P> {
+  read(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        position: Position
+        dimension: Dimension | null
+        purpose: 'main' | null
+      }>,
+  ): Reply<readonly EnabledExtension[]>
 }
 export interface DecisionCards<P> {
   present(
@@ -210,6 +255,7 @@ export interface DecisionCards<P> {
   ): Reply<
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
+  changes(input: Access<P> & Readonly<{ signal: AbortSignal }>): AsyncIterable<void>
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
@@ -239,8 +285,31 @@ export interface ActionAdmission<P> {
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
         /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
         batch?: Readonly<{ id: ActionBatchId; pass: string }>
+        nested?: Readonly<{ parent: ActionId; ordinal: number }>
       }>,
   ): Reply<AdmissionDecision>
+}
+export type NestedActionTarget = Readonly<{
+  definition: Adoption
+  name: string
+  command: string | null
+  arguments: string
+}>
+export type NestedActionVerdict =
+  | Readonly<{ kind: 'allowed' }>
+  | Readonly<{ kind: 'denied'; reason: string }>
+  | Readonly<{ kind: 'unanswerable'; diagnostic: string }>
+export interface NestedActionAdmission<P> {
+  admit(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        parent: ActionId
+        ordinal: number
+        target: NestedActionTarget
+        signal: AbortSignal
+      }>,
+  ): Promise<NestedActionVerdict>
 }
 export type MessageSource =
   | Readonly<{ kind: 'external-input'; input: InputId }>
@@ -353,7 +422,12 @@ export type HandoffLookup =
       execution: AgentExecutionId
       handoff: Extract<HandoffReference, { kind: 'execution' }>
     }>
-  | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+  | Readonly<{
+      kind: 'input-entry'
+      execution: AgentExecutionId
+      operation: AgentOperationId
+      input: InputId
+    }>
 export interface MessageHandoff<P> {
   prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>
   lookup(input: Access<P> & HandoffLookup): Reply<HandoffResolution>
@@ -371,6 +445,7 @@ export type MaterialDescription = Readonly<{
   size: number
   kind: Material<ContentBlock>['kind']
 }>
+export type MaterialReaders = 'after-release' | 'until-release'
 export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
@@ -379,6 +454,7 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         identity: string
         consumer: ConsumerRef
         value: Material<B>
+        readers?: MaterialReaders
       }>,
   ): Reply<DurableEvidence>
   read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>

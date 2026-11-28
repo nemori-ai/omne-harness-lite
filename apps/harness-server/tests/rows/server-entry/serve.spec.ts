@@ -177,7 +177,7 @@ describe('server-entry row: configuration', () => {
         maxStringLength: 1048576,
         maxNumberLength: 64,
       },
-      observation: { perLogin: 4, perInstance: 1000 },
+      observation: { perLogin: 16, perInstance: 1000 },
     })
   })
 })

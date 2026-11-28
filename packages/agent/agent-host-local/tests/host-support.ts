@@ -12,6 +12,7 @@ import {
   type AgentClock,
   type AgentExecutionId,
   type AgentInstanceId,
+  type DurableEvidence,
   type AgentJournal,
   type AgentJournalEntries,
   type AgentJournalEntry,
@@ -167,6 +168,7 @@ export const PROVIDED = [
   'agentPublicationAuthority',
   'agentExecutionRecovery',
   'agentExecutionControl',
+  'agentNestedActions',
   'agentInstanceProvision',
 ] as const
 
@@ -242,6 +244,7 @@ export type World = Readonly<{
   instanceHost: Context['agentInstanceHost']
   recovery: Context['agentExecutionRecovery']
   control: Context['agentExecutionControl']
+  nested: Context['agentNestedActions']
   retired: Retirement[]
   errors: string[]
   warnings: string[]
@@ -263,6 +266,8 @@ export type QuiesceScript = 'drained' | 'unresolved' | 'hang' | 'throw' | 'drain
 
 export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
+  /** The assembly's proof source for an instance this host does not run. */
+  lostContact?: (instance: AgentInstanceId) => DurableEvidence | null
   omit?: Injected
   config?: unknown
   plugin?: AgentHostPlugin
@@ -310,6 +315,7 @@ function withRuntimeDuties(
         },
       },
       control: {
+        handOver: input => made.ok.control.handOver(input),
         async quiesce(input) {
           draining = true
           world.quiesced.push(instance)
@@ -442,7 +448,12 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       ? withRuntimeDuties({ handles, quiesced, quiesceAnswers })
       : (deps, opts, extras) => createAgentRuntime(deps, opts, extras)
   const configured = 'config' in options
-  const plugin = options.plugin ?? createAgentHostPlugin(factory)
+  const plugin =
+    options.plugin ??
+    createAgentHostPlugin(
+      factory,
+      options.lostContact === undefined ? {} : { lostContact: options.lostContact },
+    )
   const host = root.plugin(plugin, (configured ? options.config : hostConfig) as AgentHostConfig)
   host.then(undefined, () => undefined)
   const directoryFiber = root.plugin(agentInstancesPlugin)
@@ -471,6 +482,9 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     },
     get control() {
       return present(root.get('agentExecutionControl'), 'agentExecutionControl')
+    },
+    get nested() {
+      return present(root.get('agentNestedActions'), 'agentNestedActions')
     },
     retired,
     errors,

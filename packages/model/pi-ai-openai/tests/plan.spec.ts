@@ -77,6 +77,26 @@ describe('parameters', () => {
     },
   )
 
+  it('writes xhigh on a measured Responses route and refuses it on an unverified Chat route', async () => {
+    const effort = { kind: 'reasoning-effort', value: 'xhigh' } as const
+    const declined = { failure: { kind: 'unsupported', field: effort.kind } }
+    expect(await plan(ASTRA_PRO, [effort])).toMatchObject(declined)
+    expect(await plan(ASTRA, [effort])).toMatchObject({ ok: { parameters: [{ applied: effort }] } })
+    for (const record of [ASTRA, ASTRA_PRO]) {
+      const binding = await bindingOf(record)
+      try {
+        const encoded = binding.encode(encodeInput(fixedRequest(record, { parameters: [effort] })))
+        if (record === ASTRA_PRO) expect(encoded).toMatchObject(declined)
+        else {
+          if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
+          expect(JSON.parse(writeJsonText(encoded.ok.body)).reasoning.effort).toBe('xhigh')
+        }
+      } finally {
+        await binding.release()
+      }
+    }
+  })
+
   it('passes the effort max and writes it as itself', async () => {
     for (const record of [SOL, ASTRA]) {
       const effort: Parameter = { kind: 'reasoning-effort', value: 'max' }

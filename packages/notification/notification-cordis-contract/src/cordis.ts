@@ -1,4 +1,12 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
+import {
+  declare,
+  deployment,
+  type Contract,
+  type Entry,
+  type Instance,
+} from '@omne-harness/dynamis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type {
   ChannelContribution,
   ChannelLookup,
@@ -93,16 +101,68 @@ export abstract class NotificationCatalogService extends Service implements Noti
 }
 export const notificationCatalogKey = NotificationCatalogService.provide
 
+/** The point on the server's tree whose keys are the names of the registered sources; its keys are public. */
+export const NOTIFICATION_SOURCES_POINT = 'notification.sources'
+
+const sourcesContract: Contract = Object.freeze({
+  name: NOTIFICATION_SOURCES_POINT,
+  title: '通知来源',
+  tree: 'server',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key: 'the name of the source',
+  gives: 'nothing: the item is data',
+  item: Object.freeze({ kind: 'data', fields: Object.freeze({ source: 'string' }) }),
+  resolve: 'conflict',
+  binding: 'run',
+  onError: 'a name put twice is not the name of a source',
+  version: 1,
+  revision: 1,
+  keys: 'public',
+  conformance: null,
+  scopes: {
+    only: 'deployment',
+    why: 'one-per-process',
+    note: 'The notification sources are read for the whole deployment, not for the tenant who asks, so a source a tenant put here would not be known.',
+  } as const,
+  summary: 'The notification sources now registered: each key is the name of one.',
+})
+
+function registered(source: SourceName, by: Instance): Entry {
+  return {
+    point: NOTIFICATION_SOURCES_POINT,
+    key: source,
+    id: '',
+    scope: deployment,
+    rank: 0,
+    digest: `${source}@${by.fiber}#${by.generation}`,
+    item: Object.freeze({ source }),
+  }
+}
+
 /** The extension point `notification.sources`. Registering is the effect of the caller (IC-13). */
 export abstract class NotificationSourcesService extends Service {
   static readonly provide = 'notificationSources'
+  protected readonly tree: DynamisService
 
   constructor(ctx: Context) {
     super(ctx, NotificationSourcesService.provide)
+    const tree = ctx.get(dynamisKey) as DynamisService
+    tree.put([declare(sourcesContract)])
+    this.tree = tree
   }
 
+  /** A source and its name on the tree go together: the name is a key for as long as the source is registered. */
   register(declaration: SourceDeclaration): void {
-    this.ctx.effect(() => this.contribute(declaration), 'notificationSources.register')
+    const { tree } = this
+    this.ctx.effect(() => {
+      const withdraw = this.contribute(declaration)
+      const take = tree.put(by => [registered(declaration.name, by)])
+      return () => {
+        withdraw()
+        return take()
+      }
+    }, 'notificationSources.register')
   }
 
   protected abstract contribute(declaration: SourceDeclaration): () => void

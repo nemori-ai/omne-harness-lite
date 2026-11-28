@@ -1,17 +1,41 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
-import { serviceKey, type PointSink } from '@omne-harness/shell-contract'
+import {
+  needPoint,
+  needProtocol,
+  type KeyedPointSink,
+  type PointSink,
+  type RenderPointSink,
+  serviceKey,
+  type ServiceKey,
+} from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
+import { MEDIA_OBJECT, type PlacedReference, type Placing } from './model/files-intake.ts'
+import { createPictureIntake, type PictureIntake } from './model/picture-intake.ts'
 import type { Microphone } from './model/recorder.ts'
+import type { ScreenSource } from './model/snapper.ts'
 import type { MediaClient } from './model/upload.ts'
+import { mediaParts } from './parts.ts'
+import type { AssetPort } from './view/asset-body.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
-import { MediaBlock } from './view/media-block.tsx'
+import { CanvasFiles, CanvasObject, type CanvasFrame } from './view/canvas.tsx'
+import { ConverterBlock } from './view/converter-block.tsx'
+import { MEDIA_BLOCKS } from './view/media-block.tsx'
 import { browserMicrophone } from './view/microphone.ts'
 
+export { mediaParts } from './parts.ts'
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
+export type { ScreenAnswer, ScreenSource } from './model/snapper.ts'
+export type {
+  Picture,
+  PictureAttachment,
+  PictureIntake,
+  PicturesTaken,
+} from './model/picture-intake.ts'
+
+export const mediaPictureIntakeKey = serviceKey<PictureIntake>('media.picture-intake')
 
 /** The message being written in a session, as the host of the composer names it. */
 export type MediaDraftSubject = Readonly<{ session: string; draft: string }>
@@ -25,20 +49,32 @@ export type MediaBlockSubject = Readonly<{
   read?: string
 }>
 
-export type MediaUiOptions = Readonly<{
-  composerAttachments?: PointSink<MediaDraftSubject>
-  block?: PointSink<MediaBlockSubject>
-  /** Where recordings come from; the browser's microphone when not given. */
-  microphone?: Microphone
+export type MediaCanvasElementSubject = Readonly<{ reference: PlacedReference; frame: CanvasFrame }>
+export type MediaCanvasIntakeSubject = Readonly<{
+  files: readonly File[]
+  place: (reference: PlacedReference, placing?: Placing) => void
+  done: () => void
 }>
 
-export type DraftsHolder = Readonly<{ attach(given: Drafts): () => void }>
+export type MediaUiOptions = Readonly<{
+  composerAttachments?: PointSink<MediaDraftSubject>
+  block?: RenderPointSink<MediaBlockSubject>
+  /** Where recordings come from; the browser's microphone when not given. */
+  microphone?: Microphone
+  screen?: ScreenSource
+  /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
+  drafts?: ServiceKey<Drafts>
+  holding?: KeyedPointSink<Readonly<{ category: string; name: string }>>
+  assets?: ServiceKey<AssetPort>
+  canvasElement?: RenderPointSink<MediaCanvasElementSubject>
+  canvasIntake?: RenderPointSink<MediaCanvasIntakeSubject>
+}>
 
-/** Where the assembly hands over what takes the attachments of a draft; the module works without. */
-export const mediaComposerIntakeKey = serviceKey<DraftsHolder>('media.composer-intake')
+const CONVERTER_CATEGORY = 'converter'
+const CONVERTER_BLOCK_ID = 'media-converter'
 
-const MEDIA = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const ITEM = 'media'
+const FILES = 'files'
 
 type ScopedProps = Readonly<{
   scope: string | undefined
@@ -52,21 +88,18 @@ function Scoped({ scope, children }: ScopedProps) {
 }
 
 export function createMediaUiModule(options: MediaUiOptions = {}) {
-  return defineUiModule<Record<string, MediaClient>>({
+  return defineUiModule({
     name: 'media-ui',
-    inject: [MEDIA],
-    apply(shell, services, provide) {
-      const client = services[MEDIA]!
-      let given: Drafts | null = null
-      const drafts = () => given
-      provide(mediaComposerIntakeKey, {
-        attach(next) {
-          given = next
-          return () => {
-            if (given === next) given = null
-          }
-        },
-      })
+    needs: {
+      media: needProtocol<MediaClient>(mediaProtocol),
+      intake: needPoint(options.drafts, { optional: true }),
+      assets: needPoint(options.assets, { optional: true }),
+    },
+    apply(shell, { media: client, intake, assets }, provide) {
+      for (const part of mediaParts) part.declare(shell)
+      const pictures = createPictureIntake({ client, newId: () => crypto.randomUUID() })
+      provide(mediaPictureIntakeKey, pictures.intake)
+      const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
         id: ITEM,
         order: 0,
@@ -80,18 +113,17 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
                 draft={subject.draft}
                 drafts={drafts}
                 microphone={options.microphone ?? browserMicrophone}
+                {...(options.screen === undefined ? {} : { screen: options.screen })}
               />
             )}
           </Scoped>
         ),
       })
-      options.block?.contribute(shell, {
-        id: ITEM,
-        order: 0,
-        render: ({ scope, subject }) => (
+      for (const [kind, Block] of Object.entries(MEDIA_BLOCKS))
+        options.block?.put(shell, kind, ({ scope, subject }) => (
           <Scoped scope={scope}>
             {tenant => (
-              <MediaBlock
+              <Block
                 client={client}
                 tenant={tenant}
                 content={subject.content}
@@ -99,8 +131,48 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
               />
             )}
           </Scoped>
-        ),
+        ))
+      options.canvasElement?.put(shell, MEDIA_OBJECT, ({ scope, subject }) => (
+        <Scoped scope={scope}>
+          {tenant => (
+            <CanvasObject
+              client={client}
+              tenant={tenant}
+              reference={subject.reference}
+              frame={subject.frame}
+            />
+          )}
+        </Scoped>
+      ))
+      options.canvasIntake?.put(shell, FILES, ({ scope, subject }) => (
+        <Scoped scope={scope}>
+          {tenant => (
+            <CanvasFiles
+              client={client}
+              tenant={tenant}
+              files={subject.files}
+              place={subject.place}
+              done={subject.done}
+            />
+          )}
+        </Scoped>
+      ))
+      options.holding?.contribute(shell, CONVERTER_CATEGORY, {
+        id: CONVERTER_BLOCK_ID,
+        order: 0,
+        render: ({ scope, subject }) => {
+          const port = assets.get()
+          return scope === undefined || port === undefined ? null : (
+            <ConverterBlock
+              port={port}
+              tenant={scope}
+              category={subject.category}
+              name={subject.name}
+            />
+          )
+        },
       })
+      return pictures.close
     },
   })
 }

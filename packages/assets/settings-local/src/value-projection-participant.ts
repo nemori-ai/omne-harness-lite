@@ -1,6 +1,9 @@
-import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
-import { SettingsProjectionBindingSchema } from './projection.ts'
+import type { SettingsFailure } from '@omne-harness/settings'
+import type { StorageScope } from '@omne-harness/sql-contract'
+import type { ParticipantModule, ReadPort } from '@omne-harness/sql-contract/worker'
+import { SettingsProjectionBindingSchema, type SettingsTargetProjection } from './projection.ts'
 import { readProjectedSettingsState } from './projected-state.ts'
+import { readStateRecord } from './records.ts'
 import { targetViews } from './target-views.ts'
 import { equal, json, withinBudget } from './encoding.ts'
 import {
@@ -8,6 +11,23 @@ import {
   settingsValueProjectionFact,
   type SettingsValueProjection,
 } from './value-projection.ts'
+
+function unavailableView(
+  port: ReadPort,
+  scope: StorageScope,
+  view: SettingsTargetProjection,
+  reason: SettingsFailure['reason'],
+): SettingsValueProjection['views'][number] {
+  if (reason !== 'definition_changed') return { presence: 'unavailable', view, reason }
+  const record = readStateRecord(port, scope, view.target)
+  if (record === null) throw new Error('A changed Settings definition has no stored state')
+  return {
+    presence: 'unavailable',
+    view,
+    reason,
+    stored: { definitionRef: record.definitionRef, state: record.state },
+  }
+}
 
 export default {
   ...SETTINGS_VALUE_PROJECTION,
@@ -23,7 +43,7 @@ export default {
     for (const projection of projections) {
       const value = readProjectedSettingsState(port, binding.domain.scope, projection)
       if ('kind' in value)
-        views.push({ presence: 'unavailable', view: projection, reason: value.reason })
+        views.push(unavailableView(port, binding.domain.scope, projection, value.reason))
       else
         views.push({ presence: value.presence, view: { ...projection, state: value.view.state } })
     }

@@ -200,6 +200,7 @@ async function runToEnd(refusal: SupplierRefusal) {
   expect('ok' in prepared, 'prepare failed')
   const materialized = await prepared.ok.materialize(signal)
   expect('ok' in materialized, 'materialize failed')
+  expect('start' in materialized.ok, 'materialize opened a live session, not a request')
   const facts = []
   for await (const fact of materialized.ok.start(signal)) facts.push(fact)
   await materialized.ok.close()

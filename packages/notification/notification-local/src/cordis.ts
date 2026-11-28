@@ -19,6 +19,7 @@ import {
   NotificationSourcesService,
   NotificationSubscriptionsService,
 } from '@omne-harness/notification-cordis-contract/cordis'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { createNotificationLocalApplication, type NotificationLocalOptions } from './application.ts'
 
@@ -133,7 +134,7 @@ class LocalStanding extends NotificationStandingService {
 export function createNotificationLocalPlugin() {
   return {
     name: 'notification-local',
-    inject: [storageKey],
+    inject: [storageKey, dynamisKey],
     async apply(ctx: Context, config: NotificationLocalConfiguration) {
       const application = await createNotificationLocalApplication({
         ...config,

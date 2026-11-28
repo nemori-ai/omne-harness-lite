@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstantText } from '../../../src/entry/time.ts'
 import {
   admissionPassageOf,
   cardRequestOf,
@@ -17,7 +19,7 @@ import { decisionEvidence } from '@omne-harness/authorization'
 import { cardEvidence, roundKey, roundOperation } from '../../../src/rows/agent-cards/cards.ts'
 import { askedDecision } from '../../../src/rows/authorization/release-asking.ts'
 import { createAgentDecisionCards } from '../../../src/rows/agent-cards/provider.ts'
-import type { ToolHitlHost } from '../../../src/rows/tool-hitl/host.ts'
+import { createToolHitlHost, type ToolHitlHost } from '../../../src/rows/tool-hitl/host.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
 
 const tenant = testingTenant(`org_${'1'.repeat(26)}`, `acc_${'2'.repeat(26)}`)
@@ -463,5 +465,56 @@ describe('invalidate: the cards of a round end together', () => {
   it('answers unavailable while a card of the round still waits after the invalidation', async () => {
     const w = world({ cards: [invalidatedCard('c1'), pendingCard('c2')] })
     expect(await w.cards.invalidate(input)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('changes: the card changes of the tenant, for a Run that waits on a person', () => {
+  const realHost = () =>
+    createToolHitlHost({
+      storage: {} as never,
+      domains: {
+        lookup: async ({ tenant: text }) => ({
+          kind: 'ready',
+          domain: { scope: { kind: 'tenant', tenant: text }, transactionDomain: `hitl:${text}` },
+        }),
+      },
+      combination: { combinationVersion: 'v', manifestDigest: 'd' },
+      verifier: () => authority.verifier,
+      standing: () => ({ read: async () => ({ kind: 'not-member', evidence: {} }) as never }),
+      reservations: () => ({}) as never,
+      now: () => readInstantText(systemTime()),
+    })
+  const cardsOn = (host: ToolHitlHost) =>
+    createAgentDecisionCards({
+      host: () => host,
+      audience: () => undefined,
+      registrar: () => registrar,
+      readWork: async () => undefined,
+    })
+
+  it('gives one change after a person answers a card of the tenant, and ends once aborted', async () => {
+    const host = realHost()
+    const controller = new AbortController()
+    const changes = cardsOn(host)
+      .changes({ ...access, signal: controller.signal })
+      [Symbol.asyncIterator]()
+    const first = changes.next()
+    const at = await host.tenant(encoded.value)
+    if (at.kind !== 'ready') throw new Error(`tenant is ${at.kind}`)
+    await at.tenant.application.submitReply(registrar, {} as never)
+    expect(await first).toEqual({ done: false, value: undefined })
+    const second = changes.next()
+    controller.abort()
+    expect(await second).toEqual({ done: true, value: undefined })
+  })
+
+  it('ends when the host closes', async () => {
+    const host = realHost()
+    const changes = cardsOn(host)
+      .changes({ ...access, signal: new AbortController().signal })
+      [Symbol.asyncIterator]()
+    const first = changes.next()
+    await host.close()
+    expect(await first).toEqual({ done: true, value: undefined })
   })
 })

@@ -1,0 +1,15 @@
+positive.cfg pass
+unknown.cfg pass
+pinned.cfg pass
+witness-ok.cfg NeverOk
+witness-cancelled.cfg NeverCancelled
+witness-custody.cfg NeverCustody
+witness-late-custody.cfg NeverLateCustody
+witness-taken.cfg NeverTaken
+witness-run-cancelled-exec-open.cfg NeverRunCancelledExecOpen
+bad-volatile.cfg NoDup
+bad-read-adopted.cfg PinnedOnce
+bad-end-held.cfg NoOrphan
+bad-issue-after-cancel.cfg CancelQuiet
+bad-wait-for-child.cfg CanEndAfterCancel
+bad-drop-late.cfg NoLostMessage

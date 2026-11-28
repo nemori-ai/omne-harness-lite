@@ -4,7 +4,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   catalogKeyOf,
   classifyOutcome,
-  connectionKeyOf,
   isActionArgs,
   type ActionArgs,
   type ActionCalls,
@@ -14,17 +13,17 @@ import {
   type CatalogKey,
   type ContinueRequest,
   type CorrelationKey,
-  type Generation,
   type InvokeRequest,
   type InvokeResult,
   type KnownAction,
+  type McpClock,
   type McpConfig,
   type McpPorts,
   type NotSentReason,
   type PeerAnswer,
   type PeerNotification,
 } from '@omne-harness/mcp-contract'
-import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
+import type { CallRequest, SentCall, TaskRow } from '@omne-harness/mcp-contract/provider'
 import { judgedTree } from './internal/caller-values.ts'
 import { classificationOf } from './internal/classification.ts'
 import {
@@ -38,16 +37,16 @@ import { admitForUse, type UseGate } from './internal/guard.ts'
 import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flight.ts'
 import { connectionFailureOf, connectionFailureOfBuild, loseIfLost } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
+import type { Spawn } from './internal/scope.ts'
 import { prepareSettings } from './internal/settings.ts'
 import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
-import type { TaskTable } from './internal/task-table.ts'
 
 export type CallsDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   config: McpConfig<P>
   table: ConnectionTable<P>
   inFlight: InFlightCalls
-  tasks: TaskTable
+  clock: McpClock
 }>
 
 const CORRELATION_KEY_IN_USE: NotSentReason = { kind: 'correlation-key-in-use' }
@@ -57,6 +56,7 @@ const ACTION_UNAVAILABLE: NotSentReason = { kind: 'action-unavailable' }
 const UNKNOWN: NotSentReason = { kind: 'unknown' }
 const ABANDONED: PeerAnswer = { kind: 'no-answer', cause: 'abandoned' }
 const UNKNOWN_ABANDONED: CallOutcome = { kind: 'unknown', cause: 'abandoned' }
+type TaskOutcome = Extract<CallOutcome, { kind: 'task' }>
 
 const STOPPED = 'stopped'
 type Stopped = typeof STOPPED
@@ -120,8 +120,8 @@ function checkedSend(given: Send): Send {
       },
     }
   }
-  const { ref, action, args, requestState, inputResponses, issuedAt, correlationKey, signal } =
-    given.request
+  const { ref, action, args, requestState, inputResponses, expectedDefinition } = given.request
+  const { correlationKey, signal } = given.request
   const { connectBound, observe } = given.request
   if (requestState === undefined && inputResponses === undefined)
     throw new TypeError('a continuation carries the request state or the input responses')
@@ -131,7 +131,7 @@ function checkedSend(given: Send): Send {
       ref,
       action,
       args: judgedArgs(args),
-      issuedAt,
+      expectedDefinition,
       correlationKey,
       signal,
       ...(requestState === undefined ? {} : { requestState }),
@@ -177,8 +177,39 @@ function observerOf(
   }
 }
 
+/** A task is answered only once its row is kept; a task that cannot be kept is asked to cancel, and the call is not known. */
+async function keptTask<P, S>(
+  deps: Readonly<{ ports: McpPorts<P, S>; clock: McpClock; scope: Spawn }>,
+  on: Sent,
+  outcome: TaskOutcome,
+): Promise<CallOutcome> {
+  const { outputSchema } = on.known.lastLawful
+  const { ttlMs, pollIntervalMs } = outcome
+  const key = {
+    tenant: on.key.tenant,
+    principalKey: on.key.principalKey,
+    holding: on.send.request.ref.holding,
+    taskId: outcome.taskId,
+  }
+  const row: TaskRow = {
+    account: on.ensured.key.account,
+    issuedAt: outcome.issuedAt,
+    call: on.send.request.correlationKey,
+    state: 'following',
+    round: 1,
+    ...(outputSchema === undefined ? {} : { outputSchema }),
+    ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),
+    ...(ttlMs === undefined ? {} : { expiresAt: deps.clock.now().getTime() + ttlMs }),
+  }
+  const kept = await ask(() => deps.ports.tasks.record(key, row), fail('unavailable' as const))
+  if ('ok' in kept) return outcome
+  const wire = on.ensured.wire()
+  if ('ok' in wire) deps.scope.spawn(ask(() => wire.ok.cancelTask(outcome.taskId), undefined))
+  return UNKNOWN_ABANDONED
+}
+
 export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P> {
-  const { ports, config, table, inFlight, tasks } = deps
+  const { ports, config, table, inFlight, clock } = deps
   const { scope } = table.runtime
   const gate: UseGate<P, S> = { ports, table }
 
@@ -209,13 +240,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const known = read.ok.actions.find(candidate => candidate.name === action)
     if (known === undefined || known.availability.kind === 'unavailable')
       return fail(ACTION_UNAVAILABLE)
-    if (send.kind === 'invoke' && known.definitionDigest !== send.request.expectedDefinition)
-      return fail(DEFINITION_CHANGED)
+    if (known.definitionDigest !== send.request.expectedDefinition) return fail(DEFINITION_CHANGED)
     return succeed(known)
-  }
-
-  function issuedOn(send: Send, generation: Generation | undefined): boolean {
-    return send.kind === 'invoke' || generation === send.request.issuedAt
   }
 
   async function connectionOf(
@@ -243,36 +269,19 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       knownActionOf(send, catalogKeyOf(access.tenant, endpoint, account)),
     )
     if (isHalted(known) || 'failure' in known) return known
-    const current = table.current(connectionKeyOf(access.tenant, endpoint, account))
-    if (!issuedOn(send, current?.generation)) return fail(UNKNOWN)
     const ensured = await under(stop, () => connectionOf(send, access, endpoint))
     if (isHalted(ensured) || 'failure' in ensured) return ensured
-    if (!issuedOn(send, ensured.ok.generation)) return fail(UNKNOWN)
     return succeed({ ensured: ensured.ok, known: known.ok })
   }
 
-  function applyAnswer(on: Sent, answer: PeerAnswer): CallOutcome {
+  async function applyAnswer(on: Sent, answer: PeerAnswer): Promise<CallOutcome> {
     const { outputSchema } = on.known.lastLawful
     const outcome = classifyOutcome(
       answer,
       classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
     )
     loseIfLost(table, on.ensured, answer)
-    if (outcome.kind === 'task')
-      tasks.record(
-        {
-          tenant: on.key.tenant,
-          principalKey: on.key.principalKey,
-          holding: on.send.request.ref.holding,
-          taskId: outcome.taskId,
-        },
-        {
-          issuedAt: outcome.issuedAt,
-          account: on.ensured.key.account,
-          ...(outputSchema === undefined ? {} : { outputSchema }),
-        },
-      )
-    return outcome
+    return outcome.kind === 'task' ? keptTask({ ports, clock, scope }, on, outcome) : outcome
   }
 
   async function answerOf(on: Sent): Promise<InvokeResult> {
@@ -286,7 +295,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       if ('ok' in wire) scope.spawn(ask(() => wire.ok.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
     }
-    return sent(applyAnswer(on, waited.value))
+    return sent(await applyAnswer(on, waited.value))
   }
 
   async function sendOrder(

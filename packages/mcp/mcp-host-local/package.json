@@ -46,6 +46,7 @@
     "@modelcontextprotocol/node": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "@modelcontextprotocol/server-everything": "catalog:",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

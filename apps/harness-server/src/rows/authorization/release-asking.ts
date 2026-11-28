@@ -91,6 +91,7 @@ function draftOf(
         description: entry.scope,
         offered: entry.offered,
         lasting: entry.lasting,
+        role: entry.role,
       })),
     }),
   }
@@ -132,6 +133,7 @@ export async function askedDecision(
       effectiveArguments: asking.effectiveArguments,
       session: asking.session,
       agent: input.execution,
+      ...(input.nested === undefined ? {} : { program: true as const }),
     },
     offerOf(asking.lasting),
   )

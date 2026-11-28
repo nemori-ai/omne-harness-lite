@@ -1,5 +1,5 @@
 // @module-tag slow
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
 import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
@@ -62,8 +62,9 @@ describe('J1: three rounds of one conversation', () => {
     await w.createSession('j1')
     for (const round of [1, 2, 3]) {
       await w.runRound(round, `question ${round}`)
-      const { emitted, readThrough } = await w.progress(await w.execution())
-      expect(readThrough).toBe(emitted)
+      const ended = w.endedRuns().at(-1)
+      expect(ended?.outcome).toBe('completed')
+      await w.until(() => w.settled(ended!.execution), 10_000)
     }
     console.log(
       'J1-AD04',
@@ -207,7 +208,7 @@ describe('J2: a Tool result enters the next Model request', () => {
                   diagnostic: 'scenario',
                 },
               }
-            : { ok: { kind: 'tool', definition: testAdoption('w2-read_file') } }
+            : { ok: { kind: 'tool', definition: testToolDefinition(testAdoption('w2-read_file')) } }
         },
       },
     })
@@ -268,22 +269,12 @@ describe('J2: a Tool result enters the next Model request', () => {
     })
     worlds.push(w)
     await w.createSession('j2r')
-    await w.runRound(1, 'list the files')
+    const round = await w.runRound(1, 'list the files')
     expect(await w.lastOutcome()).toBe('completed')
     expect(w.modelCalls).toHaveLength(2)
     expect(w.receivedFailures).toEqual([])
-    const execution = await w.execution()
-    const page = ok(
-      await w.probeLog.output.read({ ...w.agentAccess, execution, after: null, limit: 100 }),
-    )
-    if (page.kind !== 'page') throw new Error('the output has a gap')
-    const received = page.events.filter(event => event.body.kind === 'entry')
-    expect(received).toHaveLength(2)
-    const replies = page.events.flatMap(event =>
-      event.body.kind === 'message' && event.body.message.role === 'assistant'
-        ? [event.body.message]
-        : [],
-    )
+    expect(round).toMatchObject({ modelReceives: 2 })
+    const replies = (await w.modelView()).filter(message => message.role === 'assistant')
     expect(replies).toHaveLength(2)
     expect(replies[1]?.blocks.map(block => block.kind)).toEqual(['text'])
     expect(textOf(replies[1]!)).toBe('not allowed')

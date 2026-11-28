@@ -28,7 +28,7 @@ export type ExpectedFailure =
         | 'discover-shape'
     }>
   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable' | 'session-ended' }>
-  | Readonly<{ kind: 'not-sent'; cause: 'authorization-required' }>
+  | Readonly<{ kind: 'not-sent'; cause: 'credential-rejected' }>
   | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
 
 export type TableConclusion = (
@@ -81,9 +81,11 @@ const malformed = (what: Extract<ExpectedFailure, { kind: 'answer-malformed' }>[
   fail({ kind: 'answer-malformed', what })
 const ERROR_ANSWER: TableConclusion = fail({ kind: 'error-answer' })
 const NOT_SENT = fail({ kind: 'not-sent', cause: 'connection-unavailable' })
-const AUTHORIZATION: TableConclusion = {
+// Every cell runs with a static credential presented, so a 401 or a scoped 403 rejects it.
+const CREDENTIAL_REJECTED: TableConclusion = {
   kind: 'failure',
-  failure: { kind: 'not-sent', cause: 'authorization-required' },
+  failure: { kind: 'not-sent', cause: 'credential-rejected' },
+  unusable: true,
   rejection: true,
 }
 const SESSION_ENDED: TableConclusion = {
@@ -359,7 +361,7 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     id: 'S05',
     requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
     answers: ['http:401', 'http:403+scope'],
-    conclusion: AUTHORIZATION,
+    conclusion: CREDENTIAL_REJECTED,
   },
   {
     id: 'S06',

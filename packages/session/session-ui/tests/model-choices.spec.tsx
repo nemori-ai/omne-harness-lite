@@ -2,13 +2,9 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import {
-  sessionModelChoicesKey,
-  type ModelChoiceHolder,
-  type ModelChoiceSource,
-} from '../src/cordis.ts'
+import type { ModelChoiceSource } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -41,11 +37,8 @@ async function settle(): Promise<void> {
   })
 }
 
-const picker = () => screen.queryByRole('combobox', { name: '新会话的模型' })
-const holderOf = (root: Context): ModelChoiceHolder =>
-  (root as unknown as { get(name: string): unknown }).get(
-    sessionModelChoicesKey,
-  ) as ModelChoiceHolder
+const picker = () => screen.queryByRole('button', { name: /新会话的模型/u })
+const holderOf = (root: Context) => providerOf(root, TAKEN.modelChoices)
 
 it('nobody lists models: the session interface is whole, and a new session names no model', async () => {
   const fake = createFakeClient()
@@ -58,7 +51,7 @@ it('nobody lists models: the session interface is whole, and a new session names
   expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '' })
 })
 
-it('a list is handed over: a new session starts with the model picked; taken away: the rest stays', async () => {
+it('a list is handed over: the sidebar still offers no model and a new session names none; taken away: the rest stays', async () => {
   const fake = createFakeClient()
   const { root, shell } = await mountModule(fake.client, TENANT)
   let withdraw: () => void = () => {}
@@ -66,12 +59,10 @@ it('a list is handed over: a new session starts with the model picked; taken awa
     withdraw = holderOf(root).attach(list)
   })
   await settle()
-  fireEvent.keyDown(picker()!, { key: 'Enter' })
-  fireEvent.click(await screen.findByRole('option', { name: /claude-y/u }))
-  await settle()
+  expect(picker()).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   const create = await fake.next('create-session')
-  expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '', model: CLAUDE })
+  expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '' })
 
   await act(async () => {
     withdraw()
@@ -103,10 +94,14 @@ it('the heading of a conversation shows the model Session answered, and a choice
   expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain('openai/gpt-x')
 })
 
-it('the place a list is handed over goes when the session interface unloads', async () => {
+it('while the session protocol is away the module is not adopted, whatever list is provided to it', async () => {
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
-  expect(holderOf(mounted.root)).toBeDefined()
   await mounted.withdraw()
-  expect(holderOf(mounted.root)).toBeUndefined()
+  await act(async () => {
+    holderOf(mounted.root).attach({ list: async () => ({ kind: 'listed', choices: [] }) })
+  })
+  await settle()
+  expect(mounted.shell.items('sidebar')).toEqual([])
+  expect(mounted.shell.adoption('session-ui')).toMatchObject({ kind: 'unavailable' })
 })

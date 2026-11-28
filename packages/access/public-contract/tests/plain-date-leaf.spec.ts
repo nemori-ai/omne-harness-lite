@@ -39,13 +39,18 @@ describe('the plain-date leaf', () => {
     ['day zero', '2026-10-00'],
     ['the thirty-first of a thirty-day month', '2026-09-31'],
   ])('rejects %s', (_label, value) => {
-    expect(day.read(holding(text(value)), limits)).toEqual({ ok: false })
-    expect(day.write({ date: value }, limits)).toEqual({ ok: false })
+    expect(day.read(holding(text(value)), limits).ok).toBe(false)
+    expect(day.write({ date: value }, limits).ok).toBe(false)
   })
 
   it('rejects a number', () => {
     expect(day.read(holding({ kind: 'number', lexeme: '20261010' }), limits)).toEqual({
       ok: false,
+      rejection: {
+        at: ['date'],
+        given: '20261010',
+        allows: 'a calendar date YYYY-MM-DD that exists',
+      },
     })
   })
 })

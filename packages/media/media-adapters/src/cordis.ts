@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { mediaConvertersPoint } from '@omne-harness/media-cordis-contract/cordis'
 import { mediaKey } from '@omne-harness/media-cordis-contract/cordis'
 import { sessionBeforeIntakeKey } from '@omne-harness/session-cordis-contract/cordis'
 import { ModelMediaSourceService } from '@omne-harness/model-cordis-contract/cordis'
@@ -44,7 +45,11 @@ export class MediaToolStorePlugin extends ToolMediaStoreService<unknown> {
 }
 
 /** Contributes the category `converter` to the assets while it is in the tree. */
-export const converterCategoryPlugin = categoryContributionPlugin('converter-category', {
-  contract: converterBodyContract(),
-  display: converterCategoryDisplay,
-})
+export const converterCategoryPlugin = categoryContributionPlugin(
+  'converter-category',
+  {
+    contract: converterBodyContract(),
+    display: converterCategoryDisplay,
+  },
+  mediaConvertersPoint,
+)

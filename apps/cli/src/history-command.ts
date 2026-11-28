@@ -1,4 +1,4 @@
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId, rejectionText } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import {
@@ -10,6 +10,7 @@ import {
   unrecognized,
   usageError,
 } from './command-support.ts'
+import { holdsMedia, readsOfSession } from './history-reads.ts'
 import { renderEntries, type RawEntry } from './history-render.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -76,7 +77,7 @@ async function readAll(
       cursor === null ? first : { tenant, session, cursor },
       messageId,
     )
-    if (result === undefined) return { kind: 'refused' }
+    if (result.kind === 'rejected') return { kind: 'refused' }
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { kind: 'stopped', entries, result, page }
     const read = pageOf(result.body)
@@ -97,6 +98,8 @@ function incompleteReason(reading: Exclude<Reading, { kind: 'complete' | 'refuse
   const { result, page } = reading
   if (result.kind === 'uncertain') return `page ${page} had no trusted answer`
   if (result.kind === 'unavailable') return `page ${page} was not sent: the service is unavailable`
+  if (result.kind === 'rejected')
+    return `page ${page} was not sent: ${rejectionText(result.rejection)}`
   return `page ${page} was answered ${result.outcome}`
 }
 
@@ -112,6 +115,22 @@ function resultObject(
       ? reading.result.outcome
       : 'succeeded'
   return { result: 'response', outcome, body, request }
+}
+
+async function historyText(
+  link: Link,
+  reading: Exclude<Reading, { kind: 'refused' }>,
+  at: Readonly<{ tenant: TenantId; session: string; messageId: string; newId: () => string }>,
+  json: boolean,
+): Promise<string> {
+  if (json) {
+    const request = { messageId: at.messageId, tenant: encodeTenantText(at.tenant) }
+    return `${JSON.stringify(resultObject(reading, request))}\n`
+  }
+  const reads = holdsMedia(reading.entries)
+    ? await readsOfSession(link, { tenant: at.tenant, session: at.session, newId: at.newId })
+    : undefined
+  return renderEntries(reading.entries, reads)
 }
 
 export async function runReadHistory(
@@ -148,12 +167,14 @@ export async function runReadHistory(
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
 
   const { entries } = reading
+  const text = await historyText(
+    loaded.link,
+    reading,
+    { tenant: owner, session, messageId, newId },
+    read.values.has('--json'),
+  )
   try {
-    output.stdout(
-      read.values.has('--json')
-        ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
-        : renderEntries(entries),
-    )
+    output.stdout(text)
   } catch {
     output.stderr(`omne ${name}: cannot write standard output\n`)
     return 1

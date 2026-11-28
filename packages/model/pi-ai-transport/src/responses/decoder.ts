@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { RouteAccounting } from '../config.ts'
+import { unreportedCost } from '../cost-lookup.ts'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
 import { plainDecimal } from '../chat-completions/decimal.ts'
 import type { ToolNames } from '../chat-completions/tool-names.ts'
@@ -470,7 +471,7 @@ function uncachedInput({ input, cacheRead, cacheWrite }: Finished['usage']): str
   return remainder < 0n ? 'negative' : String(remainder)
 }
 
-// The interface does not report which upstream served; the record pins exactly one.
+// The interface does not report which upstream served: the record pins exactly one, or the provider served it.
 function accountFact(
   input: ResponsesDecoderInput,
   phase: Finished,
@@ -485,17 +486,21 @@ function accountFact(
       counted('cache-write', usage.cacheWrite),
       counted('reasoning', usage.reasoning),
     ],
-    cost: costOf(usage, input.accounting.costUnit),
+    cost: costOf(usage, input.accounting),
     trimmed: { state: 'unknown', unit: 'token' },
-    place: `${input.accounting.place}/${input.record.serving.reports[0]}`,
+    place:
+      input.record.serving === null
+        ? input.accounting.place
+        : `${input.accounting.place}/${input.record.serving.reports[0]}`,
     duration: { state: 'unknown' },
     revision: '1',
   }
   return { kind: 'account', event: ACCOUNT_EVENT, value: report }
 }
 
-function costOf(usage: Usage, costUnit: string): CallAccountReport['cost'] {
-  if (usage.cost === null) return []
+function costOf(usage: Usage, accounting: RouteAccounting): CallAccountReport['cost'] {
+  const { costUnit } = accounting
+  if (usage.cost === null) return unreportedCost(accounting)
   const lexeme = plainDecimal(usage.cost)
   if (lexeme !== null) return [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }]
   return [{ state: 'unknown', unit: costUnit, source: 'billable' }]
@@ -512,7 +517,9 @@ function inBandError(code: string | null, errorType: string | null): Refusal {
             code === 'image_content_policy_violation'
           ? 'input-rejected'
           : 'unclassified'
-  return { fault: { cause, diagnostic: 'in-band-error', upstreamStatus: null } }
+  const fault = { cause, diagnostic: 'in-band-error', upstreamStatus: null } as const
+  const throttled = cause === 'upstream-unavailable' && code === 'rate_limit_exceeded'
+  return { fault: throttled ? { ...fault, throttled: true } : fault }
 }
 
 function blockId(index: string): BlockId {

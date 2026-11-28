@@ -1,8 +1,4 @@
-import type {
-  AgentJournalReading,
-  Failure as AgentFailure,
-  FinishIntent,
-} from '@omne-harness/agent-contract'
+import type { Failure as AgentFailure } from '@omne-harness/agent-contract'
 import type { Access } from '@omne-harness/legal-identity'
 import type {
   DispatchRecord,
@@ -10,6 +6,8 @@ import type {
   ModelCalls,
   ModelDiagnostics,
   ModelDiagnosticsPage,
+  ModelDispatchFact,
+  ModelDispatchFacts,
   ModelFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -17,17 +15,16 @@ import type {
   DiagnosticPage,
   ToolFailure,
   ToolInvocationQueries,
-  ToolLookup,
+  ToolStreamReferences,
+  ToolStreamSelection,
 } from '@omne-harness/tool-contract'
 import type { SessionDiagnosticUnknown } from '../view-types.ts'
 
-export type AgentFinishReader<P> = Pick<AgentJournalReading<P>, 'readFinish'>
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
-export type ToolCallReader<P> = Pick<
-  ToolInvocationQueries<P, never>,
-  'lookup' | 'account' | 'readDiagnostics'
->
+export type ModelFactReader<P> = Required<Pick<ModelDispatchFacts<P>, 'ofCall'>>
+export type ToolCallReader<P> = Pick<ToolStreamReferences<P>, 'current'> &
+  Pick<ToolInvocationQueries<P, never>, 'account' | 'readDiagnostics'>
 export type CallAccount = Extract<
   Awaited<ReturnType<ToolCallReader<unknown>['account']>>,
   { ok: unknown }
@@ -49,9 +46,9 @@ export interface ModelRequestReader<P> {
 }
 
 export type DiagnosticPorts<P> = Readonly<{
-  agentJournal?: AgentFinishReader<P>
   modelCalls?: ModelCallInspector<P>
   modelDiagnostics?: ModelAttemptReader<P>
+  modelFacts?: ModelFactReader<P>
   modelRequests?: ModelRequestReader<P>
   toolQueries?: ToolCallReader<P>
 }>
@@ -77,6 +74,7 @@ const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGa
   unavailable: 'unavailable',
   unsupported: 'unsupported',
   'not-settled': 'not-recorded',
+  reclaimed: 'not-recorded',
   'not-found': 'not-found',
   conflict: 'unavailable',
   'commit-unknown': 'unavailable',
@@ -91,15 +89,20 @@ const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGa
   changed: 'unavailable',
 }
 
-function reasonOf(failure: OwnerFailure, referenceField: string): SourceGapReason {
+function reasonOf(
+  failure: OwnerFailure,
+  referenceField: string,
+  unknownReference: SourceGapReason,
+): SourceGapReason {
   if (failure.kind === 'invalid')
-    return failure.field === referenceField ? 'not-found' : 'unavailable'
+    return failure.field === referenceField ? unknownReference : 'unavailable'
   return GAP_OF[failure.kind] ?? 'unavailable'
 }
 
 async function answerOf<T>(
   call: () => Promise<Outcome<T, OwnerFailure>>,
   referenceField: string,
+  unknownReference: SourceGapReason = 'not-found',
 ): Promise<SourceAnswer<T>> {
   let outcome: Outcome<T, OwnerFailure>
   try {
@@ -108,17 +111,17 @@ async function answerOf<T>(
     return UNAVAILABLE
   }
   if ('failure' in outcome)
-    return { kind: 'gap', reason: reasonOf(outcome.failure, referenceField) }
+    return { kind: 'gap', reason: reasonOf(outcome.failure, referenceField, unknownReference) }
   return { kind: 'value', value: outcome.ok }
 }
 
 export interface DiagnosticSources {
-  readFinish(execution: string): Promise<SourceAnswer<FinishIntent | null>>
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
+  listModelFacts(call: string): Promise<SourceAnswer<readonly ModelDispatchFact[]>>
   readRequestChoices(reference: string): Promise<SourceAnswer<readonly RequestBlockChoice[]>>
-  lookupToolCall(reference: string): Promise<SourceAnswer<ToolLookup>>
+  readToolState(reference: string): Promise<SourceAnswer<ToolStreamSelection>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
   readToolDiagnostics(reference: string): Promise<SourceAnswer<DiagnosticPage>>
 }
@@ -142,13 +145,8 @@ export function sourcesOf<P>(
   ports: DiagnosticPorts<P>,
   session: string,
 ): DiagnosticSources {
-  const { agentJournal, modelCalls, modelDiagnostics, modelRequests, toolQueries } = ports
-  const readFinish = agentJournal?.readFinish?.bind(agentJournal)
+  const { modelCalls, modelDiagnostics, modelFacts, modelRequests, toolQueries } = ports
   return {
-    readFinish: execution =>
-      readFinish === undefined
-        ? Promise.resolve(UNSUPPORTED)
-        : answerOf(() => readFinish({ ...access, execution: execution as never }), 'execution'),
     inspectModelCall: reference =>
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)
@@ -173,16 +171,21 @@ export function sourcesOf<P>(
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(() => modelCalls.dispatches({ ...access, call: call as never }), 'call'),
+    listModelFacts: call =>
+      modelFacts === undefined
+        ? Promise.resolve(UNSUPPORTED)
+        : answerOf(() => modelFacts.ofCall({ ...access, call: call as never }), 'call'),
     readRequestChoices: reference =>
       modelRequests === undefined
         ? Promise.resolve(UNSUPPORTED)
         : choicesOf(modelRequests, { ...access, session, reference }),
-    lookupToolCall: reference =>
+    readToolState: reference =>
       toolQueries === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(
-            () => toolQueries.lookup({ ...access, reference: reference as never }),
+            () => toolQueries.current({ access, reference: reference as never }),
             'reference',
+            'not-recorded',
           ),
     readToolAccount: reference =>
       toolQueries === undefined

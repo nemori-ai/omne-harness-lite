@@ -1,0 +1,10 @@
+ought.cfg pass
+ought-reject.cfg pass
+bad-first-only.cfg BatchNotSplit
+bad-void-answered.cfg AnsweredNotPending
+bad-reject-drops-batch.cfg NoSilentLoss
+bad-halt-pins-slot.cfg ActiveRunSettles
+bad-failed-finish-blocked.cfg ActiveRunSettles
+bad-no-scan.cfg ActiveRunSettles
+ought-deterministic.cfg pass
+bad-no-halt-bound.cfg ActiveRunSettles

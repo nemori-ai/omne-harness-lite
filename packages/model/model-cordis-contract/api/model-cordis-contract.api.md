@@ -17,12 +17,16 @@
 - `ModelClockService` · `cordis.d.ts`
 - `ModelCommandsService` · `cordis.d.ts`
 - `ModelCredentialService` · `cordis.d.ts`
+- `ModelDecisionPreparationService` · `cordis.d.ts`
 - `ModelDiagnosticsService` · `cordis.d.ts`
 - `ModelDispatchFactsService` · `cordis.d.ts`
 - `ModelHostAuthorityService` · `cordis.d.ts`
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
+- `ModelLiveCallsService` · `cordis.d.ts`
+- `ModelLivePreparationService` · `cordis.d.ts`
 - `ModelMediaSourceService` · `cordis.d.ts`
+- `ModelPreferencesService` · `cordis.d.ts`
 - `ModelPreparationResourcesService` · `cordis.d.ts`
 - `ModelProfileMaintenanceService` · `cordis.d.ts`
 - `ModelProfilesService` · `cordis.d.ts`
@@ -44,15 +48,20 @@
 - `modelClockKey` · `cordis.d.ts`
 - `modelCommandsKey` · `cordis.d.ts`
 - `modelCredentialKey` · `cordis.d.ts`
+- `modelDecisionPreparationKey` · `cordis.d.ts`
 - `modelDiagnosticsKey` · `cordis.d.ts`
 - `modelDispatchFactsKey` · `cordis.d.ts`
 - `modelHostAuthorityKey` · `cordis.d.ts`
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
+- `modelLiveCallsKey` · `cordis.d.ts`
+- `modelLivePreparationKey` · `cordis.d.ts`
 - `modelMediaSourceKey` · `cordis.d.ts`
+- `modelPreferencesKey` · `cordis.d.ts`
 - `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
 - `modelProfilesKey` · `cordis.d.ts`
+- `modelProvidersPoint` · `cordis.d.ts`
 - `modelPublicationAuthorityKey` · `cordis.d.ts`
 - `modelRequestPreparationKey` · `cordis.d.ts`
 - `modelRetryPolicyKey` · `cordis.d.ts`
@@ -83,8 +92,8 @@
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
-import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelLiveCalls, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
+import type { CredentialPort, ModelClock, ModelCommands, ModelDecisionPreparation, ModelHostAuthority, ModelLivePreparation, ModelInstanceHost, ModelMediaSource, ModelPreferencesPort, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelInstancesService } from './instances.ts';
 import { type ModelResultReceiverTable } from './receivers.ts';
 import type { ModelPublicationAuthority } from './registration.ts';
@@ -99,6 +108,12 @@ export declare abstract class ModelCredentialService<P = unknown> extends Servic
     abstract readonly resolve: CredentialPort<P>['resolve'];
 }
 export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelPreferencesService<P = unknown> extends Service implements ModelPreferencesPort<P> {
+    static readonly provide = "modelPreferences";
+    constructor(ctx: CordisContext);
+    abstract readonly read: ModelPreferencesPort<P>['read'];
+}
+export declare const modelPreferencesKey = "modelPreferences";
 export declare abstract class ModelMediaSourceService<P = unknown> extends Service implements ModelMediaSource<P> {
     static readonly provide = "modelMediaSource";
     constructor(ctx: CordisContext);
@@ -133,6 +148,8 @@ export declare abstract class ModelCommandsService<P> extends Service implements
     abstract readonly recall: ModelCommands<P>['recall'];
     abstract readonly scanPending: ModelCommands<P>['scanPending'];
     abstract readonly loadRecovery: ModelCommands<P>['loadRecovery'];
+    abstract readonly loadControl: ModelCommands<P>['loadControl'];
+    abstract readonly loadOrigin: ModelCommands<P>['loadOrigin'];
     abstract readonly loadRequest: ModelCommands<P>['loadRequest'];
     abstract readonly claim: ModelCommands<P>['claim'];
     abstract readonly prepareDispatch: ModelCommands<P>['prepareDispatch'];
@@ -211,6 +228,26 @@ export declare abstract class ModelRequestPreparationService<P> extends Service 
     abstract readonly prepare: ModelRequestPreparation<P>['prepare'];
 }
 export declare const modelRequestPreparationKey = "modelRequestPreparation";
+export declare abstract class ModelDecisionPreparationService<P> extends Service implements ModelDecisionPreparation<P> {
+    static readonly provide = "modelDecisionPreparation";
+    constructor(ctx: CordisContext);
+    abstract readonly prepare: ModelDecisionPreparation<P>['prepare'];
+}
+export declare const modelDecisionPreparationKey = "modelDecisionPreparation";
+export declare abstract class ModelLivePreparationService<P> extends Service implements ModelLivePreparation<P> {
+    static readonly provide = "modelLivePreparation";
+    constructor(ctx: CordisContext);
+    abstract readonly prepare: ModelLivePreparation<P>['prepare'];
+}
+export declare const modelLivePreparationKey = "modelLivePreparation";
+export declare abstract class ModelLiveCallsService<P> extends Service implements ModelLiveCalls<P> {
+    static readonly provide = "modelLiveCalls";
+    constructor(ctx: CordisContext);
+    abstract readonly command: ModelLiveCalls<P>['command'];
+    abstract readonly end: ModelLiveCalls<P>['end'];
+    abstract readonly media: ModelLiveCalls<P>['media'];
+}
+export declare const modelLiveCallsKey = "modelLiveCalls";
 export declare abstract class ModelPreparationResourcesService<P> extends Service implements ModelPreparationResources<P> {
     static readonly provide = "modelPreparationResources";
     constructor(ctx: CordisContext);
@@ -249,6 +286,9 @@ declare module '@deepseek-ai/cordis' {
         modelProfiles: ModelProfilesService<unknown>;
         modelProfileMaintenance: ModelProfileMaintenanceService<unknown>;
         modelRequestPreparation: ModelRequestPreparationService<unknown>;
+        modelDecisionPreparation?: ModelDecisionPreparationService<unknown>;
+        modelLivePreparation?: ModelLivePreparationService<unknown>;
+        modelLiveCalls?: ModelLiveCallsService<unknown>;
         modelPreparationResources: ModelPreparationResourcesService<unknown>;
         modelHostAuthority: ModelHostAuthorityService<unknown>;
         modelInstances: ModelInstancesService<unknown>;
@@ -261,6 +301,26 @@ declare module '@deepseek-ai/cordis' {
         'model-cordis-contract/call-changed'(tenant: TenantId, call: ModelCallId, revision: Revision): void;
     }
 }
+export declare const modelProvidersPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within' | 'valueAt' | 'from'>, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 ```
 
 ## 声明文件 `index.d.ts`

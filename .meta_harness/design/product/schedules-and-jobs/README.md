@@ -2,7 +2,7 @@
 id: PD-schedules-and-jobs
 title: 日程与作业
 status: draft
-revision: 6
+revision: 7
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 日程与作业
 
-本 topic 维护未来安排、一次接受的工作及其执行、提醒、同意、订阅和结果交付。正文按产品需求、能力定义、未决事项三块组织。
+本 topic 维护未来安排、一次接受的工作及其执行、提醒、订阅和结果交付。正文按产品需求、能力定义、未决事项三块组织。
 
 ## 状态
 

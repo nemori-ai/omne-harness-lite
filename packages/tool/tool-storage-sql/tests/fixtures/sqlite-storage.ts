@@ -24,11 +24,13 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
+import definitionMigration from '../../src/worker/migration-definitions.ts'
 import pendingMigration from '../../src/worker/migration-pending.ts'
 import usageMigration from '../../src/worker/migration-usage.ts'
 import participant from '../../src/worker/participant.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readBody from '../../src/worker/read-body.ts'
+import readDefinition from '../../src/worker/read-definition.ts'
 import readDue from '../../src/worker/read-due.ts'
 import readPending from '../../src/worker/read-pending.ts'
 import readUsage from '../../src/worker/read-usage.ts'
@@ -40,8 +42,9 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readUsage,
   readBody,
   readDue,
+  readDefinition,
 ]
-const MIGRATIONS = [migration, pendingMigration, usageMigration] as const
+const MIGRATIONS = [migration, pendingMigration, definitionMigration, usageMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
   directory: string
@@ -316,9 +319,10 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     },
     query: (identity): Promise<QueryResultV2> => {
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
-      if (identity.recall === 'never') return Promise.resolve({ kind: 'not_recallable', identity })
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: PROOFS })
       return Promise.resolve(
         saved(domain, identity) ?? { kind: 'not_committed', identity, proofs: PROOFS },
       )

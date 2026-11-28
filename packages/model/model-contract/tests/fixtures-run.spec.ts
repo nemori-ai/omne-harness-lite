@@ -1,11 +1,12 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { readSetReport } from './install-reports.ts'
 import type { FixtureSetReport } from './install/fixture-set.ts'
+import { removeAfterAll } from './install-tree.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
@@ -22,7 +23,7 @@ const ROLES = [
   'provider-author',
   'result-consumer',
 ]
-afterAll(() => rmSync(workDirectory, { recursive: true, force: true }))
+removeAfterAll(() => [workDirectory])
 
 function runFixtures(): { status: number; report: FixtureSetReport } {
   const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env

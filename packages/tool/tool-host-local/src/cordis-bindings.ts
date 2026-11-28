@@ -3,17 +3,22 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail } from '@omne-harness/operation-result'
 import { close, createSchemaProvider, type SchemaBudget } from '@omne-harness/schema-provider'
-import type { ReleaseDetailPolicy } from '@omne-harness/tool-contract'
+import type { Scope } from '@omne-harness/dynamis'
+import type { Access, ReleaseDetailPolicy } from '@omne-harness/tool-contract'
 import {
   ToolBindingsService,
   ToolCatalogService,
   ToolReleaseDetailsService,
+  toolEntrySourcesKey,
   type ToolContributionAuthority,
+  type ToolEntrySourcesService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolBindingRegistry } from './bindings.ts'
 import { createLocalToolCatalog, type LocalToolCatalogInput } from './catalog.ts'
 import { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 import { captureToolCaller, checkEmptyToolConfig } from './cordis-host.ts'
+import { createLocalEntrySources, type LocalEntrySourcesInput } from './entry-sources.ts'
+import { createLocalArgumentsCheck, type LocalProgramCallsInput } from './program-calls.ts'
 import { createLocalReleaseDetails, type ReleaseDetailAttach } from './release-details.ts'
 
 const RELEASE_DETAIL_SCHEMA_BUDGET: SchemaBudget = Object.freeze({
@@ -30,6 +35,9 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
 > &
   Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'> &
   Readonly<{
+    /** Given, the entries of the sources on `tool.entry-sources` join the catalog and can be called. */
+    entrySources?: Pick<LocalEntrySourcesInput<P, B>, 'codec' | 'policy'> &
+      Readonly<{ scope(access: Access<P>): Scope }>
     releaseDetails?: Readonly<{
       policy?: ReleaseDetailPolicy
       schemas?: SchemaBudget
@@ -37,8 +45,12 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
     }>
   }>
 
+/** The bindings service of this host: it also reads the arguments of a program call before it is placed. */
+export type LocalToolBindingsService<P, E, B extends ContentBlock> = ToolBindingsService<P, B, E> &
+  Readonly<{ programArguments: LocalProgramCallsInput<P>['checkArguments'] }>
+
 export type LocalToolBindingsPlugin<P, E, B extends ContentBlock> = {
-  new (ctx: Context, config?: Readonly<Record<string, never>>): ToolBindingsService<P, B, E>
+  new (ctx: Context, config?: Readonly<Record<string, never>>): LocalToolBindingsService<P, E, B>
   readonly inject: ['toolContributionAuthority']
   readonly provide: 'toolBindings'
 }
@@ -59,20 +71,35 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
     readonly inspect: ToolBindingsService<P, B, E>['inspect']
     readonly resolve: ToolBindingsService<P, B, E>['resolve']
     readonly recover: ToolBindingsService<P, B, E>['recover']
+    readonly programArguments: LocalProgramCallsInput<P>['checkArguments']
 
     constructor(ctx: Context, config?: Readonly<Record<string, never>>) {
       checkEmptyToolConfig(config)
       super(ctx)
       let retired = false
-      this.live = () => !retired && (ctx.fiber.state === 1 || ctx.fiber.state === 2)
+      const live = (this.live = () => !retired && (ctx.fiber.state === 1 || ctx.fiber.state === 2))
       ctx.effect(() => () => {
         retired = true
       })
       const verifier = ctx.toolContributionAuthority as ToolContributionAuthority<P>
-      const registry = (this.registry = createLocalToolBindingRegistry<P, E, B>({
+      const registered = (this.registry = createLocalToolBindingRegistry<P, E, B>({
         verifier,
         fiber: () => this.callers.getStore() ?? null,
       }))
+      const point = () => ctx.get(toolEntrySourcesKey) as ToolEntrySourcesService<P, B> | undefined
+      const sourced =
+        input.entrySources === undefined
+          ? null
+          : createLocalEntrySources<P, E, B>({
+              codec: input.entrySources.codec,
+              ...(input.entrySources.policy === undefined
+                ? {}
+                : { policy: input.entrySources.policy }),
+              sources: access =>
+                live() ? (point()?.sources(input.entrySources!.scope(access)) ?? []) : [],
+              hold: prefix => point()?.hold(prefix) ?? (() => {}),
+            })
+      const registry = sourced === null ? registered : sourced.registry(registered)
       const unavailable = () =>
         fail({
           kind: 'unavailable' as const,
@@ -85,17 +112,25 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
       this.close = key => (this.live() ? registry.close(key) : unknownKey())
       this.reopen = key => (this.live() ? registry.reopen(key) : unknownKey())
       this.drain = key => (this.live() ? registry.drain(key) : unknownKey())
+      this.programArguments = createLocalArgumentsCheck<P, E, B>(() =>
+        live() ? registry : undefined,
+      )
       const catalog = createLocalToolCatalog({
         registry,
         availability: input.availability,
         view: input.view,
         search: input.search,
+        sources: sourced?.entries ?? null,
       })
-      const live = this.live
       class Catalog extends ToolCatalogService<P> {
         readonly inspect: ToolCatalogService<P>['inspect'] = async request => {
           if (!live()) return unavailable()
           const answer = await catalog.inspect(request)
+          return live() ? answer : unavailable()
+        }
+        readonly inspectEach: ToolCatalogService<P>['inspectEach'] = async request => {
+          if (!live()) return unavailable()
+          const answer = await catalog.inspectEach(request)
           return live() ? answer : unavailable()
         }
         readonly usage: ToolCatalogService<P>['usage'] = async request => {

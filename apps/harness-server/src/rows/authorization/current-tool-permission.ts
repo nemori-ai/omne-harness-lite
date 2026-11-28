@@ -22,24 +22,17 @@ import {
   type PermissionBasisReading,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
-import type { StartCondition } from '@omne-harness/tool-host-local'
-import type {
-  Adoption,
-  FixedToolRequest,
-  ToolCallId,
-  ToolGate,
-  ToolOperationId,
-} from '@omne-harness/tool-contract'
-import { toolEnforcementKey } from '../../entry/tool-permission-release.ts'
+import type { Adoption, ToolGate } from '@omne-harness/tool-contract'
+import { categoryEnforcementKey } from '../../entry/category-gates.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
-import {
-  sessionAuthorizationGuardFacts,
-  type SessionAuthorizations,
-} from '@omne-harness/session-storage-sql/participants'
+import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
 import { onceAuthorizationFor, sessionGrantFor } from './authorization-facts.ts'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
-import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
+import type {
+  CapabilityIdentity,
+  PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import { interpretPermission } from '../governance/permission-interpreter.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
@@ -52,29 +45,23 @@ export type ToolPermissionAction = Readonly<{
   principal: ActingForTenantPrincipal
   tenant: TenantId
   operation: PermissionBasisRequest['operation']
+  capability: CapabilityIdentity
   definition: Adoption
   effectiveArguments: string
   gate: ToolGate
   /** The call only carries another action: only a prohibition of this gate counts. */
   carrier?: true
-  origin:
-    | (Readonly<{
-        kind: 'agent-action'
-        /** Set when this action is the target the Agent's call carries; the call is qualified. */
-        carrier?: Readonly<{ definition: Adoption; effectiveArguments: string }>
-        /** The judging pass over the Agent's batch: facts of the session are read once per pass. */
-        pass?: string
-      }> &
-        Pick<
-          Parameters<ActionAdmission<unknown>['admit']>[0],
-          'advance' | 'execution' | 'passage' | 'action' | 'original'
-        >)
-    | Readonly<{
-        kind: 'tool-call'
-        call: ToolCallId
-        admission: ToolOperationId
-        request: FixedToolRequest
-      }>
+  origin: Readonly<{
+    kind: 'agent-action'
+    /** Set when this action is the target the Agent's call carries; the call is qualified. */
+    carrier?: Readonly<{ definition: Adoption; effectiveArguments: string }>
+    /** The judging pass over the Agent's batch: facts of the session are read once per pass. */
+    pass?: string
+  }> &
+    Pick<
+      Parameters<ActionAdmission<unknown>['admit']>[0],
+      'advance' | 'execution' | 'passage' | 'action' | 'original'
+    >
 }>
 export function agentPermissionOperation(
   position: Pick<
@@ -96,12 +83,7 @@ export type PermissionRelease = Readonly<
   | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: GrantRef }
 >
 export type ToolPermissionDecision =
-  | (Extract<Decision, { kind: 'allow' }> &
-      Readonly<{
-        condition: StartCondition | null
-        release: PermissionRelease
-        authorization?: OnceAuthorization
-      }>)
+  | (Extract<Decision, { kind: 'allow' }> & Readonly<{ release: PermissionRelease }>)
   | Readonly<{ kind: 'ask'; evidence: DecisionEvidence; gate?: AskedGate }>
   | Exclude<Decision, { kind: 'allow' }>
 export type ToolPermissionCheck = Readonly<{
@@ -110,7 +92,6 @@ export type ToolPermissionCheck = Readonly<{
 export type CurrentPermissionRead = Readonly<{
   request: unknown
   reading: unknown
-  condition: StartCondition | null
   authorizations?: SessionAuthorizations | null
   consumer?: AuthorizationConsumer | null
 }>
@@ -120,7 +101,7 @@ export type CurrentPermissionSource = Readonly<{
 export type ToolPermissionContext = ToolPermissionAction &
   Readonly<{ inquiry: SessionInquiryView | null }>
 export type ToolPermissionPorts = Readonly<{
-  declarations(): readonly PermissionDeclaration[]
+  declarations(tenant: TenantId): readonly PermissionDeclaration[]
   source(): CurrentPermissionSource | undefined
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
 }>
@@ -131,12 +112,18 @@ const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, dia
 // A gate is found by the capability's identity in the declarations its category owners registered.
 export function declaredPermission(
   declarations: readonly PermissionDeclaration[],
-  input: Pick<ToolPermissionAction, 'definition' | 'gate'>,
+  input: Pick<ToolPermissionAction, 'capability' | 'definition' | 'gate'>,
 ) {
-  const entries = declarations.filter(entry => sameAdoption(entry.asset.adoption, input.definition))
+  const { category, name } = input.capability
+  const entries = declarations.filter(
+    entry =>
+      entry.asset.category === category &&
+      entry.asset.name === name &&
+      (entry.definition === null || sameAdoption(entry.definition, input.definition)),
+  )
   if (entries.length !== 1) return undefined
   const entry = entries[0]!
-  const key = toolEnforcementKey(input.gate)
+  const key = categoryEnforcementKey(category, input.gate)
   const bindings = entry.governance.declaration.enforcementBindings.filter(
     binding => binding.action === 'invoke' && binding.enforcementKey === key,
   )
@@ -193,8 +180,7 @@ function interpretReading(
   read: CurrentPermissionRead,
   inquiry: SessionInquiryView | null,
 ): ToolPermissionDecision {
-  const { reading: raw, condition } = read
-  const parsed = PermissionBasisReadingSchema.safeParse(raw)
+  const parsed = PermissionBasisReadingSchema.safeParse(read.reading)
   if (!parsed.success) return undecidable('The permission reading is malformed.')
   const reading = parsed.data
   const evidence = decisionEvidence('current-tool-permission', '2', {
@@ -230,7 +216,6 @@ function interpretReading(
     kind === 'allowed' ? { kind, revision, layer: layerOf(reading.evaluation) } : { kind, revision }
   return permissionDecisionOf(verdict, inquiry, input.carrier === true, {
     evidence,
-    condition,
     holders: { tenant: tenantId, session: sessionId },
     gateRef: { capability: request.capabilityId, key: request.enforcementKey },
     once: onceAuthorizationFor(input, read),
@@ -255,7 +240,6 @@ function layerOf(evaluation: Evaluation): 'tenant' | 'session' {
 
 type Found = Readonly<{
   evidence: DecisionEvidence
-  condition: StartCondition | null
   holders: ReleaseFacts['holders']
   gateRef: GateRef
   once?: OnceAuthorization | null
@@ -290,54 +274,18 @@ function sessionFactsOf(
   }
 }
 
-function heldGrant(grant: GrantRef, once: OnceAuthorization | null | undefined) {
-  switch (grant.via) {
-    case 'verdict':
-    case 'skip-ask':
-      return null
-    case 'session-grant': {
-      const { gate, source } = grant
-      return {
-        kind: 'session',
-        capabilityId: gate.capability,
-        enforcementKey: gate.key,
-        source,
-      } as const
-    }
-    case 'once':
-      if (!once) throw new Error('A release on a once authorization names none.')
-      return { kind: 'once', consumer: once.consumer, source: grant.source } as const
-  }
-}
-
-function guardedCondition(
-  decided: Extract<ReleaseDecision, { kind: 'release' }>,
-  { condition, holders, once }: Found,
-): StartCondition | null {
-  if (condition === null || decided.by === 'carrier') return condition
-  const held = heldGrant(decided.grant, once)
-  if (held === null) return condition
-  const commands = condition['commands']
-  if (!Array.isArray(commands)) throw new Error('A start condition carries no commands.')
-  const guard = sessionAuthorizationGuardFacts({ ...holders, grant: held })
-  return { ...condition, commands: [...commands, guard] }
-}
-
 const NOBODY_TO_ASK =
   'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.'
 
 function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermissionDecision {
-  const { evidence, once, gate } = found
+  const { evidence, gate } = found
   switch (decided.kind) {
     case 'release': {
-      const condition = guardedCondition(decided, found)
       const release: PermissionRelease =
         decided.by === 'carrier'
           ? { by: 'carrier', grant: null }
           : { by: decided.by, grant: decided.grant }
-      return decided.by === 'once' && once
-        ? { kind: 'allow', evidence, condition, release, authorization: once }
-        : { kind: 'allow', evidence, condition, release }
+      return { kind: 'allow', evidence, release }
     }
     case 'refuse':
       return {
@@ -361,10 +309,11 @@ export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPer
         const captured = {
           ...input,
           operation: { ...input.operation },
+          capability: { ...input.capability },
           definition: { ...input.definition },
           origin: structuredClone(input.origin),
         }
-        const released = declaredPermission(ports.declarations(), captured)
+        const released = declaredPermission(ports.declarations(captured.tenant), captured)
         if (released === undefined)
           return unavailable('No permission declaration names this capability and gate.')
         const { interpretation } = released

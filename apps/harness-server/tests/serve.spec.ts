@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 97 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 126 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -107,6 +107,7 @@ describe('serve: the release tree of doubles', () => {
         'session-before-intake:real',
         'session-history-index:real',
         'session-search:real',
+        'dynamis:real',
         'asset-categories:real',
         'tenant-assets:real',
         'governance:real',
@@ -159,8 +160,14 @@ describe('serve: the release tree of doubles', () => {
         'model-records:real',
         'tool-records:real',
         'tool-body-sweep:real',
+        'tool-entry-sources:real',
+        'slash-command:real',
+        'mcp-storage-sql:real',
+        'mcp:real',
         'tool-bindings:real',
         'skills:real',
+        'skill-command-source:real',
+        'prompt-command-source:real',
         'tool-runtime:real',
         'tool-executor:real',
         'tool-host:real',
@@ -170,23 +177,39 @@ describe('serve: the release tree of doubles', () => {
         'execution-environment:real',
         'execution-files:real',
         'execution-command:real',
+        'execution-program:real',
         'execution-host:real',
         'request-context:real',
         'agent-context:real',
         'context-compaction:real',
+        'loop-extension:real',
         'runtime-context:real',
         'runtime-context-tenant-scope:real',
         'session-intake-budget:real',
+        'workspace-outside-files:real',
         'session-observation:real',
         'dispatch:real',
         'dispatch-session:real',
         'dispatch-tool:real',
+        'goal:real',
+        'goal-session:real',
+        'schedule-session:real',
+        'goal-command:real',
+        'goal-decisions:real',
+        'system-extensions:real',
+        'goal-check:real',
+        'canvas:real',
+        'session-canvas:real',
+        'media-canvas:real',
         'server-entry:real',
         'identity-access:real',
         'session-access:real',
         'assets-access:real',
         'human-intervention-access:real',
+        'goal-access:real',
         'session-diagnostics-access:real',
+        'slash-command-access:real',
+        'mcp-access:real',
         'calendar-access:real',
         'schedule-access:real',
         'notification-access:real',
@@ -195,6 +218,12 @@ describe('serve: the release tree of doubles', () => {
         'tool-access:real',
         'model-access:real',
         'usage-access:real',
+        'canvas-access:real',
+        'interface-access:real',
+        'plugin-access:real',
+        'plugin-host:real',
+        'plugin-notification:real',
+        'plugin-server:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
       expect(run.startup).toMatchObject({
@@ -202,9 +231,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 99,
+        enabledRows: 128,
         barrierCalls: 1,
-        implementations: { real: 97, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 126, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -213,32 +242,34 @@ describe('serve: the release tree of doubles', () => {
     }
   })
 
-  it('the release gives the notification row no policy; without one from the operator the tree is not ready and the log names the policy', async () => {
-    expect(release.rows.find(r => r.id === 'notification')).toEqual({
-      id: 'notification',
-      plugin: 'notificationRow',
-      config: {},
-    })
-    const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
-    try {
-      const { ops } = withTelemetry(
-        operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
-      ) as { ops: { id: string }[] }
-      const run = await serveOnce({
-        distribution: release,
-        operator: { ops: ops.filter(op => op.id !== 'notification') },
-        readinessTimeoutMs: 15_000,
-        shutdownDeadlineMs: 5000,
-      })
-      expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
-      const said = run.records
-        .filter(r => r['component'] === 'notification' && r['level'] === 'error')
-        .map(r => String((r['fields'] as { text?: unknown }).text))
-      expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
-    } finally {
-      rmSync(base, { recursive: true, force: true })
-    }
-  })
+  it.each([
+    ['notification', 'notificationRow'],
+    ['canvas', 'canvasRow'],
+  ])(
+    'the release gives the %s row no policy; without one from the operator the tree is not ready and the log names the policy',
+    async (id, plugin) => {
+      expect(release.rows.find(r => r.id === id)).toEqual({ id, plugin, config: {} })
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+      try {
+        const { ops } = withTelemetry(
+          operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
+        ) as { ops: { id: string }[] }
+        const run = await serveOnce({
+          distribution: release,
+          operator: { ops: ops.filter(op => op.id !== id) },
+          readinessTimeoutMs: 15_000,
+          shutdownDeadlineMs: 5000,
+        })
+        expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
+        const said = run.records
+          .filter(r => r['component'] === id && r['level'] === 'error')
+          .map(r => String((r['fields'] as { text?: unknown }).text))
+        expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
+      } finally {
+        rmSync(base, { recursive: true, force: true })
+      }
+    },
+  )
 
   it.each([
     ['agent-journal', 'agentJournalRow'],
@@ -252,6 +283,31 @@ describe('serve: the release tree of doubles', () => {
       expect(row?.config).toEqual({ combinationVersion })
     },
   )
+
+  it('a provider is asked to stop after the rows that need it, whatever phase each declares; the entry row is first', async () => {
+    const run = await serveOnce({
+      distribution: release,
+      operator: await releaseOperator(),
+      readinessTimeoutMs: 15_000,
+      shutdownDeadlineMs: 5000,
+    })
+    expect(run.result.exitCode).toBe(0)
+    const stops = run
+      .of('shutdown-step')
+      .filter(r => r['action'] === 'stop-call')
+      .map(r => String(r['row']))
+    const before = (first: string, then: string) =>
+      expect([first, then, stops.indexOf(first) < stops.indexOf(then)]).toEqual([first, then, true])
+    // The three places where the order of the phases ran against the dependencies.
+    before('dispatch-session', 'session-provider')
+    before('goal-session', 'session-provider')
+    before('goal-decisions', 'model-host')
+    expect(stops[0]).toBe('server-entry')
+    expect(stops.at(-1)).toBe('storage')
+    // The live tree has edges no manifest declares: the injections of child fibers. They are told once.
+    const undeclared = run.of('row-edges')[0]?.['undeclared']
+    expect(Array.isArray(undeclared) && undeclared.length > 0).toBe(true)
+  })
 
   it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
@@ -507,29 +563,40 @@ describe('serve: checks before loading', () => {
   })
 })
 
-describe('serve: the four phases with fixture rows', () => {
-  it('start runs storage → composition → business → entry, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
+describe('serve: the order of start and stop with fixture rows', () => {
+  it('a row starts after what it needs and the entry row last, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
     const log: string[] = []
     const run = await serveOnce({
       distribution: tree([
         { id: 'fx-entry', plugin: 'fxEntry' },
-        { id: 'fx-business', plugin: 'fxBusiness' },
         { id: 'fx-composition', plugin: 'fxComposition' },
+        { id: 'fx-business', plugin: 'fxBusiness' },
         { id: 'storage', plugin: 'fixtureStorage' },
       ]),
       plugins: {
         stubPlugin,
         fixtureStorage: fixturePlugins.fixtureStorage,
         fxEntry: syntheticRow({ id: 'fx-entry', phase: 'entry', log }),
-        fxBusiness: syntheticRow({ id: 'fx-business', phase: 'business', log }),
-        fxComposition: syntheticRow({ id: 'fx-composition', phase: 'composition', log }),
+        fxBusiness: syntheticRow({
+          id: 'fx-business',
+          phase: 'business',
+          log,
+          injects: ['fxComposed'],
+        }),
+        fxComposition: syntheticRow({
+          id: 'fx-composition',
+          phase: 'composition',
+          log,
+          provides: ['fxComposed'],
+        }),
       },
       entryObjects: [fixtureStorageHost()],
     })
     expect(run.result.exitCode).toBe(0)
+    // The storage row and the fixture rows need nothing of each other here: they start and stop side by side.
     expect(run.startup['startedRows']).toEqual([
-      'storage',
       'fx-composition',
+      'storage',
       'fx-business',
       'fx-entry',
     ])
@@ -545,8 +612,8 @@ describe('serve: the four phases with fixture rows', () => {
     expect(stops.map(r => r['row'])).toEqual([
       'fx-entry',
       'fx-business',
-      'fx-composition',
       'storage',
+      'fx-composition',
     ])
     expect(seq(run, 'report-fixed')[0]).toBeLessThan(seq(run, 'report-settled-call')[0]!)
     expect(storageEvents).toEqual(['start', 'close:assembly', 'report-settled'])

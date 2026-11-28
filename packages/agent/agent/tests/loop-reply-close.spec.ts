@@ -42,7 +42,7 @@ function coordinator(assembly: LoopAssembly) {
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
     idle() {},
   })

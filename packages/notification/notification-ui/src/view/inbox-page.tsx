@@ -1,19 +1,30 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
-  Button,
   EmptyState,
+  GlideMenu,
   InlineNotice,
   LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Segmented,
 } from '@omne-harness/ui-kit'
 import type { JSX, ReactNode } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import type { InboxHub } from '../model/inbox-hub.ts'
-import { keyOf, sectionsOf, type Entry, type Filter, type State } from '../model/inbox-machine.ts'
-import { EntryRow } from './entry-row.tsx'
+import {
+  keyOf,
+  labelOf,
+  sectionsOf,
+  type Entry,
+  type Filter,
+  type State,
+} from '../model/inbox-machine.ts'
+import { EntryRow, type RowDrawer } from './entry-row.tsx'
 import { useInbox, useTenant } from './use-inbox.ts'
+import { notificationPage, notificationPageFilter, notificationPageGroup } from '../parts.ts'
+
+const OWN_ROW: RowDrawer = (_entry, generic) => generic()
 
 export type InboxPageProps = Readonly<{
   hub: InboxHub
@@ -22,6 +33,8 @@ export type InboxPageProps = Readonly<{
   sections?: ReactNode
   /** The key of the notification the page was brought up on, such as from a toast. */
   focus?: string
+  /** What draws the inside of a row; `generic` is the row the page draws itself. */
+  row?: RowDrawer
 }>
 
 const FILTERS = [
@@ -33,13 +46,21 @@ export function InboxPage(props: InboxPageProps): JSX.Element {
   const tenant = useTenant(props.tenant)
   if (tenant === undefined)
     return (
-      <PageColumn className="notification-page">
+      <PageColumn className="notification-page" {...notificationPage.props}>
         <InlineNotice tone="danger" role="alert">
           <p>外壳给的租户读不懂，这一页不能工作。</p>
         </InlineNotice>
       </PageColumn>
     )
-  return <Inbox hub={props.hub} tenant={tenant} sections={props.sections} focus={props.focus} />
+  return (
+    <Inbox
+      hub={props.hub}
+      tenant={tenant}
+      sections={props.sections}
+      focus={props.focus}
+      row={props.row ?? OWN_ROW}
+    />
+  )
 }
 
 type InboxProps = Readonly<{
@@ -47,36 +68,27 @@ type InboxProps = Readonly<{
   tenant: TenantId
   sections: ReactNode
   focus: string | undefined
+  row: RowDrawer
 }>
 
-function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
+function Inbox({ hub, tenant, sections, focus, row }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
-    <PageColumn className="notification-page">
-      <PageHeader
-        title="通知"
-        description="来源发给你的事件。办完或划掉之后不再提醒，随时可以恢复。"
-        actions={
-          <>
-            <Segmented
-              label="显示哪些通知"
-              value={state.filter}
-              options={FILTERS}
-              onValueChange={filter => driver.filter(filter)}
-            />
-            <Button
-              variant="outline"
-              disabled={state.read.kind === 'reading'}
-              onClick={() => driver.refresh()}
-            >
-              刷新
-            </Button>
-          </>
-        }
-      />
-      <LiveLine state={state} />
-      <Body state={state} driver={driver} focus={focus} />
-      {sections}
+    <PageColumn className="notification-page" {...notificationPage.props}>
+      <PageHeader title="通知" description="来源发给你的事件。" />
+      <div className="notification-column">
+        <div className="notification-scope" {...notificationPageFilter.props}>
+          <Segmented
+            label="显示哪些通知"
+            value={state.filter}
+            options={FILTERS}
+            onValueChange={filter => driver.filter(filter)}
+          />
+        </div>
+        <LiveLine state={state} />
+        <Body state={state} driver={driver} focus={focus} row={row} />
+        {sections}
+      </div>
     </PageColumn>
   )
 }
@@ -97,7 +109,12 @@ function LiveLine({ state }: { readonly state: State }): JSX.Element | null {
   return null
 }
 
-type BodyProps = Readonly<{ state: State; driver: InboxDriver; focus: string | undefined }>
+type BodyProps = Readonly<{
+  state: State
+  driver: InboxDriver
+  focus: string | undefined
+  row: RowDrawer
+}>
 
 function Section({
   title,
@@ -105,29 +122,39 @@ function Section({
   state,
   driver,
   focus,
+  row,
 }: BodyProps & { title: string; entries: readonly Entry[] }) {
   if (entries.length === 0) return null
   return (
-    <section className="notification-section" role="region" aria-label={title}>
+    <section
+      className="notification-section"
+      role="region"
+      aria-label={title}
+      {...notificationPageGroup.props}
+    >
       <h3 className="notification-section-title">
         {title}（{entries.length}）
       </h3>
-      <ul className="notification-list">
-        {entries.map(entry => (
-          <EntryRow
-            key={keyOf(entry)}
-            entry={entry}
-            state={state}
-            driver={driver}
-            focused={keyOf(entry) === focus}
-          />
-        ))}
-      </ul>
+      <GlideMenu>
+        <ul className="notification-list">
+          {entries.map(entry => (
+            <EntryRow
+              key={keyOf(entry)}
+              entry={entry}
+              source={labelOf(state, entry.source)}
+              state={state}
+              driver={driver}
+              focused={keyOf(entry) === focus}
+              drawn={row}
+            />
+          ))}
+        </ul>
+      </GlideMenu>
     </section>
   )
 }
 
-function Body({ state, driver, focus }: BodyProps): JSX.Element {
+function Body({ state, driver, focus, row }: BodyProps): JSX.Element {
   const { read } = state
   const { open, settled } = sectionsOf(state)
   const empty = open.length + settled.length === 0
@@ -137,18 +164,32 @@ function Body({ state, driver, focus }: BodyProps): JSX.Element {
         <InlineNotice
           tone="caution"
           role="status"
-          action={{ label: '重试', onClick: () => driver.refresh() }}
+          action={{ label: '重试', icon: RetryIcon, onClick: () => driver.refresh() }}
         >
           <p>{empty ? '收件箱现在读不出。' : '收件箱现在读不出，下面是上一次读到的。'}</p>
         </InlineNotice>
       ) : null}
       {read.kind === 'ready' && read.more ? (
         <InlineNotice tone="caution" role="status">
-          <p>通知太多，这里没有列全。办完或划掉一些之后再刷新。</p>
+          <p>通知太多，这里没有列全。</p>
         </InlineNotice>
       ) : null}
-      <Section title="未了结" entries={open} state={state} driver={driver} focus={focus} />
-      <Section title="已了结" entries={settled} state={state} driver={driver} focus={focus} />
+      <Section
+        title="未了结"
+        entries={open}
+        state={state}
+        driver={driver}
+        focus={focus}
+        row={row}
+      />
+      <Section
+        title="已了结"
+        entries={settled}
+        state={state}
+        driver={driver}
+        focus={focus}
+        row={row}
+      />
       {!empty ? null : read.kind === 'ready' ? (
         <EmptyState title={state.filter === 'all' ? '收件箱是空的' : '没有未了结的通知'} />
       ) : read.kind === 'failed' ? null : (

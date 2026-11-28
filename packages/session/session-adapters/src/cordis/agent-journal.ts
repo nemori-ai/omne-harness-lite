@@ -1,3 +1,5 @@
+import { terminalParticipant } from './agent-journal-participant.ts'
+import { createJournalHistoryReadiness } from './agent-journal-history.ts'
 import { historyCaller } from './history-caller.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
@@ -20,17 +22,12 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  cancellationDriveOf,
   commandDigest,
-  judgeCompletion,
   mutationAccessRequest,
-  type InputId,
   type SessionAccessCheck,
   type SessionCommand,
   type SessionFailure,
   type SessionId,
-  type SessionControlEvidence,
-  type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
@@ -54,14 +51,13 @@ import {
 import type {
   DomainRef,
   FactCommandV2,
-  JsonValue,
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
+import { reportUnstored, unstoredText } from './unstored-blocks.ts'
 import {
   commitJournal,
   refusalFailure,
-  standingOf,
   type GenerationMemory,
   type JournalCombination,
 } from '../journal-commit.ts'
@@ -69,13 +65,20 @@ import {
   BATCH_OVERHEAD_BYTES,
   emptySessionView,
   receiptOf as batchReceiptOf,
-  type ExecutionView,
   type ParticipationKind,
+  settled as settledView,
   type PublishedBatch,
-  type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
-import { adoptedIn } from './adopted-in.ts'
+import {
+  readAdoptedIn,
+  readChoices,
+  type AdoptedRead,
+  type ChoicesRead,
+  type Unread,
+} from './adopted-in.ts'
+import { admittedInput, openedInputs } from './admitted-inputs.ts'
+import { adoptionRows } from './adoption-rows.ts'
 import {
   participationAccessFailure,
   participationFailure,
@@ -92,16 +95,22 @@ import {
   type MemoryAgentJournalOptions,
   type MemoryExecution,
 } from '../testing/journal.ts'
-import { JOURNAL_OWNER, operationText, revisionOf } from '../testing/journal-values.ts'
+import {
+  JOURNAL_OWNER,
+  named,
+  operationText,
+  revisionOf,
+  targetOf,
+} from '../testing/journal-values.ts'
+import { READS, ROUTE_ONLY } from './journal-methods.ts'
 import {
   createCell,
   operationSemantic,
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { ContentRefs, keepNamed, releaseBlocks } from './content-refs.ts'
-import { fetchNamed } from './block-read.ts'
+import { factDigestOf } from './journal-batch.ts'
+import { ContentRefs, keepNamed, settleBlocks } from './content-refs.ts'
 import {
   ANSWER_FAMILY,
   NeedItems,
@@ -128,23 +137,31 @@ import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-pr
 import {
   headsOf,
   JOURNAL_PROVIDER,
+  publicationRetries,
+  type Settled,
   preparePublication,
   unavailable,
   type Prepared,
 } from './journal-publication.ts'
 import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
 import {
-  readBlob,
-  readEvents,
   readOpenExecutions,
   readTouched,
   readOperation,
   readOutput,
   readerOf,
-  type Reader,
+  recordedStanding,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 import { createModelTelling, type StepOpening } from './model-telling.ts'
+import {
+  createTenantSweep,
+  evict,
+  fetchBlobs,
+  forget,
+  reclaimedCommit,
+} from './settled-executions.ts'
+import { resolveDomain } from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -155,6 +172,7 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
+  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
 }> &
   StepOpening<P>
 
@@ -182,20 +200,6 @@ export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock
   targets: ModelReceptionTargets<P>
   toolTargets: ToolReceptionTargets<P>
 }
-
-export type AdoptedPart = Readonly<{
-  order: string
-  execution: string
-  reference: string
-  fixed: DurableEvidence
-  coverage: DurableEvidence | null
-  schema: RequestView['schema']
-  record: JsonValue
-}>
-
-export type AdoptedRead =
-  | Readonly<{ kind: 'value'; value: AdoptedPart | null }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 type Scratch = {
   checks: SessionCheck[]
@@ -232,6 +236,7 @@ type Book<P> = {
   copy: Copy<P> | null
   published: number | null
   readonly loaded: Set<string>
+  readonly settled: Set<string>
   scratch: Scratch | null
   queue: Promise<void>
   users: number
@@ -247,25 +252,6 @@ type Book<P> = {
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-const LOST_RACES = 4
-const READS: ReadonlySet<string> = new Set([
-  'load',
-  'readCancellationInstallation',
-  'inputs',
-  'readReplyAdmissions',
-  'query',
-  'inputAcceptance',
-  'output.read',
-  'materials.read',
-  'materials.describe',
-  'entries.read',
-  'entries.receivedOf',
-  'received.query',
-  'targets.forExecution',
-  'targets.resolve',
-  'toolTargets.forExecution',
-  'toolTargets.resolve',
-])
 const OWNER = JOURNAL_PROVIDER
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
 const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
@@ -287,8 +273,6 @@ type Written = Readonly<{
   operation: string | null
   digest: string
 }>
-
-const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
@@ -327,105 +311,13 @@ export function materialSessionOf(
     : null
 }
 
-export type InterpretableEvent = Readonly<{
-  sequence: string
-  source: DurableEvidence
-  consequences: readonly SessionLogConsequence[] | null
-  control: SessionControlEvidence | null
-}>
-
-export type ExecutionInterpretation = Readonly<{
-  revision: string
-  head: DurableEvidence
-  emittedThrough: string
-  events: readonly InterpretableEvent[]
-}>
-
-export type InterpretationRead =
-  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-type DomainResolution =
-  | Readonly<{ kind: 'ready'; domain: DomainRef }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-async function resolveDomain(
-  lookup: TenantDomainLookup,
-  tenant: string,
-): Promise<DomainResolution> {
-  let found
-  try {
-    found = await lookup.lookup({ tenant })
-  } catch (error) {
-    return { kind: 'unavailable', diagnostic: `the tenant domain lookup threw: ${String(error)}` }
-  }
-  if (found.kind === 'ready') return { kind: 'ready', domain: found.domain }
-  return {
-    kind: 'unavailable',
-    diagnostic:
-      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-  }
-}
-
-export type JournalStateSource = Readonly<{
-  storage: SqlStorage
-  tenantDomainLookup: TenantDomainLookup
-}>
-
-type Resolved = Readonly<{ domain: DomainRef; tenant: string; read: Reader }>
-
-export async function resolvedOf(
-  options: JournalStateSource,
-  tenant: TenantId,
-): Promise<Resolved | Readonly<{ kind: 'unavailable'; diagnostic: string }>> {
-  const text = tenantCodec.encode(tenant)
-  if (!text.ok)
-    return { kind: 'unavailable', diagnostic: 'the tenant was not minted by legal-identity' }
-  const resolved = await resolveDomain(options.tenantDomainLookup, text.value)
-  if (resolved.kind === 'unavailable') return resolved
-  return {
-    domain: resolved.domain,
-    tenant: text.value,
-    read: readerOf(options.storage, resolved.domain),
-  }
-}
-
-export async function readExecutionInterpretation(
-  options: JournalStateSource,
-  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
-): Promise<InterpretationRead> {
-  const resolved = await resolvedOf(options, target.tenant)
-  if ('kind' in resolved) return resolved
-  const read = await readEvents(
-    resolved.read,
-    { tenant: resolved.tenant, session: target.session },
-    target.execution,
-    target.after,
-  )
-  if (read.kind === 'absent') return { kind: 'read', execution: null }
-  if (read.kind === 'unavailable') return read
-  return {
-    kind: 'read',
-    execution: {
-      revision: read.revision,
-      head: read.receipt as unknown as DurableEvidence,
-      emittedThrough: read.emittedThrough,
-      events: read.events.map(event => ({
-        sequence: event.sequence,
-        source: event.source as unknown as DurableEvidence,
-        consequences: event.consequences as unknown as readonly SessionLogConsequence[] | null,
-        control: event.control as unknown as SessionControlEvidence | null,
-      })),
-    },
-  }
-}
-
 // The views of these executions as the store holds them open, in place of what the book held.
 function adopt<P>(
   book: Book<P>,
-  found: Readonly<{ views: readonly ExecutionView[]; full: readonly ExecutionView[] }>,
+  found: Extract<Awaited<ReturnType<typeof readOpenView>>, { kind: 'read' }>,
   published: number,
 ): void {
+  book.refs.keep(book, [], found.contents.values())
   const executions = new SharedMap(book.view.executions)
   for (const view of found.views) {
     executions.set(view.execution, view)
@@ -434,18 +326,14 @@ function adopt<P>(
       if (key.startsWith(`${view.execution}\0`)) book.origins.delete(key)
   }
   for (const view of found.full) book.full.set(view.execution, view)
+  for (const execution of found.settled) {
+    executions.delete(execution as AgentExecutionId)
+    forget(book, execution)
+  }
   book.view = { head: Math.max(book.view.head, published), executions }
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
   turn(book.turns)
-}
-
-async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
-  const views = recordsView(book.view, book.full).executions.values()
-  const missing = await fetchNamed(read, book.tenantText, views, book.blobs)
-  return missing === null
-    ? null
-    : unavailable(`the content block ${missing} of the Agent records is not readable`)
 }
 
 function projectionContext(
@@ -483,7 +371,6 @@ function jointState<P>(
   const root = cell.state()
   const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
   return {
-    accepted: execution?.inputs.filter(() => true),
     snapshot: book.scratch?.snapshot,
     resultOf(caller) {
       if (execution === undefined) return fail({ kind: 'denied', action: method })
@@ -514,7 +401,7 @@ function publicationOf<P>(
     closedBefore: before.agent.closed,
     view: book.view,
     published: book.published ?? 0,
-    stored: row => book.blobs.has(row),
+    held: row => book.refs.held(book, row, appended[0]!.execution),
     after,
     own,
     appended,
@@ -546,17 +433,13 @@ function kindsOf(scratch: Scratch): ParticipationKind[] {
   return kinds
 }
 
-type Settled<T> =
-  | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
-  | Readonly<{ kind: 'again' }>
-  | Readonly<{ kind: 'fetch'; refs: readonly ItemRef[] }>
-
 type Published<P, T> = Readonly<{
   book: Book<P>
   copy: Copy<P>
   after: CommonRoot
   prepared: Prepared
   execution: string
+  settles: boolean
   written: Written
   prior: ExecutionRevision | null
   scratch: Scratch
@@ -630,6 +513,35 @@ function finishChanged<P, T>(job: Settling<P, T>): Settled<T> {
   return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
 }
 
+async function queryCold<P>(
+  book: Book<P>,
+  input: Parameters<AgentJournal<P>['query']>[0],
+  answer: Awaited<ReturnType<AgentJournal<P>['query']>>,
+  using: Readonly<{
+    domain: () => Promise<Outcome<DomainRef, Failure>>
+    storage: SqlStorage
+    mint: Parameters<typeof batchReceiptOf>[0]
+  }>,
+): Promise<typeof answer> {
+  const terminal = 'failure' in answer && answer.failure.kind === 'terminal'
+  if (!terminal && ('failure' in answer || answer.ok.kind !== 'unknown')) return answer
+  const domain = await using.domain()
+  if ('failure' in domain) return answer
+  const found = await readOperation(
+    readerOf(using.storage, domain.ok),
+    book.tenantText,
+    storageOperation(input.execution, input.operation) as AgentOperationId,
+  )
+  if (found.kind !== 'read' && found.kind !== 'reclaimed') return answer
+  if (found.session !== book.session || found.execution !== input.execution) return answer
+  if (found.kind === 'reclaimed') return reclaimedCommit<P>(input, found) ?? answer
+  if (terminal || found.batch.batch === null) return answer
+  return succeed({
+    kind: 'committed',
+    receipt: batchReceiptOf(using.mint, book.view, found.batch.batch),
+  })
+}
+
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
   const counts = publishedCountsOf(options.storage)
@@ -657,6 +569,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         copy: null,
         published: null,
         loaded: new Set(),
+        settled: new Set(),
         scratch: null,
         queue: Promise.resolve(),
         users: 0,
@@ -689,6 +602,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         resting.blobs.clear()
         resting.parsed.clear()
         resting.loaded.clear()
+        resting.settled.clear()
         resting.full.clear()
       }
       resting = null
@@ -709,11 +623,18 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return run
   }
 
-  async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
-    const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
-    return resolved.kind === 'ready'
-      ? succeed(resolved.domain)
-      : fail(unavailable(resolved.diagnostic))
+  const sweep = createTenantSweep({ ...options, generations })
+  type TenantAt = Pick<Book<P>, 'tenant' | 'tenantText'>
+  const unreadOf = (failure: Failure): Unread => ({
+    kind: 'unavailable',
+    diagnostic: failure.kind === 'unavailable' ? failure.diagnostic : failure.kind,
+  })
+
+  async function domainOf(at: TenantAt): Promise<Outcome<DomainRef, Failure>> {
+    const resolved = await resolveDomain(options.tenantDomainLookup, at.tenantText)
+    if (resolved.kind !== 'ready') return fail(unavailable(resolved.diagnostic))
+    await sweep.open(at.tenant, at.tenantText, resolved.domain)
+    return succeed(resolved.domain)
   }
 
   const scopeOf = (book: Book<P>) => ({ tenant: book.tenantText, session: book.session })
@@ -753,20 +674,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     switch (method) {
       case 'open': {
         const value = input as OpenInput<P>
-        const entry = value.original.entry
-        const initial = entry.kind === 'invoke' ? entry.initial : entry.value
-        if (value.runtime.grant === null || initial.source === null)
+        const initial = openedInputs(value.originals)
+        if (value.runtime.grant === null || initial === null)
           return { kind: 'denied', action: 'open' }
-        scratch.checks.push({
-          ...scope,
-          kind: 'open',
-          grant: value.runtime.grant,
-          initial: {
-            input: String(initial.id) as InputId,
-            origin: initial.source,
-            message: initial.content,
-          },
-        })
+        scratch.checks.push({ ...scope, kind: 'open', grant: value.runtime.grant, initial })
         return undefined
       }
       case 'attach': {
@@ -776,17 +687,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       }
       case 'submit': {
-        const value = (input as Parameters<AgentJournal<P>['submit']>[0]).value
-        if (value.source === null) return { kind: 'denied', action: 'submit' }
-        scratch.checks.push({
-          ...scope,
-          kind: 'submit',
-          value: {
-            input: String(value.id) as InputId,
-            origin: value.source,
-            message: value.content,
-          },
-        })
+        const value = admittedInput((input as Parameters<AgentJournal<P>['submit']>[0]).value)
+        if (value === null) return { kind: 'denied', action: 'submit' }
+        scratch.checks.push({ ...scope, kind: 'submit', value })
         return undefined
       }
       case 'tryFinish': {
@@ -853,53 +756,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
     if (decision.kind !== 'allowed') return fail(participationAccessFailure(decision, method))
     return succeed({ evidence: decision.evidence, digest: commandDigest(derived.ok) })
-  }
-
-  function terminalParticipant(
-    book: Book<P>,
-    cell: JournalCell<P>,
-    execution: AgentExecutionId,
-    control: string,
-  ) {
-    const unread = {
-      owner: OWNER,
-      record: `${book.tenantText}/${book.session}/participant/unread`,
-      revision: '0',
-      digest: 'unread',
-    }
-    const fact = (source: typeof unread, condition: { kind: 'ready' | 'changed' | 'unknown' }) => ({
-      owner: 'session',
-      protocol: {
-        owner: '@omne-harness/session-contract',
-        name: 'pa-02-terminal-participation',
-        revision: '1',
-        digest: 'session-log:pa-02',
-      },
-      source,
-      version: source,
-      condition,
-      purpose: {
-        owner: OWNER,
-        record: `${cell.namespace}/participant/judge-cancellation`,
-        revision: '0',
-        digest: 'purpose',
-      },
-    })
-    const snapshot = book.scratch?.snapshot ?? null
-    if (snapshot === null) return fact(unread, { kind: 'unknown' })
-    const judged = judgeCompletion(snapshot, execution)
-    switch (judged.kind) {
-      case 'allowed':
-        return fact(unread, { kind: 'ready' })
-      case 'blocked':
-        return fact(unread, { kind: 'unknown' })
-      case 'terminal':
-        return fact(judged.terminal.evidence, { kind: 'changed' })
-      case 'cancelled': {
-        const matches = cancellationDriveOf(judged.terminal, execution) === control
-        return fact(judged.terminal.evidence, { kind: matches ? 'ready' : 'changed' })
-      }
-    }
   }
 
   function build(book: Book<P>): Copy<P> {
@@ -1003,12 +859,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     let changed = false
     for (const [at, held] of book.held) {
       if (held.standing !== 'unknown') continue
-      const standing = await standingOf(
-        options.storage,
-        domain,
-        held.storageOperation,
-        held.attempt,
-      )
+      const standing = await recordedStanding(options.storage, domain, book.tenantText, held)
       if (standing === 'committed') book.held.delete(at)
       else if (standing === 'not-run') {
         held.standing = 'excluded'
@@ -1038,10 +889,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const read = readerOf(options.storage, domain)
     const found = await readOpenView(read, scopeOf(book), [execution], book.published ?? 0)
     if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+    if (found.settled.includes(execution)) forget(book, execution)
+    if (book.settled.has(execution)) return fail({ kind: 'terminal' })
     book.loaded.add(execution)
     if (found.views.length > 0) adopt(book, found, found.published)
     if (book.copy !== null) return succeed(book.copy)
-    const missing = await fetchBlobs(book, read)
+    const missing = await fetchBlobs(book, read, execution)
     if (missing !== null) return fail(missing)
     try {
       book.copy = build(book)
@@ -1082,7 +935,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
       adopt(book, found, Math.min(found.published, touched.published))
     }
-    // Every execution that finishes is held in full.
     const owed = unsettled(book.view.executions.values(), book.full)
     if (!excluded && book.copy !== null && owed.length === 0) return succeed(book.copy)
     if (owed.length > 0) {
@@ -1090,7 +942,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
       adopt(book, found, Math.min(found.published, book.published ?? 0))
     }
-    const missing = await fetchBlobs(book, read)
+    const missing = await fetchBlobs(book, read, null)
     if (missing !== null) return fail(missing)
     try {
       book.copy = build(book)
@@ -1108,49 +960,31 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if (book === null) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
     return serial(book, async () => {
       const domain = await domainOf(book)
-      if ('failure' in domain)
-        return {
-          kind: 'unavailable',
-          diagnostic:
-            domain.failure.kind === 'unavailable' ? domain.failure.diagnostic : domain.failure.kind,
-        }
+      if ('failure' in domain) return unreadOf(domain.failure)
       const synced = await sync(book, domain.ok)
-      if ('failure' in synced)
-        return {
-          kind: 'unavailable',
-          diagnostic:
-            synced.failure.kind === 'unavailable' ? synced.failure.diagnostic : synced.failure.kind,
-        }
-      const latest = adoptedIn(book.view.executions.values(), scope.reference)
-      if (latest === null) return { kind: 'value', value: null }
-      const digest = blobRowDigest(latest.request.record.digest)
-      let payload = book.blobs.get(digest)
-      if (payload === undefined) {
-        const read = await readBlob(readerOf(options.storage, domain.ok), book.tenantText, digest)
-        if (typeof read !== 'string')
-          return { kind: 'unavailable', diagnostic: `the record block ${digest} is not readable` }
-        book.blobs.set(digest, read)
-        payload = read
-      }
-      try {
-        return {
-          kind: 'value',
-          value: {
-            order: String(latest.request.pub),
-            execution: latest.execution,
-            reference: String(latest.request.reference),
-            fixed: latest.request.fixed,
-            coverage: latest.request.coverage,
-            schema: latest.request.schema,
-            record: JSON.parse(payload) as JsonValue,
-          },
-        }
-      } catch (error) {
-        return {
-          kind: 'unavailable',
-          diagnostic: `the record block does not decode: ${String(error)}`,
-        }
-      }
+      if ('failure' in synced) return unreadOf(synced.failure)
+      return readAdoptedIn({
+        executions: book.view.executions.values(),
+        reference: scope.reference,
+        read: readerOf(options.storage, domain.ok),
+        scope: scopeOf(book),
+        blobs: book.blobs,
+      })
+    })
+  }
+
+  async function readRequestChoices(
+    scope: Readonly<{ tenant: TenantId; session: SessionId; reference: string }>,
+  ): Promise<ChoicesRead> {
+    const text = tenantCodec.encode(scope.tenant)
+    if (!text.ok) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
+    const domain = await domainOf({ tenant: scope.tenant, tenantText: text.value })
+    if ('failure' in domain) return unreadOf(domain.failure)
+    const { session, reference } = scope
+    return readChoices(readerOf(options.storage, domain.ok), {
+      tenant: text.value,
+      session,
+      reference,
     })
   }
 
@@ -1189,30 +1023,28 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
     if (accepted === undefined) return []
     const check = scratch.checks[0]
-    const input =
+    const inputs =
       check?.kind === 'open'
-        ? check.initial.input
+        ? check.initial.map(value => value.input)
         : check?.kind === 'submit'
-          ? check.value.input
-          : null
+          ? [check.value.input]
+          : []
     const attachment = own.attachments.at(-1)
-    if (input === null || attachment === undefined) return []
+    if (attachment === undefined) return []
     const original = attemptOfGrant(
       scratch.snapshot?.historyIndex?.attempts,
       own.id,
       attachment.grant,
     )
-    return [
-      {
-        input,
-        execution: own.id,
-        operation: written.operation ?? '',
-        accepted,
-        grant: check?.kind === 'open' ? check.grant : accepted,
-        attachment: attachment.authority.executionAttachment,
-        ...(original === undefined ? {} : { attempt: original.attempt }),
-      },
-    ]
+    return inputs.map(input => ({
+      input,
+      execution: own.id,
+      operation: written.operation ?? '',
+      accepted,
+      grant: check?.kind === 'open' ? check.grant : accepted,
+      attachment: attachment.authority.executionAttachment,
+      ...(original === undefined ? {} : { attempt: original.attempt }),
+    }))
   }
 
   async function storeBlobsFirst(
@@ -1241,18 +1073,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         domain,
         combination: options.combination,
         operation,
-        commands: [executionRecordBlobFacts({ tenant: book.tenant, blobs: chunk })],
+        recall: 'never',
+        commands: [executionRecordBlobFacts({ tenant: book.tenant, execution, blobs: chunk })],
         generations,
       })
+      const stored = { execution, storageOperation: operation, bytes: chunkBytes }
       chunk = []
       chunkBytes = 0
       if (outcome.kind === 'committed') return null
-      if (outcome.kind === 'refused') return refusalFailure(outcome.reason)
-      return unavailable(
-        outcome.kind === 'unavailable' || outcome.kind === 'unknown'
-          ? `the content blocks were not stored: ${outcome.diagnostic}`
-          : 'the content blocks were not stored: rolled back',
-      )
+      reportUnstored(options.report, book, stored, outcome)
+      if (outcome.kind === 'refused') return refusalFailure(outcome)
+      return unavailable(`the content blocks were not stored: ${unstoredText(outcome)}`)
     }
     for (const blob of largest) {
       const bytes = sizeOf(blob)
@@ -1300,7 +1131,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
     const told = await telling.beforeStep(book, domain, input, scratch, appended)
-    if (told !== null) return told
+    if (told !== null) return told.kind === 'again' ? { kind: 'step-changed' } : told
     const heads = headsOf(mintOf(book), after.agent.view, appended)
     const execution = appended[0]!.execution
     const operation = storageOperation(
@@ -1330,6 +1161,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
     const blobs = await storeBlobsFirst(book, domain, execution, prepared.blobs)
     if ('failure' in blobs) return { kind: 'answer', value: blobs }
+    const settles = settledView(prepared.view.executions.get(execution as AgentExecutionId))
+    const adoption = adoptionRows(after, prepared, execution, settles)
+    if ('failure' in adoption) return { kind: 'answer', value: adoption }
     const commands = sessionCommitCommands([
       executionRecordFacts({
         tenant: book.tenant,
@@ -1342,9 +1176,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         digest: written.digest,
         facts: prepared.records,
         blobs: blobs.ok,
-        items: prepared.items,
+        ...prepared.itemRows,
         boundaries: boundariesOf(changed, heads),
         admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
+        settledBy: settles ? sweep.generation : null,
+        ...adoption.ok,
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -1354,6 +1190,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       domain,
       combination: options.combination,
       operation,
+      recall: 'never',
       commands,
       generations,
     })
@@ -1365,6 +1202,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         after,
         prepared,
         execution,
+        settles,
         written,
         prior: prior === undefined ? null : revisionOf(prior.revision),
         scratch,
@@ -1454,8 +1292,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
     const execution = job.written.execution as AgentExecutionId
     const { dropped } = foldFull(book.full, execution, prepared, pub)
-    for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
-    const released = releaseBlocks(book.refs, prepared.changes, book)
+    const released = settleBlocks(book.refs, prepared, book, job.execution)
     book.published = pub
     counts.confirm(book.key, pub)
     job.copy.cell.mutate(() => {
@@ -1482,7 +1319,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
     book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
     // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
-    book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
+    book.copy = job.settles || dropped || closesOpen(prepared.changes) ? null : job.copy
+    if (job.settles) evict(book, execution as AgentExecutionId)
     turn(book.turns)
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
@@ -1558,7 +1396,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'unavailable':
         return { kind: 'answer', value: fail(unavailable(outcome.diagnostic)) }
       case 'refused':
-        return { kind: 'answer', value: fail(refusalFailure(outcome.reason)) }
+        return { kind: 'answer', value: fail(refusalFailure(outcome)) }
     }
   }
 
@@ -1577,17 +1415,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
-      const named = (input as { execution?: unknown }).execution
-      for (let lost = 0; lost < LOST_RACES;) {
+      const target = targetOf(input)
+      const retry = publicationRetries()
+      for (;;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
-        if (
-          typeof named === 'string' &&
-          !ROUTE_ONLY.has(method) &&
-          !book.loaded.has(named) &&
-          !book.view.executions.has(named as AgentExecutionId)
-        )
-          synced = await loadExecution(book, domain.ok, named)
+        if (typeof target === 'string' && !ROUTE_ONLY.has(method)) {
+          if (book.settled.has(target)) return fail({ kind: 'terminal' })
+          if (!book.loaded.has(target) && !book.view.executions.has(target as AgentExecutionId))
+            synced = await loadExecution(book, domain.ok, target)
+        }
         if ('failure' in synced) return synced
         const copy = synced.ok
         const snapshot = READS.has(method) ? succeed(null) : await snapshotOf(book, domain.ok)
@@ -1623,34 +1460,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           book.scratch = null
         }
         if (settled.kind === 'answer') return settled.value
-        if (settled.kind === 'again') lost += 1
-        else {
-          const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
-          if (unread !== null) return fail(unavailable(unread))
-        }
+        const diagnostic =
+          settled.kind === 'fetch'
+            ? await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
+            : retry(settled.kind)
+        if (diagnostic !== null) return fail(unavailable(diagnostic))
       }
-      return fail(unavailable('the Agent records of the session kept changing'))
-    })
-  }
-
-  async function queryCold(
-    book: Book<P>,
-    input: Parameters<AgentJournal<P>['query']>[0],
-    answer: Awaited<ReturnType<AgentJournal<P>['query']>>,
-  ): Promise<typeof answer> {
-    if ('failure' in answer || answer.ok.kind !== 'unknown') return answer
-    const domain = await domainOf(book)
-    if ('failure' in domain) return answer
-    const found = await readOperation(
-      readerOf(options.storage, domain.ok),
-      book.tenantText,
-      storageOperation(input.execution, input.operation) as AgentOperationId,
-    )
-    if (found.kind !== 'read' || found.batch.batch === null) return answer
-    if (found.session !== book.session || found.execution !== input.execution) return answer
-    return succeed({
-      kind: 'committed',
-      receipt: batchReceiptOf(mintOf(book), book.view, found.batch.batch),
     })
   }
 
@@ -1705,7 +1520,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         run(input, 'inputAcceptance', core => core.port.inputAcceptance(input)),
       query: async input => {
         const answer = await run(input, 'query', core => core.port.query(input))
-        return book === null ? answer : queryCold(book, input, answer)
+        return book === null
+          ? answer
+          : queryCold(book, input, answer, {
+              domain: () => domainOf(book),
+              storage: options.storage,
+              mint: mintOf(book),
+            })
       },
       output: {
         read: input => run(input, 'output.read', core => core.port.output.read(input)),
@@ -1746,7 +1567,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       targets: {
         forExecution: input =>
           run(input.access, 'targets.forExecution', core => core.targets.forExecution(input)),
-        resolve: input => run(input.access, 'targets.resolve', core => core.targets.resolve(input)),
+        resolve: input => run(named(input), 'targets.resolve', core => core.targets.resolve(input)),
       },
       toolTargets: {
         forExecution: input =>
@@ -1754,10 +1575,29 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             core.toolTargets.forExecution(input),
           ),
         resolve: input =>
-          run(input.access, 'toolTargets.resolve', core => core.toolTargets.resolve(input)),
+          run(named(input), 'toolTargets.resolve', core => core.toolTargets.resolve(input)),
       },
     }
   }
 
-  return { forSession, readAdopted, durability: 'storage' as const }
+  const ensureModelHistory = createJournalHistoryReadiness({
+    accessCheck: options.sessionAccessCheck,
+    bookOf,
+    run: (book, input) =>
+      serial(book, async () => {
+        const domain = await domainOf(book)
+        return 'failure' in domain
+          ? domain
+          : telling.ensureHistory(book, domain.ok, input.principal, input.scope)
+      }),
+  })
+
+  return {
+    forSession,
+    ensureModelHistory,
+    readAdopted,
+    readRequestChoices,
+    openTenant: domainOf,
+    durability: 'storage' as const,
+  }
 }

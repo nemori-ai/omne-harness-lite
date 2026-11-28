@@ -1,4 +1,5 @@
 import {
+  digestBytes,
   isReadBody,
   readBodyText,
   readSnapshot,
@@ -10,7 +11,8 @@ import {
 } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeProviderName } from './provider-name.ts'
-import type { ProviderName } from './root.ts'
+import type { ModelModality } from './profile.ts'
+import { REASONING_EFFORTS, type ProviderName, type ReasoningEffort } from './root.ts'
 
 export const MODEL_PROVIDER_CATEGORY = 'model-provider'
 
@@ -30,12 +32,49 @@ export type CredentialItemDeclaration = Readonly<{
 /** One entry of the gateway: the interface it speaks there and its address. */
 export type ModelProviderEndpoint = Readonly<{ protocol: string; url: string; endMarker?: string }>
 
+/** One model of the provider model catalog: what the provider adapts, and whether the release enables it. */
+type CatalogCommon = Readonly<{
+  model: string
+  title: string
+  input: readonly ModelModality[]
+  output: readonly ModelModality[]
+  enabled: boolean
+}>
+export type LlmCatalog = Readonly<{
+  kind: 'llm'
+  window: string
+  efforts: readonly ReasoningEffort[]
+}>
+export type DecisionsCatalog = Readonly<{ kind: 'decisions'; maxQuestions?: string }>
+export type LiveCatalog = Readonly<{ kind: 'live'; maxSessionSeconds?: string }>
+export type CatalogModel = CatalogCommon & (LlmCatalog | DecisionsCatalog | LiveCatalog)
+export type CatalogKind = CatalogModel['kind']
+
+export const CATALOG_KINDS = ['llm', 'decisions', 'live'] as const satisfies readonly CatalogKind[]
+
+export type ProviderAccounting = Readonly<{
+  place: string
+  costUnit: string
+  generation?: Readonly<{ requestHeader: string; path: string }>
+}>
+
 export type ModelProviderBody = Readonly<{
   name: ProviderName
   endpoints: readonly ModelProviderEndpoint[]
-  accounting: Readonly<{ place: string; costUnit: string }>
+  accounting: ProviderAccounting
   credentials: readonly CredentialItemDeclaration[]
+  models: readonly CatalogModel[]
 }>
+
+/** What a tenant chose over a catalog: the models of each kind that are on, and the default effort of some chat models. */
+export type ProviderPreferences = Readonly<{
+  enabled: Readonly<Record<CatalogKind, ReadonlySet<string>>>
+  efforts: ReadonlyMap<string, ReasoningEffort>
+}>
+
+/** The two settings of a tenant: on or off, and the default reasoning effort, per catalog model. */
+export const MODEL_SWITCHES = 'model-switches'
+export const MODEL_REASONING_EFFORTS = 'model-reasoning-efforts'
 
 export type ModelProviderBodyRejection =
   | 'not-an-object'
@@ -48,16 +87,17 @@ export type ModelProviderBodyRejection =
   | 'invalid-accounting'
   | 'invalid-credentials'
   | 'duplicate-credential'
+  | 'invalid-models'
 
 const CREDENTIAL_ITEM = /^[a-zA-Z][a-zA-Z0-9]{0,63}$/u
+const HEADER_NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const CREDENTIALS_GROUP = 'credentials'
 const SETTINGS_PROVIDER_ID = MODEL_PROVIDER_CATEGORY
-const UNPINNED_VERSION = '0'
 
 const schemaRead = readBodyText(
-  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string"},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}]}}',
+  '{"kind":"model-provider-body","properties":{"name":"string","endpoints":[{"protocol":"string","url":"string","endMarker":"string"}],"accounting":{"place":"string","costUnit":"string","generation":{"requestHeader":"string","path":"string"}},"credentials":[{"item":"string","title":"string","description":"string","impact":"string","clear":"string"}],"models":[{"kind":"string","model":"string","title":"string","input":["string"],"output":["string"],"window":"string","efforts":["string"],"maxQuestions":"string","enabled":"boolean"}]}}',
   {
-    maxBytes: 1000,
+    maxBytes: 2000,
     maxDepth: 8,
     maxItems: 64,
     maxMembers: 16,
@@ -85,7 +125,9 @@ export function parseModelProviderBody(
   if (credentials === 'invalid') return fail('invalid-credentials')
   if (new Set(credentials.map(entry => entry.item)).size !== credentials.length)
     return fail('duplicate-credential')
-  return succeed({ name, endpoints, accounting, credentials })
+  const models = modelsOf(field(body, 'models'))
+  if (models === undefined) return fail('invalid-models')
+  return succeed({ name, endpoints, accounting, credentials, models })
 }
 
 export function readModelProviderBody(body: unknown): ModelProviderBody | undefined {
@@ -103,38 +145,7 @@ export function modelProviderBodyContract(): BodyContract {
       return { entries: [] }
     },
     settings(body, context) {
-      const provider = typed(body, context?.capabilityName)
-      if (provider.credentials.length === 0) return null
-      return {
-        providerId: SETTINGS_PROVIDER_ID,
-        definitionId: provider.name,
-        version: context?.definition ?? UNPINNED_VERSION,
-        groups: [
-          {
-            id: CREDENTIALS_GROUP,
-            parentId: null,
-            title: 'Credentials',
-            description: `The credentials the model provider ${provider.name} needs.`,
-            order: 0,
-          },
-        ],
-        items: provider.credentials.map(credential => ({
-          id: credential.item,
-          groupId: CREDENTIALS_GROUP,
-          category: 'binding' as const,
-          presentation: {
-            title: credential.title,
-            description: credential.description,
-            impact: credential.impact,
-            clear: credential.clear,
-            adoption: 'next-read' as const,
-          },
-          valueSchema: { type: 'string' },
-          default: { kind: 'absent' as const },
-          merge: 'override' as const,
-          sensitivity: 'secret' as const,
-        })),
-      }
+      return preferencesAndCredentials(typed(body, context?.capabilityName))
     },
     references(body, context) {
       typed(body, context?.capabilityName)
@@ -173,7 +184,7 @@ function endpointsOf(
     if (protocol === undefined || protocol === '') return 'invalid-protocol'
     if (out.some(item => item.protocol === protocol)) return 'duplicate-protocol'
     const url = stringField(entry, 'url')
-    if (url === undefined || !isHttpsUrl(url)) return 'invalid-endpoint'
+    if (url === undefined || !isEndpointUrl(url)) return 'invalid-endpoint'
     if (field(entry, 'endMarker') === undefined) {
       out.push({ protocol, url })
       continue
@@ -189,9 +200,23 @@ function accountingOf(value: JsonValue | undefined): ModelProviderBody['accounti
   if (!isObject(value)) return undefined
   const place = stringField(value, 'place')
   const costUnit = stringField(value, 'costUnit')
-  return place === undefined || place === '' || costUnit === undefined || costUnit === ''
+  if (place === undefined || place === '' || costUnit === undefined || costUnit === '')
+    return undefined
+  const stated = field(value, 'generation')
+  if (stated === undefined) return { place, costUnit }
+  const generation = generationOf(stated)
+  return generation === undefined ? undefined : { place, costUnit, generation }
+}
+
+function generationOf(value: JsonValue): ProviderAccounting['generation'] {
+  const requestHeader = stringField(value, 'requestHeader')
+  const path = stringField(value, 'path')
+  return requestHeader === undefined ||
+    !HEADER_NAME.test(requestHeader) ||
+    path === undefined ||
+    !path.startsWith('/')
     ? undefined
-    : { place, costUnit }
+    : { requestHeader, path }
 }
 
 function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[] | 'invalid' {
@@ -218,10 +243,11 @@ function credentialsOf(value: JsonValue | undefined): CredentialItemDeclaration[
   return out
 }
 
-function isHttpsUrl(text: string): boolean {
+function isEndpointUrl(text: string): boolean {
   if (!URL.canParse(text)) return false
   const url = new URL(text)
-  return url.protocol === 'https:' && url.username === '' && url.password === '' && url.hash === ''
+  const scheme = url.protocol === 'https:' || url.protocol === 'wss:'
+  return scheme && url.username === '' && url.password === '' && url.hash === ''
 }
 
 function stringField(body: unknown, key: string): string | undefined {
@@ -238,4 +264,221 @@ function field(body: unknown, key: string): JsonValue | undefined {
 function isObject(body: unknown): boolean {
   if (!isReadBody(body)) return false
   return readSnapshot(body)?.kind === 'object'
+}
+
+const PREFERENCES_GROUP = 'models'
+
+const PREFERENCE_ITEMS = [
+  {
+    id: MODEL_SWITCHES,
+    groupId: PREFERENCES_GROUP,
+    category: 'preference' as const,
+    presentation: {
+      title: '启用的模型',
+      description: '这家供应商的每个模型按模型类型开或关；没有设的按发行缺省。',
+      impact: '之后的模型列表与请求按新的开关；正在跑的调用不受影响。',
+      clear: '清除之后每个模型回到发行缺省。',
+      adoption: 'next-read' as const,
+    },
+    valueSchema: {
+      type: 'object',
+      properties: {
+        llm: { type: 'object', additionalProperties: { type: 'boolean' } },
+        decisions: { type: 'object', additionalProperties: { type: 'boolean' } },
+        live: { type: 'object', additionalProperties: { type: 'boolean' } },
+      } satisfies Record<CatalogKind, unknown>,
+      additionalProperties: false,
+    },
+    default: { kind: 'absent' as const },
+    merge: 'override' as const,
+    sensitivity: 'ordinary' as const,
+  },
+  {
+    id: MODEL_REASONING_EFFORTS,
+    groupId: PREFERENCES_GROUP,
+    category: 'preference' as const,
+    presentation: {
+      title: '模型的缺省推理强度',
+      description: '会话没有另选推理强度时，每个模型用这里定的一档。',
+      impact: '之后的请求按新的缺省推理强度；已经发出的不变。',
+      clear: '清除之后每个模型回到供应商默认。',
+      adoption: 'next-read' as const,
+    },
+    valueSchema: { type: 'object', additionalProperties: { enum: [...REASONING_EFFORTS] } },
+    default: { kind: 'absent' as const },
+    merge: 'override' as const,
+    sensitivity: 'ordinary' as const,
+  },
+]
+
+function preferencesAndCredentials(provider: ModelProviderBody) {
+  const groups = [
+    {
+      id: PREFERENCES_GROUP,
+      parentId: null,
+      title: '模型',
+      description: `模型供应商 ${provider.name} 的模型开关与缺省推理强度。`,
+      order: 0,
+    },
+    ...(provider.credentials.length === 0
+      ? []
+      : [
+          {
+            id: CREDENTIALS_GROUP,
+            parentId: null,
+            title: '凭据',
+            description: `模型供应商 ${provider.name} 要的凭据。`,
+            order: 1,
+          },
+        ]),
+  ]
+  const items = [
+    ...PREFERENCE_ITEMS,
+    ...provider.credentials.map(credential => ({
+      id: credential.item,
+      groupId: CREDENTIALS_GROUP,
+      category: 'binding' as const,
+      presentation: {
+        title: credential.title,
+        description: credential.description,
+        impact: credential.impact,
+        clear: credential.clear,
+        adoption: 'next-read' as const,
+      },
+      valueSchema: { type: 'string' },
+      default: { kind: 'absent' as const },
+      merge: 'override' as const,
+      sensitivity: 'secret' as const,
+    })),
+  ]
+  // The version follows the declaration alone, so a catalog that changes leaves stored values valid.
+  const version = digestBytes(new TextEncoder().encode(JSON.stringify({ groups, items })))
+  return { providerId: SETTINGS_PROVIDER_ID, definitionId: provider.name, version, groups, items }
+}
+
+const WINDOW = /^[1-9][0-9]{0,15}$/u
+const MODEL_MODALITIES: ReadonlySet<string> = new Set(['text', 'image', 'voice'])
+
+function textsOf(value: JsonValue | undefined): string[] | undefined {
+  if (value?.kind !== 'array') return undefined
+  const out: string[] = []
+  for (const item of value.items) {
+    if (item.kind !== 'string') return undefined
+    out.push(item.value)
+  }
+  return out
+}
+
+const isModelModality = (text: string): text is ModelModality => MODEL_MODALITIES.has(text)
+
+function modalitiesOf(value: JsonValue | undefined): ModelModality[] | undefined {
+  const texts = textsOf(value)
+  if (texts === undefined || texts.length === 0) return undefined
+  const modalities = texts.filter(isModelModality)
+  return modalities.length === texts.length ? modalities : undefined
+}
+
+function effortsOf(value: JsonValue | undefined): ReasoningEffort[] | undefined {
+  const texts = textsOf(value)
+  if (texts === undefined) return undefined
+  const ordered = REASONING_EFFORTS.filter(effort => texts.includes(effort))
+  return ordered.length === texts.length && ordered.every((effort, i) => texts[i] === effort)
+    ? ordered
+    : undefined
+}
+
+function llmCatalogOf(entry: JsonValue): LlmCatalog | undefined {
+  const window = stringField(entry, 'window')
+  const efforts = effortsOf(field(entry, 'efforts'))
+  if (window === undefined || !WINDOW.test(window) || efforts === undefined) return undefined
+  return { kind: 'llm', window, efforts }
+}
+
+function statedLimit(entry: JsonValue, name: string): { value?: string } | undefined {
+  if (field(entry, name) === undefined) return {}
+  const value = stringField(entry, name)
+  return value !== undefined && WINDOW.test(value) ? { value } : undefined
+}
+
+function decisionsCatalogOf(entry: JsonValue): DecisionsCatalog | undefined {
+  const limit = statedLimit(entry, 'maxQuestions')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'decisions' }
+    : { kind: 'decisions', maxQuestions: limit.value }
+}
+
+function liveCatalogOf(entry: JsonValue): LiveCatalog | undefined {
+  const limit = statedLimit(entry, 'maxSessionSeconds')
+  if (limit === undefined) return undefined
+  return limit.value === undefined
+    ? { kind: 'live' }
+    : { kind: 'live', maxSessionSeconds: limit.value }
+}
+
+function ownCatalogOf(entry: JsonValue): LlmCatalog | DecisionsCatalog | LiveCatalog | undefined {
+  switch (stringField(entry, 'kind')) {
+    case 'llm':
+      return llmCatalogOf(entry)
+    case 'decisions':
+      return decisionsCatalogOf(entry)
+    case 'live':
+      return liveCatalogOf(entry)
+  }
+  return undefined
+}
+
+function catalogModelOf(entry: JsonValue): CatalogModel | undefined {
+  const model = stringField(entry, 'model')
+  const title = stringField(entry, 'title')
+  const enabled = field(entry, 'enabled')
+  const input = modalitiesOf(field(entry, 'input'))
+  const output = modalitiesOf(field(entry, 'output'))
+  const own = ownCatalogOf(entry)
+  if (!model || !title || own === undefined) return undefined
+  if (enabled?.kind !== 'boolean' || input === undefined || output === undefined) return undefined
+  return { model, title, input, output, enabled: enabled.value, ...own }
+}
+
+function modelsOf(value: JsonValue | undefined): CatalogModel[] | undefined {
+  if (value?.kind !== 'array') return undefined
+  const out: CatalogModel[] = []
+  for (const entry of value.items) {
+    const model = catalogModelOf(entry)
+    if (
+      model === undefined ||
+      out.some(other => other.kind === model.kind && other.model === model.model)
+    )
+      return undefined
+    out.push(model)
+  }
+  return out
+}
+
+const entryOf = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) && Object.hasOwn(value, key)
+    ? Reflect.get(value, key)
+    : undefined
+
+// Without a boolean switch a model keeps its release default; an unsupported effort or a key outside the catalog is ignored.
+export function preferencesOf(
+  body: ModelProviderBody,
+  switches: unknown,
+  efforts: unknown,
+): ProviderPreferences {
+  const enabled: Record<CatalogKind, Set<string>> = {
+    llm: new Set(),
+    decisions: new Set(),
+    live: new Set(),
+  }
+  const chosen = new Map<string, ReasoningEffort>()
+  for (const entry of body.models) {
+    const on = entryOf(entryOf(switches, entry.kind), entry.model)
+    if (typeof on === 'boolean' ? on : entry.enabled) enabled[entry.kind].add(entry.model)
+    if (entry.kind !== 'llm') continue
+    const effort = entryOf(efforts, entry.model)
+    const supported = entry.efforts.find(level => level === effort)
+    if (supported !== undefined) chosen.set(entry.model, supported)
+  }
+  return { enabled, efforts: chosen }
 }

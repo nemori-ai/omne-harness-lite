@@ -9,14 +9,13 @@ import {
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolClock,
+  type LocalInvocationSource,
   type LocalToolForwarding,
-  type LocalInvocationQualifier,
 } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 import { randomBytes } from 'node:crypto'
 
-type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import {
   decodeToolInstant,
@@ -31,13 +30,13 @@ import { createDueTenants, type DueTenants } from './body-sweep.ts'
 
 export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
   Readonly<{
-    qualification: LocalInvocationQualifier<unknown>
+    /** Where a program call gets its source and waits for its result; the same object the runtime guards with. */
+    programSources(): LocalInvocationSource<unknown>['programs']
   }>
 
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
   bodies: NonNullable<LocalToolRuntimeInput['bodies']>
-  conditional: StartConditionalCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -170,6 +169,11 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
         return Promise.resolve(unavailableRead('tool-records: no SQL ledger store is installed'))
       return sql.store.scanPending(input)
     },
+    async definition(tenant, adoption) {
+      const sql = holder.sql
+      if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
+      return sql.store.definition(tenant, adoption)
+    },
     usage(query) {
       const sql = holder.sql
       if (sql === null)
@@ -192,20 +196,6 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       return answer
     },
   } satisfies ToolLedgerStore)
-}
-
-export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
-  const conditional: StartConditionalCommit = {
-    async commit(input) {
-      const sql = holder.sql
-      if (sql === null)
-        return unavailableRead('tool-records: no SQL conditional commit is installed')
-      const answer = await sql.conditional.commit(input)
-      if (answer.kind !== 'condition-failed') noteDue(holder, input.ledger, answer)
-      return answer
-    },
-  }
-  return Object.freeze(conditional)
 }
 
 export function witnessed(

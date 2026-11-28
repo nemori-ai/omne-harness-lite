@@ -163,7 +163,7 @@ function modelViewReads<P>(
   return {
     readForkPoint: value =>
       reads.session(caller, 'history.readModelView', value, view =>
-        view.history.readForkPoint(accessOf(value)),
+        view.history.readForkPoint({ ...accessOf(value), asking: value.asking }),
       ),
     readCompactionContext: value =>
       reads.session(caller, 'history.readCompactionContext', value, view =>
@@ -179,6 +179,7 @@ function modelViewReads<P>(
           ...accessOf(value),
           basis: value.basis,
           after: value.after,
+          ...(value.resumeAtEnd ? { resumeAtEnd: true } : {}),
           pageBytes: value.pageBytes,
         }),
       ),
@@ -200,6 +201,10 @@ function directoryOf<P>(reads: Reads<P>, caller: SessionCallerClass): SessionDir
       ),
   }
 }
+
+/** Only a person reloads a session: the session wires the faces of its intake to the reload it runs. */
+const notReloading = () =>
+  Promise.resolve(fail(unavailable(OWNERS.session, 'only a person reloads')))
 
 export function createFaces<P>(
   input: Readonly<{
@@ -237,6 +242,7 @@ export function createFaces<P>(
     startRun: mutation('startRun'),
     claim: mutation('claim'),
     reload: mutation('reload'),
+    reloadSession: notReloading,
     recordMessage: mutation('recordMessage'),
     preserveResult: mutation('preserveResult'),
     completeConsumption: mutation('completeConsumption'),
@@ -281,6 +287,7 @@ export function createFaces<P>(
     completeInitialization: mutation('completeInitialization'),
     change: mutation('change'),
     setResident: mutation('setResident'),
+    recordCommand: mutation('recordCommand'),
     configureAutoArchive: mutation('configureAutoArchive'),
     considerAutoArchive: mutation('considerAutoArchive'),
     interrupt: mutation('interrupt'),
@@ -340,13 +347,11 @@ export function createFaces<P>(
     ...modelViewReads(reads, caller),
   }
 
-  const directory = directoryOf(reads, caller)
-
   return Object.freeze({
     work: Object.freeze(work),
     management: Object.freeze(management),
     reconciliation: Object.freeze(reconciliation),
     history: Object.freeze(history),
-    directory: Object.freeze(directory),
+    directory: Object.freeze(directoryOf(reads, caller)),
   })
 }

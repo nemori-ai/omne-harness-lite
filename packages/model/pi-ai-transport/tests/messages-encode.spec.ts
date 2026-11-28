@@ -1,7 +1,7 @@
 import { writeJsonText } from '@omne-harness/json-text'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import { describe, expect, it } from 'vitest'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { bindMessages, type MessagesRecord } from '../src/messages/index.ts'
 import { sealThinking } from '../src/messages/reasoning.ts'
 import {
@@ -39,7 +39,7 @@ const UNBOUND = messagesRecord({
   replay: { declaration: {}, formats: { produces: FORMAT, accepts: [FORMAT] }, binding: 'none' },
 })
 
-function bind(record: MessagesRecord = messagesRecord()): PiFamilyBinding {
+function bind(record: MessagesRecord = messagesRecord()): PiChatBinding {
   const probe = engineProbe()
   return bindMessages({
     record,
@@ -51,7 +51,7 @@ function bind(record: MessagesRecord = messagesRecord()): PiFamilyBinding {
 }
 
 function encode(record: MessagesRecord, parts: RequestParts = {}) {
-  const request: FixedModelRequest = fixedRequest(record, parts)
+  const request: LlmModelRequest = fixedRequest(record, parts)
   return bind(record).encode({
     request,
     media: [],
@@ -339,9 +339,9 @@ describe('encode: an image by reference', () => {
   const wire = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: DATA } }
   const encodeWith = (
     parts: RequestParts,
-    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+    media: Parameters<PiChatBinding['encode']>[0]['media'],
   ) => {
-    const request: FixedModelRequest = fixedRequest(record, parts)
+    const request: LlmModelRequest = fixedRequest(record, parts)
     return bind(record).encode({ request, media, declaration: request.declarations[0], resent: [] })
   }
   const messagesOf = (outcome: ReturnType<typeof encodeWith>) => {
@@ -403,9 +403,9 @@ describe('encode: a file by reference, and words kept apart (Messages)', () => {
   const sent = (
     record: typeof plain,
     parts: RequestParts,
-    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+    media: Parameters<PiChatBinding['encode']>[0]['media'],
   ) => {
-    const request: FixedModelRequest = fixedRequest(record, parts)
+    const request: LlmModelRequest = fixedRequest(record, parts)
     const outcome = bind(record).encode({
       request,
       media,

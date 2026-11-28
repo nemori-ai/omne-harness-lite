@@ -5,20 +5,36 @@ import type {
   ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { backgroundAllowed } from '../src/ledger-background.ts'
-import { evidence, functionDefinition, harness, judged, request } from './runtime-values.ts'
+import {
+  available,
+  evidence,
+  fixedRequestForNamedSourceGuard,
+  functionDefinition,
+  harness,
+  judged,
+  request,
+} from './runtime-values.ts'
 
 type Metadata = Omit<
   Extract<ToolDefinition, { kind: 'function' }>,
   'kind' | 'parameters' | 'returns'
 >
 
-function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDefinition {
+function shell(
+  allowed = true,
+  unless: readonly string[] = ['terminal'],
+  start?: 'launch',
+): ToolDefinition {
   const base = functionDefinition({ backgroundAllowed: allowed })
   if (base.kind !== 'function') throw new Error('function')
   const { kind: _kind, parameters, returns, ...metadata } = base
   const declared = { kind: 'declared', value: parameters } as const
   return {
     ...(metadata as Metadata),
+    adoption: {
+      ...metadata.adoption,
+      revision: `shell-${String(allowed)}-${unless.join('+')}-${start ?? 'asked'}`,
+    },
     name: 'shell',
     kind: 'commands',
     encoding: 'wrapped',
@@ -28,7 +44,7 @@ function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDe
         summary: 'Run once or in a terminal.',
         parameters: declared,
         returns,
-        ...(allowed ? { background: { unless } } : {}),
+        ...(allowed ? { background: { unless, ...(start === undefined ? {} : { start }) } } : {}),
       },
       { name: 'info', summary: 'Describe the placement.', parameters: declared, returns },
     ],
@@ -42,21 +58,17 @@ function call(
   effective = JSON.stringify({ command, intent: 'run it', params }),
 ): ToolInvokeRequest {
   return request({
-    availability: {
-      kind: 'available',
-      definition,
-      executor: { ...definition.adoption },
-      layer: { kind: 'official' },
-    },
+    availability: available(definition, { ...definition.adoption }),
     command,
     arguments: { original: effective, effective, complete: true },
   })
 }
 
-const fixed = (value: ToolInvokeRequest): FixedToolRequest => ({
-  ...value,
-  invocation: { kind: 'direct', source: evidence('entry') },
-})
+const fixed = (value: ToolInvokeRequest): FixedToolRequest =>
+  fixedRequestForNamedSourceGuard({
+    ...value,
+    invocation: { kind: 'direct', source: evidence('entry') },
+  })
 
 describe('the background permission of one call', () => {
   it.each([
@@ -64,12 +76,9 @@ describe('the background permission of one call', () => {
     [
       'a function tool that permits it',
       request({
-        availability: {
-          kind: 'available',
-          definition: functionDefinition({ backgroundAllowed: true }),
-          executor: { ...functionDefinition().adoption },
-          layer: { kind: 'official' },
-        },
+        availability: available(functionDefinition({ backgroundAllowed: true }), {
+          ...functionDefinition().adoption,
+        }),
       }),
       true,
     ],
@@ -118,5 +127,30 @@ describe('admission asks the same question of a launch in the background', () =>
       relation: 'background',
       foreground: { kind: 'background', source: { kind: 'launched' } },
     })
+  })
+
+  it('accepts a call of a command that starts at launch in the background, though the request asks the foreground', async () => {
+    const assembly = harness()
+    const asked = {
+      ...call(shell(true, [], 'launch'), 'execute', { path: 'a' }),
+      mode: 'foreground' as const,
+    }
+    const admitted = await assembly.admitInternal(asked)
+    if (admitted.kind !== 'accepted') throw new Error(JSON.stringify(admitted))
+    expect(judged(admitted.state)).toMatchObject({
+      relation: 'background',
+      foreground: { kind: 'background', source: { kind: 'launched' } },
+    })
+  })
+
+  it('leaves the other commands of that tool in the foreground', async () => {
+    const assembly = harness()
+    const asked = {
+      ...call(shell(true, [], 'launch'), 'info', { path: 'a' }),
+      mode: 'foreground' as const,
+    }
+    const admitted = await assembly.admitInternal(asked)
+    if (admitted.kind !== 'accepted') throw new Error(JSON.stringify(admitted))
+    expect(judged(admitted.state)).toMatchObject({ relation: 'foreground' })
   })
 })

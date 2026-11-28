@@ -7,7 +7,16 @@ type Answer = Awaited<ReturnType<Client['list-models']>>
 type Listed = Extract<Answer, { outcome: 'succeeded' }>['body']['models'][number]
 
 /** One model as a person picks from it: its route, whether it can be picked, and a word on it. */
-export type ModelChoice = Readonly<{ route: string; selectable: boolean; note: string | null }>
+export type ModelChoice = Readonly<{
+  route: string
+  selectable: boolean
+  note: string | null
+  reasoningEfforts: NonNullable<Listed['reasoningEfforts']>
+  /** The effort the tenant set for this model, taken when a session chose none. */
+  defaultReasoningEffort?: NonNullable<Listed['defaultReasoningEffort']>
+  /** How many blocks of the session it was listed for this model cannot take. */
+  blocks?: number
+}>
 
 export type ModelChoiceListing =
   | Readonly<{ kind: 'listed'; choices: readonly ModelChoice[] }>
@@ -15,7 +24,7 @@ export type ModelChoiceListing =
 
 /** The models of a tenant for whoever shows a choice of them. The wording is Model's own. */
 export interface ModelChoices {
-  list(tenant: string): Promise<ModelChoiceListing>
+  list(tenant: string, session?: string): Promise<ModelChoiceListing>
 }
 
 const REASONS: Readonly<Record<Listed['reasons'][number], string>> = {
@@ -30,23 +39,31 @@ const REFUSALS: Readonly<Record<string, string>> = {
 
 // A model that lacks its credential can still be picked; the note says a call cannot go out yet.
 export function noteOf(
-  model: Pick<Listed, 'selectable' | 'reasons' | 'credential'>,
+  model: Pick<Listed, 'selectable' | 'reasons' | 'credential' | 'enabled' | 'blocks'>,
 ): string | null {
-  if (!model.selectable)
-    return model.reasons.length === 0
-      ? '现在不能选'
-      : `不能选：${model.reasons.map(reason => REASONS[reason]).join('、')}`
+  if (model.blocks !== undefined)
+    return `不能选：读不了这段会话里的 ${String(model.blocks.length)} 块内容`
+  if (!model.selectable) {
+    const reasons = [
+      ...(model.enabled === false ? ['没有启用'] : []),
+      ...model.reasons.map(reason => REASONS[reason]),
+    ]
+    return reasons.length === 0 ? '现在不能选' : `不能选：${reasons.join('、')}`
+  }
   return model.credential === 'missing' ? '还没有配置凭据，选了也暂时调不了' : null
 }
 
 export function createModelChoices(client: Client): ModelChoices {
   return {
-    async list(tenant) {
+    async list(tenant, session) {
       const owner = readTenantText(tenant)
       if (owner === undefined) return { kind: 'unavailable', reason: '租户读不懂' }
       let answer: Answer
       try {
-        answer = await client['list-models']({ tenant: owner })
+        answer = await client['list-models']({
+          tenant: owner,
+          ...(session === undefined ? {} : { session }),
+        })
       } catch {
         return { kind: 'unavailable', reason: '没有送达' }
       }
@@ -56,6 +73,11 @@ export function createModelChoices(client: Client): ModelChoices {
         route: model.route,
         selectable: model.selectable,
         note: noteOf(model),
+        reasoningEfforts: model.reasoningEfforts ?? [],
+        ...(model.defaultReasoningEffort === undefined
+          ? {}
+          : { defaultReasoningEffort: model.defaultReasoningEffort }),
+        ...(model.blocks === undefined ? {} : { blocks: model.blocks.length }),
       }))
       return { kind: 'listed', choices }
     },

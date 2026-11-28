@@ -3,7 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   AssembledModelInput,
-  FixedModelRequest,
+  LlmModelRequest,
   MeterRepresentation,
   ModelProfile,
   Parameter,
@@ -106,10 +106,13 @@ function bodyOf(
   return {
     ok: object({
       model: text(record.route.model),
-      provider: object({
-        order: list(record.serving.order.map(text)),
-        allow_fallbacks: bool(false),
-      }),
+      provider:
+        record.serving === null
+          ? undefined
+          : object({
+              order: list(record.serving.order.map(text)),
+              allow_fallbacks: bool(false),
+            }),
       stream: bool(true),
       store: bool(false),
       include: list([text('reasoning.encrypted_content')]),
@@ -154,7 +157,11 @@ function shown(
 
 export function planResponses(
   context: ResponsesContext,
-  input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
+  input: Readonly<{
+    profile: ModelProfile<'llm'>
+    supplier: Supplier
+    assembled: AssembledModelInput
+  }>,
 ): Outcome<
   Readonly<{ parameters: readonly ParameterAdoption[]; representation: MeterRepresentation }>,
   TransportFailure
@@ -166,6 +173,8 @@ export function planResponses(
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
+    bindingEfforts: context.bindingEfforts,
+    reasoningEfforts: profile.definition.reasoningEfforts,
     outputLimit: profile.definition.context.output.provided,
     requested: assembled.parameters,
     supplier: context.adapter,
@@ -201,7 +210,7 @@ export function planResponses(
 export function encodeResponses(
   context: ResponsesContext,
   input: Readonly<{
-    request: FixedModelRequest
+    request: LlmModelRequest
     media: readonly PiMaterializedMedia[]
     declaration: ReplayDeclaration
     resent: TransportDispatch['resent']

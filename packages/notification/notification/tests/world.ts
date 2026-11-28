@@ -25,7 +25,7 @@ import {
   fakeAuthority,
   fakeChannel,
   fakeClock,
-  fakeConsent,
+  fakeCreators,
   fakeHints,
   fakeStanding,
 } from '@omne-harness/notification/testing'
@@ -101,12 +101,12 @@ export function world(...types: EventTypeDeclaration[]) {
     accepted: tenant => wakes.push(tenant),
   })
   const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
-  const consent = fakeConsent()
+  const creators = fakeCreators()
   const subscriptions = createSubscriptions({
     authority,
     store,
     sources,
-    consent,
+    creators,
     clock,
     defaults,
     beatRange: { min: 5, max: 1440 },
@@ -156,7 +156,7 @@ export function world(...types: EventTypeDeclaration[]) {
     wakes,
     sending,
     inbox,
-    consent,
+    creators,
     subscriptions,
     channels,
     inApp,

@@ -18,6 +18,8 @@ import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import {
   LOCAL_OPEN_LIMITS,
+  LOCAL_PROGRAM_LIMITS,
+  LOCAL_IMAGE_BUDGET,
   LOCAL_SCREEN_LIMITS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
@@ -109,6 +111,9 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     openai: family,
     anthropic: structuredClone(family),
     qwen: structuredClone(family),
+    kimi: structuredClone(family),
+    deepseek: structuredClone(family),
+    glm: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
@@ -134,6 +139,10 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       maxPendingAccounts: 16,
       maxCostMisses: 5,
     },
+    live: {
+      capacity: 64,
+      deadlines: { openMs: 15_000, closeMs: 10_000, drainMs: 30_000, redeliverMs: 1000 },
+    },
   }
   const records = {
     owners: [
@@ -145,6 +154,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       {
         consumerOwner: '@omne-harness/context-compaction',
         evidence: { ...MODEL_TEST_ADOPTION, name: 'compaction-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: '@omne-harness/goal-decisions',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'goal-decisions-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -186,12 +200,16 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       },
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
-      endpoints: { openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE },
+      endpoints: {
+        openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE,
+        openai: options.modelRoute ?? UNUSED_MODEL_ROUTE,
+      },
       transportLimits: {
         connectTimeoutMs: 5000,
         connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
+        maxDecisionBytes: 524_288,
         json: {
           maxBytes: 1_048_576,
           maxDepth: 64,
@@ -218,23 +236,27 @@ export function testVaultPath(storageRoot: string): string {
 }
 
 export const TEST_DEPLOYMENT_KEY = 'r9-test-factory-secret'
+/** The deployment key of OpenAI in a test tree: another value, so a request shows whose key it carries. */
+export const TEST_OPENAI_DEPLOYMENT_KEY = 'r9-test-openai-factory-secret'
+const TEST_DEPLOYMENT_KEYS: Readonly<Record<string, string>> = {
+  openrouter: TEST_DEPLOYMENT_KEY,
+  openai: TEST_OPENAI_DEPLOYMENT_KEY,
+}
 
 export function seedTestVault(path: string): string {
   if (existsSync(path)) return path
-  const provider = releaseProvider('openrouter')
-  const secret = parseSecretText(TEST_DEPLOYMENT_KEY)
-  if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
-  mkdirSync(dirname(path), { recursive: true })
-  const created = createSecretVault({
-    path,
-    seed: [
-      {
-        key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
-        secret: secret.value,
-        configuredAt: null,
-      },
-    ],
+  const seed = Object.entries(TEST_DEPLOYMENT_KEYS).map(([name, key]) => {
+    const provider = releaseProvider(name)
+    const secret = parseSecretText(key)
+    if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
+    return {
+      key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
+      secret: secret.value,
+      configuredAt: null,
+    }
   })
+  mkdirSync(dirname(path), { recursive: true })
+  const created = createSecretVault({ path, seed })
   if (created.kind !== 'open') throw new Error(`the test vault: ${created.kind}`)
   created.vault.close()
   return path
@@ -254,7 +276,7 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,
     denialBackoffMs: 0,
-    toolConcurrency: 1,
+    toolConcurrency: 8,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
     instanceIdleMs: 60_000,
   }
@@ -294,11 +316,18 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
+      Jobs: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
+      Canvas: { resultMaxBytes: 65_536 },
+      AppView: { resultMaxBytes: 65_536, ...LOCAL_IMAGE_BUDGET },
       Sessions: { resultMaxBytes: 131_072 },
       Agents: { resultMaxBytes: 1_048_576 },
+      Goal: { resultMaxBytes: 1_048_576 },
       SwitchWorkspace: { resultMaxBytes: 65_536 },
+      OmneExtensionPoints: { resultMaxBytes: 131_072 },
+      OmneExtensions: { resultMaxBytes: 131_072 },
       Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+      Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
     },
     web: {
       search: {
@@ -365,6 +394,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
 /** A whole policy, as an operator gives it: the release layer carries no numbers. */
 /** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
 export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+export const GOAL_POLICY = { reconcileIntervalMs: 1000 }
 
 export const NOTIFICATION_POLICY = {
   bodyLength: 4096,
@@ -376,6 +406,14 @@ export const NOTIFICATION_POLICY = {
   beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1440 },
   scanIntervalMs: 60_000,
   recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
+export const CANVAS_POLICY = {
+  sheet: { width: 4800, height: 3200, grid: 8 },
+  limits: { placed: 50, away: 50, batch: 20 },
+  size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+  footprint: { width: 160, height: 80 },
+  admitTimeoutMs: 2000,
 }
 
 // Calendar sources point at a closed loopback port, so a test service never reaches the real
@@ -441,6 +479,7 @@ export function operatorLayer(options: {
             contentPageBytes: 4096,
           },
           web: tools.web,
+          sources: { resultMaxBytes: 65_536, listTimeoutMs: 5000 },
         },
       },
       { kind: 'replace', id: 'tool-records', config: tools.records },
@@ -471,10 +510,30 @@ export function operatorLayer(options: {
         id: 'media-storage-local',
         config: { root: join(dirname(options.storageRoot), 'media') },
       },
+      {
+        kind: 'replace',
+        id: 'plugin-server',
+        config: { floorDirectory: join(dirname(options.storageRoot), 'plugin-floor') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'goal', config: { policy: GOAL_POLICY } },
+      { kind: 'replace', id: 'goal-decisions', config: { pollMs: 20, deadlineMs: 30_000 } },
+      { kind: 'replace', id: 'canvas', config: { policy: CANVAS_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
+      {
+        kind: 'replace',
+        id: 'loop-extension',
+        config: {
+          commands: {
+            interpreters: { node: process.execPath },
+            env: tools.construction.Shell.env,
+            stateDirectory: join(options.storageRoot, 'loop-extension-calls'),
+            workspace: tools.filesRoot,
+          },
+        },
+      },
       {
         kind: 'replace',
         id: 'request-context',
@@ -576,12 +635,16 @@ export type ServerOutcome = Readonly<{
 }>
 
 export type ServerHandle = Readonly<{
+  pid: number | undefined
+  command: readonly string[]
   port: number
   records(): Rec[]
   stdout(): string
   stderr(): string
   stop(): Promise<ServerOutcome>
   kill(): Promise<void>
+  /** Settles with the exit code when the process ends by itself or is stopped. */
+  exited: Promise<number | null>
 }>
 
 export function startServer(options: {
@@ -589,7 +652,10 @@ export function startServer(options: {
   operatorPath: string
   port: number
   startupTimeoutMs?: number
+  readinessTimeoutMs?: number
   extraCaPath?: string
+  /** Keep only about this many characters of the newest output, cut at a line; a long walk would outgrow a string. */
+  logTail?: number
 }): Promise<ServerHandle> {
   const args = [
     serverBin,
@@ -599,7 +665,7 @@ export function startServer(options: {
     '--operator',
     options.operatorPath,
     '--readiness-timeout-ms',
-    String(READINESS_TIMEOUT_MS),
+    String(options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS),
     '--shutdown-deadline-ms',
     String(SHUTDOWN_DEADLINE_MS),
     '--state-root',
@@ -616,8 +682,14 @@ export function startServer(options: {
   })
   let stdout = ''
   let stderr = ''
-  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk))
-  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk))
+  const kept = (text: string): string => {
+    const tail = options.logTail
+    if (tail === undefined || text.length <= 2 * tail) return text
+    const cut = text.slice(-tail)
+    return cut.slice(cut.indexOf('\n') + 1)
+  }
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout = kept(stdout + chunk)))
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr = kept(stderr + chunk)))
   child.stdin.on('error', () => {})
   const closed = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   const outcome = async (): Promise<ServerOutcome> => ({
@@ -627,6 +699,8 @@ export function startServer(options: {
     stderr,
   })
   const handle: ServerHandle = {
+    pid: child.pid,
+    command: [process.execPath, ...args],
     port: options.port,
     records: () => parseRecords(stdout),
     stdout: () => stdout,
@@ -639,6 +713,7 @@ export function startServer(options: {
       killTree(child)
       await closed
     },
+    exited: closed,
   }
   return new Promise((resolve, reject) => {
     const fail = (why: string) => {
@@ -647,7 +722,7 @@ export function startServer(options: {
     }
     const timer = setTimeout(
       () => fail('serve did not report startup in time'),
-      options.startupTimeoutMs ?? READINESS_TIMEOUT_MS + 10_000,
+      options.startupTimeoutMs ?? (options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS) + 10_000,
     )
     const poll = setInterval(() => {
       if (stdout.includes('"kind":"startup-result"')) {

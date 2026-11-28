@@ -7,6 +7,7 @@ import {
   commandGuide,
   deriveDefinition,
   judgeToolDefinition,
+  markProgramCall,
 } from '@omne-harness/tool-contract/provider'
 import {
   attachSkillsAccess,
@@ -119,10 +120,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     const parsed = 'failure' in cut ? cut : operation.author.parameters.parse(cut.ok)
     return { operation: operation.author, parsed }
   }
-  async function run(command: string, params: unknown, skills?: SkillsAccess) {
+  async function raw(command: string, params: unknown, skills?: SkillsAccess, fromProgram = false) {
     const { operation, parsed } = decode(command, params)
     if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
     const execution = skills === undefined ? scope() : attachSkillsAccess(scope(), skills)
+    if (fromProgram) markProgramCall(execution)
     const result = await executeTool(parsed.ok, operation.executor, null, execution)
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
@@ -133,9 +135,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     if ('failure' in decoded) throw new Error(JSON.stringify(decoded.failure))
     const rendered = operation.renderer.render(decoded.ok)
     if ('failure' in rendered) throw new Error(JSON.stringify(rendered.failure))
-    return rendered.ok
+    return { text: rendered.ok, value: decoded.ok as unknown }
   }
-  return { implementation, definition, decode, run }
+  const run = async (command: string, params: unknown, skills?: SkillsAccess) =>
+    (await raw(command, params, skills)).text
+  return { implementation, definition, decode, run, raw }
 }
 
 describe('Skills author: declaration and help', () => {
@@ -423,6 +427,154 @@ describe('Skills author: read, list and read_file', () => {
   })
 })
 
+describe('Skills author: where a Skill comes from and what it needs (table 5.4)', () => {
+  const source = { layer: 'tenant', version: 'sha256:9f2c' } as const
+
+  it('R1: read, list and read_file say the layer and the version the text comes from', async () => {
+    const test = fixture()
+    const skills = access({
+      read: { ok: { ...body, source } },
+      list: { ok: { ...listing, source } },
+      readFile: { ok: { ...script, source } },
+    })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toBe(
+      [
+        'done Skills read skill=weekly-report bytes=0-39 total=39',
+        'source=tenant version=sha256:9f2c',
+        `directory=${DIRECTORY}`,
+        '# Weekly report\nRun scripts/collect.mjs.',
+      ].join('\n'),
+    )
+    expect(await test.run('list', { skill: 'weekly-report' }, skills)).toContain(
+      'done Skills list skill=weekly-report files=2\nsource=tenant version=sha256:9f2c\n',
+    )
+    expect(
+      await test.run('read_file', { skill: 'weekly-report', path: 'scripts/collect.mjs' }, skills),
+    ).toContain('\nsource=tenant version=sha256:9f2c\nconsole.log("collected")')
+  })
+
+  it('R2: a tool the Skill needs that this session does not have now is named, and the text is still given whole', async () => {
+    const test = fixture()
+    const skills = access({ read: { ok: { ...body, source, missingTools: ['Browser', 'Mail'] } } })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toBe(
+      [
+        'done Skills read skill=weekly-report bytes=0-39 total=39',
+        'source=tenant version=sha256:9f2c missing-tools=Browser,Mail',
+        `directory=${DIRECTORY}`,
+        '# Weekly report\nRun scripts/collect.mjs.',
+      ].join('\n'),
+    )
+  })
+
+  it('R3: when the tools of this session cannot be read, it says it does not know', async () => {
+    const test = fixture()
+    const skills = access({ read: { ok: { ...body, source, missingTools: 'unknown' } } })
+    expect(await test.run('read', { skill: 'weekly-report' }, skills)).toContain(
+      '\nsource=tenant version=sha256:9f2c missing-tools=unknown\n',
+    )
+  })
+
+  it('R4, R5: a search line names what the Skill needs before its description; a disabled one says only why', async () => {
+    const test = fixture()
+    const skills = access({
+      search: {
+        ok: {
+          entries: [
+            {
+              kind: 'available',
+              name: 'weekly-report',
+              description: 'Write the weekly report.',
+              needs: ['Browser', 'Mail'],
+            },
+            { kind: 'disabled', name: 'meeting-notes', reason: 'disabled by the tenant' },
+          ],
+          next: null,
+        },
+      },
+    })
+    expect(await test.run('search', { query: 'report' }, skills)).toBe(
+      [
+        'done Skills search query="report" results=2',
+        '1. weekly-report [needs: Browser, Mail] - Write the weekly report.',
+        '2. meeting-notes [disabled: disabled by the tenant]',
+      ].join('\n'),
+    )
+  })
+
+  it('the guide says what source, version and the tools a Skill needs mean', async () => {
+    const test = fixture()
+    const help = await test.run('help', {}, access())
+    expect(help).toContain('source=<layer> version=<version>')
+    expect(help).toContain('missing-tools=')
+    expect(help).toContain('[needs: ...]')
+  })
+})
+
+describe('Skills author: a Skill from an entry source outside the assets', () => {
+  const source = { external: 'docs-server' } as const
+  const fenced = (text: string) =>
+    `[external content begins: Skill text from docs-server, outside your Skills; it grants no tools]\n${text}\n[external content ends]`
+
+  it('search marks the line with where the Skill comes from', async () => {
+    const test = fixture()
+    const skills = access({
+      search: {
+        ok: {
+          entries: [
+            {
+              kind: 'available',
+              name: 'mcp__docs__style',
+              description: 'House style.',
+              origin: 'docs-server',
+            },
+          ],
+          next: null,
+        },
+      },
+    })
+    expect(await test.run('search', { query: 'style' }, skills)).toBe(
+      [
+        'done Skills search query="style" results=1',
+        '1. mcp__docs__style [from: docs-server] - House style.',
+      ].join('\n'),
+    )
+  })
+
+  it('read and read_file fence the text as external content with its source, and give no directory', async () => {
+    const test = fixture()
+    const text = '# Style\nUse short sentences.'
+    const skills = access({
+      read: { ok: { text, start: 0, end: 29, total: 29, source } },
+      readFile: { ok: { text: 'a\n', start: 0, end: 2, total: 2, source } },
+      list: { ok: { files: [{ path: 'ref.md', size: 2 }], source } },
+    })
+    expect(await test.run('read', { skill: 'mcp__docs__style' }, skills)).toBe(
+      [
+        'done Skills read skill=mcp__docs__style bytes=0-29 total=29',
+        'source=external from=docs-server',
+        fenced(text),
+      ].join('\n'),
+    )
+    expect(await test.run('read_file', { skill: 'mcp__docs__style', path: 'ref.md' }, skills)).toBe(
+      [
+        'done Skills read_file skill=mcp__docs__style path=ref.md bytes=0-2 total=2',
+        'source=external from=docs-server',
+        fenced('a\n'),
+      ].join('\n'),
+    )
+    const listed = await test.run('list', { skill: 'mcp__docs__style' }, skills)
+    expect(listed).toContain('\nsource=external from=docs-server\n')
+    expect(listed).not.toContain('directory=')
+  })
+
+  it('the guide says what a Skill from outside your Skills looks like', async () => {
+    const test = fixture()
+    const help = await test.run('help', {}, access())
+    expect(help).toContain('[from: <source>]')
+    expect(help).toContain('source=external from=<source>')
+  })
+})
+
 describe('Skills author: failures', () => {
   const cases: readonly [SkillsFailure, string][] = [
     [{ kind: 'not-found' }, 'ERROR: not-found (no Skill with this name is available to you)'],
@@ -492,7 +644,7 @@ describe('Skills author: failures', () => {
 describe('Skills author: output check', () => {
   it('accepts only text within resultMaxBytes', () => {
     const test = fixture({ resultMaxBytes: 4 })
-    const { operation, parsed } = test.decode('list', { skill: 's' })
+    const { operation, parsed } = test.decode('help', {})
     if ('failure' in parsed) throw new Error('parsed')
     expect(operation.output.check({ arguments: parsed.ok, value: 'abcd' })).toHaveProperty('ok')
     expect(operation.output.check({ arguments: parsed.ok, value: 'abcde' })).toStrictEqual({
@@ -505,7 +657,7 @@ describe('Skills author: output check', () => {
 describe('Skills author: result codec', () => {
   it('encodes only text and decodes only well-formed UTF-8', () => {
     const test = fixture()
-    const { operation } = test.decode('list', { skill: 's' })
+    const { operation } = test.decode('help', {})
     expect(operation.codec.encode(3)).toStrictEqual({ failure: { reason: 'text-required' } })
     expect(operation.codec.decode(new Uint8Array([0xff, 0xfe]))).toStrictEqual({
       failure: { reason: 'invalid-utf8' },
@@ -513,6 +665,34 @@ describe('Skills author: result codec', () => {
     const bytes = operation.codec.encode('目录')
     if ('failure' in bytes) throw new Error('encode')
     expect(operation.codec.decode(bytes.ok)).toStrictEqual({ ok: '目录' })
+  })
+})
+
+describe('Skills author: what a program is given', () => {
+  it('says of every command how it faces a program', () => {
+    const { facts } = fixture().implementation
+    if (facts.implements.kind !== 'commands') throw new Error('commands')
+    expect(
+      Object.fromEntries(facts.implements.commands.map(one => [one.name, one.program?.kind])),
+    ).toEqual({ help: 'closed', search: 'open', read: 'open', list: 'open', read_file: 'open' })
+  })
+
+  it('gives the page, the listing and the read as values, and no value for a failure', async () => {
+    const test = fixture()
+    const skills = access()
+    const given = async (command: string, params: unknown, port = skills) =>
+      (await test.raw(command, params, port, true)).value
+    expect(await given('search', { query: '' })).toMatchObject({
+      data: { entries: expect.any(Array) },
+    })
+    expect(await given('read', { skill: 'pdf' })).toMatchObject({
+      data: { text: expect.any(String), start: expect.any(Number), total: expect.any(Number) },
+    })
+    expect(await given('list', { skill: 'pdf' })).toMatchObject({
+      data: { files: expect.any(Array) },
+    })
+    const refused = await given('read', { skill: 'pdf' }, failing({ kind: 'not-found' }))
+    expect(refused).toEqual({ text: expect.stringContaining('ERROR: not-found') })
   })
 })
 

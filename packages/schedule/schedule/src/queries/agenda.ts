@@ -107,7 +107,7 @@ function suppressedInstants(excluded: ScheduleExcludedCandidate, basis: Schedule
     ]
   })
 }
-function historyExplanation(row: ScheduleExecutionRow): string[] {
+function historyExplanation(row: Extract<ScheduleExecutionRow, { kind: 'slot' }>): string[] {
   const explanation = [`history:${row.rowRef}`]
   if (row.receipt !== null)
     explanation.push(
@@ -154,6 +154,7 @@ async function scheduleHistory(
       if (rowRefs.has(row.rowRef))
         fail(observation.context, 'provider_failure', 'History repeated a stable row identity')
       rowRefs.add(row.rowRef)
+      if (row.kind !== 'slot') continue
       instants.add(row.originalScheduledAt)
       const common = projection(
         record,

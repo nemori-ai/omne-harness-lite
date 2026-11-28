@@ -25,6 +25,19 @@ export function questionItem(cardId = 'card-1', revision = '3'): HumanInterventi
   }
 }
 
+/** The question with a description too long for a button, so a paper of it alone answers in rows under 提交. */
+export function rowedItem(cardId = 'card-1', revision = '3'): HumanInterventionCardItem {
+  const item = questionItem(cardId, revision)
+  const question = item.card.question
+  if (question.kind === 'release') return item
+  const options = question.options.map(option =>
+    option.id === 'main'
+      ? { ...option, description: '从主干发布，这是团队约好的默认分支。' }
+      : option,
+  )
+  return { ...item, card: { ...item.card, question: { ...question, options } } }
+}
+
 export function extensionItem(cardId = 'card-2'): HumanInterventionCardItem {
   return {
     card: {
@@ -49,10 +62,17 @@ export function extensionItem(cardId = 'card-2'): HumanInterventionCardItem {
 }
 
 export function releaseItem(cardId = 'card-3'): HumanInterventionCardItem {
-  const option = (id: string, label: string, offered: boolean, lasting: boolean) => ({
+  const option = (
+    id: string,
+    label: string,
+    offered: boolean,
+    lasting: boolean,
+    role: 'approve' | 'reject',
+  ) => ({
     id,
     label,
     description: `${label}的作用范围`,
+    role,
     offered,
     lasting,
   })
@@ -72,11 +92,11 @@ export function releaseItem(cardId = 'card-3'): HumanInterventionCardItem {
         arguments: { text: '{"cmd":"ls -la"}', truncated: true, digest: 'digest-of-all' },
         origin: { session: 'ses_0123456789abcdef', agent: 'exe-1' },
         options: [
-          option('deny-once', '本次不放行', true, false),
-          option('allow-once', '本次放行', false, false),
-          option('allow-session', '本会话放行', false, true),
-          option('allow-always', '始终放行', false, true),
-          option('deny-always', '始终禁止', false, true),
+          option('deny-once', '本次不放行', true, false, 'reject'),
+          option('allow-once', '本次放行', false, false, 'approve'),
+          option('allow-session', '本会话放行', false, true, 'approve'),
+          option('allow-always', '始终放行', false, true, 'approve'),
+          option('deny-always', '始终禁止', false, true, 'reject'),
         ],
       },
     },

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it, vi } from 'vitest'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { keyOf } from '../src/model/inbox-machine.ts'
 import { notificationUiModule, PAGE_ID } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -12,10 +12,6 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({
-  name: notificationProtocol.name,
-  major: notificationProtocol.major,
-})
 
 const scrolled = vi.fn()
 beforeAll(() => {
@@ -31,7 +27,7 @@ async function signedIn() {
   const { root, shell } = await startShell()
   shell.setTenant(TENANT)
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, notificationProtocol, fake.client)
   const module = root.plugin(notificationUiModule)
   await module
   await later()
@@ -56,7 +52,6 @@ it('toasts a strong notification that arrives after the window opened, with a wa
       id: keyOf(arrived),
       tone: 'attention',
       title: arrived.title,
-      body: 'demo.things · changed',
       action: { label: '去看看', page: PAGE_ID, subject: keyOf(arrived) },
     },
   ])
@@ -84,7 +79,7 @@ it('takes its toasts down and stops watching when it unloads', async () => {
 it('watches nothing without a tenant, and lets go of the tenant on sign-out', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, notificationProtocol, fake.client)
   await root.plugin(notificationUiModule)
   await later()
   expect(fake.observations).toHaveLength(0)
@@ -99,14 +94,14 @@ it('watches nothing without a tenant, and lets go of the tenant on sign-out', as
   expect(fake.observations).toHaveLength(1)
 })
 
-it('the page brought up on one notification scrolls to it and marks it, and opens nothing', async () => {
+it('the page brought up on one notification scrolls to it, draws no standing mark on it, and opens nothing', async () => {
   const t = await signedIn()
   const target = strong('new', 2)
   const item = t.shell.items('pages')[0]!
   const view = render(<>{item.render({ scope: TENANT, subject: keyOf(target) })}</>)
   await act(async () => t.inbox([entry('other', 1), target]))
-  const focused = view.container.querySelectorAll('[data-focused]')
-  expect([...focused].map(row => row.textContent)).toEqual([expect.stringContaining(target.title)])
-  expect(scrolled).toHaveBeenCalled()
+  expect(view.container.querySelector('[data-focused]')).toBeNull()
+  const rows = (scrolled.mock.contexts as Element[]).map(row => row.textContent)
+  expect(rows).toEqual([expect.stringContaining(target.title)])
   expect(t.fake.calls.some(call => call.operation !== 'list-inbox')).toBe(false)
 })

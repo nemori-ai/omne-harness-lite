@@ -16,6 +16,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import {
   removeLoginState,
@@ -37,7 +38,7 @@ interface Context {
 }
 
 interface Built {
-  readonly send: (link: Link) => Promise<CallResult | undefined>
+  readonly send: (link: Link) => Promise<CallResult>
   readonly echo: RequestEcho
   readonly local?: (result: CallResult) => string | undefined
 }
@@ -389,7 +390,7 @@ async function runGovernance(
   if (typeof built === 'string') return usageError(output, built)
 
   const result = await built.send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   const failure = built.local?.(result)
   const code = report(name, result, built.echo, output)
   if (failure === undefined) return code

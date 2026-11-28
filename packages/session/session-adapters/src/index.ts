@@ -6,6 +6,7 @@ export type {
   SessionModesPublicationResult,
 } from './mode-publication.ts'
 export { SESSION_MODES_PUBLICATION } from './mode-publication-schema.ts'
+export { SESSION_WORKSPACE_GUIDANCE, type WorkspaceGuidance } from './workspace-guidance.ts'
 export { SESSION_WORKING_DIRECTORY, workingDirectorySchema } from './working-directory-schema.ts'
 export type { WorkingDirectory } from './working-directory-schema.ts'
 export type {
@@ -37,3 +38,10 @@ export type {
 export { historySessionOf } from './history-session.ts'
 export { decodeSessionSlotRef, encodeSessionSlotRef } from './slot-ref.ts'
 export type { SessionSlot, SessionSlotRefFailure } from './slot-ref.ts'
+export {
+  createSessionCommandSource,
+  type ModelChoice,
+  SESSION_COMMANDS,
+  type SelectedModel,
+  type SessionCommandPorts,
+} from './commands.ts'

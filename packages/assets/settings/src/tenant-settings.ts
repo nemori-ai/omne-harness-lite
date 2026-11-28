@@ -17,7 +17,7 @@ export type SettingOwnerQuery =
   | Readonly<{ kind: 'asset'; category?: string; name: string }>
   | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
 export type SettingListScope =
-  | Readonly<{ kind: 'asset'; asset?: TenantSettingsAssetQuery }>
+  | Readonly<{ kind: 'asset'; asset?: TenantSettingsAssetQuery; category?: string }>
   | Readonly<{ kind: 'independent' }>
 export type TenantSettingsAction = 'list' | 'describe' | 'set' | 'clear'
 
@@ -209,6 +209,12 @@ function sameOwner(owner: SettingOwner, query: SettingOwnerQuery): boolean {
       )
   }
 }
+function inScope(owner: SettingOwner, scope: SettingListScope): boolean {
+  if (scope.kind !== 'asset') return true
+  const { asset, category } = scope
+  if (asset !== undefined && !sameOwner(owner, { kind: 'asset', ...asset })) return false
+  return category === undefined || (owner.kind === 'asset' && owner.category === category)
+}
 function ownerKey(owner: SettingOwner): readonly string[] {
   switch (owner.kind) {
     case 'asset':
@@ -240,10 +246,10 @@ function writable(view: SettingsTargetView, action: 'set' | 'clear') {
   return grant?.actions.includes(action) === true ? source.sourceId : undefined
 }
 export const ADOPTION_TEXT: Readonly<Record<SettingItem['presentation']['adoption'], string>> = {
-  'next-read': 'Applies from the next read of the item.',
-  'next-boundary': 'Applies from the next use boundary that the asset declares.',
-  reload: 'Applies after the asset reloads.',
-  creation: 'Applies to what is created after the change.',
+  'next-read': '下一次读到这一项时起生效。',
+  'next-boundary': '到这份资产声明的下一个使用边界时起生效。',
+  reload: '资产重新加载之后生效。',
+  creation: '对改动之后新建的生效。',
 }
 
 function outcomeOf(result: TenantSettingsWriteResult): WriteOutcome {
@@ -617,10 +623,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       const { scope } = input
       const read = await entries(input.tenant, scope.kind)
       if (read === undefined) return { kind: 'unavailable' }
-      const narrowed = scope.kind === 'asset' ? scope.asset : undefined
-      const selected = read.entries.filter(
-        entry => narrowed === undefined || sameOwner(entry.owner, { kind: 'asset', ...narrowed }),
-      )
+      const selected = read.entries.filter(entry => inScope(entry.owner, scope))
       const page = selected.slice(offset, offset + limit)
       const items: SettingView[] = []
       for (const entry of page) {

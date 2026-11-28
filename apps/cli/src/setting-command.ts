@@ -1,5 +1,5 @@
 import { assetsProtocol } from '@omne-harness/assets-protocol'
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId, rejectionText } from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
   loadLogin,
@@ -9,6 +9,7 @@ import {
   text,
   unrecognized,
   usageError,
+  refusedRequest,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
@@ -74,6 +75,7 @@ function secretText(state: string): string {
 function summary(result: CallResult): string {
   if (result.kind === 'uncertain') return 'Result: uncertain\n'
   if (result.kind === 'unavailable') return 'Result: unavailable\n'
+  if (result.kind === 'rejected') return `Result: not sent: ${rejectionText(result.rejection)}\n`
   if (result.outcome !== 'succeeded') return `Result: ${result.outcome}\n`
   const item = (result.body as { item?: unknown }).item
   if (text(item, 'kind') !== 'secret')
@@ -215,7 +217,7 @@ async function listAll(
       { tenant, scope, after, limit: PAGE_LIMIT },
       page === 1 ? firstMessageId : newId(),
     )
-    if (result === undefined) return { kind: 'refused' }
+    if (result.kind === 'rejected') return { kind: 'refused' }
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { kind: 'stopped', result }
     const read = pageOf(result.body)
@@ -310,7 +312,7 @@ async function runWrite(
     value === null
       ? await link.call(assetsProtocol, 'clear-setting', target, messageId)
       : await link.call(assetsProtocol, 'set-setting', { ...target, value }, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   // The echo holds the request number and the tenant only: never the body, so never the secret.
   return report(name, result, { messageId, tenant: tenantEcho }, output)
 }
@@ -331,7 +333,7 @@ async function runShow(
     { tenant, owner, item },
     messageId,
   )
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   if (!invocation.values.has(JSON_SWITCH)) return writeSummary(name, result, output)
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }

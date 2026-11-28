@@ -114,26 +114,25 @@ describe('the batch rules of the command migration, with their negative controls
   })
 
   it('a step takes a second input batch; the same batch twice is refused', () => {
-    const batch = (id: string) => ({
-      id: id as never,
-      watermark: evidence(`watermark/${id}`),
-      ordered: [],
+    const batch = (at: number) => ({
+      id: `${String(execution)}/batch/${String(at)}-${String(at)}` as never,
+      watermark: evidence(`watermark/${String(at)}`),
     })
     const first = published(emptyExecutionView(execution), [
-      { kind: 'step.begun', step, batch: batch('b-1') },
-      { kind: 'cursor.moved', step, members: { inputBatch: 'b-1' as never } },
+      { kind: 'step.begun', step, batch: batch(0) },
+      { kind: 'cursor.moved', step, members: { inputBatch: batch(0).id } },
     ])
     const view = fold({ head: 0, executions: new Map() }, first).executions.get(execution)!
     const second = batchOf(
       view,
       { op: 'op-2' as never, digest: 'd-2', rev: 0, gen: '1', kinds: [] },
-      [{ kind: 'step.begun', step, batch: batch('b-2') }],
+      [{ kind: 'step.begun', step, batch: batch(1) }],
     )
     expect('envelope' in second).toBe(true)
     const repeated = batchOf(
       view,
       { op: 'op-3' as never, digest: 'd-3', rev: 0, gen: '1', kinds: [] },
-      [{ kind: 'step.begun', step, batch: batch('b-1') }],
+      [{ kind: 'step.begun', step, batch: batch(0) }],
     )
     expect(repeated).toMatchObject({ kind: 'repeated' })
   })

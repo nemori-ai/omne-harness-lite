@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
-import { REPLY, expect, quit, test } from './desktop.ts'
+import { HOLD_MARKER, REPLY, UPSTREAM_FAILURES, expect, quit, test } from './desktop.ts'
 
 // The tests share one server: each signs up a name of its own.
 async function signUp(page: Page): Promise<void> {
@@ -29,6 +29,81 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
     timeout: 30_000,
   })
   expect(await page.evaluate('document.cookie')).toBe('')
+})
+
+// The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
+// binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
+// on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
+test('输入框的截图钮：每块屏上铺一层遮罩，框一块画上标注再确定、双击取整块、右键取消', async ({
+  launchApp,
+  target,
+}) => {
+  const { app, page } = await launchApp()
+  await expect(page.locator('input[name=loginIdentifier]')).toBeVisible({ timeout: 30_000 })
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  const button = page.getByRole('button', { name: '截一张屏幕，作为图片附件' })
+  await expect(button).toBeVisible({ timeout: 30_000 })
+  if (process.platform === 'darwin' && target === 'packaged') return
+  const screens = await app.evaluate(({ screen }) => screen.getAllDisplays().length)
+  const shown = () => app.windows().filter(each => each.url().includes('/shot.html'))
+  const overlayErrors: string[] = []
+  // A person can act once the overlay is on screen with its frozen frame.
+  const drawn =
+    'document.visibilityState === "visible" && [...document.images].some(image => image.naturalWidth > 0)'
+  const overlay = async (): Promise<Page> => {
+    await button.click()
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(screens)
+    const [first] = shown()
+    first!.on('console', message => {
+      if (message.type() === 'error') overlayErrors.push(message.text())
+    })
+    await first!.waitForFunction(drawn, undefined, { timeout: 30_000 })
+    return first!
+  }
+  const closed = async () => {
+    await expect.poll(() => shown().length, { timeout: 30_000 }).toBe(0)
+    await expect(button).toBeEnabled({ timeout: 30_000 })
+  }
+  const previews = page.locator('img[alt$="的预览"]')
+  const sizes = async () =>
+    (await page.evaluate(
+      `[...document.querySelectorAll('img[alt$="的预览"]')].map(image => [image.naturalWidth, image.naturalHeight])`,
+    )) as number[][]
+
+  const framed = await overlay()
+  const ratio = (await framed.evaluate('devicePixelRatio')) as number
+  await framed.mouse.move(100, 100)
+  await framed.mouse.down()
+  await framed.mouse.move(500, 400, { steps: 8 })
+  await framed.mouse.up()
+  await framed.locator('[title="矩形"]').click()
+  await framed.mouse.move(200, 180)
+  await framed.mouse.down()
+  await framed.mouse.move(380, 300, { steps: 6 })
+  await framed.mouse.up()
+  await framed.locator('[title="确定"]').click()
+  await closed()
+  await expect(previews).toHaveCount(1, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([[400 * ratio, 300 * ratio]])
+
+  const whole = await overlay()
+  const screenPixels = (await whole.evaluate(
+    '[Math.round(innerWidth * devicePixelRatio), Math.round(innerHeight * devicePixelRatio)]',
+  )) as number[]
+  await whole.mouse.dblclick(300, 300)
+  await closed()
+  await expect(previews).toHaveCount(2, { timeout: 30_000 })
+  await expect.poll(sizes).toEqual([[400 * ratio, 300 * ratio], screenPixels])
+
+  // On macOS the context menu comes on the press: the overlay cancels and closes before the release reaches it.
+  await (await overlay()).mouse.click(300, 300, { button: 'right' }).catch((failure: unknown) => {
+    if (!String(failure).includes('has been closed')) throw failure
+  })
+  await closed()
+  await expect(previews).toHaveCount(2)
+  await expect(page.getByText('已备好')).toHaveCount(2)
+  expect(overlayErrors).toEqual([])
 })
 
 /** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */
@@ -62,4 +137,84 @@ test('退出应用再打开，凭 cookie 直接进工作区；打包的应用把
   const { page } = await launchApp()
   await expect(page.getByRole('button', { name: '新建会话' })).toBeVisible({ timeout: 30_000 })
   await expect(page.locator('input[name=loginIdentifier]')).toHaveCount(0)
+})
+
+test('一轮没收场时退出再打开：这个会话显示在跑、有停止；按停止，这一轮收场，回到能发送', async ({
+  launchApp,
+}, testInfo) => {
+  const first = await launchApp()
+  await signUp(first.page)
+  await first.page.getByRole('button', { name: '新建会话' }).click()
+  await first.page.getByRole('textbox', { name: '输入消息' }).fill(`${HOLD_MARKER} 先别回答`)
+  await first.page.getByRole('button', { name: '发送' }).click()
+  await expect(first.page.getByRole('button', { name: '停止', exact: true })).toBeVisible({
+    timeout: 30_000,
+  })
+  await quit(first)
+  const { page } = await launchApp()
+  await page.locator('.omne-session-item').first().click({ timeout: 30_000 })
+  const stop = page.getByRole('button', { name: '停止', exact: true })
+  await expect(stop).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: testInfo.outputPath('under-way.png') })
+  await stop.click()
+  await expect(page.getByRole('button', { name: '发送' })).toBeVisible({ timeout: 30_000 })
+  await expect(stop).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('stopped.png') })
+})
+
+const [THROTTLED, DOWN, REFUSED] = Object.keys(UPSTREAM_FAILURES) as [string, string, string]
+
+async function failedWith(page: Page, marker: string) {
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  await page.getByRole('textbox', { name: '输入消息' }).fill(`${marker} 你好`)
+  await page.getByRole('button', { name: '发送' }).click()
+  const block = page.getByRole('status', { name: '这一轮失败了' })
+  await expect(block).toContainText('模型调用没有成功，这一轮没有得到回复。', { timeout: 60_000 })
+  return block
+}
+
+test('上游限流：失败下面说清是限流并给「换模型」；换一个模型再按重试，这一轮完成', async ({
+  launchApp,
+}, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, THROTTLED)
+  await expect(block).toContainText(
+    '模型供应商在限流，请求没有得到回复。可以稍后按「重试」，或换一个模型再试。',
+  )
+  await expect(block.getByRole('button', { name: '去填' })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('throttled.png') })
+  await block.getByRole('button', { name: '换模型' }).click()
+  const other = page.locator(
+    ':is([role=option], [role=menuitemradio]):not([aria-disabled=true]):not([data-state=checked])',
+  )
+  await expect(other.first()).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: testInfo.outputPath('choosing.png') })
+  await other.first().click()
+  await block.getByRole('button', { name: '重试' }).click()
+  await expect(page.getByText(REPLY).first()).toBeVisible({ timeout: 60_000 })
+  await expect(block).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('retried.png') })
+})
+
+test('上游网关出错：说的是暂时不可用，不说限流，同样给「换模型」', async ({
+  launchApp,
+}, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, DOWN)
+  await expect(block).toContainText(
+    '模型供应商暂时不可用，请求没有得到回复。可以稍后按「重试」，或换一个模型再试。',
+  )
+  await expect(block).not.toContainText('限流')
+  await expect(block.getByRole('button', { name: '换模型' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('down.png') })
+})
+
+test('密钥被拒：失败下面说供应商没有收下填的密钥，给「去填」', async ({ launchApp }, testInfo) => {
+  const { page } = await launchApp()
+  const block = await failedWith(page, REFUSED)
+  await expect(block).toContainText('模型供应商没有收下填的密钥。换一把之后按「重试」接着做。')
+  await expect(block.getByRole('button', { name: '去填' })).toBeVisible()
+  await expect(block.getByRole('button', { name: '换模型' })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('refused.png') })
 })

@@ -3,7 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
   AssembledModelInput,
-  FixedModelRequest,
+  LlmModelRequest,
   MeterRepresentation,
   ModelProfile,
   Parameter,
@@ -170,7 +170,11 @@ function shown(
 
 export function planMessages(
   context: MessagesContext,
-  input: Readonly<{ profile: ModelProfile; supplier: Supplier; assembled: AssembledModelInput }>,
+  input: Readonly<{
+    profile: ModelProfile<'llm'>
+    supplier: Supplier
+    assembled: AssembledModelInput
+  }>,
 ): Outcome<
   Readonly<{ parameters: readonly ParameterAdoption[]; representation: MeterRepresentation }>,
   TransportFailure
@@ -182,6 +186,8 @@ export function planMessages(
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
+    bindingEfforts: context.bindingEfforts,
+    reasoningEfforts: profile.definition.reasoningEfforts,
     outputLimit: profile.definition.context.output.provided,
     requested: assembled.parameters,
     supplier: context.adapter,
@@ -217,7 +223,7 @@ export function planMessages(
 export function encodeMessages(
   context: MessagesContext,
   input: Readonly<{
-    request: FixedModelRequest
+    request: LlmModelRequest
     media: readonly PiMaterializedMedia[]
     declaration: ReplayDeclaration
     resent: TransportDispatch['resent']

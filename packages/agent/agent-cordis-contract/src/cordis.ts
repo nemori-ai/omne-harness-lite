@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { randomBytes } from 'node:crypto'
 import { type Context, CordisError, Service } from '@deepseek-ai/cordis'
 import {
@@ -31,6 +32,7 @@ import {
   type ModelReceptionTargets,
   type ToolReceptionTargets,
   type ModelSelection,
+  type NestedActionAdmission,
   type RegisteredReads,
   type Registration,
   type RegistrationState,
@@ -127,6 +129,7 @@ export abstract class DecisionCardsService<P> extends Service implements Decisio
   abstract readonly lookup: DecisionCards<P>['lookup']
   abstract readonly read: DecisionCards<P>['read']
   abstract readonly invalidate: DecisionCards<P>['invalidate']
+  abstract readonly changes: DecisionCards<P>['changes']
 }
 export const agentDecisionCardsKey = DecisionCardsService.provide
 
@@ -295,6 +298,7 @@ export abstract class AgentExecutionRecoveryService<P>
   abstract readonly load: AgentExecutionRecovery<P>['load']
   abstract readonly reconcile: AgentExecutionRecovery<P>['reconcile']
   abstract readonly detach: AgentExecutionRecovery<P>['detach']
+  abstract readonly handOver: AgentExecutionRecovery<P>['handOver']
   abstract readonly contact: AgentExecutionRecovery<P>['contact']
 }
 export const agentExecutionRecoveryKey = AgentExecutionRecoveryService.provide
@@ -381,6 +385,19 @@ export abstract class AgentExecutionControlService<P>
   abstract readonly control: AgentExecutionControl<P>['control']
 }
 export const agentExecutionControlKey = AgentExecutionControlService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentNestedActionsService<P>
+  extends Service
+  implements NestedActionAdmission<P>
+{
+  static readonly provide = 'agentNestedActions'
+  constructor(ctx: Context) {
+    super(ctx, AgentNestedActionsService.provide)
+  }
+  abstract readonly admit: NestedActionAdmission<P>['admit']
+}
+export const agentNestedActionsKey = AgentNestedActionsService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentInstanceProvisionService<P>
@@ -855,6 +872,7 @@ declare module '@deepseek-ai/cordis' {
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
     agentToolReceptionTargets: ToolReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
+    agentNestedActions: AgentNestedActionsService<unknown>
     agentInstances: AgentInstancesService<unknown>
     agentInstanceProvision: AgentInstanceProvisionService<unknown>
   }
@@ -877,3 +895,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const agentDefinitionsPoint = heldPoint({
+  name: 'agent.definitions',
+  key: 'the definition name',
+  summary: 'The Agent definitions each layer holds, by name.',
+})

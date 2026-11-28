@@ -331,7 +331,7 @@ export async function seedCp2(world: Cp2World) {
   const snapshot = ok(await world.port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('the Run is not active')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await world.port.readInput({ ...access, input: snapshot.run.first }))
+  const admitted = ok(await world.port.readInput({ ...access, input: snapshot.run.initial[0] }))
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
@@ -385,7 +385,7 @@ export function messageCommit(
 export function invokePrepare(
   seeded: Awaited<ReturnType<typeof seedCp2>>,
 ): Parameters<MessageHandoff<string>['prepare']>[0] {
-  const request = seeded.open.original.outcome.request
+  const request = seeded.open.originals[0].outcome.request
   if (request.kind !== 'input') throw new Error('fixture: an external request')
   return {
     principal: own.principal,

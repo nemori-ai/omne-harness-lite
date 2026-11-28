@@ -49,7 +49,7 @@ function coordinator(
     access: alice,
     execution: execution(),
     operation: operation('invoke-exec-1'),
-    initial: acceptedInput('input-exec-1', 'hello exec-1'),
+    initial: [acceptedInput('input-exec-1', 'hello exec-1')],
     grant: null,
     idle,
   })
@@ -258,7 +258,7 @@ describe('#516 terminal exit', () => {
           ...alice,
           execution: execution(),
           operation: operation('reopen-ended'),
-          initial: acceptedInput('new-in-original'),
+          initial: [acceptedInput('new-in-original')],
           grant: null,
         }),
       ).kind,
@@ -549,7 +549,11 @@ describe('#516 terminal exit', () => {
       registration.observed,
     ])
     expect(retained.output).toEqual(terminal.output)
-    expect(assembly.controls.extensions.resolve.calls).toHaveLength(0)
+    // The recovering coordinator asks for the observer that is still owed, and only for it; its
+    // implementation is absent, so the observation stays owed.
+    expect(assembly.controls.extensions.resolve.calls.map(call => call.passage.id)).toEqual([
+      pending.id,
+    ])
     expect(idle).toBe(1)
     const stillPending = retained.terminalObservations[0]
     if (stillPending === undefined) throw new Error('lost pending responsibility')

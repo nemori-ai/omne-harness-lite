@@ -1,10 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { standingPrincipalRef } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ToolCallId } from '@omne-harness/tool-contract'
 import type { ToolExecutionScope } from '@omne-harness/tool-contract/provider'
+import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
-/** The access of a tool call while its scope is open; a handle for reading its release, not a fact. */
+/** The access of a tool call while its scope is open; a handle for naming where it runs, not a fact. */
 export type LiveCall = Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>
+
+export type CallOrigin = Readonly<{ actorRef: string; session: string; call: string }>
 
 const registries = new WeakMap<Context, Map<string, LiveCall>>()
 
@@ -20,8 +24,22 @@ export function liveCalls(ctx: Context): Map<string, LiveCall> {
   return created
 }
 
-/** Keeps the access of a call registered while its scope is open, so a domain it writes to can read
- * what the call was released on. */
+export function liveCallOrigin(ctx: Context) {
+  return (tenantRef: string, call: string): CallOrigin | undefined => {
+    const live = liveCalls(ctx).get(liveCallKey(tenantRef, call))
+    if (live === undefined) return undefined
+    const work = sessionWorkOf(live.principal, live.tenant)
+    if (work === undefined) return undefined
+    return {
+      actorRef: standingPrincipalRef(work.principal),
+      session: work.session,
+      call: live.call,
+    }
+  }
+}
+
+/** Keeps the access of a call registered while its scope is open, so a domain it writes to can name
+ * the session and the call that wrote. */
 export function holdLiveCall(
   ctx: Context,
   access: LiveCall,

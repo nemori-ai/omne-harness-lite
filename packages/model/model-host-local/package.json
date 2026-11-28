@@ -39,6 +39,10 @@
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
+    "@omne-harness/pi-ai-deepseek": "workspace:*",
+    "@omne-harness/pi-ai-glm": "workspace:*",
+    "@omne-harness/pi-ai-jev": "workspace:*",
+    "@omne-harness/pi-ai-kimi": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-qwen": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
@@ -48,6 +52,7 @@
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",
     "@types/node": "catalog:",

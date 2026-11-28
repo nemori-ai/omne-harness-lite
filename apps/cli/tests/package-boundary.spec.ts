@@ -9,6 +9,7 @@ const allowed = [
   '@omne-harness/calendar-protocol',
   '@omne-harness/human-intervention-protocol',
   '@omne-harness/identity-protocol',
+  '@omne-harness/mcp-protocol',
   '@omne-harness/media-protocol',
   '@omne-harness/model-protocol',
   '@omne-harness/notification-protocol',
@@ -17,6 +18,8 @@ const allowed = [
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',
+  '@omne-harness/slash-command-contract',
+  '@omne-harness/slash-command-protocol',
   '@omne-harness/tool-protocol',
   '@omne-harness/usage-protocol',
   '@omne-harness/workspace-protocol',
@@ -31,6 +34,7 @@ const forbidden = [
   '@omne-harness/assets-access',
   '@omne-harness/human-intervention-access',
   '@omne-harness/identity-access',
+  '@omne-harness/mcp-access',
   '@omne-harness/session-access',
   '@omne-harness/session-diagnostics-access',
   '@omne-harness/tool-access',
@@ -65,7 +69,7 @@ function importSpecifiers(source: string): string[] {
 }
 
 describe('install closure', () => {
-  it('declares the SDK, the public contract and the protocol contracts it speaks as its only runtime dependencies, and no peer or optional dependency', () => {
+  it('declares the SDK, the public contract, the protocol contracts it speaks and the pure contract of commands as its only runtime dependencies, and no peer or optional dependency', () => {
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual(allowed)
     expect(Object.values(manifest.dependencies ?? {})).toEqual(allowed.map(() => 'workspace:*'))
     expect(manifest.peerDependencies).toBeUndefined()

@@ -1,137 +1,47 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Context, type Plugin } from '@deepseek-ai/cordis'
+import type { Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
-import type {
-  LoginCredentials,
-  LogoutResult,
-  ShellLogin,
-  ShellLoginState,
-} from '@omne-harness/shell-contract'
+import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { protocolsPoint, servedPoint, servedProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import {
   assetGovernanceKey,
   assetsCategoryPage,
   assetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { serverPointsContract } from '@omne-harness/client-assembly'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
-import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
-import type { Connectivity } from '../src/page/connectivity.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
-import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
-import { NO_LOGIN_TEXT, Shell } from '../src/page/shell/shell.tsx'
-import { LOGOUT_UNKNOWN_TEXT, createShellState } from '../src/page/shell/state.ts'
-import { fakeGate, fakePage, fakeSidebar } from './support/fake-modules.tsx'
+import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
+import { RECONNECTING_TEXT } from '../src/page/shell/sidebar.tsx'
+import { LOGOUT_UNKNOWN_TEXT } from '../src/page/shell/state.ts'
+import { fakeGate, fakeSidebar } from './support/fake-modules.tsx'
+import {
+  CHAT,
+  SETTINGS,
+  chatPage,
+  current,
+  home,
+  navTitles,
+  section,
+  settle,
+  setup,
+} from './support/shell-setup.tsx'
 
 afterEach(() => cleanup())
 
-const CHAT = 'fake:chat'
-const SETTINGS = 'fake:settings'
-const chatPage = fakePage({
-  id: 'chat',
-  title: '对话',
-  order: 0,
-  service: CHAT,
-  icon: 'conversation',
-})
-const settingsPage = fakePage({ id: 'settings', title: '设置', order: 20, service: SETTINGS })
+/** The assets protocol served by a client, and a server that tells nothing of its points: what the assets module needs. */
+const served = (client: object): readonly Plugin.Object[] => [
+  protocolsPoint,
+  servedProtocol(assetsProtocol, client),
+  servedPoint(serverPointsContract, { keys: () => undefined, subscribe: () => () => undefined }),
+]
 
-function source<T>(initial: T) {
-  let value = initial
-  const listeners = new Set<(value: T) => void>()
-  return {
-    current: () => value,
-    subscribe(listener: (value: T) => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    set(next: T) {
-      value = next
-      for (const listener of Array.from(listeners)) listener(next)
-    },
-  }
-}
-
-const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 const TENANT_TEXT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-
-async function setup(
-  options: {
-    login?: ShellLoginState
-    modules?: readonly Plugin.Object[]
-    logout?: LogoutResult
-    connectivity?: Connectivity
-    missingAtForwarding?: readonly string[]
-  } = {},
-) {
-  const login = source<ShellLoginState>(options.login ?? 'signed-out')
-  const connectivity = source<Connectivity>(options.connectivity ?? 'connected')
-  const handedOver: LoginCredentials[] = []
-  const chosen: ThemeChoice[] = []
-  const inner: ShellLogin = {
-    state: login.current,
-    subscribe: login.subscribe,
-    login: async credentials => {
-      handedOver.push(credentials)
-      return 'signed-in'
-    },
-    logout: async () => {
-      login.set('signing-out')
-      await settle()
-      login.set('signed-out')
-      return options.logout ?? 'signed-out'
-    },
-  }
-  const state = createShellState(inner)
-  const root = new Context()
-  await root.plugin(shellPlugin(state))
-  for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage])
-    await root.plugin(module)
-  const theme = {
-    initial: 'light' as ResolvedTheme,
-    select(choice: ThemeChoice): ResolvedTheme {
-      chosen.push(choice)
-      return choice === 'dark' ? 'dark' : 'light'
-    },
-  }
-  render(
-    <Shell
-      appName="omne"
-      state={state}
-      connectivity={connectivity}
-      theme={theme}
-      {...(options.missingAtForwarding === undefined
-        ? {}
-        : { missingAtForwarding: options.missingAtForwarding })}
-    />,
-  )
-  const provide = async (name: string) => {
-    let withdraw: () => void = () => {}
-    await act(async () => {
-      withdraw = root.reflect.provide(name, {})
-      await settle()
-    })
-    return async () => {
-      await act(async () => {
-        withdraw()
-        await settle()
-      })
-    }
-  }
-  const service = root.get('shell') as unknown as DesktopShell
-  return { login, connectivity, state, root, provide, handedOver, chosen, service }
-}
-
-const navTitles = () =>
-  [...document.querySelectorAll('.shell-nav-link')].map(link => link.textContent)
-const current = () => document.querySelector('[aria-current="page"]')?.textContent
-const section = (id: string) => document.querySelector<HTMLElement>(`section[data-page="${id}"]`)
 
 describe('外壳：登录之外', () => {
   it('没登录只显示登录门里的那一项，不画侧栏与页面', async () => {
@@ -140,6 +50,35 @@ describe('外壳：登录之外', () => {
     expect(screen.getByText('登录门占位')).toBeTruthy()
     expect(screen.queryByText('对话占位')).toBeNull()
     expect(document.querySelector('.shell-sidebar')).toBeNull()
+  })
+
+  it('登录门来了两份：两份都不画，那里写明是哪两家；一份撤了，另一份立刻显示', async () => {
+    const second = defineUiModule({
+      name: 'other-gate',
+      needs: {},
+      apply: shell =>
+        shell.contribute('gate', { id: 'other.gate', render: () => <p>另一个登录门</p> }),
+    })
+    const t = await setup({ modules: [fakeGate()] })
+    const warned = vi.spyOn(t.root.logger, 'error').mockImplementation(() => undefined)
+    let fiber: { dispose(): unknown } | undefined
+    await act(async () => {
+      fiber = await t.root.plugin(second)
+    })
+    expect(screen.queryByText('登录门占位')).toBeNull()
+    expect(screen.queryByText('另一个登录门')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toBe(
+      '登录入口有 2 份，来自 fake-gate、other-gate，都没有显示。',
+    )
+    expect(warned).toHaveBeenCalledWith(
+      'shell: gate is put by fake-gate, other-gate; none of them is drawn',
+    )
+    await act(async () => {
+      await fiber?.dispose()
+      await settle()
+    })
+    expect(screen.getByText('登录门占位')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('登录门空着时显示那句话；还在连接时先说正在连接', async () => {
@@ -187,13 +126,68 @@ describe('外壳：登录之外', () => {
   })
 })
 
-describe('外壳：连接', () => {
-  it.each(['signed-out', 'signed-in'] as const)('%s 时连接断开，主区上方一条提示', async login => {
-    const t = await setup({ login })
+describe('外壳：没起来的', () => {
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时一个界面模块启动时出错：主区上方写明是哪一个，别的照常；它走了这句话也走',
+    async login => {
+      const broken = defineUiModule({
+        name: 'broken-ui',
+        needs: {},
+        apply() {
+          throw new Error('this module is broken on purpose')
+        },
+      })
+      const t = await setup({ login })
+      vi.spyOn(t.root.logger, 'warn').mockImplementation(() => undefined)
+      expect(screen.queryByRole('alert')).toBeNull()
+      let fiber: { dispose(): unknown } | undefined
+      await act(async () => {
+        fiber = await t.root.plugin(broken)
+        await settle()
+      })
+      expect(screen.getByRole('alert').textContent).toBe(
+        '界面有几块启动时出错，没有起来：broken-ui。别的照常。',
+      )
+      await act(async () => {
+        await fiber?.dispose()
+        await settle()
+      })
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
+
+  it('底停掉了一份 plugin：写明是哪一份、为什么停、怎样放开；放开了这句话就走', async () => {
+    const t = await setup({ login: 'signed-in' })
+    act(() => t.root.shell.markStart('plugin:fancy@0123456789abcdef', 'held'))
+    expect(screen.getByRole('alert').textContent).toBe(
+      'plugin:fancy@0123456789abcdef 连着两次让应用起不来，已经停掉。换一版，或者不再装它，就放开。',
+    )
+    act(() => t.root.shell.markStart('plugin:fancy@0123456789abcdef', 'gone'))
     expect(screen.queryByRole('alert')).toBeNull()
-    act(() => t.connectivity.set('disconnected'))
-    expect(screen.getByRole('alert').textContent).toContain('连不上服务。正在按间隔重新连接')
   })
+})
+
+describe('外壳：连接', () => {
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时连接断开：一行中性的字写原因、说正在重连，带活动标记；连上了这行就走',
+    async login => {
+      const t = await setup({ login })
+      expect(screen.queryByRole('status', { name: RECONNECTING_TEXT })).toBeNull()
+      act(() => t.connectivity.set('disconnected'))
+      const line = screen.getByRole('status', { name: RECONNECTING_TEXT })
+      expect(line.textContent).toBe('连不上服务。正在重连……')
+      expect(line.querySelector('[data-loading-indicator]')).not.toBeNull()
+      expect(screen.queryByRole('alert')).toBeNull()
+      if (login === 'signed-in')
+        expect(document.querySelector('.shell-sidebar')?.contains(line)).toBe(true)
+      else
+        expect(
+          document.querySelector('.shell-outside')?.firstElementChild?.nextElementSibling,
+        ).toBe(line)
+      act(() => t.connectivity.set('connected'))
+      expect(screen.queryByRole('status', { name: RECONNECTING_TEXT })).toBeNull()
+    },
+  )
 
   it.each(['signed-out', 'signed-in'] as const)(
     '%s 时转发层少了页面要用的协议：主区上方写应用的版本旧了、需要重启，列出少的那几样；不少时不写',
@@ -208,22 +202,28 @@ describe('外壳：连接', () => {
     },
   )
 
-  it('侧栏显示连接状态', async () => {
-    const t = await setup({ login: 'signed-in' })
-    expect(document.querySelector('[data-connectivity]')?.textContent).toBe('已连接')
-    act(() => t.connectivity.set('disconnected'))
-    expect(document.querySelector('[data-connectivity]')?.textContent).toBe('连不上服务')
-  })
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时连接正常：外壳不写任何连接状态，没有字也没有点',
+    async login => {
+      await setup({ login, connectivity: 'connected' })
+      const text = document.body.textContent ?? ''
+      for (const word of ['已连接', '连接中', '连不上', '重连', '连接正常'])
+        expect(text).not.toContain(word)
+      expect(document.querySelector('[data-connectivity]')).toBeNull()
+      expect(document.querySelector('.shell-reconnecting')).toBeNull()
+    },
+  )
 })
 
 describe('外壳：页面', () => {
-  it('页面按次序列在侧栏，缺省显示次序最前的一页', async () => {
+  it('次序最前的一页由家代表，别的页按次序列在导航里；缺省显示次序最前的一页', async () => {
     const t = await setup({ login: 'signed-in' })
     await t.provide(SETTINGS)
-    expect(navTitles()).toEqual(['设置'])
+    expect(navTitles()).toEqual([])
+    expect(current()).toBe('家')
     await t.provide(CHAT)
-    expect(navTitles()).toEqual(['对话', '设置'])
-    expect(current()).toBe('对话')
+    expect(navTitles()).toEqual(['设置'])
+    expect(current()).toBe('家')
     expect(section('chat')!.hidden).toBe(false)
     expect(section('settings')!.hidden).toBe(true)
   })
@@ -233,11 +233,11 @@ describe('外壳：页面', () => {
     await t.provide(CHAT)
     await t.provide(SETTINGS)
     const chat = screen.getByText('对话占位')
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     expect(current()).toBe('设置')
     expect(section('chat')!.hidden).toBe(true)
     expect(document.body.contains(chat)).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: '对话' }))
+    fireEvent.click(home()!)
     expect(screen.getByText('对话占位')).toBe(chat)
   })
 
@@ -245,12 +245,12 @@ describe('外壳：页面', () => {
     const t = await setup({ login: 'signed-in' })
     await t.provide(CHAT)
     const withdraw = await t.provide(SETTINGS)
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     await withdraw()
     expect(section('settings')).toBeNull()
-    expect(current()).toBe('对话')
+    expect(current()).toBe('家')
     await t.provide(SETTINGS)
-    expect(current()).toBe('对话')
+    expect(current()).toBe('家')
   })
 
   it('一页都没有时主区空着', async () => {
@@ -269,6 +269,24 @@ describe('外壳：页面', () => {
     expect(current()).toBe('设置')
     act(() => t.service.navigate('absent'))
     expect(current()).toBe('设置')
+  })
+
+  it('服务的 page 是现在显示的那一页，跟着切换与撤下变；它只能读，不能切换', async () => {
+    const t = await setup({ login: 'signed-in' })
+    expect(t.service.page.get()).toBeUndefined()
+    await t.provide(CHAT)
+    const withdraw = await t.provide(SETTINGS)
+    expect(t.service.page.get()).toBe('chat')
+    const seen: (string | undefined)[] = []
+    const stop = t.service.page.subscribe(page => seen.push(page))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
+    act(() => t.service.navigate('chat'))
+    act(() => t.service.navigate('settings'))
+    await withdraw()
+    stop()
+    act(() => t.service.navigate('chat'))
+    expect(seen).toEqual(['settings', 'chat', 'settings', 'chat'])
+    expect(Object.keys(t.service.page).sort()).toEqual(['get', 'subscribe'])
   })
 
   it('外壳的服务也是读位置的接口', async () => {
@@ -307,21 +325,13 @@ describe('外壳：侧栏区与租户', () => {
     act(() => t.login.set('signing-out'))
     expect(t.state.scope.get()).toBeUndefined()
   })
-
-  it('明暗切换交给主题控制器', async () => {
-    const t = await setup({ login: 'signed-in' })
-    fireEvent.click(screen.getByRole('button', { name: '换成深色' }))
-    expect(t.chosen).toEqual(['dark'])
-    fireEvent.click(screen.getByRole('button', { name: '换成浅色' }))
-    expect(t.chosen).toEqual(['dark', 'light'])
-  })
 })
 
 describe('外壳：附着位置与页面标记', () => {
   const attachedItem = (id: string, anchor: string, order = 0) =>
     defineUiModule({
       name: `attached-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', {
           id,
@@ -338,12 +348,13 @@ describe('外壳：附着位置与页面标记', () => {
   const hostPage = (anchor: string, subject: string) =>
     defineUiModule({
       name: 'host-page',
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode => shell.attached(anchor, subject),
         })
       },
@@ -357,10 +368,10 @@ describe('外壳：附着位置与页面标记', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        attachedItem('late', 'a', 2),
-        attachedItem('other', 'b'),
-        attachedItem('early', 'a', 1),
-        hostPage('a', 's1'),
+        attachedItem('late', 'test.a', 2),
+        attachedItem('other', 'test.b'),
+        attachedItem('early', 'test.a', 1),
+        hostPage('test.a', 's1'),
       ],
     })
     act(() => t.state.scope.set('tenant-x'))
@@ -374,15 +385,15 @@ describe('外壳：附着位置与页面标记', () => {
   it('没有名字相同的项时什么都不渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [attachedItem('x', 'b'), hostPage('a', 's1')],
+      modules: [attachedItem('x', 'test.b'), hostPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('tenant-x'))
     expect(document.querySelector('.shell-page')?.childElementCount).toBe(0)
   })
 
   it('项撤下后消失，放进来后出现', async () => {
-    const module = attachedItem('x', 'a')
-    const t = await setup({ login: 'signed-in', modules: [hostPage('a', 's1')] })
+    const module = attachedItem('x', 'test.a')
+    const t = await setup({ login: 'signed-in', modules: [hostPage('test.a', 's1')] })
     expect(attachedIds()).toEqual([])
     const fiber = t.root.plugin(module)
     await act(async () => {
@@ -398,7 +409,7 @@ describe('外壳：附着位置与页面标记', () => {
   it('租户变了，已经渲染的项跟着重渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [attachedItem('x', 'a'), hostPage('a', 's1')],
+      modules: [attachedItem('x', 'test.a'), hostPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('t1'))
     expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
@@ -407,8 +418,8 @@ describe('外壳：附着位置与页面标记', () => {
   })
 
   it('宿主不重渲染时，服务给出的元素自己也跟着租户的变化', async () => {
-    const t = await setup({ login: 'signed-in', modules: [attachedItem('x', 'a')] })
-    const view = render(<>{t.service.attached('a', 's1')}</>)
+    const t = await setup({ login: 'signed-in', modules: [attachedItem('x', 'test.a')] })
+    const view = render(<>{t.service.attached('test.a', 's1')}</>)
     const scopeOf = () =>
       view.container.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']
     expect(scopeOf()).toBe('')
@@ -420,16 +431,30 @@ describe('外壳：附着位置与页面标记', () => {
     let text: string | null = '还有 2 张'
     const module = defineUiModule({
       name: 'badged',
-      inject: [],
+      needs: {},
       apply(shell) {
+        shell.contribute('pages', {
+          id: 'first',
+          title: '家的页',
+          order: 0,
+          icon: 'topics',
+          render: () => null,
+        })
         shell.contribute('pages', {
           id: 'badged',
           title: '待办',
-          order: 0,
+          order: 1,
+          icon: 'topics',
           badge: ({ scope }) => (text === null ? null : `${text}${scope ?? ''}`),
           render: () => null,
         })
-        shell.contribute('pages', { id: 'plain', title: '无标记', order: 1, render: () => null })
+        shell.contribute('pages', {
+          id: 'plain',
+          title: '无标记',
+          order: 2,
+          icon: 'topics',
+          render: () => null,
+        })
       },
     })
     const t = await setup({ login: 'signed-in', modules: [module] })
@@ -450,7 +475,7 @@ describe('外壳：宿主自己排版', () => {
   const labelled = (id: string, anchor: string, order: number, label?: string) =>
     defineUiModule({
       name: `arranged-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', {
           id,
@@ -468,12 +493,13 @@ describe('外壳：宿主自己排版', () => {
   const tabsPage = (anchor: string, subject: string) =>
     defineUiModule({
       name: 'tabs-page',
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode =>
             shell.arranged(anchor, subject, entries => (
               <ul data-tabs={entries.length}>
@@ -496,10 +522,10 @@ describe('外壳：宿主自己排版', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        labelled('late', 'a', 2, '晚'),
-        labelled('other', 'b', 0),
-        labelled('early', 'a', 1),
-        tabsPage('a', 's1'),
+        labelled('late', 'test.a', 2, '晚'),
+        labelled('other', 'test.b', 0),
+        labelled('early', 'test.a', 1),
+        tabsPage('test.a', 's1'),
       ],
     })
     act(() => t.state.scope.set('tenant-x'))
@@ -510,15 +536,18 @@ describe('外壳：宿主自己排版', () => {
   })
 
   it('没有名字相同的项时排版函数收到空表', async () => {
-    await setup({ login: 'signed-in', modules: [labelled('x', 'b', 0), tabsPage('a', 's1')] })
+    await setup({
+      login: 'signed-in',
+      modules: [labelled('x', 'test.b', 0), tabsPage('test.a', 's1')],
+    })
     expect(document.querySelector<HTMLElement>('[data-tabs]')?.dataset['tabs']).toBe('0')
     expect(tabs()).toEqual([])
   })
 
   it('宿主画出之后放进一项、撤下一项，排版跟着重画', async () => {
-    const t = await setup({ login: 'signed-in', modules: [tabsPage('a', 's1')] })
+    const t = await setup({ login: 'signed-in', modules: [tabsPage('test.a', 's1')] })
     expect(tabs()).toEqual([])
-    const fiber = t.root.plugin(labelled('x', 'a', 0, '甲'))
+    const fiber = t.root.plugin(labelled('x', 'test.a', 0, '甲'))
     await act(async () => {
       await fiber
     })
@@ -533,12 +562,12 @@ describe('外壳：宿主自己排版', () => {
     const DEPENDED = 'fake:contributor-protocol'
     const dependent = defineUiModule({
       name: 'dependent-contributor',
-      inject: [DEPENDED],
+      needs: { depended: needProtocol({ name: DEPENDED, major: 1 }) },
       apply(shell) {
         shell.contribute('attached', {
           id: 'dependent',
           order: 1,
-          anchor: 'a',
+          anchor: 'test.a',
           label: '依赖协议的',
           render: () => <p data-attached="dependent">依赖协议的一项</p>,
         })
@@ -546,7 +575,7 @@ describe('外壳：宿主自己排版', () => {
     })
     const t = await setup({
       login: 'signed-in',
-      modules: [dependent, labelled('always', 'a', 2, '一直在'), tabsPage('a', 's1')],
+      modules: [dependent, labelled('always', 'test.a', 2, '一直在'), tabsPage('test.a', 's1')],
     })
     expect(tabs()).toEqual(['always:一直在'])
     const withdraw = await t.provide(DEPENDED)
@@ -560,9 +589,9 @@ describe('外壳：宿主自己排版', () => {
 
   it('三个插件按三种次序加载，排版出来逐字相同', async () => {
     const modules = [
-      labelled('one', 'a', 1, '一'),
-      labelled('two', 'a', 2, '二'),
-      tabsPage('a', 's1'),
+      labelled('one', 'test.a', 1, '一'),
+      labelled('two', 'test.a', 2, '二'),
+      tabsPage('test.a', 's1'),
     ]
     const markups: string[] = []
     for (const order of [
@@ -581,7 +610,7 @@ describe('外壳：宿主自己排版', () => {
   it('租户变了，排版里的项跟着重渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [labelled('x', 'a', 0), tabsPage('a', 's1')],
+      modules: [labelled('x', 'test.a', 0), tabsPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('t1'))
     expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
@@ -608,7 +637,7 @@ describe('外壳：一项坏了只坏这一项', () => {
   const attachedModule = (id: string, anchor: string, order: number, render: () => ReactNode) =>
     defineUiModule({
       name: `attached-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', { id, order, anchor, render })
       },
@@ -621,9 +650,9 @@ describe('外壳：一项坏了只坏这一项', () => {
   const pageModule = (id: string, order: number, render: () => ReactNode) =>
     defineUiModule({
       name: `page-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
-        shell.contribute('pages', { id, title: `页${id}`, order, render })
+        shell.contribute('pages', { id, title: `页${id}`, order, icon: 'topics', render })
       },
     })
 
@@ -631,17 +660,17 @@ describe('外壳：一项坏了只坏这一项', () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, boom),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, boom),
+        attachedModule('good', 'test.a', 1, good('good')),
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'host',
               order: 0,
-              render: () => shell.attached('a', 's1'),
+              render: () => shell.attached('test.a', 's1'),
             })
           },
         }),
@@ -650,24 +679,25 @@ describe('外壳：一项坏了只坏这一项', () => {
     expect(ITEM_FAILED_TEXT).toBe('这一块读不出')
     expect(failed().map(node => node.textContent)).toEqual(['这一块读不出'])
     expect(attachedIds()).toEqual(['good'])
-    expect(navTitles()).toEqual(['页host'])
+    expect(navTitles()).toEqual([])
+    expect(section('host')).not.toBeNull()
   })
 
   it('附着的一项返回的组件在渲染当中抛出：也只坏这一项', async () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, () => <Boom />),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, () => <Boom />),
+        attachedModule('good', 'test.a', 1, good('good')),
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'host',
               order: 0,
-              render: () => shell.attached('a', 's1'),
+              render: () => shell.attached('test.a', 's1'),
             })
           },
         }),
@@ -681,18 +711,19 @@ describe('外壳：一项坏了只坏这一项', () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, boom),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, boom),
+        attachedModule('good', 'test.a', 1, good('good')),
         defineUiModule({
           name: 'host-arranged',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('pages', {
               id: 'host',
               title: '宿主',
               order: 0,
+              icon: 'topics',
               render: (): ReactNode =>
-                shell.arranged('a', 's1', entries => (
+                shell.arranged('test.a', 's1', entries => (
                   <ul>
                     {entries.map(entry => (
                       <li key={entry.id} data-tab={entry.id}>
@@ -723,7 +754,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         fakeSidebar({ id: 'side', order: 0, text: '侧栏占位' }),
       ],
     })
-    expect(navTitles()).toEqual(['页bad', '页fine'])
+    expect(navTitles()).toEqual(['页fine'])
     expect(section('bad')?.querySelector('.shell-item-failed')?.textContent).toBe(ITEM_FAILED_TEXT)
     expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
     expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
@@ -736,7 +767,6 @@ describe('外壳：一项坏了只坏这一项', () => {
       animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
     })
     onTestFinished(() => void Object.assign(Element.prototype, { animate }))
-    const assets = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
     const client = {
       'list-settings': async () => ({
         outcome: 'succeeded',
@@ -746,7 +776,7 @@ describe('外壳：一项坏了只坏这一项', () => {
     const categoryPage = (id: string, order: number, render: () => ReactNode) =>
       defineUiModule({
         name: `category-${id}`,
-        inject: [],
+        needs: {},
         apply(shell) {
           assetsCategoryPage.contribute(shell, { id, order, label: id, render })
         },
@@ -754,7 +784,7 @@ describe('外壳：一项坏了只坏这一项', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        { name: 'fake-assets', apply: (ctx: Context) => void ctx.reflect.provide(assets, client) },
+        ...served(client),
         assetsUiModule,
         categoryPage('bad', 0, boom),
         categoryPage('good', 1, () => <p data-category="good">好的类别</p>),
@@ -764,20 +794,24 @@ describe('外壳：一项坏了只坏这一项', () => {
       t.state.scope.set(TENANT_TEXT)
       await settle()
     })
-    expect(navTitles()).toEqual(['资产', '设置'])
+    expect(navTitles()).toEqual(['设置'])
     const page = section('assets')!
     expect([...page.querySelectorAll('[role=tab]')].map(tab => tab.textContent)).toEqual([
       'bad',
       'good',
     ])
     expect(failed().map(node => node.textContent)).toEqual([ITEM_FAILED_TEXT])
+    expect(
+      failed().map(node => node.getAttribute('data-tone')),
+      'a known failure, not amber',
+    ).toEqual(['danger'])
     expect(page.querySelector('[role=tabpanel]:not([hidden]) .shell-item-failed')).not.toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'good' }))
     expect(
       page.querySelector('[role=tabpanel]:not([hidden]) [data-category="good"]'),
     ).not.toBeNull()
     expect(failed()).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     await act(async () => {
       await settle()
     })
@@ -790,7 +824,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-side',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', { id: 'bad', order: 0, render: boom })
           },
@@ -812,7 +846,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-gate',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('gate', { id: 'bad.gate', render: boom })
           },
@@ -822,7 +856,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     expect(document.querySelector('.shell-gate .shell-item-failed')?.textContent).toBe(
       ITEM_FAILED_TEXT,
     )
-    expect(document.querySelector('.shell-brand-outside')?.textContent).toBe('omne')
+    expect(document.querySelector('[data-figure-seat="gate"]')).not.toBeNull()
+    expect(screen.queryByText('omne')).toBeNull()
   })
 
   it('页面的小标记抛出：标记不画，导航与页面照常', async () => {
@@ -831,12 +866,20 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-badge',
-          inject: [],
+          needs: {},
           apply(shell) {
+            shell.contribute('pages', {
+              id: 'first',
+              title: '首页',
+              order: 0,
+              icon: 'topics',
+              render: () => null,
+            })
             shell.contribute('pages', {
               id: 'badged',
               title: '待办',
-              order: 0,
+              order: 1,
+              icon: 'topics',
               badge: boom,
               render: () => <p data-fine="">好的一页</p>,
             })
@@ -857,12 +900,12 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'picky-real',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('attached', {
               id: 'real',
               order: 1,
-              anchor: 'a',
+              anchor: 'test.a',
               render: ({ subject }) => {
                 calls += 1
                 if (subject === 's1') throw new Error('boom')
@@ -873,13 +916,13 @@ describe('外壳：一项坏了只坏这一项', () => {
         }),
       ],
     })
-    const view = render(<>{t.service.attached('a', 's1')}</>)
+    const view = render(<>{t.service.attached('test.a', 's1')}</>)
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
     const afterFailure = calls
-    view.rerender(<>{t.service.attached('a', 's1')}</>)
+    view.rerender(<>{t.service.attached('test.a', 's1')}</>)
     expect(calls).toBe(afterFailure)
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
-    view.rerender(<>{t.service.attached('a', 's2')}</>)
+    view.rerender(<>{t.service.attached('test.a', 's2')}</>)
     expect(view.container.querySelector('[data-attached="real"]')?.textContent).toBe('s2')
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(0)
   })
@@ -892,7 +935,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'tenant-picky',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'picky',
@@ -941,7 +984,7 @@ describe('外壳：读位置的快照', () => {
     let renders = 0
     const counted = defineUiModule({
       name: 'counted',
-      inject: [CHAT],
+      needs: { chat: needProtocol({ name: CHAT, major: 1 }) },
       apply(shell) {
         shell.contribute('sidebar', {
           id: 'counted',
@@ -967,7 +1010,6 @@ describe('外壳：读位置的快照', () => {
 })
 
 describe('资产页：类别带来自己的页面（MCP）', () => {
-  const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
   const CONTEXT7 = { kind: 'asset', category: 'mcp', name: 'context7' }
   const declaration = (title: string) => ({
     title,
@@ -1008,61 +1050,57 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
       editable: { kind: 'no', reason: 'locked' },
     },
   ]
-  const fakeAssets: Plugin.Object = {
-    name: 'fake-assets',
-    apply: (ctx: Context) =>
-      void ctx.reflect.provide(ASSETS, {
-        'list-settings': async () => ({
-          outcome: 'succeeded',
-          body: { items, next: null, completeness: 'complete' },
-        }),
-        'list-categories': async () => ({
-          outcome: 'succeeded',
-          body: {
-            items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
-            next: null,
+  const fakeAssets = served({
+    'list-settings': async () => ({
+      outcome: 'succeeded',
+      body: { items, next: null, completeness: 'complete' },
+    }),
+    'list-categories': async () => ({
+      outcome: 'succeeded',
+      body: {
+        items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
+        next: null,
+      },
+    }),
+    'describe-category': async () => ({
+      outcome: 'succeeded',
+      body: {
+        category: 'mcp',
+        title: 'mcp',
+        summary: '',
+        hint: null,
+        creation: { kind: 'none' },
+      },
+    }),
+    'list-assets': async () => ({
+      outcome: 'succeeded',
+      body: {
+        items: [
+          {
+            category: CONTEXT7.category,
+            name: CONTEXT7.name,
+            version: 'sha256:00',
+            selection: 'follow',
+            enabled: true,
+            holding: 'held-context7',
+            origin: 'customized',
+            summary: null,
           },
-        }),
-        'describe-category': async () => ({
-          outcome: 'succeeded',
-          body: {
-            category: 'mcp',
-            title: 'mcp',
-            summary: '',
-            hint: null,
-            creation: { kind: 'none' },
-          },
-        }),
-        'list-assets': async () => ({
-          outcome: 'succeeded',
-          body: {
-            items: [
-              {
-                category: CONTEXT7.category,
-                name: CONTEXT7.name,
-                version: 'sha256:00',
-                selection: 'follow',
-                enabled: true,
-                holding: 'held-context7',
-                origin: 'customized',
-                summary: null,
-              },
-            ],
-            next: null,
-            completeness: 'complete',
-          },
-        }),
-        observe: {
-          'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
-            yield { kind: 'changed' }
-            await new Promise(resolve =>
-              options.signal.addEventListener('abort', resolve, { once: true }),
-            )
-            return { kind: 'aborted' }
-          },
-        },
-      }),
-  }
+        ],
+        next: null,
+        completeness: 'complete',
+      },
+    }),
+    observe: {
+      'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
+        yield { kind: 'changed' }
+        await new Promise(resolve =>
+          options.signal.addEventListener('abort', resolve, { once: true }),
+        )
+        return { kind: 'aborted' }
+      },
+    },
+  })
   const mcpUiModule = createMcpUiModule({
     page: assetsCategoryPage,
     governance: assetGovernanceKey,
@@ -1091,7 +1129,7 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   const shownPanel = () => page().querySelector('[role=tabpanel]:not([hidden])')!
 
   it('MCP 的界面模块在：MCP 这一类画它自己的页面，不画通用的；权限它自己画，别的设置项用默认部件', async () => {
-    await opened([fakeAssets, assetsUiModule, mcpUiModule])
+    await opened([...fakeAssets, assetsUiModule, mcpUiModule])
     expect(tabTexts()).toEqual(['MCP'])
     const panel = shownPanel()
     expect(panel.querySelector('.mcp-page')).not.toBeNull()
@@ -1107,7 +1145,7 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   })
 
   it('MCP 的界面模块撤下：这一类回到通用的页面；它回来，又画它自己的', async () => {
-    const t = await opened([fakeAssets, assetsUiModule])
+    const t = await opened([...fakeAssets, assetsUiModule])
     expect(tabTexts()).toEqual(['mcp'])
     expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
     const fiber = t.root.plugin(mcpUiModule)
@@ -1127,14 +1165,14 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   })
 
   it('资产协议、资产的界面模块、MCP 的界面模块按三种次序加载，资产页逐字相同', async () => {
-    const modules = [fakeAssets, assetsUiModule, mcpUiModule]
+    const modules = [fakeAssets, [assetsUiModule], [mcpUiModule]]
     const markups: string[] = []
     for (const order of [
       [0, 1, 2],
       [2, 1, 0],
       [1, 2, 0],
     ]) {
-      await opened(order.map(index => modules[index]!))
+      await opened(order.flatMap(index => modules[index]!))
       markups.push(page().outerHTML)
       cleanup()
     }
@@ -1149,7 +1187,8 @@ describe('外壳：去掉界面模块', () => {
     expect(screen.getByText(NO_LOGIN_TEXT)).toBeTruthy()
     act(() => t.login.set('signed-in'))
     await t.provide(CHAT)
-    expect(navTitles()).toEqual(['对话'])
+    expect(navTitles()).toEqual([])
+    expect(current()).toBe('家')
     expect(screen.getByText('对话占位')).toBeTruthy()
   })
 })

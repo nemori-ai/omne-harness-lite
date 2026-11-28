@@ -3,13 +3,13 @@ import {
   AreaChart,
   formatNumber,
   LineChart,
-  ReadingMeter,
   ShareBar,
   StackedBarChart,
   type ChartRow,
   type ChartSeries,
   type SharePart,
 } from '@omne-harness/ui-kit'
+import { usageOccupancy } from '../parts.ts'
 import { usagePresentation } from '../points.ts'
 
 type Drawn = Readonly<Record<string, unknown>>
@@ -23,9 +23,28 @@ const parts = (data: Drawn) => (data['parts'] ?? []) as readonly SharePart[]
 const reading = (data: Drawn) => ({
   percent: typeof data['percent'] === 'number' ? data['percent'] : null,
   mark: typeof data['mark'] === 'number' ? data['mark'] : null,
-  ...(typeof data['caption'] === 'string' ? { caption: data['caption'] } : {}),
-  ...(typeof data['unknownReason'] === 'string' ? { unknownReason: data['unknownReason'] } : {}),
+  caption: typeof data['caption'] === 'string' ? data['caption'] : null,
 })
+
+/** A quiet number: what it is, as of when, is in its hint. Past the compaction mark or past 100% it is amber. */
+function Percent({ data }: { readonly data: Drawn }): React.JSX.Element | null {
+  const { percent, mark, caption } = reading(data)
+  if (percent === null) return null
+  const shown = `${formatNumber(percent)}%`
+  const said = `${label(data)} ${shown}${caption === null ? '' : `，${caption}`}`
+  const caution = percent > 100 || (mark !== null && percent > mark)
+  return (
+    <span
+      className="usage-percent"
+      {...usageOccupancy.props}
+      data-tone={caution ? 'caution' : undefined}
+      title={said}
+    >
+      <span aria-hidden="true">{shown}</span>
+      <span className="sr-only">{said}</span>
+    </span>
+  )
+}
 
 export const NATIVE_PRESENTATIONS = {
   series: [
@@ -62,25 +81,7 @@ export const NATIVE_PRESENTATIONS = {
     },
   ],
   reading: [
-    {
-      id: 'usage.meter',
-      label: '读数条',
-      draw: (data: Drawn) => <ReadingMeter label={label(data)} {...reading(data)} />,
-    },
-    {
-      id: 'usage.reading-text',
-      label: '只有字',
-      draw: (data: Drawn) => {
-        const { percent, caption, unknownReason } = reading(data)
-        return (
-          <span className="usage-reading-text">
-            {label(data)}{' '}
-            {percent === null ? `— ${unknownReason ?? ''}` : `${formatNumber(percent)}%`}
-            {caption === undefined ? null : ` · ${caption}`}
-          </span>
-        )
-      },
-    },
+    { id: 'usage.percent', label: '百分比', draw: (data: Drawn) => <Percent data={data} /> },
   ],
 } as const
 

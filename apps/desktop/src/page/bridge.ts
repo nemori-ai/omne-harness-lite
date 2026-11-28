@@ -36,7 +36,13 @@ export type PageBridge = ForwardingBridge & {
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 const UNCERTAIN: CallReport = Object.freeze({ kind: 'uncertain' })
 const JSON_HEADERS = { 'content-type': 'application/json' }
-const LOGIN_RESULTS: readonly LoginResult[] = ['signed-in', 'auth-failed', 'unknown', 'unavailable']
+const LOGIN_RESULTS: readonly LoginResult[] = [
+  'signed-in',
+  'auth-failed',
+  'rejected',
+  'unknown',
+  'unavailable',
+]
 const LOGOUT_RESULTS: readonly LogoutResult[] = ['signed-out', 'unknown']
 
 const retryDelayMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 5_000)

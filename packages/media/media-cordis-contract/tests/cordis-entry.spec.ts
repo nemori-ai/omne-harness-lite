@@ -22,5 +22,8 @@ it('gives the custody, the store registry and each port one service identity', (
     expect(service.prototype).toBeInstanceOf(Service)
   }
   expect(new Set(services.map(([, key]) => key)).size).toBe(services.length)
-  expect(Object.keys(entry)).toHaveLength(services.length * 2)
+  expect(Object.keys(entry).filter(name => name !== 'mediaConvertersPoint')).toHaveLength(
+    services.length * 2,
+  )
+  expect(entry.mediaConvertersPoint.name).toBe('media.converters')
 })

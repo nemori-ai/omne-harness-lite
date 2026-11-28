@@ -37,11 +37,21 @@ const EXPECTED: Readonly<
     ['draft', 'auto', ['draft', 'revise', 'discard']],
     ['activate', 'auto', ['create', 'update', 'replace', 'promote', 'pause', 'resume', 'stop']],
   ],
+  Jobs: [
+    ['read', 'auto', ['help', 'list', 'show']],
+    ['start', 'auto', ['start']],
+    ['cancel', 'auto', ['cancel']],
+  ],
   Notifications: [
     ['read', 'auto', ['help', 'sent', 'inbox', 'read', 'sources', 'subscriptions']],
     ['triage', 'auto', ['done', 'dismiss', 'restore', 'unsubscribe']],
     ['send', 'ask', ['send']],
     ['subscribe', 'auto', ['subscribe']],
+  ],
+  Canvas: [
+    ['read', 'auto', ['help', 'look', 'away', 'kinds']],
+    ['arrange', 'auto', ['place', 'arrange', 'take', 'pile', 'scatter']],
+    ['lock', 'deny', ['lock', 'unlock']],
   ],
   Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
   Agents: [
@@ -50,10 +60,29 @@ const EXPECTED: Readonly<
     ['message', 'auto', ['message']],
     ['report', 'auto', ['report']],
   ],
+  Goal: [
+    ['read', 'auto', ['help', 'show', 'brief']],
+    ['propose', 'auto', ['propose']],
+    ['track', 'auto', ['track']],
+    ['submit', 'auto', ['submit']],
+  ],
   SwitchWorkspace: [['invoke', 'ask', []]],
+  OmneExtensionPoints: [['read', 'auto', ['help', 'tree', 'find', 'show', 'changes']]],
+  OmneExtensions: [
+    ['read', 'auto', ['help', 'categories', 'list', 'show', 'impact', 'result', 'settings']],
+    ['change', 'auto', ['publish', 'enable', 'disable', 'remove']],
+    ['export', 'auto', ['export']],
+    ['configure', 'ask', ['configure']],
+  ],
   Screen: [
     ['read', 'auto', ['help']],
     ['observe', 'ask', ['screens', 'capture']],
+  ],
+  Code: [['run', 'auto', ['execute', 'help']]],
+  AppView: [
+    ['invoke', 'auto', ['look']],
+    ['inspect', 'auto', ['inspect']],
+    ['shot', 'auto', ['shot']],
   ],
 }
 const sorted = (names: readonly string[]) => [...names].sort()

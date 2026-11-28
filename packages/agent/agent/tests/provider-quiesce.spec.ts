@@ -225,6 +225,56 @@ describe('quiesce with an execution in flight', () => {
   })
 })
 
+describe('quiesce with an invoke still in admission', () => {
+  async function holdingOpen(answer: 'pass' | 'unknown') {
+    const host = withdrawals()
+    const opening = deferred<void>()
+    let opened = false
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      registration: host.handle,
+      journal: {
+        ...dependencies.journal,
+        async open(input) {
+          opened = true
+          await opening.promise
+          return answer === 'pass'
+            ? dependencies.journal.open(input)
+            : fail({ kind: 'commit-unknown', operation: input.operation })
+        },
+      },
+    }))
+    const first = invoke(assembly)
+    await eventually(async () => opened)
+    expect(await shown(assembly)).toMatchObject({ kind: 'reserved' })
+    const check = deferred<AgentAccessDecision>()
+    assembly.controls.access.check.once(() => check.promise)
+    const quiescing = quiesceOf(assembly)
+    check.settle({ kind: 'allowed', evidence: evidence('allowed') })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    opening.settle()
+    return { assembly, host, first, quiescing }
+  }
+
+  it('waits for the admission to end, then hands the execution over on its wait and answers drained', async () => {
+    const { assembly, host, first, quiescing } = await holdingOpen('pass')
+    const handle = ok(await first)
+    expect(ok(await quiescing)).toMatchObject({ kind: 'drained', remaining: [] })
+    expect(host.calls).toHaveLength(1)
+    const handed = ok(
+      await assembly.controls.journal.port.load({ ...alice, execution: handle.execution }),
+    )
+    expect(handed.state.kind).toBe('suspended')
+  })
+
+  it('an admission whose open is unknown stays in the slot: the answer is unresolved and names it', async () => {
+    const { first, host, quiescing } = await holdingOpen('unknown')
+    expect(failure(await first)).toMatchObject({ kind: 'commit-unknown' })
+    expect(ok(await quiescing)).toMatchObject({ kind: 'unresolved', remaining: [execution()] })
+    expect(host.calls).toEqual([])
+  })
+})
+
 describe('quiesce with an execution whose wait is not saved', () => {
   it('does not hand the execution over while its wait is only in the process; the drive goes on and ends it', async () => {
     let offline = true

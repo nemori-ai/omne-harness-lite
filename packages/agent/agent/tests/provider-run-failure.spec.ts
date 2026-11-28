@@ -6,7 +6,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   evidence,
   execution,
-  failure,
   instance,
   ok,
   operation,
@@ -20,7 +19,7 @@ import {
   invoke,
   loopAssembly,
   shown,
-  stoppedAt,
+  haltedAt,
 } from './loop-support.ts'
 
 const JOURNAL_REFUSED: Failure = { kind: 'invalid', field: 'storage', reason: 'command_limit' }
@@ -122,11 +121,13 @@ describe('a run that stops on a node failure', () => {
     await eventsOf(ok(await invoke(assembly, 'exec-2')))
   })
 
-  it('reports once with tenant, instance, execution, node and failure, and keeps the execution in the slot', async () => {
+  // D-31: a drive that cannot go on gives the slot back. The execution stays open in the Journal
+  // for a later attachment; the instance takes the next execution.
+  it('reports once with tenant, instance, execution, step, node and failure, and frees the slot', async () => {
     const reports: AgentRunFailed[] = []
     const { assembly } = await stoppingAtF3(event => reports.push(event))
     const handle = ok(await invoke(assembly))
-    await stoppedAt(assembly, 'F3')
+    await haltedAt(assembly, 'F3')
     await eventually(async () => reports.length > 0)
 
     expect(reports).toEqual([
@@ -135,50 +136,43 @@ describe('a run that stops on a node failure', () => {
         tenant: tenantA,
         instance: instance(),
         execution: handle.execution,
+        step: 'step-0',
         node: 'F3',
         failure: JOURNAL_REFUSED,
       },
     ])
-    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+    expect(await shown(assembly)).toEqual({ kind: 'idle', instance: instance() })
     const loaded = ok(
       await assembly.controls.journal.port.load({ ...alice, execution: handle.execution }),
     )
     expect(loaded.state.kind).not.toBe('ended')
-    expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
+    expect(ok(await invoke(assembly, 'exec-2')).execution).not.toBe(handle.execution)
     for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
-    expect(reports).toHaveLength(1)
+    expect(reports.filter(event => event.execution === handle.execution)).toHaveLength(1)
   })
 
-  it('a quiesce answers unresolved with the failed execution and withdraws nothing', async () => {
+  it('a quiesce after the stop drains: the runtime holds nothing and withdraws its registration', async () => {
     let reported = 0
     const { assembly, host } = await stoppingAtF3(() => (reported += 1))
-    const handle = ok(await invoke(assembly))
-    await stoppedAt(assembly, 'F3')
+    ok(await invoke(assembly))
+    await haltedAt(assembly, 'F3')
     await eventually(async () => reported === 1)
-    const answer = ok(await quiesceOf(assembly))
-    expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
-    expect(host.withdrawals).toEqual([])
-    expect(ok(await quiesceOf(assembly))).toMatchObject({
-      kind: 'unresolved',
-      remaining: [handle.execution],
-    })
+    expect(ok(await quiesceOf(assembly))).toMatchObject({ kind: 'drained', remaining: [] })
+    expect(host.withdrawals).toHaveLength(1)
     expect(reported).toBe(1)
   })
 
-  it('a receiver that throws changes nothing: the execution stays in the slot as remaining', async () => {
+  it('a receiver that throws changes nothing: the slot is freed all the same', async () => {
     let calls = 0
     const { assembly } = await stoppingAtF3(() => {
       calls += 1
       throw new Error('the log is gone')
     })
     const handle = ok(await invoke(assembly))
-    await stoppedAt(assembly, 'F3')
+    await haltedAt(assembly, 'F3')
     await eventually(async () => calls === 1)
-    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
-    expect(ok(await quiesceOf(assembly))).toMatchObject({
-      kind: 'unresolved',
-      remaining: [handle.execution],
-    })
+    expect(await shown(assembly)).toEqual({ kind: 'idle', instance: instance() })
+    expect(ok(await invoke(assembly, 'exec-2')).execution).not.toBe(handle.execution)
   })
 })
 

@@ -132,7 +132,7 @@ function activeRun(instance: AgentInstanceRef | null, adopted: Adoption = runAdo
     kind: 'active',
     run: 'run-1' as never,
     adoption: adopted,
-    first: inputId('input-1'),
+    initial: [inputId('input-1')],
     advance:
       instance === null ? null : { run: 'run-1' as never, attempt: 'attempt-1' as never, instance },
     ordinal: '1',
@@ -182,6 +182,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     query: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['query']>>[],
     load: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['load']>>[],
     contact: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['contact']>>[],
+    handOver: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['handOver']>>[],
     submit: [] as Outcome<CommandReceipt, Failure>[],
     control: [] as Outcome<CommandReceipt, Failure>[],
   }
@@ -270,6 +271,10 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     readonly detach: AgentExecutionRecoveryService<unknown>['detach'] = async input => {
       calls.push({ method: 'detach', input })
       return succeed(evidence('handed-back'))
+    }
+    readonly handOver: AgentExecutionRecoveryService<unknown>['handOver'] = async input => {
+      calls.push({ method: 'handOver', input })
+      return script.handOver.shift() ?? succeed(evidence('handed-over'))
     }
     readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async input => {
       calls.push({ method: 'contact', input })
@@ -381,7 +386,7 @@ const target = (access: SessionAccess<unknown> = A, operation = INVOKE): DriveTa
 })
 const invokeInput = (access: SessionAccess<unknown> = A) => ({
   ...target(access),
-  first: inputId('input-1'),
+  initial: [inputId('input-1')] as const,
   source: evidence('se13-receipt'),
   grant: evidence('se15-grant'),
 })
@@ -416,12 +421,14 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
       tenant: A.tenant,
       execution: EXECUTION,
       operation: INVOKE,
-      initial: {
-        id: 'input-1',
-        content: userMessage('text of input-1'),
-        source: evidence('se13-receipt'),
-        priority: 'ordinary',
-      },
+      initial: [
+        {
+          id: 'input-1',
+          content: userMessage('text of input-1'),
+          source: evidence('se13-receipt'),
+          priority: 'ordinary',
+        },
+      ],
       grant: evidence('se15-grant'),
     })
     for (const call of f.calls)
@@ -574,10 +581,20 @@ describe('the Agent answers map by the result table', () => {
     const f = await assembled()
     const record = evidence('admission-rejection')
     f.script.invoke.push(() =>
-      fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', rejection: record }),
+      fail({
+        kind: 'invalid',
+        field: 'value',
+        reason: 'refused by admission',
+        rejected: { input: 'input-1' as never, evidence: record },
+      }),
     )
     expect(await f.drive().invoke(invokeInput())).toEqual({
-      failure: { kind: 'invalid', reason: 'refused by admission', rejection: record },
+      failure: {
+        kind: 'invalid',
+        input: 'input-1',
+        reason: 'refused by admission',
+        rejection: record,
+      },
     })
   })
 
@@ -819,10 +836,15 @@ describe('submit uses the handle that invoke or resume kept', () => {
     await f.drive().invoke(invokeInput())
     const record = evidence('submit-rejection')
     f.script.submit.push(
-      fail({ kind: 'invalid', field: 'value', reason: 'refused', rejection: record } as Failure),
+      fail({
+        kind: 'invalid',
+        field: 'value',
+        reason: 'refused',
+        rejected: { input: 'input-2' as never, evidence: record },
+      }),
     )
     expect(await f.drive().submit(submitInput)).toEqual({
-      failure: { kind: 'invalid', reason: 'refused', rejection: record },
+      failure: { kind: 'invalid', input: 'input-2', reason: 'refused', rejection: record },
     })
     f.script.submit.push(fail({ kind: 'invalid', field: 'value', reason: 'refused' }))
     const unrecorded = await f.drive().submit(submitInput)
@@ -1056,6 +1078,48 @@ describe('detach hands back the loaded attachment', () => {
     expect(await f.drive().detach(detachInput)).toHaveProperty('failure.kind', 'unavailable')
     expect(f.methods()).toEqual(['load'])
   })
+})
+
+describe('handOver asks the runtime that holds the attachment, for a reload', () => {
+  const handOverInput = {
+    ...target(A, 'dop_handover-1'),
+    advance: {
+      run: 'run-1' as never,
+      attempt: 'attempt-1' as never,
+      instance: encodeSessionSlotRef({ session: A.session, adoption: runAdoption }),
+    },
+  }
+
+  it('loads the Authority and asks with it and a reason basis; it does not detach by force', async () => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    expect(await f.drive().handOver(handOverInput)).toEqual({ ok: evidence('handed-over') })
+    expect(f.methods()).toEqual(['load', 'handOver'])
+    expect(f.calls[1]!.input).toMatchObject({
+      operation: 'dop_handover-1',
+      authority,
+      reason: { owner: 'session', record: 'dop_handover-1' },
+    })
+  })
+
+  it('answers the handoff of an execution that is suspended already, and asks nothing', async () => {
+    const f = await assembled()
+    f.script.load.push(
+      succeed(snapshot({ kind: 'suspended', handoff: evidence('handover') }, null)),
+    )
+    expect(await f.drive().handOver(handOverInput)).toEqual({ ok: evidence('handover') })
+    expect(f.methods()).toEqual(['load'])
+  })
+
+  it.each(['terminal', 'stale-advance', 'busy'] as const)(
+    'passes the refusal %s on as it is',
+    async kind => {
+      const f = await assembled()
+      f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+      f.script.handOver.push(fail({ kind }))
+      expect(await f.drive().handOver(handOverInput)).toEqual({ failure: { kind } })
+    },
+  )
 })
 
 describe('inspect maps the snapshot and never says missing', () => {

@@ -44,6 +44,6 @@ export type SessionCalls = Readonly<{
   history(
     input: At & Readonly<{ kinds: readonly string[]; cursor: string | null; pageBytes: number }>,
   ): Promise<Called<HistoryPage>>
-  /** The point the session can be forked at now, read as the session itself; null when it has none. */
-  forkPoint(input: At): Promise<PortRead<ForkPoint | null>>
+  /** The point before the asking message, read as the session itself; null when the session has no such message. */
+  forkPoint(input: At & Readonly<{ asking: string }>): Promise<PortRead<ForkPoint | null>>
 }>

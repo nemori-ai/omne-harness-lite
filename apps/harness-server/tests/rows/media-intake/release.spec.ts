@@ -48,7 +48,12 @@ async function stranger(tree: ReleaseTree) {
 
 describe('the two rows of the processing before intake', () => {
   it.each([
-    [sessionBeforeIntakeRow, 'session-before-intake', ['sessionBeforeIntake'], []],
+    [
+      sessionBeforeIntakeRow,
+      'session-before-intake',
+      ['sessionBeforeIntake', 'sessionUtteranceResolver'],
+      [],
+    ],
     [mediaIntakeRow, 'media-intake', [], ['media', 'sessionBeforeIntake']],
   ] as const)(
     'the row %s declares the manifest of the stub table',
@@ -122,7 +127,10 @@ describe('the two rows of the processing before intake', () => {
         const foreign = await uploaded(other.client, other.tenant, 'intake-upload-foreign', PICTURE)
         expect(foreign.key).not.toBe(own.key)
         const session = await emptySession(tree)
-        const refused = { outcome: 'invalid', body: {} }
+        const refused = {
+          outcome: 'invalid',
+          body: { field: 'value.message.blocks[1]', reason: expect.any(String) },
+        }
         const unknown = { ...own, key: 'f'.repeat(32) }
         for (const [input, bad] of [
           ['unknown', picture('blk_bad', unknown)],

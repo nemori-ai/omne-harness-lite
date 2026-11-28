@@ -1,3 +1,4 @@
+import modelProvenanceMigration from '../../src/worker/model-provenance-migration.ts'
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import callLeftMigration from '../../src/worker/call-left-migration.ts'
 import forkMigration from '../../src/worker/fork-migration.ts'
@@ -44,6 +45,10 @@ import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import itemMigration from '../../src/worker/item-migration.ts'
+import blockMigration from '../../src/worker/block-migration.ts'
+import adoptionMigration from '../../src/worker/adoption-migration.ts'
+import readSessionAdoption from '../../src/worker/read-session-adoption.ts'
+import readRequestChoices from '../../src/worker/read-request-choices.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -58,6 +63,7 @@ import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
 import readExecutionEvents from '../../src/worker/read-execution-events.ts'
 import readExecutionOpen from '../../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionRetired from '../../src/worker/read-execution-retired.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
@@ -127,7 +133,10 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionItems,
   readExecutionOpenItems,
   readExecutionSession,
+  readExecutionRetired,
   readPreadmission,
+  readSessionAdoption,
+  readRequestChoices,
 ]
 
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
@@ -136,6 +145,7 @@ const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
   [executionRecord.participant, executionRecord],
 ])
 const MIGRATIONS: readonly MigrationModule[] = [
+  modelProvenanceMigration,
   migration,
   recordMigration,
   indexMigration,
@@ -154,6 +164,8 @@ const MIGRATIONS: readonly MigrationModule[] = [
   factBodyMigration,
   factBlobMigration,
   itemMigration,
+  blockMigration,
+  adoptionMigration,
   compactionIndexMigration,
   callLeftMigration,
   forkMigration,
@@ -176,6 +188,7 @@ export type SqliteStorage = Readonly<{
   failReads(handler: string | null): void
   loseNextReply(): void
   failWrite(pattern: RegExp | null, nth?: number, errcode?: number): void
+  ran(identity: SqlIdentity): ReceiptV2 | undefined
 }>
 
 const DATA_CODES = new Set([1, 18, 19, 20, 25])
@@ -343,14 +356,19 @@ export function createSqliteStorage(): SqliteStorage {
       entries.push({ participant: command.participant, protocol: module.protocol, reply } as never)
       if (reply.kind !== 'participated') {
         domain.db.exec('ROLLBACK')
-        const receipt = finish('rolled_back')
-        domain.receipts.set(receiptKey(identity), receipt)
-        return receipt
+        return kept(domain, identity, finish('rolled_back'))
       }
     }
     domain.db.exec('COMMIT')
-    const receipt = finish('committed')
-    domain.receipts.set(receiptKey(identity), receipt)
+    return kept(domain, identity, finish('committed'))
+  }
+
+  const ran = new Map<string, ReceiptV2>()
+  const ranKey = (identity: SqlIdentity): string =>
+    JSON.stringify([identity.transactionDomain, identity.operation, identity.operationKey])
+  function kept(domain: Domain, identity: SqlIdentity, receipt: ReceiptV2): ReceiptV2 {
+    ran.set(ranKey(identity), receipt)
+    if (identity.recall !== 'never') domain.receipts.set(receiptKey(identity), receipt)
     return receipt
   }
 
@@ -375,7 +393,8 @@ export function createSqliteStorage(): SqliteStorage {
           reason: 'combination_unregistered',
           diagnostic: null,
         })
-      const existing = domain.receipts.get(receiptKey(identity))
+      const existing =
+        identity.recall === 'never' ? undefined : domain.receipts.get(receiptKey(identity))
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -396,18 +415,16 @@ export function createSqliteStorage(): SqliteStorage {
       const domain = domainOf(identity.scope, identity.transactionDomain)
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
       return Promise.resolve(
-        domain.receipts.get(receiptKey(identity)) ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
+        domain.receipts.get(receiptKey(identity)) ?? { kind: 'not_committed', identity, proofs },
       )
     },
     read(request: ReadRequest): Promise<ReadResult> {
@@ -467,6 +484,7 @@ export function createSqliteStorage(): SqliteStorage {
     loseNextReply: () => {
       lose = true
     },
+    ran: identity => ran.get(ranKey(identity)),
     failWrite: (pattern, nth = 1, errcode) => {
       writeFault = pattern === null ? null : { pattern, left: nth, errcode }
     },

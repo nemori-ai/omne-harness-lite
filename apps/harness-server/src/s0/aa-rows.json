@@ -10,6 +10,7 @@
     "session-before-intake",
     "session-history-index",
     "session-search",
+    "dynamis",
     "asset-categories",
     "tenant-assets",
     "governance",
@@ -64,8 +65,14 @@
     "model-records",
     "tool-records",
     "tool-body-sweep",
+    "tool-entry-sources",
+    "slash-command",
+    "mcp-storage-sql",
+    "mcp",
     "tool-bindings",
     "skills",
+    "skill-command-source",
+    "prompt-command-source",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -75,23 +82,39 @@
     "execution-environment",
     "execution-files",
     "execution-command",
+    "execution-program",
     "execution-host",
     "request-context",
     "agent-context",
     "context-compaction",
+    "loop-extension",
     "runtime-context",
     "runtime-context-tenant-scope",
     "session-intake-budget",
+    "workspace-outside-files",
     "session-observation",
     "dispatch",
     "dispatch-session",
     "dispatch-tool",
+    "goal",
+    "goal-session",
+    "schedule-session",
+    "goal-command",
+    "goal-decisions",
+    "system-extensions",
+    "goal-check",
+    "canvas",
+    "session-canvas",
+    "media-canvas",
     "server-entry",
     "identity-access",
     "session-access",
     "assets-access",
     "human-intervention-access",
+    "goal-access",
     "session-diagnostics-access",
+    "slash-command-access",
+    "mcp-access",
     "calendar-access",
     "schedule-access",
     "notification-access",
@@ -99,7 +122,13 @@
     "workspace-access",
     "tool-access",
     "model-access",
-    "usage-access"
+    "usage-access",
+    "canvas-access",
+    "interface-access",
+    "plugin-access",
+    "plugin-host",
+    "plugin-notification",
+    "plugin-server"
   ],
   "trusted": [
     {
@@ -133,7 +162,6 @@
         "governanceInstallationPrincipals",
         "sessionPermissionBackend",
         "standingDestinationResolver",
-        "toolInvocationQualification",
         "currentToolPermission",
         "sessionModesInstallation",
         "tenantDomainRegistration"
@@ -144,6 +172,7 @@
       "names": [
         "storage",
         "tenantDomainLookup",
+        "tenantDomainRegistration",
         "principalVerifier",
         "tenantStanding"
       ]
@@ -161,7 +190,9 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "tenantStanding"
       ]
     },
     {
@@ -194,6 +225,12 @@
         "storage",
         "principalVerifier",
         "tenantStanding"
+      ]
+    },
+    {
+      "row": "workspace-outside-files",
+      "names": [
+        "tenantScopePrincipals"
       ]
     },
     {
@@ -297,7 +334,8 @@
     {
       "row": "agent-host",
       "names": [
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "tenantScopePrincipals"
       ]
     },
     {
@@ -312,7 +350,8 @@
         "storage",
         "tenantDomainLookup",
         "agentReceivedRecords",
-        "sessionWorkingDirectory"
+        "sessionWorkingDirectory",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -389,8 +428,7 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "tenantDomainScannerPrincipal",
-        "toolInvocationQualification"
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -405,7 +443,24 @@
       "row": "tool-bindings",
       "names": [
         "principalVerifier",
-        "settingsSecretCustody"
+        "settingsSecretCustody",
+        "settingsSecretItems"
+      ]
+    },
+    {
+      "row": "mcp-storage-sql",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "mcp",
+      "names": [
+        "settingsSecretCustody",
+        "settingsSecretItems",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -467,6 +522,39 @@
       ]
     },
     {
+      "row": "goal",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
+      "row": "goal-session",
+      "names": [
+        "definitionMappings",
+        "goalPrincipal",
+        "sessionWorkingDirectory"
+      ]
+    },
+    {
+      "row": "schedule-session",
+      "names": [
+        "definitionMappings",
+        "schedulePrincipal",
+        "sessionModesInstallation"
+      ]
+    },
+    {
+      "row": "canvas",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
       "row": "server-entry",
       "names": [
         "principalIssuer",
@@ -491,6 +579,18 @@
       ]
     },
     {
+      "row": "skill-command-source",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "prompt-command-source",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "assets-access",
       "names": [
         "principalIssuer",
@@ -506,7 +606,28 @@
       ]
     },
     {
+      "row": "goal-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "slash-command-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "mcp-access",
       "names": [
         "principalIssuer",
         "tenantStanding"
@@ -558,7 +679,8 @@
       "row": "model-access",
       "names": [
         "principalIssuer",
-        "tenantStanding"
+        "tenantStanding",
+        "sessionWorkPrincipals"
       ]
     },
     {
@@ -566,6 +688,39 @@
       "names": [
         "principalIssuer",
         "tenantStanding"
+      ]
+    },
+    {
+      "row": "canvas-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "interface-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "plugin-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "plugin-notification",
+      "names": [
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
+      "row": "plugin-server",
+      "names": [
+        "tenantDomainScannerPrincipal"
       ]
     }
   ]

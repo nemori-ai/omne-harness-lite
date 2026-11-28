@@ -15,19 +15,43 @@ import {
   type GateDecision,
 } from './internal/gate.ts'
 import { withdraws } from './internal/guard.ts'
+import type { ChangeFeed } from './internal/changes.ts'
 import type { ConnectionTable } from './internal/table.ts'
 
 export type StatusDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   table: ConnectionTable<P>
+  changes: ChangeFeed
 }>
 
 type InspectRefusal = Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>
 
-function credentialOf(adopted: AdoptedOnly): EndpointStatusView['credential'] {
-  if (adopted.definition.auth === 'none') return 'not-required'
-  const { credential } = adopted.settings
-  return credential.kind === 'value' ? 'present' : credential.kind
+type CredentialView = Pick<EndpointStatusView, 'credential' | 'connect'>
+
+const GRANT_VIEW = { none: 'absent', valid: 'present', reconnect: 'reconnect-required' } as const
+
+/** An OAuth endpoint's credential is its grant; a grant that cannot be read is not shown as absent. */
+async function credentialOf<P, S>(
+  ports: McpPorts<P, S>,
+  access: Access<P>,
+  adopted: AdoptedOnly,
+): Promise<CredentialView | 'unknown'> {
+  if (adopted.definition.auth === 'none') return { credential: 'not-required' }
+  if (adopted.definition.auth === 'static') {
+    const { credential } = adopted.settings
+    return { credential: credential.kind === 'value' ? 'present' : credential.kind }
+  }
+  if (ports.grants === undefined) return { credential: 'absent', connect: 'available' }
+  const key = { tenant: access.tenant, holding: adopted.ref.holding, endpoint: adopted.ref.name }
+  let stood: Awaited<ReturnType<NonNullable<McpPorts<P, S>['grants']>['standing']>>
+  try {
+    stood = await ports.grants.standing(key)
+  } catch {
+    return 'unknown'
+  }
+  if ('failure' in stood) return 'unknown'
+  const connect = stood.ok.connecting ? 'connecting' : 'available'
+  return { credential: GRANT_VIEW[stood.ok.grant], connect }
 }
 
 function useOf(
@@ -63,15 +87,17 @@ function useOf(
 export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStatus<P, S> {
   const { ports, table } = deps
 
-  function viewOf(
+  async function viewOf(
     access: Access<P>,
     endpoint: AdoptedOnly,
     use: EndpointStatusView['use'],
-  ): EndpointStatusView {
+  ): Promise<EndpointStatusView | 'unknown'> {
+    const credential = await credentialOf(ports, access, endpoint)
+    if (credential === 'unknown') return credential
     return {
       ref: endpoint.ref,
       connection: table.stateOf(access.tenant, endpoint.ref.holding),
-      credential: credentialOf(endpoint),
+      ...credential,
       use,
     }
   }
@@ -85,7 +111,8 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     const use = useOf(decision)
     if ('failure' in use)
       return fail(use.failure === 'not-eligible' ? { kind: 'not-available-to-you' } : use.failure)
-    return succeed(viewOf(access, use.ok.endpoint, use.ok.use))
+    const view = await viewOf(access, use.ok.endpoint, use.ok.use)
+    return view === 'unknown' ? fail({ kind: 'unknown' }) : succeed(view)
   }
 
   async function list(
@@ -101,10 +128,12 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
         if (use.failure === 'not-eligible') continue
         return fail('unknown')
       }
-      views.push(viewOf(access, use.ok.endpoint, use.ok.use))
+      const view = await viewOf(access, use.ok.endpoint, use.ok.use)
+      if (view === 'unknown') return fail('unknown')
+      views.push(view)
     }
     return succeed(views)
   }
 
-  return { inspect, list }
+  return { inspect, list, subscribe: deps.changes.subscribe }
 }

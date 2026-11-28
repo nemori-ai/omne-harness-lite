@@ -1,14 +1,15 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
-import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import { heldBack, runStartInputs, wakingInputs, type SessionIntakeLimits } from './intake.ts'
 import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { backgroundCalls } from './call-control.ts'
 import { digestOf } from './operations.ts'
 import { deriveSessionOperation } from './operations.ts'
-import type { CompactionContext } from '@omne-harness/message'
+import type { CompactionContext, Message } from '@omne-harness/message'
 import type {
   AdvanceRef,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -36,7 +37,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
-import type { SessionCall, SessionLateCallFact } from './call-settlement.ts'
+import { producerOut, type SessionCall, type SessionLateCallFact } from './call-settlement.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -61,7 +62,7 @@ export type RouteJudgment =
   | Readonly<{ kind: 'business'; owner: string }>
   | Readonly<{ kind: 'rejected'; reason: 'archived' | 'frozen' | 'invalid' }>
 export type RunStartJudgment =
-  | Readonly<{ kind: 'eligible'; first: InputId }>
+  | Readonly<{ kind: 'eligible'; initial: InitialBatch }>
   | Readonly<{
       kind:
         | 'not-ready'
@@ -165,6 +166,7 @@ export type DecideReads = Readonly<{
   runs?: readonly SessionRunLookup[]
   /** The intake terms Session prepared for this commit, read from its guards. */
   intake?: IntakeTerms
+  delivered?: readonly Readonly<{ input: InputId; message: Message }>[]
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
@@ -258,9 +260,9 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   if (snapshot.lifecycle === 'initializing') return { kind: 'not-ready' }
   if (snapshot.run.kind === 'active') return { kind: 'run-active' }
   if (snapshot.awaitingPerson === true) return { kind: 'awaiting-person' }
-  const first = wakingInputs(snapshot)[0]
+  const [first, ...rest] = runStartInputs(snapshot)
   if (first === undefined) return { kind: 'no-input' }
-  return { kind: 'eligible', first }
+  return { kind: 'eligible', initial: [first, ...rest] }
 }
 
 export function judgeWaiting(snapshot: WorkSnapshot): SessionWaiting | null {
@@ -327,7 +329,11 @@ export function openWork(snapshot: WorkSnapshot): OpenWork {
   }
 }
 
-export function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment {
+export function judgeCompletion(
+  snapshot: WorkSnapshot,
+  execution: string,
+  conclusion?: 'complete' | 'failed' | 'cancelled',
+): CompletionJudgment {
   const terminal =
     snapshot.executions?.find(item => item.execution.execution === execution)?.terminal ??
     (snapshot.executions === undefined ? terminalOf(snapshot) : null)
@@ -337,10 +343,20 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
       : { kind: 'terminal', terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.execution.execution !== execution)
     return { kind: 'allowed' }
-  const handed = new Set(snapshot.handed)
+  if (conclusion === 'failed') return { kind: 'allowed' }
+  const handed = new Set([...snapshot.handed, ...heldBack(snapshot)])
   const pendingInputs = snapshot.pending.filter(input => !handed.has(input))
   return pendingInputs.length === 0 ? { kind: 'allowed' } : { kind: 'blocked', pendingInputs }
 }
+
+const waitedOut = (snapshot: WorkSnapshot): readonly ProducerRef[] =>
+  distinctProducers(
+    snapshot.waiting.flatMap(item =>
+      item.kind === 'producer' && producerOut(snapshot, item.binding.producer)
+        ? [item.binding.producer]
+        : [],
+    ),
+  )
 
 function distinctProducers(producers: readonly ProducerRef[]): readonly ProducerRef[] {
   return [...new Map(producers.map(producer => [digestOf(producer), producer])).values()]
@@ -408,9 +424,7 @@ function runScope(
     return { kind: 'terminal', terminal: snapshot.run.terminal }
   if (snapshot.run.kind !== 'active' || snapshot.run.run !== run)
     return { kind: 'invalid', reason: 'not the current Run' }
-  const producers = distinctProducers(
-    snapshot.waiting.flatMap(item => (item.kind === 'producer' ? [item.binding.producer] : [])),
-  )
+  const producers = waitedOut(snapshot)
   return {
     kind: 'scope',
     unassociatedWaiting: toolIntentWaits(
@@ -543,3 +557,20 @@ export function resolveOperation(
 }
 
 export type { GuardCommand, SessionCommand }
+
+export const cancelEstablished = (snapshot: Pick<WorkSnapshot, 'controls'>, run: string): boolean =>
+  snapshot.controls.some(
+    ({ intent }) =>
+      intent.kind === 'control' && intent.value.kind === 'cancel-run' && intent.value.run === run,
+  )
+
+export function reloadRefusal(
+  snapshot: Pick<WorkSnapshot, 'controls' | 'frozen' | 'run' | 'revision'>,
+  run: string,
+  expected: SessionRevision,
+): SessionFailure | null {
+  if (snapshot.frozen !== null) return { kind: 'frozen', verdict: snapshot.frozen }
+  if (cancelEstablished(snapshot, run)) return { kind: 'cancelled' }
+  if (expectedHolds(snapshot, 'reload', expected)) return null
+  return { kind: 'changed', revision: expectedRevision(snapshot, 'reload') }
+}

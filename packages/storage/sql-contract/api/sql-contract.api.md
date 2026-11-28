@@ -33,7 +33,6 @@
 - `MigrationDescriptor` · `types.d.ts`
 - `MigrationRef` · `types.d.ts`
 - `NotCommittedV2` · `types.d.ts`
-- `NotRecallableV2` · `types.d.ts`
 - `OperationIdentityV1` · `types.d.ts`
 - `ParticipantDescriptor` · `types.d.ts`
 - `ParticipatedEntry` · `types.d.ts`
@@ -55,6 +54,8 @@
 - `RegistrationKey` · `types.d.ts`
 - `RejectionNature` · `rejection.d.ts`
 - `RolledBackV2` · `types.d.ts`
+- `SettledV2` · `types.d.ts`
+- `SettlementProofsV2` · `types.d.ts`
 - `SqlIdentity` · `types.d.ts`
 - `SqlMaterialCatalog` · `types.d.ts`
 - `SqlStorage` · `types.d.ts`
@@ -62,9 +63,14 @@
 - `StoppingEntry` · `types.d.ts`
 - `StoppingReply` · `types.d.ts`
 - `StorageCloseResult` · `types.d.ts`
+- `StorageCommitCount` · `types.d.ts`
 - `StorageControl` · `types.d.ts`
 - `StorageDiagnostic` · `types.d.ts`
 - `StorageHost` · `types.d.ts`
+- `StorageParticipantCount` · `types.d.ts`
+- `StorageQueryCount` · `types.d.ts`
+- `StorageReadCount` · `types.d.ts`
+- `StorageReadings` · `types.d.ts`
 - `StorageResidual` · `types.d.ts`
 - `StorageScope` · `types.d.ts`
 - `TenantDomain` · `types.d.ts`
@@ -134,7 +140,6 @@ export declare function isStrictJson(value: unknown): value is JsonValue;
 export declare function canonicalJson(value: unknown): string;
 export declare function jsonShape(value: JsonValue): Readonly<{
     depth: number;
-    members: number;
 }>;
 ```
 
@@ -205,7 +210,9 @@ export type DecodedIdentity = Readonly<{
     protocol: unknown;
 }>;
 export declare function decodeIdentity(value: unknown): DecodedIdentity;
+export declare function decodeReleases(value: unknown): SqlIdentity[] | null;
 export declare function scopeKey(scope: StorageScope): string;
+export declare function releasesInDomain(identity: SqlIdentity, releases: readonly SqlIdentity[]): boolean;
 export declare function clipDiagnostic(text: string, limit: number): string;
 ```
 
@@ -343,7 +350,6 @@ export type MemorySqlStorageLimits = Readonly<{
     maxDiagnosticBytes: number;
     maxReadInputBytes: number;
     maxJsonDepth: number;
-    maxJsonMembers: number;
 }>;
 export type MemorySqlStorageInput = Readonly<{
     materials: SqlMaterialCatalog;
@@ -428,6 +434,7 @@ export type CommitRequestV2 = Readonly<{
     combinationVersion: string;
     manifestDigest: string;
     commands: readonly FactCommandV2[];
+    releases?: readonly SqlIdentity[];
 }>;
 export type CommitOptions = Readonly<{
     signal?: AbortSignal;
@@ -493,7 +500,7 @@ export type IdentityConflictV2 = Readonly<{
     identity: SqlIdentity;
     existing: ReceiptV2;
 }>;
-export type CommitRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol' | 'participant_repeated' | 'facts_not_json' | 'command_limit' | 'queue_full' | 'writer_not_current' | 'domain_unavailable' | 'combination_unregistered' | 'manifest_mismatch' | 'material_unavailable' | 'participant_not_in_combination' | 'participant_dependency_missing';
+export type CommitRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol' | 'release_outside_domain' | 'participant_repeated' | 'facts_not_json' | 'command_limit' | 'queue_full' | 'writer_not_current' | 'domain_unavailable' | 'combination_unregistered' | 'manifest_mismatch' | 'material_unavailable' | 'participant_not_in_combination' | 'participant_dependency_missing';
 export type PreDecodeRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol';
 export type CommitRejectedV2 = Readonly<{
     kind: 'rejected_before_accept';
@@ -510,22 +517,24 @@ export type CommitReceiptV2 = ReceiptV2 & Readonly<{
     recalled: boolean;
 }>;
 export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
+export type SettlementProofsV2 = Readonly<{
+    writerGenerationExcluded: true;
+    oldTransactionTerminated: true;
+    databaseRecoveryFinished: true;
+    authoritativeReadSucceeded: true;
+    operationNotQueued: true;
+}>;
 export type NotCommittedV2 = Readonly<{
     kind: 'not_committed';
     identity: SqlIdentity;
-    proofs: Readonly<{
-        writerGenerationExcluded: true;
-        oldTransactionTerminated: true;
-        databaseRecoveryFinished: true;
-        authoritativeReadSucceeded: true;
-        operationNotQueued: true;
-    }>;
+    proofs: SettlementProofsV2;
 }>;
-export type NotRecallableV2 = Readonly<{
-    kind: 'not_recallable';
+export type SettledV2 = Readonly<{
+    kind: 'settled';
     identity: SqlIdentity;
+    proofs: SettlementProofsV2;
 }>;
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | NotRecallableV2;
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | SettledV2;
 export type RegistrationKey = Readonly<{
     scope: StorageScope;
     transactionDomain: string;
@@ -704,11 +713,45 @@ export type StorageCloseResult = Readonly<{
     kind: 'incomplete';
     residuals: readonly StorageResidual[];
 }>;
+export type StorageReadCount = Readonly<{
+    domain: string;
+    handler: string;
+    read: number;
+    unavailable: number;
+    cancelled: number;
+}>;
+export type StorageCommitCount = Readonly<{
+    domain: string;
+    committed: number;
+    recalled: number;
+    rolledBack: number;
+    unknown: number;
+    conflicted: number;
+    rejected: number;
+    bytes: number;
+}>;
+export type StorageParticipantCount = Readonly<{
+    domain: string;
+    participant: string;
+    committed: number;
+}>;
+export type StorageQueryCount = Readonly<{
+    domain: string;
+    answered: number;
+    unknown: number;
+}>;
+export type StorageReadings = Readonly<{
+    reads: readonly StorageReadCount[];
+    commits: readonly StorageCommitCount[];
+    participants: readonly StorageParticipantCount[];
+    queries: readonly StorageQueryCount[];
+}>;
 export interface StorageControl {
     close(input: Readonly<{
         initiator: CloseInitiator;
     }>): Promise<StorageCloseResult>;
     assemblyReportSettled(): void;
+    readings(): StorageReadings;
 }
 export interface StorageHost {
     readonly materials: SqlMaterialCatalog;

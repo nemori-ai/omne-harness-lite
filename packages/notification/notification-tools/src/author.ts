@@ -215,6 +215,7 @@ export function createNotificationsAuthor(
       operation: Operation
       release: Readonly<{ gate: string }>
       conditions?: readonly string[]
+      readOnly: boolean
     }
   > = {}
   for (const name of notificationsCommandNames) {
@@ -225,6 +226,7 @@ export function createNotificationsAuthor(
       summary: notificationsSummaries[name],
       operation: operation.ok,
       release: { gate: NOTIFICATIONS_GATE_OF[name] },
+      readOnly: NOTIFICATIONS_GATE_OF[name] === 'read',
       ...(name === 'send' ? { conditions: SEND_CONDITIONS } : {}),
     }
   }

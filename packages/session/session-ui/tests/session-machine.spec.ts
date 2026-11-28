@@ -7,6 +7,7 @@ import {
   type Open,
   type State,
 } from '../src/model/session-machine.ts'
+import { stopFace } from '../src/model/composer.ts'
 import { stepList, UNREAD, type SessionList } from '../src/model/session-list.ts'
 import { INITIAL_WORKSPACE, stepWorkspace, type Workspace } from '../src/model/workspace.ts'
 import {
@@ -50,6 +51,12 @@ function open(): Open {
 function asOpen(state: State): Open {
   if (state.kind !== 'open') throw new Error(`expected open, got ${state.kind}`)
   return state
+}
+
+function idle(): Open {
+  return asOpen(
+    step(open(), { kind: 'frame', session: S, generation: 1, frame: stateFrame(null, '0') }).state,
+  )
 }
 
 function running(runId = 'run_1'): Open {
@@ -126,7 +133,7 @@ describe('建会话的答复', () => {
     expect(next.state).toMatchObject({
       kind: 'open',
       session: S,
-      run: { kind: 'idle' },
+      run: { kind: 'unseen' },
       observation: { kind: 'connecting' },
     })
     expect(next.effects.slice(1)).toEqual([
@@ -278,6 +285,34 @@ describe('发消息与认回', () => {
     })
     expect(asOpen(next.state).inputs[0]).toMatchObject({ status: 'accepted', notice: null })
   })
+  it('系统命令做成了：没有消息会进历史，待定的那句收走；被拒的照常写原因', () => {
+    const done = run(open(), send, {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: {
+        outcome: 'succeeded',
+        body: {
+          recovered: false,
+          operation: { name: 'omne-official:model', outcome: 'succeeded', detail: 'm2' },
+        },
+      },
+    })
+    expect(asOpen(done.state).inputs).toEqual([])
+    const refused = run(open(), send, {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: {
+        outcome: 'invalid',
+        body: { field: 'value.message', reason: 'omne-official:model: invalid: unknown-model' },
+      },
+    })
+    expect(asOpen(refused.state).inputs[0]).toMatchObject({
+      status: 'refused',
+      notice: { reason: 'omne-official:model: invalid: unknown-model' },
+    })
+  })
   it('unknown 或 uncertain：不重发，用同一个受理编号认回，显示未知', () => {
     for (const outcome of ['unknown', 'uncertain'] as const) {
       const next = run(open(), send, {
@@ -367,9 +402,55 @@ describe('发消息与认回', () => {
   })
 })
 
+describe('还没收到状态帧：这一轮在不在做还不知道', () => {
+  it('刚打开的会话不声称空闲；没有编号，所以没有停止钮', () => {
+    expect(open().run).toEqual({ kind: 'unseen' })
+    expect(stopFace(open().run)).toBe('none')
+  })
+  it('第一帧定下来：run 为空是空闲，带 run 是进行中', () => {
+    expect(idle().run).toEqual({ kind: 'idle' })
+    expect(running().run).toEqual({ kind: 'running', run: 'run_1' })
+  })
+  it('还不知道时按停止：没有编号可停，什么也不发', () => {
+    for (const urgency of [undefined, 'force'] as const) {
+      const state = open()
+      const next = step(state, {
+        kind: 'cancel',
+        controlId: 'k1',
+        ...(urgency === undefined ? {} : { urgency }),
+      })
+      expect(next.state).toBe(state)
+      expect(next.effects).toEqual([])
+    }
+  })
+  it('观察没发过帧就结束、在重连：仍是不知道', () => {
+    const next = step(open(), {
+      kind: 'observation-ended',
+      session: S,
+      generation: 1,
+      end: { kind: 'ended', reason: 'unavailable' },
+    })
+    expect(asOpen(next.state).run).toEqual({ kind: 'unseen' })
+    expect(asOpen(next.state).observation.kind).toBe('reconnecting')
+  })
+  it('不知道到空闲不是一轮结束：不重读列表', () => {
+    const before: Workspace = {
+      session: open(),
+      list: { kind: 'read', issued: 1, page: listPage([]).body },
+    }
+    const next = stepWorkspace(before, {
+      kind: 'frame',
+      session: S,
+      generation: 1,
+      frame: stateFrame(null, '1'),
+    })
+    expect(next.effects).not.toContainEqual({ kind: 'list-sessions', token: 2, cursor: null })
+  })
+})
+
 describe('取消这一轮', () => {
   it('就绪：没有一轮，不变', () => {
-    const state = open()
+    const state = idle()
     expect(step(state, { kind: 'cancel', controlId: 'k1' }).state).toBe(state)
   })
   it('进行中：转到取消中，带状态帧给的编号发 cancel-run', () => {
@@ -381,12 +462,24 @@ describe('取消这一轮', () => {
       unknown: false,
     })
     expect(next.effects).toEqual([
-      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1', urgency: 'graceful' },
     ])
   })
   it('取消中：不发第二次', () => {
     const state = cancelling()
     expect(step(state, { kind: 'cancel', controlId: 'k2' }).effects).toEqual([])
+  })
+  it('插队与等这一轮结束再发：发出去的请求写明是哪一种', () => {
+    for (const how of ['first', 'after'] as const)
+      expect(step(running(), { ...send, how }).effects).toMatchObject([{ kind: 'send-input', how }])
+    expect(step(running(), send).effects[0]).not.toHaveProperty('how')
+  })
+  it('取消中再强制停止：用新的控制编号发强制的那一档', () => {
+    const next = step(cancelling(), { kind: 'cancel', controlId: 'k2', urgency: 'force' })
+    expect(next.effects).toEqual([
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k2', urgency: 'force' },
+    ])
+    expect(asOpen(next.state).run).toMatchObject({ kind: 'cancelling', controlId: 'k2' })
   })
   it('取消结果未知：再点一次用同一个控制编号', () => {
     const unknown = step(cancelling(), {
@@ -396,7 +489,7 @@ describe('取消这一轮', () => {
       answer: { outcome: 'uncertain' },
     }).state
     expect(step(unknown, { kind: 'cancel', controlId: 'k9' }).effects).toEqual([
-      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1', urgency: 'graceful' },
     ])
   })
   it('成功：requested 仍在取消中，ended 回到就绪', () => {
@@ -865,7 +958,7 @@ describe('打开会话', () => {
     expect(next.state).toMatchObject({
       kind: 'open',
       session: OTHER,
-      run: { kind: 'idle' },
+      run: { kind: 'unseen' },
       observation: { kind: 'connecting', generation: 1 },
       inputs: [],
     })
@@ -1212,6 +1305,7 @@ describe('活动之后重读列表；列表与会话互不干扰', () => {
         },
       ],
       [idle, { kind: 'open-session', session: 'ses_2' }],
+      [workspace(running()), { kind: 'cancel', controlId: 'k1' }],
       [
         workspace(step(open(), send).state),
         { kind: 'send-answered', session: S, acceptId: 'a1', answer: { outcome: 'unavailable' } },

@@ -53,7 +53,7 @@ type World = Awaited<ReturnType<typeof atPolicyPoint>>
 const settle = async (f: World, termination: Termination) =>
   f.commands.settle({ ...(await f.write()), termination })
 const stop = async (f: World) =>
-  unbox(await f.commands.control({ ...f.admit, operation: op('stop') }))
+  unbox(await f.commands.control({ ...f.admit, operation: op('stop'), intent: 'cancel' }))
 const refusedAs = (reason: string) => ({
   failure: { kind: 'invalid', field: 'termination', reason },
 })

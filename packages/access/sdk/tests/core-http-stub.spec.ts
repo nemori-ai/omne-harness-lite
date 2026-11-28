@@ -64,6 +64,22 @@ describe('answers outside the binding', () => {
     }
   })
 
+  it('carries a body of any JSON: its shape is for the contract of the operation to judge', async () => {
+    for (const body of [['Buy milk'], 'sunny', 3]) {
+      const server = await serve(jsonReply(200, { outcome: 'succeeded', body }))
+      const transport = createHttpProtocolTransport({ origin: server.origin })
+      const report = await transport.call({
+        protocol: NOTES,
+        operation: 'ping',
+        messageId: 'm-1',
+        body: OPEN,
+      })
+      expect(report.kind === 'answered' && report.body.kind).toBe(
+        Array.isArray(body) ? 'array' : typeof body,
+      )
+    }
+  })
+
   it('puts the proof and the tenant of the credential source on the request, and nothing without one', async () => {
     const server = await serve(jsonReply(200, { outcome: 'succeeded', body: {} }))
     const signed = createHttpProtocolTransport({
@@ -88,6 +104,28 @@ describe('answers outside the binding', () => {
     expect([second!.headers.authorization, second!.headers['omne-acting-tenant']]).toEqual([
       undefined,
       undefined,
+    ])
+  })
+
+  it('writes the contract revision of the request as a header, and no header for a request without one', async () => {
+    const server = await serve(jsonReply(200, { outcome: 'succeeded', body: {} }))
+    const transport = createHttpProtocolTransport({ origin: server.origin })
+    const request = { protocol: NOTES, operation: 'ping', messageId: 'm-1', body: OPEN }
+    await transport.call({ ...request, revision: 3 })
+    await transport.call(request)
+    const stream = transport.observe({
+      protocol: NOTES,
+      observation: 'watch-all',
+      messageId: 'm-2',
+      revision: 2,
+      open: OPEN,
+      signal: new AbortController().signal,
+    })
+    await stream.next()
+    expect(server.received.map(received => received.headers['omne-contract-revision'])).toEqual([
+      '3',
+      undefined,
+      '2',
     ])
   })
 

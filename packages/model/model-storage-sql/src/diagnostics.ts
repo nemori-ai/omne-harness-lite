@@ -2,9 +2,11 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
+  faultProblem,
   decodeModelDiagnosticCursor,
   decodeModelDiagnosticId,
   decodeRevision,
+  dispatchSend,
   type Adoption,
   type ConnectRetryReason,
   type DispatchId,
@@ -130,7 +132,7 @@ type StoredAttempt = Readonly<{
   seq: number
   dispatch: DispatchId
   adapter: Adoption
-  send: DispatchRecord['send']
+  send: ModelAttemptDiagnostic['send']
   firstContent: DispatchRecord['firstContent']
   terminal: Termination | null
   instants: DispatchInstants
@@ -263,13 +265,8 @@ function terminalOf(value: unknown, field: string): Termination | null {
   if (value === null) return null
   if (!isObject(value)) throw new StoredError(field, 'payload')
   const kind = oneOf(value['kind'], TERMINAL_KINDS, `${field}.kind`)
-  if (kind === 'failed') {
-    const fault = value['fault']
-    if (!isObject(fault) || typeof fault['cause'] !== 'string')
-      throw new StoredError(field, 'fault')
-    if (fault['upstreamStatus'] !== null && typeof fault['upstreamStatus'] !== 'string')
-      throw new StoredError(field, 'upstream-status')
-  }
+  if (kind === 'failed' && faultProblem(value['fault']) !== null)
+    throw new StoredError(field, 'fault')
   return value as Termination
 }
 
@@ -291,7 +288,10 @@ function attemptOf(
     seq: cell(raw, 'seq', 'number'),
     dispatch: id.ok,
     adapter: adoptionOf(record.supplier.adoption, 'md_dispatch.record.supplier.adoption'),
-    send: oneOf(record.send, SENDS, 'md_dispatch.record.send'),
+    send: dispatchSend({
+      send: oneOf(record.send, SENDS, 'md_dispatch.record.send'),
+      materialization: record.materialization,
+    }),
     firstContent: oneOf(record.firstContent, FIRST_CONTENTS, 'md_dispatch.record.firstContent'),
     instants: instantsOf(record.instants, 'md_dispatch.record.instants'),
     connectRetries: retriesOf(record.connectRetries, 'md_dispatch.record.connectRetries'),
@@ -433,13 +433,6 @@ function openCursor(
   return body === null ? fail(invalidCursor('cursor')) : succeed(body)
 }
 
-const SEND_OF: Readonly<Record<DispatchRecord['send'], ModelAttemptDiagnostic['send']>> = {
-  prepared: 'not-sent',
-  started: 'sent',
-  unknown: 'unknown',
-  'not-sent': 'not-sent',
-}
-
 function attemptDiagnostic(
   scope: CursorScope,
   revision: number,
@@ -451,7 +444,7 @@ function attemptDiagnostic(
     dispatch: attempt.dispatch,
     revision: minted(decodeRevision(String(revision))),
     adapter: attempt.adapter,
-    send: SEND_OF[attempt.send],
+    send: attempt.send,
     firstContent: attempt.firstContent,
     outcome: dispatchOutcome(attempt.terminal),
     instants: attempt.instants,

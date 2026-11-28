@@ -22,6 +22,7 @@ import {
   terminalEntries,
 } from './decision-support.ts'
 import type { SessionOperationId } from './identity.ts'
+import { bornRegistrations } from './scope-registrations.ts'
 import { standingOf } from './standing.ts'
 
 export function scopeBinding(
@@ -101,6 +102,12 @@ export function decideControl(
         snapshot,
         { run: scope.cancelsRun, outcome: 'cancelled', evidence: source },
         source,
+        {
+          sequence: null,
+          cause: null,
+          disposition: source,
+          end: { conclusion: 'cancelled', failure: null },
+        },
       ),
     )
   if (archive) {
@@ -138,11 +145,10 @@ export function decideControl(
     )
   }
   if (unarchive) {
+    const scope = scopeBinding(snapshot, operation)
     out.push(
-      encodeEntry(
-        { kind: 'session.unarchived', scope: scopeBinding(snapshot, operation) },
-        originOf(source),
-      ),
+      encodeEntry({ kind: 'session.unarchived', scope }, originOf(source)),
+      ...bornRegistrations(snapshot, scope).map(entry => encodeEntry(entry, originOf(source))),
       encodeEntry(
         { kind: 'session.idle-evidence', observation: reads.idleObservation ?? null },
         originOf(source),
@@ -151,6 +157,8 @@ export function decideControl(
   }
   return entries(out)
 }
+
+const COMMAND_ARGS_LIMIT = 4096
 
 export function decideManagement(
   snapshot: WorkSnapshot,
@@ -173,7 +181,14 @@ export function decideManagement(
       if (!completeEvidence(command.input.verdict.evidence))
         return invalid('verdict', 'incomplete evidence')
       return entries([
-        encodeEntry({ kind: 'session.frozen', evidence: command.input.verdict.evidence }, origin),
+        encodeEntry(
+          {
+            kind: 'session.frozen',
+            capability: command.input.verdict.capability,
+            evidence: command.input.verdict.evidence,
+          },
+          origin,
+        ),
         ...(snapshot.run.kind !== 'active' && snapshot.pending.length > 0
           ? [encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, origin)]
           : []),
@@ -184,6 +199,14 @@ export function decideManagement(
       return entries([
         encodeEntry({ kind: 'session.resident', resident: command.input.resident }, origin),
       ])
+    case 'recordCommand': {
+      if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+      const { name, args } = command.input
+      if (!/^[a-z0-9-]+:[a-z0-9:-]+$/u.test(name) || name.length > 200)
+        return invalid('name', 'not the full name of a command')
+      if (args.length > COMMAND_ARGS_LIMIT) return invalid('args', 'longer than a command line')
+      return entries([encodeEntry({ kind: 'session.command-recorded', name, args }, origin)])
+    }
     case 'configureAutoArchive':
       if (command.input.policy.kind === 'enabled' && !/^\d+$/u.test(command.input.policy.idleMs))
         return invalid('policy.idleMs', 'not a nonnegative duration')

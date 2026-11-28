@@ -1,3 +1,4 @@
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { vi } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -35,7 +36,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type DurableEvidence,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelHandle,
@@ -67,6 +68,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactEffortMigration,
   dispatchFactsMigration,
   modelMigration,
   pendingHandler,
@@ -87,6 +89,7 @@ import type { PiSendResources } from '../../src/send-resources.ts'
 import { FAMILIES, TRANSPORT_LIMITS } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
 import { providerName } from './credentials.ts'
+import { liveRequestOf, liveResource, liveSubjectPart, liveUpstreams } from './live-upstream.ts'
 
 type RuntimeFactory = typeof createModelRuntime<unknown>
 type RuntimeArguments = Parameters<RuntimeFactory>
@@ -150,7 +153,8 @@ const OWNER: ModelConsumerOwnerDeclaration = {
   evidence: ADOPTION,
 }
 const CONSUMER = { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' }
-const REQUEST: FixedModelRequest = {
+const REQUEST: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {
@@ -205,6 +209,10 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
+}
+const LIVE_SETTINGS = {
+  capacity: 64,
+  deadlines: { openMs: 4000, closeMs: 4000, drainMs: 200, redeliverMs: 50 },
 }
 const CORE_LIMITS = {
   scanPageCalls: 2,
@@ -346,6 +354,7 @@ function sqliteStorage(): SqlStorage {
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactEffortMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, Receipt>() }
     domains.set(name, domain)
     return domain
@@ -356,7 +365,8 @@ function sqliteStorage(): SqlStorage {
     commit(request): Promise<CommitResult> {
       const domain = domainOf(request.identity.transactionDomain)
       const key = keyOf(request.identity)
-      const existing = domain.receipts.get(key)
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? domain.receipts.get(key) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest ===
@@ -365,10 +375,12 @@ function sqliteStorage(): SqlStorage {
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = executeCommit(domain, request)
-      domain.receipts.set(key, receipt)
+      if (keeps) domain.receipts.set(key, receipt)
       return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity) {
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS })
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
@@ -695,6 +707,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
@@ -789,20 +803,26 @@ function channels() {
   }
 }
 
-function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
+function channelSendResources(
+  channel: (call: ModelCallId) => Channel,
+  lives: ReturnType<typeof liveUpstreams>,
+): PiSendResources<unknown> {
   return {
     materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
     receive: { prove: () => unavailable('model-receive-evidence', 'scripted-transport') },
     async acquire(demand) {
+      const receipt = {
+        supplier: demand.supplier.adoption,
+        representation: requestRepresentation(demand.request),
+        payloadDigest: DIGEST,
+      }
+      if (demand.request.kind === 'live')
+        return { ok: liveResource(lives.of(demand.call), receipt) }
       const stream = channel(demand.call)
       stream.acquired.resolve()
       await stream.ready.promise
       const script = createScriptedTransport({
-        receipt: {
-          supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
-          payloadDigest: DIGEST,
-        },
+        receipt,
         facts: [],
         ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
         rejection: null,
@@ -810,6 +830,9 @@ function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendRe
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('a chat channel has no live binding')
+          },
           startWithCredential() {
             stream.starts += 1
             return stream.iterable
@@ -1036,6 +1059,7 @@ export async function durableSubject(
   const configured = options.configured === true
   let constructions = 0
   const upstream = channels()
+  const lives = liveUpstreams()
   const drives = driveLog()
   const preserved = new Map<ModelCallId, number>()
 
@@ -1054,7 +1078,7 @@ export async function durableSubject(
   const network = { close: async () => {} }
   const factories: AssemblyFactories<unknown, typeof network> = {
     createNetwork: () => network,
-    createSendResources: () => channelSendResources(upstream.channel),
+    createSendResources: () => channelSendResources(upstream.channel, lives),
   }
   const stageOver = (coordinator: SendCoordinator<unknown>) =>
     sendStagePluginOver({
@@ -1102,6 +1126,7 @@ export async function durableSubject(
         retry: RETRY,
         instances: hostControl.instances,
         clock: given.clock,
+        live: { events: given.liveEvents, ...LIVE_SETTINGS },
       }
       constructions += 1
       provider = createModelRuntime(dependencies, CONFIGURATION)
@@ -1213,6 +1238,7 @@ export async function durableSubject(
           runtime: CONFIGURATION,
           results: PUSH_LIMITS,
           retry: RETRY_SETTINGS,
+          live: LIVE_SETTINGS,
         },
       )
     : root.plugin(LegacyPlugin, HOST_SETTINGS)
@@ -1269,12 +1295,13 @@ export async function durableSubject(
           close: () => prepared.ok.close(),
           async materialize(signal) {
             const materialized = await prepared.ok.materialize(signal)
-            if ('failure' in materialized) return materialized
+            if ('failure' in materialized || !('start' in materialized.ok)) return materialized
+            const chat = materialized.ok
             return {
               ok: {
-                ...materialized.ok,
+                ...chat,
                 start(signal) {
-                  const stream = materialized.ok.start(signal)
+                  const stream = chat.start(signal)
                   sends += 1
                   return stream
                 },
@@ -1442,10 +1469,31 @@ export async function durableSubject(
       supplier: SUPPLIER,
     },
     hooks,
+    live: liveSubjectPart({
+      runtime,
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      consumer: CONSUMER,
+      request: liveRequestOf(REQUEST),
+      upstreams: lives,
+      process: built,
+      successor: () => createModelRuntime(deps, CONFIGURATION),
+      settled: async call => (await recovery(call)).state.phase === 'settled',
+      callOf,
+      operationOf: op,
+      async until(check, label) {
+        const end = Date.now() + WAIT_MS
+        while (!(await check())) {
+          if (Date.now() > end) throw new Error(`durable assembly: waited too long for ${label}`)
+          await sleep(2)
+        }
+      },
+    }),
     facts: assemblyFacts(backend, configured, constructions),
     injected: backend.faults?.injected ?? [],
     async dispose() {
       upstream.dispose()
+      lives.dispose()
       await Promise.race([drives.settle(), sleep(WAIT_MS)])
       await host.dispose()
       await sendChild.dispose()

@@ -1,5 +1,5 @@
 import type { ToolDeclaration } from '@omne-harness/model-contract'
-import { commandCallSchema, commandMenu, returnSummary } from '@omne-harness/tool-contract'
+import { commandCallSchema, commandMenu, declaredReturn } from '@omne-harness/tool-contract'
 import type { ToolAdoption } from './values.js'
 import { digest } from './internal.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './values.js'
@@ -8,17 +8,18 @@ export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet
   const direct: ToolDeclaration[] = []
   const programmatic: ToolDeclaration[] = []
   const routes: ToolRoute[] = []
-  for (const adopted of tools
+  const resident = tools
     .filter(x => x.resident)
     .sort((a, b) =>
       a.availability.definition.name.localeCompare(b.availability.definition.name, 'en'),
-    )) {
+    )
+  for (const adopted of resident) {
     const def = adopted.availability.definition
     const declaration: ToolDeclaration =
       def.kind === 'function'
         ? {
             name: def.name,
-            description: `${def.description}\n\n${returnSummary(def.returns)}`,
+            description: `${def.description}\n\n${declaredReturn(def.returns)}`,
             argumentsSchema: def.parameters.schema,
           }
         : {

@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -5,6 +6,7 @@ import type {
   ModelCallId,
   ModelDiagnostics,
   ModelDispatchFacts,
+  ModelLiveCalls,
   ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
@@ -16,9 +18,12 @@ import type {
   CredentialPort,
   ModelClock,
   ModelCommands,
+  ModelDecisionPreparation,
   ModelHostAuthority,
+  ModelLivePreparation,
   ModelInstanceHost,
   ModelMediaSource,
+  ModelPreferencesPort,
   ModelProfileMaintenance,
   ModelProfiles,
   ModelRequestPreparation,
@@ -61,6 +66,20 @@ export abstract class ModelCredentialService<P = unknown>
   abstract readonly resolve: CredentialPort<P>['resolve']
 }
 export const modelCredentialKey = ModelCredentialService.provide
+
+export abstract class ModelPreferencesService<P = unknown>
+  extends Service
+  implements ModelPreferencesPort<P>
+{
+  static readonly provide = 'modelPreferences'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelPreferencesService.provide)
+  }
+
+  abstract readonly read: ModelPreferencesPort<P>['read']
+}
+export const modelPreferencesKey = ModelPreferencesService.provide
 
 /**
  * The media seam of the send stage: read at each send, absent when no owner of media is installed.
@@ -157,6 +176,8 @@ export abstract class ModelCommandsService<P> extends Service implements ModelCo
   abstract readonly recall: ModelCommands<P>['recall']
   abstract readonly scanPending: ModelCommands<P>['scanPending']
   abstract readonly loadRecovery: ModelCommands<P>['loadRecovery']
+  abstract readonly loadControl: ModelCommands<P>['loadControl']
+  abstract readonly loadOrigin: ModelCommands<P>['loadOrigin']
   abstract readonly loadRequest: ModelCommands<P>['loadRequest']
   abstract readonly claim: ModelCommands<P>['claim']
   abstract readonly prepareDispatch: ModelCommands<P>['prepareDispatch']
@@ -293,6 +314,54 @@ export abstract class ModelRequestPreparationService<P>
 }
 export const modelRequestPreparationKey = ModelRequestPreparationService.provide
 
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelDecisionPreparationService<P>
+  extends Service
+  implements ModelDecisionPreparation<P>
+{
+  static readonly provide = 'modelDecisionPreparation'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelDecisionPreparationService.provide)
+  }
+
+  abstract readonly prepare: ModelDecisionPreparation<P>['prepare']
+}
+export const modelDecisionPreparationKey = ModelDecisionPreparationService.provide
+
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelLivePreparationService<P>
+  extends Service
+  implements ModelLivePreparation<P>
+{
+  static readonly provide = 'modelLivePreparation'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelLivePreparationService.provide)
+  }
+
+  abstract readonly prepare: ModelLivePreparation<P>['prepare']
+}
+export const modelLivePreparationKey = ModelLivePreparationService.provide
+
+/**
+ * The three entries of a running live call: a command, the planned end, and its media. They reach
+ * the body of the call only in the process that holds it.
+ * @owner packages/model/model-cordis-contract
+ */
+export abstract class ModelLiveCallsService<P> extends Service implements ModelLiveCalls<P> {
+  static readonly provide = 'modelLiveCalls'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelLiveCallsService.provide)
+  }
+
+  abstract readonly command: ModelLiveCalls<P>['command']
+  abstract readonly end: ModelLiveCalls<P>['end']
+  abstract readonly media: ModelLiveCalls<P>['media']
+}
+export const modelLiveCallsKey = ModelLiveCallsService.provide
+
 /**
  * The metering leases of request preparation. The request assembler takes a lease for a profile
  * before it plans and meters each candidate, and gives it back. It is a key of its own, not a
@@ -373,6 +442,9 @@ declare module '@deepseek-ai/cordis' {
     modelProfiles: ModelProfilesService<unknown>
     modelProfileMaintenance: ModelProfileMaintenanceService<unknown>
     modelRequestPreparation: ModelRequestPreparationService<unknown>
+    modelDecisionPreparation?: ModelDecisionPreparationService<unknown>
+    modelLivePreparation?: ModelLivePreparationService<unknown>
+    modelLiveCalls?: ModelLiveCallsService<unknown>
     modelPreparationResources: ModelPreparationResourcesService<unknown>
     modelHostAuthority: ModelHostAuthorityService<unknown>
     modelInstances: ModelInstancesService<unknown>
@@ -397,3 +469,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const modelProvidersPoint = heldPoint({
+  name: 'model.providers',
+  key: 'the provider name',
+  summary: 'The model provider definitions each layer holds, by name.',
+})

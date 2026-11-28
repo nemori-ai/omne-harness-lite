@@ -74,7 +74,6 @@
 - `AgentRuntime` · `execution.d.ts`
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
-- `AgentToolQualification` · `tool-qualification.d.ts`
 - `AgentType` · `definition.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
@@ -101,6 +100,8 @@
 - `CardRound` · `passages.d.ts`
 - `CardRoundId` · `identity.d.ts`
 - `CardRoundProgress` · `passages.d.ts`
+- `ChainMember` · `passages.d.ts`
+- `ChainSource` · `passages.d.ts`
 - `CommandReceipt` · `execution.d.ts`
 - `CompactionAssessment` · `request.d.ts`
 - `CompactionFailure` · `compaction.d.ts`
@@ -138,10 +139,13 @@
 - `DECISION_CARD_DRAFT_SCHEMA` · `judge-output.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
+- `DefinitionFacts` · `effect.d.ts`
 - `DenialCategory` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectIntent` · `journal.d.ts`
+- `EnabledExtension` · `passages.d.ts`
+- `EnabledExtensions` · `passages.d.ts`
 - `ErrorPolicy` · `extensions.d.ts`
 - `EventPage` · `execution.d.ts`
 - `ExcludedPredecessor` · `finishing.d.ts`
@@ -153,6 +157,7 @@
 - `ExecutionSettlement` · `finishing.d.ts`
 - `ExecutionSnapshot` · `execution.d.ts`
 - `ExecutionState` · `execution.d.ts`
+- `ExtensionChain` · `passages.d.ts`
 - `ExtensionImplementationDeclaration` · `extensions.d.ts`
 - `ExtensionImplementations` · `passages.d.ts`
 - `ExtensionInput` · `extensions.d.ts`
@@ -192,6 +197,7 @@
 - `HandoffRetirement` · `journal.d.ts`
 - `INSTRUCTION_LIMITS` · `definition.d.ts`
 - `IdentityFailure` · `identity.d.ts`
+- `InitialInputs` · `execution.d.ts`
 - `InputBatch` · `evaluation.d.ts`
 - `InputBatchId` · `identity.d.ts`
 - `InputEntry` · `passages.d.ts`
@@ -216,6 +222,7 @@
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
 - `MaterialDescription` · `passages.d.ts`
+- `MaterialReaders` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
@@ -227,6 +234,9 @@
 - `ModelSelection` · `request.d.ts`
 - `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
+- `NestedActionAdmission` · `passages.d.ts`
+- `NestedActionTarget` · `passages.d.ts`
+- `NestedActionVerdict` · `passages.d.ts`
 - `Next` · `evaluation.d.ts`
 - `ObligationCategory` · `finishing.d.ts`
 - `ObligationDisposition` · `finishing.d.ts`
@@ -261,6 +271,7 @@
 - `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
+- `ReceptionSettled` · `receiving.d.ts`
 - `RecoveryAction` · `finishing.d.ts`
 - `RecoveryContinuation` · `finishing.d.ts`
 - `RefusalReason` · `judgment.d.ts`
@@ -279,6 +290,8 @@
 - `ReplyAdmissionRead` · `evaluation.d.ts`
 - `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
+- `ResidentSegmentText` · `evaluation.d.ts`
+- `ResidentTool` · `effect.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
@@ -292,13 +305,13 @@
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
 - `SubmitDelivery` · `passages.d.ts`
+- `SystemExtensions` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
+- `ToolAcceptance` · `evaluation.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
-- `ToolQualification` · `tool-qualification.d.ts`
-- `ToolQualificationRequest` · `tool-qualification.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
@@ -340,11 +353,14 @@
 - `decodeReplyAdmissionPageCursor` · `identity.d.ts`
 - `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
+- `definitionImpact` · `effect.d.ts`
 - `definitionListing` · `definition.d.ts`
+- `definitionPlaces` · `effect.d.ts`
 - `encodeCompactionInput` · `compaction-codec.d.ts`
 - `encodeCompactionRequest` · `compaction-codec.d.ts`
 - `encodeCompactionTaskRef` · `compaction-codec.d.ts`
 - `encodeCompactionTaskState` · `compaction-codec.d.ts`
+- `endsWithUntakenInput` · `finishing.d.ts`
 - `judgeAccess` · `identity.d.ts`
 - `judgeAdoption` · `identity.d.ts`
 - `judgeAgentDefinition` · `judge-definition.d.ts`
@@ -354,8 +370,12 @@
 - `judgeHandoffPrepare` · `judge-handoff.d.ts`
 - `judgeInputOrigin` · `judge-handoff.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
+- `nestedActionOf` · `identity.d.ts`
+- `nestedPositionOf` · `identity.d.ts`
 - `obligationCategoryOf` · `finishing.d.ts`
 - `openItems` · `snapshot.d.ts`
+- `stepOfToolAction` · `identity.d.ts`
+- `toolActionOf` · `identity.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -528,7 +548,7 @@ export type CompactionHistory = Readonly<{
     protected: readonly RecordEntryRef[];
 }>;
 export type CompactionTarget = Readonly<{
-    profile: Extract<M.ProfileResolution, {
+    profile: Extract<M.ProfileResolution<'llm'>, {
         kind: 'resolved';
     }> & Readonly<{
         selectable: true;
@@ -762,6 +782,35 @@ export declare function definitionListing(definition: AgentDefinition): AgentDef
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
 ```
 
+## 声明文件 `effect.d.ts`
+
+```ts
+import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets';
+export type ResidentTool = Readonly<{
+    name: string;
+    there: boolean | null;
+    category?: string;
+    why?: string;
+    point?: string;
+}>;
+export type DefinitionFacts = Readonly<{
+    name: string;
+    official: boolean;
+    refused: string | null;
+    residents: readonly ResidentTool[];
+    inert: readonly string[];
+}>;
+export type DefinitionTold<Line> = Readonly<{
+    lines: readonly Line[];
+    advice: string | null;
+}>;
+export declare function definitionImpact(point: string, toolPoint: string, facts: DefinitionFacts): DefinitionTold<ImpactLine>;
+export declare function definitionPlaces(point: string, toolPoint: string, standing: AssetStanding | undefined, facts: DefinitionFacts): Readonly<{
+    places: readonly PlacedLine[];
+    advice: string | null;
+}>;
+```
+
 ## 声明文件 `evaluation.d.ts`
 
 ```ts
@@ -773,7 +822,7 @@ import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
 import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, ReplyAdmissionPageCursor, ReplyAdmissionSequence, StepId } from './identity.ts';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { HandoffReference, MessageSource, Passage } from './passages.ts';
+import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts';
 import type { CompactionState, Preparation, SavedPreparation } from './request.ts';
 export type ProducedResult = Readonly<{
     producer: Readonly<{
@@ -829,6 +878,7 @@ export type FailureCandidate = Readonly<{
     node: string;
     category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected';
     failureKind: Failure['kind'];
+    diagnostic?: string;
 }> | Readonly<{
     kind: 'cannot-fit';
     reason: 'fixed' | 'protected-floor' | 'after-compaction';
@@ -883,12 +933,18 @@ export type Failure = Readonly<{
     kind: 'invalid';
     field: string;
     reason: string;
+    rejected?: Readonly<{
+        input: InputId;
+        evidence: DurableEvidence;
+    }>;
+    disclosed?: string;
 }> | Readonly<{
     kind: 'unavailable';
     owner: string;
     diagnostic: string;
+    disclosed?: string;
 }> | Readonly<{
-    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported';
+    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported' | 'reclaimed';
 }> | Readonly<{
     kind: 'commit-unknown';
     operation: AgentOperationId;
@@ -898,6 +954,7 @@ export type Failure = Readonly<{
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
 export type ModelPurpose = 'main' | 'extension';
+export type ToolAcceptance = 'accepted' | 'unknown';
 type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
@@ -916,9 +973,11 @@ export type PendingCall = PendingCommon & (Readonly<{
 }> & (Readonly<{
     association: 'intent';
     reference?: never;
+    acceptance?: never;
 }> | Readonly<{
     association: 'associated';
     reference: T.ToolInvocationRef;
+    acceptance: ToolAcceptance;
 }>)));
 export type ActionJudgment = Readonly<{
     kind: 'pending';
@@ -937,6 +996,7 @@ export type ActionJudgment = Readonly<{
     evidence: DurableEvidence;
     request: DurableEvidence;
     notice?: string;
+    concurrent?: true;
 }>;
 export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{
@@ -994,6 +1054,7 @@ export type ActionBatch = Readonly<{
     actions: readonly Action[];
     barrier: ActionBarrier;
     slots: readonly ActionSlot[];
+    beforePass: readonly PassageId[] | null;
     batchPass: readonly PassageId[] | null;
 }>;
 export type ModelReplyAdmission = Readonly<{
@@ -1096,7 +1157,7 @@ export type AgentCheckpoint = Readonly<{
     adoptedContext: DurableEvidence | null;
     adoptedRequest?: AdoptedRequest | null;
     guard: GuardFact | null;
-    completedPassages: readonly PassageId[];
+    chain: ExtensionChain | null;
     priorConditions: DurableEvidence | null;
     currentHandoff: HandoffReference | null;
     replyAdmissionRead: ReplyAdmissionRead;
@@ -1109,6 +1170,11 @@ export type RuntimeConditions = Readonly<{
     model: Adoption;
     context: DurableEvidence;
     bindings: readonly Adoption[];
+    segments?: readonly ResidentSegmentText[];
+}>;
+export type ResidentSegmentText = Readonly<{
+    key: string;
+    text: string;
 }>;
 export type ProducerDecisionView = Readonly<{
     kind: 'unresolved';
@@ -1313,6 +1379,10 @@ export type AcceptedInput = Readonly<{
     source: DurableEvidence | null;
     priority: 'ordinary' | 'urgent';
 }>;
+export type InitialInputs = readonly [
+    AcceptedInput,
+    ...AcceptedInput[]
+];
 export type TerminalObservation = Readonly<{
     terminal: DurableEvidence;
     passage: PassageId;
@@ -1497,7 +1567,7 @@ export interface AgentExecutionHandle<P> {
 export interface AgentRuntime<P> {
     readonly instance: AgentInstanceId;
     invoke(input: ExecutionMutation<P> & Readonly<{
-        initial: AcceptedInput;
+        initial: InitialInputs;
         grant: DurableEvidence | null;
     }>): Reply<AgentExecutionHandle<P>>;
     resume(input: ExecutionMutation<P> & Readonly<{
@@ -1556,6 +1626,10 @@ export interface AgentExecutionRecovery<P> {
         evidence: DurableEvidence;
     }>>;
     detach(input: ExecutionMutation<P> & Readonly<{
+        authority: Authority;
+        reason: DurableEvidence;
+    }>): Reply<DurableEvidence>;
+    handOver(input: ExecutionMutation<P> & Readonly<{
         authority: Authority;
         reason: DurableEvidence;
     }>): Reply<DurableEvidence>;
@@ -1636,6 +1710,9 @@ export interface AgentRuntimeControl<P> {
         operation: AgentOperationId;
         reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
+    handOver(input: ExecutionMutation<P> & Readonly<{
+        reason: DurableEvidence;
+    }>): Reply<DurableEvidence>;
 }
 export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result' | 'read-message-handoff' | 'record-message-handoff' | 'exclude-message-handoff' | 'settle' | 'migrate-cancellation' | 'compaction.admit' | 'compaction.inspect' | 'compaction.cancel' | 'compaction.acknowledge';
 export type AgentAccessTarget = Readonly<{
@@ -1717,12 +1794,9 @@ export type ExtensionImplementationDeclaration = Readonly<{
     builtinName: string;
 }> | Readonly<{
     kind: 'command';
-    host: 'claude_code' | 'codex';
-    dialect: string;
-    event: string;
-    command: string;
-    matcher?: string;
-    timeout?: string;
+    interpreter: string;
+    entry: string;
+    timeout: string;
 }>;
 export type NeedDeclaration = Readonly<{
     name: string;
@@ -2172,6 +2246,7 @@ export type FinishObligation = (ObligationHead<'accepted-input'> & Readonly<{
     observation: TerminalObservation;
     terminal: DurableEvidence | null;
 }>);
+export declare function endsWithUntakenInput(candidate: Pick<FinishCandidateContent, 'conclusion' | 'failure'>): boolean;
 export declare function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory;
 export type CoverageFacet = Readonly<{
     owner: string;
@@ -2553,8 +2628,15 @@ export declare const decodeAgentInstanceId: IdentityDecoder<AgentInstanceId, "Ag
 export declare const decodeStepId: IdentityDecoder<StepId, "StepId">;
 export declare const decodeActionId: IdentityDecoder<ActionId, "ActionId">;
 export declare const decodePassageId: IdentityDecoder<PassageId, "PassageId">;
+export declare function toolActionOf(step: StepId, ordinal: number): ReturnType<typeof decodeActionId>;
+export declare function stepOfToolAction(position: string): StepId | null;
 export declare function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId>;
 export declare function admissionActionOf(passage: PassageId): ActionId | null;
+export declare function nestedActionOf(parent: ActionId, ordinal: number): ReturnType<typeof decodeActionId>;
+export declare function nestedPositionOf(action: ActionId): Readonly<{
+    parent: ActionId;
+    ordinal: number;
+}> | null;
 export declare const decodeCardRoundId: IdentityDecoder<CardRoundId, "CardRoundId">;
 export declare const decodeActionBatchId: IdentityDecoder<ActionBatchId, "ActionBatchId">;
 export declare const decodeAgentExecutionId: IdentityDecoder<AgentExecutionId, "AgentExecutionId">;
@@ -2579,7 +2661,7 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 
 ```ts
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts';
-export { obligationCategoryOf } from './finishing.ts';
+export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts';
 export { AGENT_TYPES, ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS, SUMMARY_LIMITS, definitionListing, } from './definition.ts';
 export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
@@ -2588,7 +2670,7 @@ export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AgentDefinitionListing, AgentType, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, stepOfToolAction, toolActionOf, admissionPassageOf, nestedActionOf, nestedPositionOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
 export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts';
@@ -2604,7 +2686,7 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
-export type * from './tool-qualification.ts';
+export { definitionImpact, definitionPlaces, type DefinitionFacts, type ResidentTool, } from './effect.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -2755,7 +2837,10 @@ export type HandoffCustody = Readonly<{
 }>;
 export interface AgentJournalAttachment<P> {
     open(input: ExecutionMutation<P> & Readonly<{
-        original: OriginalInputAcceptance;
+        originals: readonly [
+            OriginalInputAcceptance,
+            ...OriginalInputAcceptance[]
+        ];
         runtime: InvokeRuntimeContext;
         checkpoint: AgentCheckpoint;
     }>): Reply<Readonly<{
@@ -2968,6 +3053,14 @@ export type BatchJudgment<T> = {
 export declare function refused<T>(reason: RefusalReason, detail?: string): Judgment<T>;
 ```
 
+## 声明文件 `layout.d.ts`
+
+```ts
+import { type PackageLayout } from '@omne-harness/assets';
+export declare const AGENT_FILE = "AGENT.md";
+export declare const agentDefinitionLayout: PackageLayout;
+```
+
 ## 声明文件 `passages.d.ts`
 
 ```ts
@@ -3140,7 +3233,7 @@ export type Subject = Readonly<{
 }> | Readonly<{
     purpose: 'main';
     call: M.ModelCallId;
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     fault: M.ModelFault;
     dispatches: readonly M.DispatchRecord[];
     retry: M.RetryResolution | null;
@@ -3175,10 +3268,48 @@ export type Subject = Readonly<{
     terminal: AgentConclusion;
     disposition: DurableEvidence;
 }>;
+export type ChainSource = 'definition' | 'tenant' | 'system';
+export type ChainMember = Readonly<{
+    source: ChainSource;
+    declaration: LoopExtensionDeclaration;
+    implementation: Adoption;
+}>;
+export type ExtensionChain = Readonly<{
+    pass: string;
+    position: Position;
+    dimension: Dimension | null;
+    purpose: 'main' | null;
+    members: readonly ChainMember[];
+    basis: DurableEvidence | null;
+    unread?: DurableEvidence;
+}>;
+export type EnabledExtension = Readonly<{
+    declaration: LoopExtensionDeclaration;
+    implementation: Adoption;
+}>;
+export interface EnabledExtensions<P> {
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        position: Position;
+        dimension: Dimension | null;
+        purpose: 'main' | null;
+    }>): Reply<Readonly<{
+        members: readonly EnabledExtension[];
+        basis: DurableEvidence;
+    }>>;
+}
 export interface ExtensionImplementations<P> {
     resolve(input: Access<P> & Readonly<{
         passage: Passage;
     }>): Reply<LoopExtensionImplementation>;
+}
+export interface SystemExtensions<P> extends ExtensionImplementations<P> {
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        position: Position;
+        dimension: Dimension | null;
+        purpose: 'main' | null;
+    }>): Reply<readonly EnabledExtension[]>;
 }
 export interface DecisionCards<P> {
     present(input: Access<P> & Readonly<{
@@ -3219,6 +3350,9 @@ export interface DecisionCards<P> {
             kind: 'pending';
         }>;
     }>[]>;
+    changes(input: Access<P> & Readonly<{
+        signal: AbortSignal;
+    }>): AsyncIterable<void>;
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance';
 export type AdmissionDecision = Readonly<{
@@ -3260,7 +3394,35 @@ export interface ActionAdmission<P> {
             id: ActionBatchId;
             pass: string;
         }>;
+        nested?: Readonly<{
+            parent: ActionId;
+            ordinal: number;
+        }>;
     }>): Reply<AdmissionDecision>;
+}
+export type NestedActionTarget = Readonly<{
+    definition: Adoption;
+    name: string;
+    command: string | null;
+    arguments: string;
+}>;
+export type NestedActionVerdict = Readonly<{
+    kind: 'allowed';
+}> | Readonly<{
+    kind: 'denied';
+    reason: string;
+}> | Readonly<{
+    kind: 'unanswerable';
+    diagnostic: string;
+}>;
+export interface NestedActionAdmission<P> {
+    admit(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        parent: ActionId;
+        ordinal: number;
+        target: NestedActionTarget;
+        signal: AbortSignal;
+    }>): Promise<NestedActionVerdict>;
 }
 export type MessageSource = Readonly<{
     kind: 'external-input';
@@ -3418,6 +3580,7 @@ export type HandoffLookup = Readonly<{
     kind: 'input-entry';
     execution: AgentExecutionId;
     operation: AgentOperationId;
+    input: InputId;
 }>;
 export interface MessageHandoff<P> {
     prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>;
@@ -3449,12 +3612,14 @@ export type MaterialDescription = Readonly<{
     size: number;
     kind: Material<ContentBlock>['kind'];
 }>;
+export type MaterialReaders = 'after-release' | 'until-release';
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
+        readers?: MaterialReaders;
     }>): Reply<DurableEvidence>;
     read(input: Access<P> & Readonly<{
         source: DurableEvidence;
@@ -3623,6 +3788,10 @@ export type ModelReceptionTarget = Readonly<{
         kind: 'model';
     }>;
 }>;
+export type ReceptionSettled = Readonly<{
+    kind: 'settled';
+    evidence: DurableEvidence;
+}>;
 export interface ModelReceptionTargets<P> {
     forExecution(input: Readonly<{
         access: Access<P>;
@@ -3633,7 +3802,7 @@ export interface ModelReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: M.ModelInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ModelReceptionTarget>;
+    }>): Reply<ModelReceptionTarget | ReceptionSettled>;
 }
 export type ToolReceptionTarget = Readonly<{
     execution: AgentExecutionId;
@@ -3650,7 +3819,7 @@ export interface ToolReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: T.ToolInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ToolReceptionTarget | null>;
+    }>): Reply<ToolReceptionTarget | ReceptionSettled | null>;
     forExecution(input: Readonly<{
         access: Access<P>;
         execution: AgentExecutionId;
@@ -3679,7 +3848,7 @@ export type ModelRecipient = Readonly<{
 }>;
 export type SelectedModel = Readonly<{
     recipient: ModelRecipient;
-    resolution: Extract<M.ProfileResolution, {
+    resolution: Extract<M.ProfileResolution<'llm'>, {
         kind: 'resolved';
     }> & Readonly<{
         selectable: true;
@@ -3714,7 +3883,7 @@ export type Preparation = Readonly<{
     coverage: DurableEvidence;
 }> | Readonly<{
     kind: 'ready';
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     budget: DurableEvidence;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
@@ -3755,7 +3924,7 @@ export type CompactionAssessment = Readonly<{
 }>;
 export type FinalRequest = Readonly<{
     preparation: ActionId;
-    request: M.FixedModelRequest;
+    request: M.LlmModelRequest;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
     alterations: readonly DurableEvidence[];
@@ -4280,6 +4449,8 @@ export declare function finishInput<P>(opened: AgentJournalCoreOpened<P>, snapsh
     }>;
 };
 export declare function failedContent(name: string): Partial<FinishCandidateContent>;
+export declare function nodeFailedContent(name: string): Partial<FinishCandidateContent>;
+export declare function untakenInputContent(kind: 'node-failed' | 'extension-stop' | 'ordinary-fail' | 'complete'): Partial<FinishCandidateContent>;
 export declare function prepareOrdinaryEnd<P>(opened: AgentJournalCoreOpened<P>, name: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<ExecutionSnapshot>;
 export declare function end<P>(opened: AgentJournalCoreOpened<P>, name?: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<CommandReceipt>;
 export declare function settlement<P, K extends SettlementRequest<P>['kind']>(opened: AgentJournalCoreOpened<P>, name: string, body: Omit<Extract<SettlementRequest<P>, {
@@ -4530,29 +4701,4 @@ export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-r
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
 export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts';
-```
-
-## 声明文件 `tool-qualification.d.ts`
-
-```ts
-import type { ToolCallId, ToolInvokeRequest, ToolOperationId } from '@omne-harness/tool-contract';
-import type { Access, Adoption, AgentExecutionId, DurableEvidence, ExecutionRevision } from './identity.ts';
-import type { Reply } from './evaluation.ts';
-export type ToolQualificationRequest<P> = Access<P> & Readonly<{
-    call: ToolCallId;
-    admission: ToolOperationId;
-    request: ToolInvokeRequest;
-}>;
-export type ToolQualification = Readonly<{
-    version: 1;
-    request: Omit<ToolQualificationRequest<unknown>, 'principal'>;
-    execution: AgentExecutionId;
-    association: 'intent' | 'associated';
-    agentDefinition: Adoption;
-    revision: ExecutionRevision;
-    history: DurableEvidence;
-}>;
-export interface AgentToolQualification<P> {
-    qualify(input: ToolQualificationRequest<P>): Reply<ToolQualification>;
-}
 ```

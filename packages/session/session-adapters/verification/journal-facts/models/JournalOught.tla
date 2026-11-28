@@ -355,7 +355,9 @@ P1_OnePosition == ~crashed => corePub = head + 1
    as its envelope alone would have lost it). *)
 P1_FactsPublished == \A s \in 1..(step - 1) : <<"j", s>> \in FactsBefore(log, Len(log))
 
-(* P2 only-append: no committed batch is ever changed or removed. *)
+(* P2 only-append: before the execution settles, no committed batch is ever changed or
+   removed. This model has no settlement; the reclaim of a settled execution as a whole
+   is checked by execution-settlement. *)
 IsPrefix(s, t) == Len(s) <= Len(t) /\ \A i \in 1..Len(s) : s[i] = t[i]
 P2_AppendOnly == [][IsPrefix(log, log')]_log
 

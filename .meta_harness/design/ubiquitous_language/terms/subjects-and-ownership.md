@@ -261,7 +261,7 @@
 
 - **形态**：对象
 - **出处**：[PF-020 租户—工作区关系](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#租户工作区关系)（rev 22）
-- **出处补充**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 7）
+- **出处补充**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 9）
 - **别混**：不是工作区实例，也不是一次会话的选择；实例是关系生效后在部署节点上的装载结果。
 - **参与边界**：有效关系不替代所属组织的[工作区参与限制](scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction)；该限制针对开发、维护与写入，不撤销原有只读资格。启用限制时，登记外部仓库不作为该租户的工作区附着或装配来源，只读沿普通目录或底层资源路径；策略变化不自动删除关系或热重判正在运行的会话。
 
@@ -274,7 +274,7 @@
 - **形态**：属性
 - **出处**：[PF-020 治理关系解除与中心销毁](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#治理关系解除与中心销毁)（rev 22）
 - **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。只有治理所有者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
-- **出处补充**：[工作区：J-WS07](../../product/workspaces/design.md#j-ws07-分别管理参与关系与工作区超管授权)（rev 7）
+- **出处补充**：[工作区：J-WS07](../../product/workspaces/design.md#j-ws07-分别管理参与关系与工作区超管授权)（rev 9）
 - **适用范围**：上述角色与唯一所有者保护适用于有治理所有者的工作区：Omne Host 托管的，和租户在所在节点上登记目录得到的。登记外部仓库的首次参与者不因此取得授予此角色、移除他人关系或销毁外部资源的特权。
 
 ### UL-membership-standing · 成员资格效力 · Membership Standing

@@ -62,7 +62,7 @@ export const TARGETS: readonly Target[] = [
   {
     id: 'E-http',
     steps: ALL_STEPS,
-    title: 'server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28',
+    title: 'server-everything 2.3.1 on Streamable HTTP, revision 2026-07-28',
     async start() {
       const server = await everythingHttp('streamableHttp')
       return {
@@ -76,7 +76,7 @@ export const TARGETS: readonly Target[] = [
   {
     id: 'E-sse',
     steps: ['S1', 'S2', 'S3', 'S6', 'S7'],
-    title: 'server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25',
+    title: 'server-everything 2.3.1 on legacy HTTP+SSE, revision 2025-11-25',
     async start() {
       const server = await everythingHttp('sse')
       return {

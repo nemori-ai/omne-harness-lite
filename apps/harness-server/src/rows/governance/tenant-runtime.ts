@@ -10,8 +10,10 @@ import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
 import type { ReadUnavailableReason, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type {
+  ChangeSignal,
   SettingsBasis,
   SettingsFailure,
+  SettingsTarget,
   SettingsViewRequest,
   TenantSettingsWriter,
 } from '@omne-harness/settings'
@@ -36,6 +38,7 @@ export type TenantGovernanceOptions = Omit<
     catalogPrincipal: ActingForTenantPrincipal
     permissionRelease?: () => ToolRelease
     permissionDeclarations?: () => readonly PermissionDeclaration[]
+    permissionDeclared?: () => readonly PermissionDeclaration[]
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
@@ -132,10 +135,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
             epoch: runtime.epoch,
             identity: options.identity,
             read: handler,
-            conditions: {
-              mapped: reference(combinations.toolStart),
-              unmapped: reference(combinations.toolStartUnmapped),
-            },
             origins: options.permissionOrigins ?? (() => undefined),
             accepting: () => !closed,
           })
@@ -177,6 +176,8 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
 export type TenantSettingsAccess = Readonly<{
   read(request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
   writer: TenantSettingsWriter
+  /** One signal after each committed change of a tenant setting. */
+  changes: ChangeSignal<SettingsTarget>
 }>
 
 export type TenantAssetsAccess = Pick<AssetsLocal, 'readHolding'>
@@ -203,7 +204,7 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
     ...input,
     scope: GovernanceScopeSchema.parse(input.scope),
     domain: structuredClone(input.domain),
-    grants: structuredClone(input.grants),
+    grants: typeof input.grants === 'function' ? input.grants : structuredClone(input.grants),
     identity: { ...input.identity },
   }
   const combinations = governanceStorageCombinations(input.materials)

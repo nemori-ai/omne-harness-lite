@@ -29,6 +29,7 @@ import type { Subscription } from './model.ts'
 export type Actor =
   | Readonly<{ kind: 'owner' }>
   | Readonly<{ kind: 'agent'; recipient: Extract<RecipientRef, { kind: 'agent' }> }>
+  | Readonly<{ kind: 'system'; source: SourceName }>
 
 /** `subject` is the verified principal, handed to the authority port. A trusted adapter builds this, never a model. */
 export type CallContext = Readonly<{

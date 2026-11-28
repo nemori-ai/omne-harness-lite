@@ -7,12 +7,26 @@ import {
   LoadingState,
   RadioGroup,
   RadioGroupItem,
+  Switch,
 } from '@omne-harness/ui-kit'
-import { useId, useState, useSyncExternalStore, type ComponentType, type JSX } from 'react'
+import type { JsonValue } from '@omne-harness/json-text'
+import type { RenderDrawer } from '@omne-harness/shell-contract'
+import {
+  useContext,
+  useId,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type JSX,
+  type ReactNode,
+} from 'react'
 import type { CategoryGovernance } from '../model/governance.ts'
 import type { SettingsDriver } from '../model/settings-driver.ts'
 import type { Row } from '../model/settings-machine.ts'
-import { controlOf, type ValueControl } from '../model/value-control.ts'
+import { assetsControl } from '../model/points.ts'
+import { controlOf, valueKindOf, type ValueControl } from '../model/value-control.ts'
+import { assetsSetting, assetsSettingControl } from '../parts.ts'
+import { ControlDrawContext } from './control-draw.ts'
 import { NoticeLine } from './notice.tsx'
 import { Facts, hasOwn } from './setting-facts.tsx'
 
@@ -22,13 +36,21 @@ type RowActions = Pick<
 >
 type Props = { readonly row: Row; readonly driver: RowActions }
 
-export function boundRow(view: CategoryGovernance): ComponentType<{ rowKey: string }> {
-  return function BoundRow({ rowKey }: { readonly rowKey: string }) {
-    const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
-    if (snapshot.kind !== 'read') return null
-    const row = snapshot.holdings.flatMap(holding => holding.rows).find(item => item.key === rowKey)
-    return row === undefined ? null : <RowView row={row} driver={view} />
-  }
+/** The row of a setting as another module draws it: bound to its governance and to the shell that draws controls. */
+export function boundRow(drawer: RenderDrawer) {
+  return (view: CategoryGovernance): ComponentType<{ rowKey: string }> =>
+    function BoundRow({ rowKey }: { readonly rowKey: string }) {
+      const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
+      if (snapshot.kind !== 'read') return null
+      const row = snapshot.holdings
+        .flatMap(holding => holding.rows)
+        .find(item => item.key === rowKey)
+      return row === undefined ? null : (
+        <ControlDrawContext.Provider value={drawer}>
+          <RowView row={row} driver={view} />
+        </ControlDrawContext.Provider>
+      )
+    }
 }
 type Choice = Readonly<{ value: string; label: string; description?: string }>
 
@@ -49,12 +71,17 @@ function ownText(view: SettingView): string | null {
   return view.own.value.kind === 'string' ? view.own.value.value : null
 }
 
+function ownSwitch(view: SettingView): boolean | null {
+  if (view.kind !== 'ordinary' || view.own.kind !== 'set') return null
+  return view.own.value.kind === 'boolean' ? view.own.value.value : null
+}
+
 export function RowView({ row, driver }: Props): JSX.Element {
   const view = row.view
   const { title, purpose } = view.declaration
   const reading = row.read.kind === 'reading'
   return (
-    <li className="assets-setting" data-kind={view.kind}>
+    <li className="assets-setting" data-kind={view.kind} {...assetsSetting.props}>
       <div className="assets-setting-main">
         <div className="assets-setting-head">
           <h4 className="assets-setting-title">{title}</h4>
@@ -67,7 +94,7 @@ export function RowView({ row, driver }: Props): JSX.Element {
         )}
       </div>
       {row.read.kind === 'failed' ? null : (
-        <div className="assets-setting-control">
+        <div className="assets-setting-control" {...assetsSettingControl.props}>
           <Controls key={view.revision} row={row} driver={driver} />
         </div>
       )}
@@ -114,6 +141,30 @@ function Choices({
         ))}
       </RadioGroup>
     </fieldset>
+  )
+}
+
+function SwitchPick({
+  title,
+  on,
+  busy,
+  onPick,
+}: {
+  readonly title: string
+  readonly on: boolean | null
+  readonly busy: boolean
+  readonly onPick: (on: boolean) => void
+}): JSX.Element {
+  return (
+    <label className="assets-setting-switch">
+      <Switch
+        checked={on === true}
+        disabled={busy}
+        onCheckedChange={onPick}
+        aria-label={`${title}：开或关`}
+      />
+      <span>{on === true ? '开' : '关'}</span>
+    </label>
   )
 }
 
@@ -188,16 +239,73 @@ function SecretInput({
   )
 }
 
-function Controls({ row, driver }: Props): JSX.Element | null {
+const busyOf = (row: Row): boolean =>
+  row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
+
+function Actions({ row, driver, children }: Props & { readonly children: ReactNode }) {
+  const view = row.view
+  return (
+    <>
+      <div className="assets-setting-actions">
+        {children}
+        <Button
+          variant="outline"
+          disabled={busyOf(row) || !hasOwn(view)}
+          onClick={() => driver.clear(row.key)}
+        >
+          清除
+        </Button>
+      </div>
+      <p className="assets-setting-clear-effect">清除之后：{view.declaration.clearEffect}</p>
+    </>
+  )
+}
+
+/** The control of a setting: what is put on the kind of its value, or the one the row draws itself. */
+function Controls({ row, driver }: Props): ReactNode {
+  const drawer = useContext(ControlDrawContext)
+  const view = row.view
+  const [changed, setChanged] = useState<JsonValue | undefined>(undefined)
+  const own = (): ReactNode => <OwnControls row={row} driver={driver} />
+  if (drawer === null || view.kind !== 'ordinary' || view.editable.kind !== 'yes') return own()
+  const kind = valueKindOf(view.valueSchema)
+  if (kind === null) return own()
+  const busy = busyOf(row)
+  const subject = {
+    title: view.declaration.title,
+    schema: view.valueSchema,
+    value: changed ?? (view.own.kind === 'set' ? view.own.value : undefined),
+    disabled: busy,
+    change: setChanged,
+  }
+  return assetsControl.draw(drawer, kind, subject, own, drawn => (
+    <>
+      {drawn}
+      <Actions row={row} driver={driver}>
+        <Button
+          disabled={busy || changed === undefined}
+          onClick={() => {
+            if (changed !== undefined) driver.setValue(row.key, changed)
+          }}
+        >
+          设置
+        </Button>
+      </Actions>
+    </>
+  ))
+}
+
+function OwnControls({ row, driver }: Props): JSX.Element | null {
   const view = row.view
   const own = ownText(view)
   const control = controlFor(view)
   const choices = choicesOf(view, control)
   const [pick, setPick] = useState<string | null>(choices === null ? null : own)
+  const ownOn = ownSwitch(view)
+  const [on, setOn] = useState(ownOn)
   if (view.editable.kind !== 'yes') return null
   const title = view.declaration.title
-  const busy =
-    row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
+  const busy = busyOf(row)
   const submitPick = (value: string) =>
     view.kind === 'permission'
       ? driver.set(row.key, value)
@@ -215,6 +323,9 @@ function Controls({ row, driver }: Props): JSX.Element | null {
           onSubmit={text => driver.setValue(row.key, { kind: 'string', value: text })}
         />
       ) : null}
+      {control.kind === 'switch' ? (
+        <SwitchPick title={title} on={on} busy={busy} onPick={setOn} />
+      ) : null}
       {view.kind === 'secret' ? (
         <SecretInput
           title={title}
@@ -222,26 +333,23 @@ function Controls({ row, driver }: Props): JSX.Element | null {
           onSubmit={secret => driver.setSecret(row.key, secret)}
         />
       ) : null}
-      <div className="assets-setting-actions">
-        {choices === null ? null : (
+      <Actions row={row} driver={driver}>
+        {choices === null && control.kind !== 'switch' ? null : (
           <Button
-            disabled={busy || pick === null || pick === own}
+            disabled={
+              busy ||
+              (choices === null ? on === null || on === ownOn : pick === null || pick === own)
+            }
             onClick={() => {
-              if (pick !== null) submitPick(pick)
+              if (choices !== null && pick !== null) submitPick(pick)
+              if (choices === null && on !== null)
+                driver.setValue(row.key, { kind: 'boolean', value: on })
             }}
           >
             设置
           </Button>
         )}
-        <Button
-          variant="outline"
-          disabled={busy || !hasOwn(view)}
-          onClick={() => driver.clear(row.key)}
-        >
-          清除
-        </Button>
-      </div>
-      <p className="assets-setting-clear-effect">清除之后：{view.declaration.clearEffect}</p>
+      </Actions>
     </>
   )
 }

@@ -28,6 +28,7 @@ import {
   decodeSessionHistoryRoot,
   decodeSessionReply,
   executionRecordFacts,
+  admittedMessageDigest,
   sessionCheckFacts,
   sessionCommitCommands,
   SESSION_LOG_PARTICIPANTS,
@@ -62,6 +63,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
     tenant: TENANT_A,
     session: SESSION,
     execution,
+    settledBy: null,
     expected: null,
     revision: '1',
     published: '0',
@@ -75,6 +77,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
         revision: over.revision ?? '1',
         receipt: evidence(`agent/${execution}/1`),
         emittedThrough: '1',
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -190,7 +193,7 @@ async function admitted(a: App, name: string): Promise<DurableEvidence> {
 const acceptedAs = (name: string, source: DurableEvidence) => ({
   input: inputId(name),
   origin: source,
-  message: ordinaryInput(name).message,
+  messageDigest: admittedMessageDigest(ordinaryInput(name).message),
 })
 
 async function cancel(a: App, work: WorkSnapshot, by: 'cancel-run' | 'archive' = 'cancel-run') {
@@ -412,7 +415,7 @@ describe('the read-only checks of the session participant', () => {
       session: SESSION,
       execution,
       grant,
-      initial: acceptedAs('input-1', grant),
+      initial: [acceptedAs('input-1', grant)],
     }
     const result = await joint(a, 'aop_open_check', [
       executionRecordFacts(write({ execution })),
@@ -440,9 +443,11 @@ describe('the read-only checks of the session participant', () => {
       tenant: TENANT_A,
       session: SESSION,
       execution,
-      value: (({ origin, message }) => ({ input: inputId('never-accepted'), origin, message }))(
-        ordinaryInput('never-accepted'),
-      ),
+      value: (({ origin, message }) => ({
+        input: inputId('never-accepted'),
+        origin,
+        messageDigest: admittedMessageDigest(message),
+      }))(ordinaryInput('never-accepted')),
     }
     const result = await joint(a, 'aop_submit_check', [
       executionRecordFacts(write({ execution })),
@@ -656,7 +661,7 @@ describe('the source basis of open and submit', () => {
       session: SESSION,
       execution,
       grant,
-      initial: acceptedAs('input-1', grant),
+      initial: [acceptedAs('input-1', grant)],
     })
     expect(result.kind).toBe('committed')
     expect(
@@ -688,12 +693,12 @@ describe('the source basis of open and submit', () => {
       session: SESSION,
       execution,
       grant,
-      initial: acceptedAs('input-1', se13),
+      initial: [acceptedAs('input-1', se13)],
     })
     expect(result.kind).toBe('committed')
   })
 
-  it('open is denied when the source names no run.started entry of this execution, or the input is not the first one it records', async () => {
+  it('open is denied when the source names no run.started entry of this execution, or an input is not of the batch it records', async () => {
     const a = await app()
     const { execution, grant } = await running(a)
     const other = await running(a, TENANT_A, 'session-2', 'other-1')
@@ -708,10 +713,13 @@ describe('the source basis of open and submit', () => {
       ],
       ['the origin of the input', acceptedAs('input-1', ordinaryInput('input-1').origin)],
       ['the SE11 receipt of an input', acceptedAs('input-1', se11)],
-      ['an input other than the first of SE13', acceptedAs('input-2', grant)],
+      ['an input that is not of the batch of SE13', acceptedAs('input-2', grant)],
       [
         'a message other than the one Session admitted',
-        { ...acceptedAs('input-1', grant), message: ordinaryInput('input-2').message },
+        {
+          ...acceptedAs('input-1', grant),
+          messageDigest: admittedMessageDigest(ordinaryInput('input-2').message),
+        },
       ],
     ] as const
     for (const [index, [, initial]] of cases.entries()) {
@@ -720,13 +728,24 @@ describe('the source basis of open and submit', () => {
         session: SESSION,
         execution,
         grant,
-        initial,
+        initial: [initial],
       })
       expect(stoppedAs(result)).toEqual({
         kind: 'stopped',
         failure: { kind: 'denied', action: 'open' },
       })
     }
+    const afterAGoodOne = await open(a, 'aop_open_bad_second', {
+      tenant: TENANT_A,
+      session: SESSION,
+      execution,
+      grant,
+      initial: [acceptedAs('input-1', grant), acceptedAs('input-2', grant)],
+    })
+    expect(stoppedAs(afterAGoodOne)).toEqual({
+      kind: 'stopped',
+      failure: { kind: 'denied', action: 'open' },
+    })
     expect(count(a, 'er_operation')).toBe(0)
   })
 
@@ -755,10 +774,10 @@ describe('the source basis of open and submit', () => {
     if (current.run.kind !== 'active') throw new Error('no active Run')
     const execution = current.run.execution.execution
     const check = { tenant: TENANT_A, session: SESSION, execution, grant: next }
-    expect(String(current.run.first)).toBe('input-1')
+    expect(String(current.run.initial[0])).toBe('input-1')
     const refused = await open(a, 'aop_open_previous', {
       ...check,
-      initial: acceptedAs('input-1', before),
+      initial: [acceptedAs('input-1', before)],
     })
     expect(stoppedAs(refused)).toEqual({
       kind: 'stopped',
@@ -766,7 +785,7 @@ describe('the source basis of open and submit', () => {
     })
     const opened = await open(a, 'aop_open_next', {
       ...check,
-      initial: acceptedAs(String(current.run.first), next),
+      initial: [acceptedAs(String(current.run.initial[0]), next)],
     })
     expect(opened.kind).toBe('committed')
   })
@@ -786,7 +805,7 @@ describe('the source basis of open and submit', () => {
           session: SESSION,
           execution: theirs.execution,
           grant: theirs.grant,
-          initial: acceptedAs('input-1', own.grant),
+          initial: [acceptedAs('input-1', own.grant)],
         }),
       ],
       TENANT_B,
@@ -805,7 +824,10 @@ describe('the source basis of open and submit', () => {
     for (const [index, value] of [
       acceptedAs('input-2', third),
       acceptedAs('input-2', ordinaryInput('input-2').origin),
-      { ...acceptedAs('input-2', second), message: ordinaryInput('input-3').message },
+      {
+        ...acceptedAs('input-2', second),
+        messageDigest: admittedMessageDigest(ordinaryInput('input-3').message),
+      },
     ].entries())
       expect(stoppedAs(await submit(a, `aop_submit_bad_${index}`, execution, value))).toEqual({
         kind: 'stopped',

@@ -91,7 +91,6 @@ function newView(
     discardedBy: null,
     discardedAt: null,
     sourceScheduleKey: null,
-    consentAdoption: input.access.consent.kind === 'adopt' ? input.access.consent.adoption : null,
     eligibleConsumed: 0,
     acceptedJobCount: 0,
     observedAt: input.now,
@@ -163,8 +162,7 @@ function finalizeUpdate(
   const definitionChanged = !managementValueEqual(before.definition, after.definition)
   const stateChanged =
     before.control !== after.control ||
-    !managementValueEqual(standingMeaning(before.standing), standingMeaning(after.standing)) ||
-    !managementValueEqual(before.consentAdoption, after.consentAdoption)
+    !managementValueEqual(standingMeaning(before.standing), standingMeaning(after.standing))
   if (!definitionChanged && !stateChanged)
     return savedDecision(
       input,
@@ -253,19 +251,16 @@ function decideExisting(
           nextOccurrence: input.definition.next,
           promotedBy: input.operation.scope.actor.actorRef,
           promotedAt: input.now,
-          consentAdoption:
-            input.access.consent.kind === 'adopt'
-              ? input.access.consent.adoption
-              : view.consentAdoption,
         },
       })
     }
     case 'pause':
-    case 'resume':
       return finalizeUpdate(input, current, {
         ...next,
-        view: { ...view, control: command.action === 'pause' ? 'paused' : 'active' },
+        view: { ...view, control: 'paused', nextOccurrence: null },
       })
+    case 'resume':
+      return finalizeUpdate(input, current, { ...next, view: { ...view, control: 'active' } })
     case 'discard':
     case 'stop': {
       let quota: QuotaEffect = { kind: 'none' }

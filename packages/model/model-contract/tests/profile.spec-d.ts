@@ -63,8 +63,9 @@ import {
   tool,
 } from './values.ts'
 
-const identity: ProfileIdentity = { scope: { kind: 'tenant', tenant }, route: 'fast' }
-const definition: ModelProfileDefinition = {
+const identity: ProfileIdentity = { kind: 'llm', scope: { kind: 'tenant', tenant }, route: 'fast' }
+const definition: ModelProfileDefinition<'llm'> = {
+  kind: 'llm',
   suppliers: [profileSupplier],
   fallback: false,
   input: ['text'],
@@ -76,7 +77,7 @@ const definition: ModelProfileDefinition = {
   meter: adoption,
   retryPolicy: adoption,
 }
-const profile: ModelProfile = {
+const profile: ModelProfile<'llm'> = {
   identity,
   adoption,
   revision,
@@ -168,7 +169,7 @@ it('context limits give a window, an optional separate input limit, an output li
   const numericLimit: TokenLimit = { provided: 1000, upstream: [] }
   const { context: _context, ...withoutContext } = definition
   // @ts-expect-error a profile definition needs its context limits
-  const noContext: ModelProfileDefinition = withoutContext
+  const noContext: ModelProfileDefinition<'llm'> = withoutContext
   void [separate, shared, noWindow, noInput, numericTrigger, numericLimit, noContext]
 })
 
@@ -180,18 +181,18 @@ it('a profile supplier carries no credential and a profile needs at least one su
     credential: { layer: 'tenant' },
   }
   // @ts-expect-error a definition needs at least one supplier
-  const empty: ModelProfileDefinition = { ...definition, suppliers: [] }
+  const empty: ModelProfileDefinition<'llm'> = { ...definition, suppliers: [] }
   // @ts-expect-error a definition needs at least one input modality
-  const noInput: ModelProfileDefinition = { ...definition, input: [] }
+  const noInput: ModelProfileDefinition<'llm'> = { ...definition, input: [] }
   // @ts-expect-error a definition cannot accept video input: this phase of Model does not support it
-  const videoInput: ModelProfileDefinition = { ...definition, input: ['text', 'video'] }
+  const videoInput: ModelProfileDefinition<'llm'> = { ...definition, input: ['text', 'video'] }
   // @ts-expect-error a definition cannot produce video output either
-  const videoOutput: ModelProfileDefinition = { ...definition, output: ['text', 'video'] }
+  const videoOutput: ModelProfileDefinition<'llm'> = { ...definition, output: ['text', 'video'] }
   void [noSecret, withCredential, empty, noInput, videoInput, videoOutput, profile]
 })
 
 it('ModelProfile and ProfileResolution keep availability and selectability apart', () => {
-  const resolved: ProfileResolution = {
+  const resolved: ProfileResolution<'llm'> = {
     kind: 'resolved',
     profile,
     source: evidence,
@@ -200,19 +201,19 @@ it('ModelProfile and ProfileResolution keep availability and selectability apart
     credential: 'available',
     shadowed: [],
   }
-  const absent: ProfileResolution = { kind: 'absent', reason: 'withdrawn' }
-  const choices: ModelChoices = {
+  const absent: ProfileResolution<'llm'> = { kind: 'absent', reason: 'withdrawn' }
+  const choices: ModelChoices<'llm'> = {
     choices: [resolved, absent],
     selected: { route: 'fast', resolution: resolved },
     source: evidence,
   }
   // @ts-expect-error an unlisted availability
-  const retired: ModelProfile = { ...profile, availability: 'retired' }
+  const retired: ModelProfile<'llm'> = { ...profile, availability: 'retired' }
   // @ts-expect-error a modality requirement needs at least one modality
   const emptyRequirement: ModalityRequirement = { modalities: [], source: evidence }
   const { updatedAt: _updatedAt, ...withoutTime } = profile
   // @ts-expect-error the update time is required, not optional
-  const untimed: ModelProfile = withoutTime
+  const untimed: ModelProfile<'llm'> = withoutTime
   void [choices, retired, emptyRequirement, required, untimed]
 })
 

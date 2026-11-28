@@ -36,6 +36,28 @@ export type ModelReceiverFixture = Readonly<{
   dependencies: ModelReceiverDependencies<string>
   journal: MemoryAgentJournal<string>
 }>
+function receiverCheckpoint<C>(pending: C) {
+  return {
+    schema: testAdoption('checkpoint'),
+    definition: testAdoption('definition'),
+    step: value(decodeStepId('receiver-step')),
+    position: 'M1',
+    calls: [pending],
+    passages: [],
+    batch: null,
+    inputBatch: null,
+    requestPreparation: null,
+    compaction: null,
+    adoptedContext: null,
+    guard: null,
+    chain: null,
+    priorConditions: null,
+    currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' as const },
+    voided: [],
+  }
+}
+
 export async function assembleModelReceiverFixture(
   tenant: Access<string>['tenant'],
   entry: ReceivedEntry,
@@ -87,25 +109,7 @@ export async function assembleModelReceiverFixture(
     priority: 'ordinary',
   }
   const invokeEntry = { kind: 'invoke' as const, operation: open, execution, initial }
-  const checkpoint = {
-    schema: testAdoption('checkpoint'),
-    definition: testAdoption('definition'),
-    step: value(decodeStepId('receiver-step')),
-    position: 'M1',
-    calls: [pending],
-    passages: [],
-    batch: null,
-    inputBatch: null,
-    requestPreparation: null,
-    compaction: null,
-    adoptedContext: null,
-    guard: null,
-    completedPassages: [],
-    priorConditions: null,
-    currentHandoff: null,
-    replyAdmissionRead: { kind: 'unverified' as const },
-    voided: [],
-  }
+  const checkpoint = receiverCheckpoint(pending)
   const handoff = { kind: 'input' as const, execution, entry: open, input: initial.id }
   const runtime = {
     instance,
@@ -119,27 +123,29 @@ export async function assembleModelReceiverFixture(
       execution,
       operation: open,
       checkpoint,
-      original: {
-        entry: invokeEntry,
-        handoff,
-        outcome: {
-          request: {
-            kind: 'input',
-            reference: handoff,
-            entry: invokeEntry,
-            source: { kind: 'external-input', input: initial.id },
-          },
-          origin: { kind: 'invoke', ...runtime },
-          provider: testAdoption('message-handoff'),
-          qualification: testEvidence('qualification'),
-          record: testEvidence('handoff/receiver-open'),
-          decision: {
-            kind: 'prepared',
-            message: initial.content,
-            admission: testEvidence('admission/receiver-open'),
+      originals: [
+        {
+          entry: invokeEntry,
+          handoff,
+          outcome: {
+            request: {
+              kind: 'input',
+              reference: handoff,
+              entry: invokeEntry,
+              source: { kind: 'external-input', input: initial.id },
+            },
+            origin: { kind: 'invoke', ...runtime },
+            provider: testAdoption('message-handoff'),
+            qualification: testEvidence('qualification'),
+            record: testEvidence('handoff/receiver-open'),
+            decision: {
+              kind: 'prepared',
+              message: initial.content,
+              admission: testEvidence('admission/receiver-open'),
+            },
           },
         },
-      },
+      ],
       runtime,
     }),
   )

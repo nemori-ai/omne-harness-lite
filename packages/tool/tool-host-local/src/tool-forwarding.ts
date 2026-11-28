@@ -4,10 +4,12 @@ import {
   encodeToolInvocationRef,
   type Access,
   type Reply,
+  type SearchArguments,
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolFixedReadArguments,
   type ToolForwardIntent,
+  type ToolInvocation,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
   type ToolInvokeRequest,
@@ -61,6 +63,86 @@ const statusResult = (value: unknown): MessageResult => {
   return result.ok
 }
 
+/** TL-75: a search for what a program can call is the catalog's own filter for program calls. */
+function searchOf(
+  { programmable, ...asked }: SearchArguments,
+  kind: ToolInvocation['kind'],
+): SearchArguments & Readonly<{ invocation: ToolInvocation['kind'] }> {
+  return { ...asked, invocation: programmable === true ? 'programmatic' : kind }
+}
+
+function pauseFor(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    if (signal.aborted) return resolve()
+    const timer = setTimeout(done, ms)
+    function done() {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    signal.addEventListener('abort', done, { once: true })
+  })
+}
+
+type Bounded<T> = [work: Promise<T>, fallback: () => T, last?: () => Promise<T> | undefined]
+
+// `last`: at the bound, a work that can still answer at once is waited for instead of the fallback.
+function boundedBy<T>(
+  attemptMs: number,
+  lifetime: AbortSignal,
+  ...[work, fallback, last]: Bounded<T>
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      clearTimeout(timer)
+      lifetime.removeEventListener('abort', aborted)
+    }
+    const aborted = () => {
+      finish()
+      resolve(fallback())
+    }
+    const timedOut = () => {
+      const looking = lifetime.aborted ? undefined : last?.()
+      if (looking === undefined) return aborted()
+      finish()
+      void looking.then(resolve, reject)
+    }
+    const timer = setTimeout(timedOut, Math.min(attemptMs, 2_147_483_647))
+    lifetime.addEventListener('abort', aborted, { once: true })
+    void work.then(
+      value => {
+        finish()
+        resolve(value)
+      },
+      error => {
+        finish()
+        reject(error)
+      },
+    )
+    if (lifetime.aborted) aborted()
+  })
+}
+
+type PendingAnswer = Extract<ToolsExecuteAnswer, { kind: 'pending' }>
+
+// A foreground target still running is looked at again, backing off, until it settles or the attempt ends;
+// at the bound it gets one last look, so a result settled since is not left behind.
+async function settledWithin(
+  first: ToolsExecuteAnswer,
+  attempt: AbortSignal,
+  live: () => boolean,
+  look: (pending: PendingAnswer) => Promise<ToolsExecuteAnswer>,
+): Promise<ToolsExecuteAnswer> {
+  let current = first
+  for (let pause = 5; current.kind === 'pending' && current.reason === 'waiting'; pause *= 2) {
+    await pauseFor(Math.min(pause, 80), attempt)
+    if (!live()) return current
+    current = await look(current)
+    if (attempt.aborted) return current
+  }
+  return current
+}
+
 export function createLocalToolForwarding<P>(
   input: LocalToolForwardingInput<P>,
 ): LocalToolForwarding<P> {
@@ -106,30 +188,8 @@ export function createLocalToolForwarding<P>(
         kind: 'rejected',
         failure: unavailable('tools-capability'),
       })
-      const bounded = <T>(work: Promise<T>, fallback: () => T): Promise<T> =>
-        new Promise((resolve, reject) => {
-          const finish = () => {
-            clearTimeout(timer)
-            lifetime.signal.removeEventListener('abort', aborted)
-          }
-          const aborted = () => {
-            finish()
-            resolve(fallback())
-          }
-          const timer = setTimeout(aborted, Math.min(input.attemptMs, 2_147_483_647))
-          lifetime.signal.addEventListener('abort', aborted, { once: true })
-          void work.then(
-            value => {
-              finish()
-              resolve(value)
-            },
-            error => {
-              finish()
-              reject(error)
-            },
-          )
-          if (lifetime.signal.aborted) aborted()
-        })
+      const bounded = <T>(...work: Bounded<T>) =>
+        boundedBy(input.attemptMs, lifetime.signal, ...work)
       const present = async (
         target: ToolInvocationRef,
         reason: 'waiting' | 'background' | 'commit-unknown',
@@ -154,8 +214,9 @@ export function createLocalToolForwarding<P>(
             : { kind: 'rejected', failure: current.failure }
         if (current.ok.kind === 'found' && current.ok.state.phase === 'settled') {
           const reader = input.reader()
+          // The target ran: without a reader its result is read later, never answered as refused.
           if (reader === undefined)
-            return { kind: 'rejected', failure: unavailable('tool-result-reader') }
+            return { kind: 'pending', reference: target, parent: recoveryParent, reason }
           const result = current.ok.state.result
           return {
             kind: 'completed',
@@ -181,6 +242,12 @@ export function createLocalToolForwarding<P>(
                 : reason,
         }
       }
+      const awaitSettled = (first: ToolsExecuteAnswer, attempt: AbortSignal) =>
+        input.reader() === undefined
+          ? Promise.resolve(first)
+          : settledWithin(first, attempt, live, pending =>
+              present(pending.reference, 'waiting', pending.parent),
+            )
       const answer = (
         outcome: ToolInvokeOutcome,
         recoveryParent = reference,
@@ -207,11 +274,11 @@ export function createLocalToolForwarding<P>(
           if (!live()) return fail(unavailable('tools-capability'))
           if ('failure' in consumer) return consumer
           if (catalog === undefined) return fail(unavailable('toolCatalog'))
+          const kind = parent.request.invocation.kind
           const result = await catalog.search({
             ...access,
-            ...argumentsValue,
+            ...searchOf(argumentsValue, kind),
             consumer: consumer.ok,
-            invocation: parent.request.invocation.kind,
           })
           return live() ? result : fail(unavailable('tools-capability'))
         },
@@ -251,6 +318,8 @@ export function createLocalToolForwarding<P>(
           )
             return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
           let progress: ToolsExecuteAnswer = { kind: 'association-unknown', parent: reference }
+          const attempt = new AbortController()
+          let waiting = false
           const work = track(
             (async (): Promise<ToolsExecuteAnswer> => {
               const forward = input.forwarding()
@@ -277,11 +346,22 @@ export function createLocalToolForwarding<P>(
                   parent: reference,
                   reason: outcome.kind === 'commit-unknown' ? 'commit-unknown' : 'waiting',
                 }
-              return answer(outcome)
+              const first = await answer(outcome)
+              waiting = true
+              return awaitSettled(first, attempt.signal)
             })(),
             reference,
           )
-          const result = await bounded(work, () => progress)
+          const result = await bounded(
+            work,
+            () => progress,
+            () => {
+              if (!waiting) return undefined
+              attempt.abort()
+              return work
+            },
+          )
+          if (result.kind === 'completed') input.forwarding()?.presented?.(parent)
           if (
             result.kind === 'association-unknown' ||
             (result.kind === 'pending' && result.reason === 'commit-unknown')

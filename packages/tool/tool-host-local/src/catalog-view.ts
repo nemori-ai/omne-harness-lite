@@ -21,11 +21,50 @@ export type LocalToolCatalogView = Readonly<{
     key: ToolBindingKey
     resident: boolean
     knownDefinition?: ToolDefinition
+    /** The entry is one a source lists; its known definition is the one the session took. */
+    sourced?: true
   }>[]
 }>
 
 export interface LocalToolCatalogViewSource<P> {
   read(access: Access<P>): Reply<LocalToolCatalogView>
+}
+
+export type VisibleCatalogListing = Readonly<{ listing: ToolListing; resident: boolean }>
+
+const judgedDefinitions = new WeakMap<ToolDefinition, ReturnType<typeof judgeToolDefinition>>()
+
+function judgedDefinition(definition: ToolDefinition): ReturnType<typeof judgeToolDefinition> {
+  if (!Object.isFrozen(definition)) return judgeToolDefinition(definition)
+  let judged = judgedDefinitions.get(definition)
+  if (judged === undefined) {
+    judged = judgeToolDefinition(definition)
+    judgedDefinitions.set(definition, judged)
+  }
+  return judged
+}
+
+function viewDigest(view: LocalToolCatalogView): string {
+  return catalogDigest({
+    scope: view.scope,
+    revision: view.revision,
+    entries: view.entries.map(entry => ({
+      key: entry.key,
+      resident: entry.resident,
+      knownDefinition: entry.knownDefinition?.adoption ?? null,
+      sourced: entry.sourced === true,
+    })),
+  })
+}
+
+export function registryDigest(visible: readonly VisibleCatalogListing[]): string {
+  return catalogDigest(
+    visible.map(({ listing }) => ({
+      entry: listing.entry,
+      definition: listing.definition.adoption,
+      executor: listing.executor,
+    })),
+  )
 }
 
 export async function readCatalogView<P>(
@@ -55,7 +94,7 @@ export async function readCatalogView<P>(
         entries.push(Object.freeze({ key, resident: entry.resident }))
         continue
       }
-      const definition = judgeToolDefinition(entry.knownDefinition)
+      const definition = judgedDefinition(entry.knownDefinition)
       if ('failure' in definition) return fail({ kind: 'invalid', ...definition.failure })
       if (
         !sameBindingKey(key, {
@@ -68,14 +107,21 @@ export async function readCatalogView<P>(
           field: 'knownDefinition',
           reason: 'definition-key-mismatch',
         })
-      entries.push(Object.freeze({ key, resident: entry.resident, knownDefinition: definition.ok }))
+      entries.push(
+        Object.freeze({
+          key,
+          resident: entry.resident,
+          knownDefinition: definition.ok,
+          ...(entry.sourced === true ? { sourced: true as const } : {}),
+        }),
+      )
     }
     const view: LocalToolCatalogView = Object.freeze({
       scope: Object.freeze({ ...result.ok.scope }),
       revision: result.ok.revision,
       entries: Object.freeze(entries),
     })
-    return succeed({ view, digest: catalogDigest(view) })
+    return succeed({ view, digest: viewDigest(view) })
   } catch {
     return fail({
       kind: 'unavailable',
@@ -88,7 +134,7 @@ export async function readCatalogView<P>(
 export function visibleCatalogListings(
   listings: readonly ToolListing[],
   view: LocalToolCatalogView,
-): Readonly<{ listing: ToolListing; resident: boolean }>[] {
+): VisibleCatalogListing[] {
   return listings.flatMap(listing => {
     if (listing.entry.state !== 'live') return []
     const entry = view.entries.find(candidate => sameBindingKey(candidate.key, listing.entry.key))

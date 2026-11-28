@@ -49,7 +49,7 @@ describe('read-pending', () => {
     ['with a position that is not one', { tenant, session, after: 'x', limit: 5 }],
     ['with a cursor', { tenant, session, after: null, limit: 5, cursor: 'c' }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readSample(read.body, sample)).toEqual({ ok: false })
+    expect(readSample(read.body, sample).ok).toBe(false)
   })
 
   it('answers the pending inputs and where the next page starts', () => {
@@ -64,7 +64,7 @@ describe('read-pending', () => {
     ['without the source label', { ...input, source: { name: 'session.member' } }],
     ['with the whole message', { ...input, message: { role: 'user' } }],
   ])('refuses a pending input %s', (_label, sample) => {
-    expect(readSample(read.outcomes.succeeded, { inputs: [sample], next: null })).toEqual({
+    expect(readSample(read.outcomes.succeeded, { inputs: [sample], next: null })).toMatchObject({
       ok: false,
     })
   })
@@ -76,7 +76,7 @@ describe('read-waiting-calls', () => {
 
   it('reads a body of the tenant and the session', () => {
     expectRoundTrip(read.body, { tenant, session })
-    expect(readSample(read.body, { tenant })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant }).ok).toBe(false)
   })
 
   it('answers the calls that wait for a card, with the card each one raised', () => {
@@ -91,7 +91,7 @@ describe('read-waiting-calls', () => {
     ['with a card of three members', { ...call, card: { owner: 'o', record: 'r', revision: '1' } }],
     ['with an empty passage', { ...call, passage: '' }],
   ])('refuses a waiting call %s', (_label, sample) => {
-    expect(readSample(read.outcomes.succeeded, { calls: [sample] })).toEqual({ ok: false })
+    expect(readSample(read.outcomes.succeeded, { calls: [sample] }).ok).toBe(false)
   })
 })
 
@@ -100,8 +100,8 @@ describe('read-input-fate', () => {
 
   it('reads a body of the session and the input identity the sender gave', () => {
     expectRoundTrip(read.body, { tenant, session, inputId: 'input-1' })
-    expect(readSample(read.body, { tenant, session })).toEqual({ ok: false })
-    expect(readSample(read.body, { tenant, session, inputId: '' })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant, session }).ok).toBe(false)
+    expect(readSample(read.body, { tenant, session, inputId: '' }).ok).toBe(false)
   })
 
   it.each([
@@ -127,6 +127,6 @@ describe('read-input-fate', () => {
     ['settled by something else', { kind: 'settled', by: 'timeout', run: null }],
     ['pending with a member of another cell', { kind: 'pending', returnedFrom: null, run: 'r' }],
   ])('refuses a fate %s', (_label, fate) => {
-    expect(readSample(read.outcomes.succeeded, { fate })).toEqual({ ok: false })
+    expect(readSample(read.outcomes.succeeded, { fate }).ok).toBe(false)
   })
 })

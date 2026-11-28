@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { type FixedModelRequest } from '@omne-harness/model-contract'
-import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
+import { type LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest } from '@omne-harness/model-contract/provider'
 import { fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 
 export type FamilyName = 'pi-ai-openai' | 'pi-ai-anthropic'
 
 export type RecordFixture = Readonly<{
-  request: FixedModelRequest
+  request: LlmModelRequest
   requestJson: unknown
   stream: string
 }>
@@ -29,7 +29,7 @@ export function readRecordFixture(family: FamilyName, record: RecordHead): Recor
   const directory = join(root, fixtureDirectory(record))
   const parsed: unknown = JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8'))
   const requestJson: unknown = Reflect.get(Object(parsed), 'request')
-  const judged = judgeFixedModelRequest(requestJson)
+  const judged = judgeModelRequest('llm', requestJson)
   if (!('ok' in judged)) throw new Error(`${record.name}: ${JSON.stringify(judged.failure)}`)
   return {
     request: judged.ok,

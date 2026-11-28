@@ -30,6 +30,9 @@ export type CatalogEntry =
 
 export type CatalogQuery = Readonly<{ text: string }>
 
+/** A thing to rank by name and text alongside the Skills of the catalog. */
+export type RankedDocument = Readonly<{ name: string; fields: readonly string[] }>
+
 export interface SkillCatalog<P, S> {
   summaries(
     access: Access<P>,
@@ -41,6 +44,8 @@ export interface SkillCatalog<P, S> {
     scope: S,
     query: CatalogQuery,
   ): Promise<Outcome<readonly CatalogEntry[], 'unknown'>>
+  /** The names of these documents in the order a search for this text ranks them; with text, only those it matches. */
+  order(text: string, documents: readonly RankedDocument[]): readonly string[]
 }
 
 export type ReadTarget = Readonly<{

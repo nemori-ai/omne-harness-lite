@@ -132,7 +132,7 @@ describe('calendar/v1', () => {
     ['a signed offset', { kind: 'shift', date: '2026-09-30', direction: 'forward', days: -1 }],
     ['no days to list', { kind: 'next', after: '2026-09-30', count: 0 }],
   ])('refuses %s', (_label, question) => {
-    expect(readSample(operations.answer.body, { tenant, question })).toEqual({ ok: false })
+    expect(readSample(operations.answer.body, { tenant, question }).ok).toBe(false)
   })
 
   it.each([

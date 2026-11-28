@@ -229,6 +229,7 @@ export function witnessStore(store: ToolLedgerStore) {
     scanPending: input => store.scanPending(input),
     usage: query => store.usage(query),
     due: (tenant, now, limit) => store.due(tenant, now, limit),
+    definition: (tenant, adoption) => store.definition(tenant, adoption),
     async read(domain) {
       const answer = await store.read(domain)
       if (answer.kind === 'complete')

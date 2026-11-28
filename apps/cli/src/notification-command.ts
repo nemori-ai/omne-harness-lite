@@ -12,6 +12,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -31,7 +32,7 @@ type Context = Readonly<{ tenant: TenantId; newId: () => string; messageId: stri
 /** What one invocation sends, and what of it the printed result repeats. A string is the usage error. */
 type Sending = Readonly<{
   echo: RequestEcho
-  call: (link: Link) => Promise<CallResult | undefined>
+  call: (link: Link) => Promise<CallResult>
   /** Written to standard error after a result nobody knows. */
   uncertain?: string
 }>
@@ -184,7 +185,7 @@ async function runNotification(
   const sending = spec.send(values, { tenant: loaded.tenant, newId, messageId })
   if (typeof sending === 'string') return usageError(output, `omne ${name}: ${sending}\n`)
   const result = await sending.call(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   const echo = { messageId, tenant: encodeTenantText(loaded.tenant), ...sending.echo }
   const code = report(name, result, echo, output)
   if (code === 5 && sending.uncertain !== undefined) output.stderr(sending.uncertain)

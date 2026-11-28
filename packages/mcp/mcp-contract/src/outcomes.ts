@@ -42,7 +42,7 @@ export type OutputValidator = (structured: JsonValue, outputSchema: JsonValue) =
 
 export type NoAnswerCause = 'stream-broken' | 'abandoned'
 
-export type UnusableCause = 'stream-broken' | 'session-ended'
+export type UnusableCause = 'stream-broken' | 'session-ended' | 'credential-rejected'
 
 export type PeerAnswer =
   | Readonly<{ kind: 'result'; result: JsonValue }>
@@ -129,6 +129,10 @@ export type AnswerMalformed = Readonly<{
     | 'error-missing'
     | 'error-shape'
     | 'tools-missing'
+    | 'events-missing'
+    | 'skills-missing'
+    | 'skill-missing'
+    | 'content-missing'
     | 'cursor-invalid'
     | 'discover-shape'
 }>

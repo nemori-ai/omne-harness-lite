@@ -1,3 +1,6 @@
+import { originalModelRows } from './model-originals.ts'
+import { summarizeModelProvenance, projectModelProvenance } from './model-provenance.ts'
+import { projectModelMessage } from './model-projection.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { SessionValidationFailure } from './session-validation.ts'
 import {
@@ -41,7 +44,12 @@ export function viewMessageOf(entries: readonly HistoryEntry[], index: number): 
 function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
   let prefix = ''
   return rows.map((row, index) => {
-    prefix = digestOf({ prefix, entry: row.entry, message: row.message })
+    prefix = digestOf({
+      prefix,
+      entry: row.entry,
+      message: row.message,
+      ...(row.provenance?.length ? { provenance: row.provenance } : {}),
+    })
     return {
       ...row,
       seq: String(index + 1),
@@ -54,11 +62,40 @@ function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
 export function materializeModelView(
   previous: MaterializedModelView,
   committed: readonly HistoryEntry[],
+  originals?: () => { inherited: readonly ModelViewRow[]; entries: readonly HistoryEntry[] },
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
   let past = previous.past
   for (const [index, entry] of committed.entries()) {
+    const decoded = decodeEntry(entry)
+    if ('ok' in decoded && decoded.ok.kind === 'session.model-projected') {
+      const blocks = new Set(decoded.ok.blocks)
+      past = new Map(past).set(epoch, numbered(rows))
+      if (decoded.ok.restoreOriginals) {
+        const source = originals?.()
+        if (source === undefined)
+          throw new Error('original history is unavailable for model projection')
+        rows = [
+          ...originalModelRows(
+            source.inherited,
+            [...source.entries, ...committed.slice(0, index)],
+            blocks,
+          ),
+        ]
+        epoch = `epoch:${entry.id}`
+        continue
+      }
+      rows = rows.flatMap(row => {
+        const message = projectModelMessage(row.message, blocks)
+        const provenance = projectModelProvenance(row.provenance, blocks)
+        return message === null
+          ? []
+          : [{ ...row, message, ...(provenance === undefined ? {} : { provenance }) }]
+      })
+      epoch = `epoch:${entry.id}`
+      continue
+    }
     const message = viewMessageOf(committed, index)
     if (
       message === null ||
@@ -77,11 +114,36 @@ export function materializeModelView(
       past = new Map(past).set(epoch, numbered(rows))
       rows = [
         ...retained,
-        { seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message },
+        {
+          seq: '',
+          entry: entry.id,
+          bytes: 0,
+          prefixDigest: '',
+          message,
+          provenance: summarizeModelProvenance(
+            rows.map(row => row.provenance),
+            message.blocks.map(block => block.id),
+          ),
+        },
         ...after,
       ]
       epoch = `epoch:${entry.id}`
-    } else rows.push({ seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message })
+    } else {
+      const provenance =
+        'ok' in decoded && 'provenance' in decoded.ok
+          ? decoded.ok.provenance
+          : message.role === 'system_reminder'
+            ? undefined
+            : []
+      rows.push({
+        seq: '',
+        entry: entry.id,
+        bytes: 0,
+        prefixDigest: '',
+        message,
+        ...(provenance === undefined ? {} : { provenance }),
+      })
+    }
   }
   return { epoch, rows: numbered(rows), ...(past === undefined ? {} : { past }) }
 }
@@ -92,6 +154,7 @@ export function compactionReads(
   snapshot: WorkSnapshot,
   through: string,
   inherited = 0,
+  visible?: ReadonlySet<string>,
 ): CompactionContext | null {
   const end = entries.findIndex(entry => entry.id === through)
   const first = entries[0]
@@ -106,7 +169,9 @@ export function compactionReads(
     const row = { ref, message: viewMessageOf(entries, index) }
     ;(index <= end ? covered : after).push(row)
   }
-  const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
+  const previous = covered
+    .filter(row => row.message?.role === 'compaction' && (!visible || visible.has(row.ref)))
+    .at(-1)
   let window = covered
   if (previous?.message?.role === 'compaction') {
     const prior = previous.message
@@ -173,21 +238,33 @@ export function compactionContextForView(
   entries: readonly HistoryEntry[],
   snapshot: WorkSnapshot,
   rows: readonly ModelViewRow[],
-  upper: number,
+  upper: number | null,
   through: string | null,
   inherited = 0,
 ): CompactionContext | null {
-  const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
+  const currentRows = upper === null ? rows : rows.slice(0, upper)
+  const selected = new Set(currentRows.map(row => String(row.entry)))
   through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
   if (through === null) return null
-  const value = compactionReads(entries, snapshot, through, inherited)
+  const value = compactionReads(entries, snapshot, through, inherited, selected)
   if (value === null) return null
+  // A commit may end on an own journal fact between messages. It carries no model bytes.
+  const ownAnchor =
+    upper === null &&
+    entries.some(
+      (entry, index) =>
+        index >= inherited && entry.id === through && !entry.kind.startsWith('message.'),
+    )
   const keep = (row: CoveredEntry) =>
+    (ownAnchor && row.ref === through) ||
     selected.has(row.ref) ||
     value.open.includes(row.ref) ||
     (value.base.kind === 'initial' && row.ref === value.origin)
+  const projected = new Map(currentRows.map(row => [String(row.entry), row.message]))
   const visible = (row: CoveredEntry): CoveredEntry =>
-    selected.has(row.ref) ? row : { ref: row.ref, message: null }
+    selected.has(row.ref)
+      ? { ...row, message: projected.get(String(row.ref)) ?? row.message }
+      : { ref: row.ref, message: null }
   const covered = value.covered.filter(keep).map(visible)
   const after = value.after.filter(keep).map(visible)
   if (covered.at(-1)?.ref !== through) return null

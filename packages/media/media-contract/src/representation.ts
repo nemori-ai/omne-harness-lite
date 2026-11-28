@@ -5,6 +5,7 @@ import type {
   ContentReference,
   Custody,
   Holder,
+  InconvertibleReason,
   InvalidReference,
   Provenance,
   Reads,
@@ -42,7 +43,7 @@ export type Representation = Readonly<{ definition: Provenance; engine: Provenan
         text: string | ContentReference
         others: readonly ContentReference[]
       }>
-    | Readonly<{ outcome: 'inconvertible' }>
+    | Readonly<{ outcome: 'inconvertible'; reason?: InconvertibleReason }>
   )
 
 /** Running and failed are of this process only: neither is kept, and asking again starts over. */

@@ -20,6 +20,8 @@ export const FORK_STATEMENTS: readonly string[] = [
 
 export const FIRST_EPOCH = 'epoch:0'
 const VIEW_COLUMNS = 'seq, entry, bytes, prefix_digest, message'
+const PROVENANCE_COLUMN =
+  '(SELECT p.provenance FROM sl_model_provenance p WHERE p.tenant = sl_model_view.tenant AND p.session = sl_model_view.session AND p.epoch = sl_model_view.epoch AND p.entry = sl_model_view.entry LIMIT 1) AS provenance'
 
 export class SegmentUnreadable extends Error {}
 
@@ -100,7 +102,7 @@ export function viewOf(port: Executor, scope: Scope, epoch: string): View {
         if (from >= to || wanted < 1) continue
         const rows = rowsOf(
           port,
-          `SELECT ${columns} FROM sl_model_view
+          `SELECT ${columns}, ${PROVENANCE_COLUMN} FROM sl_model_view
             WHERE tenant = ? AND session = ? AND epoch = ? AND seq > ? AND seq <= ? ORDER BY seq LIMIT ?`,
           [...key(piece), from, to, BigInt(wanted)],
         )
@@ -114,7 +116,7 @@ export function viewOf(port: Executor, scope: Scope, epoch: string): View {
       for (const piece of [own, ...segments]) {
         const row = oneRow(
           port,
-          `SELECT ${VIEW_COLUMNS} FROM sl_model_view
+          `SELECT ${VIEW_COLUMNS}, ${PROVENANCE_COLUMN} FROM sl_model_view
             WHERE tenant = ? AND session = ? AND epoch = ? AND entry = ? LIMIT 1`,
           [...key(piece), entry],
         )

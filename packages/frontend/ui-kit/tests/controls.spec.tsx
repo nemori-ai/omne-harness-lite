@@ -7,6 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
   Field,
   Input,
@@ -118,6 +120,17 @@ it('Input is a labelled textbox that reports typing', () => {
   fireEvent.change(input, { target: { value: 'abc' } })
   expect(onChange).toHaveBeenCalledTimes(1)
   expect((input as HTMLInputElement).value).toBe('abc')
+})
+
+it('Input as a line is the same field: one line under it, no box, the line taking the focus colour', () => {
+  render(<Input aria-label="查找" variant="line" />)
+  const input = screen.getByRole('textbox', { name: '查找' })
+  expect(input.getAttribute('data-control')).toBe('field')
+  expect(input.dataset['variant']).toBe('line')
+  expect(input.className.split(' ')).toEqual(
+    expect.arrayContaining(['border-b', 'focus-visible:border-line-focus']),
+  )
+  expect(input.className).not.toMatch(/(^| )(rounded-control|border|bg-surface-field)( |$)/u)
 })
 
 it('Textarea is a labelled multi-line field that reports typing', () => {
@@ -290,6 +303,28 @@ it('DropdownMenu opens from its trigger and runs the chosen item', async () => {
   expect(screen.getByRole('menu').getAttribute('data-slot')).toBe('dropdown-menu-content')
   fireEvent.click(item)
   expect(onSelect).toHaveBeenCalledTimes(1)
+})
+
+it('DropdownMenuRadioItem marks the chosen one with the kit check and only that one', async () => {
+  render(
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button">外观</button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuRadioGroup value="dark">
+          <DropdownMenuRadioItem value="light">浅色</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">深色</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>,
+  )
+  fireEvent.pointerDown(screen.getByRole('button', { name: '外观' }), { button: 0, ctrlKey: false })
+  const chosen = await screen.findByRole('menuitemradio', { name: '深色' })
+  const other = screen.getByRole('menuitemradio', { name: '浅色' })
+  expect(chosen.getAttribute('aria-checked')).toBe('true')
+  expect(chosen.querySelector('svg[data-icon="done"]')).not.toBeNull()
+  expect(other.querySelector('svg[data-icon="done"]')).toBeNull()
 })
 
 it('Sheet opens as a dialog with a named close control', async () => {

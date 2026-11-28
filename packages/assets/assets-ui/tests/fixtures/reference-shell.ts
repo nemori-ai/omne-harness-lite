@@ -1,76 +1,13 @@
-import { Context, type Fiber } from '@deepseek-ai/cordis'
-import type { ReactNode } from 'react'
-import {
-  createSlotStore,
-  type AttachedLayout,
-  type ItemOf,
-  type ScopeSource,
-  type ShellLogin,
-  type ShellSlots,
-  type SlotName,
-} from '@omne-harness/shell-contract'
-import { ShellService } from '@omne-harness/shell-contract/cordis'
+import { serverPointsContract } from '@omne-harness/client-assembly'
+import { servePoint, startShell as startBare } from '@omne-harness/shell-contract/testing'
+import { fakeKeys } from './server-keys.ts'
 
-export class ReferenceShell extends ShellService implements ShellSlots {
-  readonly navigated: string[] = []
-  readonly login: ShellLogin = {
-    state: () => 'signed-out',
-    subscribe: () => () => undefined,
-    login: async () => 'signed-in',
-    logout: async () => 'signed-out',
-  }
-  tenant: string | undefined = undefined
-  readonly scope: ScopeSource = {
-    get: () => this.tenant,
-    set: () => undefined,
-    subscribe: () => () => undefined,
-  }
-  private readonly store = createSlotStore()
+export { ReferenceShell, render } from '@omne-harness/shell-contract/testing'
 
-  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return this.store.items(slot)
-  }
-
-  subscribe(slot: SlotName, listener: () => void): () => void {
-    return this.store.subscribe(slot, listener)
-  }
-
-  navigate(pageId: string): void {
-    this.navigated.push(pageId)
-  }
-
-  attached(anchor: string, subject: string): ReactNode {
-    return this.items('attached')
-      .filter(item => item.anchor === anchor)
-      .map(item => item.render({ scope: this.scope.get(), subject }))
-  }
-
-  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
-    return layout(
-      this.items('attached')
-        .filter(item => item.anchor === anchor)
-        .map(item => ({
-          id: item.id,
-          label: item.label,
-          node: item.render({ scope: this.scope.get(), subject }),
-        })),
-    )
-  }
-
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
-  }
+/** The reference shell on a tree with a connection: its server tells no point until the case sets one. */
+export async function startShell() {
+  const started = await startBare()
+  const keys = fakeKeys()
+  await servePoint(started.root, serverPointsContract, keys.source)
+  return { ...started, keys }
 }
-
-export async function startShell(): Promise<{
-  root: Context
-  shell: ReferenceShell
-  host: Fiber
-}> {
-  const root = new Context()
-  const host = root.plugin(ReferenceShell)
-  await host
-  return { root, shell: root.shell as unknown as ReferenceShell, host }
-}
-
-export const render = (): null => null

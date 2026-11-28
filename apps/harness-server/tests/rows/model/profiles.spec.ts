@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { ModelProfile } from '@omne-harness/model-contract'
+import type { ModelNeed, ModelProfile } from '@omne-harness/model-contract'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
+import { everyModelOnRow } from '../../support/model-preferences.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
-const plugins = { modelProfilesRow }
+const plugins = { modelProfilesRow, everyModelOnRow }
 const config = {
   retryPolicy: {
     owner: 'harness-server-release',
@@ -17,19 +18,28 @@ const config = {
   compactionTriggerPercent: '80',
   updatedAt: '2026-11-02T00:00:00Z',
 }
-const rows = [{ id: 'model-profiles', plugin: 'modelProfilesRow', config }]
-const REQUIRED = {
-  modalities: ['text'] as ['text'],
+const rows = [
+  { id: 'every-model-on', plugin: 'everyModelOnRow' },
+  { id: 'model-profiles', plugin: 'modelProfilesRow', config },
+]
+const REQUIRED: ModelNeed<'llm'> = {
+  kind: 'llm',
+  modalities: { input: ['text'] },
   source: { owner: 'test', record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 
 describe('the model-profiles row', () => {
-  it('declares the formal key, no inject and no shutdown phase', () => {
+  it('declares the formal key, injects the preferences of a tenant and has no shutdown phase', () => {
     expect(rowDeclarationOf(modelProfilesRow)).toEqual({
       row: 'model-profiles',
       implementation: 'real',
-      manifest: { provides: ['modelProfiles'], injects: [], phase: null, sameProviderGroup: null },
+      manifest: {
+        provides: ['modelProfiles'],
+        injects: ['modelPreferences'],
+        phase: null,
+        sameProviderGroup: null,
+      },
       lifecycle: { kind: 'none' },
     })
   })
@@ -39,13 +49,17 @@ describe('the model-profiles row', () => {
       { rows, plugins, probe: ['modelProfiles'] },
       async ctx => {
         const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
-        const listed = await service.list({ ...ACCESS, selected: null, required: REQUIRED })
+        const listed = await service.list({
+          ...ACCESS,
+          selected: null,
+          required: REQUIRED,
+        })
         return { isService: service instanceof ModelProfilesService, listed }
       },
     )
     expect(value.isService).toBe(true)
     if (!('ok' in value.listed)) throw new Error(`list failed: ${JSON.stringify(value.listed)}`)
-    const profiles: ModelProfile[] = []
+    const profiles: ModelProfile<'llm'>[] = []
     for (const choice of value.listed.ok.choices) {
       if (choice.kind === 'resolved') profiles.push(choice.profile)
     }
@@ -62,7 +76,11 @@ describe('the model-profiles row', () => {
   it('resolves a route of the snapshot to its profile', async () => {
     const { value } = await withLiveRows({ rows, plugins, probe: ['modelProfiles'] }, async ctx => {
       const service = ctx.get('modelProfiles') as ModelProfilesService<unknown>
-      return service.resolve({ ...ACCESS, route: 'openai/gpt-5.6-sol', required: REQUIRED })
+      return service.resolve({
+        ...ACCESS,
+        route: 'openai/gpt-5.6-sol',
+        required: REQUIRED,
+      })
     })
     expect(value).toMatchObject({ ok: { kind: 'resolved' } })
   })

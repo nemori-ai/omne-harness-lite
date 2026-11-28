@@ -24,7 +24,8 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { principalIssuer, sessionPrincipals } from '../../../src/entry/principals.ts'
 import { sessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../src/lifecycle.ts'
+import { declaredParts, S0AssemblyLifecycleService } from '../../../src/row.ts'
+import { rowSupervision } from '../../support/row-supervision.ts'
 import { disposeTree, startTree, type EntryObject, type RowSpec } from '../../../src/loader.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
@@ -33,7 +34,6 @@ import {
   type CreateSessionProviderRowOptions,
   type SessionProviderArrival,
 } from '../../../src/rows/session-provider/index.ts'
-import { monotonicClock } from '../../../src/shutdown.ts'
 import { createTrust } from '../../../src/trust.ts'
 import type { EntryEnv, EntryObjectModule, RowId, TreeRow } from '../../../src/types.ts'
 
@@ -124,9 +124,8 @@ function declared(plugin: Plugin.Object): RowSpec {
   if (declaration === undefined) throw new Error('not a declared row')
   return {
     row: treeRow(declaration.row, 'declared'),
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin,
-    implementation: declaration.implementation,
     declared: { row: declaration.row, via: null },
   }
 }
@@ -178,11 +177,7 @@ export async function loadProviderTree(options: ProviderTreeOptions = {}): Promi
     })),
     profile.visibility,
   )
-  const registry = new LifecycleRegistry({
-    expected: new Map(),
-    clock: monotonicClock,
-    requestStop: () => {},
-  })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const made = new Map<symbol, unknown>()
   const env: EntryEnv = {

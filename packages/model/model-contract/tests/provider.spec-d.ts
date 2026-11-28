@@ -23,6 +23,7 @@ import type {
   Snapshot,
   Termination,
   TransportFailure,
+  FixedModelRequest,
 } from '@omne-harness/model-contract'
 import type {
   CallAccountReport,
@@ -31,6 +32,7 @@ import type {
   ExecutionRef,
   IndependentModelFact,
   LateDispatchFact,
+  MaterializedLiveTransport,
   MaterializedTransport,
   ModelClock,
   ModelCommands,
@@ -136,7 +138,7 @@ it('a media read is asked with the access, the reference and the limits of the m
 
 it('a materialization fails as a transport does, or names the medium it could not send and why', () => {
   expectTypeOf<ReturnType<PreparedTransport['materialize']>>().resolves.toEqualTypeOf<
-    Outcome<MaterializedTransport, MaterializeFailure>
+    Outcome<MaterializedTransport | MaterializedLiveTransport, MaterializeFailure>
   >()
   const gone: MaterializeFailure = { kind: 'media', reference, reason: 'material-unavailable' }
   const over: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit', limit: '9' }
@@ -482,7 +484,7 @@ it('an adapter can implement the transport chain from prepare to the fact stream
   void transport
   expectTypeOf<MaterializedTransport['receipt']>().toEqualTypeOf<MaterializationReceipt>()
   expectTypeOf<ModelTransport['prepare']>().parameters.toEqualTypeOf<
-    [request: typeof request, supplier: typeof supplier, dispatch: TransportDispatch]
+    [request: FixedModelRequest, supplier: typeof supplier, dispatch: TransportDispatch]
   >()
   const refused: PreparedTransport = {
     // @ts-expect-error materializing a refused send names a transport failure, not a provider fact

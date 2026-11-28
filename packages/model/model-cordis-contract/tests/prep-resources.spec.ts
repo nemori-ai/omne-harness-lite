@@ -53,7 +53,7 @@ const PROFILE = {
   updatedAt: '2026-10-23T00:00:00Z',
   availability: 'active',
   definition: { suppliers: [SUPPLIER] },
-} as unknown as ModelProfile
+} as unknown as ModelProfile<'llm'>
 
 const INPUT: Parameters<Acquire>[0] = {
   principal: { subject: 't' },

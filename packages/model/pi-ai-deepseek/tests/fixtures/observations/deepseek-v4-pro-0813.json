@@ -1,0 +1,809 @@
+{
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "measuredAt": "2026-11-23",
+  "pin": "deepinfra/fp8",
+  "allowFallbacks": false,
+  "endpointSnapshotSha256": "b3a69cd5886ac8dea05d86738deebc7b905a7046bc2429fbb3da9c2bf2c15daf",
+  "endpoint": {
+    "tag": "deepinfra/fp8",
+    "context_length": 1048576,
+    "max_completion_tokens": 393216,
+    "max_prompt_tokens": null
+  },
+  "samples": {
+    "adjacent-users": {
+      "requestSha256": "924416c71e73d00f09c0ab279f80a4c406c1ac840ccbb69c3e38304c2c88044c",
+      "responseSha256": "28ba44a6f9064ad2689c01dbd751a8b2c26d60a7045405258b1cd77500c167b9",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449278-H33e6aV3roT3d5hbgHAK",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 22,
+        "completion_tokens": 2,
+        "cost": "0.0000507",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "assistant-last": {
+      "requestSha256": "3f081e3777b81ba12fb5296c8e20c4e83ecc31cd306661e26fa53a5ee94ea315",
+      "responseSha256": "3d4808fa4be9e7c687aaf3a2801fd5f462ba86fd857ca0d9e874313029bf53f6",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449244-WoTfVqjPXblcHEBaJH0U",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 21,
+        "completion_tokens": 3,
+        "cost": "0.00005265",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "\n\n40"
+    },
+    "cache-1": {
+      "requestSha256": "bf43c8a9a29fff92b695b122565b9dd2930ce15e5054255ea8422056bc5be6ee",
+      "responseSha256": "e52559b9ddd29bb72369aed59a154856528deba9982662f03fab3cebe16f0678",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448351-iAAWUUCXYkwf7UdlsVdv",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3625,
+        "completion_tokens": 2,
+        "cost": "0.00707655",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "blue"
+    },
+    "cache-2": {
+      "requestSha256": "bb6b9566af821a5df01c4a28e328dfa780304ffde20fdbedb272e89f8dad8472",
+      "responseSha256": "682cdfbc40ad3b17f7198e0ceea4324600583ba895ceb464763553fc08e65b82",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448399-j2F21Kj7grC7bZtobKLR",
+      "finish": "stop",
+      "cachedTokens": 3328,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3644,
+        "completion_tokens": 3,
+        "cost": "0.0011271",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Blue."
+    },
+    "cache-3": {
+      "requestSha256": "ef9f2f05c5108866633864d231e75d25aaadb93916d3c1611eac61afc81a5ae8",
+      "responseSha256": "86b037ceb43edb4f5b3e82796e64054f6c0ff2a94d76010e743bbb0dda3d621b",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448454-wsHQCIvmSB4o8eoqOMUn",
+      "finish": "stop",
+      "cachedTokens": 3328,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3663,
+        "completion_tokens": 3,
+        "cost": "0.00116415",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Blue."
+    },
+    "calib-code": {
+      "requestSha256": "79f5855f6e2ea2fe0ff27f51e55b74a992633702f4542ea345046a155ff42c2d",
+      "responseSha256": "5ddc9b04324d050e982ebc768e39877e808ad1862c165314b4f58b75e50d5c85",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448643-Z1tMGw7XHI2NII9dq4by",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 30,
+        "completion_tokens": 109,
+        "cost": "0.0004836",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Alright, let's go step-by-step.\n\nWe have:\n\n```javascript\nconst n = [2, 3, 5];\nn.reduce((a, b) => a + b, 0);\n```\n\n**Step 1:** Start with initial value `0`.  \n**Step 2:** Add each element:\n\n- 0 + 2 = 2  \n- 2 + 3 = 5  \n- 5 + 5 = 10  \n\n**Result"
+    },
+    "calib-zh": {
+      "requestSha256": "59c036c6f7445ebd33b9727ba76fcb2944c0e71e967d24bcbc2581658d2fc2de",
+      "responseSha256": "fde025cfe344d10a724f4cd70816f4fdfed8ab99e4951add4cc083277c198d64",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448569-jvuVtJin1Hy7RblsX4z0",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 15,
+        "completion_tokens": 2,
+        "cost": "0.00003705",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "16"
+    },
+    "changed-prefix": {
+      "requestSha256": "a1371296850ef72a2ec3a54cc633bcd6aebe0e6b78f07c987250522aa67319cb",
+      "responseSha256": "3405c979cabc3c6ba87d6b87fb62255c8e5fc168153899709255b17f7d173ed3",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448508-O3P5md6ieEpPI8qvavbc",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 371,
+        "completion_tokens": 13,
+        "cost": "0.00077415",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "continuation": {
+      "requestSha256": "adf71c062a577abfc71ddc8911bc7c92405da43f3addccd03822ede7a7fe8fab",
+      "responseSha256": "9e604d7dae329db63537e847f7b342eff4056964f021f86617a83c0ed9eca7a3",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448253-ebytdgX7PLeaHOmHTefM",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 368,
+        "completion_tokens": 17,
+        "cost": "0.0007839",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "The value printed on ticket A17 is **SAPPHIRE-614**."
+    },
+    "effort-high": {
+      "requestSha256": "4e28d5e3b1c21123a3ae7c794a8091cf6b7dd26affc94ac4cf1a534a1bcc583d",
+      "responseSha256": "120229c4ada16d4e570ca0a21843d0bc336712bb333fc08b68502c7e507623e4",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448898-vbNpGtOgzR8huXzGWLwX",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 37,
+        "cost": "0.0003315",
+        "completion_tokens_details": {
+          "reasoning_tokens": 33,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-low": {
+      "requestSha256": "9c8695dd14168d44bd680244b2637685741c6e98ab860b844c62fe575c9b6def",
+      "responseSha256": "8d4fbb9488a894c7be8df85ebd6ab5d834a0d4498ff18a799b7e5fc4a970fc7c",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448837-fyNzlNF49GcTFTepsQXT",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 22,
+        "cost": "0.00011895",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-max": {
+      "requestSha256": "f1a3cd8901164bbe430c8eaa2ed072ef447ee1c2c0dfa9b3c472d08c5031c086",
+      "responseSha256": "28866662ef09d16fee852a248b66094c4cd1049955f7c00cf3e28c0d7fbc8695",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448940-EJLFZbUMgBg6OMPpPr59",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 109,
+        "completion_tokens": 36,
+        "cost": "0.00035295",
+        "completion_tokens_details": {
+          "reasoning_tokens": 32,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-medium": {
+      "requestSha256": "0692e6340f984fef278591845119811e244c9439e28796da010012c31afeda06",
+      "responseSha256": "1091415aa4a92039cf16525469d3b0d7089d59104fd0ce2665acd6172943972c",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448868-8g1KrjwIRNatKNgXT0uw",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 14,
+        "cost": "0.00008775",
+        "completion_tokens_details": {
+          "reasoning_tokens": 6,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-minimal": {
+      "requestSha256": "2009a6d3df7dcdccdc36d3a4693cf79b025c2ea5ce92d90dc44ba9ca1aafae7b",
+      "responseSha256": "57327569c2cac68f492285308ea3a4c2c1e6a1c7bf45bd8b8b0436ecfb29f428",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449071-SkMZo1CeVyrVCjApDkUx",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 23,
+        "cost": "0.00012285",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-none": {
+      "requestSha256": "909f81d3f5bd36e833f31abdd587f909b0d8353cb77d4058382aa333dea9f379",
+      "responseSha256": "0cef6c992c5cc39e9db4cb207aeeaba8b506235a8f9b9957926a10375a3e491c",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448976-jfnvANuFQQDyaAhePNJB",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "effort-xhigh": {
+      "requestSha256": "b2d11c4094d15a339acb7d9c4984291a38ec4868c0810a1a6e6d7ffd5dff37e1",
+      "responseSha256": "6f4143efbb59cb2c0db98e63638f456200aa393848dce8da1b898a099ecf5452",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449020-RGz078HGAeaE0lxangd4",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 51,
+        "cost": "0.0003861",
+        "completion_tokens_details": {
+          "reasoning_tokens": 47,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "empty-content": {
+      "requestSha256": "308a4f5c68d60e014137f20c431ffea71e7669e44537bc60e5fd8a5e0e8b0993",
+      "responseSha256": "f8cb82a311142a3458be154bf38299e41afb744e71b4c4da224322cdcdb1e6f1",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449307-16CjCo4iA8sDdpCVDMOf",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "fixture": {
+      "requestSha256": "591f0d5a231ea9916504b91e1b6e3fcfe308ce1e078ce35f7ef711c7c09b90c8",
+      "responseSha256": "7ac67122d3a79432c36a4bb75005fcaac5d87d41c243e3abff570a8c99300ecb",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449379-i9iCpGZYINSnOMjw0AlU",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 278,
+        "completion_tokens": 29,
+        "cost": "0.0006552",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{}"
+    },
+    "plain": {
+      "requestSha256": "e06f7bc7e88b825e5cef3dc4f8a76cc5d2ef58089156fd7b0ac40c77c25791cc",
+      "responseSha256": "15e655a05f42fe513e38d7f3946549eebbef9f188a11d72a67905cd7fd66865f",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448018-VE54JyhXuDQZj0CFOFdt",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 2,
+        "cost": "0.000039",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "21"
+    },
+    "reasoning-off": {
+      "requestSha256": "f3266bba56e45bb58576552ee3bc6fe7378cb9f538e5d4c925405ab6c7bccb61",
+      "responseSha256": "d5ca765549c68c4d6f48f3ae03b04502bbf61be9b9da01af03d6e0dbf21c7962",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448799-u3eHWA1BKSYc5ZJcbbuh",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "release-tools": {
+      "requestSha256": "7ee2f6c875b3390e1cffbcf269df4f9d14246baf16bbc2897750a5197c9eebca",
+      "responseSha256": "ea14afcb7544b3c70a134ddf0d91eaa59b3e1602f7a45205345f7c3d6a3088f3",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449730-ZJFx9QVqtRZBgKFfyKhO",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 8041,
+        "completion_tokens": 2,
+        "cost": "0.01568775",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "51"
+    },
+    "replay-altered": {
+      "requestSha256": "80beb30dd041d2b985a68b777c0371e1726d3754fdf34a7d040e3dc7d5ce0229",
+      "responseSha256": "2dae8675be9fbfaad59e96d3730a2e1379f9ea524f0db9338414ffc5c7c4c51e",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449589-hbei5Gf1gZQEc98Da7P9",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 47,
+        "cost": "0.00040755",
+        "completion_tokens_details": {
+          "reasoning_tokens": 43,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-changed": {
+      "requestSha256": "154aac9141169e6c176a0d08ba60d06d86ae1b2873545c253b17fd3cca7d0f9b",
+      "responseSha256": "3de463c8e14752967c971362e200bacb194bc78f03388fe0a56f462e737c8607",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449529-JjEscrdhaFnWfK9faAMY",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 120,
+        "completion_tokens": 40,
+        "cost": "0.00039",
+        "completion_tokens_details": {
+          "reasoning_tokens": 33,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-omitted": {
+      "requestSha256": "236095100e066f7e106a28461d0ee906869616c542bdd60eb049330942193f48",
+      "responseSha256": "5ce51ca1dcf1a0a13449377177efdcaeee9de616140f5c227af87408afe4b515",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449655-9MS1vsuPVp0pk5G9gThr",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 55,
+        "cost": "0.00043875",
+        "completion_tokens_details": {
+          "reasoning_tokens": 48,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-retained": {
+      "requestSha256": "56dec5e5e41fbca732338da3a5ebda9a49e0224b9baa217f8af0ce49cd32d6dd",
+      "responseSha256": "6b3e3e60f7eee592c7c13ad5b3ad27ddc10dc3b1bd621bf1039317e738ae5c64",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449453-PfyYMMkCtbENUJOgFnfa",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 35,
+        "cost": "0.00036075",
+        "completion_tokens_details": {
+          "reasoning_tokens": 28,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "sampling-seed": {
+      "requestSha256": "1c7b0063182e39788daaafd50eb223066b2fb3e30784ec07ea58c721aa6f0dd3",
+      "responseSha256": "65106c6da15284f7ce06a28b0c694afecafdcc969784bfa279d5129b4337040c",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449202-wxfA2LUAMTJqQ2KvDUv6",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "sampling-temperature": {
+      "requestSha256": "91357252f3f5fa54fbd0defcba7a64df0c1be965e8a2b7ca71c6dded7f7a2f9a",
+      "responseSha256": "0dfca035ff79be8b50d349f0e44650865d6cad291952375a4a7a23a1cf73c7c0",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449103-XMgSSjXoXy0jJrHxIOOe",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 14,
+        "cost": "0.00008775",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Here’s the sum:\n\n29 + 11 = 40"
+    },
+    "sampling-top_k": {
+      "requestSha256": "32fb0495c9b386a0768d507ef4dd3cbb4b5bb1b95ab7bbd72df2257f4b6c39cf",
+      "responseSha256": "3ed942014170645fbef735ac8dc6332cd8d751966a376ebd7ee25e8483ef85e0",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449158-0DU6fLDVm9WBroFILc1a",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "sampling-top_p": {
+      "requestSha256": "dc27e5ee921b214ac80f5382bf0e3dcf2968ca56711f3b4375a9018e8dafc976",
+      "responseSha256": "6cd7c2d1b0c789435dc201d7ec77c6871a77ec8febb967fba97e58e329749345",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449130-xSCh35te9FBU1XcIe9cT",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00004095",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "short-output": {
+      "requestSha256": "8d1ffe77e18202c3ef5c49dac03bcbb3a67ea1f4e4280d2555487c1cf44529f8",
+      "responseSha256": "0ff31ee20cbb6d8921732299c66a87421cba6add9302185d8982240800f62a5a",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795449344-WYUDOVr5scL5ERczFTRv",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 1,
+        "cost": "0.0001911",
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "tool": {
+      "requestSha256": "2750e39dfe3f4a925ada80f36a06e2d3f4aaf6b55ea98fc9819b0839218844ad",
+      "responseSha256": "61086d5eec43159debe0e42e260f67c7ee7add55511525e4004eb7b84f2d223e",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448031-ZLk5CutwMZ3l1Vv1P6Mv",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 302,
+        "completion_tokens": 46,
+        "cost": "0.0007683",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}"
+    },
+    "tool-named": {
+      "requestSha256": "e484f9d891b857e58ca178632a4a87edecf36ea6b4212c35751ad12bca9b81e4",
+      "responseSha256": "3ee0e0853257ab2e901c5a43bcc4e0e793c16884fc4875ce87c31c0b5b85d5e4",
+      "status": 404,
+      "usage": {},
+      "detailFormats": [],
+      "answer": "",
+      "gatewayError": "{\"error\":{\"message\":\"No endpoints found for deepseek/deepseek-v4-pro-0813. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp8/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed relace/fp4, streamlake, deepinfra/fp8, venice, deepinfra/fp8/priority; Filter by Guardrails removed deepseek (Paid model training violation (account settings)); Filter by Fallback removed wafer/us, baidu/fp8, wafer/mxfp4, alibaba, alibaba/us-east-1, novita/fp8, coreweave/fp8, baseten/fp4, nebius/fp8, parasail/fp8, together, digitalocean, siliconflow/fp8, parasail/fast.\",\"code\":404,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":21},{\"step\":\"Filter by Tier Endpoint Rows\",\"endpoint_count\":20,\"reason\":\"Excluded tier endpoint rows the request did not opt into\"},{\"step\":\"Filter by Tool Compatibility\",\"endpoint_count\":15},{\"step\":\"Filter by Guardrails\",\"endpoint_count\":14,\"reason\":\"Paid model training violation (account settings)\"},{\"step\":\"Filter by Fallback\",\"endpoint_count\":0}],\"failed_routing_step\":\"Filter by Fallback\"}},\"user_id\":\"org_3GWoYKDH0pVwjQAbWAVm7ed910A\"}"
+    },
+    "tool-none": {
+      "requestSha256": "f2015c042fa57c6aa72b735a11dcfa87be694086717a37091d49d0caa2b8746a",
+      "responseSha256": "68e8779e92a0e527c8412d9cd3c7000767b4881ab8ad77ff168d1411a61b13c2",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+      "requestId": "gen-1795448753-CAQURQgbV5xkev2z7ozt",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 94,
+        "cost": "0.00041535",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Let’s break this down step by step.\n\n1. We want to read ticket **A17**.\n2. To do this correctly, we need to use the supplied **tool** for reading ticket values.\n3. Unfortunately, I don’t currently see the tool or the ticket data in our conv"
+    },
+    "tool-required": {
+      "requestSha256": "1fc9ec81adf65f291269cf2043131f13e93ca1bb17519bf6bbdc5fd2c8818a02",
+      "responseSha256": "3ee0e0853257ab2e901c5a43bcc4e0e793c16884fc4875ce87c31c0b5b85d5e4",
+      "status": 404,
+      "usage": {},
+      "detailFormats": [],
+      "answer": "",
+      "gatewayError": "{\"error\":{\"message\":\"No endpoints found for deepseek/deepseek-v4-pro-0813. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp8/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed relace/fp4, streamlake, deepinfra/fp8, venice, deepinfra/fp8/priority; Filter by Guardrails removed deepseek (Paid model training violation (account settings)); Filter by Fallback removed wafer/us, baidu/fp8, wafer/mxfp4, alibaba, alibaba/us-east-1, novita/fp8, coreweave/fp8, baseten/fp4, nebius/fp8, parasail/fp8, together, digitalocean, siliconflow/fp8, parasail/fast.\",\"code\":404,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":21},{\"step\":\"Filter by Tier Endpoint Rows\",\"endpoint_count\":20,\"reason\":\"Excluded tier endpoint rows the request did not opt into\"},{\"step\":\"Filter by Tool Compatibility\",\"endpoint_count\":15},{\"step\":\"Filter by Guardrails\",\"endpoint_count\":14,\"reason\":\"Paid model training violation (account settings)\"},{\"step\":\"Filter by Fallback\",\"endpoint_count\":0}],\"failed_routing_step\":\"Filter by Fallback\"}},\"user_id\":\"org_3GWoYKDH0pVwjQAbWAVm7ed910A\"}"
+    }
+  },
+  "coldCalibration": {
+    "tokenizer": "o200k_base",
+    "measuredRequests": 29,
+    "allowanceTokens": "788",
+    "sampleWithLargestResidual": {
+      "name": "deepseek-v4-pro-0813",
+      "case": "release-tools",
+      "prompt": 8041,
+      "visible": 7253,
+      "media": 0,
+      "residual": 788,
+      "replay": false
+    }
+  }
+}

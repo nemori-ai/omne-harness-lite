@@ -1,6 +1,5 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { agentEvaluator } from '@omne-harness/agent'
-import { testAdoption } from '@omne-harness/agent/testing'
+import { testAdoption, testToolDefinition } from '@omne-harness/agent/testing'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -71,6 +70,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 const selected = {
@@ -117,30 +117,10 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   const judged = judgeToolInvokeRequest({
     availability: {
       kind: 'available',
+      definition: adoption('read_file'),
+      name: 'read_file',
       executor: adoption('executor'),
       layer: { kind: 'official' },
-      definition: {
-        adoption: adoption('read_file'),
-        name: 'read_file',
-        description: 'Read a file.',
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: {
-          adoption: adoption('tool-declarations'),
-          environment: null,
-          attachments: [],
-          inputModalities: [],
-          outputModalities: [],
-          settings: null,
-        },
-        kind: 'function',
-        parameters: {
-          schema: { kind: 'object', entries: [] },
-          vocabulary: adoption('json-schema'),
-          descriptions: [],
-        },
-        returns: ordinaryReturnFixture(adoption('codec')),
-      },
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
@@ -148,7 +128,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: { ref: 'tool-scope' },
     resources: [],
     scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },
@@ -156,8 +135,8 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     batchDecision: null,
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
-  } as never)
-  return ok(judged as never)
+  })
+  return ok(judged)
 }
 
 function countingSource() {
@@ -165,7 +144,8 @@ function countingSource() {
   const source = {
     async describe() {
       seen.describe += 1
-      return { ok: { kind: 'tool' as const, definition: adoption('read_file') } }
+      const definition = testToolDefinition(adoption('read_file'))
+      return { ok: { kind: 'tool' as const, definition, concurrent: true } }
     },
     async prepare(request: { consumer: ToolInvokeRequest['consumer'] }) {
       seen.prepare += 1
@@ -240,7 +220,7 @@ async function suggestTool(
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('tool-request-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

@@ -5,6 +5,7 @@ import type {
   AgentInstanceRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -21,6 +22,8 @@ export type SessionOperationElements =
       call: string
     }>
   | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId; predecessor: RunId | null }>
+  /** A run that waits for an adoption: the same reason for the same first input is one note. */
+  | Readonly<{ kind: 'adoption-note'; session: SessionId; first: InputId; reason: string }>
   | Readonly<{
       kind: 'participation'
       execution: string
@@ -38,7 +41,11 @@ export type SessionOperationElements =
       version: string
     }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
-  | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-reminder' | 'model-projection'
+      session: SessionId
+      source: DurableEvidence
+    }>
   /** A value the session commits into a block it holds, on the session revision a step begins at. */
   | Readonly<{
       kind: 'context-step'
@@ -59,10 +66,21 @@ export type SessionOperationElements =
   | Readonly<{ kind: 'freeze'; session: SessionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact'; fact: ProducerFact }>
 export type DriveOperationElements =
-  | Readonly<{ kind: 'invoke'; execution: string; first: InputId; started: DurableEvidence }>
+  | Readonly<{
+      kind: 'invoke'
+      execution: string
+      initial: InitialBatch
+      started: DurableEvidence
+    }>
   | Readonly<{ kind: 'submit'; execution: string; input: InputId }>
   | Readonly<{ kind: 'resume'; execution: string; grant: DurableEvidence }>
   | Readonly<{ kind: 'detach'; execution: string; advance: AdvanceRef }>
+  | Readonly<{
+      kind: 'hand-over'
+      execution: string
+      advance: AdvanceRef
+      reload: SessionOperationId
+    }>
   | Readonly<{ kind: 'control'; execution: string; control: SessionOperationId }>
   | Readonly<{
       kind: 'recordResult'

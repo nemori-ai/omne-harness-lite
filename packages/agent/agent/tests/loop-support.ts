@@ -15,6 +15,7 @@ import {
   decodeInputBatchId,
   decodeReplyAdmissionSequence,
   type AcceptedInput,
+  type InitialInputs,
   type AgentEvent,
   type AgentExecutionHandle,
   type AgentExecutionId,
@@ -73,6 +74,7 @@ export function conditions(
     model: adoption('model'),
     context: evidence('context'),
     bindings: [],
+    segments: [],
   }
 }
 
@@ -313,13 +315,13 @@ export function losingEntryNotifications(
 export function invoke(
   assembly: Pick<LoopAssembly, 'provider'>,
   id = 'exec-1',
-  change: Readonly<{ input?: AcceptedInput }> = {},
+  change: Readonly<{ input?: AcceptedInput; initial?: InitialInputs }> = {},
 ) {
   return assembly.provider.runtime.invoke({
     ...alice,
     execution: execution(id),
     operation: operation(`invoke-${id}`),
-    initial: change.input ?? acceptedInput(`input-${id}`, `hello ${id}`),
+    initial: change.initial ?? [change.input ?? acceptedInput(`input-${id}`, `hello ${id}`)],
     grant: null,
   })
 }
@@ -380,6 +382,23 @@ export async function stoppedAt(
   const state = await shown(assembly)
   if (state.kind !== 'occupied' || state.execution !== execution())
     throw new Error(`the runtime shows ${state.kind}, not the stopped execution`)
+  return snapshot.state
+}
+
+/** The drive halted on a failure: the checkpoint stays at the position and the slot is given back (D-31). */
+export async function haltedAt(
+  assembly: LoopAssembly,
+  position: string,
+): Promise<ExecutionSnapshot['state']> {
+  const read = async () => {
+    const loaded = await assembly.controls.journal.port.load({ ...alice, execution: execution() })
+    return 'ok' in loaded ? loaded.ok : null
+  }
+  await eventually(async () => (await read())?.checkpoint.position === position)
+  await eventually(async () => (await shown(assembly)).kind === 'idle')
+  const snapshot = await read()
+  if (snapshot?.checkpoint.position !== position)
+    throw new Error(`the run went on past ${position}: ${snapshot?.checkpoint.position}`)
   return snapshot.state
 }
 

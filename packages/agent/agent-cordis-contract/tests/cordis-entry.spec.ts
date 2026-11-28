@@ -39,6 +39,7 @@ const documentedPairs = {
   agentModelReceptionTargetsKey: 'ModelReceptionTargetsService',
   agentToolReceptionTargetsKey: 'ToolReceptionTargetsService',
   agentExecutionControlKey: 'AgentExecutionControlService',
+  agentNestedActionsKey: 'AgentNestedActionsService',
   agentInstancesKey: 'AgentInstancesService',
   agentInstanceProvisionKey: 'AgentInstanceProvisionService',
   agentCompactionKey: 'ContextCompactionService',
@@ -58,10 +59,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 26 unique keys, one per documented pair', () => {
+  it('exports 27 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(26)
-    expect(new Set(keys).size).toBe(26)
+    expect(keys).toHaveLength(27)
+    expect(new Set(keys).size).toBe(27)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -76,12 +77,11 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more, and one plugin beside them', () => {
-    expect(serviceClasses).toHaveLength(26)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(26)
+    expect(serviceClasses).toHaveLength(27)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(27)
     for (const [name] of serviceClasses) expect(name).toMatch(/^[A-Z][A-Za-z]+Service$/u)
-    expect(exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))).toEqual([
-      'agentInstancesPlugin',
-    ])
+    const others = exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))
+    expect(others.sort()).toEqual(['agentDefinitionsPoint', 'agentInstancesPlugin'])
   })
 })
 
@@ -110,6 +110,7 @@ describe('the key texts', () => {
       agentModelReceptionTargetsKey: 'agentModelReceptionTargets',
       agentToolReceptionTargetsKey: 'agentToolReceptionTargets',
       agentExecutionControlKey: 'agentExecutionControl',
+      agentNestedActionsKey: 'agentNestedActions',
       agentInstancesKey: 'agentInstances',
       agentInstanceProvisionKey: 'agentInstanceProvision',
       agentCompactionKey: 'agentCompaction',
@@ -121,8 +122,8 @@ describe('the key texts', () => {
 describe('the documentation that the built declaration carries', () => {
   const declaration = readFileSync(memberPath('dist/cordis.d.ts'), 'utf8')
 
-  it('names its owner on each of the 26 service classes and claims no contract id', () => {
-    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(26)
+  it('names its owner on each of the 27 service classes and claims no contract id', () => {
+    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(27)
     expect(declaration).not.toContain('@contract')
   })
 
@@ -193,7 +194,7 @@ describe('under Cordis 4.1.0', () => {
 
   it('provides each definition, whichever it is, under its own key and under no other', async () => {
     const definitions = serviceClasses.filter(([, type]) => type.provide !== agentInstancesKey)
-    expect(definitions).toHaveLength(25)
+    expect(definitions).toHaveLength(26)
     for (const [name, type] of definitions) {
       const root = new Context()
       const make = type as unknown as new (ctx: Context) => Service

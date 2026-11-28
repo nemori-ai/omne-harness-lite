@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DispatchId } from '@omne-harness/dispatch-contract'
 import { reportInputOf } from '@omne-harness/dispatch'
 import { sessionNamed, tenantOf } from '@omne-harness/dispatch/testing'
-import { PARENT, TENANT, read, started, valueOf, world } from './world.ts'
+import { ASKING, PARENT, TENANT, read, started, valueOf, world } from './world.ts'
 
 const ASK = {
   mode: 'delegate',
@@ -189,7 +189,7 @@ describe('what is refused when it is asked for', () => {
       refused('context-unavailable'),
     )
     expect(valueOf(await w.registry.dispatch(w.ctx(), ASK)).state).toBe('started')
-    expect(w.copies.asked).toEqual([[TENANT, PARENT, 'call-1']])
+    expect(w.copies.asked).toEqual([[TENANT, PARENT, ASKING]])
   })
 
   it('fixes the moment of the conversation when a spawn is accepted, and keeps it when the same call asks again', async () => {

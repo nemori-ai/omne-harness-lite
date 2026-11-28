@@ -137,11 +137,11 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
   if (row === undefined) throw new Error('the release has no agent-adoptions row')
   const mappings = agentAdoptionsConfig.parse(row.config).mappings
 
-  it('the release adopts assistant and coding, and no definition has a member that could declare a Context block', () => {
-    expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding'])
+  it('the release adopts assistant, coding and the examiner of goals, and no definition has a member that could declare a Context block', () => {
+    expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding', 'examiner'])
     for (const entry of mappings) {
       expect(Object.keys(entry.definition).sort()).toEqual(
-        entry.name === 'coding'
+        entry.name !== 'assistant'
           ? ['attributes', 'category', 'instructions', 'name', 'references', 'summary', 'type']
           : ['attributes', 'category', 'name', 'references', 'summary', 'type'],
       )
@@ -164,25 +164,33 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
     if (coding === undefined) throw new Error('the release has no coding entry')
     expect(coding.definition).toMatchObject({
       references: [
-        { capability: { category: 'Tool', name: 'Files' }, resident: true },
-        { capability: { category: 'Tool', name: 'Shell' }, resident: true },
-        { capability: { category: 'Tool', name: 'Tools' }, resident: true },
-        { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
-        { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
-        { capability: { category: 'Tool', name: 'Ask' }, resident: true },
-        { capability: { category: 'Tool', name: 'Web' }, resident: true },
-        { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
-        { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
-        { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
-        { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
-        { capability: { category: 'Tool', name: 'Agents' }, resident: true },
-        { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
-        { capability: { category: 'Tool', name: 'Screen' }, resident: true },
-        { capability: { category: 'Tool', name: 'Skills' }, resident: true },
+        { capability: { category: 'tool', name: 'Files' }, resident: true },
+        { capability: { category: 'tool', name: 'Shell' }, resident: true },
+        { capability: { category: 'tool', name: 'Tools' }, resident: true },
+        { capability: { category: 'tool', name: 'TodoItems' }, resident: true },
+        { capability: { category: 'tool', name: 'BkgToolCalls' }, resident: true },
+        { capability: { category: 'tool', name: 'Ask' }, resident: true },
+        { capability: { category: 'tool', name: 'Web' }, resident: true },
+        { capability: { category: 'tool', name: 'Calendar' }, resident: true },
+        { capability: { category: 'tool', name: 'Schedules' }, resident: true },
+        { capability: { category: 'tool', name: 'Notifications' }, resident: true },
+        { capability: { category: 'tool', name: 'Canvas' }, resident: true },
+        { capability: { category: 'tool', name: 'Sessions' }, resident: true },
+        { capability: { category: 'tool', name: 'Agents' }, resident: true },
+        { capability: { category: 'tool', name: 'Goal' }, resident: true },
+        { capability: { category: 'tool', name: 'SwitchWorkspace' }, resident: true },
+        { capability: { category: 'tool', name: 'OmneExtensionPoints' }, resident: true },
+        { capability: { category: 'tool', name: 'OmneExtensions' }, resident: true },
+        { capability: { category: 'tool', name: 'Screen' }, resident: true },
+        { capability: { category: 'tool', name: 'AppView' }, resident: true },
+        { capability: { category: 'tool', name: 'Skills' }, resident: true },
+        { capability: { category: 'tool', name: 'Code' }, resident: true },
+        { capability: { category: 'skill', name: 'skill-authoring' }, resident: true },
+        { capability: { category: 'skill', name: 'extending-the-app' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
-    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(11)
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(12)
   })
 
   it('does not mistake an Agent definition for the independently adopted modes carrier', () => {

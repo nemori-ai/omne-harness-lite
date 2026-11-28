@@ -3,6 +3,7 @@ import type {
   Access,
   AgentExecutionId,
   AgentOperationId,
+  ReceptionSettled,
   Reply,
 } from '@omne-harness/agent-contract'
 import { decodeAgentOperationId } from '@omne-harness/agent-contract'
@@ -21,8 +22,13 @@ import {
   modelDeliveryMaterial,
   modelReceivedDraft,
   readModelDeliveryMaterial,
+  type ReceivedModelDelivery,
 } from './receiving-material.ts'
-import type { ModelReceiverDependencies, ModelReceptionTarget } from './receiving-types.ts'
+import type {
+  ModelReceiverDependencies,
+  ModelReceptionCapacity,
+  ModelReceptionTarget,
+} from './receiving-types.ts'
 
 import { createReceptionMaintenance } from './receiving-maintenance.ts'
 import {
@@ -87,6 +93,45 @@ export function receptionOperation<P>(
   )
   if ('failure' in operation) throw new Error('invalid derived reception operation')
   return operation.ok
+}
+
+const admissionFailure =
+  <P>(state: ModelReceiverState<P>, access: Access<P>, key: string) =>
+  (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
+    recordDiagnostic(
+      state,
+      `admission:${dependency}:${key}`,
+      String(error),
+      target ? bindingKey(access, target) : null,
+    )
+    return unavailable(dependency)
+  }
+
+function receptionLoad<P>(
+  state: ModelReceiverState<P>,
+  tenant: string,
+  delivery: ReceivedModelDelivery,
+  capacity: ModelReceptionCapacity,
+): Outcome<Readonly<{ bytes: number; attachments: number }>, ModelDeliveryFailure> {
+  const bytes = Buffer.byteLength(canonical(delivery))
+  const references = new Set<string>()
+  const visit = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null) return
+    if ('storage' in value && 'key' in value) references.add(canonical(value))
+    for (const child of Object.values(value)) visit(child)
+  }
+  visit(delivery)
+  const attachments = references.size
+  const sameTenant = [...state.receptions.values()].filter(
+    item => tenantKey(item.access) === tenant,
+  )
+  if (sameTenant.length >= capacity.records)
+    return fail({ kind: 'backpressured', resource: 'records' })
+  if (sameTenant.reduce((sum, item) => sum + item.bytes, bytes) > capacity.bytes)
+    return fail({ kind: 'backpressured', resource: 'bytes' })
+  if (sameTenant.reduce((sum, item) => sum + item.attachments, attachments) > capacity.attachments)
+    return fail({ kind: 'backpressured', resource: 'attachments' })
+  return succeed({ bytes, attachments })
 }
 
 export function createAgentModelReceiver<P>(
@@ -183,7 +228,7 @@ export function createAgentModelReceiver<P>(
   async function recognise(
     access: Access<P>,
     target: ModelReceptionTarget,
-    delivery: ModelDelivery,
+    delivery: ReceivedModelDelivery,
   ): Promise<Outcome<ModelSavedReceipt, ModelDeliveryFailure>> {
     const probe: Reception<P> = {
       access,
@@ -211,19 +256,10 @@ export function createAgentModelReceiver<P>(
   }
   async function admit(
     access: Access<P>,
-    delivery: ModelDelivery,
+    delivery: ReceivedModelDelivery,
     stopped?: AbortSignal,
-  ): Promise<Outcome<ModelReceptionTarget, ModelDeliveryFailure>> {
-    const key = receptionKey(access, delivery)
-    const failed = (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
-      recordDiagnostic(
-        state,
-        `admission:${dependency}:${key}`,
-        String(error),
-        target ? bindingKey(access, target) : null,
-      )
-      return unavailable(dependency)
-    }
+  ): Promise<Outcome<ModelReceptionTarget | ReceptionSettled, ModelDeliveryFailure>> {
+    const failed = admissionFailure(state, access, receptionKey(access, delivery))
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
@@ -233,6 +269,7 @@ export function createAgentModelReceiver<P>(
     }
     if ('failure' in resolved)
       return resolved.failure.kind === 'denied' ? fail({ kind: 'denied' }) : unavailable('targets')
+    if ('kind' in resolved.ok) return succeed(resolved.ok)
     const target = resolved.ok
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let allowed
@@ -295,6 +332,7 @@ export function createAgentModelReceiver<P>(
     maintenance = false,
   ): ReturnType<ModelResultReceiver<P>['push']> {
     const input = { ...original, access: { ...original.access } }
+    if (input.delivery.kind === 'live') return invalid('kind', 'unsupported')
     const delivery = freeze(structuredClone(input.delivery))
     const ref = resolveModelInvocationRef(delivery.key.reference, input.access.tenant)
     if ('failure' in ref)
@@ -303,6 +341,8 @@ export function createAgentModelReceiver<P>(
         : fail({ kind: 'denied' })
     const before = await admit(input.access, delivery, maintenance ? input.signal : undefined)
     if ('failure' in before) return before
+    if ('kind' in before.ok)
+      return succeed(structuredClone({ key: delivery.key, evidence: before.ok.evidence }))
     if (maintenance && input.signal.aborted) return unknown()
     const target = before.ok
     const key = receptionKey(input.access, delivery),
@@ -318,34 +358,15 @@ export function createAgentModelReceiver<P>(
     if (active >= capacity.inFlight) return fail({ kind: 'backpressured', resource: 'in-flight' })
     if (state.writing.has(key)) return unknown()
     if (!reception) {
-      const bytes = Buffer.byteLength(canonical(delivery))
-      const references = new Set<string>()
-      const visit = (value: unknown): void => {
-        if (typeof value !== 'object' || value === null) return
-        if ('storage' in value && 'key' in value) references.add(canonical(value))
-        for (const child of Object.values(value)) visit(child)
-      }
-      visit(delivery)
-      const attachments = references.size
-      const sameTenant = [...state.receptions.values()].filter(
-        item => tenantKey(item.access) === tenant,
-      )
-      if (sameTenant.length >= capacity.records)
-        return fail({ kind: 'backpressured', resource: 'records' })
-      if (sameTenant.reduce((sum, item) => sum + item.bytes, bytes) > capacity.bytes)
-        return fail({ kind: 'backpressured', resource: 'bytes' })
-      if (
-        sameTenant.reduce((sum, item) => sum + item.attachments, attachments) > capacity.attachments
-      )
-        return fail({ kind: 'backpressured', resource: 'attachments' })
+      const load = receptionLoad(state, tenant, delivery, capacity)
+      if ('failure' in load) return load
       reception = {
         access: input.access,
         target,
         binding: bindingKey(input.access, target),
         delivery,
         operation: receptionOperation(input.access, delivery.key),
-        bytes,
-        attachments,
+        ...load.ok,
         commit: { kind: 'new' },
       }
       state.receptions.set(key, reception)

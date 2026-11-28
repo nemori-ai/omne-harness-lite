@@ -1,0 +1,320 @@
+import type { CanvasBody, CanvasItemBody } from '@omne-harness/canvas-protocol'
+import {
+  FigureSeat,
+  IconButton,
+  InlineNotice,
+  MagnetIcon,
+  PaperSpot,
+  PaperSurface,
+  SearchIcon,
+  type PaperPoint,
+  type PaperView,
+} from '@omne-harness/ui-kit'
+import { encodeInstant } from '@omne-harness/utc-instant'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import type { CanvasState } from '../model/canvas-driver.ts'
+import { itemKey, pileKey, type Command } from '../model/commands.ts'
+import { standingOf, type KindStanding } from '../model/kinds.ts'
+import {
+  keep,
+  keptMagnet,
+  keptView,
+  magnetText,
+  viewText,
+  type CanvasPreferences,
+} from '../model/preferences.ts'
+import { itemBox, pageLimits, paperSheet, pileBox, ZOOM_LIMITS } from '../model/sheet.ts'
+import { canvasHome, canvasPaper } from '../parts.ts'
+import type { AwayPage, Reading } from '../model/reading.ts'
+import type { CanvasHost } from './element.tsx'
+import { Finder } from './finder.tsx'
+import { IntakeSpot } from './intake.tsx'
+import { ItemPage } from './item-page.tsx'
+import { ITEM_DRAG, PileView } from './pile-view.tsx'
+import { droppedOut, itemActs, pileActs, type Selection } from './sheet-acts.ts'
+import { bareAt, FinderKey, FoundMark, useLayers, type Place } from './sheet-layers.tsx'
+import { CanvasStatus, useLookedAt, type LookedAt } from './status.tsx'
+import { useLatest, useSame, useSteady } from './steady.ts'
+
+/** The seat of the figure on the back is in the middle of the sheet, at the first priority. */
+const SEAT = 'canvas'
+
+export type SheetViewProps = Readonly<{
+  host: CanvasHost
+  scope: string
+  canvas: CanvasBody
+  state: CanvasState
+  preferences: CanvasPreferences
+  send: (command: Command) => void
+  place: Place
+  lookAway: (limit: number, before?: number) => Promise<Reading<AwayPage>>
+  dismiss: () => void
+  home: () => void
+}>
+
+/** Where this device looks and whether its magnet is on: kept on the device, never on the canvas. */
+function useLooking(preferences: CanvasPreferences, canvas: CanvasBody) {
+  const [view, setView] = useState<PaperView>(
+    () =>
+      keptView(preferences) ?? {
+        x: canvas.sheet.width / 2,
+        y: canvas.sheet.height / 2,
+        zoom: 1,
+      },
+  )
+  const [magnet, setMagnet] = useState(() => keptMagnet(preferences))
+  return {
+    view,
+    magnet,
+    look(next: PaperView) {
+      setView(next)
+      keep(preferences, 'view', viewText(next))
+    },
+    snap(on: boolean) {
+      setMagnet(on)
+      keep(preferences, 'magnet', magnetText(on))
+    },
+  }
+}
+
+/** Counts the registry's changes, so drawings are asked for again when what is put changes. */
+function useRound(host: CanvasHost): number {
+  const [round, setRound] = useState(0)
+  useEffect(() => host.watchChanges(() => setRound(value => value + 1)), [host])
+  return round
+}
+
+const itemText = (item: CanvasItemBody): string =>
+  JSON.stringify({ ...item, when: encodeInstant(item.when) })
+
+const byRank = (one: CanvasItemBody, other: CanvasItemBody): number => one.rank - other.rank
+
+function Notices({ state, dismiss }: Readonly<{ state: CanvasState; dismiss: () => void }>) {
+  return (
+    <div className="canvas-notices">
+      {state.live === 'retrying' ? (
+        <InlineNotice tone="caution" role="status">
+          画布的更新暂时连不上，纸上可能不是最新的，正在重连。
+        </InlineNotice>
+      ) : null}
+      {state.notice === undefined ? null : (
+        <InlineNotice tone="caution" role="status" onDismiss={dismiss}>
+          {state.notice}
+        </InlineNotice>
+      )}
+    </div>
+  )
+}
+
+function Tools({
+  looking,
+  find,
+}: Readonly<{ looking: ReturnType<typeof useLooking>; find: (opener: Element) => void }>) {
+  const percent = Math.round(looking.view.zoom * 100)
+  return (
+    <>
+      <IconButton
+        label="查找"
+        size="icon-compact"
+        aria-keyshortcuts="@"
+        onClick={event => find(event.currentTarget)}
+      >
+        <SearchIcon aria-hidden="true" />
+      </IconButton>
+      <IconButton
+        label="磁吸"
+        size="icon-compact"
+        aria-pressed={looking.magnet}
+        onClick={() => looking.snap(!looking.magnet)}
+      >
+        <MagnetIcon aria-hidden="true" />
+      </IconButton>
+      <span className="canvas-zoom" title="远近">
+        {percent}%
+      </span>
+    </>
+  )
+}
+
+/** Escape lets go of what is selected, unless something before it took the key or a menu has it. */
+const letsGo = (event: React.KeyboardEvent, selected: Selection): boolean =>
+  event.key === 'Escape' &&
+  !event.defaultPrevented &&
+  selected.size > 0 &&
+  (event.target as Element).closest('[role="menu"]') === null
+
+function useStanding(kinds: CanvasState['kinds']): (item: CanvasItemBody) => KindStanding {
+  return useMemo(() => {
+    const known = new Map<string, KindStanding>()
+    return item => {
+      const name = item.reference.kind
+      const held = known.get(name)
+      if (held !== undefined) return held
+      const standing = standingOf(kinds, name)
+      known.set(name, standing)
+      return standing
+    }
+  }, [kinds])
+}
+
+/** Where the pointer is on bare paper, for `@`; and which thing the pointer and the focus are on, for the status bar. */
+function watching(pointer: React.RefObject<PaperPoint | undefined>, looks: LookedAt) {
+  return {
+    onPointerMove: (event: React.PointerEvent) => {
+      pointer.current = bareAt(event)
+    },
+    onPointerOver: (event: React.PointerEvent) => looks.over(event.target),
+    onPointerLeave: () => {
+      pointer.current = undefined
+      looks.over(null)
+    },
+    onFocus: (event: React.FocusEvent) => looks.focus(event.target),
+    onBlur: (event: React.FocusEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) looks.focus(null)
+    },
+  }
+}
+
+/** The sheet of the canvas, with what the server last said lies on it. */
+export function SheetView(props: SheetViewProps): JSX.Element {
+  const { host, scope, canvas, state, preferences, send, dismiss } = props
+  const sheet = useSame(paperSheet(canvas))
+  const limits = useSame(pageLimits(canvas))
+  const items = useSteady(canvas.items, itemText)
+  const looking = useLooking(preferences, canvas)
+  const round = useRound(host)
+  const [selected, select] = useState<Selection>(() => new Set())
+  const root = useRef<HTMLDivElement>(null)
+  const pointer = useRef<PaperPoint | undefined>(undefined)
+  const looks = useLookedAt()
+  const layers = useLayers({ canvas, sheet, looking, place: props.place })
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
+  const deps = {
+    canvas,
+    sheet,
+    selected,
+    select,
+    send,
+    newPile: () => `pile-${crypto.randomUUID()}`,
+  }
+  const latest = useLatest(deps)
+  const acts = useMemo(() => itemActs(latest), [latest])
+  const piled = useMemo(() => pileActs(latest), [latest])
+  const standing = useStanding(state.kinds)
+  const choices = useSame(
+    canvas.piles.map(pile => ({ id: pile.id, name: pile.name ?? '没有名字的一叠' })),
+  )
+  const loose = items.filter(item => item.state === 'on' && item.pile === null).sort(byRank)
+  return (
+    <div
+      ref={root}
+      className="canvas-paper"
+      {...canvasPaper.props}
+      {...watching(pointer, looks)}
+      onKeyDown={event => {
+        if (!letsGo(event, selected)) return
+        event.preventDefault()
+        select(new Set())
+      }}
+    >
+      <PaperSurface
+        className="canvas-surface"
+        label={`纸，宽 ${String(sheet.width)}，高 ${String(sheet.height)}`}
+        sheet={sheet}
+        view={looking.view}
+        onViewChange={looking.look}
+        zoomLimits={ZOOM_LIMITS}
+        limits={limits}
+        magnet={looking.magnet}
+        onDropAt={(event, at) => {
+          const item = event.dataTransfer.getData(ITEM_DRAG)
+          if (item !== '') return droppedOut(deps, item, at)
+          const files = Array.from(event.dataTransfer.files)
+          if (files.length > 0) layers.drop(files, at)
+        }}
+      >
+        <FinderKey
+          root={root}
+          pointer={pointer}
+          closed={layers.finder === undefined}
+          open={layers.open}
+        />
+        <PaperSpot at={{ x: sheet.width / 2, y: sheet.height / 2 }}>
+          <IconButton label="回到正面" {...canvasHome.props} onClick={() => props.home()}>
+            <FigureSeat name={SEAT} priority={1} className="canvas-seat" />
+          </IconButton>
+        </PaperSpot>
+        {canvas.piles.map(pile => (
+          <PileView
+            key={pile.id}
+            host={host}
+            scope={scope}
+            pile={pile}
+            box={pileBox(pile, sheet)}
+            footprint={sheet.footprint}
+            leaves={items.filter(item => item.pile === pile.id).sort((a, b) => byRank(b, a))}
+            standing={standing}
+            round={round}
+            pending={state.pending.has(pileKey(pile.id))}
+            open={open.has(pile.id)}
+            onOpenChange={shown => {
+              const next = new Set(open)
+              if (shown) next.add(pile.id)
+              else next.delete(pile.id)
+              setOpen(next)
+            }}
+            acts={piled}
+          />
+        ))}
+        {loose.map(item => (
+          <ItemPage
+            key={item.id}
+            host={host}
+            scope={scope}
+            item={item}
+            box={itemBox(item, sheet)}
+            standing={standing(item)}
+            round={round}
+            pending={state.pending.has(itemKey(item.id))}
+            selected={selected.has(item.id)}
+            pileable={acts.grouped(item) >= 2}
+            piles={choices}
+            acts={acts}
+          />
+        ))}
+        {layers.dropped.map(dropped => (
+          <IntakeSpot
+            key={dropped.id}
+            host={host}
+            scope={scope}
+            round={round}
+            dropped={dropped}
+            placeNear={layers.placeNear}
+            close={() => layers.closeDrop(dropped.id)}
+          />
+        ))}
+        {layers.found === undefined ? null : <FoundMark box={layers.found} />}
+        {layers.finder === undefined ? null : (
+          <Finder
+            host={host}
+            scope={scope}
+            kinds={state.kinds}
+            round={round}
+            at={layers.finder.at}
+            place={layers.placeNear(layers.finder.at)}
+            lookAway={props.lookAway}
+            close={layers.closeFinder}
+          />
+        )}
+      </PaperSurface>
+      <Notices state={state} dismiss={dismiss} />
+      <CanvasStatus
+        looking={looks}
+        canvas={canvas}
+        standing={standing}
+        selected={selected}
+        tools={<Tools looking={looking} find={opener => layers.open(undefined, opener)} />}
+      />
+    </div>
+  )
+}

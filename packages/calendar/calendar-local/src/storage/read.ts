@@ -1,53 +1,79 @@
 import { z } from 'zod'
-import type { ReadHandlerModule, ReadPort, SqlValue } from '@omne-harness/sql-contract/worker'
+import type {
+  ReadHandlerModule,
+  ReadPort,
+  SqlCell,
+  SqlValue,
+} from '@omne-harness/sql-contract/worker'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { HANDLER, PROTOCOL, readSchema, type RepositoryRead } from './schema.ts'
+import { canonical } from './encoding.ts'
+import { HANDLER, PROTOCOL, candidateRowSchema, readSchema, type RepositoryRead } from './schema.ts'
+import { fullCommand, readVersion } from './snapshots.ts'
 
 function one(port: ReadPort, sql: string, params: readonly SqlValue[]): JsonValue {
   const row = port.execute(`${sql} LIMIT 1`, params).rows[0]
   return row === undefined ? null : z.json().parse(JSON.parse(z.string().parse(row[0])))
 }
-function page(port: ReadPort, sql: string, params: readonly SqlValue[], limit: number): JsonValue {
+const record = (row: readonly SqlCell[]): JsonValue =>
+  z.json().parse(JSON.parse(z.string().parse(row[1])))
+function page(
+  port: ReadPort,
+  sql: string,
+  params: readonly SqlValue[],
+  limit: number,
+  item: (row: readonly SqlCell[]) => JsonValue = record,
+): JsonValue {
   const rows = port.execute(sql, params).rows
   const selected = rows.slice(0, limit)
   const last = selected.at(-1)
   return {
-    items: selected.map(row => z.json().parse(JSON.parse(z.string().parse(row[1])))),
+    items: selected.map(item),
     nextCursor: rows.length > limit && last !== undefined ? String(last[0]) : null,
   }
 }
-function snapshot(input: Extract<RepositoryRead, { kind: 'snapshot' }>, port: ReadPort): JsonValue {
-  return input.version.kind === 'current'
-    ? one(
-        port,
-        'SELECT v.snapshot FROM ca_current c JOIN ca_versions v ON v.calendar_id = c.calendar_id AND v.version_id = c.version_id WHERE c.calendar_id = ?',
-        [input.calendarId],
-      )
-    : one(port, 'SELECT snapshot FROM ca_versions WHERE calendar_id = ? AND version_id = ?', [
-        input.calendarId,
-        input.version.versionId,
-      ])
+const CANDIDATE = 'c.canonical_command, c.record, s.digest, s.snapshot'
+const WITH_SNAPSHOT = 'LEFT JOIN ca_snapshots s ON s.digest = c.snapshot_digest'
+function candidate(row: readonly SqlCell[]): JsonValue {
+  const [command, stored, digest, text] = row
+  const { candidateRef, receipt } = candidateRowSchema.parse(JSON.parse(z.string().parse(stored)))
+  return z.json().parse(
+    JSON.parse(
+      canonical({
+        candidateRef,
+        command: fullCommand(command, { digest, text }),
+        receipt,
+      }),
+    ),
+  )
+}
+function oneCandidate(port: ReadPort, sql: string, params: readonly SqlValue[]): JsonValue {
+  const row = port.execute(`${sql} LIMIT 1`, params).rows[0]
+  return row === undefined ? null : candidate(row)
 }
 function read(input: RepositoryRead, port: ReadPort): JsonValue {
   switch (input.kind) {
     case 'calendar':
       return one(port, 'SELECT directory FROM ca_current WHERE calendar_id = ?', [input.calendarId])
     case 'snapshot':
-      return snapshot(input, port)
+      return readVersion(port, input.calendarId, input.version)
     case 'candidate':
-      return one(port, 'SELECT record FROM ca_candidates WHERE operation_ref = ?', [
-        input.candidateRef,
-      ])
-    case 'publishedCandidate':
-      return one(
+      return oneCandidate(
         port,
-        'SELECT c.record FROM ca_versions v LEFT JOIN ca_candidates c ON c.operation_ref = v.operation_ref WHERE v.calendar_id = ? AND v.version_id = ?',
+        `SELECT ${CANDIDATE} FROM ca_candidates c ${WITH_SNAPSHOT} WHERE c.operation_ref = ?`,
+        [input.candidateRef],
+      )
+    case 'publishedCandidate':
+      return oneCandidate(
+        port,
+        `SELECT ${CANDIDATE} FROM ca_versions v LEFT JOIN ca_candidates c ON c.operation_ref = v.operation_ref ${WITH_SNAPSHOT} WHERE v.calendar_id = ? AND v.version_id = ?`,
         [input.calendarId, input.versionId],
       )
     case 'operation':
-      return one(port, 'SELECT record FROM ca_candidates WHERE operation_ref = ?', [
-        input.operationRef,
-      ])
+      return oneCandidate(
+        port,
+        `SELECT ${CANDIDATE} FROM ca_candidates c ${WITH_SNAPSHOT} WHERE c.operation_ref = ?`,
+        [input.operationRef],
+      )
     case 'calendars':
       return page(
         port,
@@ -65,9 +91,10 @@ function read(input: RepositoryRead, port: ReadPort): JsonValue {
     case 'candidates':
       return page(
         port,
-        'SELECT sequence, record FROM ca_candidates WHERE calendar_id = ? AND sequence > ? ORDER BY sequence LIMIT ?',
+        `SELECT c.sequence, ${CANDIDATE} FROM ca_candidates c ${WITH_SNAPSHOT} WHERE c.calendar_id = ? AND c.sequence > ? ORDER BY c.sequence LIMIT ?`,
         [input.calendarId, cursor(input.after), input.limit + 1],
         input.limit,
+        row => candidate(row.slice(1)),
       )
     case 'reactions':
       return page(

@@ -1,5 +1,6 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
+import type { InProcessAnswer, InProcessCall } from './calls.ts'
 import type { AccessContribution } from './contribution.ts'
 
 /** @owner packages/access/access-cordis-contract */
@@ -9,20 +10,27 @@ export abstract class AccessRegistryService extends Service {
     super(ctx, AccessRegistryService.provide)
   }
 
-  mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void {
-    this.ctx.effect(
-      () => this.attach(contribution as unknown as AccessContribution<ProtocolContract>),
-      'accessRegistry.mount',
-    )
-  }
-
-  protected abstract attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void>
+  /** Puts the protocol as an effect of the calling plugin: served once it is ready, withdrawn when it leaves. */
+  // Two plugins with one protocol are a conflict the entry answers, not an error thrown here.
+  abstract mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void
 }
 export const accessRegistryKey = AccessRegistryService.provide
+
+/** @owner packages/access/access-cordis-contract */
+export abstract class AccessCallsService extends Service {
+  static readonly provide = 'accessCalls'
+  constructor(ctx: Context) {
+    super(ctx, AccessCallsService.provide)
+  }
+
+  abstract call(input: InProcessCall): Promise<InProcessAnswer>
+}
+export const accessCallsKey = AccessCallsService.provide
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
     accessRegistry: AccessRegistryService
+    accessCalls: AccessCallsService
   }
 }
 

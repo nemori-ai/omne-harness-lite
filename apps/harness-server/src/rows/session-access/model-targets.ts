@@ -4,6 +4,8 @@ import type {
   ModalityRequirement,
   ProfileResolution,
 } from '@omne-harness/model-contract'
+import type { SessionRequirement } from '@omne-harness/model-access'
+import { chatNeedOf, supportedReasoningEfforts } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -36,15 +38,18 @@ const CREDENTIAL = {
   unavailable: 'unknown',
 } as const
 
-export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
+export function targetOf(resolution: ProfileResolution<'llm'>): ModelTargetCheck {
   if (resolution.kind === 'absent') return { kind: 'refused', reason: resolution.reason }
   const [reason] = resolution.reasons
   if (!resolution.selectable)
-    return reason === undefined ? { kind: 'unavailable' } : { kind: 'refused', reason }
+    return reason === undefined
+      ? { kind: 'unavailable' }
+      : { kind: 'refused', reason: reason === 'not-enabled' ? 'excluded' : reason }
   const { owner, name, revision, digest } = resolution.profile.adoption
   return {
     kind: 'selectable',
     credential: CREDENTIAL[resolution.credential],
+    reasoningEfforts: supportedReasoningEfforts(resolution.profile.definition),
     basis: { owner, record: name, revision, digest },
   }
 }
@@ -64,13 +69,22 @@ function requirementOf(needs: NativeRequirement): ModalityRequirement {
   }
 }
 
-async function needsOf(
+function requirementFrom(needs: NativeRequirement): SessionRequirement {
+  return {
+    required: requirementOf(needs),
+    unmetBy: definition =>
+      unmetBy(needs, definition).map(({ message, block }) => ({ message, block })),
+  }
+}
+
+/** What selecting a model in this session judges by; null when its history cannot be read. */
+export async function sessionRequirementOf(
   view: SessionModelView | undefined,
   session: Located,
-): Promise<NativeRequirement | null> {
+): Promise<SessionRequirement | null> {
   try {
     const messages = (await view?.(session)) ?? null
-    return messages === null ? null : nativeRequirement(messages)
+    return messages === null ? null : requirementFrom(nativeRequirement(messages))
   } catch {
     return null
   }
@@ -84,16 +98,19 @@ export function modelTargetsOf(
   return {
     async check({ principal, tenant, route, session }) {
       // A history that cannot be read is not an empty history: the target is not judged without it.
-      const needs = session === undefined ? NOTHING : await needsOf(view, { tenant, session })
-      if (needs === null) return { kind: 'unavailable' }
-      const required = requirementOf(needs)
-      const resolved = await profiles.resolve({ principal, tenant, route, required })
+      const requirement =
+        session === undefined
+          ? requirementFrom(NOTHING)
+          : await sessionRequirementOf(view, { tenant, session })
+      if (requirement === null) return { kind: 'unavailable' }
+      const { required } = requirement
+      const need = chatNeedOf(required)
+      const resolved = await profiles.resolve({ principal, tenant, route, required: need })
       if (!('ok' in resolved)) return { kind: 'unavailable' }
       const target = targetOf(resolved.ok)
       if (resolved.ok.kind !== 'resolved' || target.kind !== 'refused') return target
       if (target.reason !== 'modality') return target
-      const blocks = unmetBy(needs, resolved.ok.profile.definition)
-      return { ...target, blocks: blocks.map(({ message, block }) => ({ message, block })) }
+      return { ...target, blocks: requirement.unmetBy(resolved.ok.profile.definition) }
     },
   }
 }

@@ -1,10 +1,10 @@
 import { runStartInputs, sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
+import { advanceAnswerOf, startAnswerOf } from './start-answer.ts'
 import {
   createMemorySessionHistorySource,
   entryEvidence,
   type MemorySessionHistorySource,
 } from './testing-history-source.ts'
-import type { SessionInputScope } from './history-values.ts'
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -34,7 +34,6 @@ import type {
   SessionCallLookup,
   SessionCallTerminal,
   SessionControlReceipt,
-  SessionModelSelection,
   SessionRunLookup,
 } from './control-values.ts'
 import type {
@@ -55,6 +54,7 @@ import type {
   OperationResolution,
   PendingReason,
   SessionFailure,
+  StartedRun,
   SessionHistory,
 } from './faces.ts'
 import type {
@@ -65,8 +65,14 @@ import type {
   SessionTransactionPort,
 } from './ports.ts'
 import { decide, commandDigest } from './decide.ts'
+import { deliveryReads } from './decide-delivery.ts'
 import { judgeCompletion, type OperationRecord } from './judgments.ts'
-import { frozenOperation, recordChild, relatedReads } from './testing-store-reads.ts'
+import {
+  frozenOperation,
+  recordChild,
+  relatedReads,
+  readStoredModelSelection,
+} from './testing-store-reads.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
@@ -80,7 +86,7 @@ import { decodeCursor, encodeCursor, type Cursor } from './testing-history-curso
 import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
-import { admittedInputs, withInputs } from './testing-inputs.ts'
+import { admittedInputs, inputScope, withInputs } from './testing-inputs.ts'
 import { inputSourceName } from './input-sources.ts'
 import { testingWriter, type TestingWriterOptions } from './testing-sources.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
@@ -341,7 +347,6 @@ function publishedLog(
 }
 
 function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
-  const kind = command.kind
   switch (command.kind) {
     case 'addTodo':
     case 'removeTodo':
@@ -356,25 +361,11 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
     }
     case 'create':
       return receipt => ({ receipt, state: snapshot })
-    case 'startRun': {
-      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
-        throw new Error('startRun committed without an active Run')
-      const { advance, adoption, first, execution } = snapshot.run
-      return receipt => ({
-        receipt,
-        advance,
-        adopted: adoption,
-        first,
-        execution: execution.execution,
-      })
-    }
+    case 'startRun':
+      return receipt => startAnswerOf(command, snapshot, receipt)
     case 'claim':
-    case 'reload': {
-      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
-        throw new Error(`${kind} committed without an advance`)
-      const { advance } = snapshot.run
-      return receipt => ({ receipt, advance })
-    }
+    case 'reload':
+      return receipt => advanceAnswerOf(command, snapshot, receipt)
     case 'finishRun': {
       if (snapshot.run.kind !== 'terminal')
         throw new Error('finishRun committed without a terminal')
@@ -621,16 +612,7 @@ export function createMemorySessionTransactionPair<P>(
       }
       const held = store?.operations.get(command.input.operation)
       const frozen = frozenOperation(store)
-      const selected =
-        command.kind === 'startRun'
-          ? runStartInputs(store?.snapshot)
-          : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
-            ? [command.input.fact.input]
-            : undefined
-      const scope: SessionInputScope =
-        selected === undefined
-          ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
-          : { kind: 'selected', inputs: selected }
+      const scope = inputScope(command, store?.snapshot)
       const material =
         store === undefined
           ? undefined
@@ -647,15 +629,10 @@ export function createMemorySessionTransactionPair<P>(
       const decision = decide(lent, command, guards, held?.record ?? null, {
         ...relatedReads(stores, keyOf, command),
         ...forks.reads(started),
-        ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
+        ...forks.contextReads(store, key.ok, command),
+        ...deliveryReads(command, input => store?.inputs.get(input)?.message),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
-        compaction:
-          command.kind === 'commitDerived' &&
-          command.input.value.kind === 'compaction' &&
-          store !== undefined
-            ? forks.compactionOf(store, command.input.value.message.covers.to)
-            : null,
         ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
         ...(command.kind === 'cancelRun' && store !== undefined
           ? { runs: [runLookup(store.snapshot, command.input.run)] }
@@ -752,10 +729,7 @@ export function createMemorySessionTransactionPair<P>(
       const inputs = withInputs(store?.inputs, admittedInputs(command, decision.admitted))
       const target: Store = {
         snapshot: committedSnapshot,
-        modelView: materializeModelView(
-          store?.modelView ?? started?.modelView ?? { epoch: 'epoch:0', rows: [] },
-          entries,
-        ),
+        modelView: forks.committedModelView(store, started, entries),
         entries: [...(store?.entries ?? []), ...entries],
         ...forks.kept(store, started),
         operations,
@@ -1008,7 +982,7 @@ export function createMemorySessionTransactionPair<P>(
       },
       readForkPoint: async input => {
         const store = await storeOf(input, 'history.readModelView')
-        return forks.pointRead(store, keyOf(input.tenant, input.session))
+        return forks.pointRead(store, keyOf(input.tenant, input.session), input.asking)
       },
     }
 
@@ -1081,37 +1055,7 @@ export function createMemorySessionTransactionPair<P>(
       readModelSelection: async input => {
         const store = await storeOf(input, 'readModelSelection')
         if ('failure' in store) return store
-        let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
-        for (const row of store.ok.entries) {
-          const value = decodeEntry(row)
-          if (
-            'ok' in value &&
-            value.ok.kind === 'session.model-selected' &&
-            value.ok.declaration.kind === 'model'
-          )
-            saved = {
-              selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
-              at: row.revision,
-            }
-        }
-        const initial = store.ok.snapshot.creation.initialModelSelection
-        const first = store.ok.entries[0]
-        const chosen =
-          saved ??
-          (initial !== undefined && first !== undefined
-            ? { selection: initial, at: first.revision }
-            : null)
-        if (chosen === null) return fail({ kind: 'not-ready' })
-        const origin = [...store.ok.operations.values()].find(
-          item => item.record.receipt.revision === chosen.at,
-        )
-        if (origin === undefined)
-          return fail(unavailable('the commit that saved the selection has no original receipt'))
-        return succeed<SessionModelSelection>({
-          selection: chosen.selection,
-          revision: store.ok.snapshot.revision,
-          source: origin.record.receipt.source,
-        })
+        return readStoredModelSelection(store.ok)
       },
       commitEntries: async input => commitEntries(input),
       commitLog,
@@ -1384,8 +1328,8 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
       kind: 'accept',
       input: { ...base, operation: fixture.operation(name), value },
     })
-  const startRun = (name = 'start-run', entry: EntryClass = 'interactive') =>
-    commit<'startRun'>(
+  const startRun = async (name = 'start-run', entry: EntryClass = 'interactive') => {
+    const started = await commit<'startRun'>(
       {
         kind: 'startRun',
         input: {
@@ -1398,6 +1342,9 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
       },
       [],
     )
+    if ('ok' in started && 'noted' in started.ok) throw new Error('the start only noted a wait')
+    return started as Outcome<StartedRun, SessionFailure>
+  }
   const handover = async (execution: string, input: string, name = `handover-${input}`) => {
     const operation = fixture.operation(name)
     const receipt = evidence(`agent/accepted/${input}`)
@@ -1787,14 +1734,14 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'JC-05',
-      'startRun fixes the first input, opens the Run and keeps the inputs pending',
+      'startRun fixes every pending input as the batch of the Run, opens it and keeps the inputs pending',
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
         succeeded(await s.accept('input-1'), 'accept 1')
         succeeded(await s.accept('input-2'), 'accept 2')
         const started = succeeded(await s.startRun(), 'startRun')
-        assert.equal(started.first, 'input-1')
+        assert.deepEqual(started.initial, ['input-1', 'input-2'])
         assert.equal(started.advance.run.length > 0 && started.execution.length > 0, true)
         const snapshot = await s.readWork()
         const run = expectKind(snapshot.run, 'active', 'run after startRun')
@@ -1881,10 +1828,10 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         expectKind(late, 'terminal', 'a message after the terminal')
         succeeded(await s.accept('input-2'), 'accept after the terminal')
         const next = succeeded(await s.startRun('start-second'), 'the next Run')
-        assert.equal(
-          next.first,
-          'input-1',
-          'an input handed over but never taken keeps its eligibility and is re-fixed by the successor Run (PA-08)',
+        assert.deepEqual(
+          next.initial,
+          ['input-1', 'input-2'],
+          'an input handed over but never taken keeps its eligibility and is re-fixed by the successor Run, with what came after it (PA-08)',
         )
         snapshot = await s.readWork()
         assert.deepEqual(snapshot.pending, ['input-1', 'input-2'])
@@ -2348,14 +2295,23 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
             input: {
               ...s.base,
               operation: fixture.operation('select'),
-              declaration: { kind: 'model', name: 'route-a', basis: evidence('route-a') },
+              declaration: {
+                kind: 'model',
+                name: 'route-a',
+                reasoningEffort: 'xhigh',
+                basis: evidence('route-a'),
+              },
             },
           }),
           'change',
         )
         succeeded(await s.accept('later'), 'accept')
         const read = succeeded(await s.port.readModelSelection(fixture.access), 'read')
-        assert.deepEqual(read.selection, { name: 'route-a', basis: evidence('route-a') })
+        assert.deepEqual(read.selection, {
+          name: 'route-a',
+          reasoningEffort: 'xhigh',
+          basis: evidence('route-a'),
+        })
         assert.deepEqual(read.source, saved.source, 'the source is the commit that saved it')
         assert.equal(read.revision, (await s.readWork()).revision)
       },

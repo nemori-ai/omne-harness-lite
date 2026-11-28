@@ -8,9 +8,9 @@ export type {
   SessionDiagnosticsSettings,
 } from './ports.ts'
 export type {
-  AgentFinishReader,
   DiagnosticPorts,
   ModelAttemptReader,
+  ModelFactReader,
   ModelCallInspector,
   ModelRequestReader,
   RequestBlockChoice,

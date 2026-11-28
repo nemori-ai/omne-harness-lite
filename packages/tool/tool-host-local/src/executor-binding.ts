@@ -17,6 +17,7 @@ import {
   CLOSED_RESULT_MAX_BYTES,
   commandArguments,
   describeCommandArgumentsRejection,
+  markProgramCall,
   type AuthorWait,
   type AuthorSegment,
   type CallAccess,
@@ -25,6 +26,7 @@ import {
   type SuspensionRecord,
   type ToolBindings,
   type ToolExecutionFact,
+  type ToolExecutionContext,
   type ToolExecutionScope,
   type ToolExecutorBinding,
   type ToolSegmentContext,
@@ -32,6 +34,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
+import { carryCallFacts, noteCallFacts } from './entry-sources.ts'
 import {
   createLiveAuthorExecution,
   localAuthorEvidence,
@@ -43,6 +46,9 @@ type Start = ToolStartRecord
 type StartInput<P, E> = Omit<Parameters<ToolExecutorBinding<P, E>['start']>[0], 'start'> &
   Readonly<{ start: Start }>
 type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveFailure>
+import { directoryVisitOf } from './directory-visits.ts'
+import type { ToolDirectoryVisit } from '@omne-harness/tool-contract'
+
 type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 
 function closeScope(
@@ -82,6 +88,7 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
         request: FixedToolRequest
         operation: ToolOperationSlot
         arguments: unknown
+        directoryVisit?: ToolDirectoryVisit | undefined
         outcome:
           | Readonly<{ kind: 'returned'; value: unknown }>
           | Readonly<{ kind: 'failed'; reason: string }>
@@ -100,7 +107,7 @@ type SuspendedSegment = Readonly<{
   intent: WaitIntent
 }>
 
-function operationOf(
+export function operationOf(
   registration: ReturnType<typeof readToolRegistration>,
   command: string | null,
 ): ToolOperationSlot | undefined {
@@ -109,23 +116,44 @@ function operationOf(
   return registration?.operations.find(([name]) => name === command)?.[1]
 }
 
-function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
-  const { request } = input
+/** The arguments of a call as its command's own parser reads them, or why they do not satisfy its contract. */
+export function readCallArguments(
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'arguments'>,
+  operation: ToolOperationSlot,
+): Outcome<unknown, Readonly<{ reason: string }>> {
   const { definition } = request.availability
   const invalid = (reason: string) =>
-    definition.kind === 'commands' && request.command !== null
-      ? describeCommandArgumentsRejection(definition, request.command, reason)
-      : reason
+    fail({
+      reason:
+        definition.kind === 'commands' && request.command !== null
+          ? describeCommandArgumentsRejection(definition, request.command, reason)
+          : reason,
+    })
   const cut = commandArguments(definition, request.command, request.arguments)
-  if ('failure' in cut) throw new Error(invalid(cut.failure.reason))
-  const argumentsValue = operation.author.parameters.parse(cut.ok)
-  if ('failure' in argumentsValue)
-    throw new Error(
-      argumentsValue.failure.kind === 'invalid'
-        ? invalid(argumentsValue.failure.reason)
-        : argumentsValue.failure.reason,
-    )
-  return argumentsValue.ok
+  if ('failure' in cut) return invalid(cut.failure.reason)
+  const parsed = operation.author.parameters.parse(cut.ok)
+  if ('ok' in parsed) return parsed
+  return parsed.failure.kind === 'invalid'
+    ? invalid(parsed.failure.reason)
+    : fail({ reason: parsed.failure.reason })
+}
+
+function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
+  const read = readCallArguments(input.request, operation)
+  if ('failure' in read) throw new Error(read.failure.reason)
+  return read.ok
+}
+
+function waitSchemasOf(contract: AuthorWait['contract']) {
+  return {
+    contract: contract.adoption,
+    request: contract.request.identity,
+    response: contract.response.identity,
+    requestMaxBytes: contract.request.maxBytes,
+    responseMaxBytes: contract.response.maxBytes,
+    expiry: 'forbidden' as const,
+    ...(contract.background === undefined ? {} : { background: contract.background }),
+  }
 }
 
 function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
@@ -137,6 +165,71 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
         canonicalDigest(declared.adoption) === canonicalDigest(wait.contract.adoption),
     )
   )
+}
+
+// The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
+function segmentContextOf(full: ToolExecutionContext): ToolSegmentContext {
+  const context: ToolSegmentContext = { emit: update => full.emit(update), signal: full.signal }
+  carryCallFacts(full, context)
+  return context
+}
+
+function noted<P>(
+  scope: ToolExecutionScope,
+  facts: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
+): ToolExecutionScope {
+  noteCallFacts(scope.context, facts)
+  return facts.request.invocation.kind === 'programmatic' ? markProgramCall(scope) : scope
+}
+
+function suspendSegment<P>(
+  input: CallAccess<P> & Readonly<{ start: Start }>,
+  operation: ToolOperationSlot,
+  execution: LocalAuthorExecution,
+  attempt: { segment: SuspendedSegment | Readonly<{ kind: 'completed' }> | null },
+  suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
+): string | null {
+  const segments = operation.segments
+  if (segments === null) return 'the author does not run in segments'
+  const { state, wait, closedResult } = suspended
+  if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
+  if (
+    typeof closedResult !== 'string' ||
+    closedResult.length === 0 ||
+    new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
+  )
+    return 'the segment gives no result for a closed wait within the bound'
+  if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
+    return 'the segment state exceeds the declared checkpoint size'
+  const { contract } = wait
+  const judged = judgeJsonValue(wait.request)
+  if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
+  const request = writeJsonText(judged.ok)
+  if (Buffer.byteLength(request) > contract.request.maxBytes)
+    return 'the request of the segment wait exceeds the declared size'
+  const key = canonicalDigest([input.tenant, input.call, input.start.operation])
+  const schemas = waitSchemasOf(contract)
+  const waitId = segmentWait(input.start.operation)
+  if ('failure' in waitId) return 'the start cannot name the wait of its segment'
+  const kept = Buffer.from(state).toString('base64')
+  const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
+  const intent: WaitIntent = {
+    kind: 'ask',
+    wait: waitId.ok,
+    resume: payload,
+    request: localAuthorEvidence(`wait-request/${key}`, request),
+    schemas: { ...schemas, source: localAuthorEvidence(`wait-schemas/${key}`, schemas) },
+  }
+  attempt.segment = {
+    payload,
+    state: kept,
+    closedResult,
+    intent,
+    boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
+    exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, payload]),
+  }
+  execution.publish({ kind: 'wait', value: intent, request })
+  return null
 }
 
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
@@ -229,7 +322,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
   const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) =>
-    dependencies.capability?.(input, scope) ?? scope
+    noted(dependencies.capability?.(input, scope) ?? scope, input)
 
   const launch = async (
     input: StartInput<P, E>,
@@ -256,68 +349,12 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       ...input,
       operation,
       arguments: parsed,
+      directoryVisit: directoryVisitOf(environment),
       outcome,
       closing,
       execution,
     })
     if ('ok' in settled) execution.publish(settled.ok)
-  }
-
-  const suspendSegment = (
-    input: StartInput<P, E>,
-    operation: ToolOperationSlot,
-    execution: LocalAuthorExecution,
-    attempt: Attempt,
-    suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
-  ): string | null => {
-    const segments = operation.segments
-    if (segments === null) return 'the author does not run in segments'
-    const { state, wait, closedResult } = suspended
-    if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
-    if (
-      typeof closedResult !== 'string' ||
-      closedResult.length === 0 ||
-      new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
-    )
-      return 'the segment gives no result for a closed wait within the bound'
-    if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
-      return 'the segment state exceeds the declared checkpoint size'
-    const { contract } = wait
-    const judged = judgeJsonValue(wait.request)
-    if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
-    const request = writeJsonText(judged.ok)
-    if (Buffer.byteLength(request) > contract.request.maxBytes)
-      return 'the request of the segment wait exceeds the declared size'
-    const key = startKey(input, input.start)
-    const schemas = {
-      contract: contract.adoption,
-      request: contract.request.identity,
-      response: contract.response.identity,
-      requestMaxBytes: contract.request.maxBytes,
-      responseMaxBytes: contract.response.maxBytes,
-      expiry: 'forbidden' as const,
-    }
-    const waitId = segmentWait(input.start.operation)
-    if ('failure' in waitId) return 'the start cannot name the wait of its segment'
-    const kept = Buffer.from(state).toString('base64')
-    const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
-    const intent: WaitIntent = {
-      kind: 'ask',
-      wait: waitId.ok,
-      resume: payload,
-      request: localAuthorEvidence(`wait-request/${key}`, request),
-      schemas: { ...schemas, source: localAuthorEvidence(`wait-schemas/${key}`, schemas) },
-    }
-    attempt.segment = {
-      payload,
-      state: kept,
-      closedResult,
-      intent,
-      boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
-      exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, payload]),
-    }
-    execution.publish({ kind: 'wait', value: intent, request })
-    return null
   }
 
   const launchSegment = async (
@@ -343,10 +380,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       scope = dependencies.scope({ ...input, execution })
       scope = withCapability(input, scope)
       const { context: full } = scope
-      const context: ToolSegmentContext = {
-        emit: update => full.emit(update),
-        signal: full.signal,
-      }
+      const context = segmentContextOf(full)
       const segment = await enter(segments, parsed, context)
       closing = closeScope(scope, 'failure' in segment ? 'failed' : 'returned')
       if ('failure' in segment) throw new Error(segment.failure.reason)
@@ -371,6 +405,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       ...input,
       operation,
       arguments: parsed,
+      directoryVisit: directoryVisitOf(environment),
       outcome,
       closing: closing ?? Promise.resolve(succeed(undefined)),
       execution,

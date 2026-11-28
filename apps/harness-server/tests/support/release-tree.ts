@@ -105,10 +105,8 @@ export function toolCallsByRequest(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
   return ({ body }) => {
-    const serving = {
-      model: (JSON.parse(body) as { model?: string }).model ?? 'm',
-      provider: 'OpenAI',
-    }
+    const model = (JSON.parse(body) as { model?: string }).model ?? 'm'
+    const serving = { model, provider: model.startsWith('anthropic/') ? 'Anthropic' : 'OpenAI' }
     const calls = pick(body)
     return {
       status: 200,
@@ -186,6 +184,8 @@ function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknow
                 'message.compaction',
                 'run.started',
                 'run.terminal',
+                'session.frozen',
+                'session.adoption-noted',
                 ...extra,
               ],
             },
@@ -224,21 +224,46 @@ function withToolSettings(
   }
 }
 
-function withObservationPolicy(
+/** Gives the programs of Code other limits than the operator defaults, so a test of a limit is short. */
+function withProgramLimits(
   layer: unknown,
-  policy: Readonly<Record<string, number>> | undefined,
+  limits: Readonly<Record<string, number>> | undefined,
 ): unknown {
-  if (policy === undefined) return layer
-  const { ops } = layer as { ops: readonly object[] }
-  return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
+  if (limits === undefined) return layer
+  type Construction = Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  const { ops } = layer as {
+    ops: Readonly<{ kind: string; id: string; config?: { construction?: Construction } }>[]
+  }
+  const given = (config: { construction?: Construction } | undefined) => ({
+    ...config,
+    construction: {
+      ...config?.construction,
+      Code: { ...config?.construction?.['Code'], ...limits },
+    },
+  })
+  return { ops: ops.map(op => (op.id === 'tool-host' ? { ...op, config: given(op.config) } : op)) }
 }
 
-function withAgentWaitInterval(layer: unknown): unknown {
+function withObservation(
+  layer: unknown,
+  policy: Readonly<Record<string, number>> | undefined,
+  locatePages: number | undefined,
+): unknown {
+  if (policy === undefined && locatePages === undefined) return layer
+  const { ops } = layer as { ops: readonly object[] }
+  const config = {
+    ...(policy === undefined ? {} : { policy }),
+    ...(locatePages === undefined ? {} : { locatePages }),
+  }
+  return { ops: [...ops, { kind: 'replace', id: 'session-observation', config }] }
+}
+
+function withAgentWaitInterval(layer: unknown, delays: readonly number[] = [50]): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
       op.id === 'agent-host'
-        ? { ...op, config: { ...op.config, reconciliationDelaysMs: [50] } }
+        ? { ...op, config: { ...op.config, reconciliationDelaysMs: delays } }
         : op,
     ),
   }
@@ -302,7 +327,7 @@ export async function history(
   return []
 }
 
-function sqliteFiles(storageRoot: string): string[] {
+export function sqliteFiles(storageRoot: string): string[] {
   const files: string[] = []
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -315,7 +340,55 @@ function sqliteFiles(storageRoot: string): string[] {
   return files
 }
 
+/** Agent executions, of one session or of all, whose record is not settled yet: a Run that ended logically may still be closing. */
+export function unsettledExecutions(storageRoot: string, session?: string): number {
+  let open = 0
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const held = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_execution'")
+        .get()
+      if (held === undefined) continue
+      const row =
+        session === undefined
+          ? db.prepare('SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL').get()
+          : db
+              .prepare(
+                'SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL AND session = ?',
+              )
+              .get(session)
+      open += Number(row?.['n'] ?? 0)
+    } finally {
+      db.close()
+    }
+  }
+  return open
+}
+
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
+
+/** The heads of the model requests whose calls are still open, in the order of the calls. */
+export function storedModelRequests(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  const requests: Readonly<Record<string, unknown>>[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'md_call'"
+      if (db.prepare(table).get() === undefined) continue
+      for (const row of db.prepare('SELECT request FROM md_call ORDER BY rowid').all()) {
+        const raw = row['request']
+        if (raw === null) continue
+        requests.push(JSON.parse(typeof raw === 'string' ? raw : unpackText(raw as Uint8Array)))
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return requests
+}
 
 export function executionFailures(storageRoot: string): readonly unknown[] {
   const failures: unknown[] = []
@@ -329,7 +402,7 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
       )
         continue
       for (const row of db
-        .prepare('SELECT tenant, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
+        .prepare('SELECT tenant, execution, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
         .all()) {
         const text = unpackText(row['body'] as Uint8Array)
         if (!text.includes('node-failed') && !text.includes('compaction-failed')) continue
@@ -339,9 +412,16 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
           const digest = detail.digest.startsWith('sha256:')
             ? detail.digest
             : `sha256:${detail.digest}`
-          const blob = db
-            .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
-            .get(String(row['tenant']), digest)
+          const tenant = String(row['tenant'])
+          const blob =
+            db
+              .prepare(
+                'SELECT payload FROM er_block WHERE tenant = ? AND execution = ? AND digest = ?',
+              )
+              .get(tenant, String(row['execution']), digest) ??
+            db
+              .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
+              .get(tenant, digest)
           if (blob !== undefined)
             failures.push(JSON.parse(unpackText(blob['payload'] as Uint8Array)))
         }
@@ -363,16 +443,35 @@ function ledgerRows(storageRoot: string): readonly LedgerRow[] {
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
         .get()
       if (table === undefined) continue
-      for (const row of db.prepare(`SELECT kind, name, record, fixed FROM tl_record`).all()) {
+      const definitions = new Map<string, unknown>()
+      for (const row of db.prepare(`SELECT tenant, digest, body FROM tl_definition`).all())
+        definitions.set(`${String(row['tenant'])} ${String(row['digest'])}`, unpacked(row['body']))
+      const joined = (tenant: string, request: unknown): unknown => {
+        const fixed = request as { availability: { definition: unknown } }
+        const digest = fixed.availability.definition
+        return typeof digest !== 'string'
+          ? fixed
+          : {
+              ...fixed,
+              availability: {
+                ...fixed.availability,
+                definition: definitions.get(`${tenant} ${digest}`),
+              },
+            }
+      }
+      for (const row of db
+        .prepare(`SELECT tenant, kind, name, record, fixed FROM tl_record`)
+        .all()) {
         const record = unpacked(row['record']) as Record<string, unknown>
         const call = record['call']
+        const tenant = String(row['tenant'])
         rows.push({
           kind: String(row['kind']),
           name: String(row['name']),
           record:
             row['fixed'] === null || typeof call !== 'object' || call === null
               ? record
-              : { ...record, call: { ...call, request: unpacked(row['fixed']) } },
+              : { ...record, call: { ...call, request: joined(tenant, unpacked(row['fixed'])) } },
         })
       }
     } finally {
@@ -432,6 +531,31 @@ export function startAcceptances(
   return hostRecords(storageRoot).filter(value => value['kind'] === 'acceptance')
 }
 
+export type ToolUsageRow = Readonly<{ call: string; tool: string; outcome: string }>
+
+/** The usage facts of settled calls: one per call, kept after the sweep deletes the call's records. */
+export function toolUsage(storageRoot: string): readonly ToolUsageRow[] {
+  const rows: ToolUsageRow[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_usage'`)
+        .get()
+      if (table === undefined) continue
+      for (const row of db
+        .prepare(`SELECT call, fact FROM tl_usage ORDER BY started_at, call`)
+        .all()) {
+        const fact = JSON.parse(String(row['fact'])) as { tool: string; outcome: { kind: string } }
+        rows.push({ call: String(row['call']), tool: fact.tool, outcome: fact.outcome.kind })
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return rows
+}
+
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
@@ -462,6 +586,27 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   return [...calls]
     .map(([call, row]) => ({ call, ...row, entry: entries.get(call) ?? null }))
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
+}
+
+// The spelling `encodeToolInvocationRef` gives; a wrong one is refused like any unknown reference.
+const TOOL_REFERENCE_VERSION = 2
+
+/** The references of the calls of one tool, as a client names them: the call and its admission. */
+export function toolCallReferences(storageRoot: string, tool: string): readonly string[] {
+  return ledgerRows(storageRoot).flatMap(row => {
+    const record = row.record as {
+      kind: string
+      call?: {
+        call: string
+        admission: string
+        request: { availability: { definition?: { name: string } } }
+      }
+    }
+    const call = record.kind === 'call' ? record.call : undefined
+    return call !== undefined && call.request.availability.definition?.name === tool
+      ? [JSON.stringify(['tool-invocation', TOOL_REFERENCE_VERSION, call.call, call.admission])]
+      : []
+  })
 }
 
 export type ToolCallFacts = Readonly<{
@@ -610,6 +755,10 @@ export type ReleaseTree = Readonly<{
   hitl: ToolHitlHolder
   toolRuntime(): ReleaseToolRuntime
   records: readonly S0Record[]
+  /** What the server wrote to its standard error so far. */
+  serverOutput(): readonly string[]
+  /** The authorization header of each request the model gateway received, in order. */
+  modelAuthorizations(): readonly (string | null)[]
   cli(args: readonly string[], credential?: string): ReturnType<typeof runOmne>
   relogin(): Promise<string>
   startSession(text: string, definition?: string): Promise<string>
@@ -629,6 +778,7 @@ export type ReleaseTreeOptions = Readonly<{
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
+  observationLocatePages?: number
   compactionProvider?: ContextCompactionRowInput
   compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
@@ -637,13 +787,24 @@ export type ReleaseTreeOptions = Readonly<{
   beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  /** Rows left out of the release, together with the operator's values for them. */
+  /** The limits of one program of Code, over the operator defaults. */
+  programLimits?: Readonly<Record<string, number>>
   /** The rows left out of every run, or of each run by its index. */
   withoutRows?: readonly string[] | ((run: number) => readonly string[])
   /** Rows a test adds to the release, each with the row plugin that serves it. */
   addedRows?: readonly AddedRow[]
+  /** Configuration a test adds to rows of the release, by row id. */
+  rowConfig?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
   hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
+  /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
+  reconciliationDelaysMs?: readonly number[]
+  /** The one time of every run; absent: the system time. */
+  time?: NonNullable<Parameters<typeof runServe>[0]['time']>
+  /** How long a row that left may wait for what it depends on; absent: the default of the entry. */
+  dependencyDeadlineMs?: number
+  /** The public keys of the publisher whose version directories this tree takes. */
+  publisherKeys?: readonly string[]
 }>
 
 export type AddedRow = Readonly<{
@@ -669,6 +830,17 @@ function withAddedRows(distribution: unknown, added: readonly AddedRow[] = []): 
   }
 }
 
+function withRowConfig(distribution: unknown, added: ReleaseTreeOptions['rowConfig']): unknown {
+  if (added === undefined) return distribution
+  const { rows } = distribution as { rows: readonly { id: string; config: object }[] }
+  return {
+    ...(distribution as object),
+    rows: rows.map(row =>
+      added[row.id] === undefined ? row : { ...row, config: { ...row.config, ...added[row.id] } },
+    ),
+  }
+}
+
 export async function onReleaseTree(
   options: ReleaseTreeOptions,
   body: (tree: ReleaseTree) => Promise<void>,
@@ -690,7 +862,13 @@ export async function onReleaseTreeRuns(
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
     await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
-      const state = { dir, port, home, modelRoute: gateway.url }
+      const state = {
+        dir,
+        port,
+        home,
+        modelRoute: gateway.url,
+        modelAuthorizations: () => gateway.authorizations(),
+      }
       const left = rowsLeftOut(options.withoutRows, run)
       const outcome = await serveOnce({ ...options, withoutRows: left }, state, run === 0, body)
       if (outcome !== PORT_TAKEN) return outcome
@@ -734,6 +912,7 @@ type ReleaseState = Readonly<{
   port: number
   home: string
   modelRoute: string
+  modelAuthorizations(): readonly (string | null)[]
 }>
 
 async function serveOnce(
@@ -772,32 +951,46 @@ async function serveOnce(
   )
   const finished = runServe({
     ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
+    ...(options.time === undefined ? {} : { time: options.time }),
+    ...(options.dependencyDeadlineMs === undefined
+      ? {}
+      : { dependencyDeadlineMs: options.dependencyDeadlineMs }),
+    ...(options.publisherKeys === undefined ? {} : { publisherKeys: options.publisherKeys }),
     distribution: withAddedRows(
-      withoutRows(releaseDistribution(options), 'rows', rowsLeftOut(options.withoutRows, 0)),
+      withoutRows(
+        withRowConfig(releaseDistribution(options), options.rowConfig),
+        'rows',
+        rowsLeftOut(options.withoutRows, 0),
+      ),
       options.addedRows,
     ),
     operator: withoutRows(
-      withToolSettings(
-        withObservationPolicy(
-          withAgentWaitInterval(
-            withQueueCapacity(
-              withHistoryKinds(
-                withCompaction(
-                  operatorLayer({
-                    storageRoot: dir.storageRoot,
-                    port,
-                    modelRoute: state.modelRoute,
-                  }),
-                  options,
+      withProgramLimits(
+        withToolSettings(
+          withObservation(
+            withAgentWaitInterval(
+              withQueueCapacity(
+                withHistoryKinds(
+                  withCompaction(
+                    operatorLayer({
+                      storageRoot: dir.storageRoot,
+                      port,
+                      modelRoute: state.modelRoute,
+                    }),
+                    options,
+                  ),
+                  options.extraHistoryKinds,
                 ),
-                options.extraHistoryKinds,
+                options.queueCapacity,
               ),
-              options.queueCapacity,
+              options.reconciliationDelaysMs,
             ),
+            options.observationPolicy,
+            options.observationLocatePages,
           ),
-          options.observationPolicy,
+          options.toolSettings,
         ),
-        options.toolSettings,
+        options.programLimits,
       ),
       'ops',
       rowsLeftOut(options.withoutRows, 0),
@@ -923,6 +1116,8 @@ async function serveOnce(
       hitl,
       toolRuntime,
       records,
+      serverOutput: () => serverErrors,
+      modelAuthorizations: state.modelAuthorizations,
       cli,
       relogin,
       startSession,
@@ -938,9 +1133,25 @@ async function serveOnce(
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
     if (exitCode !== undefined && exitCode !== 0)
-      process.stderr.write(`release tree, server exit ${String(exitCode)}: ${unsettled(records)}\n`)
+      process.stderr.write(
+        `release tree, server exit ${String(exitCode)}: ${unsettled(records)}${warnings(records)}\n`,
+      )
   }
   return exitCode
+}
+
+function warnings(records: readonly S0Record[]): string {
+  const lines = records
+    .filter(
+      record => record['signal'] === 'log' && ['warn', 'error'].includes(String(record['level'])),
+    )
+    .map(
+      record =>
+        `${String(record['time'])} ${String(record['component'])}: ${String((record['fields'] as { text?: unknown } | undefined)?.text)}`,
+    )
+  return lines.length === 0
+    ? ''
+    : `\nserver warnings, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length}:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
 }
 
 // What a shutdown left unsettled, row by row: a server that exits non-zero names its own cause.
@@ -976,7 +1187,7 @@ export async function pollUntil<T>(
   return value
 }
 
-function textsOf(value: unknown): string[] {
+export function textsOf(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(textsOf)
   if (typeof value !== 'object' || value === null) return []
   const record = value as Record<string, unknown>

@@ -1,5 +1,7 @@
 import { fail, type Outcome } from '@omne-harness/operation-result'
-import type { SessionFailure } from '@omne-harness/session-contract'
+import type { DriveFailure, SessionFailure } from '@omne-harness/session-contract'
+
+export type DriveRefusal = Extract<DriveFailure, { kind: 'refused' }>
 
 export const OWNERS = Object.freeze({
   session: 'session',
@@ -14,6 +16,7 @@ export const OWNERS = Object.freeze({
   clock: 'sessionClock',
   admission: 'sessionAdmission',
   sources: 'sessionInputSources',
+  resolver: 'sessionUtteranceResolver',
 } as const)
 export type Owner = (typeof OWNERS)[keyof typeof OWNERS]
 

@@ -33,7 +33,7 @@ async function setup() {
     access: alice,
     execution: execution(),
     operation: operation('invoke-custody'),
-    initial: acceptedInput('input-custody'),
+    initial: [acceptedInput('input-custody')],
     grant: null,
     idle() {},
   })

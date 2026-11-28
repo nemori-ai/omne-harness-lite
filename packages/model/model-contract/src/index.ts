@@ -20,14 +20,28 @@ export type {
   CredentialLayer,
   ProviderName,
   ReadId,
+  ReasoningEffort,
+  RequestCommon,
+  LlmRequest,
+  DecisionsRequest,
+  LlmModelRequest,
+  DecisionsModelRequest,
+  LiveModelRequest,
+  LiveRequest,
   ResultVersion,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
+export { REASONING_EFFORTS, isReasoningEffort } from './root.ts'
+export { KIND_TRAITS, MODEL_KINDS, isModelKind } from './model-kind.ts'
+export type { KindTraits, ModelKind } from './model-kind.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
+export { faultProblem } from './fault-shape.ts'
+export { profileProblems } from './profile-problems.ts'
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
+export { dispatchSend } from './dispatch-facts.ts'
 export type * from './result-delivery-values.ts'
 export type * from './result-delivery.ts'
 export type * from './result-delivery-judge.ts'
@@ -47,7 +61,16 @@ export type {
   ModelOutputV1Failure,
 } from './model-output-v1.ts'
 export type * from './call-surface.ts'
+export type * from './decision-call.ts'
+export {
+  DECISION_REPRESENTATION,
+  decisionAnswersBlock,
+  decisionAnswersOf,
+  judgeDecisionAsk,
+} from './decision-call.ts'
 export type * from './dispatch-facts.ts'
+export type * from './live-call.ts'
+export { LIVE_REPRESENTATION } from './live-call.ts'
 export type {
   MaterializationReceipt,
   MaterializedMedium,
@@ -68,15 +91,24 @@ export type {
   MediaMeasurementFact,
   MeterRepresentation,
   ModalityRequirement,
+  ModelNeed,
+  ProfileListInput,
+  ProfileResolveInput,
   ModelInputMeter,
   ModelLimit,
   ModelModality,
   ModelProfile,
   ModelProfileDefinition,
+  LlmProfile,
+  DecisionsProfile,
+  LiveProfile,
+  ProfileKind,
   ParameterAdoption,
+  ProfileCommon,
   ProfileIdentity,
   ProfileReplay,
   ProfileResolution,
+  ReasoningEffortMapping,
   ProfileScope,
   ProfileSupplier,
   ReplayDeclaration,
@@ -84,7 +116,16 @@ export type {
   TokenLimit,
   UpstreamLimit,
 } from './profile.ts'
-export { isNativeFileType, profileCovers } from './profile.ts'
+export {
+  isNativeFileType,
+  LIMIT_METRICS,
+  mediaLimitMetric,
+  OVER_LIMIT_METRICS,
+  chatNeedOf,
+  isProfileOf,
+  meetsNeed,
+  supportedReasoningEfforts,
+} from './profile.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'
 export type {
   ModelPreparationLease,

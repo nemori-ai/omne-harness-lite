@@ -9,6 +9,8 @@ import {
 import { canonicalDigest, RecordPurityError } from './canonical-json.ts'
 import type { PiFamilyBinding, PiFamilyContributions } from './family.ts'
 
+type Binding = PiFamilyBinding
+
 export function recordProvider(record: PiModelRecordHead): ProviderName {
   const decoded = decodeProviderName(record.route.provider)
   if (!('ok' in decoded)) throw new RangeError(`record ${record.name} has no provider name`)
@@ -22,45 +24,41 @@ export type PiModelRecordHead = Readonly<{
   status: 'current' | 'frozen'
 }>
 
-export type PiFamilySpec<R extends PiModelRecordHead> = Readonly<{
+export type PiFamilySpec<R extends PiModelRecordHead, B extends Binding = Binding> = Readonly<{
   owner: string
   records: readonly R[]
-  acquire(
-    record: R,
-    supplier: Supplier,
-    signal: AbortSignal,
-  ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
+  acquire(record: R, supplier: Supplier, signal: AbortSignal): Promise<Outcome<B, TransportFailure>>
 }>
 
 export type PiReplayFormats = Readonly<{ produces: string; accepts: readonly string[] }>
 
-type FamilyEntry = Readonly<{
+type FamilyEntry<B extends Binding = Binding> = Readonly<{
   adoption: Adoption
   record: PiModelRecordHead
-  acquire(
-    supplier: Supplier,
-    signal: AbortSignal,
-  ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
+  acquire(supplier: Supplier, signal: AbortSignal): Promise<Outcome<B, TransportFailure>>
 }>
 
-class PiFamilyHandle {
+class PiFamilyHandle<B extends Binding = Binding> {
   readonly owner: string
-  readonly #entries: readonly FamilyEntry[]
+  readonly #entries: readonly FamilyEntry<B>[]
 
-  constructor(owner: string, entries: readonly FamilyEntry[]) {
+  constructor(owner: string, entries: readonly FamilyEntry<B>[]) {
     this.owner = owner
     this.#entries = entries
     Object.freeze(this)
   }
 
-  static entriesOf(value: unknown): readonly FamilyEntry[] | undefined {
+  static entriesOf<B extends Binding>(
+    value: PiFamilyHandle<B>,
+  ): readonly FamilyEntry<B>[] | undefined {
     return typeof value === 'object' && value !== null && #entries in value
       ? value.#entries
       : undefined
   }
 }
 
-export type PiFamily = PiFamilyHandle
+/** A family and the kind of binding its records give: composing only chat families gives chat bindings. */
+export type PiFamily<B extends Binding = Binding> = PiFamilyHandle<B>
 
 export function recordAdoption(owner: string, record: PiModelRecordHead): Adoption {
   let digest: string
@@ -74,7 +72,9 @@ export function recordAdoption(owner: string, record: PiModelRecordHead): Adopti
   return Object.freeze({ owner, name: record.name, revision: record.revision, digest })
 }
 
-export function defineFamily<R extends PiModelRecordHead>(spec: PiFamilySpec<R>): PiFamily {
+export function defineFamily<R extends PiModelRecordHead, B extends Binding = Binding>(
+  spec: PiFamilySpec<R, B>,
+): PiFamily<B> {
   const { owner, records, acquire } = spec
   if (typeof owner !== 'string' || owner.length === 0)
     throw new RangeError('family owner must be a non-empty string')
@@ -82,7 +82,7 @@ export function defineFamily<R extends PiModelRecordHead>(spec: PiFamilySpec<R>)
   if (!Array.isArray(records)) throw new RangeError('family records must be an array')
   const revisions = new Set<string>()
   const currentRoutes = new Set<string>()
-  const entries: FamilyEntry[] = []
+  const entries: FamilyEntry<B>[] = []
   for (const [index, original] of records.entries()) {
     const adoption = recordAdoption(owner, original)
     checkHead(original, index)
@@ -120,12 +120,14 @@ function checkHead(record: PiModelRecordHead, index: number): void {
     throw new RangeError(`${at}.status must be current or frozen`)
 }
 
-export function composeFamilies(families: readonly PiFamily[]): PiFamilyContributions {
+export function composeFamilies<B extends Binding>(
+  families: readonly PiFamily<B>[],
+): PiFamilyContributions<B> {
   if (!Array.isArray(families)) throw new RangeError('families must be an array')
   const owners = new Set<string>()
-  const table = new Map<string, FamilyEntry>()
+  const table = new Map<string, FamilyEntry<B>>()
   for (const family of families) {
-    const entries = familyEntries(family)
+    const entries = familyEntries<B>(family)
     if (owners.has(family.owner)) throw new RangeError(`family owner ${family.owner} repeats`)
     owners.add(family.owner)
     for (const entry of entries) {
@@ -139,11 +141,11 @@ export function composeFamilies(families: readonly PiFamily[]): PiFamilyContribu
   })
 }
 
-async function acquireFrom(
-  table: ReadonlyMap<string, FamilyEntry>,
+async function acquireFrom<B extends Binding>(
+  table: ReadonlyMap<string, FamilyEntry<B>>,
   supplier: Supplier,
   signal: AbortSignal,
-): Promise<Outcome<PiFamilyBinding, TransportFailure>> {
+): Promise<Outcome<B, TransportFailure>> {
   const { owner } = supplier.adoption
   const entry = table.get(adoptionKey(supplier.adoption))
   if (entry === undefined) return { failure: unavailable(owner, 'adoption-not-installed') }
@@ -201,8 +203,8 @@ export function familyRecords(
   )
 }
 
-function familyEntries(family: PiFamily): readonly FamilyEntry[] {
-  const entries = PiFamilyHandle.entriesOf(family)
+function familyEntries<B extends Binding>(family: PiFamily<B>): readonly FamilyEntry<B>[] {
+  const entries = PiFamilyHandle.entriesOf<B>(family)
   if (entries === undefined) throw new RangeError('each family must come from defineFamily')
   return entries
 }

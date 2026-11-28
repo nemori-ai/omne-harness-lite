@@ -66,8 +66,8 @@ describe('observe-session', () => {
 
   it('opens on a tenant and a session', () => {
     expectRoundTrip(observation.open, { tenant, session })
-    expect(readSample(observation.open, { tenant })).toEqual({ ok: false })
-    expect(readSample(observation.open, { tenant, session: 'short' })).toEqual({ ok: false })
+    expect(readSample(observation.open, { tenant }).ok).toBe(false)
+    expect(readSample(observation.open, { tenant, session: 'short' }).ok).toBe(false)
   })
 
   it.each(frames)('a %s frame reads and writes back the same', (_name, frame) => {
@@ -75,6 +75,6 @@ describe('observe-session', () => {
   })
 
   it.each(badFrames)('a frame that is %s is rejected', (_name, frame) => {
-    expect(readSample(observation.frame, frame)).toEqual({ ok: false })
+    expect(readSample(observation.frame, frame).ok).toBe(false)
   })
 })

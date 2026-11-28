@@ -1,0 +1,665 @@
+system
+  server
+    dynamis
+      dynamis.points  [keyed-one, closed: one-per-process]
+        assets.category
+          assets-ui#1  [effective]
+        assets.category-page
+          assets-ui#1  [effective]
+        assets.control
+          assets-ui#1  [effective]
+        assets.governance
+          assets-ui#1  [effective]
+        assets.holding
+          assets-ui#1  [effective]
+        canvas.app-render
+          canvas-ui#1  [effective]
+        canvas.element
+          canvas-ui#1  [effective]
+        canvas.intake
+          canvas-ui#1  [effective]
+        canvas.picker
+          canvas-ui#1  [effective]
+        connection.protocols
+          served-protocols#1  [effective]
+        connection.server-points
+          served:connection.server-points#1  [effective]
+        human-intervention.release-detail
+          human-intervention-ui#1  [effective]
+        identity.account-preferences
+          identity-ui#1  [effective]
+        media.picture-intake
+          media-ui#1  [effective]
+        model.choices
+          model-ui#1  [effective]
+        notification.entry
+          notification-ui#1  [effective]
+        notification.inbox-sections
+          notification-ui#1  [effective]
+        plugin.guest-forms
+          DesktopShell#1  [effective]
+        plugin.ports
+          DesktopShell#1  [effective]
+        session.block-reads-source
+          session-reads-ui#1  [effective]
+        session.block-render
+          session-ui#1  [effective]
+        session.call-detail
+          session-ui#1  [effective]
+        session.composer
+          session-ui#1  [effective]
+        session.composer-attachments
+          session-ui#1  [effective]
+        session.composer-intake
+          session-ui#1  [effective]
+        session.dock
+          session-ui#1  [effective]
+        session.model-choice
+          session-ui#1  [effective]
+        session.run-failure
+          session-ui#1  [effective]
+        session.side
+          session-ui#1  [effective]
+        session.status
+          session-ui#1  [effective]
+        session.tool-call
+          session-ui#1  [effective]
+        shell.actions
+          DesktopShell#1  [effective]
+        shell.back
+          DesktopShell#1  [effective]
+        shell.float
+          DesktopShell#1  [effective]
+        shell.gate
+          DesktopShell#1  [effective]
+        shell.icon
+          DesktopShell#1  [effective]
+        shell.keymap
+          DesktopShell#1  [effective]
+        shell.layout
+          DesktopShell#1  [effective]
+        shell.pages
+          DesktopShell#1  [effective]
+        shell.part-render
+          DesktopShell#1  [effective]
+        shell.part-style
+          DesktopShell#1  [effective]
+        shell.parts
+          DesktopShell#1  [effective]
+        shell.piece
+          DesktopShell#1  [effective]
+        shell.say
+          DesktopShell#1  [effective]
+        shell.say-phrase
+          DesktopShell#1  [effective]
+        shell.sidebar
+          DesktopShell#1  [effective]
+        shell.tokens
+          DesktopShell#1  [effective]
+        slash-command.composer
+          slash-command-ui#1  [effective]
+        usage.presentation
+          usage-ui#1  [effective]
+        usage.widget
+          usage-ui#1  [effective]
+        workspace.choices
+          workspace-ui#1  [effective]
+  client
+    assets
+      assets.category  [keyed-list, v1.2]
+        skin
+          plugin-ui.skins  [effective, plugin-ui#1]
+      assets.category-page  [list, v1.2]
+        mcp  [effective, mcp-ui#1]
+        plugin  [effective, plugin-ui.view#1]
+      assets.governance  [one, closed: grants-itself]
+        assets-ui#1  [effective]
+      assets.holding  [keyed-list, v1.2]
+        converter
+          media-converter  [effective, media-ui#1]
+        model-provider
+          model-provider-access  [effective, model-ui#1]
+          model-provider-models  [effective, model-ui#1]
+      assets.control  [keyed-one]
+    canvas
+      canvas.element  [keyed-one]
+        canvas.app
+          canvas-ui#1  [effective]
+        media.object
+          media-ui#1  [effective]
+        session.session
+          session-ui#1  [effective]
+      canvas.intake  [keyed-one]
+        files
+          media-ui#1  [effective]
+      canvas.picker  [keyed-one]
+        session.session
+          session-ui#1  [effective]
+      canvas.app-render  [keyed-one]
+    connection
+      connection.protocols  [keyed-one, closed: grants-itself]
+        assets/v1
+          served:assets/v1#1  [effective]
+        calendar/v1
+          served:calendar/v1#1  [effective]
+        canvas/v1
+          served:canvas/v1#1  [effective]
+        goal/v1
+          served:goal/v1#1  [effective]
+        human-intervention/v1
+          served:human-intervention/v1#1  [effective]
+        identity/v1
+          served:identity/v1#1  [effective]
+        interface/v1
+          served:interface/v1#1  [effective]
+        mcp/v1
+          served:mcp/v1#1  [effective]
+        media/v1
+          served:media/v1#1  [effective]
+        model/v1
+          served:model/v1#1  [effective]
+        notification/v2
+          served:notification/v2#1  [effective]
+        plugin/v1
+          served:plugin/v1#1  [effective]
+        schedule/v3
+          served:schedule/v3#1  [effective]
+        session-diagnostics/v1
+          served:session-diagnostics/v1#1  [effective]
+        session/v1
+          served:session/v1#1  [effective]
+        slash-command/v1
+          served:slash-command/v1#1  [effective]
+        tool/v1
+          served:tool/v1#1  [effective]
+        usage/v1
+          served:usage/v1#1  [effective]
+        workspace/v1
+          served:workspace/v1#1  [effective]
+      connection.server-points  [one, closed: grants-itself]
+        served:connection.server-points#1  [effective]
+    human-intervention
+      human-intervention.release-detail  [keyed-one, closed: speaks-as-system]
+        schedule.activation@1
+          schedule-ui#1  [effective]
+    identity
+      identity.account-preferences  [one, closed: grants-itself]
+        identity-ui#1  [effective]
+    media
+      media.picture-intake  [one, closed: grants-itself]
+        media-ui#1  [effective]
+    model
+      model.choices  [one, closed: grants-itself]
+        model-ui#1  [effective]
+    notification
+      notification.entry  [keyed-one]
+      notification.inbox-sections  [list, v1.2]
+    plugin
+      plugin.guest-forms  [keyed-one, build, closed: grants-itself]
+        shell.layout
+          DesktopShell#1  [effective]
+        shell.part-style
+          DesktopShell#1  [effective]
+        shell.say-phrase
+          DesktopShell#1  [effective]
+        shell.tokens
+          DesktopShell#1  [effective]
+      plugin.ports  [keyed-one, build, closed: grants-itself]
+    session
+      session.block-reads-source  [one, closed: grants-itself]
+        session-reads-ui#1  [effective]
+      session.block-render  [keyed-one]
+        file
+          media-ui#1  [effective]
+        image
+          media-ui#1  [effective]
+        voice
+          media-ui#1  [effective]
+      session.call-detail  [list, v1.2]
+        tool-call-children  [effective, tool-ui#1]
+        tool-call-output  [effective, tool-ui#1]
+      session.composer  [one, closed: grants-itself]
+        session-ui#1  [effective]
+      session.composer-attachments  [list, v1.2]
+        media  [effective, media-ui#1]
+      session.composer-intake  [one, closed: grants-itself]
+        session-ui#1  [effective]
+      session.dock  [list, v1.2]
+        decisions-in-session  [effective, human-intervention-ui#1]
+        background-calls  [effective, session-ui#1]
+      session.model-choice  [one, closed: grants-itself]
+        session-ui#1  [effective]
+      session.run-failure  [list, v1.2]
+        model-credential  [effective, model-ui#1]
+      session.side  [list, v1.2]
+        goal  [effective, goal-ui#1]
+        usage  [effective, usage-ui#1]
+      session.status  [list, v1.2]
+        usage.occupancy  [effective, usage-ui#1]
+        schedule.job-provenance  [effective, schedule-ui#1]
+      session.tool-call  [keyed-one]
+        Code
+          tool-ui#1  [effective]
+    shell
+      shell.actions  [list, v1.2]
+        assets.settings  [effective, assets-ui#1]
+        session.stop  [effective, session-ui#1]
+        human-intervention.waiting  [effective, human-intervention-ui#1]
+        session.force-stop  [effective, session-ui#1]
+        session.background  [effective, session-ui#1]
+        session.stop-call  [effective, session-ui#1]
+        slash-command.keys  [effective, slash-command-ui#1]
+        session.retry  [effective, session-ui#1]
+        session.send  [effective, session-ui#1]
+        shell.next-region  [effective, DesktopShell#1]
+        session.send-first  [effective, session-ui#1]
+        shell.prev-region  [effective, DesktopShell#1]
+        session.send-after  [effective, session-ui#1]
+        session.new  [effective, session-ui#1]
+        shell.bigger  [effective, DesktopShell#1]
+        session.next  [effective, session-ui#1]
+        shell.smaller  [effective, DesktopShell#1]
+        session.previous  [effective, session-ui#1]
+        shell.reset-size  [effective, DesktopShell#1]
+        session.search  [effective, session-ui#1]
+        session.focus-composer  [effective, session-ui#1]
+        shell.sidebar  [effective, DesktopShell#1]
+        session.start-command  [effective, session-ui#1]
+        shell.close-layer  [effective, DesktopShell#1]
+        session.details  [effective, session-ui#1]
+        shell.turn-face  [effective, DesktopShell#1]
+        session.pick-model  [effective, session-ui#1]
+        session.pick-permission  [effective, session-ui#1]
+        session.side-panel  [effective, session-ui#1]
+        shell.palette  [effective, DesktopShell#1]
+        shell.shortcuts  [effective, DesktopShell#1]
+        shell.help  [effective, DesktopShell#1]
+      shell.back  [one, v1.2]
+        canvas-ui#1  [effective]
+      shell.float  [list, v1.2]
+        companion  [effective, session-ui#1]
+      shell.gate  [one, build, closed: no-tenant]
+        identity-ui#1  [effective]
+      shell.icon  [keyed-one]
+      shell.keymap  [one, v1.2]
+        slash-command-ui#1  [effective]
+      shell.layout  [keyed-one]
+      shell.pages  [list, v1.2]
+        conversation  [effective, session-ui#1]
+        history-search  [effective, session-ui#1]
+        decisions  [effective, human-intervention-ui#1]
+        notifications  [effective, notification-ui#1]
+        schedules  [effective, schedule-ui#1]
+        calendar  [effective, calendar-ui#1]
+        workspaces  [effective, workspace-ui#1]
+        assets  [effective, assets-ui#1]
+        settings  [effective, assets-ui#1]
+        commands-and-keys  [effective, slash-command-ui#1]
+        usage  [effective, usage-ui#1]
+      shell.parts  [keyed-one, v1.2]
+        assets.asset
+          assets-ui#1  [effective]
+        assets.asset.actions
+          assets-ui#1  [effective]
+        assets.asset.detail
+          assets-ui#1  [effective]
+        assets.asset.settings
+          assets-ui#1  [effective]
+        assets.asset.toolbar
+          assets-ui#1  [effective]
+        assets.category
+          assets-ui#1  [effective]
+        assets.category.create
+          assets-ui#1  [effective]
+        assets.category.head
+          assets-ui#1  [effective]
+        assets.create
+          assets-ui#1  [effective]
+        assets.create.submit
+          assets-ui#1  [effective]
+        assets.item
+          assets-ui#1  [effective]
+        assets.list
+          assets-ui#1  [effective]
+        assets.page
+          assets-ui#1  [effective]
+        assets.panel
+          assets-ui#1  [effective]
+        assets.setting
+          assets-ui#1  [effective]
+        assets.setting.control
+          assets-ui#1  [effective]
+        assets.settings-page
+          assets-ui#1  [effective]
+        assets.settings-page.group
+          assets-ui#1  [effective]
+        assets.tabs
+          assets-ui#1  [effective]
+        assets.tabs.tab
+          assets-ui#1  [effective]
+        calendar.environment
+          calendar-ui#1  [effective]
+        calendar.lookup
+          calendar-ui#1  [effective]
+        calendar.lookup.ask
+          calendar-ui#1  [effective]
+        calendar.page
+          calendar-ui#1  [effective]
+        calendar.shipped
+          calendar-ui#1  [effective]
+        calendar.shipped.item
+          calendar-ui#1  [effective]
+        canvas.finder
+          canvas-ui#1  [effective]
+        canvas.home
+          canvas-ui#1  [effective]
+        canvas.item
+          canvas-ui#1  [effective]
+        canvas.mark
+          canvas-ui#1  [effective]
+        canvas.paper
+          canvas-ui#1  [effective]
+        canvas.pile
+          canvas-ui#1  [effective]
+        canvas.status
+          canvas-ui#1  [effective]
+        canvas.turn
+          canvas-ui#1  [effective]
+        canvas.view
+          canvas-ui#1  [effective]
+        goal.panel
+          goal-ui#1  [effective]
+        human-intervention.page
+          human-intervention-ui#1  [effective]
+        human-intervention.page.group
+          human-intervention-ui#1  [effective]
+        human-intervention.paper
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.answer
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.detail
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.title
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot.actions
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot.submit
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.pager
+          human-intervention-ui#1  [effective]
+        human-intervention.session-cards
+          human-intervention-ui#1  [effective]
+        identity.account
+          identity-ui#1  [effective]
+        identity.account.control
+          identity-ui#1  [effective]
+        identity.account.rail
+          identity-ui#1  [effective]
+        identity.login
+          identity-ui#1  [effective]
+        identity.login.form
+          identity-ui#1  [effective]
+        identity.login.submit
+          identity-ui#1  [effective]
+        mcp.endpoint
+          mcp-ui#1  [effective]
+        mcp.endpoint.actions
+          mcp-ui#1  [effective]
+        mcp.endpoint.connect
+          mcp-ui#1  [effective]
+        mcp.endpoint.permission
+          mcp-ui#1  [effective]
+        mcp.endpoint.status
+          mcp-ui#1  [effective]
+        mcp.page
+          mcp-ui#1  [effective]
+        media.file
+          media-ui#1  [effective]
+        media.intake
+          media-ui#1  [effective]
+        media.object
+          media-ui#1  [effective]
+        media.picture
+          media-ui#1  [effective]
+        media.read
+          media-ui#1  [effective]
+        media.tray
+          media-ui#1  [effective]
+        media.tray.attach
+          media-ui#1  [effective]
+        media.tray.chip
+          media-ui#1  [effective]
+        media.tray.record
+          media-ui#1  [effective]
+        media.tray.screenshot
+          media-ui#1  [effective]
+        model.provider.models
+          model-ui#1  [effective]
+        model.provider.models.row
+          model-ui#1  [effective]
+        notification.page
+          notification-ui#1  [effective]
+        notification.page.filter
+          notification-ui#1  [effective]
+        notification.page.group
+          notification-ui#1  [effective]
+        notification.row
+          notification-ui#1  [effective]
+        notification.row.actions
+          notification-ui#1  [effective]
+        notification.row.detail
+          notification-ui#1  [effective]
+        notification.row.title
+          notification-ui#1  [effective]
+        schedule.activation
+          schedule-ui#1  [effective]
+        schedule.filter
+          schedule-ui#1  [effective]
+        schedule.happened
+          schedule-ui#1  [effective]
+        schedule.job
+          schedule-ui#1  [effective]
+        schedule.job.cancel
+          schedule-ui#1  [effective]
+        schedule.list
+          schedule-ui#1  [effective]
+        schedule.list.row
+          schedule-ui#1  [effective]
+        schedule.page
+          schedule-ui#1  [effective]
+        schedule.reading
+          schedule-ui#1  [effective]
+        schedule.refresh
+          schedule-ui#1  [effective]
+        schedule.run
+          schedule-ui#1  [effective]
+        schedule.title
+          schedule-ui#1  [effective]
+        schedule.upcoming
+          schedule-ui#1  [effective]
+        session.archived
+          session-ui#1  [effective]
+        session.archived.item
+          session-ui#1  [effective]
+        session.backdrop
+          session-ui#1  [effective]
+        session.companion
+          session-ui#1  [effective]
+        session.companion.figure
+          session-ui#1  [effective]
+        session.composer
+          session-ui#1  [effective]
+        session.composer.input
+          session-ui#1  [effective]
+        session.composer.send
+          session-ui#1  [effective]
+        session.header
+          session-ui#1  [effective]
+        session.header.model
+          session-ui#1  [effective]
+        session.header.more
+          session-ui#1  [effective]
+        session.header.permission
+          session-ui#1  [effective]
+        session.header.title
+          session-ui#1  [effective]
+        session.header.workspace
+          session-ui#1  [effective]
+        session.list
+          session-ui#1  [effective]
+        session.list.item
+          session-ui#1  [effective]
+        session.list.new
+          session-ui#1  [effective]
+        session.paper.item
+          session-ui#1  [effective]
+        session.paper.pick
+          session-ui#1  [effective]
+        session.queue
+          session-ui#1  [effective]
+        session.search
+          session-ui#1  [effective]
+        session.search.hit
+          session-ui#1  [effective]
+        session.side
+          session-ui#1  [effective]
+        session.side.background-call
+          session-ui#1  [effective]
+        session.transcript
+          session-ui#1  [effective]
+        session.transcript.agent-message
+          session-ui#1  [effective]
+        session.transcript.bubble
+          session-ui#1  [effective]
+        session.transcript.failure
+          session-ui#1  [effective]
+        session.transcript.reasoning
+          session-ui#1  [effective]
+        session.transcript.tool-call
+          session-ui#1  [effective]
+        session.transcript.user-message
+          session-ui#1  [effective]
+        shell.app
+          DesktopShell#1  [effective]
+          shell.tokens  [keyed-one]
+            DesktopShell#1  [effective]
+        shell.back
+          DesktopShell#1  [effective]
+        shell.figure
+          DesktopShell#1  [effective]
+        shell.figure.frame
+          DesktopShell#1  [effective]
+        shell.figure.label
+          DesktopShell#1  [effective]
+        shell.figure.note
+          DesktopShell#1  [effective]
+        shell.figure.told
+          DesktopShell#1  [effective]
+        shell.gate
+          DesktopShell#1  [effective]
+        shell.sidebar
+          DesktopShell#1  [effective]
+        shell.sidebar.appearance
+          DesktopShell#1  [effective]
+        shell.sidebar.fold
+          DesktopShell#1  [effective]
+        shell.sidebar.footer
+          DesktopShell#1  [effective]
+        shell.sidebar.home
+          DesktopShell#1  [effective]
+        shell.sidebar.menu
+          DesktopShell#1  [effective]
+        shell.sidebar.nav
+          DesktopShell#1  [effective]
+        shell.sidebar.nav.row
+          DesktopShell#1  [effective]
+        shell.sidebar.turn
+          DesktopShell#1  [effective]
+        shell.sidebar.utility
+          DesktopShell#1  [effective]
+        shell.workspace
+          DesktopShell#1  [effective]
+        shell.workspace.page
+          DesktopShell#1  [effective]
+        tool.call-children
+          tool-ui#1  [effective]
+        tool.call-output
+          tool-ui#1  [effective]
+        tool.code-card
+          tool-ui#1  [effective]
+        usage.card
+          usage-ui#1  [effective]
+        usage.occupancy
+          usage-ui#1  [effective]
+        usage.page
+          usage-ui#1  [effective]
+        usage.panel
+          usage-ui#1  [effective]
+        usage.panel.bar
+          usage-ui#1  [effective]
+        usage.panel.menu
+          usage-ui#1  [effective]
+        workspace.detail
+          workspace-ui#1  [effective]
+        workspace.instance
+          workspace-ui#1  [effective]
+        workspace.item
+          workspace-ui#1  [effective]
+        workspace.list
+          workspace-ui#1  [effective]
+        workspace.page
+          workspace-ui#1  [effective]
+        workspace.register
+          workspace-ui#1  [effective]
+      shell.piece  [keyed-one]
+      shell.say  [one, v1.4]
+        session-ui#1  [effective]
+      shell.say-phrase  [keyed-one]
+        shell.expand
+          DesktopShell#1  [effective]
+        shell.keep
+          DesktopShell#1  [effective]
+        shell.todo
+          DesktopShell#1  [effective]
+      shell.sidebar  [list, v1.2]
+        session-list  [effective, session-ui#1]
+        archived-sessions  [effective, session-ui#1]
+        identity.account  [effective, identity-ui#1]
+    slash-command
+      slash-command.composer  [one, closed: grants-itself]
+        slash-command-ui#1  [effective]
+    usage
+      usage.presentation  [keyed-list, v1.2]
+        breakdown
+          usage.share-bar  [effective, usage-ui#1]
+          usage.share-list  [effective, usage-ui#1]
+        reading
+          usage.percent  [effective, usage-ui#1]
+        series
+          usage.stacked-bar  [effective, usage-ui#1]
+          usage.line  [effective, usage-ui#1]
+          usage.area  [effective, usage-ui#1]
+      usage.widget  [keyed-list, v1.2]
+        session
+          usage.summary  [effective, usage-ui#1]
+          usage.tokens  [effective, usage-ui#1]
+          usage.by-model  [effective, usage-ui#1]
+          usage.cache  [effective, usage-ui#1]
+          usage.latency  [effective, usage-ui#1]
+          usage.tools  [effective, usage-ui#1]
+        status
+          usage.occupancy  [effective, usage-ui#1]
+        tenant
+          usage.summary  [effective, usage-ui#1]
+          usage.tokens  [effective, usage-ui#1]
+          usage.by-model  [effective, usage-ui#1]
+          usage.cache  [effective, usage-ui#1]
+          usage.latency  [effective, usage-ui#1]
+          usage.tools  [effective, usage-ui#1]
+    workspace
+      workspace.choices  [one, closed: grants-itself]
+        workspace-ui#1  [effective]

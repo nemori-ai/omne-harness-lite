@@ -20,6 +20,12 @@ type ExpectedRequests = {
   'replace-credential': { readonly currentCredential: string; readonly newCredential: string }
   'query-own-valid-logins': EmptyBody
   'query-current-tenant': EmptyBody
+  'read-account-preference': { readonly name: string }
+  'write-account-preference': {
+    readonly name: string
+    readonly value: string | null
+    readonly expected: string
+  }
   'query-own-memberships': EmptyBody
   'query-received-invitations': EmptyBody
   'query-create-organization': {
@@ -144,6 +150,8 @@ type ExpectedSucceeded = {
     readonly completeness: 'complete'
   }
   'query-current-tenant': { readonly tenantId: TenantId }
+  'read-account-preference': { readonly value: string | null; readonly revision: string }
+  'write-account-preference': { readonly revision: string }
   'query-own-memberships': Complete<'memberships', MembershipItem>
   'query-received-invitations': Complete<'invitations', InvitationItem>
   'query-create-organization': {
@@ -223,6 +231,13 @@ type ExpectedOutcomes = {
   'replace-credential': 'succeeded' | 'denied' | 'basis-unavailable'
   'query-own-valid-logins': 'succeeded' | 'denied' | 'basis-unavailable'
   'query-current-tenant': 'succeeded' | 'denied' | 'basis-unavailable'
+  'read-account-preference': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable'
+  'write-account-preference':
+    | 'succeeded'
+    | 'conflict'
+    | 'denied'
+    | 'not-visible'
+    | 'basis-unavailable'
   'query-own-memberships': 'succeeded' | 'denied' | 'basis-unavailable'
   'query-received-invitations': 'succeeded' | 'denied' | 'basis-unavailable'
   'query-create-organization': 'succeeded' | 'denied' | 'basis-unavailable' | 'conflict' | 'unknown'
@@ -264,7 +279,11 @@ type ExpectedBody<O extends ExpectedOperation, K extends PropertyKey> = K extend
       : never
     : K extends 'need-decision'
       ? { readonly decisionRequestId: string }
-      : EmptyBody
+      : K extends 'conflict'
+        ? O extends 'write-account-preference'
+          ? { readonly revision: string }
+          : EmptyBody
+        : EmptyBody
 
 type Operations = IdentityProtocol['operations']
 type Name = keyof Operations
@@ -337,6 +356,7 @@ test('C4: every commit operation has unknown', () => {
     | 'release-affiliation'
     | 'submit-authorization-expression'
     | 'withdraw-authorization-expression'
+    | 'write-account-preference'
   >()
   type Check = { readonly [O in Commits]: 'unknown' extends keyof Outcomes<O> ? true : false }
   expectTypeOf<Check>().toEqualTypeOf<AllTrue<Check>>()

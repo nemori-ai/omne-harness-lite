@@ -11,6 +11,7 @@ import type {
   ModelFailure,
   ProfileResolution,
 } from '@omne-harness/model-contract'
+import { resolutionOf } from '@omne-harness/model-contract/testing'
 import type { ModelAccessPrincipals, ModelChoiceReader } from '@omne-harness/model-access'
 
 export type FixtureLogin = Readonly<{ loginText: string; tenant: TenantId; tenantText: string }>
@@ -43,14 +44,50 @@ export const REQUIRED: ModalityRequirement = {
   source: { owner: 'test', record: 'list-models', revision: '1', digest: '0'.repeat(64) },
 }
 
-type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
+type Resolved = Extract<ProfileResolution<'llm'>, { kind: 'resolved' }>
 
 /** A profile as Model resolves it; only what the list reads is filled in. */
-export function resolved(route: string, over: Partial<Resolved> = {}): ProfileResolution {
+export function resolved(
+  route: string,
+  over: Partial<Resolved> = {},
+  reasoningEfforts?: Resolved['profile']['definition']['reasoningEfforts'],
+): ProfileResolution<'llm'> {
   const profile = {
-    identity: { scope: { kind: 'factory' }, route },
-    definition: { input: ['text', 'image'], output: ['text'] },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route },
+    definition: {
+      kind: 'llm',
+      suppliers: [{ provider: 'openrouter', model: route }],
+      input: ['text', 'image'],
+      output: ['text'],
+      reasoningEfforts,
+    },
   } as unknown as Resolved['profile']
+  return {
+    kind: 'resolved',
+    profile,
+    source: REQUIRED.source,
+    selectable: true,
+    reasons: [],
+    credential: 'available',
+    shadowed: [],
+    ...over,
+  }
+}
+
+/** A decisions profile as Model resolves it; only what the list reads is filled in. */
+export function judged(
+  route: string,
+  over: Partial<Extract<ProfileResolution<'decisions'>, { kind: 'resolved' }>> = {},
+): ProfileResolution<'decisions'> {
+  const profile = {
+    identity: { kind: 'decisions', scope: { kind: 'factory' }, route },
+    definition: {
+      kind: 'decisions',
+      suppliers: [{ provider: 'openrouter', model: route }],
+      input: ['text'],
+      output: ['text'],
+    },
+  } as unknown as Extract<ProfileResolution<'decisions'>, { kind: 'resolved' }>['profile']
   return {
     kind: 'resolved',
     profile,
@@ -90,7 +127,11 @@ export function createWorld() {
       listed.push(input)
       if (state.listing === 'throw') throw new Error('model is down')
       if ('kind' in state.listing) return { failure: state.listing }
-      return { ok: { choices: state.listing, selected: null, source: REQUIRED.source } }
+      const choices = state.listing.flatMap(choice => {
+        const narrowed = resolutionOf(choice, input.required.kind)
+        return narrowed === null ? [] : [narrowed]
+      })
+      return { ok: { choices, selected: null, source: REQUIRED.source } }
     },
   }
   return {

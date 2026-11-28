@@ -41,6 +41,7 @@ type Records = NonNullable<Snapshot['contextRecords']>
 
 const access = memoryAccess('directory-a')
 const DEFAULT = '/srv/default'
+const NOT_VERIFIED = 'the owner could not verify the selected instance'
 const KEY = workingDirectoryDescriptor.key
 const EVIDENCE = { owner: 'test', record: 'registration', revision: '1', digest: 'sha256:0' }
 
@@ -52,11 +53,23 @@ function workspace(index: number): WorkspaceId {
 const textOf = (id: WorkspaceId) => (workspaceCodec.encode(id) as { value: string }).value
 const blog = { workspace: workspace(1), instance: 'wsi_blog' }
 const shop = { workspace: workspace(2), instance: 'wsi_shop' }
-const attached = (at: typeof blog, directory: string): WorkingDirectory => ({
+type Reach = Readonly<{ read?: string; write?: string }>
+const inside = (directory: string): Reach => ({ read: directory, write: directory })
+const attached = (
+  at: typeof blog,
+  directory: string,
+  files: Reach = inside(directory),
+): WorkingDirectory => ({
   state: 'attached',
   workspace: textOf(at.workspace),
   instance: at.instance,
   directory,
+  files,
+})
+const attachable = (directory: string, files: Reach = inside(directory)): Check => ({
+  kind: 'attachable',
+  directory,
+  files,
 })
 
 function scopeOf(ref: string): ScopeRef {
@@ -138,7 +151,7 @@ function standing(
 }
 
 function boundary(
-  check: () => Check | Promise<Check> = () => ({ kind: 'unavailable' }),
+  check: () => Check | Promise<Check> = () => ({ kind: 'unavailable', diagnostic: NOT_VERIFIED }),
   recovered: 'ready' | 'absent' | 'unavailable' = 'ready',
 ) {
   const asked: unknown[] = []
@@ -161,9 +174,9 @@ describe('the working directory decided at a step boundary', () => {
 
   it.each<[string, Check, WorkingDirectory]>([
     [
-      'the root of the instance when the workspace owner says it can be attached',
-      { kind: 'attachable', directory: '/srv/blog' },
-      attached(blog, '/srv/blog'),
+      'the root of the instance and the reach of its file requests when it can be attached',
+      attachable('/srv/blog', { write: '/srv/blog' }),
+      attached(blog, '/srv/blog', { write: '/srv/blog' }),
     ],
     [
       'selected but unusable, with the reason, when the tenant is not permitted',
@@ -192,23 +205,23 @@ describe('the working directory decided at a step boundary', () => {
     expect(b.asked).toEqual([{ principal, tenant, ...blog }])
   })
 
-  it('commits the server default, asked of nobody, when the session selected no workspace', async () => {
+  it('commits the server default, reaching everywhere, asked of nobody, when the session selected no workspace', async () => {
     const b = boundary()
     expect(await b.at(standing(null, HELD))).toEqual({
       kind: 'commit',
-      value: { state: 'default', directory: DEFAULT },
+      value: { state: 'default', directory: DEFAULT, files: {} },
     })
     expect(b.asked).toEqual([])
   })
 
   it('commits nothing when the last commit of the scope holds the same value', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/blog' }))
+    const b = boundary(() => attachable('/srv/blog'))
     const records = [...HELD, committed('step-1', attached(blog, '/srv/blog'))]
     expect(await b.at(standing(blog, records))).toEqual({ kind: 'refreshed' })
   })
 
   it('commits the new value when the selection changed since the last commit', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/shop' }))
+    const b = boundary(() => attachable('/srv/shop'))
     const records = [...HELD, committed('step-1', attached(blog, '/srv/blog'))]
     expect(await b.at(standing(shop, records))).toEqual({
       kind: 'commit',
@@ -216,8 +229,17 @@ describe('the working directory decided at a step boundary', () => {
     })
   })
 
+  it('commits the new value when only the reach changed since the last commit', async () => {
+    const b = boundary(() => attachable('/srv/blog', {}))
+    const records = [...HELD, committed('step-1', attached(blog, '/srv/blog'))]
+    expect(await b.at(standing(blog, records))).toEqual({
+      kind: 'commit',
+      value: attached(blog, '/srv/blog', {}),
+    })
+  })
+
   it('reads the last commit of its own scope only', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/blog' }))
+    const b = boundary(() => attachable('/srv/blog'))
     const other = { ...committed('step-1', attached(blog, '/srv/blog')), scope: 'another-scope' }
     expect(await b.at(standing(blog, [...HELD, other]))).toEqual({
       kind: 'commit',
@@ -226,13 +248,13 @@ describe('the working directory decided at a step boundary', () => {
   })
 
   it('commits nothing and asks nobody in a scope that never registered the block', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/blog' }))
+    const b = boundary(() => attachable('/srv/blog'))
     expect(await b.at(standing(blog, []))).toEqual({ kind: 'refreshed' })
     expect(b.asked).toEqual([])
   })
 
   it('commits in a scope registered before the block was declared: recovery reads it as declared now', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/blog' }))
+    const b = boundary(() => attachable('/srv/blog'))
     expect(await b.at(standing(blog, [registration(false)]))).toEqual({
       kind: 'commit',
       value: attached(blog, '/srv/blog'),
@@ -240,7 +262,7 @@ describe('the working directory decided at a step boundary', () => {
   })
 
   it('keeps the committed value over a registration that updates the block, and holds none once it is removed', async () => {
-    const b = boundary(() => ({ kind: 'attachable', directory: '/srv/blog' }))
+    const b = boundary(() => attachable('/srv/blog'))
     const records = [...HELD, committed('step-1', attached(blog, '/srv/blog')), changed('update')]
     expect(await b.at(standing(blog, records))).toEqual({ kind: 'refreshed' })
     expect(b.asked).toHaveLength(1)
@@ -250,15 +272,15 @@ describe('the working directory decided at a step boundary', () => {
     expect(b.asked).toHaveLength(1)
   })
 
-  it('fails the boundary when the owner cannot verify, or throws, and commits nothing', async () => {
-    let answer: Check | Error = { kind: 'unavailable' }
+  it('fails the boundary with the diagnostic of its targets when they cannot answer, or throw, and commits nothing', async () => {
+    let answer: Check | Error = { kind: 'unavailable', diagnostic: NOT_VERIFIED }
     const b = boundary(() => {
       if (answer instanceof Error) throw answer
       return answer
     })
     expect(await b.at(standing(blog, HELD))).toEqual({
       kind: 'unavailable',
-      diagnostic: 'the workspace owner could not verify the selected instance',
+      diagnostic: NOT_VERIFIED,
     })
     answer = new Error('the owner threw')
     expect(await b.at(standing(blog, HELD))).toEqual({
@@ -481,6 +503,7 @@ describe('the step commit a boundary writes', () => {
           ? command.input.declaration.basis.digest
           : '',
     })
+    expect(command.input.expected).toBe(revisionOf(7))
     expect(command.input.operation).toBe(operation)
     const { declaration } = command.input
     if (declaration.kind !== 'context-step-commit') throw new Error(declaration.kind)
@@ -523,6 +546,10 @@ describe('the declaration of the working directory block', () => {
     const value = attached(blog, '/srv/blog')
     expect(workingDirectoryDescriptor.reduce(undefined, value)).toEqual(value)
     expect(() => workingDirectoryDescriptor.reduce(undefined, { state: 'elsewhere' })).toThrow()
+    // A value that does not say how far file requests reach is not a value of this block.
+    expect(() =>
+      workingDirectoryDescriptor.reduce(undefined, { state: 'default', directory: '/srv' }),
+    ).toThrow()
     expect(workingDirectoryBindings).toEqual([
       workingDirectoryModelBinding,
       workingDirectoryCallBinding,

@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import type { CategoryView } from '@omne-harness/assets'
+import type { CategoryView, HeldPort } from '@omne-harness/assets'
 import { createAssetsLocal, type AssetsLocal, type UploadPolicy } from '@omne-harness/assets-local'
 import type { DomainRef, SqlMaterialCatalog, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { governanceStorageCombinations } from '../governance/storage-combinations.ts'
@@ -13,6 +13,8 @@ export type TenantAssetsStore = Readonly<{
   categories: Pick<CategoryView, 'lookup'>
   uploads?: UploadPolicy
   changed?: (tenant: string) => void
+  /** Where what one tenant holds is told; the tenant is the one whose assets are opened, never a field of a request. */
+  heldOf?: (tenant: string) => HeldPort
 }>
 
 export function domainRoot(packageRoot: string, domain: DomainRef): string {
@@ -26,7 +28,7 @@ export async function openTenantAssets(
   const combination = governanceStorageCombinations(store.materials).assets
   const registered = await store.storage.registerCombination({ ...domain, ...combination })
   if (registered.kind !== 'registered') throw new Error(`assets combination ${registered.kind}`)
-  const { changed } = store
+  const { changed, heldOf } = store
   const tenant = domain.scope.kind === 'tenant' ? domain.scope.tenant : undefined
   const assets = createAssetsLocal({
     ...combination,
@@ -38,9 +40,11 @@ export async function openTenantAssets(
     ...(changed === undefined || tenant === undefined
       ? {}
       : { onCommitted: () => changed(tenant) }),
+    ...(heldOf === undefined || tenant === undefined ? {} : { held: heldOf(tenant) }),
   })
   try {
     await assets.packages.recover()
+    await assets.syncHeld()
   } catch (error) {
     await assets.close()
     throw error
@@ -51,6 +55,8 @@ export async function openTenantAssets(
 export type TenantAssetsHostOptions = Readonly<{
   domains: TenantDomainLookup
   open(domain: DomainRef): Promise<AssetsLocal>
+  /** Registers the domain of a tenant; true when it is ready. Without it a write of a tenant never registered finds nothing. */
+  register?(tenantRef: string): Promise<boolean>
 }>
 
 /** Opens the local assets of a tenant once and recovers it once: the publish order assumes no second one. */
@@ -73,6 +79,30 @@ export class TenantAssetsHost {
       if (assets === undefined) this.opening.delete(tenantRef)
     })
     return made
+  }
+
+  /** The assets of a tenant for a write that was admitted for it: a tenant never registered is registered first. A read never registers. */
+  async openForWriting(tenantRef: string): Promise<AssetsLocal | undefined> {
+    if ((await this.standing(tenantRef)) === 'unregistered') {
+      const ready = await this.options.register?.(tenantRef).catch(() => false)
+      if (ready !== true) return undefined
+    }
+    return this.open(tenantRef)
+  }
+
+  /** Whether a tenant has assets to speak of. One whose domain was never registered holds nothing; that is not the same as not knowing. */
+  async standing(tenantRef: string): Promise<'registered' | 'unregistered' | 'unknown'> {
+    try {
+      const found = await this.options.domains.lookup({ tenant: tenantRef })
+      if (found.kind === 'unregistered') return 'unregistered'
+      const own =
+        found.kind === 'ready' &&
+        found.domain.scope.kind === 'tenant' &&
+        found.domain.scope.tenant === tenantRef
+      return own ? 'registered' : 'unknown'
+    } catch {
+      return 'unknown'
+    }
   }
 
   private async make(tenantRef: string): Promise<AssetsLocal | undefined> {

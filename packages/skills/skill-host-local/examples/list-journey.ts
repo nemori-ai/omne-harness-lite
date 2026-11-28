@@ -1,16 +1,22 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
-import { createAssetsLocal, tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import {
+  capabilityId,
+  createCategoryPoint,
+  createHeldBook,
+  heldLayerSource,
+} from '@omne-harness/assets'
+import { createAssetsLocal, tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { Resolution } from '@omne-harness/skill-contract/provider'
 import {
   createDirectorySource,
+  directoryPackageReader,
   createSkillDecisions,
   skillInputsFromAssets,
 } from '@omne-harness/skill-host-local'
-import { directoryReader, openStorage, versionBodyOf } from './publish-journey.ts'
+import { openStorage, versionBodyOf } from './publish-journey.ts'
 
 export type ListJourneyOptions = Readonly<{
   packageDir: string
@@ -60,7 +66,7 @@ async function publishAndHold(
   const holdingRef = `held-${name}`
   const published = await assets.packages.publish({
     capability: made.id,
-    from: directoryReader(createDirectorySource(), dir),
+    from: directoryPackageReader(createDirectorySource(), dir),
     operationId: `publish-${name}`,
     holding: {
       holdingRef,
@@ -108,7 +114,12 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
   const categories = createCategoryPoint()
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
+  const book = createHeldBook(tenantRef)
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -116,6 +127,7 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
     manifestDigest: opened.combination.manifestDigest,
     categories,
     packageRoot: join(options.stateDir, 'packages'),
+    held: book,
   })
   try {
     await publishAndHold(assets, tenantRef, 'sample-skill', options.packageDir)
@@ -128,7 +140,14 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
     await changeHolding(assets, tenantRef, second, { kind: 'setEnabled', enabled: false })
 
     const fromAssets = skillInputsFromAssets<string, Scope>({
-      sources: [tenantLayerSource(assets)],
+      sources: [
+        heldLayerSource({
+          layer: 'tenant',
+          tenant: tenantRef,
+          read: book.read,
+          list: tenantListing(assets),
+        }),
+      ],
       body: versionBodyOf(assets),
     })
     const sameTenant = (who: Access<string>) =>

@@ -40,6 +40,7 @@ import {
 type Principal = Readonly<{ user: string }>
 declare const base: ToolState
 declare const ask: Extract<WaitState, { kind: 'ask' }>
+declare const resource: Extract<WaitState, { kind: 'resource' }>
 declare const call: ToolCallId
 declare const instance: ToolInstanceId
 declare const operation: ToolOperationId
@@ -79,7 +80,7 @@ it('rejects no-response as the terminal of a background call', () => {
   void settled
 })
 
-it('allows an ask wait only on a foreground running call', () => {
+it('allows an ask wait in either relation, and a resource wait only in the foreground', () => {
   const foreground: ToolState = {
     ...base,
     phase: 'running',
@@ -87,16 +88,24 @@ it('allows an ask wait only on a foreground running call', () => {
     relation: 'foreground',
     wait: ask,
   }
-  // @ts-expect-error TS2322: The types of 'wait.kind' are incompatible: '"ask"' is not assignable to '"none"'.
-  const backgroundWait: ToolState = {
+  const backgroundAsk: ToolState = {
     ...base,
     phase: 'running',
     instance,
     relation: 'background',
     wait: ask,
   }
+  // @ts-expect-error TS2322: The types of 'wait.kind' are incompatible: '"resource"' is not assignable to '"none" | "ask"'.
+  const backgroundResource: ToolState = {
+    ...base,
+    phase: 'running',
+    instance,
+    relation: 'background',
+    wait: resource,
+  }
   void foreground
-  void backgroundWait
+  void backgroundAsk
+  void backgroundResource
 })
 
 it('gives an Ask no deadline', () => {

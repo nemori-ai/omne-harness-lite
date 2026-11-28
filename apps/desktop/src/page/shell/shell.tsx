@@ -1,31 +1,77 @@
-import { useRef, useState, useSyncExternalStore } from 'react'
-import type { PageItem, ShellLoginState } from '@omne-harness/shell-contract'
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import type {
+  BackItem,
+  FigureDoing,
+  MergedFigure,
+  PageItem,
+  ShellLoginState,
+  SlotConflict,
+} from '@omne-harness/shell-contract'
 import {
   AppTooltipProvider,
-  FoldIcon,
-  ICONS,
-  IconButton,
+  RedrawProvider,
+  FIGURE_SIZE,
+  FigureSeat,
+  FigureStage,
+  FlipLayer,
+  InkBubble,
   InlineNotice,
   LoadingState,
-  ToastItem,
-  ToastStack,
-  type ResolvedTheme,
-  type ThemeChoice,
+  useFaceFlip,
+  useSizeFactor,
+  type Box,
+  type FaceFlip,
+  type FigureControl,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
-import { useSlot, useWatched } from './hooks.ts'
+import { NO_FIGURE_DEVICE, type FigureDevice } from './desk/device.ts'
+import { useStay } from './desk/stay.ts'
+import { Float } from './float.tsx'
+import type { ShellNote } from './say-note.ts'
+import { useShellNote, useShutOnTurn } from './say-note-view.tsx'
+import { goHome, homeOf, mergedOf } from './home.ts'
+import type { FloatPlaces } from './float-place.ts'
+import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
-import { useSidebarFoldMotion, type SidebarWidth } from './sidebar-motion.ts'
-import type { ShellState } from './state.ts'
+import { runAction } from './dispatch.ts'
+import { bindShellKeys, shellKeys } from './keys.ts'
+import { ShellPalette } from './palette.tsx'
+import { lackText, type Lack, type LackSlot } from './lacks.ts'
+import {
+  shellApp,
+  shellBack,
+  shellFigure,
+  shellGate,
+  shellWorkspace,
+  shellWorkspacePage,
+} from './parts.ts'
+import { pressSeat, useSeatedHome } from './seats.ts'
+import {
+  NarrowNavigation,
+  RECONNECTING_TEXT,
+  Sidebar,
+  type SidebarProps,
+  type SizeSwitch,
+  type ThemeSwitch,
+} from './sidebar.tsx'
+import type { SidebarWidth } from './sidebar-motion.ts'
+import type { Face, PageFocus, ShellState } from './state.ts'
+import { ToldAtHome } from './told.tsx'
+
+export type { SizeSwitch, ThemeSwitch } from './sidebar.tsx'
 
 export type ConnectivitySource = {
   current(): Connectivity
   subscribe(listener: (state: Connectivity) => void): () => void
-}
-
-export type ThemeSwitch = {
-  readonly initial: ResolvedTheme
-  select(choice: ThemeChoice): ResolvedTheme
 }
 
 export type ShellProps = Readonly<{
@@ -33,16 +79,26 @@ export type ShellProps = Readonly<{
   state: ShellState
   connectivity: ConnectivitySource
   theme: ThemeSwitch
+  size: SizeSwitch
+  floats: FloatPlaces
+  figureDevice?: FigureDevice
   missingAtForwarding?: readonly string[]
 }>
 
-const CONNECTIVITY_TEXT: Readonly<Record<Connectivity, string>> = {
-  connecting: '正在连接',
-  connected: '已连接',
-  disconnected: '连不上服务',
+export const NO_LOGIN_TEXT = '这个部署没有开放登录'
+export const RECALL_TEXT = '叫它回来'
+
+/** What the hidden status line says the figure is written as doing. */
+export const DOING_TEXT: Readonly<Record<FigureDoing, string>> = {
+  idle: 'Agent 闲着',
+  thinking: 'Agent 在想',
+  looking: 'Agent 在查',
+  writing: 'Agent 在写',
+  background: 'Agent 在后台做事',
 }
 
-export const NO_LOGIN_TEXT = '这个部署没有开放登录'
+/** The window at least 768 wide has the sidebar; a narrower one has the sheet. */
+const WIDE = '(min-width: 768px)'
 
 function useConnectivity(source: ConnectivitySource): Connectivity {
   return useSyncExternalStore(
@@ -58,13 +114,27 @@ function useLoginState(state: ShellState): ShellLoginState {
   )
 }
 
-function Disconnected(props: { connectivity: Connectivity }) {
-  if (props.connectivity !== 'disconnected') return null
-  return (
-    <InlineNotice tone="danger" role="alert" className="shell-banner" still>
-      连不上服务。正在按间隔重新连接……
-    </InlineNotice>
+function useWide(): boolean {
+  return useSyncExternalStore(
+    listener => {
+      if (typeof window.matchMedia !== 'function') return () => undefined
+      const query = window.matchMedia(WIDE)
+      query.addEventListener('change', listener)
+      return () => query.removeEventListener('change', listener)
+    },
+    () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches,
   )
+}
+
+function useFigure(state: ShellState, pages: readonly PageItem[], shown: string | undefined) {
+  const [, changed] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => state.figure.subscribe(changed), [state.figure])
+  return mergedOf(state, pages, shown)
+}
+
+export function figureText(merged: MergedFigure): string {
+  const said = DOING_TEXT[merged.doing]
+  return merged.subject === undefined ? said : `${said}：${merged.subject}`
 }
 
 function StaleApp(props: { missing: readonly string[] }) {
@@ -76,48 +146,117 @@ function StaleApp(props: { missing: readonly string[] }) {
   )
 }
 
-function ConnectivityMark(props: { connectivity: Connectivity }) {
+export const THREW_TEXT = '界面有几块启动时出错，没有起来'
+export const HELD_TEXT = '连着两次让应用起不来，已经停掉'
+export const HELD_HINT = '换一版，或者不再装它，就放开'
+
+function Fallen(props: { state: ShellState }) {
+  const fallen = useWatched(props.state.fallen)
+  const named = (why: 'threw' | 'held'): string =>
+    fallen
+      .filter(each => each.why === why)
+      .map(each => each.name)
+      .join('、')
+  const threw = named('threw')
+  const held = named('held')
+  if (threw === '' && held === '') return null
   return (
-    <span className="shell-connectivity" data-connectivity={props.connectivity} role="status">
-      <span className="shell-connectivity-dot" aria-hidden="true" />
-      <span className="shell-link-label">{CONNECTIVITY_TEXT[props.connectivity]}</span>
-    </span>
+    <InlineNotice tone="caution" role="alert" className="shell-banner" still>
+      {threw === '' ? '' : `${THREW_TEXT}：${threw}。别的照常。`}
+      {held === '' ? '' : `${held} ${HELD_TEXT}。${HELD_HINT}。`}
+    </InlineNotice>
   )
 }
 
+/** What the figure on the gate says, in full ink out of its gap and down, once the login gate is back. */
+function GateNotice(props: { text: string; seat: React.RefObject<HTMLElement | null> }) {
+  const factor = useSizeFactor()
+  const [figure, setFigure] = useState<Box | null>(null)
+  const { seat } = props
+  useLayoutEffect(() => {
+    const measure = (): void => {
+      const element = seat.current?.querySelector('[data-figure-seat]')
+      if (element == null) return
+      const box = element.getBoundingClientRect()
+      const size = FIGURE_SIZE * factor
+      const x = box.left + box.width / 2 - size / 2
+      const y = box.top + box.height / 2 - size / 2
+      setFigure(was =>
+        was !== null && was.x === x && was.y === y && was.width === size
+          ? was
+          : { x, y, width: size, height: size },
+      )
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [seat, factor])
+  if (figure === null) return null
+  return (
+    <InkBubble as="section" figure={figure} className="shell-gate-notice" role="status">
+      <p className="shell-gate-notice-words">{props.text}</p>
+    </InkBubble>
+  )
+}
+
+/** Two modules each brought a login gate: neither is shown, and the person reads who they are. */
+export const gateConflictText = (by: readonly string[]): string =>
+  `登录入口有 ${by.length} 份，来自 ${by.join('、')}，都没有显示。`
+
+export const backConflictText = (by: readonly string[]): string =>
+  `反面有 ${by.length} 份，来自 ${by.join('、')}，都没有显示。`
+
 function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   const [gate] = useSlot(props.state.slots, 'gate')
+  const [conflict] = useConflicts(props.state.slots, 'gate')
   const notice = useWatched(props.state.notice)
+  const seat = useRef<HTMLDivElement>(null)
+  const lacks = useLacks(props.state)('gate', gate?.id ?? '')
   return (
-    <div className="shell-gate">
-      {notice !== undefined ? (
-        <InlineNotice tone="caution" role="status" still>
-          {notice}
-        </InlineNotice>
-      ) : null}
-      {gate !== undefined ? (
-        <Item key={gate.id} render={() => gate.render({})} />
-      ) : props.connectivity === 'connecting' ? (
-        <LoadingState label="正在连接服务……" />
-      ) : (
-        <p className="shell-empty">{NO_LOGIN_TEXT}</p>
-      )}
+    <div className="shell-gate" {...shellGate.props}>
+      <div ref={seat}>
+        <FigureSeat name="gate" className="shell-gate-seat" />
+      </div>
+      {notice !== undefined ? <GateNotice text={notice} seat={seat} /> : null}
+      <div className="shell-gate-card">
+        {conflict !== undefined ? (
+          <InlineNotice tone="danger" role="alert" still>
+            {gateConflictText(conflict.by)}
+          </InlineNotice>
+        ) : gate !== undefined && lacks.length > 0 ? (
+          <Lacks lacks={lacks} slot="gate" />
+        ) : gate !== undefined ? (
+          <Item key={gate.id} render={() => gate.render({})} />
+        ) : props.connectivity === 'connecting' ? (
+          <LoadingState className="shell-connecting" label={CONNECTING_TEXT} />
+        ) : (
+          <p className="shell-gate-closed">{NO_LOGIN_TEXT}</p>
+        )}
+      </div>
     </div>
   )
 }
 
 function Outside(props: {
-  appName: string
   state: ShellState
   login: ShellLoginState
   connectivity: Connectivity
   missing: readonly string[]
 }) {
   return (
-    <main className="shell-outside">
-      <Disconnected connectivity={props.connectivity} />
+    <main
+      id="shell-content"
+      className="shell-outside"
+      data-keyboard-region="main"
+      tabIndex={-1}
+      {...shellApp.props}
+    >
+      <div className="shell-drag-strip" aria-hidden="true" />
+      {props.connectivity === 'disconnected' ? (
+        <LoadingState className="shell-reconnecting" label={RECONNECTING_TEXT} />
+      ) : null}
       <StaleApp missing={props.missing} />
-      <span className="shell-brand shell-brand-outside">{props.appName}</span>
+      <Fallen state={props.state} />
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
       ) : (
@@ -127,206 +266,331 @@ function Outside(props: {
   )
 }
 
-function PageLink(props: {
-  page: PageItem
-  scope: string | undefined
-  current: boolean
-  choose: (id: string) => void
-}) {
-  const Icon = props.page.icon === undefined ? undefined : ICONS[props.page.icon]
-  const { badge } = props.page
-  const { scope } = props
+export const CONNECTING_TEXT = '正在连接服务……'
+
+/** A page or gate whose module lacks something it needs: one sentence for each, or the wait for the connection. */
+export function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
+  const said = props.lacks.flatMap(lack =>
+    lack.kind === 'connecting' ? [] : [lackText(lack, props.slot)],
+  )
+  if (said.length < props.lacks.length)
+    return <LoadingState className="shell-connecting" label={CONNECTING_TEXT} />
+  return [...new Set(said)].map(text => (
+    <InlineNotice key={text} tone="caution" role="status" className="shell-page-lack" still>
+      {text}
+    </InlineNotice>
+  ))
+}
+
+export function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
+  const [, changed] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => state.lacks.subscribe(changed), [state.lacks])
+  return (slot, id) => state.lacks.of(slot, id)
+}
+
+export const FACE_TEXT: Readonly<Record<Face, string>> = {
+  front: '现在露着正面',
+  back: '现在露着反面',
+}
+
+function useTurning(flip: FaceFlip): boolean {
+  return useSyncExternalStore(flip.subscribe, () => flip.current().phase !== 'idle')
+}
+
+function useFaceFlipFor(state: ShellState): { flip: FaceFlip; leaving: Face | undefined } {
+  const flip = useFaceFlip()
+  const face = useWatched(state.face)
+  const turning = useTurning(flip)
+  useEffect(
+    () => state.face.perform((to, swap) => flip.turn(to === 'back' ? 'right' : 'left', swap)),
+    [state.face, flip],
+  )
+  return { flip, leaving: turning ? (face === 'back' ? 'front' : 'back') : undefined }
+}
+
+function bindFigureTurn(state: ShellState): () => void {
+  const onMenu = (event: MouseEvent): void => {
+    if (
+      !(event.target instanceof Element) ||
+      event.target.closest('[data-control="figure"]') === null
+    )
+      return
+    if (state.face.get() !== 'back' || !state.face.two.get()) return
+    event.preventDefault()
+    state.face.turn()
+  }
+  window.addEventListener('contextmenu', onMenu)
+  return () => window.removeEventListener('contextmenu', onMenu)
+}
+
+function FaceSaid(props: { face: Face; flip: FaceFlip }) {
+  const turning = useTurning(props.flip)
+  const [first] = useState(props.face)
+  const [turned, setTurned] = useState(false)
+  if (!turned && props.face !== first) setTurned(true)
   return (
-    <button
-      type="button"
-      className={props.current ? 'shell-nav-link active' : 'shell-nav-link'}
-      aria-current={props.current ? 'page' : undefined}
-      data-page={props.page.id}
-      onClick={() => props.choose(props.page.id)}
-    >
-      {Icon === undefined ? null : <Icon aria-hidden="true" />}
-      <span className="shell-link-label">{props.page.title}</span>
-      {badge === undefined ? null : (
-        <span className="shell-nav-badge">
-          <Item quiet scope={scope} render={() => badge({ scope })} />
-        </span>
-      )}
-    </button>
+    <span className="sr-only" role="status">
+      {turned && !turning ? FACE_TEXT[props.face] : ''}
+    </span>
   )
 }
 
-function ThemeButton(props: { theme: ThemeSwitch }) {
-  const [resolved, setResolved] = useState(props.theme.initial)
-  const next: ResolvedTheme = resolved === 'dark' ? 'light' : 'dark'
-  return (
-    <button
-      type="button"
-      className="shell-utility-button"
-      data-theme-switch={resolved}
-      onClick={() => setResolved(props.theme.select(next))}
-    >
-      <span aria-hidden="true" className="shell-theme-mark" data-theme-mark={next} />
-      <span className="shell-link-label">{next === 'dark' ? '换成深色' : '换成浅色'}</span>
-    </button>
-  )
-}
-
-function Sidebar(props: {
-  appName: string
+function Back(props: {
   state: ShellState
-  connectivity: Connectivity
-  theme: ThemeSwitch
-  shown: string | undefined
-  pages: readonly PageItem[]
+  scope: string | undefined
+  item: BackItem | undefined
+  conflict: SlotConflict | undefined
+  away: boolean
+  leaving: boolean
+  element: React.RefObject<HTMLElement | null>
 }) {
-  const ref = useRef<HTMLElement>(null)
-  const [width, setWidth] = useState<SidebarWidth>('expanded')
-  const fold = useSidebarFoldMotion(ref, width)
-  const items = useSlot(props.state.slots, 'sidebar')
-  const scope = useWatched(props.state.scope)
+  const { item, conflict, scope, state } = props
+  if (item === undefined && conflict === undefined && props.away) return null
   return (
-    <aside
-      ref={ref}
-      className="shell-sidebar"
-      data-width={width}
-      data-labels={fold.labels ? 'shown' : 'hidden'}
-      data-fold-ready={fold.ready ? 'true' : 'false'}
+    <section
+      ref={props.element}
+      id="shell-back"
+      className="shell-face shell-back"
+      {...shellBack.props}
+      data-face="back"
+      data-flip-leaving={props.leaving ? '' : undefined}
+      aria-label="反面"
+      data-keyboard-region="back"
+      tabIndex={-1}
+      inert={props.away}
     >
-      <div className="shell-brand-row">
-        <span className="shell-brand">{props.appName}</span>
-        <IconButton
-          label={width === 'expanded' ? '收起侧栏' : '展开侧栏'}
-          variant="ghost"
-          className="shell-fold"
-          onClick={() => {
-            fold.prepare()
-            setWidth(width === 'expanded' ? 'rail' : 'expanded')
-          }}
+      {conflict !== undefined ? (
+        <InlineNotice tone="danger" role="alert" className="shell-banner" still>
+          {backConflictText(conflict.by)}
+        </InlineNotice>
+      ) : item !== undefined ? (
+        <BackBody key={item.id} item={item} scope={scope} state={state} />
+      ) : null}
+    </section>
+  )
+}
+
+const BackBody = memo(function BackBody(props: {
+  item: BackItem
+  scope: string | undefined
+  state: ShellState
+}) {
+  const { item, scope, state } = props
+  return (
+    <Item
+      scope={scope}
+      render={() => item.render({ scope, turn: state.face.turn, home: () => goHome(state) })}
+    />
+  )
+})
+
+const WorkspacePage = memo(function WorkspacePage(props: {
+  page: PageItem
+  shown: string | undefined
+  scope: string | undefined
+  focus: PageFocus | undefined
+  lacks: readonly Lack[]
+}) {
+  const { page, scope, focus, lacks } = props
+  const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
+  return (
+    <section
+      className="shell-page"
+      {...shellWorkspacePage.props}
+      aria-label={page.title}
+      data-page={page.id}
+      hidden={page.id !== props.shown}
+    >
+      {lacks.length > 0 ? (
+        <Lacks lacks={lacks} slot="pages" />
+      ) : (
+        <Item scope={scope} render={() => page.render(toPage)} />
+      )}
+    </section>
+  )
+})
+
+function Workspace(
+  props: SidebarProps & {
+    missing: readonly string[]
+    floats: FloatPlaces
+    note: ShellNote | null
+    settings: () => void
+  },
+) {
+  const { state, pages, shown } = props
+  const focus = useWatched(state.page.focus)
+  const scope = useWatched(state.scope)
+  const face = useWatched(state.face)
+  const [back] = useSlot(state.slots, 'back')
+  const [backConflict] = useConflicts(state.slots, 'back')
+  const onBack = face === 'back'
+  const { flip, leaving } = useFaceFlipFor(state)
+  const { note } = props
+  useShutOnTurn(note, flip, face)
+  const front = useRef<HTMLDivElement>(null)
+  const backFace = useRef<HTMLElement>(null)
+  const wide = useWide()
+  const [width, setWidth] = useState<SidebarWidth>('expanded')
+  const [covered, setCovered] = useState(false)
+  const sidebar = useRef<HTMLElement>(null)
+  const home = useSeatedHome()
+  const room = wide && width === 'expanded' && home
+  const lacksOf = useLacks(state)
+  useEffect(() => state.told.room(room), [state.told, room])
+  useEffect(() => () => state.told.room(false), [state.told])
+  useEffect(() => bindFigureTurn(state), [state])
+  return (
+    <div className="app-shell" {...shellApp.props}>
+      <div
+        ref={front}
+        className="shell-face shell-front"
+        data-face="front"
+        data-flip-leaving={leaving === 'front' ? '' : undefined}
+        inert={onBack}
+      >
+        {wide ? (
+          <Sidebar
+            {...props}
+            width={width}
+            setWidth={setWidth}
+            sidebar={sidebar}
+            told={<ToldAtHome state={state} sidebar={sidebar} />}
+          />
+        ) : (
+          <NarrowNavigation {...props} covering={setCovered} />
+        )}
+        <main
+          id="shell-content"
+          className="shell-workspace"
+          {...shellWorkspace.props}
+          data-keyboard-region="main"
+          tabIndex={-1}
+          inert={!wide && covered}
         >
-          <FoldIcon aria-hidden="true" />
-        </IconButton>
-      </div>
-      <div className="shell-navigation-content" data-expanded={fold.labels ? 'true' : 'false'}>
-        <ConnectivityMark connectivity={props.connectivity} />
-        <nav className="shell-nav" aria-label="页面">
-          {props.pages.map(page => (
-            <PageLink
+          <div className="shell-drag-strip" aria-hidden="true" />
+          <StaleApp missing={props.missing} />
+          <Fallen state={state} />
+          {pages.map(page => (
+            <WorkspacePage
               key={page.id}
               page={page}
+              shown={shown}
               scope={scope}
-              current={page.id === props.shown}
-              choose={props.state.page.choose}
+              focus={focus}
+              lacks={lacksOf('pages', page.id)}
             />
           ))}
-        </nav>
-        <div className="shell-navigation-main">
-          {items.map(item => (
-            <div key={item.id} className="shell-sidebar-item" data-item={item.id}>
-              <Item scope={scope} render={() => item.render({ scope })} />
-            </div>
-          ))}
-        </div>
-        <div className="shell-secondary">
-          <ThemeButton theme={props.theme} />
-        </div>
+        </main>
       </div>
-    </aside>
-  )
-}
-
-function Workspace(props: {
-  appName: string
-  state: ShellState
-  connectivity: Connectivity
-  theme: ThemeSwitch
-  missing: readonly string[]
-}) {
-  const pages = useSlot(props.state.slots, 'pages')
-  const shown = useWatched(props.state.page)
-  const focus = useWatched(props.state.page.focus)
-  const scope = useWatched(props.state.scope)
-  return (
-    <div className="app-shell">
-      <Sidebar {...props} shown={shown} pages={pages} />
-      <main className="shell-workspace">
-        <Disconnected connectivity={props.connectivity} />
-        <StaleApp missing={props.missing} />
-        {pages.map(page => (
-          <section
-            key={page.id}
-            className="shell-page"
-            aria-label={page.title}
-            data-page={page.id}
-            hidden={page.id !== shown}
-          >
-            <Item
-              scope={scope}
-              render={() =>
-                page.render(focus?.page === page.id ? { scope, subject: focus.subject } : { scope })
-              }
-            />
-          </section>
-        ))}
-      </main>
+      <Back
+        state={state}
+        scope={scope}
+        item={back}
+        conflict={backConflict}
+        away={!onBack}
+        leaving={leaving === 'back'}
+        element={backFace}
+      />
+      <Float
+        state={state}
+        scope={scope}
+        places={props.floats}
+        inert={!wide && covered}
+        note={note}
+        settings={props.settings}
+      />
+      <FlipLayer
+        flip={flip}
+        leaving={() => (state.face.get() === 'back' ? front.current : backFace.current)}
+      />
+      <FaceSaid face={face} flip={flip} />
     </div>
   )
 }
 
-/** The toasts modules handed over; an action goes to its page and closes the toast. */
-function Toasts(props: { state: ShellState }) {
-  const { toasts, page } = props.state
-  const shown = useSyncExternalStore(toasts.subscribe, toasts.shown)
-  return (
-    <ToastStack label="提示">
-      {shown.map(({ key, toast }) => {
-        const { action } = toast
-        return (
-          <ToastItem
-            key={key}
-            tone={toast.tone}
-            title={toast.title}
-            {...(toast.body !== undefined && { body: toast.body })}
-            {...(action !== undefined && {
-              action: {
-                label: action.label,
-                onClick: () => {
-                  page.choose(action.page, action.subject)
-                  toasts.dismiss(key)
-                },
-              },
-            })}
-            onDismiss={() => toasts.dismiss(key)}
-          />
-        )
-      })}
-    </ToastStack>
-  )
-}
-
 export function Shell(props: ShellProps) {
-  const login = useLoginState(props.state)
+  const { state } = props
+  const login = useLoginState(state)
   const connectivity = useConnectivity(props.connectivity)
   const missing = props.missingAtForwarding ?? []
+  const pages = useSlot(state.slots, 'pages')
+  const shown = useWatched(state.page)
+  const merged = useFigure(state, pages, shown)
+  const face = useWatched(state.face)
+  const palette = state.palette
+  const keys = useMemo(() => shellKeys(state), [state])
+  useEffect(() => state.size.bind(props.size), [state, props.size])
+  useEffect(() => bindShellKeys(window, keys), [keys])
+  const homePage = homeOf(merged, pages)
+  const doing = merged.doing === 'idle' ? undefined : merged.doing
+  const figureControl = useRef<FigureControl>(null)
+  const device = props.figureDevice ?? NO_FIGURE_DEVICE
+  const note = useShellNote(state)
+  const stay = useStay(
+    device,
+    figureControl,
+    login === 'signed-in',
+    {
+      doing,
+      moment: merged.moment,
+      waiting: merged.waiting,
+    },
+    state.scope,
+    state,
+    note,
+  )
   return (
-    <AppTooltipProvider>
-      {login === 'signed-in' ? (
-        <Workspace
-          appName={props.appName}
-          state={props.state}
-          connectivity={connectivity}
-          theme={props.theme}
-          missing={missing}
+    <RedrawProvider value={state.redraw.draw}>
+      <AppTooltipProvider>
+        <FigureStage
+          doing={doing}
+          moment={merged.moment}
+          waiting={merged.waiting}
+          label={figureText(merged)}
+          onPress={pressSeat}
+          liftable
+          onHand={stay.hand}
+          away={stay.away}
+          awayLabel={RECALL_TEXT}
+          onRecall={stay.recall}
+          control={figureControl}
+          {...shellFigure.props}
+        >
+          <a
+            className="shell-skip"
+            href={login === 'signed-in' && face === 'back' ? '#shell-back' : '#shell-content'}
+            data-control="link"
+          >
+            跳到正文
+          </a>
+          {login === 'signed-in' ? (
+            <Workspace
+              appName={props.appName}
+              state={state}
+              connectivity={connectivity}
+              theme={props.theme}
+              size={props.size}
+              pages={pages}
+              shown={shown}
+              homePage={homePage}
+              missing={missing}
+              floats={props.floats}
+              note={note}
+              settings={device.settings}
+            />
+          ) : (
+            <Outside state={state} login={login} connectivity={connectivity} missing={missing} />
+          )}
+        </FigureStage>
+        <ShellPalette
+          palette={palette}
+          actions={keys.actions}
+          mac={keys.mac}
+          changes={keys.changes}
+          run={action => void runAction(action, keys)}
         />
-      ) : (
-        <Outside
-          appName={props.appName}
-          state={props.state}
-          login={login}
-          connectivity={connectivity}
-          missing={missing}
-        />
-      )}
-      <Toasts state={props.state} />
-    </AppTooltipProvider>
+      </AppTooltipProvider>
+    </RedrawProvider>
   )
 }

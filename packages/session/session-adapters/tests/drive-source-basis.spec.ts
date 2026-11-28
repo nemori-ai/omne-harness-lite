@@ -59,7 +59,7 @@ async function assembled(s: SqlScene) {
   const runtimeOf = (id: AgentInstanceId): AgentRuntime<unknown> => ({
     instance: id,
     invoke: async input => {
-      given.push(input.initial)
+      given.push(...input.initial)
       const opened = await s.view.journal.open(
         openInput({
           access: s.access,
@@ -100,6 +100,8 @@ async function assembled(s: SqlScene) {
     readonly reconcile: AgentExecutionRecoveryService<unknown>['reconcile'] = async () =>
       fail({ kind: 'unsupported' })
     readonly detach: AgentExecutionRecoveryService<unknown>['detach'] = async () =>
+      fail({ kind: 'unsupported' })
+    readonly handOver: AgentExecutionRecoveryService<unknown>['handOver'] = async () =>
       fail({ kind: 'unsupported' })
     readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async () =>
       fail({ kind: 'unsupported' })
@@ -167,13 +169,13 @@ describe('the source basis from AgentDrivePort to the read-only check', () => {
     const invoke = deriveDriveOperation({
       kind: 'invoke',
       execution: s.execution,
-      first,
+      initial: [first],
       started: s.grant,
     })
     const invoked = await drive.invoke({
       ...target,
       operation: invoke,
-      first,
+      initial: [first],
       source: s.grant,
       grant: s.grant,
     })
@@ -208,10 +210,10 @@ describe('the source basis from AgentDrivePort to the read-only check', () => {
       operation: deriveDriveOperation({
         kind: 'invoke',
         execution: s.execution,
-        first,
+        initial: [first],
         started: origin,
       }),
-      first,
+      initial: [first],
       source: origin,
       grant: s.grant,
     })
@@ -223,10 +225,10 @@ describe('the source basis from AgentDrivePort to the read-only check', () => {
       operation: deriveDriveOperation({
         kind: 'invoke',
         execution: s.execution,
-        first,
+        initial: [first],
         started: s.grant,
       }),
-      first,
+      initial: [first],
       source: s.grant,
       grant: s.grant,
     })

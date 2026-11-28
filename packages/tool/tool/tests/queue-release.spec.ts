@@ -98,6 +98,7 @@ function windowStore(
     usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     read: async domain => {
       if (reads.failing > 0 && domain.kind === 'call') {
         reads.failing -= 1
@@ -174,6 +175,7 @@ describe('22 release: a released call never regains an entry', () => {
         usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: domain => memory.read(domain),
         commit: input => {
           commits.push(input)

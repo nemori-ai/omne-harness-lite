@@ -1,9 +1,18 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Adoption, ModelProfile, ModelProfileDefinition } from '@omne-harness/model-contract'
-import type { ModelProfileSnapshot } from '@omne-harness/model-contract/provider'
+import {
+  profileProblems,
+  type Adoption,
+  type ModelProfile,
+  type ModelProfileDefinition,
+} from '@omne-harness/model-contract'
+import type {
+  ModelPreferencesPort,
+  ModelProfileSnapshot,
+} from '@omne-harness/model-contract/provider'
 import { createModelProfiles } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createOfficialProfileSource } from '../src/profile-source.ts'
+import { officialProfiles } from '../src/official-profiles.ts'
 import { providerName } from './support/credentials.ts'
 
 const principal = { owner: 'model-host-local-tests', subject: 'reader' }
@@ -51,8 +60,9 @@ const METER: Adoption = {
 
 const UPDATED_AT = '2026-11-01T00:00:00Z'
 
-function definitionOf(route: string): ModelProfileDefinition {
+function definitionOf(route: string): ModelProfileDefinition<'llm'> {
   return {
+    kind: 'llm',
     suppliers: [
       {
         adoption: adoptionOf(route),
@@ -101,8 +111,8 @@ function profilesOfRoute(profile: ModelProfile): Adoption {
   return profile.adoption
 }
 
-const DEFINITION_DIGEST = '936a8c89f93b6f943bf7e7b55af590a5c9e16d7f46c74e16c91c84de6c71a40b'
-const SNAPSHOT_DIGEST = '3252c6c3908c2223dfa1add8afcfd61948e63b5183d6027de4919d8547837795'
+const DEFINITION_DIGEST = '2160ea858ba33e5ed479cd1933b34fabfa4c74adb23ce7c57b727dd593b102a6'
+const SNAPSHOT_DIGEST = 'f571de4c9f2af816d34f7ee0a1a432827454693aba5c22e40cd20e9eec736045'
 
 it('turns each definition into a factory profile whose route is the first supplier model', async () => {
   const snapshot = await snapshotOf(['alpha/route', 'beta/route'])
@@ -111,7 +121,7 @@ it('turns each definition into a factory profile whose route is the first suppli
   for (const [index, route] of ['alpha/route', 'beta/route'].entries()) {
     const candidate = snapshot.candidates[index]
     if (candidate === undefined) throw new Error('missing candidate')
-    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, route })
+    expect(candidate.profile.identity).toEqual({ scope: { kind: 'factory' }, kind: 'llm', route })
     expect(candidate.profile.availability).toBe('active')
     expect(candidate.profile.updatedAt).toBe(UPDATED_AT)
     expect(candidate.excluded).toBe(false)
@@ -156,14 +166,14 @@ it('makes every official profile resolvable, with no credential and no reason', 
   const source = sourceOf(['alpha/route', 'beta/route'])
   const profiles = createModelProfiles(source)
   const required = {
-    modalities: ['text'] as const,
+    kind: 'llm',
     source: { owner: 'model-host-local-tests', record: 'modality', revision: '1', digest: 'm' },
-  }
+  } as const
   const resolved = await profiles.resolve({
     principal,
     tenant: TENANT,
     route: 'alpha/route',
-    required: { ...required, modalities: ['text'] },
+    required: { ...required, modalities: { input: ['text'] } },
   })
   if ('failure' in resolved) throw new Error(`resolve failure ${JSON.stringify(resolved.failure)}`)
   expect(resolved.ok).toMatchObject({ kind: 'resolved', selectable: true, reasons: [] })
@@ -176,7 +186,7 @@ it('refuses two definitions on one route at construction instead of serving half
 })
 
 it('refuses a supplier adoption whose revision is not a revision', () => {
-  const broken: ModelProfileDefinition = {
+  const broken: ModelProfileDefinition<'llm'> = {
     ...definitionOf('alpha/route'),
     suppliers: [
       {
@@ -200,4 +210,275 @@ it('gives each profile its definition unchanged, so the definition is the family
   if (profile === undefined) throw new Error('missing profile')
   expect(profilesOfRoute(profile)).toBe(profile.adoption)
   expect(profile.definition).toBe(definition)
+})
+
+it('reads current credential presence once per provider and Access without resolving secrets', async () => {
+  const seen: unknown[] = []
+  let state: 'available' | 'missing' = 'missing'
+  const source = createOfficialProfileSource(
+    { definitions: ['alpha/route', 'beta/route'].map(definitionOf), updatedAt: UPDATED_AT },
+    () => ({
+      layerOf: query => {
+        seen.push(query)
+        return state === 'available'
+          ? { ok: { layer: 'official' } }
+          : { failure: { kind: 'missing' } }
+      },
+      resolve: () => {
+        throw new Error('presence must not read secrets')
+      },
+    }),
+  )
+  const first = await source.read({ principal, tenant: TENANT })
+  if (!('ok' in first)) throw new Error('source failure')
+  expect(first.ok.candidates.map(candidate => candidate.credential)).toEqual(['missing', 'missing'])
+  expect(seen).toEqual([
+    { provider: providerName('openrouter'), official: true, access: { principal, tenant: TENANT } },
+  ])
+  state = 'available'
+  const other = tenantOf('2', '2')
+  const second = await source.read({ principal, tenant: other })
+  if (!('ok' in second)) throw new Error('source failure')
+  expect(second.ok.candidates.map(candidate => candidate.credential)).toEqual([
+    'available',
+    'available',
+  ])
+  expect(seen).toHaveLength(2)
+  expect(seen[1]).toEqual({
+    provider: providerName('openrouter'),
+    official: true,
+    access: { principal, tenant: other },
+  })
+  expect(second.ok.source.digest).not.toBe(first.ok.source.digest)
+  expect(second.ok.source.revision).not.toBe(first.ok.source.revision)
+})
+
+it('keeps uncertain credential presence unknown while the official profiles remain selectable', async () => {
+  for (const readPort of [
+    () => undefined,
+    () => {
+      throw new Error('provider down')
+    },
+    () => ({
+      layerOf: () => {
+        throw new Error('custody down')
+      },
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+    () => ({
+      layerOf: () => ({ failure: { kind: 'unavailable' as const } }),
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+    () => ({
+      layerOf: () => ({ failure: { kind: 'denied' as const } }),
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+  ]) {
+    const source = createOfficialProfileSource(
+      { definitions: [definitionOf('alpha/route')], updatedAt: UPDATED_AT },
+      readPort,
+    )
+    const resolved = await createModelProfiles(source).resolve({
+      principal,
+      tenant: TENANT,
+      route: 'alpha/route',
+      required: {
+        kind: 'llm',
+        modalities: { input: ['text'] },
+        source: { owner: 'test', record: 'text', revision: '1', digest: '0'.repeat(64) },
+      },
+    })
+    expect(resolved).toMatchObject({
+      ok: { kind: 'resolved', selectable: true, credential: 'unavailable' },
+    })
+  }
+})
+
+it('reports unreadable custody distinctly from missing, revoked or incomplete credentials', async () => {
+  const cases = [
+    [{ kind: 'unreadable' }, 'unreadable'],
+    [{ kind: 'revoked' }, 'missing'],
+    [{ kind: 'incomplete', missing: ['apiKey'] }, 'missing'],
+    [{ kind: 'missing' }, 'missing'],
+  ] as const
+  for (const [failure, expected] of cases) {
+    const source = createOfficialProfileSource(
+      { definitions: [definitionOf('alpha/route')], updatedAt: UPDATED_AT },
+      () => ({
+        layerOf: () => ({ failure }),
+        resolve: () => {
+          throw new Error('listing must not read secrets')
+        },
+      }),
+    )
+    const snapshot = await source.read({ principal, tenant: TENANT })
+    expect(snapshot).toMatchObject({ ok: { candidates: [{ credential: expected }] } })
+  }
+})
+
+function withPreferences(port: (() => ModelPreferencesPort | undefined) | undefined) {
+  return createOfficialProfileSource(
+    { definitions: ['on/route', 'off/route'].map(definitionOf), updatedAt: UPDATED_AT },
+    undefined,
+    port,
+  )
+}
+
+const chosen = (enabled: readonly string[], efforts: readonly (readonly [string, 'high'])[] = []) =>
+  ({
+    async read() {
+      return {
+        ok: {
+          enabled: { llm: new Set(enabled), decisions: new Set(), live: new Set() },
+          efforts: new Map(efforts),
+        },
+      }
+    },
+  }) satisfies ModelPreferencesPort
+
+it('marks a model the tenant has off as excluded and carries the default effort of one it has on', async () => {
+  const read = await withPreferences(() => chosen(['on/route'], [['on/route', 'high']])).read({
+    principal,
+    tenant: TENANT,
+  })
+  if ('failure' in read) throw new Error(JSON.stringify(read.failure))
+  expect(
+    read.ok.candidates.map(candidate => [
+      candidate.profile.identity.route,
+      candidate.excluded,
+      candidate.defaultReasoningEffort,
+    ]),
+  ).toEqual([
+    ['on/route', false, 'high'],
+    ['off/route', true, undefined],
+  ])
+})
+
+it('answers unavailable when the preferences cannot be read, never all on or all off', async () => {
+  const failing = await withPreferences(() => ({
+    async read() {
+      return { failure: { kind: 'unavailable' } } as const
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(failing).toMatchObject({ failure: { kind: 'unavailable' } })
+  const throwing = await withPreferences(() => ({
+    read: () => Promise.reject(new Error('settings are down')),
+  })).read({ principal, tenant: TENANT })
+  expect(throwing).toMatchObject({ failure: { kind: 'unavailable' } })
+})
+
+it('excludes nothing in a tree that has no preferences, as a source used on its own', async () => {
+  for (const port of [undefined, () => undefined]) {
+    const read = await withPreferences(port).read({ principal, tenant: TENANT })
+    if ('failure' in read) throw new Error(JSON.stringify(read.failure))
+    expect(read.ok.candidates.every(candidate => !candidate.excluded)).toBe(true)
+  }
+})
+
+it('reads the preferences once per provider and with the access of the reader', async () => {
+  const seen: unknown[] = []
+  await withPreferences(() => ({
+    async read(input) {
+      seen.push(input)
+      return {
+        ok: {
+          enabled: { llm: new Set(['on/route']), decisions: new Set(), live: new Set() },
+          efforts: new Map(),
+        },
+      }
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(seen).toEqual([{ provider: 'openrouter', access: { principal, tenant: TENANT } }])
+})
+
+it('gives a different source evidence once a model is turned off, so no decision outlives the switch', async () => {
+  const on = await withPreferences(() => chosen(['on/route', 'off/route'])).read({
+    principal,
+    tenant: TENANT,
+  })
+  const off = await withPreferences(() => chosen(['on/route'])).read({ principal, tenant: TENANT })
+  const effort = await withPreferences(() =>
+    chosen(['on/route', 'off/route'], [['on/route', 'high']]),
+  ).read({
+    principal,
+    tenant: TENANT,
+  })
+  if ('failure' in on || 'failure' in off || 'failure' in effort) throw new Error('read failed')
+  expect(off.ok.source.digest).not.toBe(on.ok.source.digest)
+  expect(effort.ok.source.digest).not.toBe(on.ok.source.digest)
+  expect(on.ok.candidates[1]).not.toHaveProperty('defaultReasoningEffort')
+  expect(on.ok.candidates.map(candidate => candidate.credential)).toEqual([
+    'unavailable',
+    'unavailable',
+  ])
+})
+
+it('says the preferences were unreadable, as the dependency that failed', async () => {
+  const read = await withPreferences(() => ({
+    async read() {
+      return { failure: { kind: 'unavailable' } } as const
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(read).toEqual({
+    failure: { kind: 'unavailable', dependency: 'model-preferences', diagnostic: 'unreadable' },
+  })
+})
+
+it('keeps a credential unavailable when custody denies it, cannot be asked, or is not there', async () => {
+  const source = (port: (() => unknown) | undefined) =>
+    createOfficialProfileSource(
+      { definitions: [definitionOf('on/route')], updatedAt: UPDATED_AT },
+      port as never,
+    )
+  const credentialWith = async (port: (() => unknown) | undefined) => {
+    const read = await source(port).read({ principal, tenant: TENANT })
+    if ('failure' in read) throw new Error('read failed')
+    return read.ok.candidates[0]?.credential
+  }
+  const answering = (kind: string) => () => ({
+    layerOf: () => ({ failure: { kind } }),
+    resolve: () => ({ failure: { kind } }),
+  })
+  expect(await credentialWith(answering('denied'))).toBe('unavailable')
+  expect(await credentialWith(answering('unavailable'))).toBe('unavailable')
+  expect(await credentialWith(() => undefined)).toBe('unavailable')
+  expect(
+    await credentialWith(() => {
+      throw new Error('custody is down')
+    }),
+  ).toBe('unavailable')
+})
+
+it('refuses to assemble an official profile that breaks the profile rules, naming its fields', () => {
+  const bad = definitionOf('lab/no-image-limit')
+  expect(() =>
+    createOfficialProfileSource({ definitions: [{ ...bad, limits: [] }], updatedAt: UPDATED_AT }),
+  ).toThrow('the official profile lab/no-image-limit breaks the profile rules: limits.image-bytes')
+  const context = { ...bad.context, compactionTriggerPercent: '0' }
+  expect(() =>
+    createOfficialProfileSource({
+      definitions: [{ ...bad, context, limits: [] }],
+      updatedAt: UPDATED_AT,
+    }),
+  ).toThrow('rules: context.compactionTriggerPercent, limits.image-bytes')
+  expect(() =>
+    createOfficialProfileSource({
+      definitions: [
+        { ...bad, context: { ...bad.context, output: { provided: '1001', upstream: [] } } },
+      ],
+      updatedAt: UPDATED_AT,
+    }),
+  ).toThrow('context.output')
+})
+
+it('assembles every official profile of the release: each keeps the profile rules', () => {
+  const definitions = officialProfiles({ retryPolicy: RETRY, compactionTriggerPercent: '80' })
+  expect(definitions.map(profileProblems).filter(problems => problems.length > 0)).toEqual([])
+  expect(() => createOfficialProfileSource({ definitions, updatedAt: UPDATED_AT })).not.toThrow()
 })

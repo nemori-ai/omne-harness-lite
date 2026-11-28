@@ -3,16 +3,17 @@ import { join } from 'node:path'
 import {
   capabilityId,
   createCategoryPoint,
+  createHeldBook,
   createTenantPublishing,
+  heldLayerSource,
   type CapabilityId,
-  type PackageReader,
 } from '@omne-harness/assets'
 import {
   assetsSqlMaterials,
   createAssetsLocal,
   createTenantPublisher,
   publishedAssetRef,
-  tenantLayerSource,
+  tenantListing,
   type AssetsLocal,
   type PackageLocation,
 } from '@omne-harness/assets-local'
@@ -44,6 +45,7 @@ import type {
 import {
   createContentStoreSource,
   createDirectorySource,
+  directoryPackageReader,
   createSkillDecisions,
   skillInputsFromAssets,
   type SkillCandidate,
@@ -86,33 +88,6 @@ export async function writeOfficialSample(parent: string): Promise<string> {
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, 'SKILL.md'), OFFICIAL_SAMPLE)
   return dir
-}
-
-export function directoryReader(source: SkillPackageSource, root: string): PackageReader {
-  const locator: PackageLocator = { kind: 'directory', root }
-  return {
-    async manifest() {
-      const snapshot = await source.snapshot(locator)
-      if (!('ok' in snapshot)) return { failure: 'unavailable' }
-      return {
-        ok: {
-          entries: snapshot.ok.entries.map(entry => ({
-            path: entry.path,
-            bytes: entry.size,
-            digest: entry.digest,
-          })),
-        },
-      }
-    },
-    async open(path, expected) {
-      const snapshot = await source.snapshot(locator)
-      if (!('ok' in snapshot)) return { failure: 'unavailable' }
-      const entry = snapshot.ok.entries.find(one => one.path === path && one.digest === expected)
-      if (entry === undefined) return { failure: 'entry-not-found' }
-      const bytes = await source.open(locator, snapshot.ok.digest, entry.path)
-      return 'ok' in bytes ? bytes : { failure: 'unavailable' }
-    },
-  }
 }
 
 export async function openStorage(stateDir: string, tenantRef: string) {
@@ -164,7 +139,12 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
   const categories = createCategoryPoint()
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
+  const book = createHeldBook(tenantRef)
   const assets: AssetsLocal = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -172,6 +152,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     manifestDigest: opened.combination.manifestDigest,
     categories,
     packageRoot: join(options.stateDir, 'packages'),
+    held: book,
   })
   try {
     await assets.packages.recover()
@@ -195,7 +176,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       tenant: tenantRef,
       principal: { tenant: tenantRef },
       capability,
-      content: { kind: 'directory', from: directoryReader(directories, options.packageDir) },
+      content: { kind: 'directory', from: directoryPackageReader(directories, options.packageDir) },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
 
@@ -232,7 +213,14 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       return { layer: 'official', state: 'read', candidates: [candidate] }
     }
     const fromAssets = skillInputsFromAssets<string, Scope>({
-      sources: [tenantLayerSource(assets)],
+      sources: [
+        heldLayerSource({
+          layer: 'tenant',
+          tenant: tenantRef,
+          read: book.read,
+          list: tenantListing(assets),
+        }),
+      ],
       body: versionBodyOf(assets),
     })
     const sameTenant = (who: Access<string>) =>
@@ -293,7 +281,6 @@ function storageConfig(storageRoot: string): SqliteStorageConfig {
     maxRequestBytes: 20 << 20,
     globalInFlightWriteBytes: 64 << 20,
     maxJsonDepth: 50,
-    maxJsonMembers: 100000,
     maxResponseBytes: 1 << 20,
     maxOperationResponseBytes: 2 << 20,
     globalWriteResponseBytes: 64 << 20,

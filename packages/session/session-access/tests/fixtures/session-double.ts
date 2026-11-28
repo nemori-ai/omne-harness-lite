@@ -30,12 +30,15 @@ type FaceMethod =
   | 'create'
   | 'interrupt'
   | 'change'
+  | 'recordCommand'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
   | 'stopCall'
   | 'retryRun'
+  | 'reloadSession'
   | 'change'
+  | 'recordCommand'
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'
@@ -204,7 +207,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create' | 'interrupt' | 'change'> = {
+  const management: Pick<
+    SessionManagement<P>,
+    'create' | 'interrupt' | 'change' | 'recordCommand'
+  > = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -245,12 +251,17 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (found === undefined) return fail({ kind: 'denied', action: 'change' })
       const outcome = commit('change', input.operation, { declaration: input.declaration })
       const { declaration } = input
-      if ('ok' in outcome && declaration.kind === 'model')
-        found.model = {
-          selection: { name: declaration.name, basis: declaration.basis },
-          at: outcome.ok.revision,
-        }
+      if ('ok' in outcome && declaration.kind === 'model') {
+        const { kind: _kind, ...selection } = declaration
+        found.model = { selection, at: outcome.ok.revision }
+      }
       return outcome
+    },
+    async recordCommand(input) {
+      record('recordCommand', input, { name: input.name, args: input.args })
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'recordCommand' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'recordCommand' })
+      return commit('recordCommand', input.operation, { name: input.name, args: input.args })
     },
   }
 
@@ -268,6 +279,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     | 'cancelRun'
     | 'stopCall'
     | 'retryRun'
+    | 'reloadSession'
     | 'readWaiting'
     | 'readPending'
     | 'readWaitingCalls'
@@ -352,6 +364,13 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'retryRun' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'retryRun' })
       return commit('retryRun', input.operation, { kind: 'retryRun', run: input.run })
+    },
+    async reloadSession(input) {
+      record('reloadSession', input, {})
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'reloadSession' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'reloadSession' })
+      if (forcedFailure !== undefined) return fail(forcedFailure)
+      return succeed({ kind: 'no-change' as const })
     },
     async accept(input) {
       record('accept', input, input.value)

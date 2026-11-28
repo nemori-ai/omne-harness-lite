@@ -35,20 +35,51 @@ it('gives the six services six different keys', () => {
   expect(new Set(KEYS.map(([, key]) => key)).size).toBe(6)
 })
 
-it('exports exactly the six abstract Service classes and the six key constants', async () => {
+it('exports exactly the twenty-one abstract Service classes, the twenty-one key constants and the point of the category', async () => {
   const cordis: Record<string, unknown> = await import('@omne-harness/mcp-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
     'ActionDiscoveryService',
     'ActionInvokerService',
     'AdoptionViewService',
+    'AuthorizationRecordsService',
+    'CallbackReceiverService',
+    'CatalogStoreService',
+    'ContinuationRecordsService',
     'CredentialUseService',
+    'EndpointConnectService',
     'EndpointStatusService',
+    'EventCatalogStoreService',
+    'EventConsumerService',
+    'EventRecordsService',
+    'EventSubscriptionsService',
+    'GrantConnectorService',
+    'HoldingRowsService',
+    'PeerSkillsService',
+    'SkillCatalogStoreService',
+    'TaskRecordsService',
+    'TaskWatchService',
     'UseEligibilityService',
     'mcpActionDiscoveryKey',
     'mcpActionInvokerKey',
     'mcpAdoptionViewKey',
+    'mcpAuthorizationRecordsKey',
+    'mcpCallbackReceiverKey',
+    'mcpCatalogStoreKey',
+    'mcpContinuationRecordsKey',
     'mcpCredentialUseKey',
+    'mcpEndpointConnectKey',
     'mcpEndpointStatusKey',
+    'mcpEndpointsPoint',
+    'mcpEventCatalogStoreKey',
+    'mcpEventConsumerKey',
+    'mcpEventRecordsKey',
+    'mcpEventSubscriptionsKey',
+    'mcpGrantConnectorKey',
+    'mcpHoldingRowsKey',
+    'mcpPeerSkillsKey',
+    'mcpSkillCatalogStoreKey',
+    'mcpTaskRecordsKey',
+    'mcpTaskWatchKey',
     'mcpUseEligibilityKey',
   ])
 })
@@ -65,6 +96,12 @@ class Discovery extends ActionDiscoveryService<unknown> {
     return notCalled()
   }
   peer() {
+    return notCalled()
+  }
+  eventTypes() {
+    return notCalled()
+  }
+  skills() {
     return notCalled()
   }
 }
@@ -97,6 +134,9 @@ class Status extends EndpointStatusService<unknown, unknown> {
   }
   list() {
     return notCalled()
+  }
+  subscribe() {
+    return () => undefined
   }
 }
 class Adoption extends AdoptionViewService<unknown, unknown> {

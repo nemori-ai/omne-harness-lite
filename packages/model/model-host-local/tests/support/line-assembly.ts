@@ -12,6 +12,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
+import { testLiveHosting } from '@omne-harness/model/testing'
 import type { ModelCommandsCoreOptions, ModelSendSource } from '@omne-harness/model/commands'
 import {
   decodeModelCallId,
@@ -19,6 +20,7 @@ import {
   decodeModelOperationId,
   type Adoption,
   type ModalityRequirement,
+  chatNeedOf,
   type ModelCallId,
   type ModelDelivery,
   type ModelFailure,
@@ -42,6 +44,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactEffortMigration,
   dispatchFactsMigration,
   modelMigration,
   pendingHandler,
@@ -192,6 +195,8 @@ function openDatabase(file: string): DatabaseSync {
   const port: ReadPort = { execute: (sql, params) => rowsOf(db, sql, params) }
   if (modelMigration.verify(port).kind !== 'verified') modelMigration.up(port)
   if (dispatchFactsMigration.verify(port).kind !== 'verified') dispatchFactsMigration.up(port)
+  if (dispatchFactEffortMigration.verify(port).kind !== 'verified')
+    dispatchFactEffortMigration.up(port)
   db.exec('CREATE TABLE IF NOT EXISTS e2e_receipt (key TEXT PRIMARY KEY, receipt TEXT NOT NULL)')
   return db
 }
@@ -226,6 +231,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       manifestDigest: request.manifestDigest,
     }
     const key = keyOf(request.identity)
+    const keeps = request.identity.recall !== 'never'
     db.exec('BEGIN IMMEDIATE')
     const port = {
       execute: (sql: string, params: readonly SqlValue[]) => rowsOf(db, sql, params),
@@ -242,7 +248,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     const entry = { participant: command.participant, protocol: '1' }
     if (kind === 'participated') {
       const receipt = { kind: 'committed', ...head, responses: [{ ...entry, reply }] } as Receipt
-      saveReceipt(key, receipt)
+      if (keeps) saveReceipt(key, receipt)
       db.exec('COMMIT')
       return receipt
     }
@@ -260,7 +266,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       ...head,
       responses: [{ ...entry, reply: stopping }],
     } as Receipt
-    saveReceipt(key, receipt)
+    if (keeps) saveReceipt(key, receipt)
     return receipt
   }
   const storage: Storage = {
@@ -268,7 +274,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request) {
       const key = keyOf(request.identity)
-      const existing = receiptOf(key)
+      const existing = request.identity.recall === 'never' ? undefined : receiptOf(key)
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === digestOf(request.commands)
@@ -289,6 +295,8 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       return Promise.resolve({ ...executeCommit(request), recalled: false })
     },
     query(identity) {
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS })
       const found = receiptOf(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
@@ -398,7 +406,7 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
+function sourcesOf(profile: ModelProfile<'llm'>): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
     supplier: supplier.adoption,
@@ -409,7 +417,7 @@ function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[]
   }))
 }
 
-export function durableCommands(storage: Storage, profile?: ModelProfile) {
+export function durableCommands(storage: Storage, profile?: ModelProfile<'llm'>) {
   return createSqlModelCommands<Principal>({
     ...coreOptions(),
     storage,
@@ -500,6 +508,8 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
@@ -590,7 +600,7 @@ export async function assembleLine(input: LineInput) {
     updatedAt: '2026-11-02T00:00:00Z',
   })
   const resolution = decoded(
-    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: REQUIRED }),
+    await ctx.modelProfiles.resolve({ ...ACCESS, route: ROUTE, required: chatNeedOf(REQUIRED) }),
   )
   if (resolution.kind !== 'resolved') throw new Error(`the profile ${ROUTE} did not resolve`)
   const { profile } = resolution
@@ -682,6 +692,7 @@ export async function assembleLine(input: LineInput) {
           retry: NO_RETRY,
           instances: given.host,
           clock: given.clock,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       ),

@@ -13,6 +13,7 @@ import { boundInstructions } from './instructions.ts'
 import type { UnusableCause } from './outcomes.ts'
 import type { PlainJson } from './plain.ts'
 import type { HttpCredentialHandle } from './ports.ts'
+import { countingCredential, heldCredential } from './testing-handles.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
   TRANSPORT_TABLE,
@@ -78,6 +79,8 @@ export type PeerScript = Readonly<{
   }>[]
   notifications?: Replies
   wellKnown?: Readonly<{ [path: string]: PlainJson }>
+  /** What `subscriptions/listen` gets; a result ends it after its notifications. */
+  listen?: Replies
 }>
 
 export type PeerRequestHeaders = Readonly<{
@@ -141,7 +144,10 @@ function isRecord(value: PlainJson | undefined): value is Readonly<{ [key: strin
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function at(value: PlainJson | undefined, ...path: readonly string[]): PlainJson | undefined {
+export function at(
+  value: PlainJson | undefined,
+  ...path: readonly string[]
+): PlainJson | undefined {
   let current = value
   for (const key of path) {
     if (!isRecord(current)) return undefined
@@ -150,7 +156,10 @@ function at(value: PlainJson | undefined, ...path: readonly string[]): PlainJson
   return current
 }
 
-function result(value: PlainJson, notifications?: readonly PeerNotificationScript[]): PeerReply {
+export function result(
+  value: PlainJson,
+  notifications?: readonly PeerNotificationScript[],
+): PeerReply {
   return notifications === undefined
     ? { kind: 'result', result: value }
     : { kind: 'result', result: value, notifications }
@@ -165,11 +174,11 @@ function httpError(status: number, code: number, message: string, data?: PlainJs
   return { kind: 'http', status, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: answer }) }
 }
 
-const SILENT: PeerReply = { kind: 'silent' }
-const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
+export const SILENT: PeerReply = { kind: 'silent' }
+export const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
 const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 
-const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
+export const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
 const DONE = { content: [{ type: 'text', text: 'done' }] }
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
@@ -190,7 +199,7 @@ const taskId = (text: string): TaskId => {
 
 const echo: CallRequest = { action: actionNameOf('echo'), args: jsonOf({}) }
 
-const never = new AbortController().signal
+export const never: AbortSignal = new AbortController().signal
 
 function withModernDiscover(fixture: TransportFixture, script: ScriptSource): ScriptSource {
   if (typeof script === 'function')
@@ -198,7 +207,7 @@ function withModernDiscover(fixture: TransportFixture, script: ScriptSource): Sc
   return { discover: modern(fixture), ...script }
 }
 
-async function withPeer<T>(
+export async function withPeer<T>(
   fixture: TransportFixture,
   script: ScriptSource,
   needs: Partial<PeerNeeds>,
@@ -225,7 +234,7 @@ async function withPeer<T>(
   }
 }
 
-function requests(received: readonly PeerReceived[], method: string): readonly Request[] {
+export function requests(received: readonly PeerReceived[], method: string): readonly Request[] {
   return received.flatMap(entry =>
     entry.kind === 'request' && entry.method === method ? [entry] : [],
   )
@@ -243,7 +252,7 @@ function methods(received: readonly PeerReceived[]): readonly string[] {
   )
 }
 
-function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
+export function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
   assert.ok('ok' in outcome, `${what} failed: ${JSON.stringify(outcome)}`)
   return outcome.ok
 }
@@ -335,42 +344,6 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
     [],
     'subscriptions/listen was sent',
   )
-}
-
-function countingCredential(
-  gate: Promise<void> = Promise.resolve(),
-): HttpCredentialHandle & Readonly<{ rejections(): number }> {
-  let rejections = 0
-  return {
-    purpose: 'http-authorization',
-    async authorize(headers) {
-      await gate
-      headers.set('authorization', 'Bearer suite-token')
-      return { ok: true }
-    },
-    async reportRejection() {
-      rejections += 1
-    },
-    async release() {},
-    rejections: () => rejections,
-  }
-}
-
-function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> {
-  let asked = (): void => undefined
-  const reached = new Promise<void>(resolve => {
-    asked = resolve
-  })
-  return {
-    purpose: 'http-authorization',
-    authorize() {
-      asked()
-      return new Promise(() => undefined)
-    },
-    async reportRejection() {},
-    async release() {},
-    reached,
-  }
 }
 
 const bearer = (parameters: string) => `Bearer ${parameters}`
@@ -662,6 +635,7 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
       const failure = conclusion.failure
       if (failure.kind === 'no-answer') return gone(failure.cause)
       if (failure.kind !== 'not-sent') return undefined
+      if (failure.cause === 'credential-rejected') return 'credential-rejected'
       return failure.cause === 'session-ended' ? 'session-ended' : undefined
     }
     default:
@@ -686,19 +660,16 @@ function assertFailure(
   reply: PeerReply,
   unusable?: UnusableCause,
 ): void {
-  if (expected.kind === 'not-sent' && expected.cause === 'authorization-required')
-    assert.ok(
-      actual.kind === 'not-sent' && actual.cause === 'authorization-required',
-      `not authorization-required: ${JSON.stringify(actual)}`,
-    )
-  else assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
+  assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
 }
 
 function failureOf(
-  expected: Exclude<ExpectedFailure, Readonly<{ cause: 'authorization-required' }>>,
+  expected: ExpectedFailure,
   reply: PeerReply,
   unusable?: UnusableCause,
 ): TransportFailure {
+  if (expected.kind === 'not-sent' && expected.cause === 'credential-rejected')
+    return { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'credential-rejected' }
   if (expected.kind === 'no-answer')
     return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind === 'not-sent') {
@@ -730,7 +701,7 @@ const LEGACY_FAILURE: TransportFailure = {
 const NOT_SENT_FAILURE: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
 const SESSION = 'session-1'
 
-async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
+export async function untilSent(peer: ScriptedPeer, method: string): Promise<void> {
   for (let round = 0; round < 500; round += 1) {
     if (requests(await peer.received(), method).length > 0) return
     await new Promise(resolve => setTimeout(resolve, 2))
@@ -820,6 +791,16 @@ async function checkCell(
       conclusion.rejection === true ? 1 : 0,
       'reportRejection was not called as the row says',
     )
+    if (conclusion.rejection === true)
+      assert.deepStrictEqual(
+        credential.refusals,
+        [
+          cell.answer === 'http:403+scope'
+            ? { kind: 'insufficient-scope', scopes: ['files:write'] }
+            : { kind: 'unauthorized' },
+        ],
+        'reportRejection was not told how the peer refused',
+      )
   }
   const afterwards = async (transport: McpTransport) => {
     if (conclusion.unusable === true)
@@ -981,7 +962,6 @@ async function checkInitialize(
       unusableCauseOf(conclusion),
     )
     assert.deepStrictEqual(initialized, [])
-    assert.ok(conclusion.unusable !== true)
     await afterwards(transport)
   })
 }
@@ -1149,7 +1129,7 @@ function conclusionText(conclusion: TableConclusion): string {
   }
 }
 
-function tableCases(): readonly Case[] {
+export function tableCases(): readonly Case[] {
   return TRANSPORT_TABLE.map(row =>
     conformanceCase(
       'T8',
@@ -1180,7 +1160,7 @@ function tableCases(): readonly Case[] {
   )
 }
 
-const t1Cases = (): readonly Case[] => [
+export const t1Cases = (): readonly Case[] => [
   conformanceCase(
     'T1',
     'call: a sent call hands over the request id and the raw result',
@@ -1268,7 +1248,7 @@ const t1Cases = (): readonly Case[] => [
   ),
 ]
 
-const t2Cases = (): readonly Case[] => [
+export const t2Cases = (): readonly Case[] => [
   conformanceCase(
     'T2',
     'discover: the modern answer is read to the peer identity',
@@ -1407,7 +1387,7 @@ const t2Cases = (): readonly Case[] => [
   ),
 ]
 
-const t3Cases = (): readonly Case[] => [
+export const t3Cases = (): readonly Case[] => [
   conformanceCase(
     'T3',
     'every request and notification carries the three _meta keys and the fixed capabilities (item 7)',
@@ -1776,7 +1756,7 @@ const t3Cases = (): readonly Case[] => [
   ),
 ]
 
-const t4Cases = (): readonly Case[] => {
+export const t4Cases = (): readonly Case[] => {
   const metadata = (target: string, issuer: string) => ({
     resource: target,
     authorization_servers: [issuer],
@@ -1802,10 +1782,9 @@ const t4Cases = (): readonly Case[] => {
   return [
     conformanceCase(
       'T4',
-      '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401: not-sent authorization-required from WWW-Authenticate and the named metadata (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           target => ({
             calls: {
@@ -1817,7 +1796,7 @@ const t4Cases = (): readonly Case[] => {
               [`${METADATA_PATH}${pathOf(target)}`]: metadata(target, 'https://issuer.test'),
             },
           }),
-          { credential },
+          {},
           async (peer, transport) => {
             const target = targetOf(peer)
             const discovery = authorizationRequired(
@@ -1830,23 +1809,20 @@ const t4Cases = (): readonly Case[] => {
             })
             assert.deepStrictEqual(discovery.issuers, ['https://issuer.test'])
             assert.deepStrictEqual(discovery.scopes, ['files:read'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           target => ({
             listing: { '': unauthorized('realm="mcp"') },
             wellKnown: { [METADATA_PATH]: metadata(target, 'https://root.test') },
           }),
-          { credential },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.listActions(), 'listActions'),
@@ -1862,20 +1838,17 @@ const t4Cases = (): readonly Case[] => {
             assert.strictEqual(discovery.metadata, 'fetched')
             assert.deepStrictEqual(discovery.issuers, ['https://root.test'])
             assert.deepStrictEqual(discovery.scopes, ['files:read', 'files:write'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { calls: { echo: unauthorized('scope="a b"') } },
-          { credential },
+          {},
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -1885,14 +1858,12 @@ const t4Cases = (): readonly Case[] => {
             assert.strictEqual(new URL(discovery.resourceMetadataUrl).pathname, METADATA_PATH)
             assert.deepStrictEqual(discovery.issuers, [])
             assert.deepStrictEqual(discovery.scopes, ['a', 'b'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401: a named resource_metadata that is not a JSON object counts as unavailable and is still reported (item 11)',
+      '401: a named resource_metadata that is not a JSON object counts as unavailable (item 11)',
       async fixture =>
         withPeer(
           fixture,
@@ -1903,7 +1874,7 @@ const t4Cases = (): readonly Case[] => {
               [METADATA_PATH]: metadata(target, 'https://root.test'),
             },
           }),
-          { credential: countingCredential() },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -1918,53 +1889,63 @@ const t4Cases = (): readonly Case[] => {
     ),
     conformanceCase(
       'T4',
-      '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '401 on discover: authorization-required with no legacy fallback (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { discover: unauthorized('scope="files:read"'), initialize: LEGACY },
-          { credential },
+          {},
           async (peer, transport) => {
             const discovery = authorizationRequired(failure(await transport.discover(), 'discover'))
             assert.deepStrictEqual(discovery.scopes, ['files:read'])
-            assert.strictEqual(credential.rejections(), 1)
             assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
-      async fixture => {
-        const credential = countingCredential()
-        await withPeer(
+      '403 insufficient_scope: authorization-required with the scope of the header (item 11)',
+      async fixture =>
+        withPeer(
           fixture,
           { calls: { echo: forbidden('error="insufficient_scope", scope="files:write"') } },
-          { credential },
+          {},
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
             )
             assert.deepStrictEqual(discovery.scopes, ['files:write'])
-            assert.strictEqual(credential.rejections(), 1)
           },
-        )
-      },
+        ),
     ),
     conformanceCase(
       'T4',
-      '401 on a request that no handle authorized is still authorization-required',
-      async fixture =>
-        withPeer(
-          fixture,
-          { discover: unauthorized('realm="mcp"') },
-          {},
-          async (_peer, transport) => {
-            authorizationRequired(failure(await transport.discover(), 'discover'))
-          },
-        ),
+      'a 401 or a scoped 403 to a request a static credential authorized: credential-rejected, reported once, no metadata fetched, the transport not usable afterwards (C101)',
+      async fixture => {
+        const rejected = { failure: { ...NOT_SENT_FAILURE, unusable: 'credential-rejected' } }
+        for (const [send, script] of [
+          [
+            (t: McpTransport) => t.call(echo, never),
+            { calls: { echo: unauthorized('realm="m"') } },
+          ],
+          [
+            (t: McpTransport) => t.listActions(),
+            { listing: { '': forbidden('error="insufficient_scope"') } },
+          ],
+          [
+            (t: McpTransport) => t.discover(),
+            { discover: unauthorized('scope="r"'), initialize: LEGACY },
+          ],
+        ] as const) {
+          const credential = countingCredential()
+          await withPeer(fixture, script, { credential }, async (peer, transport) => {
+            assert.deepStrictEqual(await send(transport), rejected)
+            assert.deepStrictEqual(await transport.listActions(), rejected)
+            assert.strictEqual(credential.rejections(), 1)
+            assert.ok(!(await peer.received()).some(entry => entry.kind === 'fetch'))
+          })
+        }
+      },
     ),
   ]
 }
@@ -1989,7 +1970,7 @@ function failingCredential(
   }
 }
 
-const t9Cases = (): readonly Case[] => [
+export const t9Cases = (): readonly Case[] => [
   conformanceCase(
     'T9',
     'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
@@ -2015,7 +1996,7 @@ const t9Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T9',
-    'a credential handle whose reportRejection rejects: the refusal is still authorization-required',
+    'a credential handle whose reportRejection rejects: the refusal is still credential-rejected',
     async fixture =>
       withPeer(
         fixture,
@@ -2030,17 +2011,17 @@ const t9Cases = (): readonly Case[] => [
         },
         { credential: failingCredential('report-rejects') },
         async (_peer, transport) => {
-          const refused = failure(await transport.call(echo, never), 'call')
-          assert.ok(
-            refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-            JSON.stringify(refused),
-          )
+          assert.deepStrictEqual(failure(await transport.call(echo, never), 'call'), {
+            kind: 'not-sent',
+            cause: 'connection-unavailable',
+            unusable: 'credential-rejected',
+          })
         },
       ),
   ),
 ]
 
-const t5Cases = (): readonly Case[] => [
+export const t5Cases = (): readonly Case[] => [
   conformanceCase(
     'T5',
     'streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9)',
@@ -2150,7 +2131,7 @@ const t5Cases = (): readonly Case[] => [
   ),
 ]
 
-const t6Cases = (): readonly Case[] => {
+export const t6Cases = (): readonly Case[] => {
   const hints = { pollIntervalMs: 500, ttlMs: 60000, statusMessage: 'queued' }
   const inputRequests = {
     name: { method: 'elicitation/create', params: { mode: 'form', message: 'name?' } },
@@ -2343,18 +2324,5 @@ const t6Cases = (): readonly Case[] => {
           },
         ),
     ),
-  ]
-}
-
-export function mcpTransportConformance(): readonly ConformanceCase<TransportFixture>[] {
-  return [
-    ...tableCases(),
-    ...t1Cases(),
-    ...t2Cases(),
-    ...t3Cases(),
-    ...t4Cases(),
-    ...t5Cases(),
-    ...t6Cases(),
-    ...t9Cases(),
   ]
 }

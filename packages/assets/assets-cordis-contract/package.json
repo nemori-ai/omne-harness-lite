@@ -32,6 +32,8 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/assets": "workspace:*",
+    "@omne-harness/dynamis": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/settings": "workspace:*"
   },
   "devDependencies": {

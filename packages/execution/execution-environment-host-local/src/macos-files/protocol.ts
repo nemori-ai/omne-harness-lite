@@ -20,6 +20,8 @@ export type NativeInput = Endpoint &
       | 'move'
       | 'copy'
       | 'observe'
+      | 'lookup'
+    observeDirectory?: true
     named: string
     path: string
     rooted: boolean
@@ -60,6 +62,8 @@ export type NativeReply = Readonly<{
   hits: readonly { path: string; token: string; offsetBytes: number }[]
   truncated: boolean
   eof: boolean
+  directory?: string
+  targetDirectory?: string
   source?: string
 }>
 
@@ -95,6 +99,7 @@ function metadata(value: unknown): Metadata {
 
 function failure(value: unknown): Failure {
   switch (value) {
+    case 'notFound':
     case 'unresolved':
     case 'unsupported':
     case 'notAuthorized':
@@ -140,6 +145,8 @@ export function parseReply(value: unknown): NativeReply | Failure {
       }),
       truncated: value['truncated'],
       eof: value['eof'],
+      ...('targetDirectory' in value ? { targetDirectory: string(value['targetDirectory']) } : {}),
+      ...('directory' in value ? { directory: string(value['directory']) } : {}),
       ...('source' in value ? { source: string(value['source']) } : {}),
     }
   } catch {

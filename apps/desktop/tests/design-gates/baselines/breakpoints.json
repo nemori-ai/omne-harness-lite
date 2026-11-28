@@ -1,0 +1,6 @@
+{
+  "gate": "breakpoints",
+  "entries": {
+    "packages/assets/assets-ui/src/view/assets-ui.css | media (min-width: 1024px)": 1
+  }
+}

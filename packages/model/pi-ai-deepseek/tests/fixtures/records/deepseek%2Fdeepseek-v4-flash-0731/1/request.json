@@ -1,0 +1,177 @@
+{
+  "request": {
+    "kind": "llm",
+    "profile": {
+      "owner": "deepseek-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "retryPolicy": {
+      "owner": "deepseek-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "source": {
+      "owner": "deepseek-fixtures",
+      "name": "capture",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-flash-0731",
+          "revision": "1",
+          "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+        },
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash-0731",
+        "credential": {
+          "layer": "official"
+        }
+      }
+    ],
+    "fallback": false,
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      }
+    ],
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-deepseek",
+          "name": "deepseek/deepseek-v4-flash-0731",
+          "revision": "1",
+          "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "deepseek-fixtures",
+            "name": "capture",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-deepseek",
+      "name": "deepseek/deepseek-v4-flash-0731#representation",
+      "revision": "1",
+      "digest": "bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"
+    },
+    "declarations": [
+      {
+        "produces": "openrouter/deepseek/deepseek-v4-flash-0731",
+        "accepts": [
+          "openrouter/deepseek/deepseek-v4-flash-0731"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Use the supplied tool when asked to read a ticket."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Please read the ticket using read_ticket."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "read_ticket",
+        "description": "Read the current synthetic ticket.",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": []
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto"
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "Use the supplied tool when asked to read a ticket.",
+        "role": "system"
+      },
+      {
+        "content": "Please read the ticket using read_ticket.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek/deepseek-v4-flash-0731",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "siliconflow/fp8"
+      ],
+      "require_parameters": true
+    },
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "Read the current synthetic ticket.",
+          "name": "read_ticket",
+          "parameters": {
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  }
+}

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect } from 'vitest'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer, type ReceivedRequest } from './https-server.ts'
 import { assembleLocalHost, decoded, isGatewayPath } from './local-host.ts'
 import {
@@ -35,7 +35,7 @@ export type OpenReplay = Readonly<{
 }>
 
 export async function openReplay(
-  input: Readonly<{ request: FixedModelRequest; name: RecordCaseName; label: string }>,
+  input: Readonly<{ request: LlmModelRequest; name: RecordCaseName; label: string }>,
 ): Promise<OpenReplay> {
   const recording = recordingDirectory(input.name)
   const note = readRecordingNote(recording)
@@ -94,7 +94,7 @@ export async function openReplay(
 
 const labelOf = (name: string) => name.replace(/[^a-z0-9]/gu, '-')
 
-export async function recordedRequest(name: RecordCaseName): Promise<FixedModelRequest> {
+export async function recordedRequest(name: RecordCaseName): Promise<LlmModelRequest> {
   const item = RECORD_CASES[name]
   if (item.round.kind === 'first') return firstRoundRequest(item)
   const first = firstRoundRequest(RECORD_CASES[item.round.first])

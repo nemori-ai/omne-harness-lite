@@ -6,9 +6,11 @@ import {
   type AssetLayerSource,
   type AssetRow,
   type BodyContract,
+  type Candidate,
   type CapabilityId,
   type HoldingChange,
   type StoreChange,
+  type StoreOperation,
   type TenantActing,
   type TenantLayerStore,
 } from '@omne-harness/assets'
@@ -87,10 +89,23 @@ function setup(
     holding?: Holding | 'absent' | 'unavailable'
     change?: StoreChange | 'throws'
     recall?: StoreChange | { kind: 'not-found' } | 'throws'
+    operation?: StoreOperation | 'throws'
+    /** A second contribution of the category: it is a conflict and gives no contract. */
+    rival?: true
   } = {},
 ) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract, display: { title: 'Note', summary: 'Notes.' } })
+  categories.contribute({
+    contract,
+    display: { title: 'Note', summary: 'Notes.' },
+    point: 'test.site2',
+  })
+  if (options.rival === true)
+    categories.contribute({
+      contract,
+      display: { title: 'Rival', summary: 'R.' },
+      point: 'note.rival',
+    })
   const asked: string[] = []
   const changed: Changed[] = []
   const reads: string[] = []
@@ -103,6 +118,7 @@ function setup(
       content: { kind: 'data', body: { kind: 'null' } },
       settings: false,
     }),
+    files: async () => ({ kind: 'body', version: 'v1', body: { kind: 'null' } }),
     async holding(ref) {
       reads.push(ref)
       const holding = options.holding ?? HELD
@@ -118,6 +134,11 @@ function setup(
       return options.recall ?? { kind: 'not-found' }
     },
     recallPublication: async () => ({ kind: 'not-found' }),
+    async recallById(operationId) {
+      reads.push(`operation ${operationId}`)
+      if (options.operation === 'throws') throw new Error('the receipts cannot be read')
+      return options.operation ?? { kind: 'not-found' }
+    },
     uploads: {
       begin: async () => ({ kind: 'unavailable' }),
       resume: async () => ({ kind: 'absent' }),
@@ -125,7 +146,7 @@ function setup(
       reader: async () => ({ kind: 'absent' }),
       discard: async () => {},
     },
-    layer: layer(),
+    layers: [layer()],
     ...(typeof options.store === 'object' ? options.store : {}),
   }
   const management = createTenantManagement<Principal>({
@@ -139,6 +160,7 @@ function setup(
     },
     categories,
     publishing: { publish: async () => ({ kind: 'unavailable' }) },
+    official: () => [],
     async storeOf() {
       if (options.store === 'throws') throw new Error('the tenant set does not open')
       return options.store === 'missing' ? undefined : store
@@ -299,8 +321,110 @@ describe('enable, disable and remove: the answers that do not depend on the stat
   })
 })
 
+describe('recall an operation by its id alone', () => {
+  const byId = (operationId = 'op-7', tenant = 'alice') => ({ ...scope, tenant, operationId })
+
+  it('a publication answers its capability, its version and its outcome', async () => {
+    const outcome = {
+      kind: 'published',
+      version: 'v2',
+      holdingRef: 'held-1',
+      changed: true,
+    } as const
+    const s = setup({
+      operation: { kind: 'publish', capability: id('note', 'a'), version: 'v2', outcome },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      kind: 'publish',
+      capability: id('note', 'a'),
+      version: 'v2',
+      outcome,
+    })
+    expect(s.reads).toEqual(['operation op-7'])
+    expect(s.changed).toEqual([])
+  })
+
+  it.each([
+    [
+      'a disable that changed it',
+      { kind: 'setEnabled', enabled: false } as const,
+      { kind: 'committed', changed: true } as const,
+      { kind: 'setEnabled', enabled: false, outcome: { kind: 'changed' } },
+    ],
+    [
+      'an enable that found it enabled',
+      { kind: 'setEnabled', enabled: true } as const,
+      { kind: 'committed', changed: false } as const,
+      { kind: 'setEnabled', enabled: true, outcome: { kind: 'no-change' } },
+    ],
+    [
+      'a removal whose commit is not known',
+      { kind: 'remove' } as const,
+      { kind: 'unknown' } as const,
+      { kind: 'remove', outcome: { kind: 'unknown', operationId: 'op-7' } },
+    ],
+    [
+      'a removal that lost the race',
+      { kind: 'remove' } as const,
+      { kind: 'conflict' } as const,
+      { kind: 'remove', outcome: { kind: 'conflict' } },
+    ],
+  ])('%s answers what was asked and the receipt', async (_, change, answer, expected) => {
+    const capability = id('note', 'a')
+    const s = setup({
+      operation: { kind: 'change', holding: 'held-1', capability, change, answer },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      holding: 'held-1',
+      capability,
+      ...expected,
+    })
+    expect(s.changed).toEqual([])
+  })
+
+  it('a change whose holding no longer names its capability says so with null', async () => {
+    const s = setup({
+      operation: {
+        kind: 'change',
+        holding: 'held-1',
+        capability: null,
+        change: { kind: 'remove' },
+        answer: { kind: 'committed', changed: true },
+      },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      kind: 'remove',
+      holding: 'held-1',
+      capability: null,
+      outcome: { kind: 'changed' },
+    })
+  })
+
+  it('an id under which nothing was done is absent', async () => {
+    expect(await setup().management.recallById(byId())).toEqual({ kind: 'absent' })
+  })
+
+  it('a principal for another tenant is denied, before the store is opened', async () => {
+    const s = setup()
+    expect(await s.management.recallById(byId('op-7', 'bob'))).toEqual({ kind: 'denied' })
+    expect(s.reads).toEqual([])
+  })
+
+  it.each([
+    ['the store answers unavailable', { operation: { kind: 'unavailable' } as const }],
+    ['the store throws', { operation: 'throws' as const }],
+    ['the tenant store is not there', { store: 'missing' as const }],
+  ])('%s: unavailable', async (_, options) => {
+    expect(await setup(options).management.recallById(byId())).toEqual({ kind: 'unavailable' })
+  })
+})
+
 describe('list one category', () => {
   const list = (limit = 10, category = 'note') => ({ ...scope, category, after: null, limit })
+
+  it('a category that two contributions make a conflict is unavailable, not unknown and not listed', async () => {
+    expect(await setup({ rival: true }).management.list(list())).toEqual({ kind: 'unavailable' })
+  })
 
   it('gives the page of the store, complete', async () => {
     expect(await setup().management.list(list())).toEqual({
@@ -355,14 +479,159 @@ describe('describe one asset', () => {
   })
 
   it('a disabled holding is filtered out, for being disabled', async () => {
-    const s = setup({ store: { layer: layer('disabled') } })
+    const s = setup({ store: { layers: [layer('disabled')] } })
     expect(await s.management.describe(describing)).toMatchObject({
       standing: { kind: 'filtered', reason: 'disabled' },
     })
   })
 
+  describe('with the official layer beside the tenant layer', () => {
+    const official = (
+      over: Partial<Candidate> | 'none' | 'unavailable' = {},
+    ): AssetLayerSource => ({
+      layer: 'official',
+      list: async () => ({ layer: 'official', state: 'not-applicable' }),
+      candidates: async () => {
+        if (over === 'unavailable') return { layer: 'official', state: 'unavailable' }
+        const shipped = {
+          asset: 'official/note/a',
+          version: 'v0',
+          disabled: false,
+          immutable: false,
+          replaceLocked: false,
+          ...(over === 'none' ? {} : over),
+        }
+        return { layer: 'official', state: 'read', candidates: over === 'none' ? [] : [shipped] }
+      },
+    })
+    const standing = async (...layers: AssetLayerSource[]) => {
+      const s = setup({ store: { layers } })
+      const described = await s.management.describe(describing)
+      return described.kind === 'asset' ? described.standing : described.kind
+    }
+
+    it('the holding of the tenant is in use over what the release brings under the same name', async () => {
+      expect(await standing(official(), layer())).toEqual({ kind: 'selected' })
+      expect(await standing(official('none'), layer())).toEqual({ kind: 'selected' })
+    })
+
+    it('a disabled holding is filtered though the official one wins: the standing is of this holding', async () => {
+      expect(await standing(official(), layer('disabled'))).toEqual({
+        kind: 'filtered',
+        reason: 'disabled',
+      })
+    })
+
+    it('an official definition that locks the name blocks the holding, and says which layer does', async () => {
+      const blocked = { kind: 'filtered', reason: 'blocked', by: 'official' }
+      expect(await standing(official({ immutable: true }), layer())).toEqual(blocked)
+      expect(await standing(official({ replaceLocked: true }), layer())).toEqual(blocked)
+    })
+
+    it('an official layer that cannot be read gives an unavailable standing that names it', async () => {
+      expect(await standing(official('unavailable'), layer())).toEqual({
+        kind: 'unavailable',
+        layer: 'official',
+      })
+    })
+
+    it('says why this holding is out, not why an earlier one is', async () => {
+      const organization: AssetLayerSource = {
+        layer: 'organization',
+        list: async () => ({ layer: 'organization', state: 'not-applicable' }),
+        candidates: async () => ({
+          layer: 'organization',
+          state: 'read',
+          candidates: [
+            {
+              asset: 'organization/note/a',
+              version: 'v9',
+              disabled: false,
+              immutable: true,
+              replaceLocked: false,
+            },
+          ],
+        }),
+      }
+      expect(await standing(official({ disabled: true }), organization, layer())).toEqual({
+        kind: 'filtered',
+        reason: 'blocked',
+        by: 'organization',
+      })
+    })
+
+    it('another version of the same asset is not this holding', async () => {
+      const newer: AssetLayerSource = {
+        layer: 'tenant',
+        list: async () => ({ state: 'invalid' }),
+        candidates: async () => ({
+          layer: 'tenant',
+          state: 'read',
+          candidates: [
+            {
+              asset: 'note/a',
+              version: 'v2',
+              disabled: false,
+              immutable: false,
+              replaceLocked: false,
+            },
+          ],
+        }),
+      }
+      expect(await standing(official('none'), newer)).toEqual({
+        kind: 'unavailable',
+        layer: 'tenant',
+      })
+    })
+
+    it('a holding that is not among the candidates of its layer is unavailable, not in use', async () => {
+      const elsewhere: AssetLayerSource = {
+        layer: 'tenant',
+        list: async () => ({ state: 'invalid' }),
+        candidates: async () => ({ layer: 'tenant', state: 'read', candidates: [] }),
+      }
+      expect(await standing(official(), elsewhere)).toEqual({
+        kind: 'unavailable',
+        layer: 'tenant',
+      })
+    })
+  })
+
+  it('a filtered holding names the layer that blocks it only when one does', async () => {
+    const s = setup({ store: { layers: [layer('disabled')] } })
+    const described = await s.management.describe(describing)
+    expect(described.kind === 'asset' && described.standing).toStrictEqual({
+      kind: 'filtered',
+      reason: 'disabled',
+    })
+  })
+
+  it('another asset at the same version is not this holding', async () => {
+    const other: AssetLayerSource = {
+      layer: 'tenant',
+      list: async () => ({ state: 'invalid' }),
+      candidates: async () => ({
+        layer: 'tenant',
+        state: 'read',
+        candidates: [
+          {
+            asset: 'note/other',
+            version: 'v1',
+            disabled: false,
+            immutable: false,
+            replaceLocked: false,
+          },
+        ],
+      }),
+    }
+    const s = setup({ store: { layers: [other] } })
+    expect(await s.management.describe(describing)).toMatchObject({
+      standing: { kind: 'unavailable', layer: 'tenant' },
+    })
+  })
+
   it('a layer that cannot be read gives an unavailable standing', async () => {
-    const s = setup({ store: { layer: layer('unavailable') } })
+    const s = setup({ store: { layers: [layer('unavailable')] } })
     expect(await s.management.describe(describing)).toMatchObject({
       standing: { kind: 'unavailable', layer: 'tenant' },
     })
@@ -389,4 +658,45 @@ describe('describe one asset', () => {
       kind: 'denied',
     })
   })
+})
+
+describe('the files of the held version', () => {
+  const asking = { ...scope, capability: id('note', 'a') }
+
+  it('gives what the store gives for the held version', async () => {
+    expect(await setup().management.files(asking)).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: { kind: 'null' },
+    })
+  })
+
+  it('a principal for another tenant is denied, before the store is opened', async () => {
+    const s = setup({ store: { files: async () => ({ kind: 'absent' as const }) } })
+    expect(await s.management.files({ ...asking, tenant: 'bob' })).toEqual({ kind: 'denied' })
+    expect(s.asked).toEqual(['alice->bob'])
+  })
+
+  it.each([
+    ['answers absent', { files: async () => ({ kind: 'absent' as const }) }, 'absent'],
+    ['cannot read', { files: async () => ({ kind: 'unavailable' as const }) }, 'unavailable'],
+    [
+      'throws',
+      {
+        files: async (): Promise<{ kind: 'absent' }> => {
+          throw new Error('read failed')
+        },
+      },
+      'unavailable',
+    ],
+  ])('a store that %s answers %s, never none', async (_, store, kind) => {
+    expect(await setup({ store }).management.files(asking)).toEqual({ kind })
+  })
+
+  it.each(['missing', 'throws'] as const)(
+    'a store of the tenant that is %s is unavailable',
+    async store => {
+      expect(await setup({ store }).management.files(asking)).toEqual({ kind: 'unavailable' })
+    },
+  )
 })

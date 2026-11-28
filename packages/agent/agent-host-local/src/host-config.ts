@@ -11,7 +11,7 @@ export type AgentHostReceptionConfig = Readonly<{
 }>
 
 export type AgentHostConfig = AgentConfiguration &
-  Readonly<{ instanceIdleMs: number; reception?: AgentHostReceptionConfig }>
+  Readonly<{ instanceIdleMs: number; haltLimit?: number; reception?: AgentHostReceptionConfig }>
 
 type Issue = Readonly<{ message: string }>
 
@@ -42,6 +42,7 @@ const FIELDS: ReadonlySet<string> = new Set([
   'loopGuardPolicy',
   'compactionProvider',
   'maxRunSteps',
+  'haltLimit',
   'reception',
 ])
 
@@ -70,10 +71,8 @@ function jointCommitsIssue(value: unknown): string | undefined {
   return undefined
 }
 
-function stepLimitIssues(value: unknown): readonly string[] {
-  return value === undefined || isPositive(value)
-    ? []
-    : ['maxRunSteps: not a positive safe integer']
+function optionalCountIssues(field: string, value: unknown): readonly string[] {
+  return value === undefined || isPositive(value) ? [] : [`${field}: not a positive safe integer`]
 }
 
 function receptionIssues(value: unknown): readonly string[] {
@@ -117,7 +116,9 @@ function issuesOf(value: unknown): readonly Issue[] {
   const delays = read('reconciliationDelaysMs')
   if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
     issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
-  issues.push(...stepLimitIssues(read('maxRunSteps')))
+  issues.push(
+    ...['maxRunSteps', 'haltLimit'].flatMap(field => optionalCountIssues(field, read(field))),
+  )
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')
   const joint = jointCommitsIssue(read('jointCommits'))

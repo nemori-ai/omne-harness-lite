@@ -5,12 +5,13 @@ import type { AssetRowView } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract'
 import { useEffect, type ReactNode } from 'react'
-import { createCategoryNames } from '../src/model/category-names.ts'
+import { CATEGORIES_POINT, createCategoryNames } from '../src/model/category-names.ts'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
 import { assetRow, serveAssetReads } from './fixtures/asset-reads.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
+import { fakeKeys, type FakeKeys } from './fixtures/server-keys.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -208,7 +209,7 @@ it('A4 点一个页签：选中它；原来选中的贡献页面藏起来，不�
   await settle()
   await settle()
   expect(selected()).toEqual(['工具'])
-  expect(screen.getByRole('heading', { level: 3, name: 'shell' })).toBeTruthy()
+  expect(screen.getByRole('listitem', { name: 'shell' })).toBeTruthy()
   const mcpPanel = screen.getByText('mcp 自己的页面').closest('[role=tabpanel]')!
   expect(mcpPanel.hasAttribute('hidden')).toBe(true)
   expect(mounted).toEqual(['+mcp'])
@@ -271,4 +272,181 @@ it('A8 类别的列表读不出：照实说并给「重试」；贡献的页面�
   await settle()
   expect(tabTexts()).toEqual(['MCP', '工具'])
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+type Pair = readonly [string, string]
+
+const listed = (pairs: readonly Pair[]) => ({
+  outcome: 'succeeded',
+  body: { items: pairs.map(categoryItem), next: null },
+})
+
+const categoryReads = (fake: FakeClient): number =>
+  fake.calls.filter(call => call.operation === 'list-categories').length
+
+/** The page open on a server that tells the keys of its categories point. */
+async function following(first: readonly Pair[]): Promise<{ fake: FakeClient; keys: FakeKeys }> {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [])
+  const keys = fakeKeys()
+  keys.set(
+    CATEGORIES_POINT,
+    first.map(([category]) => category),
+  )
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client, keys.source)}
+    />,
+  )
+  ;(await fake.next('list-categories')).answer(listed(first))
+  await settle()
+  return { fake, keys }
+}
+
+it('K1 页面开着，服务端多了一个类别：重读一次，页签多出来，中间不说正在读，选中的不变', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  expect(tabTexts()).toEqual(['工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  const again = await fake.next('list-categories')
+  expect(screen.queryByText('正在读取资产……')).toBeNull()
+  expect(tabTexts()).toEqual(['工具'])
+  again.answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(tabTexts()).toEqual(['技能', '工具'])
+  expect(selected()).toEqual(['工具'])
+  expect(categoryReads(fake)).toBe(2)
+})
+
+it('K2 页面开着，服务端少了一个类别：重读一次，页签少掉', async () => {
+  const { fake, keys } = await following([
+    ['skill', '技能'],
+    ['tool', '工具'],
+  ])
+  expect(tabTexts()).toEqual(['技能', '工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['tool']))
+  ;(await fake.next('list-categories')).answer(listed([['tool', '工具']]))
+  await settle()
+  expect(tabTexts()).toEqual(['工具'])
+  expect(categoryReads(fake)).toBe(2)
+})
+
+it('K3 那条观察来了别的变化，类别的键没变：不重读', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  await act(async () => {
+    keys.touch()
+    keys.set('some.other-point', ['x'])
+    keys.set(CATEGORIES_POINT, ['tool'])
+  })
+  await settle()
+  expect(categoryReads(fake)).toBe(1)
+})
+
+it('K4 连着变两次，先发的重读后到：以后发的那一次为准', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  const first = await fake.next('list-categories')
+  await act(async () => keys.set(CATEGORIES_POINT, ['mcp', 'skill', 'tool']))
+  const second = await fake.next('list-categories')
+  second.answer(
+    listed([
+      ['mcp', 'MCP'],
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  first.answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(tabTexts()).toEqual(['MCP', '技能', '工具'])
+})
+
+it('K5 页面关了就不再跟：没有订阅留下，之后的变化不发调用', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  expect(keys.listeners()).toBe(1)
+  cleanup()
+  expect(keys.listeners()).toBe(0)
+  keys.set(CATEGORIES_POINT, ['skill', 'tool'])
+  await settle()
+  expect(categoryReads(fake)).toBe(1)
+})
+
+it('K6 点过的类别在一次重读失败时不在栏里，重试读到之后回到它，不停在回落的那一项', async () => {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [])
+  const keys = fakeKeys()
+  keys.set(CATEGORIES_POINT, ['tool'])
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client, keys.source)}
+      pages={pagesOf([entry('mcp', 'MCP')])}
+    />,
+  )
+  ;(await fake.next('list-categories')).answer(listed([['tool', '工具']]))
+  await settle()
+  fireEvent.click(tabs().getByRole('tab', { name: '工具' }))
+  expect(selected()).toEqual(['工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  ;(await fake.next('list-categories')).answer({ outcome: 'basis-unavailable' })
+  await settle()
+  expect(tabTexts()).toEqual(['MCP'])
+  expect(selected()).toEqual(['MCP'])
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  ;(await fake.next('list-categories')).answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(selected()).toEqual(['工具'])
+})
+
+it('A12 外壳指到一类时选中它（不进任何一份的页）；指到另一类时跟着换；人点过之后不再指时，留在人点的那一类', async () => {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [assetRow('tool', 'shell')])
+  const governance = createGovernance({ client: fake.client })
+  const names = createCategoryNames(fake.client)
+  const element = (pointAt?: string) => (
+    <AssetsPage
+      governance={governance}
+      tenant={TENANT}
+      categoryNames={names}
+      {...(pointAt === undefined ? {} : { pointAt })}
+    />
+  )
+  const view = render(element('tool'))
+  ;(await fake.next('list-categories')).answer({
+    outcome: 'succeeded',
+    body: {
+      items: [categoryItem(['model-provider', '模型供应商']), categoryItem(['tool', '工具'])],
+      next: null,
+    },
+  })
+  await settle()
+  expect(selected()).toEqual(['工具'])
+  expect(document.querySelector('.assets-asset')).toBeNull()
+  view.rerender(element('model-provider'))
+  await settle()
+  expect(selected()).toEqual(['模型供应商'])
+  fireEvent.click(tabs().getByRole('tab', { name: '工具' }))
+  view.rerender(element())
+  await settle()
+  expect(selected()).toEqual(['工具'])
 })

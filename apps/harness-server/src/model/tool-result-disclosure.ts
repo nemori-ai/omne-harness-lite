@@ -1,11 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { FixedModelRequest, TransportFailure } from '@omne-harness/model-contract'
+import type { LlmModelRequest, TransportFailure } from '@omne-harness/model-contract'
 import type { TreeRow } from '../types.ts'
 import { ConfigError, parseBoundary } from '../config-schema.ts'
 import { toolBindingsConfig } from '../rows/tool-bindings/index.ts'
 import { toolRuntimeConfigSchema } from '../rows/tool-runtime/config.ts'
 
-type Disclosure = (request: Pick<FixedModelRequest, 'messages'>) => TransportFailure | null
+type Disclosure = (request: Pick<LlmModelRequest, 'messages'>) => TransportFailure | null
 const policies = new WeakMap<Context, Disclosure>()
 
 function policyFor(limit: number | null): Disclosure {

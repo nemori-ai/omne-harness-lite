@@ -32,7 +32,7 @@ function subjectWith(wrap?: Wrap, controlOverride?: 'noop-close'): SqlConformanc
         storage: wrapped,
         control:
           controlOverride === 'noop-close'
-            ? { close: () => Promise.resolve({ kind: 'closed' }), assemblyReportSettled() {} }
+            ? { ...control, close: () => Promise.resolve({ kind: 'closed' }) }
             : control,
       }
     },
@@ -210,6 +210,44 @@ describe('violating providers are caught', () => {
       })),
     )
     expect(ids).toContain('C07')
+  })
+
+  it('C25: a provider that drops the releases of a commit', async () => {
+    const ids = await failedIds(
+      subjectWith(inner => ({
+        commit: ({ releases: _dropped, ...input }, options) => inner.commit(input, options),
+      })),
+    )
+    expect(ids).toContain('C25')
+  })
+
+  it('C26: a provider that answers settled while a commit of the identity is in flight', async () => {
+    const proofs = {
+      writerGenerationExcluded: true,
+      oldTransactionTerminated: true,
+      databaseRecoveryFinished: true,
+      authoritativeReadSucceeded: true,
+      operationNotQueued: true,
+    } as const
+    const ids = await failedIds(
+      subjectWith(inner => ({
+        query: identity =>
+          identity.recall === 'never'
+            ? Promise.resolve({ kind: 'settled', identity, proofs })
+            : inner.query(identity),
+      })),
+    )
+    expect(ids).toContain('C26')
+  })
+
+  it('C26: a provider that keeps a receipt for an identity that is never recalled', async () => {
+    const ids = await failedIds(
+      subjectWith(inner => ({
+        commit: ({ identity: { recall: _never, ...kept }, ...input }, options) =>
+          inner.commit({ ...input, identity: kept }, options),
+      })),
+    )
+    expect(ids).toContain('C26')
   })
 
   it('C12: a provider that ignores a signal that is already aborted', async () => {

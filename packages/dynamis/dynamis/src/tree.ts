@@ -127,6 +127,13 @@ function pointNode(
     contract.arity,
     contract.tree === side ? '' : contract.tree,
     contract.binding === 'build' ? 'build' : '',
+    contract.version === 1 && contract.revision === 1
+      ? ''
+      : `v${contract.version}.${contract.revision}`,
+    contract.keys === 'public' ? 'public keys' : '',
+    contract.scopes === undefined || contract.scopes === 'all'
+      ? ''
+      : `closed: ${contract.scopes.why}`,
   ]
   if (unread !== null) notes.push(`unread: ${unread}`)
   const keyed = contract.arity.startsWith('keyed')

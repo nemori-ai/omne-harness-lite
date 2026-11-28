@@ -12,7 +12,7 @@ import {
   type ModelProfile,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   type ModelRequestPreparation,
   type SendDemand,
 } from '@omne-harness/model-contract/provider'
@@ -49,13 +49,14 @@ const identity = () => {
 const TENANT = identity()
 const revision = decodeRevision('1')
 if (!('ok' in revision)) throw new Error('fixture revision')
-const PROFILE: ModelProfile = {
-  identity: { scope: { kind: 'factory' }, route: 'test' },
+const PROFILE: ModelProfile<'llm'> = {
+  identity: { kind: 'llm', scope: { kind: 'factory' }, route: 'test' },
   adoption: ADOPTION,
   revision: revision.ok,
   updatedAt: '2026-11-02T00:00:00Z',
   availability: 'active',
   definition: {
+    kind: 'llm',
     suppliers: [{ adoption: ADOPTION, provider: providerName('test.invalid'), model: 'test' }],
     fallback: false,
     input: ['text'],
@@ -73,7 +74,8 @@ const PROFILE: ModelProfile = {
     retryPolicy: ADOPTION,
   },
 }
-const judged = judgeFixedModelRequest({
+const judged = judgeModelRequest('llm', {
+  kind: 'llm',
   profile: ADOPTION,
   contextWindow: {
     tokens: PROFILE.definition.context.window.provided,

@@ -37,7 +37,11 @@ const PENDING: Readonly<Record<Exclude<SessionState, 'not waiting'>, number>> = 
   'waiting with nothing pending': 0,
 }
 
-const CAUSE = { kind: 'no-reply', detail: 'upstream answered 503' }
+const CAUSE = {
+  kind: 'no-reply',
+  detail: 'http-429',
+  fault: { cause: 'upstream-unavailable', upstreamStatus: '429', throttled: true },
+}
 
 const SCRIPT: Readonly<Record<Exclude<CausePort, 'is absent'>, CauseScript>> = {
   'answers a cause': { kind: 'cause', cause: CAUSE },
@@ -91,13 +95,14 @@ describe('read-waiting over the totalized table', () => {
 })
 
 describe('read-waiting asks for the cause', () => {
-  it('of the execution of the waiting Run, with the principal and the tenant of the read', async () => {
+  it('of the waiting Run in its session, with the principal and the tenant of the read', async () => {
     const world = createWorld()
     const session = await created(world)
     arrange(world, 'waiting with pending', 'answers a cause')
     await readWaiting(world, session)
     const [call] = world.causes.calls()
-    expect(call?.execution).toBe('execution-1')
+    expect(call?.run).toBe(RUN)
+    expect(call?.session).toBe(session)
     expect(call?.tenant).toEqual(ALICE.tenant)
     expect(call?.principal).toBe(world.session.controls.calls().at(-1)?.principal)
   })
@@ -110,27 +115,27 @@ describe('read-waiting asks for the cause', () => {
     expect(world.causes.calls()).toEqual([])
   })
 
-  it('never when Session keeps no execution of the waiting Run, and answers no cause', async () => {
+  it('by the Run also when Session keeps no execution of it: the cause is in the session log', async () => {
     const world = createWorld()
     const session = await created(world)
     world.session.controls.waitWith({ run: RUN, pending: 1, execution: null })
     world.causes.answer(SCRIPT['answers a cause'])
     expect(await readWaiting(world, session)).toEqual({
       outcome: 'succeeded',
-      body: { waiting: { run: RUN, pending: 1, cause: null } },
+      body: { waiting: { run: RUN, pending: 1, cause: CAUSE } },
     })
-    expect(world.causes.calls()).toEqual([])
+    expect(world.causes.calls().map(call => call.run)).toEqual([RUN])
   })
 
   it('and answers a missing detail as null and an empty kind as no cause', async () => {
     const world = createWorld()
     const session = await created(world)
     world.session.controls.waitWith({ run: RUN, pending: 1, execution: 'execution-1' })
-    world.causes.answer({ kind: 'cause', cause: { kind: 'guard', detail: '' } })
+    world.causes.answer({ kind: 'cause', cause: { kind: 'guard', detail: '', fault: null } })
     expect(await readWaiting(world, session)).toMatchObject({
-      body: { waiting: { cause: { kind: 'guard', detail: null } } },
+      body: { waiting: { cause: { kind: 'guard', detail: null, fault: null } } },
     })
-    world.causes.answer({ kind: 'cause', cause: { kind: '', detail: 'x' } })
+    world.causes.answer({ kind: 'cause', cause: { kind: '', detail: 'x', fault: null } })
     expect(await readWaiting(world, session)).toMatchObject({ body: { waiting: { cause: null } } })
   })
 })

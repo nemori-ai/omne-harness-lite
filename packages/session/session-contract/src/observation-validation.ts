@@ -1,6 +1,7 @@
 import type { WorkSnapshot } from './values.ts'
 import type { SessionLogObservation } from './projection.ts'
 import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
+import { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
 import {
   executionBoundary,
   historyContext,
@@ -67,13 +68,26 @@ export function validateObservation(
       if (observation.control === undefined) unavailableAt('control.evidence')
       if (observation.consequences.length > 0)
         invalidAt('consequences', 'Session decides the consequences of a deferred control fact')
-    } else if (
-      !equalValue(
-        fact.kinds,
-        observation.consequences.map(item => item.kind),
+    } else {
+      const given = observation.consequences.map(item => item.kind)
+      const committed = committedBindings(
+        boundConsumptions(
+          snapshot,
+          observation.consequences.flatMap(item =>
+            item.kind === 'producer' ? [item.consumption] : [],
+          ),
+        ),
       )
-    )
-      invalidAt('consequences', 'not the complete original consequence order')
+      const repeated = sequence <= BigInt(boundary.readThrough)
+      if (
+        !equalValue(
+          withoutCommitted(fact.kinds, committed, kind => kind),
+          given,
+        ) &&
+        !(repeated && equalValue(fact.kinds, given))
+      )
+        invalidAt('consequences', 'not the complete original consequence order')
+    }
     const before = BigInt(boundary.readThrough)
     if (sequence > before + 1n) {
       const skipped = boundary.facts.filter(

@@ -1,6 +1,6 @@
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
-import type { PiFamilyBinding } from '../src/index.ts'
+import type { PiChatBinding } from '../src/index.ts'
 import { bindResponses, type ResponsesRecord } from '../src/responses/index.ts'
 import { sealItems } from '../src/responses/reasoning.ts'
 import {
@@ -24,7 +24,7 @@ import {
 } from './support/chat-record.ts'
 import { ITEMS_FORMAT, responsesRecord } from './support/responses-record.ts'
 
-function bind(record: ResponsesRecord = responsesRecord(), probe = engineProbe()): PiFamilyBinding {
+function bind(record: ResponsesRecord = responsesRecord(), probe = engineProbe()): PiChatBinding {
   return bindResponses({
     record,
     supplier: supplierOf(record),

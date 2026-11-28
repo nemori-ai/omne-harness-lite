@@ -1,6 +1,7 @@
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
+  decodeActionId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeInputId,
@@ -61,6 +62,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 const selected = {
@@ -138,7 +140,7 @@ async function running() {
       ...caller('a'),
       execution: EXECUTION,
       operation: operation('controlled-invoke'),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )
@@ -294,5 +296,36 @@ describe('the control entry on an execution that a runtime of this host runs', (
     })
     expect(host.journalCalls.filter(call => call.principal === intruder.principal)).toEqual([])
     expect((await load()).controls).toEqual([])
+  })
+})
+
+const nestedAsk = (tenant: 'a' | 'b') => ({
+  ...caller(tenant),
+  execution: EXECUTION,
+  parent: ok(decodeActionId('action-parent')),
+  ordinal: 1,
+  target: { definition: adoption('Files'), name: 'Files', command: 'read', arguments: '{}' },
+  signal: new AbortController().signal,
+})
+
+describe('AG-32 the nested action entry on an execution that a runtime of this host runs', () => {
+  it('hands the request to that runtime, which refuses a parent that is not a waiting tool call', async () => {
+    const { host, load } = await running()
+    const before = await load()
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'denied',
+      reason: 'the tool call that made this action is no longer waiting',
+    })
+    expect((await load()).checkpoint.passages).toEqual(before.checkpoint.passages)
+  })
+
+  it('refuses another tenant, and a principal the runtime may not be asked by', async () => {
+    const { host } = await running()
+    expect(await host.nested.admit(nestedAsk('b'))).toMatchObject({ kind: 'denied' })
+    host.refuseNext('submit')
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'denied',
+      reason: 'the caller may not ask for this execution',
+    })
   })
 })

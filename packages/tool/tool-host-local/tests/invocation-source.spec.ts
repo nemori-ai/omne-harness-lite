@@ -25,6 +25,7 @@ import {
   type PrincipalCodec,
 } from '@omne-harness/tool-host-local'
 import {
+  currentDefinitions,
   invokeRequest,
   samePrincipalBySubject,
   subjectCodec,
@@ -83,6 +84,7 @@ function observed() {
     scanPending: input => memory.scanPending(input),
     usage: query => memory.usage(query),
     due: memory.due,
+    definition: memory.definition,
     read: async (domain: LedgerDomain): Promise<LedgerRead> => {
       counts.reads += 1
       const fault = take('read-unavailable', 'read-throws')
@@ -134,6 +136,7 @@ function source(
     store,
     authority: authorityValue,
     principalCodec: codec,
+    definitions: currentDefinitions(),
     commitAttempts,
   })
 }
@@ -162,7 +165,7 @@ function verifyInput(
     tenant: tenantA,
     call: outcome.call,
     operation: outcome.admission,
-    request: { ...invokeRequest(), invocation: outcome.invocation } satisfies FixedToolRequest,
+    request: outcome.request,
     ...overrides,
   }
 }
@@ -178,9 +181,9 @@ describe('invocation source: issuance and recall', () => {
     expect(second).toMatchObject({
       call: first.call,
       admission: first.admission,
-      invocation: first.invocation,
+      request: first.request,
     })
-    expect(first.invocation.kind).toBe('direct')
+    expect(first.request.invocation.kind).toBe('direct')
   })
 
   it('a source rebuilt over the same store recalls the original identities', async () => {
@@ -191,7 +194,7 @@ describe('invocation source: issuance and recall', () => {
     expect(again).toMatchObject({
       call: first.call,
       admission: first.admission,
-      invocation: first.invocation,
+      request: first.request,
     })
   })
 
@@ -392,6 +395,7 @@ describe('invocation source: boundary and failure', () => {
     const broken = createLocalInvocationSource<P>({
       store,
       authority: authority(),
+      definitions: currentDefinitions(),
       principalCodec: {
         ...codec,
         encode: () => {
@@ -602,6 +606,7 @@ describe('invocation source: verification of the fixed request', () => {
     const rebuilt = createLocalInvocationSource<P>({
       store,
       authority: authority(),
+      definitions: currentDefinitions(),
       principalCodec: refusing,
       commitAttempts: 4,
     })

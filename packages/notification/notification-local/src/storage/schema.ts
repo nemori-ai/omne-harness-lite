@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import {
-  basisSchema,
   causeSchema,
   channelNameSchema,
+  creatorSchema,
   eventFactsSchema,
   eventTypeNameSchema,
   instantSchema,
@@ -68,7 +68,7 @@ export const subscriptionSchema = z.strictObject({
   level: levelSchema,
   note: noteSchema.nullable(),
   term: termSchema,
-  basis: basisSchema,
+  creator: creatorSchema,
   expired: z.boolean(),
 }) satisfies z.ZodType<Subscription>
 

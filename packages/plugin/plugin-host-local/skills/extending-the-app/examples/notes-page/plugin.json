@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "name": "notes-page",
+  "summary": "A page in the sidebar that lists notes its own server side keeps: a client page and a server protocol notes/v1.",
+  "client": {
+    "needs": ["notes/v1"],
+    "members": [
+      {
+        "point": "shell.pages",
+        "key": "",
+        "id": "notes",
+        "rank": 60,
+        "module": "page.js",
+        "export": "page"
+      }
+    ]
+  },
+  "server": {
+    "members": [
+      {
+        "point": "access.protocols",
+        "key": "notes/v1",
+        "module": "protocol.js",
+        "export": "protocol"
+      }
+    ]
+  }
+}

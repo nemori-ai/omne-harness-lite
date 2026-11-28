@@ -1,0 +1,1981 @@
+{
+  "digests": {
+    "1": "sha256:6491433adfeb4ab8b3102bb6751e24a4dabc50fb3768295481aea9b5b6634795",
+    "2": "sha256:2594c9773b687350e31d6063c631081243afa5ef5e4f20114b6dc11094b5d4fd"
+  },
+  "major": 1,
+  "name": "identity",
+  "revision": 2,
+  "rules": {
+    "observations": {},
+    "operations": {
+      "accept-affiliation-request": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "pending"
+                ]
+              }
+            },
+            "requestId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "invalid",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "affiliationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "effective"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "accept-member-invitation": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "open"
+                ]
+              }
+            },
+            "invitationId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "change-member-role": {
+        "body": {
+          "fields": {
+            "accountId": {
+              "rule": {
+                "kind": "account"
+              }
+            },
+            "expectedRole": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "organizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            },
+            "targetRole": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "create-organization": {
+        "body": {
+          "fields": {
+            "createCallId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "governanceModelId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "organizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "issue-login": {
+        "body": {
+          "fields": {
+            "credential": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "loginIdentifier": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "carriesCredential": true,
+        "effect": "commit",
+        "identity": "none",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "issuedAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "loginId": {
+                "rule": {
+                  "kind": "login"
+                }
+              },
+              "loginIdentifier": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "loginProof": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "uniform-auth-failure": true,
+          "unknown": true
+        }
+      },
+      "issue-member-invitation": {
+        "body": {
+          "fields": {
+            "duration": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "invitedLoginIdentifier": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "expiresAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "open"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "judge-admission": {
+        "body": {
+          "fields": {
+            "action": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "parameters": {
+              "rule": {
+                "kind": "parameters"
+              }
+            },
+            "resource": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "scopeId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "need-decision": {
+            "fields": {
+              "decisionRequestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "admitted": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    true
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "leave-organization": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "open-affiliation-request": {
+        "body": {
+          "fields": {
+            "duration": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "subordinateOrganizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            },
+            "superiorOrganizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "expiresAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "pending"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "query-affiliation-request": {
+        "body": {
+          "fields": {
+            "requestId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "expiresAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "pending",
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "invalid",
+                    "expired"
+                  ]
+                }
+              },
+              "subordinateOrganizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "superiorOrganizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-create-organization": {
+        "body": {
+          "fields": {
+            "governanceModelId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "targetCreateCallId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "organizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "query-current-tenant": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-invitation": {
+        "body": {
+          "fields": {
+            "invitationId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "expiresAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "invitedAccountId": {
+                "rule": {
+                  "kind": "account"
+                }
+              },
+              "organizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "open",
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-issued-affiliation-requests": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "affiliationRequests": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "expiresAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "requestId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "pending",
+                            "accepted",
+                            "rejected",
+                            "withdrawn",
+                            "invalid",
+                            "expired"
+                          ]
+                        }
+                      },
+                      "subordinateOrganizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      },
+                      "superiorOrganizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-issued-invitations": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              },
+              "invitations": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "expiresAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "invitationId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "invitedAccountId": {
+                        "rule": {
+                          "kind": "account"
+                        }
+                      },
+                      "organizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "open",
+                            "accepted",
+                            "rejected",
+                            "withdrawn",
+                            "expired"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-organization": {
+        "body": {
+          "fields": {
+            "organizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "kind": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "name": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "organizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "superiorOrganizationId": {
+                "optional": true,
+                "rule": {
+                  "kind": "organization"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-organization-members": {
+        "body": {
+          "fields": {
+            "includeRemoved": {
+              "optional": true,
+              "rule": {
+                "kind": "boolean"
+              }
+            },
+            "organizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              },
+              "members": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "accountId": {
+                        "rule": {
+                          "kind": "account"
+                        }
+                      },
+                      "role": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-own-memberships": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              },
+              "memberships": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "organizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      },
+                      "role": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "tenantId": {
+                        "rule": {
+                          "kind": "tenant"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-own-valid-logins": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              },
+              "logins": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "idleDeadline": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "issuedAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "loginId": {
+                        "rule": {
+                          "kind": "login"
+                        }
+                      },
+                      "maxDeadline": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array",
+                  "nonempty": true
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-received-affiliation-requests": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "affiliationRequests": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "expiresAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "requestId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "pending",
+                            "accepted",
+                            "rejected",
+                            "withdrawn",
+                            "invalid",
+                            "expired"
+                          ]
+                        }
+                      },
+                      "subordinateOrganizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      },
+                      "superiorOrganizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-received-invitations": {
+        "body": {
+          "fields": {},
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete"
+                  ]
+                }
+              },
+              "invitations": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "expiresAt": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "invitationId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "invitedAccountId": {
+                        "rule": {
+                          "kind": "account"
+                        }
+                      },
+                      "organizationId": {
+                        "rule": {
+                          "kind": "organization"
+                        }
+                      },
+                      "state": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "open",
+                            "accepted",
+                            "rejected",
+                            "withdrawn",
+                            "expired"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-account-preference": {
+        "body": {
+          "fields": {
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "value": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "string"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 2
+      },
+      "register-and-activate": {
+        "body": {
+          "fields": {
+            "credential": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "loginIdentifier": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "none",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "not-loginable": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "accountId": {
+                "rule": {
+                  "kind": "account"
+                }
+              },
+              "organizationId": {
+                "rule": {
+                  "kind": "organization"
+                }
+              },
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "reject-affiliation-request": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "pending"
+                ]
+              }
+            },
+            "requestId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "invalid",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "rejected"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "reject-member-invitation": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "open"
+                ]
+              }
+            },
+            "invitationId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "rejected"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "release-affiliation": {
+        "body": {
+          "fields": {
+            "affiliationId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "effective"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "affiliationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "released"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "remove-member": {
+        "body": {
+          "fields": {
+            "accountId": {
+              "rule": {
+                "kind": "account"
+              }
+            },
+            "expectedRole": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "organizationId": {
+              "rule": {
+                "kind": "organization"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "replace-credential": {
+        "body": {
+          "fields": {
+            "currentCredential": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "newCredential": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "revoke-login": {
+        "body": {
+          "fields": {
+            "targetLoginId": {
+              "rule": {
+                "kind": "login"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "submit-authorization-expression": {
+        "body": {
+          "fields": {
+            "action": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "expression": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "object": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "parameters": {
+              "rule": {
+                "kind": "parameters"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "expressionId": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "expressionId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "persistentSettingsUpdated": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    false
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "switch-current-tenant": {
+        "body": {
+          "fields": {
+            "tenantId": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "tenantId": {
+                "rule": {
+                  "kind": "tenant"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "withdraw-affiliation-request": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "pending"
+                ]
+              }
+            },
+            "requestId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "invalid",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "requestId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "withdrawn"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "withdraw-authorization-expression": {
+        "body": {
+          "fields": {
+            "expressionId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "withdraw-member-invitation": {
+        "body": {
+          "fields": {
+            "expectedState": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "open"
+                ]
+              }
+            },
+            "invitationId": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "acting-tenant",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "no-change": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "accepted",
+                    "rejected",
+                    "withdrawn",
+                    "expired"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "invitationId": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "withdrawn"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "write-account-preference": {
+        "body": {
+          "fields": {
+            "expected": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "value": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "string"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "stage-not-provided": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        },
+        "since": 2
+      }
+    }
+  }
+}

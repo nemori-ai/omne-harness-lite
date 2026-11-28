@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import {
   SessionAdoptionSourceService,
@@ -13,10 +13,13 @@ import {
   modesAdoptionOf,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type DefinitionReading,
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   INITIALIZATION_PROTOCOL,
+  type Adoption,
   type AdoptionEvidenceCommand,
+  type AdoptionNote,
   type DurableEvidence,
   type GuardCommand,
   type InitialAdoption,
@@ -24,9 +27,13 @@ import {
   type InitializationPlanItem,
   type InitializationRequirement,
   type ResidentAdoption,
+  type RunAdoption,
+  type RunAdoptionInput,
   type SessionAccess,
   type SessionAdoptionSource,
   type SessionCreation,
+  type SessionFailure,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
   contextInitialization,
@@ -35,8 +42,10 @@ import {
 import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
-import { plannedResidents } from './residents.ts'
-import { adoptRunSources, type RunSourcesPorts } from './run-sources.ts'
+import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
+import { plannedResidents, type PlannedResidents, type ResidentReport } from './residents.ts'
+import { TOOL_CATEGORY } from '../agent-adoptions/table.ts'
+import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -45,6 +54,14 @@ export const MAPPING_EVIDENCE_PROTOCOL = Object.freeze({
   name: 'definition-mapping-evidence',
   revision: '1',
   digest: 'harness-server:definition-mapping-evidence/1',
+})
+
+/** What a freeze, or a note that a run waits, is committed on: the answer the adoption point gave, as it was given. */
+export const RUN_ADOPTION_EVIDENCE_PROTOCOL = Object.freeze({
+  owner: OWNER,
+  name: 'run-adoption-evidence',
+  revision: '1',
+  digest: 'harness-server:run-adoption-evidence/1',
 })
 
 export const MAPPING_LOOKUP_SCHEMA = Object.freeze({
@@ -107,7 +124,11 @@ function undeclaredByMapping(
     )
   const declared = creation.residentAdoption
   if (declared === undefined) return undefined
-  const named = new Set(entry.residentCapabilities ?? [])
+  const named = new Set(
+    (entry.residentReferences ?? [])
+      .filter(reference => reference.category === TOOL_CATEGORY)
+      .map(reference => reference.name),
+  )
   const capabilities = [...declared.residents, ...declared.keys].map(item => item.capability)
   if (capabilities.some(capability => !named.has(capability)))
     return invalid(
@@ -173,6 +194,7 @@ function initialAdoptionOf(
     },
     residentBindings: residents.keys,
     newResidents: residents.residents,
+    ...(residents.segments === undefined ? {} : { newSegments: residents.segments }),
   }
 }
 
@@ -273,7 +295,9 @@ function initializationMaterial(facts: InitializationGuardFacts): Prepared {
   ])
 }
 
-function runSourcesOf(ctx: Context): RunSourcesPorts {
+type AdoptionPorts = RunSourcesPorts & Readonly<{ leftOut: ResidentReport }>
+
+function runSourcesOf(ctx: Context, leftOut: ResidentReport | undefined): AdoptionPorts {
   const coordinator = ctx.intercept(sessionKey, { caller: 'coordinator' })
   const logger = ctx.logger('adoption-sources')
   return {
@@ -281,27 +305,154 @@ function runSourcesOf(ctx: Context): RunSourcesPorts {
     sources: () => ctx.get(workspaceSourcesKey),
     categories: () => ctx.get(assetCategoriesKey)?.view,
     report: reason => logger.warn('the run starts without a workspace layer: %s', reason),
+    leftOut:
+      leftOut ?? (reason => logger.warn('a resident is left out of the session: %s', reason)),
   }
 }
 
+type Mappings = DefinitionMappings & DefinitionReading
+
+const unreadable = (diagnostic: string) =>
+  fail({ kind: 'unavailable' as const, owner: OWNER, diagnostic })
+
 async function definitionEvidence<P>(
   runSources: RunSourcesPorts,
-  mappings: DefinitionMappings,
+  mappings: Mappings,
   command: Extract<AdoptionEvidenceCommand, { kind: 'startRun' | 'reload' }>,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
-  const entry = mappings.byCandidate(command.input.candidate)
-  if (entry === undefined)
-    return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
-  if (command.kind === 'startRun')
-    await adoptRunSources(runSources, command, access as SessionAccess<unknown> | undefined)
-  return succeed([materialOf(mappings, command.kind, entry)])
+  if (command.kind === 'startRun' && command.input.note?.kind === 'waiting')
+    return succeed([noteMaterial(command.input.note)])
+  const given = access as SessionAccess<unknown> | undefined
+  const key =
+    command.kind === 'startRun' ? await adoptForStartedRun(runSources, command, given) : null
+  const turn = given === undefined || key === null ? {} : { turn: { access: given, key } }
+  const read = await mappings.adopted(
+    { tenant: command.input.tenant, ...turn },
+    command.input.candidate,
+  )
+  if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+  if (read.kind === 'absent') return invalid('candidate', read.reason)
+  return succeed([materialOf(mappings, command.kind, read.entry)])
+}
+
+const noteMaterial = (note: AdoptionNote): GuardCommand => ({
+  owner: 'run-adoption',
+  participant: 'session-evidence',
+  protocol: RUN_ADOPTION_EVIDENCE_PROTOCOL,
+  facts: jsonOf({ version: 1, command: 'startRun', note }),
+})
+
+const sameKeys = (left: ResidentAdoption['keys'], right: ResidentAdoption['keys']) =>
+  left.length === right.length &&
+  left.every(pair =>
+    right.some(other => other.capability === pair.capability && other.key === pair.key),
+  )
+
+/** What the residents of the definition come to now, judged over the ones the session keeps; nothing when nothing changed. */
+async function judgedResidents<P>(
+  ctx: Context,
+  work: WorkSnapshot,
+  entry: DefinitionMappingEntry,
+  access: SessionAccess<P>,
+  turn: Turn | null,
+  report: ResidentReport,
+): Promise<Outcome<PlannedResidents | undefined, SessionFailure>> {
+  const planned = await plannedResidents(
+    ctx,
+    entry.residentReferences ?? [],
+    access,
+    report,
+    turn,
+    work,
+  )
+  if ('failure' in planned) return planned
+  const { residents, segments, keys, verdict } = planned.ok
+  const unchanged =
+    verdict === undefined &&
+    residents.length === 0 &&
+    segments === undefined &&
+    sameKeys(keys, work.residentKeys ?? [])
+  return succeed(unchanged ? undefined : planned.ok)
+}
+
+/** A version in force that cannot be used: the set the session stands at, while it still applies; else none. */
+async function notAdopted(
+  mappings: Mappings,
+  asker: Parameters<Mappings['adopted']>[0],
+  pinned: Adoption,
+  read: Readonly<{ reason: string; held?: true }>,
+): Promise<RunAdoption> {
+  if (read.held === undefined) return { kind: 'none', reason: read.reason }
+  const standing = await mappings.adopted(asker, pinned)
+  if (standing.kind === 'found') return { kind: 'keep', reason: read.reason }
+  const why = standing.kind === 'absent' ? standing.reason : standing.diagnostic
+  return { kind: 'none', reason: `${read.reason}; the one the session stands at: ${why}` }
+}
+
+const askerOf = (tenant: SessionAccess<unknown>['tenant'], turn: Turn | null) =>
+  turn === null ? { tenant } : { tenant, turn }
+
+type Named = Readonly<{ entry: DefinitionMappingEntry; turn: Turn | null }>
+
+/** The entry its name maps to now: bundled, or read from the workspace as this turn or reload sees it. */
+async function namedEntry<P>(
+  runSources: AdoptionPorts,
+  mappings: Mappings,
+  access: SessionAccess<P>,
+  work: WorkSnapshot,
+  key: string | null,
+): Promise<Named | Outcome<RunAdoption, SessionFailure>> {
+  const { name, adopted: pinned } = work.definition
+  const bundled = mappings.byName(name)
+  if (bundled !== undefined) return { entry: bundled, turn: null }
+  const given = access as SessionAccess<unknown>
+  let turn: Turn | null = null
+  if (key !== null) {
+    const failed = await adoptWorkspace(runSources, given, work, key)
+    if (failed !== null) runSources.report(failed)
+    turn = { access: given, key }
+  }
+  const asker = askerOf(access.tenant, turn)
+  const read = await mappings.named(asker, name)
+  if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+  if (read.kind === 'absent') return succeed(await notAdopted(mappings, asker, pinned, read))
+  return { entry: read.entry, turn }
+}
+
+/** What a run that starts now adopts: the version in force under the name of its definition. */
+async function runAdoption<P>(
+  ctx: Context,
+  runSources: AdoptionPorts,
+  mappings: Mappings,
+  access: SessionAccess<P>,
+  { work, run, point }: RunAdoptionInput,
+): Promise<Outcome<RunAdoption, SessionFailure>> {
+  const found = await namedEntry(runSources, mappings, access, work, point ?? run)
+  if (!('entry' in found)) return found
+  const { entry, turn } = found
+  const pinned = work.definition.adopted
+  const unchanged = same(entry.candidate, pinned)
+  const residents = await judgedResidents(ctx, work, entry, access, turn, runSources.leftOut)
+  if ('failure' in residents) {
+    if (unchanged) return residents
+    const why =
+      'diagnostic' in residents.failure ? residents.failure.diagnostic : 'cannot be planned'
+    const reason = `the new version of ${work.definition.name} cannot be adopted: ${why}`
+    const asker = askerOf(access.tenant, turn)
+    return succeed(await notAdopted(mappings, asker, pinned, { reason, held: true }))
+  }
+  return succeed({
+    kind: 'adopt',
+    candidate: unchanged ? pinned : entry.candidate,
+    ...(residents.ok === undefined ? {} : { residentAdoption: residents.ok }),
+  })
 }
 
 async function prepareFrom<P>(
   ctx: Context,
-  runSources: RunSourcesPorts,
-  mappings: DefinitionMappings,
+  runSources: AdoptionPorts,
+  mappings: Mappings,
   command: AdoptionEvidenceCommand,
   access: SessionAccess<P> | undefined,
 ): Promise<Prepared> {
@@ -310,16 +461,29 @@ async function prepareFrom<P>(
       const recalled = await recallInitialContext(ctx, command, access, MAPPING_ENTRY_SCHEMA)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
-      const { creation } = command.input
-      const entry = mappings.byName(creation.definition.name)
-      if (entry === undefined)
+      const { creation, tenant } = command.input
+      // A session made from another is made as that one's turn saw things: its workspace is read too.
+      const from = madeFrom(creation.relation)
+      const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+      if (turn === undefined) return unreadable('the session this one is made from cannot be read')
+      const asker = askerOf(tenant, turn)
+      const read = await mappings.named(asker, creation.definition.name)
+      if (read.kind === 'unavailable') return unreadable(read.diagnostic)
+      if (read.kind === 'absent')
         return invalid('definition', 'the definition name is not in the deployment mapping')
+      const { entry } = read
       const mismatch = creationMismatch(entry, creation)
       if (mismatch !== undefined)
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
       const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
-      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
+      const residents = await plannedResidents(
+        ctx,
+        entry.residentReferences ?? [],
+        access,
+        runSources.leftOut,
+        turn,
+      )
       if ('failure' in residents) return residents
       const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation
@@ -328,22 +492,40 @@ async function prepareFrom<P>(
     case 'startRun':
     case 'reload':
       return definitionEvidence(runSources, mappings, command, access)
+    case 'freeze': {
+      const { verdict } = command.input
+      return succeed([
+        {
+          owner: 'resident-adoption',
+          participant: 'session-evidence',
+          protocol: RUN_ADOPTION_EVIDENCE_PROTOCOL,
+          facts: jsonOf({
+            version: 1,
+            command: 'freeze',
+            cause: verdict.cause,
+            capability: verdict.capability,
+            evidence: verdict.evidence,
+          }),
+        },
+      ])
+    }
     case 'completeInitialization':
     case 'change':
-    case 'freeze':
       return succeed([])
   }
 }
 
 export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
-  readonly mappings: DefinitionMappings
+  readonly mappings: Mappings
 
   readonly prepare: SessionAdoptionSource['prepare']
+  readonly forRun: NonNullable<SessionAdoptionSource['forRun']>
 
-  constructor(ctx: Context, mappings: DefinitionMappings) {
+  constructor(ctx: Context, mappings: Mappings, leftOut?: ResidentReport) {
     super(ctx)
     this.mappings = mappings
-    const runSources = runSourcesOf(ctx)
+    const runSources = runSourcesOf(ctx, leftOut)
     this.prepare = (command, access) => prepareFrom(ctx, runSources, mappings, command, access)
+    this.forRun = (access, input) => runAdoption(ctx, runSources, mappings, access, input)
   }
 }

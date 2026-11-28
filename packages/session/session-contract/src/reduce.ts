@@ -12,9 +12,14 @@ import {
 } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
-import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
+import type { RecoveryTask, RunExecution, RunTerminal, WorkSnapshot } from './values.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
-import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
+import {
+  SESSION_INTERPRETER,
+  readsSessionInterpreter,
+  decodeEntries,
+  type SessionEntry,
+} from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { pruneInputLists } from './background-outcome.ts'
@@ -150,6 +155,8 @@ function applyIntakeRouted(
   draft.pending = [...draft.pending, entry.input]
   if (!entry.source.countsTowardCapacity)
     draft.uncountedInputs = [...(draft.uncountedInputs ?? []), entry.input]
+  if (entry.after === true && entry.run !== null)
+    draft.deferredInputs = [...(draft.deferredInputs ?? []), { input: entry.input, run: entry.run }]
   if (!entry.source.wakes) {
     draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
     return null
@@ -181,12 +188,19 @@ function applyRunStarted(
   if (draft.tasks.some(task => task.kind === 'initialization'))
     return 'a Run started before every initialization item was ready'
   if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
-  if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
+  if (entry.initial.some(input => !draft.pending.includes(input)))
+    return 'an initial input of the Run is not pending'
+  if (draft.deferredInputs?.some(held => entry.initial.includes(held.input)))
+    return 'an initial input of the Run is held back until a Run ends'
+  if (draft.deferredInputs !== undefined)
+    draft.deferredInputs = draft.deferredInputs.map(held =>
+      held.run === null ? { ...held, run: entry.run } : held,
+    )
   draft.run = {
     kind: 'active',
     run: entry.run,
     adoption: entry.adoption,
-    first: entry.first,
+    initial: entry.initial,
     advance: null,
     ordinal: '0',
     execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
@@ -234,6 +248,14 @@ function applyAttemptReleased(
   return null
 }
 
+function closedBy(
+  entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
+): Pick<RunExecution, 'terminal' | 'uninterpretable'> {
+  return entry.bounded?.kind === 'uninterpretable'
+    ? { terminal: entry.terminal, uninterpretable: true }
+    : { terminal: entry.terminal }
+}
+
 function applyRunTerminal(
   draft: Draft,
   entry: Extract<SessionEntry, { kind: 'run.terminal' }>,
@@ -243,10 +265,19 @@ function applyRunTerminal(
   if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
   if (hasUnansweredCalls(draft))
     return 'a terminal while a tool call of the Run has no tool message'
+  const closed = closedBy(entry)
   draft.executions = (draft.executions ?? []).map(item =>
-    item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
+    item.run === entry.terminal.run ? { ...item, ...closed } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
+  if (draft.deferredInputs !== undefined) {
+    const { run, outcome } = entry.terminal
+    draft.deferredInputs = draft.deferredInputs.flatMap(held => {
+      if (!draft.pending.includes(held.input)) return []
+      if (held.run !== run) return [held]
+      return outcome === 'failed' ? [{ ...held, run: null }] : []
+    })
+  }
   // No action of an ended Run starts any more: none holds a once authorization.
   draft.authorizations = retireOnce(draft.authorizations)
   draft.handed = []
@@ -273,6 +304,8 @@ function apply(
       return applyInitializationItem(draft, entry)
     case 'session.adoption':
       return applyAdoption(draft, entry)
+    case 'session.model-projected':
+      return null
     case 'message.user':
     case 'message.assistant':
     case 'message.tool':
@@ -382,12 +415,10 @@ function reduceBatch(
   const firstSchema = batch.entries[0]?.schema
   if (batch.entries.some(row => !sameInitializationValue(row.schema, firstSchema)))
     return quarantined('missing interpretation basis: conflicting batch interpreter adoptions')
-  const unsupported = batch.entries.find(
-    entry => !sameInitializationValue(entry.schema, SESSION_INTERPRETER),
-  )
+  const unsupported = batch.entries.find(entry => !readsSessionInterpreter(entry.schema))
   if (unsupported !== undefined)
     return quarantined(`unsupported interpreter adoption: ${JSON.stringify(unsupported.schema)}`)
-  if (previous !== null && !sameInitializationValue(previous.interpreter, SESSION_INTERPRETER))
+  if (previous !== null && !readsSessionInterpreter(previous.interpreter))
     return quarantined(
       `unsupported snapshot interpreter adoption: ${JSON.stringify(previous.interpreter)}`,
     )
@@ -486,6 +517,7 @@ function reduceBatch(
     }
   const { settled, late } = settlementOf(draft, lent, lookup)
   pruneInputLists(draft)
+  draft.interpreter = SESSION_INTERPRETER
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)

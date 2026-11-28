@@ -146,9 +146,10 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
     const current = executions.get(key)
     if (method !== 'invoke' && current === undefined)
       return fail({
-        kind: 'invalid' as const,
+        kind: 'refused' as const,
+        failure: 'invalid' as const,
+        field: 'execution',
         reason: 'execution missing',
-        rejection: evidence('missing'),
       })
     if (method === 'invoke' && current !== undefined) return fail({ kind: 'conflict' as const })
     if (current?.state === 'ended' && method !== 'recordResult')
@@ -179,6 +180,10 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
     control: input => write('control', input, input),
     recordResult: input => write('recordResult', input, input),
     detach: async input => {
+      const result = await write('detach', input, input)
+      return 'failure' in result ? result : succeed(result.ok.evidence)
+    },
+    handOver: async input => {
       const result = await write('detach', input, input)
       return 'failure' in result ? result : succeed(result.ok.evidence)
     },

@@ -69,6 +69,7 @@ import {
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
 import { disabledTelemetryRow } from '../telemetry/support.ts'
+import { tenantAssetsStandIn } from '../../support/tenant-assets-stand-in.ts'
 import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
@@ -84,11 +85,17 @@ const residentNames = [
   'Calendar',
   'Schedules',
   'Notifications',
+  'Canvas',
   'Sessions',
   'Agents',
+  'Goal',
   'SwitchWorkspace',
+  'OmneExtensionPoints',
+  'OmneExtensions',
   'Screen',
+  'AppView',
   'Skills',
+  'Code',
 ]
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -153,6 +160,7 @@ async function start(
       assetsRoot: `${base.stateRoot}/assets`,
       historyIndexRoot: `${base.stateRoot}/history-index`,
       mediaRoot: `${base.stateRoot}/media`,
+      pluginFloorDir: `${base.stateRoot}/plugin-floor`,
     },
     settings: {
       version: 1,
@@ -174,6 +182,7 @@ async function start(
         spec.row.id === 'storage' ? declared(storageRow, storage.config) : spec,
       ),
       identityDouble(),
+      declared(tenantAssetsStandIn),
       declared(agentAdoptionsRow, releaseMapping),
       declared(adoptionSourcesRow),
       declared(sessionAd10Row),

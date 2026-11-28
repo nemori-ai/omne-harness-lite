@@ -12,6 +12,9 @@ import {
   tenantOf,
 } from '@omne-harness/dispatch/testing'
 
+/** The message of the dispatching session that made the call. */
+export const ASKING = 'msg_asking-1'
+
 export const TENANT = tenantOf('1')
 export const PARENT = sessionNamed('parent')
 
@@ -42,6 +45,7 @@ export function world(maxOpen = 4) {
     tenant,
     subject: { verified: session },
     session,
+    asking: ASKING,
   })
   /** The registry a process builds after a restart: the same store and world, nothing kept in memory. */
   const rebuilt = () => createDispatching(deps)

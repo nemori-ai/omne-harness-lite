@@ -1,3 +1,4 @@
+import type { StartedRun } from '@omne-harness/session-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { expectedRevision, type SessionFailure } from '@omne-harness/session-contract'
@@ -96,7 +97,7 @@ describe('each face operation asks the access check exactly once', () => {
         instance: { owner: 'agent', id: 'instance-1' },
       }),
       'startRun',
-    )
+    ) as StartedRun
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     let moved = false
     h.view.onCommit(async (input, next) => {
@@ -132,7 +133,7 @@ describe('each face operation asks the access check exactly once', () => {
         expected: expectedRevision(snapshot, 'finishRun'),
         bounded: {
           kind: 'admission-rejected',
-          input: started.first,
+          input: started.initial[0],
           rejection: started.receipt.source,
         },
       })

@@ -23,13 +23,22 @@ describe('select-model', () => {
 
   it('names the target route under a control identity', () => {
     expectRoundTrip(select.body, { tenant, session, controlId: 'control', model })
+    for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh'])
+      expectRoundTrip(select.body, {
+        tenant,
+        session,
+        controlId: 'control',
+        model,
+        reasoningEffort,
+      })
     for (const sample of [
+      { tenant, session, controlId: 'control', model, reasoningEffort: 'max' },
       { tenant, session, controlId: 'control', model: '' },
       { tenant, session, controlId: '', model },
       { tenant, session, model },
       { tenant, session, controlId: 'control', model, extra: 1 },
     ])
-      expect(readSample(select.body, sample)).toEqual({ ok: false })
+      expect(readSample(select.body, sample).ok).toBe(false)
   })
 
   it('answers the selection with what it knows of the credential', () => {
@@ -37,13 +46,14 @@ describe('select-model', () => {
       expectRoundTrip(select.outcomes.succeeded, { controlId: 'control', model, credential })
     expect(
       readSample(select.outcomes.succeeded, { controlId: 'control', model, credential: 'stale' }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 
   it('refuses a target it cannot select with one of the six reasons', () => {
     for (const reason of ['unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'])
       expectRoundTrip(select.outcomes.invalid, { reason })
-    expect(readSample(select.outcomes.invalid, { reason: 'other' })).toEqual({ ok: false })
+    expectRoundTrip(select.outcomes.invalid, { reason: 'excluded', detail: 'unsupported-effort' })
+    expect(readSample(select.outcomes.invalid, { reason: 'other' }).ok).toBe(false)
   })
 
   it('may name the blocks of the history the target cannot read', () => {
@@ -60,7 +70,7 @@ describe('select-model', () => {
       { reason: 'modality', blocks: 'blk_picture' },
       { reason: 'modality', blocks: Array.from({ length: 17 }, () => blocks[0]) },
     ])
-      expect(readSample(select.outcomes.invalid, bad)).toEqual({ ok: false })
+      expect(readSample(select.outcomes.invalid, bad).ok).toBe(false)
   })
 })
 
@@ -84,11 +94,12 @@ describe('read-model-selection', () => {
 
   it('names one session, and answers the route it stands at with the revision read', () => {
     expectRoundTrip(read.body, { tenant, session })
-    expect(readSample(read.body, { tenant })).toEqual({ ok: false })
-    expect(readSample(read.body, { tenant, session, model })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant }).ok).toBe(false)
+    expect(readSample(read.body, { tenant, session, model }).ok).toBe(false)
     expectRoundTrip(read.outcomes.succeeded, { model, revision: '7' })
+    expectRoundTrip(read.outcomes.succeeded, { model, reasoningEffort: 'xhigh', revision: '7' })
     for (const sample of [{ model: '', revision: '7' }, { model }, { revision: '7' }])
-      expect(readSample(read.outcomes.succeeded, sample)).toEqual({ ok: false })
+      expect(readSample(read.outcomes.succeeded, sample).ok).toBe(false)
   })
 })
 
@@ -100,7 +111,7 @@ describe('create-session with a model', () => {
     expectRoundTrip(create.body, base)
     expectRoundTrip(create.body, { ...base, definition: 'coding', model })
     expectRoundTrip(create.body, { ...base, model })
-    expect(readSample(create.body, { ...base, model: '' })).toEqual({ ok: false })
-    expect(readSample(create.body, { ...base, model: 7 })).toEqual({ ok: false })
+    expect(readSample(create.body, { ...base, model: '' }).ok).toBe(false)
+    expect(readSample(create.body, { ...base, model: 7 }).ok).toBe(false)
   })
 })

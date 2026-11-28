@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import {
   decodeDispatchId,
@@ -101,7 +101,7 @@ for (const content of [
       const f = await running()
       const control = op('cancel')
       if (ending === 'interrupted')
-        unbox(await f.commands.control({ ...f.admit, operation: control }))
+        unbox(await f.commands.control({ ...f.admit, operation: control, intent: 'cancel' }))
       const value = content === 'tool-arguments' ? '{"unfinished":' : `${content}原值\ud800`
       const facts: TransportFact[] = [
         { kind: 'block-open', index: '0', content, mode: 'append' },
@@ -327,7 +327,7 @@ it('rejects a trimmed executable tool seal and a completed terminal atomically, 
     },
   ])
 })
-it('refuses oversized terminal input before publication and preserves its legal prefix for a bounded long terminal', async () => {
+it('refuses oversized terminal input before publication; a long diagnostic within the bound is malformed and ends as a protocol failure', async () => {
   const good: Termination = {
     kind: 'failed',
     fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(4003), upstreamStatus: null },
@@ -365,12 +365,66 @@ it('refuses oversized terminal input before publication and preserves its legal 
   const saved = unbox(await f.commands.preserve({ ...input, facts }))
   expect(saved.cursor).toBe(String(BigInt(original.cursor) + 1n))
   expect(saved.blocks).toEqual(original.blocks)
-  const read = await f.read(good)
+  const read = await f.read(MALFORMED)
   expect(read.page.settlement.cursor).toBe(saved.cursor)
-  expect(read.page.settlement.termination).toEqual(good)
+  expect(read.page.settlement.termination).toEqual(MALFORMED)
   expect(read.page.parts).toEqual([{ kind: 'partial', content: 'text', value: 'kept', trims: [] }])
   expect(read.page.next).toBeNull()
 })
+const MALFORMED: Termination = {
+  kind: 'failed',
+  fault: { cause: 'upstream-protocol', diagnostic: 'malformed-fault', upstreamStatus: null },
+}
+
+describe('a failure cause taken from outside', () => {
+  const shaped: Termination = {
+    kind: 'failed',
+    fault: { cause: 'upstream-unavailable', diagnostic: 'http-503', upstreamStatus: '503' },
+  }
+  const malformed = [
+    { cause: 'rate-limited', diagnostic: 'x', upstreamStatus: null },
+    { cause: 'unclassified', diagnostic: 'see https://x.test/', upstreamStatus: null },
+    { cause: 'unclassified', diagnostic: 'two\nlines', upstreamStatus: null },
+    { cause: 'replay-rejected', diagnostic: 'replay', upstreamStatus: '400' },
+    { cause: 'input-over-limit', diagnostic: 'too-big', upstreamStatus: null },
+    { cause: 'stream-lost', diagnostic: 'gone', upstreamStatus: null, reported: null },
+  ]
+
+  async function ended(termination: unknown) {
+    const f = await running()
+    const window = 'ended'
+    unbox(
+      await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }),
+    )
+    const facts = [{ kind: 'ended', termination }] as unknown as TransportFact[]
+    f.completeWindows.add(`${f.admit.call}/${window}/${digest(facts)}`)
+    unbox(await f.commands.preserve({ ...(await f.write()), dispatch: f.dispatch, window, facts }))
+    return f
+  }
+
+  it('ends the dispatch as a protocol failure when the transport hands a malformed one', async () => {
+    for (const fault of malformed) {
+      const f = await ended({ kind: 'failed', fault })
+      expect(unbox(await f.commands.dispatches(f.admit))[0]?.terminal).toEqual(MALFORMED)
+      expect(unbox(await f.commands.loadRecovery(f.admit)).logicalTerminal).toEqual(MALFORMED)
+    }
+    const f = await ended(shaped)
+    expect(unbox(await f.commands.dispatches(f.admit))[0]?.terminal).toEqual(shaped)
+  })
+
+  it('refuses a settlement that carries a malformed one', async () => {
+    for (const fault of malformed) {
+      const f = await ended(MALFORMED)
+      expect(
+        await f.commands.settle({
+          ...(await f.write()),
+          termination: { kind: 'failed', fault } as unknown as Termination,
+        }),
+      ).toMatchObject({ failure: { kind: 'invalid', field: 'termination', reason: 'fault-shape' } })
+    }
+  })
+})
+
 for (const trimmed of [false, true]) {
   it(`does not let a pure empty failed dispatch poison a complete retry, preserving trim=${trimmed}`, async () => {
     const f = await running()

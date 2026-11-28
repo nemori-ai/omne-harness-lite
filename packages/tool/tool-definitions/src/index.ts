@@ -1,4 +1,6 @@
+export { codeToolModule, createCodeAuthor } from './code.ts'
 export { createFilesAuthor, filesToolModule } from './files.ts'
+export { PROGRAM_DATA_MAX_BYTES, type Answer, type ProgramSide } from './program-side.ts'
 export { createScreenAuthor, screenToolModule } from './screen.ts'
 export {
   SHELL_BACKGROUND_AFTER_DEFAULT_MS,
@@ -7,7 +9,10 @@ export {
   createShellAuthor,
   shellToolModule,
 } from './shell.ts'
+export { createScriptAuthor, scriptToolModule } from './script.ts'
+export { attachScriptHost, scriptHostOf, type ScriptHost, type ScriptPlace } from './script-port.ts'
 export { createSkillsAuthor, skillsToolModule } from './skills.ts'
+export { skillsCommandNames } from './skills-protocol.ts'
 export { attachSkillsAccess, skillsAccessOf } from './skills-port.ts'
 export type {
   SkillsAccess,
@@ -15,11 +20,14 @@ export type {
   SkillsFailure,
   SkillsFile,
   SkillsListing,
+  SkillsMissingTools,
   SkillsPage,
+  SkillsSource,
   SkillsText,
 } from './skills-port.ts'
 export { createToolsAuthor, toolsToolModule } from './tools.ts'
 export type {
+  CodeAuthorEnvironment,
   FilesAuthorEnvironment,
   ScreenAuthorEnvironment,
   ShellAuthorEnvironment,

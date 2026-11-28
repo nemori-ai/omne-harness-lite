@@ -19,21 +19,25 @@ import type {
 import { readSettingsSource } from '@omne-harness/settings-local'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
+import {
+  declarationOfTarget,
+  governedDeclarations,
+  type PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
-import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 import { organizationPermissionSource } from './organization-permission-source.ts'
 import { organizationSettingsSource } from './organization-settings.ts'
 import { mappedDefinition } from './session-permission-settings.ts'
-import { toolAssetTarget } from './tool-installation-assets.ts'
 
 export const TOOL_PERMISSION_APPLIES_AT = '对之后的每一次工具调用生效，已经启动的不受影响'
 
-type Mapped = Readonly<{ entry: ToolReleaseEntry; permission: PermissionDefinition }>
+type Mapped = Readonly<{ entry: PermissionDeclaration; permission: PermissionDefinition }>
 
 export type TenantSettingsPermissionOptions = Readonly<{
   scope: Pick<GovernanceScope, 'deploymentId' | 'logicalServiceId'>
   storage: Pick<SqlStorage, 'read'>
   release(): ToolRelease | undefined
+  declared?(tenantRef: string): readonly PermissionDeclaration[]
 }>
 
 function ownRule(view: SettingsTargetView, itemId: string): PermissionRule | null {
@@ -60,13 +64,10 @@ export function createTenantSettingsPermissions(
   options: TenantSettingsPermissionOptions,
 ): TenantSettingsPermissions {
   function mapped(view: SettingsTargetView, itemId: string): Mapped | undefined {
-    const release = options.release()
-    if (release?.kind !== 'trusted') return undefined
-    const entries = release.manifest.entries.filter(
-      entry =>
-        canonicalText(toolAssetTarget(entry, view.target.scopeRef)) === canonicalText(view.target),
+    const entry = declarationOfTarget(
+      governedDeclarations(options.release(), options.declared?.(view.target.scopeRef) ?? []),
+      view.target,
     )
-    const entry = entries.length === 1 ? entries[0] : undefined
     if (entry === undefined) return undefined
     const permissions = entry.governance.declaration.permissions.filter(
       permission =>

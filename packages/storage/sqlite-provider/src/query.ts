@@ -13,6 +13,15 @@ const PROOFS = {
 } as const
 
 export function createQuery(core: Core): SqlStorage['query'] {
+  const answer = answerQuery(core)
+  return async (identity: SqlIdentity): Promise<QueryResultV2> => {
+    const result = await answer(identity)
+    core.readings.query(decodeIdentity(identity).identity?.transactionDomain ?? '', result.kind)
+    return result
+  }
+}
+
+function answerQuery(core: Core): SqlStorage['query'] {
   return async (identity: SqlIdentity): Promise<QueryResultV2> => {
     const unknown = (text: string): QueryResultV2 => ({
       kind: 'unknown',
@@ -23,7 +32,9 @@ export function createQuery(core: Core): SqlStorage['query'] {
     const decoded = decodeIdentity(identity)
     if (decoded.identity === null) return unknown('invalid_identity')
     const valid = decoded.identity
-    if (valid.recall === 'never') return { kind: 'not_recallable', identity: valid }
+    const key = identityKey(valid)
+    const recallable = valid.recall !== 'never'
+    if (!recallable && core.pending.has(key)) return unknown('operation_pending')
     const grant = await core.admission.reserveQuery(valid.transactionDomain)
     if (grant.kind === 'closing') return unknown('closing')
     if (grant.kind !== 'granted') return unknown('queue_full')
@@ -38,7 +49,6 @@ export function createQuery(core: Core): SqlStorage['query'] {
         if (outcome.kind === 'closing' || core.lifecycle.closing) return unknown('closing')
         if (outcome.kind !== 'ready' || !sameScope(outcome.entry.scope, valid.scope))
           return unknown('domain_unavailable')
-        const key = identityKey(valid)
         const pendingBefore = core.pending.has(key)
         const reply = await observeReply(
           () => outcome.entry.client.request<QueryReply>({ kind: 'query', identity: valid }),
@@ -49,7 +59,9 @@ export function createQuery(core: Core): SqlStorage['query'] {
         if (reply.kind === 'withdrawn') return unknown('closing')
         if (reply.kind !== 'none') return unknown('provider_error')
         if (pendingBefore || core.pending.has(key)) return unknown('operation_pending')
-        return { kind: 'not_committed', identity: valid, proofs: PROOFS }
+        return recallable
+          ? { kind: 'not_committed', identity: valid, proofs: PROOFS }
+          : { kind: 'settled', identity: valid, proofs: PROOFS }
       } catch {
         return unknown('provider_error')
       } finally {

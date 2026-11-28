@@ -200,7 +200,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 16） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 23） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -225,7 +225,7 @@
 > coordinates.
 
 - **形态**：对象
-- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 16）
+- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 23）
 - **别混**：**不是交付面上的一个页面**——屏幕在执行环境里，是 agent 观察与操作的对象，不是人看会话的那一面
 - **注意**：列出屏幕与截屏也以一个只读的截屏工具提供，与 Computer 用同一个图形界面设施、同样的规则；那是一个工具，不另立词条
 
@@ -458,17 +458,17 @@
 > **EN**: The directory that file and command tools of one session use by default during the current step. Before each step, the system derives it from the session's selection at that time and from the verification of the selected instance. It does not change during the step. When the session has attached a workspace and the selected instance is available, it is the root directory of the instance. When the session has not attached a workspace, it is the default directory of the deployment. When the session has attached a workspace but the instance is unavailable or the tenant no longer has the participation right, there is no directory, and an action that depends on it fails explicitly. After the session changes its workspace, the directory changes from the next step, and actions already issued stay in the earlier directory.
 
 - **形态**：视图
-- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 9）
 - **别混**：不是[落点](#ul-placement--落点--placement)。落点回答一次执行落在哪个环境，本词回答这个会话的工具默认在哪个目录。知道目录不构成许可。也不是留着的终端当前所在的目录：那个目录随终端里的命令变。
 
 ### UL-files-scope · 文件范围 · Files Scope
 
-> **中**：一次工具调用的文件请求读可以到哪、写可以到哪：一个读的根，一个写的根，缺哪一侧，哪一侧不限。它在调用受理时定下并随调用钉住，之后不变。附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的会话里，它由所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的范围与用户为「工作区之外的文件」配的那一档算出；没有附着工作区的会话里，读与写都限在默认目录。
+> **中**：一次工具调用的文件请求读可以到哪、写可以到哪：一个读的根，一个写的根，缺哪一侧，哪一侧不限。它在每一步开始之前随[会话工作目录](#ul-session-working-directory--会话工作目录--session-working-directory)一起得出，一步之内不变；调用受理时照这一步的那一份钉住，之后不变。附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的会话里，它由所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的范围与用户为「工作区之外的文件」配的那一档算出；没有附着工作区的会话里，读与写都不限。
 
-> **EN**: Where the file requests of one tool call may read and where they may write: one root for reading and one root for writing. A side with no root is not limited. The system sets it when the call is accepted and pins it to the call. It does not change afterwards. In a session with an attached workspace, the system computes it from the range of the selected instance and from the level that the user set for files outside the workspace. In a session without a workspace, it limits reading and writing to the default directory.
+> **EN**: Where the file requests of one tool call may read and where they may write: one root for reading and one root for writing. A side with no root is not limited. Before each step, the system derives it together with the session working directory, and it does not change during the step. When a call is accepted, the system pins the value of that step to the call. It does not change afterwards. In a session with an attached workspace, the system computes it from the range of the selected instance and from the level that the user set for files outside the workspace. In a session without a workspace, it limits neither reading nor writing.
 
 - **形态**：属性
-- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 9）
 - **别混**：不是[会话工作目录](#ul-session-working-directory--会话工作目录--session-working-directory)。会话工作目录回答工具默认在哪个目录干活，本词回答文件请求能碰到哪里；一个会话可以在工作区里干活而被许可读别处。也不是隔离：文件工具的请求由围栏照它执行，命令只在启动之前照它核明着写出的路径，程序运行时自己去读写的地方它管不到。
 
 ### UL-session-base · 会话据点 · Session Base
@@ -663,7 +663,7 @@
 > decide which package from which layer to use, or who may read it.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 5）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 11）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
   **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；Skill 包来源只按给定的内容摘要交出字节
 - **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**

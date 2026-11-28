@@ -7,6 +7,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import type { LocalCurrentDefinitions } from '@omne-harness/tool-host-local'
 import {
   ToolContributionAuthorityService,
   toolContributionAuthorityKey,
@@ -14,9 +15,22 @@ import {
   type VerifiedAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { pauseAfterFailures } from '../retry-pause.ts'
+import { heldDefinitionOf } from '../rows/tool-host/held-definitions.ts'
+import { currentHeldTool } from '../rows/tool-host/held-current.ts'
+import { heldReadingOf } from '../rows/tool-host/held-now.ts'
+import { workspaceToolBody } from '../rows/tool-host/workspace-tools.ts'
+import { inWorkspace, revisionOf } from '../rows/tenant-assets/layers.ts'
+import {
+  HELD_TOOL_OWNER,
+  heldCandidateOf,
+  heldToolAuthority,
+  heldToolStanding,
+  sameHeld,
+} from '../rows/tool-host/held-tools.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
+import { sourcedEntriesOf } from './tool-entry-sources.ts'
 import {
   importReleaseModules,
   loadToolRelease,
@@ -101,8 +115,47 @@ function mismatchOf(
   return null
 }
 
-function verifyAgainst(release: Trusted, authority: ToolAuthority): ReturnType<Verify> {
-  if (!isOfficial(authority.layer)) return fail({ kind: 'denied' })
+type HeldRead = Readonly<{
+  held: Parameters<typeof heldToolStanding>[0]
+  adopted(tenant: TenantId, version: Readonly<{ asset: string; version: string }>): boolean
+}>
+
+/** A tool of the tenant layer is the one its tenant holds in force now, or one a turn of it adopted from its workspace. */
+function verifyHeld(read: HeldRead, authority: ToolAuthority): ReturnType<Verify> {
+  const { layer, asset } = authority
+  if (layer.kind !== 'tenant' || Object.keys(layer).length !== 2) return fail({ kind: 'denied' })
+  const taken = heldCandidateOf(authority)
+  if (inWorkspace(taken.asset))
+    return read.adopted(layer.tenant, taken)
+      ? succeed(heldToolAuthority(layer.tenant, asset.name, taken) as VerifiedAuthority)
+      : fail({ kind: 'denied' })
+  const standing = heldToolStanding(read.held, layer.tenant, asset.name)
+  if (standing.kind === 'unavailable') return unavailable('what the tenant holds cannot be read')
+  if (standing.kind === 'none') return fail({ kind: 'denied' })
+  if (!sameHeld(authority, standing.candidate)) {
+    const tenant = tenantCodec.encode(layer.tenant)
+    return fail({
+      kind: 'missing',
+      evidence: Object.freeze({
+        owner: HELD_TOOL_OWNER,
+        record: `tool-holding/${tenant.ok ? tenant.value : ''}/${asset.name}`,
+        revision: revisionOf(standing.candidate),
+        digest: standing.candidate.version,
+      }),
+    })
+  }
+  // The verified value is built from what the registry holds, never from the caller's object.
+  return succeed(
+    heldToolAuthority(layer.tenant, asset.name, standing.candidate) as VerifiedAuthority,
+  )
+}
+
+function verifyAgainst(
+  release: Trusted,
+  authority: ToolAuthority,
+  read: HeldRead,
+): ReturnType<Verify> {
+  if (!isOfficial(authority.layer)) return verifyHeld(read, authority)
   const entry = entryNamed(release, authority.asset)
   if (entry === undefined) return fail({ kind: 'denied' })
   const reason = mismatchOf(authority, entry, release.generation)
@@ -125,13 +178,26 @@ function isRegistrant(access: Access<unknown>, bound: Bound): boolean {
   )
 }
 
+/** A tool of the tenant layer is loaded and contributed only for the tenant that holds it. */
+function admitsHeld(access: Access<unknown>, layer: unknown): ReturnType<Admits> {
+  const tenant = typeof layer === 'object' && layer !== null ? Reflect.get(layer, 'tenant') : null
+  const held =
+    typeof layer === 'object' && layer !== null && Reflect.get(layer, 'kind') === 'tenant'
+  return held &&
+    tenantCodec.encode(access.tenant).ok &&
+    tenantCodec.encode(tenant as TenantId).ok &&
+    tenantEquals(access.tenant, tenant as TenantId)
+    ? succeed(undefined)
+    : fail({ kind: 'denied' })
+}
+
 function admitsAgainst(
   release: Trusted,
   bound: Bound | null,
   access: Access<unknown>,
   layer: unknown,
 ): ReturnType<Admits> {
-  if (!isOfficial(layer)) return fail({ kind: 'denied' })
+  if (!isOfficial(layer)) return admitsHeld(access, layer)
   if (bound === null) return unavailable('the release registrant is not installed')
   if (bound.generation !== release.generation || !isRegistrant(access, bound))
     return fail({ kind: 'denied' })
@@ -171,7 +237,10 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
       const release = releaseNow()
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
-        return verifyAgainst(release, authority)
+        return verifyAgainst(release, authority, {
+          held: heldReadingOf(ctx),
+          adopted: (tenant, version) => workspaceToolBody(ctx, tenant, version) !== undefined,
+        })
       } catch {
         return fail({ kind: 'invalid', reason: 'authority is unreadable' })
       }
@@ -357,14 +426,57 @@ export function rememberReleaseDefinition(
     known = { generation, entries: new Map() }
     knownDefinitions.set(ctx.root, known)
   }
-  known.entries.set(definition.name, structuredClone(definition))
+  known.entries.set(definition.name, deepFrozen(structuredClone(definition)))
   return true
+}
+
+function deepFrozen<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const member of Object.values(value)) deepFrozen(member)
+    Object.freeze(value)
+  }
+  return value
 }
 
 export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition | undefined {
   const release = releaseOf(ctx)
   const known = knownDefinitions.get(ctx.root)
   if (release.kind !== 'trusted' || known?.generation !== release.generation) return undefined
-  const definition = known.entries.get(name)
-  return definition === undefined ? undefined : structuredClone(definition)
+  return known.entries.get(name)
+}
+
+/** The definition of the tool in force under a name for who asks, as it was loaded; null when there is none. */
+async function heldDefinitionNow(ctx: Context, access: Access<unknown>, name: string) {
+  const held = await currentHeldTool(ctx, access, name)
+  if (held.kind === 'unavailable')
+    return fail({
+      kind: 'unavailable' as const,
+      dependency: 'tool-release',
+      diagnostic: held.diagnostic,
+    })
+  if (held.kind !== 'held') return succeed(null)
+  const { layer, asset } = held.authority
+  return succeed(heldDefinitionOf(ctx, { layer, asset }) ?? null)
+}
+
+export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
+  const sourced = sourcedEntriesOf(ctx)
+  return {
+    async current({ name, tenant, principal }) {
+      const release = releaseOf(ctx)
+      if (release.kind !== 'trusted')
+        return fail({
+          kind: 'unavailable',
+          dependency: 'tool-release',
+          diagnostic: release.diagnostic,
+        })
+      const released = releaseDefinitionOf(ctx, name)
+      if (released !== undefined) return succeed(released)
+      const asker = { principal, tenant }
+      const listed = sourced.owns(asker, name) ? sourced.entry(asker, name) : undefined
+      return listed === undefined
+        ? heldDefinitionNow(ctx, { principal, tenant }, name)
+        : succeed(listed.definition)
+    },
+  }
 }

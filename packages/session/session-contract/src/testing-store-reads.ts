@@ -1,5 +1,8 @@
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { decodeEntry } from './entries.ts'
+import type { SessionModelSelection } from './control-values.ts'
+import { TESTING_OWNER } from './testing-values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import type { SessionId, SessionRevision } from './identity.ts'
 import type { DecideReads, OperationRecord } from './judgments.ts'
@@ -81,4 +84,40 @@ export function frozenOperation<O extends Readonly<{ record: OperationRecord }>>
         entry => entry.kind === 'session.frozen' && entry.revision === item.record.receipt.revision,
       ),
   )
+}
+
+/** A session starts with its creation selection until a later commit selects a model. */
+export function readStoredModelSelection(
+  store: Operated<{ record: OperationRecord }> & Pick<Held, 'snapshot'>,
+): Outcome<SessionModelSelection, SessionFailure> {
+  let selection = store.snapshot.creation.initialModelSelection
+  let revision = store.entries[0]?.revision
+  for (const row of store.entries) {
+    if (row.kind !== 'session.model-selected') continue
+    const entry = decodeEntry(row)
+    if (
+      'ok' in entry &&
+      entry.ok.kind === 'session.model-selected' &&
+      entry.ok.declaration.kind === 'model'
+    ) {
+      const { kind: _kind, ...saved } = entry.ok.declaration
+      selection = saved
+      revision = row.revision
+    }
+  }
+  if (selection === undefined || revision === undefined) return fail({ kind: 'not-ready' })
+  const origin = [...store.operations.values()].find(
+    item => item.record.receipt.revision === revision,
+  )
+  if (origin === undefined)
+    return fail({
+      kind: 'unavailable',
+      owner: TESTING_OWNER,
+      diagnostic: 'the commit that saved the selection has no original receipt',
+    })
+  return succeed({
+    selection,
+    revision: store.snapshot.revision,
+    source: origin.record.receipt.source,
+  })
 }

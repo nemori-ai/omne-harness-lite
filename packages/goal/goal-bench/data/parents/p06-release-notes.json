@@ -1,0 +1,288 @@
+{
+  "id": "p06-release-notes",
+  "title": "写 v2.3.0 发布说明：三节结构与迁移办法、文档检查、提交覆盖脚本",
+  "source": "constructed",
+  "split": "tune",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "写出 v2.3.0 的发布说明，让升级的人看一眼就知道要改什么。不动已发布版本的说明。",
+    "criteria": [
+      {
+        "statement": "发布说明有「破坏性变更」「新增」「修复」三节，每个破坏性变更都带迁移办法",
+        "evidence": {
+          "kind": "file",
+          "path": "docs/releases/v2.3.0.md"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "三节齐全，破坏性变更的每一项都有「迁移：」说明"
+        }
+      },
+      {
+        "statement": "文档检查（排版与链接）通过",
+        "evidence": {
+          "kind": "command",
+          "command": "pnpm check:docs"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "自 v2.2.0 以来每个 feat 与 fix 提交都出现在发布说明里",
+        "evidence": {
+          "kind": "command",
+          "command": "node scripts/changelog-coverage.js v2.2.0"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "输出表示没有遗漏的提交，覆盖数等于提交数"
+        }
+      }
+    ],
+    "metrics": [],
+    "rules": [
+      {
+        "statement": "不改已发布版本的发布说明。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 15,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的结果与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "提交记录里发现没有声明的破坏性变更",
+        "kind": "condition",
+        "deliver": "哪个提交、改了什么行为、建议的迁移办法",
+        "counts": "failure"
+      }
+    ],
+    "references": [],
+    "method": []
+  },
+  "rounds": 6,
+  "metrics": {},
+  "calls": [
+    {
+      "ref": "call-3",
+      "order": 3,
+      "tool": "Files write",
+      "command": null,
+      "path": "docs/releases/v2.3.0.md",
+      "exit": null,
+      "output": "# v2.3.0\n\n## 破坏性变更\n\n- `createClient` 的 `timeout` 单位从秒改为毫秒。迁移：把传入的值乘以 1000。\n- 移除已弃用的 `client.fetchAll()`。迁移：改用 `client.list({ all: true })`。\n\n## 新增\n\n- 新增 `client.list({ all: true })`，自动翻页。\n- 支持通过环境变量 `ACME_BASE_URL` 指定服务地址。\n\n## 修复\n\n- 修复重试时请求体被重复消费的问题。\n- 修复在 Node 18 下 `AbortSignal.any` 缺失导致的报错。\n",
+      "writes": true
+    },
+    {
+      "ref": "call-5",
+      "order": 5,
+      "tool": "Files read",
+      "command": null,
+      "path": "docs/releases/v2.3.0.md",
+      "exit": null,
+      "output": "# v2.3.0\n\n## 破坏性变更\n\n- `createClient` 的 `timeout` 单位从秒改为毫秒。迁移：把传入的值乘以 1000。\n- 移除已弃用的 `client.fetchAll()`。迁移：改用 `client.list({ all: true })`。\n\n## 新增\n\n- 新增 `client.list({ all: true })`，自动翻页。\n- 支持通过环境变量 `ACME_BASE_URL` 指定服务地址。\n\n## 修复\n\n- 修复重试时请求体被重复消费的问题。\n- 修复在 Node 18 下 `AbortSignal.any` 缺失导致的报错。\n",
+      "writes": false
+    },
+    {
+      "ref": "call-6",
+      "order": 6,
+      "tool": "Shell run",
+      "command": "pnpm check:docs",
+      "path": null,
+      "exit": 0,
+      "output": "> markdownlint-cli2 \"docs/**/*.md\" && lychee --offline docs\n\nmarkdownlint-cli2 v0.14.0 (markdownlint v0.35.0)\nLinting: 23 file(s)\nSummary: 0 error(s)\n\n🔍 41 Total ✅ 41 OK 🚫 0 Errors",
+      "writes": false
+    },
+    {
+      "ref": "call-7",
+      "order": 7,
+      "tool": "Shell run",
+      "command": "node scripts/changelog-coverage.js v2.2.0",
+      "path": null,
+      "exit": 0,
+      "output": "> node scripts/changelog-coverage.js v2.2.0\n\nfeat/fix 提交 31 个，发布说明覆盖 31 个\n所有 feat 与 fix 提交都已出现在发布说明中 (31/31)",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-5"
+        ],
+        "note": "三节都有，两条破坏性变更都带迁移"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-6"
+        ],
+        "note": "0 error，41 个链接都通"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-7"
+        ],
+        "note": "31 个提交全覆盖"
+      }
+    },
+    "metrics": {},
+    "rules": {
+      "N1": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "docs/releases/v2.3.0.md"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A1": {
+      "ref": "call-5",
+      "contains": [
+        "改用 `client.list({ all: true })`",
+        "把传入的值乘以 1000"
+      ]
+    },
+    "A2": {
+      "ref": "call-6",
+      "contains": [
+        "Summary: 0 error(s)"
+      ]
+    },
+    "A3": {
+      "ref": "call-7",
+      "contains": [
+        "(31/31)"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "break",
+      "id": "break-missing-migration",
+      "target": "A1",
+      "call": {
+        "ref": "call-5",
+        "output": "# v2.3.0\n\n## 破坏性变更\n\n- `createClient` 的 `timeout` 单位从秒改为毫秒。迁移：把传入的值乘以 1000。\n- 移除已弃用的 `client.fetchAll()`。\n\n## 新增\n\n- 新增 `client.list({ all: true })`，自动翻页。\n- 支持通过环境变量 `ACME_BASE_URL` 指定服务地址。\n\n## 修复\n\n- 修复重试时请求体被重复消费的问题。\n- 修复在 Node 18 下 `AbortSignal.any` 缺失导致的报错。\n"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-docs-check",
+      "target": "A2"
+    },
+    {
+      "op": "narrow",
+      "id": "narrow-docs-check",
+      "target": "A2",
+      "call": {
+        "ref": "call-6",
+        "command": "pnpm markdownlint-cli2 docs/releases/v2.3.0.md",
+        "output": "> markdownlint-cli2 docs/releases/v2.3.0.md\n\nLinting: 1 file(s)\nSummary: 0 error(s)"
+      }
+    },
+    {
+      "op": "contradict",
+      "id": "later-coverage-misses",
+      "target": "A3",
+      "run": {
+        "ref": "call-8",
+        "tool": "Shell run",
+        "command": "node scripts/changelog-coverage.js v2.2.0",
+        "path": null,
+        "exit": 1,
+        "output": "> node scripts/changelog-coverage.js v2.2.0\n\nfeat/fix 提交 31 个，发布说明覆盖 30 个\n缺少 1 个提交：\n  a41c9e2 fix(client): 取消请求后不再重试",
+        "writes": false
+      }
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-coverage",
+      "target": "A3",
+      "call": {
+        "ref": "call-7",
+        "exit": 1,
+        "output": "> node scripts/changelog-coverage.js v2.2.0\n\nfeat/fix 提交 31 个，发布说明覆盖 30 个\n缺少 1 个提交：\n  a41c9e2 fix(client): 取消请求后不再重试"
+      },
+      "note": "漏的那个只是内部重构提交，发布负责人说不用写，这一条算完成。",
+      "authority": {
+        "ref": "call-9",
+        "tool": "Shell run",
+        "command": "gh pr view 3021 --json reviewDecision",
+        "path": null,
+        "exit": 0,
+        "output": "{\"reviewDecision\":\"APPROVED\"}",
+        "writes": false
+      }
+    },
+    {
+      "op": "stale",
+      "id": "stale-coverage",
+      "target": "A3",
+      "write": {
+        "ref": "call-10",
+        "tool": "Files write",
+        "command": null,
+        "path": "scripts/changelog-coverage.js",
+        "exit": null,
+        "output": "@@ -41,3 +41,4 @@ function kinds(subject) {\n   return /^(feat|fix)(\\(.+\\))?!?:/.test(subject)\n+    || /^perf:/.test(subject)",
+        "writes": true
+      }
+    },
+    {
+      "op": "occur",
+      "id": "undeclared-breaking",
+      "target": "X2",
+      "calls": [
+        {
+          "ref": "call-11",
+          "tool": "Shell run",
+          "command": "git show 7be02d4 --stat --format=%s",
+          "path": null,
+          "exit": 0,
+          "output": "feat(client): 默认启用 keep-alive\n src/transport.ts | 14 +++++++-----\n BREAKING CHANGE 未在提交信息里声明：默认 agent 不再复用 socket 的行为被改掉，自定义代理的用户会受影响",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A1",
+        "call": {
+          "ref": "call-5",
+          "output": "# v2.3.0\n\n## 破坏性变更\n\n- `createClient` 的 `timeout` 单位从秒改为毫秒。迁移：把传入的值乘以 1000。\n- 移除已弃用的 `client.fetchAll()`。\n\n## 新增\n\n- 新增 `client.list({ all: true })`，自动翻页。\n- 支持通过环境变量 `ACME_BASE_URL` 指定服务地址。\n\n## 修复\n\n- 修复重试时请求体被重复消费的问题。\n- 修复在 Node 18 下 `AbortSignal.any` 缺失导致的报错。\n"
+        }
+      }
+    },
+    {
+      "op": "violate",
+      "id": "old-notes-edited",
+      "target": "N1",
+      "before": "call-5",
+      "call": {
+        "ref": "call-2",
+        "tool": "Files write",
+        "command": null,
+        "path": "docs/releases/v2.2.0.md",
+        "exit": null,
+        "output": "@@ -4,3 +4,3 @@\n ## 新增\n-- 支持 `client.fetchAll()`。\n+- 支持 `client.list({ all: true })`。",
+        "writes": true
+      }
+    }
+  ]
+}

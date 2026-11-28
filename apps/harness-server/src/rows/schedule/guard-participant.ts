@@ -1,6 +1,9 @@
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { createScheduleManagementIdentity } from '@omne-harness/schedule'
+import { scheduleAuthorIdentity } from '@omne-harness/schedule-contract'
 import {
+  ScheduleDispatchRequirementSchema,
+  scheduleDispatchRequirement,
   ScheduleManagementGuardRequirementSchema,
   scheduleManagementGuardRequirement,
   scheduleManagementGuardsFact,
@@ -39,7 +42,7 @@ export function holdQuota(
       : 'stale_basis'
   if (effect.kind === 'transfer' && !freeSlot(port, effect.predecessorId, effect.reservationRef))
     return 'stale_basis'
-  const bucket = canonicalDigest([effect.owner, effect.author])
+  const bucket = canonicalDigest([effect.owner, scheduleAuthorIdentity(effect.author)])
   const used = port.execute(
     `SELECT count(*) FROM ${SCHEDULE_QUOTA_TABLE} WHERE bucket = ? AND held = 1 LIMIT 1`,
     [bucket],
@@ -57,11 +60,25 @@ export function holdQuota(
   return null
 }
 
-/** The commit re-derives the requirement and keeps quota; consent was decided when the
- * authorizer read the settings, so the commit does not read them again. */
+/** A dispatch commit: the requirement re-derived from its command; exhaustion frees the schedule's slot. */
+function dispatchGuard(raw: unknown, port: ParticipantPort) {
+  const requirement = ScheduleDispatchRequirementSchema.parse(raw)
+  const { command, scope } = requirement.dispatch
+  if (!same(requirement, scheduleDispatchRequirement(scope, command)))
+    return { kind: 'conflict' as const, basis: { forbidden: true } }
+  const effect = requirement.quotaEffect
+  if (effect.kind === 'release' && !freeSlot(port, effect.scheduleId, effect.reservationRef))
+    return { kind: 'conflict' as const, basis: { stale: true } }
+  const fact = JSON.parse(JSON.stringify({ ...requirement, decisionAt: command.at }))
+  port.provideFact(scheduleManagementGuardsFact, fact)
+  return { kind: 'participated' as const, response: fact }
+}
+
+/** The commit re-derives the requirement and keeps quota. */
 export default {
   ...SCHEDULE_GUARD,
   execute(facts, port) {
+    if (facts['dispatch'] !== undefined) return dispatchGuard(facts['dispatch'], port)
     const requirement = ScheduleManagementGuardRequirementSchema.parse(facts['requirement'])
     const { binding } = requirement
     const { command } = binding

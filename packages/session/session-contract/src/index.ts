@@ -8,6 +8,7 @@ export type {
   ConsumptionId,
   DurableEvidence,
   EntryId,
+  InitialBatch,
   InputId,
   Mutation,
   ResidentKey,
@@ -20,6 +21,7 @@ export type {
   SessionRevision,
   TodoItemId,
 } from './identity.ts'
+export { advanceAnswerOf, startAnswerOf } from './start-answer.ts'
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts'
 export type {
   AutoArchivePolicy,
@@ -33,6 +35,7 @@ export type {
   ControlProgress,
   ControlTarget,
   DeclarationChange,
+  AdoptionNote,
   DerivedMessage,
   ExecutionRef,
   FreezeVerdict,
@@ -53,6 +56,8 @@ export type {
   ResidentTool,
   ResultConsumption,
   RoutedInput,
+  RunEnd,
+  RunFailure,
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
@@ -98,6 +103,8 @@ export type {
   SessionReconciliation,
   SessionWork,
   StartAdoption,
+  NotedStart,
+  ReloadOutcome,
   StartedRun,
 } from './faces.ts'
 export {
@@ -136,6 +143,8 @@ export type {
   AgentDrivePort,
   CustodyEvidenceCommand,
   ProductionEvidenceCommand,
+  RunAdoption,
+  RunAdoptionInput,
   SessionAdoptionPlanAnswer,
   SessionAdoptionPlanInput,
   SessionAdoptionRecorded,
@@ -169,6 +178,7 @@ export type {
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
+  cancelEstablished,
   expectedHolds,
   expectedRevision,
   judgeAdvance,
@@ -214,7 +224,11 @@ export {
   type ChildRecord,
   type RelatedSession,
 } from './standing.ts'
-export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
+export {
+  workspaceGeneration,
+  workspaceSelection,
+  type WorkspaceSelection,
+} from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {
@@ -237,7 +251,7 @@ export {
   projectCompactionCommit,
   type CompactionCommitState,
 } from './compaction-commit.ts'
-export { expandHistoryEntries } from './entries.ts'
+export { expandHistoryEntries, SESSION_ENTRY_KINDS } from './entries.ts'
 export {
   CONTEXT_SCOPE_KINDS,
   contextScopeOf,
@@ -262,7 +276,13 @@ export {
   type SessionControlStage,
 } from './control-normalization.ts'
 export { isDeferredFact, type SessionFactKind } from './history-values.ts'
-export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
+export type {
+  ResidentAdoption,
+  ResidentSegment,
+  ResidentSegmentSource,
+  RunExecution,
+  ContextScopeBinding,
+} from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {
   InitialAdoption,
@@ -296,6 +316,8 @@ export type {
   SessionUninterpretedCall,
 } from './history-values.ts'
 export { uninterpretedCalls } from './uninterpreted-calls.ts'
+export { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
+export type { CommittedBinding } from './committed-bindings.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export {
   bindingOf,
@@ -343,7 +365,9 @@ export {
   inputsToDeliver,
   runStartInputs,
   wakingInputs,
+  heldBack,
 } from './intake.ts'
+export { deliveryReads } from './decide-delivery.ts'
 export {
   archiveCollapse,
   backgroundCalls,
@@ -425,7 +449,7 @@ export type {
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
 export {
-  forkPointAfterRows,
+  forkPointBefore,
   forkPointText,
   judgeForkPoint,
   ownPositionAfter,
@@ -457,6 +481,8 @@ export {
 export {
   createBeforeIntakeRegistry,
   judgeIntakeBlocks,
+  bringsOrigin,
+  keepsTheWords,
   originalContent,
   screenInput,
   type BeforeIntakeRegistry,
@@ -466,3 +492,23 @@ export {
   type IntakeVerdict,
   type Screened,
 } from './before-intake.ts'
+
+export { projectModelMessage } from './model-projection.ts'
+
+export {
+  summarizeModelProvenance,
+  projectModelProvenance,
+  UNKNOWN_MODEL_PROVENANCE,
+} from './model-provenance.ts'
+export { originalModelRows } from './model-originals.ts'
+
+export {
+  createUtteranceResolverRegistry,
+  type OperationAsked,
+  type OperationRequest,
+  type Resolution,
+  type SenderView,
+  type Utterance,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
+} from './utterance-resolver.ts'

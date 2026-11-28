@@ -17,8 +17,8 @@ import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
 import { readState } from './state-rows.ts'
+import { entryEvidence } from './history-rows.ts'
 import {
-  entryEvidence,
   readHistory,
   type HistoryBasis,
   type HistoryFocus,

@@ -1,7 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
+import { accessCallsKey, accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { createServerEntry } from '@omne-harness/server-entry'
+import { AccessCallsProvider } from '@omne-harness/server-entry/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { serverEntryConfig } from './config.ts'
@@ -16,6 +18,7 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
     config: { listenAddress: LOOPBACK, ...config },
     access: entryAccess(ctx, ctx.telemetry, accessIdentityOfCall(ctx)),
   })
+  new AccessCallsProvider(ctx, input => entry.call(input))
   ctx.effect(() => () => entry.stop(), 'server-entry.listener')
   return {
     async start() {
@@ -28,13 +31,13 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
   }
 }
 
-const INJECT = [principalIssuerKey, telemetryKey] as const
+const INJECT = [principalIssuerKey, telemetryKey, dynamisKey] as const
 
 export const serverEntryRow = defineRow({
   row: 'server-entry',
   implementation: 'real',
   manifest: {
-    provides: [accessRegistryKey],
+    provides: [accessRegistryKey, accessCallsKey],
     injects: [...INJECT],
     sameProviderGroup: null,
   },

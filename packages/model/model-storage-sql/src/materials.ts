@@ -26,6 +26,7 @@ import {
   DISPATCH_FACTS_READ_MAX_OUTPUT_BYTES,
   DISPATCH_FACTS_READ_MAX_ROWS,
 } from './dispatch-facts.ts'
+import { FACT_EFFORT_MIGRATION } from './fact-effort-schema.ts'
 import { DISPATCH_FACT, FACT_MIGRATION } from './fact-schema.ts'
 import { MIGRATION, MODEL_PARTICIPANT, MODEL_TABLES, PROTOCOL, TABLES } from './schema.ts'
 
@@ -43,6 +44,10 @@ function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
 const factMigrationRef = Object.freeze({ owner: FACT_MIGRATION.owner, id: FACT_MIGRATION.id })
+const effortMigrationRef = Object.freeze({
+  owner: FACT_EFFORT_MIGRATION.owner,
+  id: FACT_EFFORT_MIGRATION.id,
+})
 
 type Handler = Readonly<{
   handler: string
@@ -88,7 +93,7 @@ const HANDLERS: readonly Handler[] = [
     tables: [DISPATCH_FACT.name],
     rows: DISPATCH_FACTS_READ_MAX_ROWS,
     bytes: DISPATCH_FACTS_READ_MAX_OUTPUT_BYTES,
-    migrations: [migrationRef, factMigrationRef],
+    migrations: [migrationRef, factMigrationRef, effortMigrationRef],
   },
 ]
 
@@ -102,6 +107,7 @@ export function modelStorageMaterials(): ModelStorageMaterials {
   const participant = module('commit')
   const migration = module('schema')
   const factMigration = module('fact-schema')
+  const effortMigration = module('fact-effort-schema')
   return {
     participants: [
       {
@@ -124,6 +130,12 @@ export function modelStorageMaterials(): ModelStorageMaterials {
         moduleUrl: factMigration.moduleUrl,
         checksum: factMigration.digest,
         requires: [migrationRef],
+      },
+      {
+        ...effortMigrationRef,
+        moduleUrl: effortMigration.moduleUrl,
+        checksum: effortMigration.digest,
+        requires: [factMigrationRef],
       },
     ],
     readHandlers: HANDLERS.map(item => {

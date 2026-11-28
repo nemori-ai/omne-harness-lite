@@ -49,12 +49,13 @@ const openObservation = `(async () => {
 
 // After a reload: the page finds itself signed in from the cookie alone, and still holds no proof.
 const AFTER_RELOAD = `(async () => {
-  for (let i = 0; i < 150 && !document.body.innerText.includes('退出登录'); i += 1)
+  const workspace = () => document.querySelector('.shell-workspace') !== null
+  for (let i = 0; i < 150 && !workspace(); i += 1)
     await new Promise(resolve => setTimeout(resolve, 100))
   const text = document.body.innerText
   const places = [document.cookie, document.documentElement.outerHTML, JSON.stringify(localStorage)]
   return {
-    workspace: text.includes('退出登录'),
+    workspace: workspace(),
     gate: text.includes('登录名'),
     cookie: document.cookie,
     proofInPage: places.some(place => place.includes(${JSON.stringify(PROOF_SENTINEL)})),
@@ -98,10 +99,18 @@ const PROBE = `(async () => {
   const sawGate = await wait(() => document.body.innerText.includes('登录名'))
   const fromHost = Object.getOwnPropertyNames(window).filter(key => /omne|electron|ipc|bridge/i.test(key))
   const environment = { require: typeof require, process: typeof process, fromHost }
+  const mirror = window.omneDesktop.visual
+  const wire = '{"version":1,"stamp":{"t":1,"id":"a"},"preferences":{"size":"large"}}'
+  const visual = { seed: mirror.seed, read: mirror.read(), push: await mirror.push(wire), after: mirror.read() }
   const theme = document.documentElement.dataset.theme
   window.__control = needle
   const searchWorks = holds()
   delete window.__control
+  const violations = []
+  document.addEventListener('securitypolicyviolation', event => violations.push(event.effectiveDirective + ' ' + event.blockedURI))
+  await fetch('https://example.invalid/', { mode: 'no-cors' }).catch(() => undefined)
+  await fetch('http://example.invalid/', { mode: 'no-cors' }).catch(() => undefined)
+  await new Promise(resolve => setTimeout(resolve, 200))
   const opened = window.open('https://example.invalid/')
   const origin = location.origin
   location.href = 'https://example.invalid/'
@@ -122,7 +131,7 @@ const PROBE = `(async () => {
   const observation = await ${openObservation}
   window.__abortObservation()
   const cookie = document.cookie
-  return { sawGate, environment, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
+  return { sawGate, environment, violations, visual, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
 })()`
 
 it(
@@ -202,7 +211,6 @@ it(
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      preload: null,
       opened: [
         'https://example.invalid/',
         'https://example.invalid/',
@@ -215,8 +223,18 @@ it(
           environment: {
             require: 'undefined',
             process: 'undefined',
-            fromHost: [],
+            fromHost: ['omneDesktop', 'omneVisualBootstrap'],
           },
+          visual: {
+            seed: { record: null, pending: false },
+            read: { record: null, pending: false },
+            push: 'ok',
+            after: {
+              record: '{"version":1,"stamp":{"t":1,"id":"a"},"preferences":{"size":"large"}}',
+              pending: false,
+            },
+          },
+          violations: ['connect-src http://example.invalid/'],
           mail: null,
           local: null,
           notJson: 403,

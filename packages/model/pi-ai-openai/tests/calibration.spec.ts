@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortedJsonText } from './support/sorted-json.ts'
+import { sortedJsonText } from '@omne-harness/pi-ai-transport/testing'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
@@ -8,7 +8,7 @@ import {
   decodeModelCallId,
   decodeModelOperationId,
   type DispatchRecord,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type MeterRepresentation,
   type ModelCallId,
   type ModelFailure,
@@ -22,7 +22,8 @@ import { createScriptedConformanceSubject } from '@omne-harness/model-contract/t
 import type { Outcome } from '@omne-harness/operation-result'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { openAiTokenizerResources, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
+import { OPENAI_OWNER } from '../src/owner.ts'
 import { ANCHORED_METHOD, createOpenAiMeter } from '../src/meter.ts'
 import {
   assembledOf,
@@ -131,7 +132,7 @@ function recordOf(
     materialization: {
       receipt: {
         supplier: supplierOf(record).adoption,
-        representation: componentAdoption(record, 'representation'),
+        representation: componentAdoption(OPENAI_OWNER, record, 'representation'),
         payloadDigest: 'a'.repeat(64),
       },
       source: { owner: 'materializer', record: 'x', revision: '1', digest: '1'.repeat(64) },
@@ -185,7 +186,7 @@ async function measureOn(
   Readonly<{
     measured: Measured
     representation: MeterRepresentation
-    request: FixedModelRequest
+    request: LlmModelRequest
   }>
 > {
   const [binding] = lease.bindings
@@ -254,7 +255,7 @@ function withoutUnit(tokenInput: JsonValue, index: number): JsonValue {
   }
 }
 
-const anchored = (record: OpenAiRecord) => ({ ...componentAdoption(record, 'meter') })
+const anchored = (record: OpenAiRecord) => ({ ...componentAdoption(OPENAI_OWNER, record, 'meter') })
 
 describe('the units side table of the representation', () => {
   it('names the message of every unit, including the dropped tool_internal and the merged tool images', async () => {
@@ -316,7 +317,9 @@ describe('the continuation anchor', () => {
     expect(inputCheckOf(budgetOf(measured)).amount).toBe(
       String(await count(representation.tokenInput)),
     )
-    expect(inputCheckOf(budgetOf(measured)).method).toEqual(componentAdoption(SOL, 'meter'))
+    expect(inputCheckOf(budgetOf(measured)).method).toEqual(
+      componentAdoption(OPENAI_OWNER, SOL, 'meter'),
+    )
     await Promise.all([lease.release(), binding.release()])
   })
 
@@ -399,7 +402,7 @@ describe('the continuation anchor', () => {
           materialization: {
             receipt: {
               supplier: supplierOf(ASTRA).adoption,
-              representation: componentAdoption(SOL, 'representation'),
+              representation: componentAdoption(OPENAI_OWNER, SOL, 'representation'),
               payloadDigest: 'a'.repeat(64),
             },
             source: { owner: 'materializer', record: 'x', revision: '1', digest: '1'.repeat(64) },
@@ -414,7 +417,7 @@ describe('the continuation anchor', () => {
           materialization: {
             receipt: {
               supplier: supplierOf(SOL).adoption,
-              representation: componentAdoption(ASTRA, 'representation'),
+              representation: componentAdoption(OPENAI_OWNER, ASTRA, 'representation'),
               payloadDigest: 'a'.repeat(64),
             },
             source: { owner: 'materializer', record: 'x', revision: '1', digest: '1'.repeat(64) },
@@ -431,7 +434,7 @@ describe('the continuation anchor', () => {
       expect(inputCheckOf(budget)).toMatchObject({
         amount: String(await count(representation.tokenInput)),
         margin: String(ceil10(await count(representation.tokenInput))),
-        method: componentAdoption(SOL, 'meter'),
+        method: componentAdoption(OPENAI_OWNER, SOL, 'meter'),
       })
       await lease.release()
     },
@@ -537,7 +540,7 @@ describe('the continuation anchor', () => {
     expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason: 'continuation-shrank' } })
     expect(inputCheckOf(budget)).toMatchObject({
       amount: String(writeJsonText(planned.representation.tokenInput).length),
-      method: componentAdoption(SOL, 'meter'),
+      method: componentAdoption(OPENAI_OWNER, SOL, 'meter'),
     })
     await binding.release()
   })

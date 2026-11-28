@@ -14,6 +14,7 @@ import {
 } from '../src/value-projection.ts'
 import { settingsValueProjectionMaterials } from '../src/value-projection-materials.ts'
 import { openPreparedTargetWorld } from './prepared-target-world.ts'
+import { definition } from './world.ts'
 
 const worlds: { close(): Promise<void> }[] = []
 afterEach(async () => {
@@ -151,6 +152,33 @@ it.each(['missing', 'foreign'] as const)(
     ).toMatchObject({ kind: 'rolled_back' })
   },
 )
+
+it('answers definition_changed with the stored definition and state once the owner moves the definition on', async () => {
+  const w = await open()
+  expect(await w.write()).toMatchObject({ kind: 'committed', revision: 1 })
+  const before = await w.capture()
+  if ('kind' in before || before.views[0]?.presence !== 'present')
+    throw new Error(JSON.stringify(before))
+  const { definitionRef, state } = before.views[0].view
+  expect(
+    await w.owner.mutate({
+      kind: 'provision',
+      operationId: 'definition-v2',
+      expectedRevision: 1,
+      record: { ...w.record, definition: { ...definition, version: '2' } },
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  const after = await w.capture()
+  if ('kind' in after) throw new Error(JSON.stringify(after))
+  expect(after.views).toEqual([
+    {
+      presence: 'unavailable',
+      view: expect.objectContaining({ definitionRef: expect.objectContaining({ version: '2' }) }),
+      reason: 'definition_changed',
+      stored: { definitionRef, state },
+    },
+  ])
+})
 
 it('reads the same stored value after the owning Worker is reopened', async () => {
   const w = await open()

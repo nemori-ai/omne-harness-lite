@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { decodeProviderName, type FixedModelRequest } from '@omne-harness/model-contract'
+import { decodeProviderName, type LlmModelRequest } from '@omne-harness/model-contract'
 import {
   judgeAdmit,
-  judgeFixedModelRequest,
+  judgeModelRequest,
   MODEL_INPUT_LIMITS,
 } from '@omne-harness/model-contract/provider'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -13,7 +13,7 @@ function withValue(value: unknown) {
   return { ...request, parameters: [{ kind: 'extension', definition: adopted, value }] }
 }
 function rejection(value: unknown, reason: string) {
-  expect(judgeFixedModelRequest(value)).toMatchObject({ failure: { reason } })
+  expect(judgeModelRequest('llm', value)).toMatchObject({ failure: { reason } })
 }
 function nodes(value: unknown): number {
   return (
@@ -55,7 +55,7 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
   expect(checked.request.profile).not.toBe(checked.request.source)
   expect(Object.isFrozen(checked.request.profile)).toBe(true)
   const raw = structuredClone(request)
-  const fixed = must(judgeFixedModelRequest(raw))
+  const fixed = must(judgeModelRequest('llm', raw))
   Object.defineProperty(raw.profile, 'name', { value: 'changed' })
   expect(fixed.profile.name).not.toBe('changed')
   expect(() => Reflect.set(fixed.profile, 'name', 'changed')).not.toThrow()
@@ -83,7 +83,7 @@ it('accepts every Model union branch and delegates lossless domain values', () =
       { key: 'stops', value: { kind: 'array', items: [{ kind: 'string', value: 'END' }] } },
     ],
   }
-  const parameters: FixedModelRequest['parameters'] = [
+  const parameters: LlmModelRequest['parameters'] = [
     { kind: 'temperature', value: 2 },
     { kind: 'top-p', value: 1 },
     { kind: 'max-output-tokens', value: '1' },
@@ -140,7 +140,7 @@ it('accepts every Model union branch and delegates lossless domain values', () =
           },
         ],
       }
-      const result = judgeFixedModelRequest(input)
+      const result = judgeModelRequest('llm', input)
       expect(result).toEqual({ ok: input })
       const fixed = must(result)
       const assertOwnedCopy = (copy: unknown, original: unknown): void => {
@@ -161,7 +161,7 @@ it('accepts every Model union branch and delegates lossless domain values', () =
   rejection(withValue({ ordinary: 'json' }), 'json')
   rejection({ ...request, parameters: [{ kind: 'temperature', value: 2.1 }] }, 'range')
   expect(
-    judgeFixedModelRequest({ ...request, parameters: [{ kind: 'temperature', value: 2.1 }] }),
+    judgeModelRequest('llm', { ...request, parameters: [{ kind: 'temperature', value: 2.1 }] }),
   ).toEqual({ failure: { field: '/parameters/0/value', reason: 'range' } })
 })
 
@@ -176,10 +176,10 @@ describe('parameter values and request-local identities', () => {
     ({ kind, accepted, outside }) => {
       for (const value of accepted) {
         const input = { ...request, parameters: [{ kind, value }] }
-        expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+        expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
       }
       for (const value of [...outside, NaN, Infinity, -Infinity, '1', true, null, [], {}])
-        expect(judgeFixedModelRequest({ ...request, parameters: [{ kind, value }] })).toEqual({
+        expect(judgeModelRequest('llm', { ...request, parameters: [{ kind, value }] })).toEqual({
           failure: { field: '/parameters/0/value', reason: 'range' },
         })
     },
@@ -193,7 +193,7 @@ describe('parameter values and request-local identities', () => {
     ({ kind, accepted, additionalInvalid }) => {
       for (const value of accepted) {
         const input = { ...request, parameters: [{ kind, value }] }
-        expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+        expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
       }
       for (const value of [
         ...additionalInvalid,
@@ -214,20 +214,83 @@ describe('parameter values and request-local identities', () => {
         null,
         false,
       ])
-        expect(judgeFixedModelRequest({ ...request, parameters: [{ kind, value }] })).toEqual({
+        expect(judgeModelRequest('llm', { ...request, parameters: [{ kind, value }] })).toEqual({
           failure: { field: '/parameters/0/value', reason: 'integer' },
         })
     },
   )
 
-  it('retains all five reasoning efforts and rejects other values', () => {
-    for (const value of ['none', 'low', 'medium', 'high', 'max']) {
+  it('retains the scale of a unified choice and refuses native-only values on that scale', () => {
+    for (const value of ['low', 'medium', 'high', 'xhigh']) {
+      const input = {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'unified', value }],
+      }
+      expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
+    }
+    for (const parameter of [
+      { kind: 'reasoning-effort', scale: 'unified', value: 'max' },
+      { kind: 'reasoning-effort', scale: 'other', value: 'high' },
+    ])
+      expect(judgeModelRequest('llm', { ...request, parameters: [parameter] })).toHaveProperty(
+        'failure',
+      )
+  })
+
+  it('keeps a unified effort that came from the tenant default, and refuses any other basis', () => {
+    const input = {
+      ...request,
+      parameters: [
+        { kind: 'reasoning-effort', scale: 'unified', value: 'high', basis: 'preference' },
+      ],
+    }
+    expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
+    expect(
+      judgeModelRequest('llm', {
+        ...request,
+        parameters: [
+          { kind: 'reasoning-effort', scale: 'unified', value: 'high', basis: 'session' },
+        ],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/basis', reason: 'value' } })
+    expect(
+      judgeModelRequest('llm', {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', value: 'high', basis: 'preference' }],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/basis', reason: 'value' } })
+  })
+
+  it('refuses a native-only value on the unified scale, and the two effort keys on any other parameter', () => {
+    expect(
+      judgeModelRequest('llm', {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'unified', value: 'max' }],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/value', reason: 'value' } })
+    expect(
+      judgeModelRequest('llm', {
+        ...request,
+        parameters: [{ kind: 'reasoning-effort', scale: 'other', value: 'high' }],
+      }),
+    ).toEqual({ failure: { field: '/parameters/0/scale', reason: 'value' } })
+    for (const key of ['scale', 'basis'])
+      expect(
+        judgeModelRequest('llm', {
+          ...request,
+          parameters: [{ kind: 'temperature', value: 0.5, [key]: 'unified' }],
+        }),
+      ).toEqual({ failure: { field: '/parameters/0', reason: 'unknown-field' } })
+  })
+
+  it('retains engine effort values and rejects unknown values', () => {
+    for (const value of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
       const input = { ...request, parameters: [{ kind: 'reasoning-effort', value }] }
-      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+      expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
     }
     for (const value of ['other', '', 'HIGH', 0, null])
       expect(
-        judgeFixedModelRequest({ ...request, parameters: [{ kind: 'reasoning-effort', value }] }),
+        judgeModelRequest('llm', { ...request, parameters: [{ kind: 'reasoning-effort', value }] }),
       ).toEqual({ failure: { field: '/parameters/0/value', reason: 'value' } })
   })
 
@@ -236,9 +299,11 @@ describe('parameter values and request-local identities', () => {
     { value: ['END', 'END'], field: '/parameters/0/value', reason: 'duplicate' },
     { value: ['END', ''], field: '/parameters/0/value/1', reason: 'value' },
   ])('rejects invalid stop sequences with $reason at $field', ({ value, field, reason }) => {
-    expect(judgeFixedModelRequest({ ...request, parameters: [{ kind: 'stop', value }] })).toEqual({
-      failure: { field, reason },
-    })
+    expect(judgeModelRequest('llm', { ...request, parameters: [{ kind: 'stop', value }] })).toEqual(
+      {
+        failure: { field, reason },
+      },
+    )
   })
 
   it('keys extension uniqueness by the complete adoption and ordinary parameters by kind', () => {
@@ -251,10 +316,10 @@ describe('parameter values and request-local identities', () => {
     ]) {
       const second = { ...first, definition: { ...adopted, ...difference } }
       const input = { ...request, parameters: [first, second] }
-      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+      expect(judgeModelRequest('llm', input)).toEqual({ ok: input })
     }
     expect(
-      judgeFixedModelRequest({
+      judgeModelRequest('llm', {
         ...request,
         parameters: [
           first,
@@ -263,7 +328,7 @@ describe('parameter values and request-local identities', () => {
       }),
     ).toEqual({ failure: { field: '/parameters', reason: 'duplicate' } })
     expect(
-      judgeFixedModelRequest({
+      judgeModelRequest('llm', {
         ...request,
         parameters: [
           { kind: 'temperature', value: 1 },
@@ -276,14 +341,17 @@ describe('parameter values and request-local identities', () => {
   it('rejects equal supplier values, repeated tool names and undeclared tool selections', () => {
     const supplier = request.suppliers[0]
     expect(
-      judgeFixedModelRequest({ ...request, suppliers: [supplier, structuredClone(supplier)] }),
+      judgeModelRequest('llm', { ...request, suppliers: [supplier, structuredClone(supplier)] }),
     ).toEqual({ failure: { field: '/suppliers', reason: 'duplicate' } })
     const tool = { name: 'lookup', description: '', argumentsSchema: { kind: 'null' } }
     expect(
-      judgeFixedModelRequest({ ...request, tools: [tool, { ...tool, description: 'different' }] }),
+      judgeModelRequest('llm', {
+        ...request,
+        tools: [tool, { ...tool, description: 'different' }],
+      }),
     ).toEqual({ failure: { field: '/tools', reason: 'duplicate' } })
     expect(
-      judgeFixedModelRequest({ ...request, tools: [tool], toolChoice: { name: 'missing' } }),
+      judgeModelRequest('llm', { ...request, tools: [tool], toolChoice: { name: 'missing' } }),
     ).toEqual({ failure: { field: '/toolChoice/name', reason: 'selection' } })
   })
 })
@@ -385,7 +453,7 @@ describe('complete records with one invalid leaf', () => {
   }
   function rejectsLeaf(path: string, value: unknown, reason: string) {
     const input = replace(path, value)
-    expect(judgeFixedModelRequest(input)).toEqual({ failure: { field: path, reason } })
+    expect(judgeModelRequest('llm', input)).toEqual({ failure: { field: path, reason } })
     expect(judgeAdmit({ ...admission('request-leaf'), request: input })).toEqual({
       failure: { field: `/request${path}`, reason },
     })
@@ -401,7 +469,7 @@ describe('complete records with one invalid leaf', () => {
     '/parameterAdoptions/0/supplier',
     '/parameterAdoptions/0/origin/source',
   ])('validates every adoption leaf at %s', path => {
-    expect(judgeFixedModelRequest(complete)).toEqual({ ok: complete })
+    expect(judgeModelRequest('llm', complete)).toEqual({ ok: complete })
     for (const key of ['owner', 'name', 'revision'])
       for (const value of ['', 17, null, ['text']]) rejectsLeaf(`${path}/${key}`, value, 'value')
     for (const value of [
@@ -449,14 +517,14 @@ describe('complete records with one invalid leaf', () => {
       model: 'model',
       credential: { kind: 'factory' },
     })
-    const judged = judgeFixedModelRequest(old)
+    const judged = judgeModelRequest('llm', old)
     expect(judged).toHaveProperty('failure')
     expect(JSON.stringify(judged)).not.toContain('"layer"')
   })
 
   it('rejects an unknown credential layer and unknown parameter or origin discriminants precisely', () => {
     const tenantLayer = replace('/suppliers/0/credential', { layer: 'tenant' })
-    expect(judgeFixedModelRequest(tenantLayer)).toEqual({ ok: tenantLayer })
+    expect(judgeModelRequest('llm', tenantLayer)).toEqual({ ok: tenantLayer })
     const tenantAdmission = { ...admission('tenant-layer'), request: tenantLayer }
     expect(judgeAdmit(tenantAdmission)).toEqual({ ok: tenantAdmission })
     const invalids = [
@@ -482,7 +550,7 @@ describe('complete records with one invalid leaf', () => {
       },
     ]
     for (const { input, field, reason } of invalids) {
-      expect(judgeFixedModelRequest(input)).toEqual({ failure: { field, reason } })
+      expect(judgeModelRequest('llm', input)).toEqual({ failure: { field, reason } })
       expect(judgeAdmit({ ...admission('discriminant'), request: input })).toEqual({
         failure: { field: `/request${field}`, reason },
       })
@@ -552,7 +620,7 @@ it('never executes getters/toJSON and does not expose unknown keys or trap diagn
       }),
       'unreadable',
     )
-  expect(judgeFixedModelRequest({ ...request, confidentialUnknownKey: 'secret' })).toEqual({
+  expect(judgeModelRequest('llm', { ...request, confidentialUnknownKey: 'secret' })).toEqual({
     failure: { field: '', reason: 'unknown-field' },
   })
   expect(reads).toBe(0)
@@ -624,7 +692,7 @@ it('rejects real array descriptors and legal Proxy traps without invoking getter
     parameters: [{ kind: 'stop', value }],
   })
   const accepts = withArray(['END'])
-  expect(judgeFixedModelRequest(accepts)).toEqual({ ok: accepts })
+  expect(judgeModelRequest('llm', accepts)).toEqual({ ok: accepts })
   const accessor = Object.defineProperty(['END'], '0', {
     enumerable: true,
     configurable: true,
@@ -681,7 +749,7 @@ it('rejects real array descriptors and legal Proxy traps without invoking getter
   }
   for (const { value, reason } of cases) {
     expect(Array.isArray(value)).toBe(true)
-    expect(judgeFixedModelRequest(withArray(value))).toEqual({ failure: { field: '', reason } })
+    expect(judgeModelRequest('llm', withArray(value))).toEqual({ failure: { field: '', reason } })
     expect(judgeAdmit({ ...input, request: withArray(value) })).toEqual({
       failure: { field: '/request', reason },
     })
@@ -696,7 +764,7 @@ describe('one finite parser budget', () => {
       (_, index) => `stop-${index}`,
     )
     expect(
-      judgeFixedModelRequest({ ...request, parameters: [{ kind: 'stop', value: stop }] }),
+      judgeModelRequest('llm', { ...request, parameters: [{ kind: 'stop', value: stop }] }),
     ).toHaveProperty('ok')
     rejection(
       { ...request, parameters: [{ kind: 'stop', value: [...stop, 'last'] }] },
@@ -704,7 +772,7 @@ describe('one finite parser budget', () => {
     )
     const big = 'x'.repeat(MODEL_INPUT_LIMITS.maxStringLength)
     expect(
-      judgeFixedModelRequest({
+      judgeModelRequest('llm', {
         ...request,
         tools: [{ name: 't', description: big, argumentsSchema: { kind: 'null' } }],
       }),
@@ -730,7 +798,7 @@ describe('one finite parser budget', () => {
     input.tools[0]!.description = 'x'.repeat(half)
     input.tools[1]!.description = 'y'.repeat(remaining - half)
     expect(strings(input)).toBe(MODEL_INPUT_LIMITS.maxTotalStringLength)
-    expect(judgeFixedModelRequest(input)).toHaveProperty('ok')
+    expect(judgeModelRequest('llm', input)).toHaveProperty('ok')
     expect(judgeAdmit({ ...admission('whole-budget'), request: input })).toMatchObject({
       failure: { reason: 'budget-strings' },
     })
@@ -742,7 +810,7 @@ describe('one finite parser budget', () => {
   it('counts container depth including the lossless wrappers', () => {
     let value: JsonValue = { kind: 'null' }
     for (let depth = 0; depth < 30; depth++) value = { kind: 'array', items: [value] }
-    expect(judgeFixedModelRequest(withValue(value))).toHaveProperty('ok')
+    expect(judgeModelRequest('llm', withValue(value))).toHaveProperty('ok')
     rejection(withValue({ kind: 'array', items: [value] }), 'budget-depth')
     let raw: unknown = null
     for (let depth = 0; depth < 61; depth++) raw = [raw]
@@ -762,7 +830,9 @@ describe('one finite parser budget', () => {
     }
     const counted = boundary === 'fixed' ? input : payload
     const judge = () =>
-      boundary === 'fixed' ? judgeFixedModelRequest(input) : judgeAdmit({ ...root, request: input })
+      boundary === 'fixed'
+        ? judgeModelRequest('llm', input)
+        : judgeAdmit({ ...root, request: input })
     let count = nodes(counted)
     let group = 0
     while (count + 2 <= MODEL_INPUT_LIMITS.maxNodes) {
@@ -909,7 +979,7 @@ it('reuses the full ContentBlock, MessagePart and lossless JSON vocabulary', () 
   ]
   const system = [thinking, ...blocks]
   const raw = { ...withValue(json), system, messages }
-  const fixed = must(judgeFixedModelRequest(raw))
+  const fixed = must(judgeModelRequest('llm', raw))
   expect(fixed.system).toEqual(system)
   expect(fixed.messages).toEqual(messages)
   const assertFrozen = (value: unknown): void => {
@@ -1009,9 +1079,9 @@ it.each([
 
 it('copies null prototypes and refuses a data __proto__ key without changing output prototypes', () => {
   const input = Object.assign(Object.create(null), request)
-  expect(judgeFixedModelRequest(input)).toHaveProperty('ok')
+  expect(judgeModelRequest('llm', input)).toHaveProperty('ok')
   Object.defineProperty(input, '__proto__', { value: { polluted: true }, enumerable: true })
-  expect(judgeFixedModelRequest(input)).toEqual({
+  expect(judgeModelRequest('llm', input)).toEqual({
     failure: { field: '', reason: 'unknown-field' },
   })
   expect(Object.hasOwn(Object.prototype, 'polluted')).toBe(false)
@@ -1044,7 +1114,7 @@ it('keeps first rejection across request groups and payload capture', () => {
     },
   ]
   for (const { patch, field, reason } of failures)
-    expect(judgeFixedModelRequest({ ...request, ...patch })).toEqual({
+    expect(judgeModelRequest('llm', { ...request, ...patch })).toEqual({
       failure: { field, reason },
     })
   const input = admission('priority')
@@ -1064,12 +1134,12 @@ describe('the replay switch and the replay declarations of a fixed request', () 
   }
 
   it('keeps replay off when the request turns it off, and adds no switch when it does not', () => {
-    expect(must(judgeFixedModelRequest({ ...request, replay: 'off' })).replay).toBe('off')
-    expect(Object.hasOwn(must(judgeFixedModelRequest(request)), 'replay')).toBe(false)
+    expect(must(judgeModelRequest('llm', { ...request, replay: 'off' })).replay).toBe('off')
+    expect(Object.hasOwn(must(judgeModelRequest('llm', request)), 'replay')).toBe(false)
   })
 
   it.each(['on', true, null, ''])('rejects the replay switch %j', replay => {
-    expect(judgeFixedModelRequest({ ...request, replay })).toEqual({
+    expect(judgeModelRequest('llm', { ...request, replay })).toEqual({
       failure: { field: '/replay', reason: 'value' },
     })
   })
@@ -1077,7 +1147,7 @@ describe('the replay switch and the replay declarations of a fixed request', () 
   it('keeps one declaration for each supplier in the order of the suppliers', () => {
     const second = { produces: 'b', accepts: ['b', declared.produces], foreignThinking: 'adapter' }
     const fixed = must(
-      judgeFixedModelRequest({
+      judgeModelRequest('llm', {
         ...request,
         suppliers: [request.suppliers[0], backup],
         declarations: [declared, second],
@@ -1097,7 +1167,7 @@ describe('the replay switch and the replay declarations of a fixed request', () 
     const value =
       input.declarations === undefined ? rest : { ...rest, declarations: input.declarations }
     void declarations
-    expect(judgeFixedModelRequest(value)).toEqual({
+    expect(judgeModelRequest('llm', value)).toEqual({
       failure: { field: input.field, reason: input.reason },
     })
   })
@@ -1123,7 +1193,7 @@ describe('the replay switch and the replay declarations of a fixed request', () 
       reason: 'value',
     },
   ])('rejects a declaration that is not complete and valid at $field as $reason', input => {
-    expect(judgeFixedModelRequest({ ...request, declarations: [input.item] })).toEqual({
+    expect(judgeModelRequest('llm', { ...request, declarations: [input.item] })).toEqual({
       failure: { field: input.field, reason: input.reason },
     })
   })
@@ -1134,7 +1204,7 @@ describe('the replay switch and the replay declarations of a fixed request', () 
       suppliers: [request.suppliers[0], backup],
       declarations: [declared, { ...declared, foreignThinking: null }],
     }
-    expect(judgeFixedModelRequest(value)).toEqual({
+    expect(judgeModelRequest('llm', value)).toEqual({
       failure: { field: '/declarations/1/foreignThinking', reason: 'value' },
     })
   })
@@ -1144,14 +1214,14 @@ describe('the context window the request was prepared with', () => {
   const window = { tokens: '200000', compactionTriggerPercent: '80' }
 
   it('keeps the window and the compaction percent of the profile as they were', () => {
-    const judged = must(judgeFixedModelRequest({ ...request, contextWindow: window }))
+    const judged = must(judgeModelRequest('llm', { ...request, contextWindow: window }))
     expect(judged.contextWindow).toEqual(window)
-    expect(must(judgeFixedModelRequest(request))).not.toHaveProperty('contextWindow')
+    expect(must(judgeModelRequest('llm', request))).not.toHaveProperty('contextWindow')
   })
 
   it.each(['1', '9', '100'])('keeps a compaction percent of %s', percent => {
     const contextWindow = { ...window, compactionTriggerPercent: percent }
-    expect(must(judgeFixedModelRequest({ ...request, contextWindow })).contextWindow).toEqual(
+    expect(must(judgeModelRequest('llm', { ...request, contextWindow })).contextWindow).toEqual(
       contextWindow,
     )
   })
@@ -1177,7 +1247,7 @@ describe('the context window the request was prepared with', () => {
     [{ tokens: '200000' }, '/contextWindow/compactionTriggerPercent', 'missing'],
     [{ ...window, input: '1' }, '/contextWindow', 'unknown-field'],
   ])('refuses the window %j', (contextWindow, field, reason) => {
-    expect(judgeFixedModelRequest({ ...request, contextWindow })).toMatchObject({
+    expect(judgeModelRequest('llm', { ...request, contextWindow })).toMatchObject({
       failure: { field, reason },
     })
   })

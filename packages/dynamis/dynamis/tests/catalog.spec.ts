@@ -69,6 +69,7 @@ describe('standingOf：一个点的四种状态', () => {
   it('内建的规矩：按点名放，每个名字一份，撞了答冲突', () => {
     expect(catalogContract).toEqual({
       name: 'dynamis.points',
+      title: '拓展点的目录',
       tree: 'server',
       arity: 'keyed-one',
       keyFrom: null,
@@ -79,8 +80,15 @@ describe('standingOf：一个点的四种状态', () => {
       binding: 'run',
       onError: 'a point whose declaration cannot be read answers unavailable',
       version: 1,
+      revision: 1,
+      keys: 'private',
       conformance: null,
       summary: 'The catalog: one item declares one extension point and carries its contract.',
+      scopes: {
+        only: 'deployment',
+        why: 'one-per-process',
+        note: 'The hosts read the declarations of the whole deployment: a point is declared by the code of its host.',
+      },
     })
     expect(Object.isFrozen(catalogContract) && Object.isFrozen(catalogContract.item.fields)).toBe(
       true,
@@ -157,6 +165,8 @@ describe('standingOf：一个点的四种状态', () => {
     ['键取自自己', { ...host(), item: { ...good, keyFrom: POINT } }],
     ['键取自的不是点名', { ...host(), item: { ...good, keyFrom: 'nowhere' } }],
     ['说明不是文字', { ...host(), item: { ...good, summary: 7 } }],
+    ['标题不是文字', { ...host(), item: { ...good, title: 7 } }],
+    ['标题是空的', { ...host(), item: { ...good, title: '  ' } }],
     ['键的说明不是文字', { ...host(), item: { ...good, key: null } }],
     ['宿主给什么不是文字', { ...host(), item: { ...good, gives: undefined } }],
     ['出错时怎样答不是文字', { ...host(), item: { ...good, onError: [] } }],
@@ -172,7 +182,13 @@ describe('standingOf：一个点的四种状态', () => {
     ['绑定时刻没写', { ...host(), item: { ...good, binding: undefined } }],
     ['主版本不是正整数', { ...host(), item: { ...good, version: 0 } }],
     ['主版本不是整数', { ...host(), item: { ...good, version: 1.5 } }],
+    ['修订号不是正整数', { ...host(), item: { ...good, revision: 0 } }],
+    ['修订号不是整数', { ...host(), item: { ...good, revision: 1.5 } }],
+    ['修订号没写', { ...host(), item: { ...good, revision: undefined } }],
+    ['键公不公开不认识', { ...host(), item: { ...good, keys: 'secret' } }],
+    ['键公不公开没写', { ...host(), item: { ...good, keys: undefined } }],
     ['符合性用例既不是文字也不是空', { ...host(), item: { ...good, conformance: 3 } }],
+    ['例子不是文字', { ...host(), item: { ...good, example: { point: 'p' } } }],
   ]
   const why: Readonly<Record<string, string>> = {
     名字不等于键: 'the contract names another point',
@@ -188,6 +204,8 @@ describe('standingOf：一个点的四种状态', () => {
     键取自自己: 'keyFrom names no other point',
     键取自的不是点名: 'keyFrom names no other point',
     说明不是文字: 'summary is not text',
+    标题不是文字: 'title is empty or not text',
+    标题是空的: 'title is empty or not text',
     键的说明不是文字: 'key is not text',
     宿主给什么不是文字: 'gives is not text',
     出错时怎样答不是文字: 'onError is not text',
@@ -200,7 +218,13 @@ describe('standingOf：一个点的四种状态', () => {
     绑定时刻没写: 'the binding time is unknown',
     主版本不是正整数: 'the version is not a positive integer',
     主版本不是整数: 'the version is not a positive integer',
+    修订号不是正整数: 'the revision is not a positive integer',
+    修订号不是整数: 'the revision is not a positive integer',
+    修订号没写: 'the revision is not a positive integer',
+    键公不公开不认识: 'whether the keys are public is unknown',
+    键公不公开没写: 'whether the keys are public is unknown',
     符合性用例既不是文字也不是空: 'conformance is neither text nor null',
+    例子不是文字: 'example is not text',
   }
   it.each(Object.keys(why))('不合法的声明不算数：%s', name => {
     const found = bad().find(([title]) => title === name)
@@ -214,6 +238,15 @@ describe('standingOf：一个点的四种状态', () => {
     })
     expect(Object.keys(why)).toHaveLength(bad().length)
     expect(report(registry, inst('host'))[0]).toMatchObject({ state: 'breach', detail: why[name] })
+  })
+
+  it('带一个例子：合法，原样留着', () => {
+    const example = '{"point":"host.cards","key":"a","data":{}}'
+    const declaration = declare(contract(POINT, { example }))
+    expect(standingOf(registryOf(['host', [declaration]]), POINT, deployment)).toMatchObject({
+      kind: 'declared',
+      contract: { example },
+    })
   })
 
   it('贡献只在构建时定：合法', () => {
@@ -248,6 +281,22 @@ describe('candidates 与 ask：读一个点的前置', () => {
       reason: 'ambiguous',
       detail: 'fork, host',
     })
+  })
+
+  it('两份声明只差修订号：是内容不同的两份，同样答被声明了两次', () => {
+    const fork = declare(contract(POINT, { revision: 2 }))
+    expect(ask(hosted(['fork', [fork]]), POINT, 'graph', deployment)).toEqual({
+      kind: 'unavailable',
+      reason: 'ambiguous',
+      detail: 'fork, host',
+    })
+  })
+
+  it('修订号进声明的摘要：同一份规矩升了修订号，摘要就变', () => {
+    const one = declare(contract(POINT))
+    const two = declare(contract(POINT, { revision: 2 }))
+    expect(two.digest).not.toBe(one.digest)
+    expect(declare(contract(POINT, { revision: 1 })).digest).toBe(one.digest)
   })
 
   it('目录读不出：依据不可用 unread', () => {

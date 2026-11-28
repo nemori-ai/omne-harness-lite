@@ -4,6 +4,8 @@ import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import type { CategoriesRead, CategoryNames } from '../model/category-names.ts'
 import type { GovernanceModel } from '../model/governance.ts'
+import { NO_CLAIMS, type HoldingClaims } from '../model/holding-claims.ts'
+import { assetsPage, assetsPanel, assetsTabs, assetsTabsTab } from '../parts.ts'
 import { CategoryPage, type Extras } from './category-page.tsx'
 import { NoticeLine } from './notice.tsx'
 
@@ -13,10 +15,17 @@ export type AssetsPageProps = Readonly<{
   categoryNames?: CategoryNames
   categorySlot?: (category: string) => ReactNode
   holdingSlot?: (category: string, name: string) => ReactNode
-  pages?: (layout: AttachedLayout) => ReactNode
+  /** The settings items the items of `assets.holding` claim; none without it. */
+  claims?: HoldingClaims
+  pages?: (layout: AttachedLayout, asset?: string) => ReactNode
+  /** Goes to one asset of a category, where it is changed: the plugin that brought another. */
+  open?: (category: string, name: string) => void
+  /** The category the shell points at, with `:<name>` when it points at one of it: the category is chosen when it is there. */
+  pointAt?: string
 }>
 
 const nothing = (): null => null
+const nowhere = (): void => undefined
 const noPages = (layout: AttachedLayout): ReactNode => layout([])
 
 type Categories = Readonly<{ kind: 'reading' }> | CategoriesRead
@@ -32,13 +41,20 @@ function useCategories(source: CategoryNames | undefined): [Categories, () => vo
       setCategories(NONE)
       return
     }
-    let live = true
+    // Every read takes a turn; only the answer of the last turn is shown.
+    let turn = 0
+    const read = (): void => {
+      const mine = ++turn
+      void source.read().then(found => {
+        if (mine === turn) setCategories(found)
+      })
+    }
     setCategories(READING)
-    void source.read().then(found => {
-      if (live) setCategories(found)
-    })
+    read()
+    const stop = source.changed?.(read)
     return () => {
-      live = false
+      turn = -1
+      stop?.()
     }
   }, [source, round])
   return [categories, () => setRound(count => count + 1)]
@@ -58,7 +74,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
   useTenantHold(props.governance, tenant)
   if (tenant === undefined)
     return (
-      <PageColumn className="assets-page">
+      <PageColumn className="assets-page" {...assetsPage.props}>
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，资产页不能工作。' }} />
       </PageColumn>
     )
@@ -67,6 +83,8 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     label: category => names.get(category) ?? category,
     categorySlot: props.categorySlot ?? nothing,
     holdingSlot: props.holdingSlot ?? nothing,
+    claims: props.claims ?? NO_CLAIMS,
+    open: props.open ?? nowhere,
   }
   const generic = (category: string) => (
     <CategoryPage
@@ -78,7 +96,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     />
   )
   return (
-    <PageColumn className="assets-page">
+    <PageColumn className="assets-page" {...assetsPage.props}>
       <PageHeader title="资产" description="这一层：当前租户" />
       {categories.kind === 'failed' && (
         <NoticeLine notice={categories.notice} action={{ label: '重试', onClick: retry }} />
@@ -88,6 +106,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
         extras={extras}
         pages={props.pages ?? noPages}
         generic={generic}
+        pointAt={props.pointAt}
       />
     </PageColumn>
   )
@@ -101,24 +120,34 @@ const byCodeUnit = (left: string, right: string): number =>
 type OverviewProps = Readonly<{
   categories: Categories
   extras: Extras
-  pages: (layout: AttachedLayout) => ReactNode
+  pages: (layout: AttachedLayout, asset?: string) => ReactNode
   generic: (category: string) => ReactNode
+  pointAt: string | undefined
 }>
 
-function Overview({ categories, extras, pages, generic }: OverviewProps) {
-  const [chosen, setChosen] = useState<string | null>(null)
+function Overview({ categories, extras, pages, generic, pointAt }: OverviewProps) {
+  const colon = pointAt?.indexOf(':') ?? -1
+  const pointed = colon < 0 ? pointAt : pointAt?.slice(0, colon)
+  const asset = colon < 0 ? undefined : pointAt?.slice(colon + 1)
+  const [chosen, setChosen] = useState<string | null>(pointed ?? null)
+  useEffect(() => {
+    if (pointed !== undefined) setChosen(pointed)
+  }, [pointed])
   const data = categories.kind === 'read' ? [...categories.names.keys()].sort(byCodeUnit) : []
-  return pages(entries => (
-    <Tabs
-      entries={entries}
-      data={data}
-      reading={categories.kind === 'reading'}
-      chosen={chosen}
-      choose={setChosen}
-      extras={extras}
-      generic={generic}
-    />
-  ))
+  return pages(
+    entries => (
+      <Tabs
+        entries={entries}
+        data={data}
+        reading={categories.kind === 'reading'}
+        chosen={chosen}
+        choose={setChosen}
+        extras={extras}
+        generic={generic}
+      />
+    ),
+    asset,
+  )
 }
 
 type TabsProps = Readonly<{
@@ -134,23 +163,34 @@ type TabsProps = Readonly<{
 function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsProps) {
   const contributed = new Map(entries.map(entry => [entry.id, entry]))
   const ids = [...contributed.keys(), ...data.filter(category => !contributed.has(category))]
-  if (ids.length === 0)
+  const shown = chosen !== null && ids.includes(chosen) ? chosen : ids[0]
+  // The first one shown counts as chosen: a category that arrives later does not take the pane away.
+  useEffect(() => {
+    if (chosen === null && shown !== undefined) choose(shown)
+  }, [shown, chosen, choose])
+  if (shown === undefined)
     return reading ? (
       <LoadingState label="正在读取资产……" />
     ) : (
       <EmptyState title="这一层还没有可以管的资产，也没有类别带来自己的页面。" />
     )
-  const selected = chosen !== null && ids.includes(chosen) ? chosen : ids[0]!
+  const selected = shown
   const labelOf = (category: string) => contributed.get(category)?.label ?? extras.label(category)
   return (
     <div className="assets-page-body">
-      <div role="tablist" aria-label="资产的类别" className="assets-page-tabs">
+      <div
+        role="tablist"
+        aria-label="资产的类别"
+        className="assets-page-tabs"
+        {...assetsTabs.props}
+      >
         {ids.map(category => (
           <Button
             key={category}
             role="tab"
             variant="ghost"
             className="assets-page-tab"
+            {...assetsTabsTab.props}
             aria-selected={category === selected}
             data-active={category === selected}
             onClick={() => choose(category)}
@@ -169,6 +209,7 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
             aria-label={labelOf(category)}
             hidden={category !== selected}
             className="assets-page-panel"
+            {...assetsPanel.props}
           >
             {page === undefined ? generic(category) : page.node}
           </section>

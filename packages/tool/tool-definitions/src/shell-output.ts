@@ -5,6 +5,7 @@ import type {
   ProcessHandle,
   ResidueReport,
 } from '@omne-harness/execution-environment-contract'
+import type { Answer } from './program-side.ts'
 import type { OutputStage } from './shell-staging.ts'
 import { bounded, TextWindow, utf8Length } from './text.ts'
 
@@ -21,7 +22,7 @@ export async function collectProcess(
   signal: AbortSignal,
   maximum: number,
   stage: OutputStage | null = null,
-): Promise<string> {
+): Promise<Answer> {
   const result = handle.result.catch(() => undefined)
   const streams = new Map<Stream, StreamState>()
   let stop: Promise<'confirmed' | 'unconfirmed'> | undefined
@@ -50,9 +51,32 @@ export async function collectProcess(
         return header + state.text.render(Math.max(0, perStream - utf8Length(header) - 1)) + '\n'
       })
       .join('')
-    return bounded(metadata + prefix + body, maximum)
+    const text = bounded(metadata + prefix + body, maximum)
+    const data = status === 'done' ? valueOf(outcome, streams) : undefined
+    return data === undefined ? { text } : { text, data }
   } finally {
     signal.removeEventListener('abort', cancel)
+  }
+}
+/** What a one-shot run gives a program: its exit and both streams, only when every byte was kept. */
+function valueOf(outcome: CommandOutcome | undefined, streams: ReadonlyMap<Stream, StreamState>) {
+  if (outcome?.kind !== 'completed' || outcome.output.mode !== 'separate') return undefined
+  const { output } = outcome
+  const kept = (stream: 'stdout' | 'stderr') => {
+    const state = streams.get(stream)
+    if (output[stream].discardedBytes > 0 || (state?.discarded ?? 0) > 0) return null
+    return state === undefined ? '' : state.text.whole()
+  }
+  const stdout = kept('stdout')
+  const stderr = kept('stderr')
+  if (stdout === null || stderr === null) return undefined
+  const { exit } = outcome
+  return {
+    exit_code: exit.kind === 'code' ? exit.code : null,
+    signal: exit.kind === 'signal' ? exit.signal : null,
+    stdout,
+    stderr,
+    duration_ms: outcome.durationMs,
   }
 }
 async function drainOutput(

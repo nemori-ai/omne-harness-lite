@@ -2,11 +2,7 @@ import { canonicalText } from '@omne-harness/authorization'
 import { passMemory } from '../authorization/pass-memory.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { randomUUID } from 'node:crypto'
-import type {
-  AgentActionQualification,
-  AgentAdoptions,
-  AgentToolQualification,
-} from '@omne-harness/agent-contract'
+import type { AgentActionQualification, AgentAdoptions } from '@omne-harness/agent-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import { GovernanceTargetBindingSchema } from '@omne-harness/governance-local'
 import type {
@@ -25,18 +21,18 @@ import {
 } from '@omne-harness/permissions'
 import { readSettingsSource } from '@omne-harness/settings-local'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
-import type { LocalInvocationQualifier, StartCondition } from '@omne-harness/tool-host-local'
 import type { ToolPermissionContext } from '../authorization/current-tool-permission.ts'
 import { qualifyAgentPermission } from './agent-permission-qualification.ts'
 import { organizationPermissionSource } from './organization-permission-source.ts'
 import {
   permissionBasisCommands,
-  permissionBasisGuardCommand,
   permissionBasisRequestSchema,
   permissionBasisSchema,
   type PermissionBasis,
 } from './permission-basis.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
+import { declaredPermissionBasis } from './declared-permission-basis.ts'
+import type { QualifiedOrigin } from './permission-qualification.ts'
 import {
   createPermissionReadMapping,
   type PermissionReadMapping,
@@ -46,17 +42,13 @@ import type { AuthorizationConsumer } from '@omne-harness/session-contract'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
 import { readSessionPermissionForCapture } from './permission-session-current.ts'
 import { readProjection, type ProjectionRead } from './projection-read.ts'
-import { qualifyToolPermission } from './tool-permission-qualification.ts'
 
 type Principal = ActingForTenantPrincipal
 
 export type PermissionOrigins = Readonly<{
   action: AgentActionQualification<Principal>
-  tool: LocalInvocationQualifier<Principal>
-  toolAgent: AgentToolQualification<Principal>
   adoptions: Pick<AgentAdoptions<Principal>, 'resolve'>
 }>
-type Combination = Readonly<{ combinationVersion: string; manifestDigest: string }>
 
 export type PermissionBasisReadOptions = PermissionReadMappingOptions &
   Readonly<{
@@ -66,7 +58,6 @@ export type PermissionBasisReadOptions = PermissionReadMappingOptions &
     epoch: string
     identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
     read: ProjectionRead
-    conditions: Readonly<{ mapped: Combination; unmapped: Combination }>
     origins(): PermissionOrigins | undefined
     accepting(): boolean
   }>
@@ -74,7 +65,6 @@ export type PermissionBasisReadOptions = PermissionReadMappingOptions &
 export type CurrentPermissionRead = Readonly<{
   request: PermissionBasisRequest | null
   reading: PermissionBasisReading
-  condition: StartCondition | null
   authorizations: SessionAuthorizations | null
   consumer: AuthorizationConsumer | null
 }>
@@ -89,7 +79,6 @@ const without = (
 ): CurrentPermissionRead => ({
   request,
   reading,
-  condition: null,
   authorizations: null,
   consumer: null,
 })
@@ -127,17 +116,11 @@ async function qualified(
         () => readSessionPermissionForCapture(options.storage, options.domain, value, consumer),
       ),
   }
-  return context.origin.kind === 'agent-action'
-    ? qualifyAgentPermission({
-        ...given,
-        qualifier: origins.action,
-        adoptions: origins.adoptions,
-      })
-    : qualifyToolPermission({
-        ...given,
-        qualifier: origins.tool,
-        agent: { qualifier: origins.toolAgent, adoptions: origins.adoptions },
-      })
+  return qualifyAgentPermission({
+    ...given,
+    qualifier: origins.action,
+    adoptions: origins.adoptions,
+  })
 }
 
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
@@ -192,6 +175,36 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       : missingOrganization()
   }
 
+  async function stored(
+    mapped: PermissionReadMapping,
+    request: PermissionBasisRequest,
+    origin: QualifiedOrigin,
+  ): Promise<PermissionBasis | undefined> {
+    const commands = permissionBasisCommands(
+      permissionBasisRequestSchema.parse({
+        snapshot: GovernanceTargetBindingSchema.parse({
+          scope: options.scope,
+          epoch: options.epoch,
+          principalRef: origin.principalRef,
+          captureId: randomUUID(),
+          transactionDomain: options.domain.transactionDomain,
+          mode: 'runtime',
+          definition: origin.definition,
+          target: mapped.target,
+        }),
+        permission: request,
+        session: origin.session,
+        constraints: origin.constraints,
+        requiredConstraintIds: origin.constraints.map(constraint => constraint.id),
+      }),
+      origin.configuration,
+    )
+    const projected = await readProjection(options.storage, options.domain, options.read, commands)
+    return projected.kind === 'completed'
+      ? permissionBasisSchema.parse(projected.response)
+      : undefined
+  }
+
   async function read(raw: ToolPermissionContext): Promise<CurrentPermissionRead> {
     const context = {
       ...raw,
@@ -212,37 +225,15 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     const qualification = await qualified(options, context, request, { passKey, sessionOnce })
     if (qualification.kind !== 'qualified') return without(qualification, request)
     const { origin } = qualification
-    const commands = permissionBasisCommands(
-      permissionBasisRequestSchema.parse({
-        snapshot: GovernanceTargetBindingSchema.parse({
-          scope: options.scope,
-          epoch: options.epoch,
-          principalRef: origin.principalRef,
-          captureId: randomUUID(),
-          transactionDomain: options.domain.transactionDomain,
-          mode: 'runtime',
-          definition: origin.definition,
-          target: mapped.target,
-        }),
-        permission: request,
-        session: origin.session,
-        constraints: origin.constraints,
-        requiredConstraintIds: origin.constraints.map(constraint => constraint.id),
-      }),
-      origin.configuration,
-    )
     // The layers of one gate do not depend on the action; one pass reads them once.
     const gate = await gateOnce(
       passKey('gate', mapped.target, request.definition, origin.session, origin.constraints),
       async () => {
-        const projected = await readProjection(
-          options.storage,
-          options.domain,
-          options.read,
-          commands,
-        )
-        if (projected.kind !== 'completed') return undefined
-        const basis: PermissionBasis = permissionBasisSchema.parse(projected.response)
+        const basis =
+          mapped.declared === null
+            ? await stored(mapped, request, origin)
+            : declaredPermissionBasis(mapped.declared, request, origin)
+        if (basis === undefined) return undefined
         return { basis, organization: await organization(mapped, request, basis.evaluation) }
       },
     )
@@ -261,10 +252,6 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     return {
       request,
       reading: current,
-      condition: {
-        ...options.conditions[origin.configuration],
-        commands: [...commands, permissionBasisGuardCommand(basis)],
-      },
       authorizations: origin.authorizations,
       consumer: origin.consumer,
     }

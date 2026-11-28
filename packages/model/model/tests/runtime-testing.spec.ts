@@ -6,10 +6,11 @@ import {
   decodeDispatchId,
   decodeResultVersion,
   type ModelHandle,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type Parameter,
 } from '@omne-harness/model-contract'
 import { type ModelRetryPolicy } from '@omne-harness/model-contract/provider'
+import { ofKind } from '@omne-harness/model-contract/testing'
 import { fixture, instance, op, proof, unbox, identity, callId } from './memory-fixture.ts'
 
 const configuration: ModelConfiguration = {
@@ -132,6 +133,7 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
     send: counted(f.dependencies.send),
     retry: counted(f.dependencies.retry),
     clock: counted(f.dependencies.clock),
+    live: f.dependencies.live,
     instances: counted({
       ...f.dependencies.instances,
       directory: counted(f.dependencies.instances.directory),
@@ -498,7 +500,10 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
         for (const value of [NaN, Infinity, -Infinity, 3]) {
           const invalid = {
             ...demand,
-            request: invalidParameterRequest(demand.request, location, { kind, value }),
+            request: invalidParameterRequest(ofKind(demand.request, 'llm'), location, {
+              kind,
+              value,
+            }),
           }
           f.denied.add('recovery')
           expect(await f.dependencies.retry.decide(invalid)).toMatchObject({
@@ -520,7 +525,7 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
         }
       }
     }
-    for (const request of sparseDemandRequests(demand.request)) {
+    for (const request of sparseDemandRequests(ofKind(demand.request, 'llm'))) {
       const pending = f.dependencies.retry.decide({ ...demand, request })
       expect(pending).toBeInstanceOf(Promise)
       expect(await pending).toMatchObject({ failure: { kind: 'invalid' } })
@@ -528,7 +533,10 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
     expect(
       await f.dependencies.retry.decide({
         ...demand,
-        request: { ...demand.request, parameters: [{ kind: 'temperature', value: 0.5 }] },
+        request: {
+          ...ofKind(demand.request, 'llm'),
+          parameters: [{ kind: 'temperature', value: 0.5 }],
+        },
       }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'request', reason: 'not-original' } })
     expect(f.controls.retry.decisions(demand)).toBe(decisions)
@@ -578,6 +586,7 @@ it('rejects each incomplete dependency without invoking any dependency method', 
     send: tracked(f.dependencies.send),
     retry: tracked(f.dependencies.retry),
     clock: tracked(f.dependencies.clock),
+    live: { ...f.dependencies.live, events: tracked(f.dependencies.live.events) },
     instances: tracked({
       ...f.dependencies.instances,
       directory: tracked(f.dependencies.instances.directory),
@@ -597,6 +606,30 @@ it('rejects each incomplete dependency without invoking any dependency method', 
       }
     }
   }
+  const live = dependencies.live
+  for (const broken of [
+    { ...live, events: undefined },
+    { ...live, events: { ...live.events, deliver: 1 } },
+    { ...live, events: { deliver: live.events.deliver } },
+    ...[0, 1.5, NaN, undefined].map(capacity => ({ ...live, capacity })),
+    ...['openMs', 'closeMs', 'drainMs', 'redeliverMs'].flatMap(field =>
+      [-1, 0.5, Infinity, undefined].map(bad => ({
+        ...live,
+        deadlines: { ...live.deadlines, [field]: bad },
+      })),
+    ),
+    { ...live, deadlines: undefined },
+    null,
+    { ...live, events: null },
+  ]) {
+    expect(() =>
+      Reflect.apply(createModelRuntime, undefined, [
+        { ...dependencies, live: broken },
+        configuration,
+      ]),
+    ).toThrow(new TypeError('invalid Model dependency live'))
+    expect(invoked).toBe(0)
+  }
   for (const directory of [undefined, {}, { connect: 1 }]) {
     expect(() =>
       Reflect.apply(createModelRuntime, undefined, [
@@ -606,6 +639,12 @@ it('rejects each incomplete dependency without invoking any dependency method', 
     ).toThrow(TypeError)
     expect(invoked).toBe(0)
   }
+  const smallest = {
+    ...live,
+    capacity: 1,
+    deadlines: { openMs: 0, closeMs: 0, drainMs: 0, redeliverMs: 0 },
+  }
+  expect(() => createModelRuntime({ ...dependencies, live: smallest }, configuration)).not.toThrow()
   expect(() => createModelRuntime(dependencies, configuration)).not.toThrow()
   expect(invoked).toBe(0)
 })
@@ -814,10 +853,10 @@ it('preserves a noncloneable principal proof, current qualification and the orig
   })
 })
 function invalidParameterRequest(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   location: 'parameters' | 'applied' | 'requested',
   parameter: Parameter,
-): FixedModelRequest {
+): LlmModelRequest {
   if (location === 'parameters') return { ...request, parameters: [parameter] }
   return {
     ...request,
@@ -841,7 +880,10 @@ it('returns send failures for illegal parameters in every request carrier withou
       for (const value of [NaN, Infinity, -Infinity, 3]) {
         const demand = {
           ...f.demand,
-          request: invalidParameterRequest(f.demand.request, location, { kind, value }),
+          request: invalidParameterRequest(ofKind(f.demand.request, 'llm'), location, {
+            kind,
+            value,
+          }),
         }
         f.denied.add('send')
         expect(await f.dependencies.send.send(demand, new AbortController().signal)).toMatchObject({
@@ -878,7 +920,7 @@ it('returns send failures for illegal parameters in every request carrier withou
   if (result.kind === 'started') await result.facts[Symbol.asyncIterator]().return?.()
 })
 
-function sparseDemandRequests(request: FixedModelRequest): FixedModelRequest[] {
+function sparseDemandRequests(request: LlmModelRequest): LlmModelRequest[] {
   function singleHole<T>(): T[] {
     const values: T[] = []
     values.length = 1
@@ -890,15 +932,15 @@ function sparseDemandRequests(request: FixedModelRequest): FixedModelRequest[] {
     values[2] = first
     return values
   }
-  const requests: FixedModelRequest[] = [
+  const requests: LlmModelRequest[] = [
     { ...request, suppliers: holes(request.suppliers[0]) },
     { ...request, parameters: singleHole<Parameter>() },
-    { ...request, system: singleHole<FixedModelRequest['system'][number]>() },
-    { ...request, messages: singleHole<FixedModelRequest['messages'][number]>() },
-    { ...request, tools: singleHole<FixedModelRequest['tools'][number]>() },
+    { ...request, system: singleHole<LlmModelRequest['system'][number]>() },
+    { ...request, messages: singleHole<LlmModelRequest['messages'][number]>() },
+    { ...request, tools: singleHole<LlmModelRequest['tools'][number]>() },
     {
       ...request,
-      parameterAdoptions: singleHole<FixedModelRequest['parameterAdoptions'][number]>(),
+      parameterAdoptions: singleHole<LlmModelRequest['parameterAdoptions'][number]>(),
     },
   ]
   for (const location of ['parameters', 'applied', 'requested'] as const)

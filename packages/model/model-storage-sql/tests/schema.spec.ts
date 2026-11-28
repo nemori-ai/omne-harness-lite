@@ -7,9 +7,11 @@ import {
   type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import {
+  FACT_EFFORT_MIGRATION,
   FACT_MIGRATION,
   MIGRATION,
   TABLES,
+  dispatchFactEffortMigration,
   dispatchFactsMigration,
   modelMigration,
 } from '@omne-harness/model-storage-sql'
@@ -157,6 +159,33 @@ describe('migration 002-dispatch-facts', () => {
     expect(dispatchFactsMigration.verify(portOf(db))).toEqual({
       kind: 'failed',
       diagnostic: 'missing tables: md_dispatch_fact',
+    })
+  })
+})
+
+describe('migration 003-dispatch-fact-effort', () => {
+  function withEffort(): DatabaseSync {
+    const db = migrated()
+    dispatchFactsMigration.up(portOf(db))
+    dispatchFactEffortMigration.up(portOf(db))
+    return db
+  }
+
+  it('is owned by the model participant and adds one nullable column to the facts', () => {
+    expect(FACT_EFFORT_MIGRATION).toEqual({ owner: 'model', id: '003-dispatch-fact-effort' })
+    const db = withEffort()
+    const info = db.prepare('PRAGMA table_info(md_dispatch_fact)').all() as TableInfo[]
+    const effort = info.find(column => column.name === 'effort')
+    expect(effort === undefined ? null : [effort.type, Number(effort.notnull)]).toEqual(['BLOB', 0])
+    expect(dispatchFactEffortMigration.verify(portOf(db))).toEqual({ kind: 'verified' })
+  })
+
+  it('names the column when it is missing', () => {
+    const db = migrated()
+    dispatchFactsMigration.up(portOf(db))
+    expect(dispatchFactEffortMigration.verify(portOf(db))).toEqual({
+      kind: 'failed',
+      diagnostic: 'missing column: md_dispatch_fact.effort',
     })
   })
 })

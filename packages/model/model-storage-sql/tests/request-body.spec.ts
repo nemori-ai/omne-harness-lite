@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
+import { ofKind } from '@omne-harness/model-contract/testing'
 import { createSqlModelCommands } from '@omne-harness/model-storage-sql'
 import type { CommitRequestV2, CommitResultV2, SqlStorage } from '@omne-harness/sql-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
@@ -23,13 +24,13 @@ const A = tenantOf('a')
 const DOMAIN = 'body'
 const CHUNK_BYTES = 1024
 
-function requestOf(length: number): FixedModelRequest {
+function requestOf(length: number): LlmModelRequest {
   const text = 'é"\\\n😀'.repeat(Math.ceil(length / 6)).slice(0, length)
   const copy: { messages: { blocks: { text?: string }[] }[] } = JSON.parse(JSON.stringify(REQUEST))
   const block = copy.messages[0]?.blocks[0]
   if (block === undefined) throw new Error('fixture request')
   block.text = text
-  return copy as unknown as FixedModelRequest
+  return copy as unknown as LlmModelRequest
 }
 
 type Intercept = (request: CommitRequestV2, intent: unknown) => CommitResultV2 | null
@@ -39,7 +40,7 @@ function process(
   intercept: Intercept = () => null,
   chunkBytes = CHUNK_BYTES,
 ) {
-  const sizes: { intent: unknown; bytes: number }[] = []
+  const sizes: { intent: unknown; bytes: number; recall: string | undefined }[] = []
   const reads: { handler: string; bytes: number }[] = []
   const storage: SqlStorage = {
     ...sqlite.storage,
@@ -51,7 +52,11 @@ function process(
     },
     commit(request) {
       const intent = request.commands[0]?.facts['intent']
-      sizes.push({ intent, bytes: Buffer.byteLength(JSON.stringify(request.commands), 'utf8') })
+      sizes.push({
+        intent,
+        bytes: Buffer.byteLength(JSON.stringify(request.commands), 'utf8'),
+        recall: request.identity.recall,
+      })
       const answered = intercept(request, intent)
       return answered === null ? sqlite.storage.commit(request) : Promise.resolve(answered)
     },
@@ -64,7 +69,7 @@ function process(
     requestChunkBytes: chunkBytes,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
   })
-  const admit = (name: string, request: FixedModelRequest) => ({
+  const admit = (name: string, request: LlmModelRequest) => ({
     ...core.admitOf(A, callId(name), opId(`admit-${name}`)),
     request,
   })
@@ -144,12 +149,17 @@ describe('the body of an admitted call', () => {
     expect(rows).toEqual(rows.map((_, seq) => [BigInt(seq), BigInt(rows.length)]))
     expect(p.sizes.map(size => size.intent)).toEqual([...rows.map(() => 'body-chunk'), 'write'])
     for (const size of p.sizes) expect(size.bytes).toBeLessThan(CHUNK_BYTES + 4096)
+    expect(p.sizes.filter(size => size.intent === 'body-chunk').map(size => size.recall)).toEqual(
+      rows.map(() => 'never'),
+    )
 
     expect(await p.commands.loadRequest(input)).toEqual({ ok: request })
     const recovery = await p.commands.loadRecovery(input)
     if (!('ok' in recovery)) throw new Error('no recovery record')
     expect(recovery.ok.request).not.toHaveProperty('messages')
-    expect(recovery.ok.request.messageIds).toEqual(request.messages.map(message => message.id))
+    expect(ofKind(recovery.ok.request, 'llm').messageIds).toEqual(
+      request.messages.map(message => message.id),
+    )
     const [head] = sqlite.rows(DOMAIN, 'SELECT request FROM md_call WHERE call = ?', [
       'mcall_large',
     ])

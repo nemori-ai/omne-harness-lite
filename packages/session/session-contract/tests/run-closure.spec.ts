@@ -268,7 +268,13 @@ describe('the commit that ends a Run answers its open tool calls', () => {
           source: evidence('ended'),
           sequence: '1',
           consequences: [
-            { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+            {
+              kind: 'ended',
+              outcome: 'completed',
+              cause: null,
+              disposition: evidence('complete'),
+              end: null,
+            },
           ] satisfies readonly SessionLogConsequence[],
         },
         operationId('interpret-end'),

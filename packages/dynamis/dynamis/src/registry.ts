@@ -13,6 +13,8 @@ export type Entry<I = unknown> = Readonly<{
   rank: number
   digest: string
   item: I
+  /** Entries of this key at a deeper scope are out wherever this one is seen. Absent: it can be overridden. */
+  lock?: true
 }>
 
 export type Placed<I = unknown> = Entry<I> & Readonly<{ instance: Instance }>
@@ -142,6 +144,7 @@ const place = (instance: Instance, entry: Entry): Placed =>
     rank: entry.rank,
     digest: entry.digest,
     item: entry.item,
+    ...(entry.lock === true && { lock: true as const }),
     instance,
   })
 

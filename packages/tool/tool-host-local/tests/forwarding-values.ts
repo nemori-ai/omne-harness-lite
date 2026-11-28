@@ -6,19 +6,28 @@ import type { CallRecord, ToolLedgerStore } from '@omne-harness/tool'
 import {
   encodeToolInvocationRef,
   type FixedToolRequest,
+  type ToolDefinition,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolRevision,
   decodeToolResultVersion,
+  toolInvokeRequestOf,
   type ToolForwardParent,
 } from '@omne-harness/tool-contract/provider'
 import {
   createLocalInvocationSource,
   createLocalStartCoordinator,
 } from '@omne-harness/tool-host-local'
-import { adoption, evidence, request, startOf, tenantA } from './coordinator-values.ts'
+import {
+  adoption,
+  currentDefinitions,
+  evidence,
+  request,
+  startOf,
+  tenantA,
+} from './coordinator-values.ts'
 
 export function ok<T>(result: { ok: T } | { failure: unknown }): T {
   if ('failure' in result) throw new Error(JSON.stringify(result.failure))
@@ -32,56 +41,77 @@ export const targetIntent: ToolForwardIntent = {
     entries: [{ key: 'path', value: { kind: 'string', value: 'a.txt' } }],
   },
 }
+export function toolsDefinition(): ToolDefinition {
+  const definition = request().availability.definition
+  return {
+    name: 'Tools',
+    adoption: adoption('Tools'),
+    description: definition.description,
+    requiredCapabilities: [],
+    backgroundAllowed: false,
+    declarations: definition.declarations,
+    kind: 'commands',
+    encoding: 'wrapped',
+    commands: [
+      {
+        name: 'execute',
+        summary: 'Execute one target',
+        parameters: { kind: 'executor-owned' },
+        returns: ordinaryReturnFixture(adoption('codec')),
+      },
+    ],
+  }
+}
 export function parentRequest(): ToolInvokeRequest {
-  const { invocation: _, ...base } = request()
-  const definition = base.availability.definition
+  const base = request()
   const text = JSON.stringify({
     command: 'execute',
     params: { name: 'read_file', command: null, arguments: { path: 'a.txt' } },
   })
-  return {
+  return toolInvokeRequestOf({
     ...base,
     command: 'execute',
     arguments: { original: text, effective: text, complete: true },
-    availability: {
-      ...base.availability,
-      definition: {
-        name: 'Tools',
-        adoption: adoption('Tools'),
-        description: definition.description,
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: definition.declarations,
-        kind: 'commands',
-        encoding: 'wrapped',
-        commands: [
-          {
-            name: 'execute',
-            summary: 'Execute one target',
-            parameters: { kind: 'executor-owned' },
-            returns: ordinaryReturnFixture(adoption('codec')),
-          },
-        ],
-      },
-    },
-  }
+    availability: { ...base.availability, definition: toolsDefinition() },
+  })
 }
 export async function forwardingFixture(
   options: {
     durableDeclaration?: boolean
     consumed?: boolean
+    /** The parent also runs programs, and the target is open to them. */
+    programs?: boolean
   } = {},
 ) {
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
+  /** Whether the subject check can answer now; the next check then answers unavailable. */
+  let subjectKnown = true
+  /** A call whose records reads no longer find: its records were deleted. */
+  let deleted: string | null = null
+  /** The read that fails next: the n-th one of its kind from now, once. */
+  let blind: { kind: 'read' | 'record'; left: number } | null = null
+  const blinded = (kind: 'read' | 'record') => {
+    if (blind === null || blind.kind !== kind) return false
+    if (blind.left-- > 0) return false
+    blind = null
+    return true
+  }
+  const away = async () => ({ kind: 'unavailable', diagnostic: 'offline' }) as never
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
     usage: query => memory.usage(query),
-    read: memory.read,
-    readRecord: memory.readRecord,
+    read: async input => {
+      if (blinded('read')) return away()
+      const read = await memory.read(input)
+      if (read.kind !== 'complete' || input.kind !== 'call' || input.call !== deleted) return read
+      return { ...read, records: read.records.filter(row => row.kind !== 'call') }
+    },
+    readRecord: (domain, key) => (blinded('record') ? away() : memory.readRecord(domain, key)),
     due: memory.due,
+    definition: memory.definition,
     async commit(input) {
       const fault = nextCommit
       nextCommit = null
@@ -95,6 +125,11 @@ export async function forwardingFixture(
       return memory.commit(input)
     },
   }
+  const plain = request().availability.definition
+  const targetDefinition: typeof plain =
+    options.programs === true && plain.kind === 'function'
+      ? { ...plain, programmable: true, program: { kind: 'open', unless: [] } }
+      : plain
   const authority = createLocalStartCoordinator<string>({
     store,
     commitAttempts: 8,
@@ -113,49 +148,43 @@ export async function forwardingFixture(
       qualify: async () =>
         allowed ? { kind: 'allowed' as const } : { kind: 'denied' as const, reason: 'revoked' },
       samePrincipal: async ({ current, original }: { current: string; original: string }) =>
-        current === original
-          ? { kind: 'allowed' as const }
-          : { kind: 'denied' as const, reason: 'other' },
+        !subjectKnown
+          ? { kind: 'unavailable' as const, diagnostic: 'offline' }
+          : current === original
+            ? { kind: 'allowed' as const }
+            : { kind: 'denied' as const, reason: 'other' },
     },
     principalCodec: {
       encode: (principal: string) => principal,
       decode: (value: unknown) =>
         typeof value === 'string' ? succeed(value) : fail({ reason: 'not a string' }),
     },
+    definitions: currentDefinitions<string>(toolsDefinition(), targetDefinition),
     forwarding: {
       authority: () => authority,
       isParent: (fixed: FixedToolRequest) =>
         fixed.availability.definition.adoption.name === 'Tools',
     },
+    ...(options.programs === true
+      ? {
+          programs: {
+            authority: () => authority,
+            isParent: (fixed: FixedToolRequest) =>
+              fixed.availability.definition.adoption.name === 'Tools',
+            children: () => undefined,
+          },
+        }
+      : {}),
   }
   const source = createLocalInvocationSource(input)
-  const business = parentRequest()
-  const definition = business.availability.definition
-  if (definition.kind !== 'commands') throw new Error('commands required')
-  const cleaned = {
-    ...business,
-    availability: {
-      ...business.availability,
-      definition: {
-        name: definition.name,
-        adoption: definition.adoption,
-        description: definition.description,
-        requiredCapabilities: definition.requiredCapabilities,
-        backgroundAllowed: definition.backgroundAllowed,
-        declarations: definition.declarations,
-        kind: definition.kind,
-        encoding: definition.encoding,
-        commands: definition.commands,
-      },
-    },
-  }
+  const cleaned = parentRequest()
   const issued = await source.issuer.resolve({
     principal: 'alice',
     tenant: tenantA,
     request: cleaned,
   })
   if (issued.kind !== 'bound') throw new Error(JSON.stringify(issued))
-  const fixed = { ...cleaned, invocation: issued.invocation }
+  const fixed = issued.request
   const parent: ToolForwardParent<string> = {
     principal: 'alice',
     tenant: tenantA,
@@ -206,7 +235,10 @@ export async function forwardingFixture(
   const consume = () =>
     authority.consume({ ...parent, permit, executorReceipt: evidence('parent-executor') })
   if (options.consumed !== false) ok(await consume())
-  const { invocation: __, ...target } = request()
+  const target = toolInvokeRequestOf({
+    ...request(),
+    availability: { ...request().availability, definition: targetDefinition },
+  })
   return {
     memory,
     store,
@@ -226,6 +258,20 @@ export async function forwardingFixture(
     },
     revoke: () => {
       allowed = false
+    },
+    deleteParent: () => {
+      deleted = parent.call
+    },
+    loseSubject: () => {
+      subjectKnown = false
+    },
+    blind: (kind: 'read' | 'record', nth: number) => {
+      blind = { kind, left: nth }
+    },
+    sighted: () => {
+      const unused = blind !== null
+      blind = null
+      return unused
     },
   }
 }

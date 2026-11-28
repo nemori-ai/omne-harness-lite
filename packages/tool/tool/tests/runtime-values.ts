@@ -13,6 +13,8 @@ import {
   type DurableEvidence,
   type FixedToolRequest,
   type ParameterContract,
+  type SourceLayer,
+  type ToolAvailabilityReference,
   type ToolCallId,
   type ToolDefinition,
   type ToolInstanceId,
@@ -27,7 +29,9 @@ import {
 import {
   decodeToolInstanceId,
   defaultResultPolicy,
+  fixToolRequest,
   judgeToolState,
+  toolAvailabilityReference,
   readToolInvocationRef,
   type TextResultFactory,
   type ToolDriver,
@@ -148,23 +152,50 @@ export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}):
     kind: 'function',
     parameters: parameters(),
     returns: ordinaryReturnFixture(adoption('codec')),
+    ...(overrides.programmable === true ? { program: { kind: 'open', unless: [] } } : {}),
   }
+}
+
+const knownDefinitions = new Map<string, ToolDefinition>()
+
+const definitionKey = (adoption: Adoption, name: string): string =>
+  JSON.stringify([adoption.owner, adoption.name, adoption.revision, adoption.digest, name])
+
+export function knownDefinition(reference: ToolAvailabilityReference): ToolDefinition | undefined {
+  return knownDefinitions.get(definitionKey(reference.definition, reference.name))
+}
+
+function definitionOf(reference: ToolAvailabilityReference): ToolDefinition {
+  const found = knownDefinition(reference)
+  if (found === undefined) throw new Error(`no test definition is known for ${reference.name}`)
+  return found
+}
+
+export function available(
+  definition: ToolDefinition = functionDefinition(),
+  executor: Adoption = adoption('exec'),
+  layer: SourceLayer = { kind: 'official' },
+): ToolAvailabilityReference {
+  knownDefinitions.set(definitionKey(definition.adoption, definition.name), definition)
+  return toolAvailabilityReference({ kind: 'available', definition, executor, layer })
+}
+
+export function knownUnavailable(
+  definition: ToolDefinition = functionDefinition(),
+  reason = 'dependency-unavailable:file-system',
+): ToolAvailabilityReference {
+  knownDefinitions.set(definitionKey(definition.adoption, definition.name), definition)
+  return toolAvailabilityReference({ kind: 'known-unavailable', definition, reason })
 }
 
 export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   const made: Omit<ToolInvokeRequest, 'label'> = {
-    availability: {
-      kind: 'available',
-      definition: functionDefinition(),
-      executor: adoption('exec'),
-      layer: { kind: 'official' },
-    },
+    availability: overrides.availability ?? available(),
     command: null,
     arguments: { original: '{"path":"a.txt"}', effective: '{"path":"a.txt"}', complete: true },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant-1') },
@@ -176,29 +207,20 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
   }
   return {
     ...made,
-    label: overrides.label ?? testingCallLabel(made.availability.definition, made.command),
+    label: overrides.label ?? testingCallLabel(definitionOf(made.availability), made.command),
   }
 }
 
 export function dummyRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
-  return request({
-    availability: {
-      kind: 'known-unavailable',
-      definition: functionDefinition(),
-      reason: 'dependency-unavailable:file-system',
-    },
-    ...overrides,
-  })
+  return request({ availability: knownUnavailable(), ...overrides })
 }
 
 export function fixedRequestForNamedSourceGuard(
-  overrides: Partial<FixedToolRequest> = {},
+  overrides: Partial<ToolInvokeRequest> & Partial<Pick<FixedToolRequest, 'invocation'>> = {},
 ): FixedToolRequest {
-  return {
-    ...request(),
-    invocation: { kind: 'direct', source: evidence('entry') },
-    ...overrides,
-  }
+  const { invocation = { kind: 'direct', source: evidence('entry') }, ...fields } = overrides
+  const made = request(fields)
+  return fixToolRequest(made, definitionOf(made.availability), invocation)
 }
 
 export function text(id: string, value: string): TextContentBlock {
@@ -569,6 +591,7 @@ export function harness(options: HarnessOptions = {}): Harness {
   const source = createTestInvocationSource<Principal>({
     authority: invokeAuthority(options),
     snapshotPrincipal: snapshotTestPrincipal,
+    definition: knownDefinition,
     ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
   })
   const identities = createTestToolIdentities()
@@ -619,7 +642,15 @@ export function harness(options: HarnessOptions = {}): Harness {
       'resolve',
     ]),
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
-    children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+    children: stub(spies, 'children', [
+      'register',
+      'exclude',
+      'handOff',
+      'background',
+      'retain',
+      'seal',
+      'table',
+    ]),
     operationIdentities: identities.operationIdentities,
     sourceIssuer: source.issuer,
   }
@@ -789,6 +820,7 @@ export function interleaving(
     usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     read: domain => memory.read(domain),
     commit: async input => {
       if (armed && matches(input)) {

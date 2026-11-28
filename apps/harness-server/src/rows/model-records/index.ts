@@ -16,6 +16,7 @@ import {
 import type {
   ModelMaterializationEvidenceReader,
   ModelReceiveEvidenceReader,
+  RequestDisclosure,
 } from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import {
@@ -98,7 +99,10 @@ function recordsManifestDigest(): string {
 export type ModelRecordsRowInput = Readonly<{ adopt?: ModelInitialRunAdopt }>
 
 function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelRecordsRowInput): void {
-  const requestDisclosure = toolResultDisclosureOf(ctx)
+  const toolResults = toolResultDisclosureOf(ctx)
+  // Only a chat request carries tool results; a request of another kind discloses none.
+  const requestDisclosure: RequestDisclosure = request =>
+    request.kind === 'llm' ? toolResults(request) : null
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
     throw new Error(
@@ -189,6 +193,9 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelReco
           ...(sendStage.transportLimits.streamStallTimeoutMs === undefined
             ? {}
             : { streamStallTimeoutMs: sendStage.transportLimits.streamStallTimeoutMs }),
+          ...(sendStage.transportLimits.maxDecisionBytes === undefined
+            ? {}
+            : { maxDecisionBytes: sendStage.transportLimits.maxDecisionBytes }),
         },
         preparation: {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,

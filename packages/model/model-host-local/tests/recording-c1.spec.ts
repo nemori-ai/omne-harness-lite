@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { payableAmount, type Amount } from '@omne-harness/call-account'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import {
   checkModelProviderConformance,
@@ -92,7 +92,7 @@ type ObligationResult = Readonly<{
 }>
 
 async function transportObligations(
-  input: Readonly<{ request: FixedModelRequest; stream: Buffer }>,
+  input: Readonly<{ request: LlmModelRequest; stream: Buffer }>,
 ): Promise<readonly ObligationResult[]> {
   const certificate = createCertificate()
   try {
@@ -173,7 +173,7 @@ function amountOf(amount: Amount) {
   }
 }
 
-async function assembledRun(name: RecordCaseName, request: FixedModelRequest) {
+async function assembledRun(name: RecordCaseName, request: LlmModelRequest) {
   const item = RECORD_CASES[name]
   const opened = await openReplay({ request, name, label: replayLabel('c1', name) })
   try {

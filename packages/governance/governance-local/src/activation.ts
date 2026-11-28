@@ -10,7 +10,13 @@ import {
 } from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
 import { bootstrapScope, closeScope } from './scope.ts'
-import { acceptOperation, boundOperation, sealOperation, submitOperation } from './operation.ts'
+import {
+  acceptOperation,
+  boundOperation,
+  releaseOperation,
+  sealOperation,
+  submitOperation,
+} from './operation.ts'
 import {
   prepareGovernanceStanding,
   recordGovernanceHeld,
@@ -21,6 +27,7 @@ import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
 import { isTerminal } from './registrar-results.ts'
 import { digest, json, equal } from './encoding.ts'
 import { retireContribution } from './contribution-retirement.ts'
+import { reclaimContributions } from './contribution.ts'
 
 function control(
   port: ParticipantPort,
@@ -81,8 +88,13 @@ function metadata(port: ParticipantPort, request: ControlRequest) {
   switch (request.kind) {
     case 'bootstrap':
       return bootstrapScope(port, request.input)
-    case 'close-scope':
-      return closeScope(port, request.input)
+    case 'close-scope': {
+      for (const key of request.released)
+        releaseOperation(port, { scope: request.input.scope, ...key })
+      const closed = closeScope(port, request.input)
+      reclaimContributions(port, request.input.scope)
+      return closed
+    }
     case 'retire-contribution':
       return retireContribution(port, request.binding)
     case 'persist-stage':

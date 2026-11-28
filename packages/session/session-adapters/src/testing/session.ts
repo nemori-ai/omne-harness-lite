@@ -1,11 +1,12 @@
 import { admittedGuards, derivedTerms } from './intake.ts'
-import { commandScope, runStartInputs } from './frontier.ts'
+import { commandScope } from './frontier.ts'
 import { boundCall, compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
   decide,
+  deliveryReads,
   commandDigest,
   digestSessionEntries,
   judgeIdle,
@@ -22,7 +23,6 @@ import type {
   SessionAccessDecision,
   SessionAccessRequest,
   SessionReadAccessOperation,
-  SessionInputScope,
   DurableEvidence,
   EntryId,
   SessionAccess,
@@ -67,7 +67,7 @@ import {
   modelViewPage,
 } from './session-values.ts'
 import type { SessionState } from './root.ts'
-import { admittedInputs, withInputs } from './inputs.ts'
+import { admittedInputs, inputScope, withInputs } from './inputs.ts'
 import type { SessionDirectory } from './session-directory.ts'
 import { TESTING_OWNER, decodeCursor, historyPage } from './session-pages.ts'
 type Recall = (receipt: CommitReceipt) => unknown
@@ -221,12 +221,12 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
     case 'startRun': {
       if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
         throw new Error('startRun committed without an active Run')
-      const { advance, adoption, first, execution } = snapshot.run
+      const { advance, adoption, initial, execution } = snapshot.run
       return receipt => ({
         receipt,
         advance,
         adopted: adoption,
-        first,
+        initial,
         execution: execution.execution,
       })
     }
@@ -393,16 +393,7 @@ export function createSessionTransactions<P>(
         return fail({ kind: 'conflict', operation: command.input.operation })
       return succeed(held.recall({ ...held.record.receipt, recovered: true }))
     }
-    const selected =
-      command.kind === 'startRun'
-        ? runStartInputs(store?.snapshot)
-        : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
-          ? [command.input.fact.input]
-          : undefined
-    const scope: SessionInputScope =
-      selected === undefined
-        ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
-        : { kind: 'selected', inputs: selected }
+    const scope = inputScope(command, store?.snapshot)
     const resultParticipation =
       command.kind === 'preserveResult' || command.kind === 'completeConsumption'
         ? command.input.participation
@@ -424,6 +415,7 @@ export function createSessionTransactions<P>(
     const decision = decide(prepared, command, admittedGuards(command, input.guards), null, {
       ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
       ...(material === undefined ? {} : { history: material.reads }),
+      ...deliveryReads(command, id => store?.inputs.get(id)?.message),
       compaction:
         command.kind === 'commitDerived' &&
         command.input.value.kind === 'compaction' &&
@@ -744,7 +736,7 @@ export function createSessionTransactions<P>(
     },
     readForkPoint: async input => {
       const store = await storeOf(input, 'history.readModelView')
-      return forkPointRead(store, keyOf(input.tenant, input.session))
+      return forkPointRead(store, keyOf(input.tenant, input.session), input.asking)
     },
     readModelView: async input => {
       const store = await storeOf(input, 'history.readModelView')
@@ -823,17 +815,16 @@ export function createSessionTransactions<P>(
       for (const row of store.ok.entries) {
         if (row.kind !== 'session.model-selected') continue
         const declaration = rowData(row)['declaration'] as
-          | { kind?: string; name?: string; basis?: DurableEvidence }
+          | ({ kind: 'model' } & SavedModelSelection)
           | undefined
         if (
           declaration?.kind === 'model' &&
           declaration.name !== undefined &&
           declaration.basis !== undefined
-        )
-          saved = {
-            selection: { name: declaration.name, basis: declaration.basis },
-            at: row.revision,
-          }
+        ) {
+          const { kind: _kind, ...selection } = declaration
+          saved = { selection, at: row.revision }
+        }
       }
       const initial = store.ok.snapshot.creation.initialModelSelection
       const first = store.ok.entries[0]

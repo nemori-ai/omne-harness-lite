@@ -15,6 +15,7 @@ import {
   agentCompactionKey,
   agentCompactionInputsKey,
   agentExecutionControlKey,
+  agentNestedActionsKey,
   agentExecutionRecoveryKey,
   agentInstanceProvisionKey,
   agentJournalEntriesKey,
@@ -28,10 +29,13 @@ import {
   agentRequestsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
+import { toolProgramAdmissionKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowBody, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { processInstance } from '../telemetry/instance.ts'
+import { agentHostEntries } from './entries.ts'
+import { ReleaseProgramAdmission } from './program-admission.ts'
 
 const AGENT_HOST_PRINCIPAL = 'agentHostPrincipal'
 
@@ -39,6 +43,10 @@ export type AgentToolRequests = NonNullable<AgentHostLocalPluginInput['toolReque
 
 export type AgentHostRowInput = Readonly<{
   toolRequestsOf?: (ctx: Context) => AgentToolRequests
+  enabledExtensionsOf?: (
+    ctx: Context,
+  ) => NonNullable<AgentHostLocalPluginInput['enabledExtensions']>
+  systemExtensionsOf?: (ctx: Context) => NonNullable<AgentHostLocalPluginInput['systemExtensions']>
   measure?: AgentMeasure
   lostContact?: NonNullable<AgentHostLocalPluginInput['lostContact']>
 }>
@@ -86,6 +94,8 @@ function signalAt(deadline: number): AbortSignal {
 
 function handleOf(plugin: AgentHostPlugin): RowHandle {
   return {
+    // The host receives results from its start on: a generation that stands by does not hold the receivers.
+    start: async () => plugin.startReceiving(),
     async stop(deadline) {
       const answer = await plugin.quiesceAll({ signal: signalAt(deadline) })
       return answer.kind === 'settled'
@@ -99,6 +109,7 @@ function bodyOver(pluginOf: (ctx: Context) => AgentHostPlugin): RowBody {
   return async (ctx, config) => {
     const plugin = pluginOf(ctx)
     await plugin.apply(ctx, config as AgentHostConfig)
+    new ReleaseProgramAdmission(ctx)
     return handleOf(plugin)
   }
 }
@@ -112,7 +123,9 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
         agentPublicationAuthorityKey,
         agentExecutionRecoveryKey,
         agentExecutionControlKey,
+        agentNestedActionsKey,
         agentInstanceProvisionKey,
+        toolProgramAdmissionKey,
       ],
       injects: [
         agentJournalKey,
@@ -136,6 +149,8 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
       sameProviderGroup: null,
     },
     lifecycle: { kind: 'body', phase: 'business' },
+    swap: 'implementation',
+    entries: agentHostEntries(),
     Config: agentHostRowConfig,
     body: bodyOver(pluginOf),
   })
@@ -145,7 +160,14 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
   return createAgentHostRowOver(ctx =>
     createAgentHostLocalPlugin({
       ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
+      ...(input.enabledExtensionsOf === undefined
+        ? {}
+        : { enabledExtensions: input.enabledExtensionsOf(ctx) }),
+      ...(input.systemExtensionsOf === undefined
+        ? {}
+        : { systemExtensions: input.systemExtensionsOf(ctx) }),
       measure: input.measure ?? agentMeasureOf(ctx),
+      deferReception: true,
       ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
     }),
   )

@@ -13,6 +13,7 @@ import {
 import { digestOf } from './operations.ts'
 
 import { withIntakeTerms, type IntakeTerms } from './input-sources.ts'
+import { bornRegistrations } from './scope-registrations.ts'
 import { forkAsRecorded, relatedAsRecorded } from './standing.ts'
 function historicalGuard(facts: InitializationGuardFacts) {
   return {
@@ -29,6 +30,20 @@ function recordedTerms(decoded: readonly SessionEntry[]): IntakeTerms | null {
   return routed !== undefined && 'source' in routed
     ? { source: { kind: 'admitted', source: routed.source } }
     : null
+}
+
+/** Outside a creation, only an unarchive writes initial registrations: those its scope is born with. */
+function laterScopeRefusal(
+  previous: WorkSnapshot | null,
+  decoded: readonly SessionEntry[],
+): string | null {
+  const born = decoded.filter(entry => 'initialization' in entry)
+  const unarchived = decoded.find(entry => entry.kind === 'session.unarchived')
+  if (unarchived === undefined || previous === null)
+    return born.length > 0 ? 'initialization success facts have no corresponding result' : null
+  return same(born, bornRegistrations(previous, unarchived.scope))
+    ? null
+    : 'the registrations of an unarchived scope are not those the creation recorded'
 }
 
 export function validateInitializationBatch(
@@ -113,15 +128,14 @@ export function validateInitializationBatch(
         results: [entry.outcome],
       }
       decision = decide(previous, command, [historicalGuard(facts)], null, { compaction: null })
-    } else {
-      return decoded.some(entry => 'initialization' in entry && entry.initialization !== undefined)
-        ? 'initialization success facts have no corresponding result'
-        : null
-    }
+    } else return laterScopeRefusal(previous, decoded)
     if (decision.kind !== 'entries')
       return `invalid initialization history: ${JSON.stringify(decision)}`
+    // The reducer has already admitted the batch's exact interpreter. Replay compares the
+    // facts as encoded by that release, including origins and all initialization payloads.
     const actual = batch.entries.map(({ id: _id, revision: _revision, ...entry }) => entry)
-    return same(actual, decision.entries)
+    const expected = decision.entries.map(entry => ({ ...entry, schema: actual[0]!.schema }))
+    return same(actual, expected)
       ? null
       : 'initialization batch facts, bindings or references are inconsistent'
   } catch (error) {

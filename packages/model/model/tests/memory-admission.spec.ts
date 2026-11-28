@@ -2,7 +2,8 @@ import { expect, it } from 'vitest'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
-import type { FixedModelRequest, Parameter } from '@omne-harness/model-contract'
+import type { LlmModelRequest, Parameter } from '@omne-harness/model-contract'
+import { ofKind } from '@omne-harness/model-contract/testing'
 import { canonical } from '../src/testing/value.ts'
 import { adoption, fixture, unbox } from './memory-fixture.ts'
 
@@ -91,7 +92,7 @@ it('accepts the declared parameter families at their legal boundaries', async ()
     const { commands } = createMemoryModelCommands(f.options)
     const input = { ...f.admit, request: { ...f.admit.request, parameters } }
     unbox(await commands.admit(input))
-    expect(unbox(await commands.loadRequest(input)).parameters).toEqual(parameters)
+    expect(ofKind(unbox(await commands.loadRequest(input)), 'llm').parameters).toEqual(parameters)
     expect(unbox(await commands.admit(input)).recovered).toBe(true)
   }
 })
@@ -178,10 +179,10 @@ it('keeps an unknown unapplied admission bound while rejecting different illegal
 })
 
 function adoptedRequest(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   location: 'applied' | 'requested',
   parameter: Parameter,
-): FixedModelRequest {
+): LlmModelRequest {
   return {
     ...request,
     parameterAdoptions: [
@@ -318,7 +319,7 @@ function withHole<T>(value: T, middle: boolean | null): [T, ...T[]] {
   } else if (middle === false) Reflect.deleteProperty(values, '0')
   return values
 }
-function requestVariants(request: FixedModelRequest, middle: boolean | null) {
+function requestVariants(request: LlmModelRequest, middle: boolean | null) {
   const block = judgeContentBlock({
     kind: 'text',
     id: 'system',
@@ -355,7 +356,7 @@ function requestVariants(request: FixedModelRequest, middle: boolean | null) {
           : adoptedRequest(request, location, parameter)
       return [`stop.${location}`, changed] as const
     }),
-  ] satisfies readonly (readonly [string, FixedModelRequest])[]
+  ] satisfies readonly (readonly [string, LlmModelRequest])[]
 }
 for (const middle of [false, true]) {
   it(`rejects ${middle ? 'middle' : 'single'} holes in every owned request sequence before unknown injection`, async () => {
@@ -426,7 +427,7 @@ it('keeps dense request values and their order isolated from caller changes', as
   unbox(await commands.admit(input))
   stop.reverse()
   expect(await commands.admit(input)).toMatchObject({ failure: { kind: 'conflict' } })
-  const saved = unbox(await commands.loadRequest(input))
+  const saved = ofKind(unbox(await commands.loadRequest(input)), 'llm')
   expect(saved.parameters).toEqual([{ kind: 'stop', value: ['END', 'STOP'] }])
   expect(unbox(await commands.admit({ ...input, request: saved })).recovered).toBe(true)
 })

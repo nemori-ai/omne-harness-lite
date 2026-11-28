@@ -7,7 +7,9 @@ import {
   type ModelChoiceListing,
   type ModelChoiceSource,
 } from '../src/model/model-selection.ts'
-import { ModelAction, useNewSessionModel } from '../src/view/model-selection.tsx'
+import { HeadingEntriesContext } from '../src/view/heading-fold.tsx'
+import { createModelChoiceAsk, ModelChoiceAskContext } from '../src/model/model-choice-ask.ts'
+import { ModelAction } from '../src/view/model-selection.tsx'
 
 beforeAll(() => {
   Object.assign(Element.prototype, {
@@ -22,6 +24,8 @@ afterEach(cleanup)
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SESSION = 's-1'
+const PLACE = { tenant: TENANT, session: SESSION }
+const NONE: ModelChoiceListing = { kind: 'listed', choices: [] }
 const GPT = 'openai/gpt-x'
 const CLAUDE = 'anthropic/claude-y'
 const LOCKED = 'openai/locked-z'
@@ -55,17 +59,19 @@ function storeWith(reads: readonly unknown[], answer: unknown = selected(CLAUDE)
 const LISTED: ModelChoiceListing = {
   kind: 'listed',
   choices: [
-    { route: GPT, selectable: true, note: null },
+    { route: GPT, selectable: true, note: null, reasoningEfforts: ['low', 'medium', 'high'] },
     { route: CLAUDE, selectable: true, note: '还没有配置凭据，选了也暂时调不了' },
     { route: LOCKED, selectable: false, note: '不能选：被锁定' },
   ],
 }
-const sourceOf = (listing: ModelChoiceListing): ModelChoiceSource & { asked: string[] } => {
-  const asked: string[] = []
+const sourceOf = (
+  listing: ModelChoiceListing,
+): ModelChoiceSource & { asked: (string | undefined)[][] } => {
+  const asked: (string | undefined)[][] = []
   return {
     asked,
-    list: async tenant => {
-      asked.push(tenant)
+    list: async (tenant, session) => {
+      asked.push([tenant, session])
       return listing
     },
   }
@@ -96,6 +102,15 @@ describe('the model of a session, as Session answered it last', () => {
     expect(selectText({ outcome: 'invalid', body: { reason: 'unknown-name' } })).toBe(
       '没有换：没有这个模型',
     )
+    expect(selectText({ outcome: 'invalid', body: { reason: 'excluded' } })).toBe(
+      '没有换：这个模型没有启用',
+    )
+    expect(
+      selectText({
+        outcome: 'invalid',
+        body: { reason: 'excluded', detail: 'unsupported-effort' },
+      }),
+    ).toBe('没有换：这个模型不支持所选推理强度')
     expect(selectText({ outcome: 'archived', body: {} })).toBe('没有换：会话已归档')
     expect(selectText({ outcome: 'frozen', body: {} })).toBe('没有换：会话已冻结')
     expect(selectText({ outcome: 'unknown' })).toBe('不知道换没换成，已重新读取')
@@ -145,43 +160,43 @@ describe('the list of models, from whoever is attached', () => {
   it('there is no list until a source is attached, and none again once it is taken away', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     const told = vi.fn()
-    store.subscribeChoices(TENANT, told)
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
-    await store.loadChoices(TENANT)
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+    store.subscribeChoices(PLACE, told)
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
+    await store.loadChoices(PLACE)
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
 
     const source = sourceOf(LISTED)
     const detach = store.attach(source)
     await settle()
-    expect(source.asked).toEqual([TENANT])
-    expect(store.choices(TENANT)).toEqual(LISTED)
+    expect(source.asked).toEqual([[TENANT, SESSION]])
+    expect(store.choices(PLACE)).toEqual(LISTED)
     expect(told).toHaveBeenCalled()
 
     told.mockClear()
     detach()
-    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+    expect(store.choices(PLACE)).toEqual({ kind: 'absent' })
     expect(told).toHaveBeenCalledTimes(1)
   })
 
   it('a source that throws is a list that could not be read', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     store.attach({ list: () => Promise.reject(new Error('down')) })
-    await store.loadChoices(TENANT)
-    expect(store.choices(TENANT)).toEqual({ kind: 'unavailable', reason: '没有送达' })
+    await store.loadChoices(PLACE)
+    expect(store.choices(PLACE)).toEqual({ kind: 'unavailable', reason: '没有送达' })
   })
 
   it('a list that arrives after its source was taken away is dropped', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     let answer: (listing: ModelChoiceListing) => void = () => {}
     const detach = store.attach({ list: () => new Promise(resolve => (answer = resolve)) })
-    const loading = store.loadChoices(TENANT)
+    const loading = store.loadChoices(PLACE)
     detach()
     const later = sourceOf({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
     store.attach(later)
-    await store.loadChoices(TENANT)
+    await store.loadChoices(PLACE)
     answer(LISTED)
     await loading
-    expect(store.choices(TENANT)).toEqual({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
+    expect(store.choices(PLACE)).toEqual({ kind: 'unavailable', reason: '模型的列表暂时读不到' })
   })
 
   it('taking away an earlier source does not take away the one attached after it', () => {
@@ -189,7 +204,7 @@ describe('the list of models, from whoever is attached', () => {
     const detachFirst = store.attach(sourceOf(LISTED))
     store.attach(sourceOf(LISTED))
     detachFirst()
-    expect(store.choices(TENANT).kind).not.toBe('absent')
+    expect(store.choices(PLACE).kind).not.toBe('absent')
   })
 })
 
@@ -202,7 +217,7 @@ describe('the model in the heading of a conversation', () => {
     expect(screen.queryByRole('combobox')).toBeNull()
   })
 
-  it('with a list it offers the models; one that cannot be picked is disabled with its reason', async () => {
+  it('with a list it offers the models that can be picked; one that cannot is left out (C9)', async () => {
     const { store, select } = storeWith([selection(GPT, '1'), selection(CLAUDE, '2')])
     store.attach(sourceOf(LISTED))
     render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
@@ -210,14 +225,303 @@ describe('the model in the heading of a conversation', () => {
     const trigger = screen.getByRole('combobox', { name: '模型' })
     expect(trigger.textContent).toContain(GPT)
     fireEvent.keyDown(trigger, { key: 'Enter' })
-    const locked = await screen.findByRole('option', { name: /locked-z/u })
-    expect(locked.getAttribute('aria-disabled')).toBe('true')
-    expect(locked.textContent).toContain('不能选：被锁定')
+    await screen.findByRole('option', { name: /claude-y/u })
+    expect(screen.queryByRole('option', { name: /locked-z/u })).toBeNull()
     fireEvent.click(screen.getByRole('option', { name: /claude-y/u }))
     await settle()
     expect(select.mock.calls[0]?.[0]).toMatchObject({ session: SESSION, model: CLAUDE })
     expect(screen.getByRole('status').textContent).toBe(`已换成 ${CLAUDE}`)
     expect(screen.getByRole('combobox', { name: '模型' }).textContent).toContain(CLAUDE)
+  })
+
+  it('asked to open from elsewhere, the choice of this session opens; that of another session stays shut', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.attach(sourceOf(LISTED))
+    const ask = createModelChoiceAsk()
+    render(
+      <ModelChoiceAskContext.Provider value={ask}>
+        <ModelAction store={store} tenant={TENANT} session={SESSION} />
+      </ModelChoiceAskContext.Provider>,
+    )
+    await settle()
+    act(() => ask.open('another-session'))
+    await settle()
+    expect(screen.queryByRole('option')).toBeNull()
+    act(() => ask.open(SESSION))
+    await screen.findByRole('option', { name: /claude-y/u })
+  })
+
+  it('the current model stays offered when it cannot be picked, disabled with its reason (C9)', async () => {
+    const { store } = storeWith([selection(LOCKED, '1')])
+    store.attach(sourceOf(LISTED))
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    const locked = await screen.findByRole('option', { name: /locked-z/u })
+    expect(locked.getAttribute('aria-disabled')).toBe('true')
+    expect(locked.textContent).toContain('不能选：被锁定')
+    expect(screen.getAllByRole('option')).toHaveLength(3)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
+    const [first] = await screen.findAllByRole('option')
+    expect(first?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('the model default says the effort the tenant set for the model, or the provider default (C9)', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.attach(
+      sourceOf({
+        kind: 'listed',
+        choices: [
+          {
+            route: GPT,
+            selectable: true,
+            note: null,
+            reasoningEfforts: ['low', 'medium'],
+            defaultReasoningEffort: 'medium',
+          },
+        ],
+      }),
+    )
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    const effort = screen.getByRole('combobox', { name: '推理强度' })
+    expect(effort.textContent).toContain('模型默认（medium）')
+    fireEvent.keyDown(effort, { key: 'Enter' })
+    const [first] = await screen.findAllByRole('option')
+    expect([first?.textContent, first?.getAttribute('aria-disabled')]).toEqual([
+      '模型默认（medium）',
+      null,
+    ])
+  })
+
+  it('offers the four efforts, disables unsupported xhigh and reads back the selected effort', async () => {
+    const { store, select } = storeWith(
+      [
+        selection(GPT, '1'),
+        { outcome: 'succeeded', body: { model: GPT, revision: '2', reasoningEffort: 'high' } },
+      ],
+      selected(GPT),
+    )
+    store.attach(sourceOf(LISTED))
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '推理强度' }), { key: 'Enter' })
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      '模型默认（供应商默认）',
+      'low',
+      'medium',
+      'high',
+      'xhigh（此型号未提供）',
+    ])
+    expect(
+      screen.getByRole('option', { name: /xhigh.*此型号未提供/u }).getAttribute('aria-disabled'),
+    ).toBe('true')
+    fireEvent.click(screen.getByRole('option', { name: 'high' }))
+    await settle()
+    expect(select.mock.calls[0]?.[0]).toMatchObject({ model: GPT, reasoningEffort: 'high' })
+    expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('high')
+  })
+
+  it.each([
+    [['high'], undefined, 'high'],
+    [[], '未提供 high，切换并使用模型默认强度', undefined],
+  ] as const)(
+    'makes the effort used after switching explicit for a target offering %j',
+    async (offered, note, expected) => {
+      const { store, select } = storeWith([
+        { outcome: 'succeeded', body: { model: GPT, revision: '1', reasoningEffort: 'high' } },
+        selection(CLAUDE, '2'),
+      ])
+      store.attach(
+        sourceOf({
+          kind: 'listed',
+          choices: [
+            { route: GPT, selectable: true, note: null, reasoningEfforts: ['high'] },
+            { route: CLAUDE, selectable: true, note: null, reasoningEfforts: offered },
+          ],
+        }),
+      )
+      render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+      await settle()
+      fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+      const target = screen.getByRole('option', { name: /claude-y/ })
+      if (note !== undefined) expect(target.textContent).toContain(note)
+      fireEvent.click(target)
+      await settle()
+      expect(select.mock.calls[0]?.[0]).toEqual({
+        tenant: expect.anything(),
+        model: CLAUDE,
+        session: SESSION,
+        controlId: 'id-1',
+        ...(expected === undefined ? {} : { reasoningEffort: expected }),
+      })
+    },
+  )
+
+  it('keeps the confirmed effort after a rejected change and refreshes available efforts', async () => {
+    const confirmed = {
+      outcome: 'succeeded',
+      body: { model: GPT, revision: '1', reasoningEffort: 'medium' },
+    }
+    const { store } = storeWith([confirmed], {
+      outcome: 'invalid',
+      body: { reason: 'excluded', detail: 'unsupported-effort' },
+    })
+    const source = sourceOf(LISTED)
+    store.attach(source)
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    const count = source.asked.length
+    await choose('推理强度', '^high$')
+    expect(screen.getByRole('combobox', { name: '推理强度' }).textContent).toContain('medium')
+    expect(screen.getByRole('status').textContent).toBe('没有换：这个模型不支持所选推理强度')
+    expect(source.asked.length).toBe(count + 1)
+    expect(source.asked.at(-1)).toEqual([TENANT, SESSION])
+  })
+
+  it('each session of a tenant has its own list, and a page that moves to another session asks for it', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const source = sourceOf(LISTED)
+    store.attach(source)
+    const view = render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
+    await settle()
+    expect(source.asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, 's-2'],
+    ])
+    store.attach({ list: async (_tenant, session) => (session === 's-2' ? LISTED : NONE) })
+    await settle()
+    expect(store.choices(PLACE)).toEqual(NONE)
+    expect(store.choices({ tenant: TENANT, session: 's-2' })).toEqual(LISTED)
+  })
+
+  it('a place only watched, and one only read, are both asked again from the next source', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.subscribeChoices({ tenant: TENANT, session: 'watched' }, () => undefined)
+    store.attach(sourceOf(LISTED))
+    await store.loadChoices({ tenant: TENANT, session: 'read' })
+    const next = sourceOf(LISTED)
+    store.attach(next)
+    await settle()
+    expect(next.asked).toEqual([
+      [TENANT, 'watched'],
+      [TENANT, 'read'],
+    ])
+  })
+
+  it('a model the content of this session stops is offered disabled, saying how many blocks; the list is asked for this session', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const asked: unknown[] = []
+    store.attach({
+      list: async (tenant, session) => {
+        asked.push([tenant, session])
+        return {
+          kind: 'listed',
+          choices: [
+            ...LISTED.choices,
+            {
+              route: 'text/only',
+              selectable: false,
+              note: '不能选：读不了这段会话里的 2 块内容',
+              blocks: 2,
+            },
+          ],
+        }
+      },
+    })
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    expect(asked).toEqual([[TENANT, SESSION]])
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    const stopped = await screen.findByRole('option', { name: /text\/only/u })
+    expect(stopped.getAttribute('aria-disabled')).toBe('true')
+    expect(stopped.textContent).toContain('读不了这段会话里的 2 块内容')
+    expect(screen.queryByRole('option', { name: /locked-z/u })).toBeNull()
+  })
+
+  it('opening the choice of model reads the list for this session again: what it holds may have changed', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    const asked: unknown[] = []
+    const stopped = {
+      route: 'text/only',
+      selectable: false,
+      note: '不能选：读不了这段会话里的 1 块内容',
+      blocks: 1,
+    }
+    const open = { route: 'text/only', selectable: true, note: null }
+    store.attach({
+      list: async (tenant, session) => {
+        asked.push([tenant, session])
+        return { kind: 'listed', choices: [...LISTED.choices, asked.length === 1 ? open : stopped] }
+      },
+    })
+    render(<ModelAction store={store} tenant={TENANT} session={SESSION} />)
+    await settle()
+    expect(asked).toHaveLength(1)
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'Enter' })
+    await settle()
+    expect(asked).toEqual([
+      [TENANT, SESSION],
+      [TENANT, SESSION],
+    ])
+    const option = await screen.findByRole('option', { name: /text\/only/u })
+    expect(option.getAttribute('aria-disabled')).toBe('true')
+    expect(option.textContent).toContain('读不了这段会话里的 1 块内容')
+  })
+
+  it('a change refused for blocks of this session names them by kind and count', async () => {
+    const blocks = [
+      { message: 'm-1', block: 'b-1' },
+      { message: 'm-3', block: 'b-2' },
+      { message: 'm-3', block: 'b-3' },
+      { message: 'm-3', block: 'b-4' },
+      { message: 'm-9', block: 'b-9' },
+    ]
+    const { store } = storeWith([selection(GPT, '1')], {
+      outcome: 'invalid',
+      body: { reason: 'modality', blocks },
+    })
+    store.attach(sourceOf(LISTED))
+    const message = (id: string, kind: string, ...shown: Readonly<Record<string, string>>[]) => ({
+      entryId: id,
+      revision: '1',
+      kind,
+      payload: { message: { id, role: 'user', blocks: shown } },
+    })
+    const entries = [
+      message('m-1', 'message.user', { kind: 'text', id: 'b-0' }, { kind: 'image', id: 'b-1' }),
+      message('m-2', 'message.assistant', { kind: 'text', id: 'b-x' }),
+      message(
+        'm-3',
+        'message.user',
+        { kind: 'file', id: 'b-2' },
+        { kind: 'file', id: 'b-3' },
+        { kind: 'voice', id: 'b-4' },
+      ),
+    ]
+    render(
+      <HeadingEntriesContext.Provider value={entries}>
+        <ModelAction store={store} tenant={TENANT} session={SESSION} />
+      </HeadingEntriesContext.Provider>,
+    )
+    await settle()
+    await choose('模型', 'claude-y')
+    expect(screen.getByRole('status').textContent).toBe(
+      '没有换：这个模型读不了这段会话里的 1 张图片、1 段语音、2 个文件、1 块内容',
+    )
+  })
+
+  it('a change refused for blocks it cannot find says how many; one refused without blocks says words', () => {
+    const refused = (body: unknown) => selectText({ outcome: 'invalid', body } as never)
+    expect(refused({ reason: 'modality', blocks: [{ message: 'm', block: 'b' }] })).toBe(
+      '没有换：这个模型读不了这段会话里的 1 块内容',
+    )
+    expect(refused({ reason: 'modality' })).toBe('没有换：这个模型不支持文字')
+    expect(refused({ reason: 'modality', blocks: [] })).toBe('没有换：这个模型不支持文字')
   })
 
   it('a refused change is said, and the model shown is the one read again', async () => {
@@ -260,77 +564,5 @@ describe('the model in the heading of a conversation', () => {
     view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
     await settle()
     expect(screen.queryByRole('status')).toBeNull()
-  })
-})
-
-describe('the model of the next new session', () => {
-  function Probe({ store, seen }: { store: ModelSelectionStore; seen: (string | undefined)[] }) {
-    const { model, picker } = useNewSessionModel(store, TENANT)
-    seen.push(model)
-    return <div>{picker}</div>
-  }
-
-  it('without a list there is no choice and no model is named', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(screen.queryByRole('combobox')).toBeNull()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('starts at the default, and names the model a person picks', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    await choose('新会话的模型', '默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('a picked model is not named once the list is gone or no longer offers it', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const detach = store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => detach())
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    act(() => {
-      store.attach(
-        sourceOf({ kind: 'listed', choices: [{ route: GPT, selectable: true, note: null }] }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('a picked model is not named once the list says it cannot be picked', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => {
-      store.attach(
-        sourceOf({
-          kind: 'listed',
-          choices: [{ route: CLAUDE, selectable: false, note: '被锁定' }],
-        }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
   })
 })

@@ -73,6 +73,7 @@ function world(script: Scripted = {}) {
         return answer(script.current, succeed({ state: running, current: null }))
       },
     },
+    children: () => undefined,
     observation: {
       observe: input => {
         calls.push({ kind: 'observe', input })
@@ -93,7 +94,7 @@ function world(script: Scripted = {}) {
       },
     },
   })
-  const context = { principal: login, messageId: 'm1', signal }
+  const context = { principal: login, messageId: 'm1', revision: 1, signal }
   return {
     calls,
     readCall: () => contribution.operations['read-call'](context, { tenant, reference }),

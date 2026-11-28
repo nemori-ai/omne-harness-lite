@@ -55,6 +55,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugin>) {
@@ -78,7 +79,7 @@ async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugi
     ...caller('a'),
     execution,
     operation: ok(decodeAgentOperationId('measured-invoke')),
-    initial: acceptedInput(),
+    initial: [acceptedInput()],
     grant: null,
   })
   await turns()

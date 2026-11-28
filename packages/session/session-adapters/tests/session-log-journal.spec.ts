@@ -17,6 +17,9 @@ import {
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
 
+const storageRefused = (said: string) =>
+  ({ kind: 'invalid', field: 'storage', reason: said, disclosed: said }) as const
+
 const CALL = 'journal-call-1'
 
 async function opened(name: string, options: SqlSceneOptions = {}) {
@@ -400,8 +403,8 @@ describe('unknown, tenancy and registration', () => {
   })
 
   it.each([
-    ['command_limit', { kind: 'invalid', field: 'storage', reason: 'command_limit' }],
-    ['manifest_mismatch', { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' }],
+    ['command_limit', storageRefused('command_limit')],
+    ['manifest_mismatch', storageRefused('manifest_mismatch')],
     ['combination_unregistered', { kind: 'unsupported' }],
     ['participant_not_in_combination', { kind: 'unsupported' }],
   ] as const)(
@@ -678,14 +681,94 @@ function reporting(
 }
 
 const refusing =
-  (reason: CommitRejectReason): SqlStorage['commit'] =>
+  (reason: CommitRejectReason, diagnostic: string | null = null): SqlStorage['commit'] =>
   request =>
     Promise.resolve({
       kind: 'rejected_before_accept',
       identity: request.identity,
       reason,
-      diagnostic: null,
+      diagnostic,
     } as never)
+
+function lateLanding(s: SqlScene) {
+  const queries: string[] = []
+  let next: 'run' | 'late' | 'drop' = 'run'
+  let late: (() => Promise<unknown>) | null = null
+  const storage: SqlStorage = {
+    database: s.storage.database,
+    registerCombination: input => s.storage.registerCombination(input),
+    read: (request, options) => s.storage.read(request, options),
+    commit: request => {
+      const now = next
+      next = 'run'
+      if (now === 'run') return s.storage.commit(request)
+      if (now === 'late') late = () => s.storage.commit(request)
+      return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: now })
+    },
+    query: async identity => {
+      const land = late
+      late = null
+      if (land !== null) await land()
+      const answer = await s.storage.query(identity)
+      queries.push(`${identity.recall ?? 'recallable'} ${answer.kind}`)
+      return answer
+    },
+  }
+  const journal = createSessionLogJournal<string>({
+    storage,
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: check =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${check.operation}`) }),
+    },
+    combination: s.combination,
+  }).forSession(s.access).journal
+  const faultNext = (fault: 'late' | 'drop') => {
+    next = fault
+  }
+  return { journal, queries, faultNext }
+}
+
+describe('an unknown write is decided from the execution record once the storage settles', () => {
+  it('a write that lands while the storage is asked is recognised from er_operation and is not written again', async () => {
+    const { s, open } = await opened('settled-landed')
+    const landing = lateLanding(s)
+    const request = await messageRequest(s, open.authority, 'message-landed')
+    const before = count(s, 'er_operation')
+    landing.faultNext('late')
+    expect(await landing.journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    expect(count(s, 'er_operation')).toBe(before)
+    const ask = () =>
+      landing.journal.query({ ...s.access, execution: s.execution, operation: request.operation })
+    expect(ok(await ask())).toMatchObject({ kind: 'committed' })
+    expect(landing.queries).toEqual(['never settled'])
+    expect(count(s, 'er_operation')).toBe(before + 1)
+    const recalled = ok(await landing.journal.commit(request))
+    expect(ok(await ask())).toEqual({ kind: 'committed', receipt: recalled })
+    expect(count(s, 'er_operation')).toBe(before + 1)
+  })
+
+  it('a write that never ran is excluded once the storage settles and er_operation has no row, and its retry writes once', async () => {
+    const { s, open } = await opened('settled-dropped')
+    const landing = lateLanding(s)
+    const request = await messageRequest(s, open.authority, 'message-never-ran')
+    const before = count(s, 'er_operation')
+    landing.faultNext('drop')
+    expect(await landing.journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    const ask = () =>
+      landing.journal.query({ ...s.access, execution: s.execution, operation: request.operation })
+    expect(ok(await ask())).toMatchObject({ kind: 'excluded' })
+    expect(landing.queries).toEqual(['never settled'])
+    expect(count(s, 'er_operation')).toBe(before)
+    const loaded = await load(s)
+    ok(await landing.journal.commit({ ...request, expected: loaded.revision }))
+    expect(count(s, 'er_operation')).toBe(before + 1)
+  })
+})
 
 describe('the publication report (SPEC 发布观测)', () => {
   it('reports each publication once, with the bytes of the commands the storage was given', async () => {
@@ -708,6 +791,42 @@ describe('the publication report (SPEC 发布观测)', () => {
     expect(reports).toHaveLength(1)
   })
 
+  it('a publication over a limit of the storage is refused in the words of the storage: which limit, how much, whose command', async () => {
+    const { s, open } = await opened('report-refused-limit')
+    const request = await messageRequest(s, open.authority)
+    const reports: JournalPublicationReport[] = []
+    const said = 'command_limit: maxCommandBytes 2100000 > 1048576 (participant execution-record)'
+    const storage = refusing('command_limit', said)
+    expect(await reporting(s, reports, [], storage).commit(request)).toEqual({
+      failure: storageRefused(said),
+    })
+    expect(reports).toEqual([
+      expect.objectContaining({ diagnostic: `storage rejected the commit: ${said}` }),
+    ])
+  })
+
+  it('content blocks the storage refuses to store are reported too, in the words of the storage', async () => {
+    const { s, open } = await opened('report-refused-blocks')
+    const base = await messageRequest(s, open.authority)
+    const message = assistantMessage('x'.repeat(300_000))
+    const reports: JournalPublicationReport[] = []
+    const said = 'command_limit: maxCommandBytes 1238542 > 1048576 (participant execution-record)'
+    const refused = await reporting(s, reports, [], refusing('command_limit', said)).commit({
+      ...base,
+      events: [{ kind: 'message', message, source: evidence('message-admission') }],
+      caller: { ...base.caller, message } as typeof base.caller,
+    })
+    expect(refused).toEqual({ failure: storageRefused(said) })
+    expect(reports).toMatchObject([
+      {
+        method: 'blobs',
+        outcome: 'unavailable',
+        diagnostic: `storage rejected the commit: ${said}`,
+      },
+    ])
+    expect(reports[0]?.blobBytes).toBeGreaterThan(300_000)
+  })
+
   it('a refused publication and an unknown one each report once, with the diagnostic of the answer', async () => {
     const { s, open } = await opened('report-refused')
     const request = await messageRequest(s, open.authority)
@@ -715,7 +834,7 @@ describe('the publication report (SPEC 发布观测)', () => {
     const sent: number[] = []
     const refused = await reporting(s, reports, sent, refusing('command_limit')).commit(request)
     expect(refused).toEqual({
-      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+      failure: storageRefused('command_limit'),
     })
     expect(reports).toEqual([
       expect.objectContaining({

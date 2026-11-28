@@ -13,6 +13,7 @@ import type {
   CallBinding,
   ControlProgress,
   InputBatch,
+  RunEnd,
   RunTerminal,
   Waiting,
   WorkSnapshot,
@@ -32,12 +33,13 @@ import {
 } from './call-state.ts'
 import { validateControlProgress } from './control-state.ts'
 import {
-  SessionValidationFailure,
   equalValue,
   evidenceFields,
   inconsistent,
   invalidAt,
+  missingAt,
   nonempty,
+  SessionValidationFailure,
   unavailableAt,
 } from './session-validation.ts'
 import { encodeEntry, type SessionEntry } from './entries.ts'
@@ -75,6 +77,7 @@ export type SessionLogConsequence =
       outcome: RunTerminal['outcome']
       cause: DurableEvidence | null
       disposition: DurableEvidence
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'observed' }>
 export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> &
@@ -168,7 +171,7 @@ function projectObservation(
         const original = draft.callRegistrations?.find(
           item => item.consumption === consequence.consumption,
         )
-        if (original === undefined) unavailableAt('association.registration')
+        if (original === undefined) missingAt('association.registration')
         append({
           kind: 'call.bound',
           consumption: consequence.consumption,
@@ -231,7 +234,7 @@ function projectObservation(
               item.registration.kind === 'associated' &&
               equalValue(item.registration.binding, wait.binding),
           )
-          if (record === undefined) unavailableAt('waiting.registration')
+          if (record === undefined) missingAt('waiting.registration')
           return [{ consumption: record.consumption, position: wait.position }]
         })
         append({
@@ -261,9 +264,8 @@ function projectObservation(
         else {
           out.push(
             ...terminalEntries(draft, terminal, observation.source, {
+              ...consequence,
               sequence: observation.sequence,
-              cause: consequence.cause,
-              disposition: consequence.disposition,
             }).map(entry => ({ ...entry, origin })),
           )
         }

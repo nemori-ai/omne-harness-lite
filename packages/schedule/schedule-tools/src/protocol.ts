@@ -14,7 +14,7 @@ export const schedulesAdoption = describedAdoption({
   name: 'schedules-protocol',
   revision: '2',
   changes:
-    'One declaration with the command named in the call; definitions follow the user environment; consent through an inquiry card.',
+    'One declaration with the command named in the call; definitions follow the user environment.',
 })
 const vocabulary = describedAdoption({
   owner: '@omne-harness/schedule-tools',
@@ -42,18 +42,48 @@ export const agentDefinitionSchema = z.strictObject({
   label: schedule.ScheduleLabelSchema,
   recurrence: schedule.ScheduleRecurrenceSchema,
   limits: schedule.ScheduleRuleLimitsSchema,
-  purpose: schedule.SchedulePurposeSchema,
+  purpose: schedule.SchedulePurposeAsWrittenSchema,
 })
 export type AgentDefinition = z.infer<typeof agentDefinitionSchema>
 
-/** The full definition: it follows the owner's environment. */
-export function definitionOf(agent: AgentDefinition) {
-  return schedule.ScheduleDefinitionSchema.safeParse({
-    ...agent,
+export type ReadDefinition =
+  | Readonly<{ kind: 'read'; definition: schedule.ScheduleDefinition }>
+  | Readonly<{ kind: 'refused'; reason: string }>
+  | Readonly<{ kind: 'basis-unavailable' }>
+
+/** The full definition: what the place of the call fills in for agent work, then the owner's environment. */
+export function definitionOf(
+  agent: AgentDefinition,
+  defaults: schedule.ScheduleSessionDefaults,
+): ReadDefinition {
+  const completed = schedule.completeDefinition(agent, defaults)
+  if (completed.kind !== 'completed') return completed
+  const parsed = schedule.ScheduleDefinitionSchema.safeParse({
+    ...(completed.definition as object),
     binding: { kind: 'followUserEnvironment' },
     calendarOverlay: null,
   })
+  return parsed.success
+    ? { kind: 'read', definition: parsed.data }
+    : {
+        kind: 'refused',
+        reason: `the definition does not form a schedule: ${whereOf(parsed.error)}`,
+      }
 }
+
+const SAID = 3
+/** Where a value does not stand, for the agent to correct it: the first fields refused, each with why. */
+export const whereOf = (error: z.ZodError): string =>
+  error.issues
+    .slice(0, SAID)
+    .map(issue => `${issue.path.join('.') || 'the whole value'}: ${issue.message}`)
+    .join('; ')
+
+/** One line for agent work or a definition that could not be read as written. */
+export const unreadLine = (stop: Exclude<ReadDefinition, { kind: 'read' }>): string =>
+  stop.kind === 'refused'
+    ? `invalid reason=${stop.reason} code=invalid_input`
+    : 'unavailable reason=the session of this call cannot be read now, so what the new session leaves out cannot be filled in'
 
 const scheduleId = schedule.ScheduleIdSchema
 const revision = z.int().min(1)
@@ -129,9 +159,10 @@ export const schedulesSummaries: Readonly<Record<SchedulesCommandName, string>> 
   create: 'Create a schedule that takes effect now.',
   draft: 'Save a schedule as a draft: it does not run until it is promoted. Give a reason.',
   list: 'List schedules, newest first.',
-  show: 'One schedule: definition, state, author, the consent it took effect on, and the next time.',
+  show: 'One schedule: definition, state, author and the next time.',
   history: 'The revisions of one schedule.',
-  update: 'Rename a schedule or change its instruction text. Give the revision you read.',
+  update:
+    'Rename a schedule or change its instruction: the goal body its agent work is to achieve. Give the revision you read.',
   revise: 'Rewrite a draft. Give the revision you read.',
   replace: 'Replace the rule of an active schedule; the old one becomes superseded.',
   promote: 'Bring a draft into effect.',

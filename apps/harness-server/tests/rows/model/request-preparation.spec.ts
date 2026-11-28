@@ -1,3 +1,4 @@
+import { officialSendSources } from '../../../src/model/sources.ts'
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -8,10 +9,17 @@ import { parseSecretText, type SecretScope } from '@omne-harness/settings'
 import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../../src/assets/model-providers.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
-import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
+import {
+  chatNeedOf,
+  type AssembledModelInput,
+  type ModelProfile,
+} from '@omne-harness/model-contract'
+import { officialProfiles } from '@omne-harness/model-host-local'
 import {
   ModelPreparationResourcesService,
+  ModelDecisionPreparationService,
   ModelRequestPreparationService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -41,7 +49,15 @@ const family = {
   },
   margin: { percent: '10', source: ADOPTION },
 }
-const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family }
+const config = {
+  maxCitedCalls: 8,
+  openai: family,
+  anthropic: family,
+  qwen: family,
+  kimi: family,
+  deepseek: family,
+  glm: family,
+}
 const profilesConfig = {
   retryPolicy: ADOPTION,
   compactionTriggerPercent: '80',
@@ -54,6 +70,8 @@ const plugins = {
   commandsStandIn,
   modelCredentialRow,
   secretCustodyRow,
+  everyModelOnRow,
+  everyModelSwitchedOnRow,
 }
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-preparation-row-')))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
@@ -61,9 +79,9 @@ let vaults = 0
 const OFFICIAL_SECRET = 'synth-official-secret'
 const TENANT_SECRET = 'synth-tenant-secret'
 
-function apiKey(scope: SecretScope) {
-  const provider = releaseProvider('openrouter')
-  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+function apiKey(scope: SecretScope, name = 'openrouter') {
+  const provider = releaseProvider(name)
+  if (provider === undefined) throw new Error(`the release holds no ${name} provider`)
   return providerCredentialKey(provider, scope, 'apiKey')
 }
 function secret(raw: string) {
@@ -80,6 +98,11 @@ function vaultPath(tenant?: 'active' | 'unreadable'): string {
     path,
     seed: [
       { key: apiKey({ layer: 'official' }), secret: secret(OFFICIAL_SECRET), configuredAt: null },
+      {
+        key: apiKey({ layer: 'official' }, 'openai'),
+        secret: secret(OFFICIAL_SECRET),
+        configuredAt: null,
+      },
       ...(tenant === undefined
         ? []
         : [{ key: tenantKey, secret: secret(TENANT_SECRET), configuredAt: null }]),
@@ -102,10 +125,12 @@ function credentialRows(path: string) {
   return [
     { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
     { id: 'secret-custody', plugin: 'secretCustodyRow', config: { path } },
+    { id: 'every-model-switched-on', plugin: 'everyModelSwitchedOnRow', config: {} },
   ]
 }
+const CREDENTIAL_ROWS = ['model-credential', 'secret-custody', 'every-model-switched-on']
 const withoutCredentials = <R extends { id: string }>(over: readonly R[]): R[] =>
-  over.filter(row => row.id !== 'model-credential' && row.id !== 'secret-custody')
+  over.filter(row => !CREDENTIAL_ROWS.includes(row.id))
 const rows = [
   { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
   { id: 'model-records', plugin: 'commandsStandIn', config: {} },
@@ -120,22 +145,26 @@ const REQUIRED = {
 }
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 
-async function profileOf(ctx: { get(name: string): unknown }): Promise<ModelProfile> {
+async function profileOf(
+  ctx: { get(name: string): unknown },
+  route = 'openai/gpt-5.6-sol',
+): Promise<ModelProfile<'llm'>> {
   const profiles = ctx.get('modelProfiles') as ModelProfilesLike
   const resolved = await profiles.resolve({
     ...ACCESS,
-    route: 'openai/gpt-5.6-sol',
-    required: REQUIRED,
+    route,
+    required: chatNeedOf(REQUIRED),
   })
   if (!('ok' in resolved) || resolved.ok.kind !== 'resolved')
-    throw new Error('profile did not resolve')
+    throw new Error(`profile ${route} did not resolve: ${JSON.stringify(resolved)}`)
   return resolved.ok.profile
 }
 type ModelProfilesLike = {
   resolve(
     input: unknown,
   ): Promise<
-    { ok: { kind: 'resolved'; profile: ModelProfile } | { kind: 'absent' } } | { failure: unknown }
+    | { ok: { kind: 'resolved'; profile: ModelProfile<'llm'> } | { kind: 'absent' } }
+    | { failure: unknown }
   >
 }
 
@@ -145,7 +174,7 @@ describe('the model-request-preparation row', () => {
       row: 'model-request-preparation',
       implementation: 'real',
       manifest: {
-        provides: ['modelRequestPreparation'],
+        provides: ['modelRequestPreparation', 'modelDecisionPreparation', 'modelLivePreparation'],
         injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
@@ -154,36 +183,56 @@ describe('the model-request-preparation row', () => {
     })
   })
 
-  it('is ACTIVE and provides the preparation service and the metering leases', async () => {
+  it('is ACTIVE and provides the preparation service, the decision preparation and the metering leases', async () => {
     const { value, run } = await withLiveRows({ rows, plugins, probe }, ctx => ({
       prepare: ctx.get('modelRequestPreparation') instanceof ModelRequestPreparationService,
+      decisions: ctx.get('modelDecisionPreparation') instanceof ModelDecisionPreparationService,
       leases: ctx.get('modelPreparationResources') instanceof ModelPreparationResourcesService,
     }))
-    expect(value).toEqual({ prepare: true, leases: true })
+    expect(value).toEqual({ prepare: true, decisions: true, leases: true })
     expect(run.state('model-request-preparation')).toMatchObject({ state: 'ACTIVE', missing: [] })
     expect(run.result.exitCode).toBe(0)
   })
 
-  it('gives a lease over the real OpenAI family for an official profile and takes it back', async () => {
+  it('leases every official chat send source for preparation at the same supplier adoption', async () => {
+    // A chat source is named by its supplier adoption: a decisions model can share its name.
+    const chat = new Set(
+      officialProfiles(profilesConfig)
+        .filter(definition => definition.kind === 'llm')
+        .flatMap(definition =>
+          definition.suppliers.map(supplier => supplier.adoption.owner + supplier.model),
+        ),
+    )
+    const sources = officialSendSources({
+      profiles: profilesConfig,
+      current: () => ({ ok: { authorized: false } }),
+    }).filter(source => chat.has(source.supplier.owner + source.model))
     const { value } = await withLiveRows({ rows, plugins, probe }, async ctx => {
-      const profile = await profileOf(ctx)
       const leases = ctx.get(
         'modelPreparationResources',
       ) as ModelPreparationResourcesService<unknown>
-      const leased = await leases.acquire({ ...ACCESS, profile })
-      if (!('ok' in leased)) return { leased, suppliers: null, released: null, expected: [] }
-      const suppliers = leased.ok.bindings.map(binding => binding.supplier)
-      const released = await leased.ok.release()
-      return { leased: null, suppliers, released, expected: profile.definition.suppliers }
+      for (const source of sources) {
+        const profile = await profileOf(ctx, source.model)
+        const leased = await leases.acquire({ ...ACCESS, profile })
+        if (!('ok' in leased))
+          throw new Error(`lease refused for ${source.model}: ${JSON.stringify(leased.failure)}`)
+        try {
+          expect(
+            leased.ok.bindings.map(binding => binding.supplier),
+            source.model,
+          ).toContainEqual({
+            adoption: source.supplier,
+            provider: source.provider,
+            model: source.model,
+            credential: { layer: 'official' },
+          })
+        } finally {
+          expect(await leased.ok.release()).toEqual({})
+        }
+      }
+      return sources.length
     })
-    if (value.suppliers === null) throw new Error(`lease refused: ${JSON.stringify(value.leased)}`)
-    expect(value.suppliers.map(supplier => supplier.credential)).toEqual(
-      value.suppliers.map(() => ({ layer: 'official' })),
-    )
-    expect(value.suppliers.map(supplier => [supplier.provider, supplier.model])).toEqual(
-      value.expected.map(supplier => [supplier.provider, supplier.model]),
-    )
-    expect(value.released).toEqual({})
+    expect(value).toBeGreaterThan(0)
   })
 
   it('prepares a fixed request for a text input and keeps the profile adoption', async () => {
@@ -257,9 +306,9 @@ describe('the model-request-preparation row', () => {
     ])
     expect(value).toEqual({
       failure: {
-        kind: 'unavailable',
-        dependency: 'model-credential',
-        diagnostic: 'credential-unreadable',
+        kind: 'invalid',
+        field: 'credential',
+        reason: 'credential-unreadable',
       },
     })
   })
@@ -279,7 +328,10 @@ describe('the model-request-preparation row', () => {
   })
 
   it('without the credential row the lease is refused, never completed with a layer', async () => {
-    const value = await leaseCredentials(rows.filter(row => row.id !== 'model-credential'))
+    const value = await leaseCredentials([
+      ...rows.filter(row => row.id !== 'model-credential' && row.id !== 'every-model-switched-on'),
+      { id: 'every-model-on', plugin: 'everyModelOnRow', config: {} },
+    ])
     expect(value).toEqual({
       failure: {
         kind: 'unavailable',

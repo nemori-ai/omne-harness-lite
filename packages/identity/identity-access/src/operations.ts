@@ -8,6 +8,7 @@ import type {
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
 import { parseDuration } from '@omne-harness/utc-instant'
 import { actingOf, callerOf, type Acting } from './caller.ts'
+import { withPreferences } from './preferences.ts'
 
 export type IdentityServices = Readonly<{
   operations: () => IdentityOperations | undefined
@@ -107,7 +108,7 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
   ): Promise<A | typeof UNAVAILABLE> =>
     governed(governance => work(governance, actingOf(principal)))
 
-  return {
+  return withPreferences(governed, {
     async 'register-and-activate'(_call, body) {
       const operations = services.operations()
       if (operations === undefined) return UNAVAILABLE
@@ -372,5 +373,5 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
     'judge-admission': async () => NOT_PROVIDED,
     'submit-authorization-expression': async () => NOT_PROVIDED,
     'withdraw-authorization-expression': async () => NOT_PROVIDED,
-  }
+  })
 }

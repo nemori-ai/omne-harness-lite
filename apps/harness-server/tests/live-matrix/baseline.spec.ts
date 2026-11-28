@@ -1,9 +1,11 @@
+import { readJsonText } from '@omne-harness/json-text'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   baselineProblems,
   currentModels,
   liveCells,
+  requiredCells,
   type Baseline,
   type LiveModel,
 } from './cells.ts'
@@ -34,9 +36,37 @@ const MODELS: readonly LiveModel[] = [
   { route: 'b/one', revision: '3', family: B },
 ]
 
+const cheapPeers = ['b/one', 'a/one']
+
 describe('the cells come from the records', () => {
-  it('gives every model one single-model cell and leads one alternating cell with it, paired in order', () => {
-    const cells = liveCells(MODELS)
+  it('keeps premium models in their own single-model tests and uses cheap peers for switching', () => {
+    const models = currentModels()
+    const cells = liveCells(models)
+    const alternating = cells.filter(cell => cell.kind === 'alternate')
+    expect(alternating.length).toBeGreaterThan(0)
+    expect(cells.filter(cell => cell.kind === 'single')).toHaveLength(models.length)
+    for (const {
+      turns: [first, peer, last],
+    } of alternating) {
+      expect(first).toBe(last)
+      expect([first, peer].join('/')).not.toMatch(/fable|opus|astra/i)
+      expect(['anthropic/claude-haiku-5.5', 'qwen/qwen3.8-omni-flash']).toContain(peer)
+    }
+    for (const model of models.filter(model => /^(deepseek|moonshotai|z-ai)\//.test(model.route))) {
+      expect(alternating.filter(cell => cell.turns[0] === model.route)).toHaveLength(1)
+    }
+  })
+
+  it('refuses a multi-family matrix without an installed inexpensive peer', () => {
+    expect(() => liveCells(MODELS, [])).toThrow(/peer/)
+    const withoutHaiku = currentModels().filter(
+      model => model.route !== 'anthropic/claude-haiku-5.5',
+    )
+    expect(() => liveCells(withoutHaiku)).toThrow(/haiku/)
+  })
+
+  it('gives every model one single-model cell and leads one alternating cell with an inexpensive peer', () => {
+    const cells = liveCells(MODELS, cheapPeers)
     expect(cells.map(cell => cell.id)).toEqual([
       'single:a/one',
       'single:a/three',
@@ -44,10 +74,10 @@ describe('the cells come from the records', () => {
       'single:b/one',
       'single:b/two',
       'alternate:a/one~b/one',
-      'alternate:a/three~b/two',
+      'alternate:a/three~b/one',
       'alternate:a/two~b/one',
       'alternate:b/one~a/one',
-      'alternate:b/two~a/three',
+      'alternate:b/two~a/one',
     ])
     expect(cells.find(cell => cell.id === 'alternate:a/two~b/one')?.turns).toEqual([
       'a/two',
@@ -69,13 +99,16 @@ describe('the cells come from the records', () => {
     ])
   })
 
-  it('reads the current official records of the three families', () => {
+  it('reads the current official records of the installed families', () => {
     const families = new Set(currentModels().map(model => model.family))
     expect(families).toEqual(
       new Set([
         '@omne-harness/pi-ai-openai',
         '@omne-harness/pi-ai-anthropic',
         '@omne-harness/pi-ai-qwen',
+        '@omne-harness/pi-ai-kimi',
+        '@omne-harness/pi-ai-deepseek',
+        '@omne-harness/pi-ai-glm',
       ]),
     )
     expect(currentModels().every(model => model.revision !== '')).toBe(true)
@@ -83,7 +116,7 @@ describe('the cells come from the records', () => {
 })
 
 describe('the expectations follow the records', () => {
-  const cells = liveCells(MODELS)
+  const cells = liveCells(MODELS, cheapPeers)
   const entry = (models: readonly string[]) => ({
     measuredOn: '2026-11-18',
     revisions: Object.fromEntries(
@@ -112,6 +145,7 @@ describe('the expectations follow the records', () => {
     expect(baselineProblems(cells, moved, complete)).toEqual([
       'single:b/one: measured b/one at revision 3, the record is at 4',
       'alternate:a/one~b/one: measured b/one at revision 3, the record is at 4',
+      'alternate:a/three~b/one: measured b/one at revision 3, the record is at 4',
       'alternate:a/two~b/one: measured b/one at revision 3, the record is at 4',
       'alternate:b/one~a/one: measured b/one at revision 3, the record is at 4',
     ])
@@ -119,6 +153,19 @@ describe('the expectations follow the records', () => {
     expect(baselineProblems(cells, MODELS, stale)).toEqual([
       'single:c/gone: no such cell among the current records',
     ])
+  })
+
+  it('reports the same unusable expectation that the runner schedules for measurement', () => {
+    const id = 'single:a/one'
+    const current = entry(['a/one'])
+    for (const invalid of [
+      { ...current, costUsd: -1 },
+      { ...current, revisions: { ...current.revisions, 'gone/model': '1' } },
+    ]) {
+      const baseline = { cells: { ...complete.cells, [id]: invalid } }
+      expect(requiredCells(cells, MODELS, baseline).map(cell => cell.id)).toEqual([id])
+      expect(baselineProblems(cells, MODELS, baseline)).toEqual([expect.stringContaining(id)])
+    }
   })
 
   it('hold for the checked-in expectations and the current official records', () => {
@@ -251,6 +298,42 @@ describe('reading the turns from the answers', () => {
     account: acct,
   })
 
+  const visibleAnswer = { kind: 'text', text: '51', visibility: { toHuman: true } }
+
+  function entry(kind: string, payload: unknown) {
+    const parsed = readJsonText(JSON.stringify(payload), {
+      maxBytes: 1024,
+      maxDepth: 10,
+      maxMembers: 32,
+      maxItems: 16,
+      maxStringLength: 128,
+      maxNumberLength: 8,
+    })
+    if (parsed.kind !== 'ok') throw new Error('invalid test history')
+    return { kind, payload: parsed.value }
+  }
+
+  it.each([
+    ['failed', [visibleAnswer]],
+    ['cancelled', [visibleAnswer]],
+    ['completed', []],
+    ['completed', [{ ...visibleAnswer, text: '   ' }]],
+    ['completed', [{ ...visibleAnswer, visibility: { toHuman: false } }]],
+    ['completed', [{ kind: 'tool_call', name: 'Files' }]],
+  ] as const)('keeps the charge for a %s run with no final user answer', (outcome, blocks) => {
+    const runs = [
+      run('1', [dispatch('a/one', 'completed', 'unknown', account('5', '0', '0', '0.01'))]),
+    ]
+    const history = [
+      entry('message.assistant', { message: { blocks } }),
+      entry('run.terminal', { terminal: { outcome } }),
+    ]
+    const measured = measure(turnsOf(['a/one'], runs, history))
+    expect(measured.unanswered).toBe(1)
+    expect(measured.costUsd).toBe(0.01)
+    expect(judge(measured, undefined)).toContain('1 turn(s) got no completed answer')
+  })
+
   it('pairs the Runs in start order with the selected routes, and each with the last reply before its terminal', () => {
     const runs = [
       run('120', [dispatch('b/one', 'completed', 'not-carried', account('9', '1', '0', '0.002'))]),
@@ -263,16 +346,24 @@ describe('reading the turns from the answers', () => {
       { kind: 'message.user', payload: {} },
       { kind: 'message.assistant', payload: { message: {} } },
       { kind: 'message.tool', payload: {} },
-      { kind: 'message.assistant', payload: { message: { replay: { format: 'f' } } } },
-      { kind: 'run.terminal', payload: {} },
+      {
+        kind: 'message.assistant',
+        payload: { message: { blocks: [visibleAnswer], replay: { format: 'f', at: ['b0'] } } },
+      },
+      { kind: 'run.terminal', payload: { terminal: { outcome: 'completed' } } },
       { kind: 'message.user', payload: {} },
-      { kind: 'message.assistant', payload: { message: {} } },
-      { kind: 'run.terminal', payload: {} },
+      {
+        kind: 'message.assistant',
+        payload: { message: { blocks: [visibleAnswer], replay: { format: 'f', at: [] } } },
+      },
+      { kind: 'run.terminal', payload: { terminal: { outcome: 'completed' } } },
       { kind: 'message.user', payload: {} },
     ]
-    expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, history)).toEqual([
+    const entries = history.map(item => entry(item.kind, item.payload))
+    expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, entries)).toEqual([
       {
         route: 'a/one',
+        dispatchCosts: [null, 0.001],
         replied: true,
         attempt: {
           route: 'a/one',
@@ -285,6 +376,7 @@ describe('reading the turns from the answers', () => {
       },
       {
         route: 'b/one',
+        dispatchCosts: [0.002],
         replied: false,
         attempt: {
           route: 'b/one',
@@ -295,7 +387,7 @@ describe('reading the turns from the answers', () => {
           costUsd: 0.002,
         },
       },
-      { route: 'a/one', replied: false, attempt: null },
+      { route: 'a/one', dispatchCosts: [], replied: false, attempt: null },
     ])
   })
 })

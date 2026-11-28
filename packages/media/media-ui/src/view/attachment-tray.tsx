@@ -1,5 +1,14 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { AttachIcon, AudioIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
+import {
+  AttachIcon,
+  AudioIcon,
+  Button,
+  DeleteIcon,
+  DeviceIcon,
+  IconButton,
+  Input,
+  RetryIcon,
+} from '@omne-harness/ui-kit'
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import {
   ACCEPTED_TYPES,
@@ -9,7 +18,16 @@ import {
   type PickedFile,
 } from '../model/attachment-tray.ts'
 import { Recorder, type Microphone, type RecorderState } from '../model/recorder.ts'
+import { Snapper, type ScreenSource, type SnapperState } from '../model/snapper.ts'
+import { UNREADABLE } from '../model/prepare.ts'
 import type { MediaClient } from '../model/upload.ts'
+import {
+  mediaTray,
+  mediaTrayAttach,
+  mediaTrayChip,
+  mediaTrayRecord,
+  mediaTrayScreenshot,
+} from '../parts.ts'
 
 export type AttachmentTrayProps = Readonly<{
   client: MediaClient
@@ -18,6 +36,7 @@ export type AttachmentTrayProps = Readonly<{
   draft: string
   drafts: () => Drafts | null
   microphone: Microphone
+  screen?: ScreenSource
 }>
 
 const NONE: readonly Attachment[] = []
@@ -29,8 +48,11 @@ const READY: Readonly<Record<'none' | 'converted' | 'inconvertible', string>> = 
   inconvertible: '已备好，没有可转出的文字',
 }
 
-function statusOf(item: Attachment): string {
+/** How far one attachment has come, in words: what its chip and a file handed to a canvas say. */
+export function statusOf(item: Attachment): string {
   const { state } = item
+  if (state.kind === 'ready' && state.reason !== undefined)
+    return `已附上，${UNREADABLE[state.reason]}`
   if (state.kind === 'ready')
     return state.text === null ? READY[state.outcome] : `已转出：${state.text}`
   if (state.kind === 'failed') return state.reason
@@ -59,18 +81,18 @@ function useTray(props: AttachmentTrayProps): AttachmentTray | null {
   return tray
 }
 
+export const pickedOf = (file: File): PickedFile => ({
+  name: file.name,
+  type: file.type,
+  size: file.size,
+  read: async () => new Uint8Array(await file.arrayBuffer()),
+  blob: file,
+})
+
 function attach(tray: AttachmentTray | null, files: Iterable<File> | null | undefined): boolean {
   const list = [...(files ?? [])]
   if (tray === null || list.length === 0) return false
-  tray.add(
-    list.map((file): PickedFile => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      read: async () => new Uint8Array(await file.arrayBuffer()),
-      blob: file,
-    })),
-  )
+  tray.add(list.map(pickedOf))
   return true
 }
 
@@ -100,8 +122,7 @@ function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray 
 }
 
 const STILL: RecorderState = { kind: 'idle', problem: null }
-const LABEL: Readonly<Record<RecorderState['kind'], string>> = {
-  idle: '录音',
+const SAYING: Readonly<Partial<Record<RecorderState['kind'], string>>> = {
   opening: '松开结束',
   recording: '松开结束',
   encoding: '在转成 WAV…',
@@ -132,11 +153,11 @@ function RecordButton({
   const release = () => void recorder?.release()
   return (
     <>
-      <Button
+      <IconButton
         type="button"
-        variant="ghost"
-        size="compact"
-        aria-label="按住录音"
+        size="icon-compact"
+        label="按住录音"
+        {...mediaTrayRecord.props}
         aria-pressed={state.kind === 'opening' || state.kind === 'recording'}
         disabled={recorder === null || state.kind === 'encoding'}
         onPointerDown={press}
@@ -153,13 +174,72 @@ function RecordButton({
         }}
       >
         <AudioIcon />
-        {LABEL[state.kind]}
-      </Button>
+      </IconButton>
       {state.kind === 'idle' && state.problem !== null ? (
-        <span role="status" className="omne-media-recorder-problem">
-          {state.problem}
-        </span>
+        <span role="status">{state.problem}</span>
       ) : null}
+      {SAYING[state.kind] === undefined ? null : <span role="status">{SAYING[state.kind]}</span>}
+    </>
+  )
+}
+
+const RESTING: SnapperState = { kind: 'idle' }
+
+function useSnapper(tray: AttachmentTray | null, source: ScreenSource | undefined) {
+  const [snapper, setSnapper] = useState<Snapper | null>(null)
+  useEffect(() => {
+    if (tray === null || source === undefined) return undefined
+    let live = true
+    const made = new Snapper({ source, deliver: file => tray.add([file]) })
+    void source.available().then(
+      can => live && can && setSnapper(made),
+      () => undefined,
+    )
+    return () => {
+      live = false
+      made.dispose()
+      setSnapper(null)
+    }
+  }, [tray, source])
+  const state = useSyncExternalStore(snapper?.subscribe ?? idle, snapper?.read ?? (() => RESTING))
+  return { snapper, state }
+}
+
+/** One press takes one screenshot of the person's screen as a picture attachment; shown only where the host can read the screen. */
+function ScreenshotButton({
+  tray,
+  source,
+}: {
+  tray: AttachmentTray | null
+  source?: ScreenSource
+}) {
+  const { snapper, state } = useSnapper(tray, source)
+  if (snapper === null) return null
+  const capturing = state.kind === 'capturing'
+  return (
+    <>
+      <IconButton
+        type="button"
+        size="icon-compact"
+        label="截一张屏幕，作为图片附件"
+        {...mediaTrayScreenshot.props}
+        aria-busy={capturing || undefined}
+        disabled={capturing}
+        onClick={() => void snapper.press()}
+      >
+        <DeviceIcon />
+      </IconButton>
+      {state.kind === 'needs-permission' ? (
+        <>
+          <span role="status">还没有屏幕录制的权限</span>
+          {state.canOpenSettings ? (
+            <Button type="button" variant="link" onClick={() => snapper.openSettings()}>
+              打开系统设置
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+      {state.kind === 'failed' ? <span role="status">{`没截到屏幕：${state.reason}`}</span> : null}
     </>
   )
 }
@@ -169,20 +249,14 @@ type ChipProps = Readonly<{ item: Attachment; onRemove: () => void; onRetry: () 
 function Chip({ item, onRemove, onRetry }: ChipProps) {
   const retryable = item.state.kind === 'failed' && item.state.ref !== undefined
   return (
-    <li className="omne-media-chip" data-state={item.state.kind}>
+    <li className="omne-media-chip" {...mediaTrayChip.props} data-state={item.state.kind}>
       {item.preview === null ? null : <img src={item.preview} alt={`${item.name} 的预览`} />}
       <span className="omne-media-chip-name">{item.name}</span>
       <span className="omne-media-chip-status">{statusOf(item)}</span>
       {retryable ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="compact"
-          aria-label={`重试 ${item.name}`}
-          onClick={onRetry}
-        >
-          重试
-        </Button>
+        <IconButton type="button" size="icon-compact" label={`重试 ${item.name}`} onClick={onRetry}>
+          <RetryIcon />
+        </IconButton>
       ) : null}
       <Button
         type="button"
@@ -205,7 +279,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
   const input = useRef<HTMLInputElement>(null)
   useFormDrops(root, tray)
   return (
-    <div className="omne-media-tray" ref={root}>
+    <div className="omne-media-tray" {...mediaTray.props} ref={root}>
       {items.length === 0 ? null : (
         <ul className="omne-media-chips">
           {items.map(item => (
@@ -218,7 +292,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
           ))}
         </ul>
       )}
-      <input
+      <Input
         ref={input}
         type="file"
         hidden
@@ -230,17 +304,20 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
           event.target.value = ''
         }}
       />
-      <Button
+      <IconButton
         type="button"
-        variant="ghost"
-        size="compact"
-        aria-label="附加图片、语音或 PDF"
+        size="icon-compact"
+        label="附加图片、语音或 PDF"
+        {...mediaTrayAttach.props}
         onClick={() => input.current?.click()}
       >
         <AttachIcon />
-        附件
-      </Button>
+      </IconButton>
       <RecordButton tray={tray} microphone={props.microphone} />
+      <ScreenshotButton
+        tray={tray}
+        {...(props.screen === undefined ? {} : { source: props.screen })}
+      />
     </div>
   )
 }

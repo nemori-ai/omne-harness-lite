@@ -1,50 +1,22 @@
-import {
-  capabilityId,
-  type AssetEntry,
-  type AssetLayerSource,
-  type LayerInput,
-} from '@omne-harness/assets'
+import { capabilityId, type AssetEntry, type AssetLayerSource } from '@omne-harness/assets'
 import type { AssetsListResult, AssetsLocal } from './types.ts'
 
 type Listed = Extract<AssetsListResult, { kind: 'page' }>['items'][number]
 
 const UNAVAILABLE = Object.freeze({ layer: 'tenant', state: 'unavailable' } as const)
 
-export function tenantLayerSource(
-  local: Pick<AssetsLocal, 'listHeld' | 'readHeldCapability'>,
-): AssetLayerSource {
-  return Object.freeze({
-    layer: 'tenant',
-    async list(request) {
-      const read = await local.listHeld(request)
-      if (read.kind === 'rejected')
-        return read.reason === 'invalid_input' ? { state: 'invalid' } : UNAVAILABLE
-      return {
-        layer: 'tenant',
-        state: 'read',
-        page: { items: read.items.map(entryOf), next: read.next, completeness: 'complete' },
-      }
-    },
-    async candidates(capability): Promise<LayerInput> {
-      const read = await local.readHeldCapability({ capability })
-      if (read.kind === 'rejected') return UNAVAILABLE
-      if (read.kind === 'absent' || read.selected === null)
-        return { layer: 'tenant', state: 'read', candidates: [] }
-      return {
-        layer: 'tenant',
-        state: 'read',
-        candidates: [
-          {
-            asset: read.holding.assetRef,
-            version: read.selected.version,
-            disabled: !read.holding.enabled,
-            immutable: false,
-            replaceLocked: false,
-          },
-        ],
-      }
-    },
-  } satisfies AssetLayerSource)
+/** The listing of the tenant layer: what the ledger of one tenant holds in a category. Candidates are read elsewhere. */
+export function tenantListing(local: Pick<AssetsLocal, 'listHeld'>): AssetLayerSource['list'] {
+  return async request => {
+    const read = await local.listHeld(request)
+    if (read.kind === 'rejected')
+      return read.reason === 'invalid_input' ? { state: 'invalid' } : UNAVAILABLE
+    return {
+      layer: 'tenant',
+      state: 'read',
+      page: { items: read.items.map(entryOf), next: read.next, completeness: 'complete' },
+    }
+  }
 }
 
 function entryOf(item: Listed): AssetEntry {

@@ -57,6 +57,12 @@
             { "name": "modelProfileMaintenanceKey", "kind": "value", "pending": false },
             { "name": "ModelRequestPreparationService", "kind": "class", "pending": false },
             { "name": "modelRequestPreparationKey", "kind": "value", "pending": false },
+            { "name": "ModelDecisionPreparationService", "kind": "class", "pending": false },
+            { "name": "modelDecisionPreparationKey", "kind": "value", "pending": false },
+            { "name": "ModelLivePreparationService", "kind": "class", "pending": false },
+            { "name": "modelLivePreparationKey", "kind": "value", "pending": false },
+            { "name": "ModelLiveCallsService", "kind": "class", "pending": false },
+            { "name": "modelLiveCallsKey", "kind": "value", "pending": false },
             { "name": "ModelPreparationResourcesService", "kind": "class", "pending": false },
             { "name": "modelPreparationResourcesKey", "kind": "value", "pending": false },
             { "name": "ModelHostAuthorityService", "kind": "class", "pending": false },
@@ -82,7 +88,9 @@
           "title": "凭据服务定义",
           "names": [
             { "name": "ModelCredentialService", "kind": "class", "pending": false },
-            { "name": "modelCredentialKey", "kind": "value", "pending": false }
+            { "name": "modelCredentialKey", "kind": "value", "pending": false },
+            { "name": "ModelPreferencesService", "kind": "class", "pending": false },
+            { "name": "modelPreferencesKey", "kind": "value", "pending": false }
           ]
         },
         {
@@ -99,6 +107,10 @@
             { "name": "createModelResultReceiverTable", "kind": "value", "pending": false },
             { "name": "ModelResultReceiverConflictError", "kind": "class", "pending": false }
           ]
+        },
+        {
+          "title": "资产类别的点",
+          "names": [{ "name": "modelProvidersPoint", "kind": "value", "pending": false }]
         }
       ]
     },
@@ -151,6 +163,9 @@
         "modelProfiles",
         "modelProfileMaintenance",
         "modelRequestPreparation",
+        "modelDecisionPreparation",
+        "modelLivePreparation",
+        "modelLiveCalls",
         "modelHostAuthority",
         "modelPublicationAuthority",
         "modelInstances",

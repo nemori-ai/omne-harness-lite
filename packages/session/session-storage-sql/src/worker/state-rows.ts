@@ -50,12 +50,15 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   (value as { name?: unknown }).name !== 'TenantId' &&
   (value as { name?: unknown }).name !== 'WorkspaceId'
 
+// The compaction commit reads and writes these members from the head alone, so their arrays stay in it.
+const WHOLE_MEMBERS: ReadonlySet<string> = new Set(['run'])
+
 function collectionPaths(snapshot: WorkSnapshot | null): string[] {
   if (snapshot === null) return []
   const paths: string[] = []
   for (const [member, value] of Object.entries(snapshot)) {
     if (Array.isArray(value)) paths.push(member)
-    else if (isPlainObject(value))
+    else if (isPlainObject(value) && !WHOLE_MEMBERS.has(member))
       for (const [inner, nested] of Object.entries(value))
         if (Array.isArray(nested)) paths.push(`${member}.${inner}`)
   }
@@ -76,7 +79,7 @@ function headOf(snapshot: WorkSnapshot): Record<string, unknown> {
   const head: Record<string, unknown> = {}
   for (const [member, value] of Object.entries(snapshot)) {
     if (Array.isArray(value)) head[member] = []
-    else if (isPlainObject(value)) {
+    else if (isPlainObject(value) && !WHOLE_MEMBERS.has(member)) {
       const copy: Record<string, unknown> = {}
       for (const [inner, nested] of Object.entries(value))
         copy[inner] = Array.isArray(nested) ? [] : nested

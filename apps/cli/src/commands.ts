@@ -2,6 +2,7 @@ import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import { sessionProtocol, userMessage, type SessionProtocol } from '@omne-harness/session-protocol'
+import { slashCommandProtocol } from '@omne-harness/slash-command-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -20,6 +21,7 @@ import {
   withoutProof,
   instantOption,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
@@ -31,14 +33,10 @@ import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
-import { assetCommand } from './asset-command.ts'
-import { settingCommand } from './setting-command.ts'
-import { calendarCommand } from './calendar-command.ts'
+import { seenOf } from './sender-view.ts'
 import { usageCommands } from './usage-command.ts'
-import { scheduleCommand } from './schedule-command.ts'
-import { notificationCommand } from './notification-command.ts'
-import { attachUploads, mediaCommand, readUpload } from './media-command.ts'
-import { workspaceCommand } from './workspace-command.ts'
+import { attachUploads, readUpload } from './media-command.ts'
+import { tenantCommands } from './tenant-commands.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -81,7 +79,7 @@ async function runAccount(
     body,
     messageId,
   )
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
 
   const echo = { messageId }
   if (name === 'register') return report(name, result, echo, output)
@@ -325,6 +323,7 @@ type InputCommand = ExistingCommand<
     model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
+    afterRun: boolean
   }
 >
 
@@ -344,6 +343,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
   ],
   required: ['--session'],
   repeatable: ['--attach'],
+  ...(name === 'send-input' ? { switches: ['--after-run'] } : {}),
   parse: (values, lists) => {
     const target = targeted(values)
     const model = values.get('--model')
@@ -359,6 +359,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
       model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
+      afterRun: values.has('--after-run'),
     }
   },
   target: ({ session, tenant }) => ({ session, tenant }),
@@ -369,6 +370,12 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const { session, model } = parsed
     let unselected = false
     let refused: string | null = null
+    const echo: Record<string, string> = {
+      messageId,
+      acceptId,
+      inputId,
+      tenant: encodeTenantText(tenant),
+    }
     return {
       // Every file is read before anything is sent; then each is uploaded, a model is selected
       // under a control identity the accept identity gives, and the message goes last.
@@ -392,14 +399,24 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         }
         const { attachments } = attached
         const message = await userMessage({ inputId, text: parsed.text, attachments })
+        const seen = await seenOf(link, { tenant, session }, parsed.text, newId())
+        echo.seen = seen === null ? 'unknown' : JSON.stringify(seen)
         return link.call(
           sessionProtocol,
           name,
-          { tenant, session, acceptId, inputId, message },
+          {
+            tenant,
+            session,
+            acceptId,
+            inputId,
+            message,
+            ...(seen === null ? {} : { seen }),
+            ...(parsed.afterRun ? { afterRun: 'yes' as const } : {}),
+          },
           messageId,
         )
       },
-      echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
+      echo,
       note: () => {
         if (refused !== null)
           return `the attachment ${refused} was not taken; the input was not sent`
@@ -440,9 +457,15 @@ const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' |
   },
 }
 
-// Archive and unarchive are controls of the session: a control id makes a retry the same one.
+const SESSION_CONTROLS = [
+  ['archive-session', 'Archive a session: its run ends and its background calls are withdrawn.'],
+  ['unarchive-session', 'Take a session back from the archive.'],
+  ['reload-session', 'Take the definition of a session as it is now: idle, the next run uses it.'],
+] as const
+
+// Archive, unarchive and reload are controls of the session: a control id makes a retry the same one.
 const sessionControl = (
-  name: 'archive-session' | 'unarchive-session',
+  name: 'archive-session' | 'unarchive-session' | 'reload-session',
 ): ExistingCommand<Targeted> => ({
   kind: 'existing',
   name,
@@ -497,6 +520,22 @@ const sessionRead = (name: SessionRead): ExistingCommand<ModeTarget> => ({
 })
 
 const readPermissionMode = sessionRead('read-permission-mode')
+
+const listCommands: ExistingCommand<ModeTarget> = {
+  kind: 'existing',
+  name: 'list-commands',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: modeTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(slashCommandProtocol, 'read-catalog', { tenant, session }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
 
 const POSITION = /^(0|[1-9][0-9]*)$/u
 const DEFAULT_PENDING_LIMIT = 50
@@ -844,6 +883,13 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(readPending, args, output, environment),
   },
   {
+    name: 'list-commands',
+    usage: '--session <id>',
+    summary:
+      'List what a session can name now: its Skills, prompt commands and system commands, and the sources it could not ask.',
+    run: (args, output, environment) => runSession(listCommands, args, output, environment),
+  },
+  {
     name: 'read-waiting-calls',
     usage: '--session <id>',
     summary: 'List the calls of a session that wait for a person to answer a card.',
@@ -899,20 +945,13 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'List the models of the tenant: which can be selected, and why one cannot.',
     run: (args, output, environment) => runSession(listModels, args, output, environment),
   },
-  {
-    name: 'archive-session',
+  ...SESSION_CONTROLS.map(([name, summary]) => ({
+    name,
     usage: '--session <id>',
-    summary: 'Archive a session: its run ends and its background calls are withdrawn.',
-    run: (args, output, environment) =>
-      runSession(sessionControl('archive-session'), args, output, environment),
-  },
-  {
-    name: 'unarchive-session',
-    usage: '--session <id>',
-    summary: 'Take a session back from the archive.',
-    run: (args, output, environment) =>
-      runSession(sessionControl('unarchive-session'), args, output, environment),
-  },
+    summary,
+    run: (args: readonly string[], output: CliOutput, environment: CommandEnvironment) =>
+      runSession(sessionControl(name), args, output, environment),
+  })),
   {
     name: 'read-permission-mode',
     usage: '--session <id>',
@@ -943,12 +982,6 @@ export const productionCommands: readonly CommandSpec[] = [
   callsCommand,
   ...hitlCommands,
   ...governanceCommands,
-  calendarCommand,
-  scheduleCommand,
-  notificationCommand,
-  workspaceCommand,
-  settingCommand,
-  assetCommand,
-  mediaCommand,
+  ...tenantCommands,
   ...usageCommands,
 ]

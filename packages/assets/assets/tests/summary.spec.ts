@@ -92,6 +92,7 @@ describe('summarizeVersion', () => {
         return { title: 'Note', description: 'A note.', facts: [] }
       }),
       display: { title: 'Note', summary: 'Notes.' },
+      point: 'note.items',
     })
     expect(summarizeVersion(point, pinned('note'))).toEqual({
       title: 'Note',
@@ -103,7 +104,11 @@ describe('summarizeVersion', () => {
 
   it('answers no summary when the category supplies no summarize or is not registered', () => {
     const point = createCategoryPoint()
-    point.contribute({ contract: contract('note'), display: { title: 'Note', summary: 'Notes.' } })
+    point.contribute({
+      contract: contract('note'),
+      display: { title: 'Note', summary: 'Notes.' },
+      point: 'note.items',
+    })
     expect(summarizeVersion(point, pinned('note'))).toBeNull()
     expect(summarizeVersion(point, pinned('nobody'))).toBeNull()
   })
@@ -115,10 +120,12 @@ describe('summarizeVersion', () => {
         throw new Error('broken')
       }),
       display: { title: 'T', summary: 'T.' },
+      point: 'thrower.items',
     })
     point.contribute({
       contract: contract('shapeless', () => ({ title: 'only a title' }) as never),
       display: { title: 'S', summary: 'S.' },
+      point: 'shapeless.items',
     })
     expect(summarizeVersion(point, pinned('thrower'))).toBeNull()
     expect(summarizeVersion(point, pinned('shapeless'))).toBeNull()

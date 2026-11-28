@@ -1,41 +1,10 @@
 import type { RecordFact, RecordProvenance } from '@omne-harness/pi-ai-transport'
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
+import { O200K_PROXY_TOKENIZER, type ProfileData } from '@omne-harness/pi-ai-transport/family-kit'
 import type { ImageRuleName } from './images.ts'
-import type { OpenAiRecord, OpenAiResponsesRecord, ProfileData } from './record.ts'
+import type { OpenAiRecord, OpenAiResponsesRecord } from './record.ts'
 
 const OPENROUTER = 'openrouter'
-
-const O200K_RANKS_DIGEST = '6cf16f9e2292763021bb70ffed8e113a55f8d26f34110514c2518f47db1ea806'
-const NO_SPECIAL_TOKENS_DIGEST = '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a'
-const JS_TIKTOKEN_INTEGRITY =
-  'sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g=='
-
-export const OPENAI_TOKENIZER = {
-  adoption: {
-    owner: '@omne-harness/pi-ai-openai',
-    name: 'o200k-proxy',
-    revision: '1',
-    digest: O200K_RANKS_DIGEST,
-  },
-  implementation: {
-    owner: 'js-tiktoken',
-    name: 'js-tiktoken',
-    revision: '1.0.21',
-    digest: JS_TIKTOKEN_INTEGRITY,
-  },
-  vocabulary: {
-    owner: 'js-tiktoken',
-    name: 'o200k_base',
-    revision: '1.0.21',
-    digest: O200K_RANKS_DIGEST,
-  },
-  configuration: {
-    owner: '@omne-harness/pi-ai-openai',
-    name: 'no-special-tokens',
-    revision: '1',
-    digest: NO_SPECIAL_TOKENS_DIGEST,
-  },
-} as const
 
 const EFFORT = {
   support: 'supported',
@@ -111,7 +80,7 @@ const METER = {
   representation: 'openai-visible-json/1',
   text: 'o200k-proxy/1',
   image: 'gpt56-patch/1',
-  tokenizer: OPENAI_TOKENIZER,
+  tokenizer: O200K_PROXY_TOKENIZER,
 } as const
 
 const GPT61_LIMITS =
@@ -166,13 +135,18 @@ const MATRIX: Readonly<Partial<Record<RecordFact, string>>> = {
 
 // Every fact cites the real stream of this record on the Responses interface; the facts that
 // stream cannot show also name the measurement that showed them.
-function provenanceOf(name: string, revision: string): RecordProvenance {
+function provenanceOf(
+  name: string,
+  revision: string,
+  measured: string = MEASURED,
+  notes: Readonly<Partial<Record<RecordFact, string>>> = MATRIX,
+): RecordProvenance {
   const evidence = `packages/model/pi-ai-openai/tests/fixtures/records/${encodeURIComponent(name)}/${revision}/stream.sse`
   const fact = (key: RecordFact) => {
-    const note = MATRIX[key]
+    const note = notes[key]
     return note === undefined
-      ? { measuredAt: MEASURED, evidence }
-      : { measuredAt: MEASURED, evidence, note }
+      ? { measuredAt: measured, evidence }
+      : { measuredAt: measured, evidence, note }
   }
   return {
     engine: fact('engine'),
@@ -227,6 +201,33 @@ function recordOf(item: Measured) {
     provenance: provenanceOf(name, item.revision),
   } as const satisfies OpenAiResponsesRecord
 }
+
+const DIRECT_MEASURED = '2026-11-27'
+
+const DIRECT_NOTES: Readonly<Partial<Record<RecordFact, string>>> = {
+  engine:
+    'one streamed request: the events of the Responses interface, ending at response.completed with no end marker',
+  efforts:
+    "one request per effort: none, low, medium, high, xhigh and max accepted; minimal refused with 400 \"Unsupported value: 'minimal' is not supported with the 'gpt-6-luna' model\"",
+  'reasoning-off':
+    'reasoning.enabled false, one request: refused with 400 "Unknown parameter: \'reasoning.enabled\'"; effort none is accepted, but no record maps effort none, by the project convention',
+  'forced-tool-choice': 'tool_choice required and a named function, one request each: accepted',
+  'ends-with-assistant': 'a request ending with an assistant message, one request: accepted',
+  'replay-binding':
+    'one reasoning item carried back, with and without an earlier user message edited: it counted 29 input tokens both times, so no binding',
+  cache:
+    'a three-turn session that only appends, with automatic caching and a session key: the second request read 1392 of 1416 input tokens from the cache, the third 1413 of 1475',
+  'system-placement':
+    'one developer message first in the input asking for capital letters: the reply was in capitals',
+  'usage-fields':
+    'input_tokens counts the cache reads (input_tokens_details.cached_tokens) and writes (input_tokens_details.cache_write_tokens); output_tokens_details.reasoning_tokens; no cost',
+}
+
+const DIRECT_LUNA_PROFILE = {
+  ...ENDPOINT_PROFILE,
+  evidence:
+    'The OpenAI model page read 2026-11-26: a 1050000-token window, a 922000-token max input and a 128000-token max output, not measured, since a request that fills the window costs dollars. One 8x8 PNG read 2026-11-27: the reply named its color. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
+} as const
 
 export const OPENAI_RECORDS = [
   recordOf({
@@ -366,4 +367,16 @@ export const OPENAI_RECORDS = [
     profile: gpt62Profile('gpt-6.2-sol'),
     image: 'sol-luna-auto-proxy/1',
   }),
+  {
+    name: 'gpt-6-luna',
+    revision: '1',
+    route: { provider: 'openai', model: 'gpt-6-luna' },
+    status: 'current',
+    ...RESPONSES,
+    serving: null,
+    replay: replayOf('none'),
+    profile: DIRECT_LUNA_PROFILE,
+    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
+    provenance: provenanceOf('gpt-6-luna', '1', DIRECT_MEASURED, DIRECT_NOTES),
+  },
 ] as const satisfies readonly OpenAiRecord[]

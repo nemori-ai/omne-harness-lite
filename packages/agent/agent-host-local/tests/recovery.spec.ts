@@ -1,4 +1,5 @@
 import {
+  decodeActionId,
   decodeAgentExecutionId,
   decodeAgentInstanceId,
   decodeAgentOperationId,
@@ -8,13 +9,13 @@ import {
   type AgentCheckpoint,
   type AgentExecutionId,
   type AgentInstanceId,
+  type AgentState,
   type DurableEvidence,
   type OriginalInputAcceptance,
 } from '@omne-harness/agent-contract'
 import { judgeMessage } from '@omne-harness/message'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createAgentHostLocalPlugin } from '../src/cordis.ts'
-import { caller, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
+import { caller, occupied, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -68,7 +69,7 @@ function checkpoint(): AgentCheckpoint {
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -113,7 +114,7 @@ async function openExecution(host: World, instance: AgentInstanceId) {
       ...caller('a'),
       execution: EXECUTION,
       operation: OPEN,
-      original,
+      originals: [original],
       runtime,
       checkpoint: checkpoint(),
     }),
@@ -200,9 +201,49 @@ describe('the recovery entry', () => {
   })
 })
 
+describe('a handover asked through the recovery entry', () => {
+  const asked = (host: World, authority: Awaited<ReturnType<typeof openExecution>>['authority']) =>
+    host.recovery.handOver({
+      ...caller('a'),
+      execution: EXECUTION,
+      operation: operation('hand-over-1'),
+      authority,
+      reason: evidence('reload'),
+    })
+
+  it('answers unavailable when no runtime here holds the attachment, and leaves it', async () => {
+    const host = await world()
+    const opened = await openExecution(host, unknownInstance)
+    expect(await asked(host, opened.authority)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'agent-host' },
+    })
+    expect(host.controls.access.check.calls.map(call => call.operation)).toEqual(['detach'])
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+
+  it('keeps a refusal of the access check and asks no runtime', async () => {
+    const host = await world()
+    const opened = await openExecution(host, unknownInstance)
+    host.refuseNext('detach')
+    expect(await asked(host, opened.authority)).toEqual({
+      failure: { kind: 'denied', action: 'detach' },
+    })
+  })
+
+  it('asks the runtime the host runs, which answers for itself', async () => {
+    const host = await world()
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const opened = await openExecution(host, instance)
+    expect(await asked(host, opened.authority)).toEqual({ failure: { kind: 'stale-advance' } })
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+})
+
 describe('the judgment of the runtime that holds an attachment (contact)', () => {
   async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
-    const made = await openWorld({ plugin: createAgentHostLocalPlugin({ lostContact }) })
+    const made = await openWorld({ factory: 'duties', lostContact })
     opened.push(made)
     return made
   }
@@ -217,8 +258,60 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
     })
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
     const held = await openExecution(host, instance)
+    const holding = occupied(instance)
+    if (holding.kind !== 'occupied') throw new Error('occupied state')
+    host.handles.get(instance)?.report({ state: { ...holding, execution: EXECUTION } })
     expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
     expect(asked).toEqual([])
+  })
+
+  // The runtime the host runs said itself that it holds nothing, or another execution: that is
+  // the host's own knowledge, not an inference from absence. A halted drive gives its slot back
+  // (D-31), and this answer is what lets a recovering caller take the execution up.
+  it.each([
+    ['idle', (instance: AgentInstanceId): AgentState => ({ kind: 'idle', instance })],
+    ['disposed', (instance: AgentInstanceId): AgentState => ({ kind: 'disposed', instance })],
+    ['occupied by another execution', (instance: AgentInstanceId) => occupied(instance)],
+  ] as const)(
+    'answers lost with its own proof when its runtime reports %s',
+    async (_name, stateOf) => {
+      const asked: AgentInstanceId[] = []
+      const host = await provingWorld(instance => {
+        asked.push(instance)
+        return evidence('lock')
+      })
+      const { instance } = ok(await host.provision.acquire(slotOf('a')))
+      const held = await openExecution(host, instance)
+      host.handles.get(instance)?.report({ state: stateOf(instance) })
+      const answer = ok(await ask(host, held.authority))
+      expect(answer).toEqual({
+        kind: 'lost',
+        evidence: {
+          owner: 'agent-host',
+          record: 'runtime-released',
+          revision: '1',
+          digest: `instance:${instance}/execution:${EXECUTION}`,
+        },
+      })
+      expect(asked).toEqual([])
+    },
+  )
+
+  it.each([
+    [
+      'between executions (reserved)',
+      (instance: AgentInstanceId): AgentState => ({ kind: 'reserved', instance }),
+    ],
+    [
+      'draining',
+      (instance: AgentInstanceId): AgentState => ({ kind: 'draining', instance, unresolved: [] }),
+    ],
+  ] as const)('answers live while its runtime is %s', async (_name, stateOf) => {
+    const host = await provingWorld(() => evidence('lock'))
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const held = await openExecution(host, instance)
+    host.handles.get(instance)?.report({ state: stateOf(instance) })
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
   })
 
   it('answers lost with the proof of the assembly for an instance the host does not run', async () => {
@@ -314,5 +407,62 @@ describe('a sudden loss of a dependency', () => {
       await host.controls.journal.port.load({ ...caller('a'), execution: EXECUTION }),
     )
     expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+})
+
+const nestedAsk = (tenant: 'a' | 'b') => ({
+  ...caller(tenant),
+  execution: EXECUTION,
+  parent: ok(decodeActionId('action-parent')),
+  ordinal: 1,
+  target: {
+    definition: { owner: 'host-test', name: 'Files', revision: '1', digest: 'test:Files' },
+    name: 'Files',
+    command: 'read',
+    arguments: '{}',
+  },
+  signal: new AbortController().signal,
+})
+
+describe('AG-32 the nested action entry without a live runtime', () => {
+  it('cannot answer now for an execution whose runtime is not on this host', async () => {
+    const host = await world()
+    await openExecution(host, unknownInstance)
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'unanswerable',
+      diagnostic: 'no runtime here runs this execution',
+    })
+  })
+
+  it('refuses a caller that may not read the execution, before any runtime is looked for', async () => {
+    const host = await world()
+    await openExecution(host, unknownInstance)
+    host.refuseNext('load')
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'denied',
+      reason: 'the caller may not ask for this execution',
+    })
+  })
+
+  it('cannot answer for an execution that does not exist, and allows nothing', async () => {
+    const host = await world()
+    expect((await host.nested.admit(nestedAsk('a'))).kind).not.toBe('allowed')
+  })
+
+  it('cannot answer when the Journal throws, and says which read failed', async () => {
+    const host = await openWorld({
+      factory: 'duties',
+      journal: port => ({
+        ...port,
+        load: () => {
+          throw new Error('the store is away')
+        },
+      }),
+    })
+    opened.push(host)
+    expect(await host.nested.admit(nestedAsk('a'))).toEqual({
+      kind: 'unanswerable',
+      diagnostic: 'the execution could not be read: unavailable',
+    })
   })
 })

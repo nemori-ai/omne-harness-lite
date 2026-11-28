@@ -247,7 +247,6 @@ function storageConfig(storageRoot: string): SqliteStorageConfig {
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 256,
-    maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,
@@ -684,12 +683,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const receivedProvider = options.reception === 'routed' ? routedProvider() : sessionLog
 
-  const probeLog = createSessionLogJournal<unknown>({
+  const probeView = createSessionLogJournal<unknown>({
     storage: seeing,
     tenantDomainLookup: lookup,
     sessionAccessCheck: sessionChecks as never,
     combination,
-  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal
+  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
+  const probeLog = probeView.journal
+  const probeEntries = probeView.entries
 
   const access = createScriptedAccessCheck<unknown>()
   const adoptions = createTableAdoptions<unknown>()
@@ -841,10 +842,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transport: transport.transport,
   })
   preparationDouble.setAccess({ principal: COORDINATOR, tenant: TENANT }, 'allow')
-  const fixtureProfile: ModelProfile = fixture.sources.values().model.profile
+  const fixtureProfile: ModelProfile<'llm'> = fixture.sources.values().model.profile
   const [fixtureSupplier] = fixtureProfile.definition.suppliers
   const supplier = { ...fixtureSupplier, adoption: testAdoption('cp3-supplier') }
-  const profile: ModelProfile = {
+  const profile: ModelProfile<'llm'> = {
     ...fixtureProfile,
     adoption: testAdoption('cp3-profile'),
     definition: {
@@ -922,6 +923,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     model: profile.adoption,
     context: evidence('conditions-context'),
     bindings: [],
+    segments: [],
   }
   conditions.read.always(() => succeed(current))
   selection.select.always(() => succeed(selected))
@@ -1070,7 +1072,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       : (options.plugins ?? [])
   for (const [plugin, config] of extra) await mount(plugin, config)
 
-  await mount(options.sessionProvider ?? SessionProvider, { admission: 'none' })
+  await mount(options.sessionProvider ?? SessionProvider, { admission: 'none', resolver: 'none' })
 
   const intake = await (async () => {
     let seen: Context | undefined
@@ -1127,6 +1129,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transactions: pair.transactions,
     probe: probe.transactions,
     probeLog,
+    probeEntries,
     intake,
     bindings,
     journal,

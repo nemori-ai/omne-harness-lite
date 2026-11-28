@@ -9,6 +9,7 @@ import {
   agentToolReceptionTargetsKey,
   agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
+import { sessionModelHistoryReadinessKey } from '@omne-harness/session-adapters/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import {
   agentJournalRow,
@@ -50,7 +51,7 @@ async function start(): Promise<LoadedTree> {
 }
 
 describe('the agent-journal row: declaration', () => {
-  it('is the real row: provides the Journal, compaction input, receiving and adopted-request keys, injects the storage, access and Runtime Context keys, no shutdown phase, group `agent-journal`', () => {
+  it('declares its Journal services, dependencies and provider group', () => {
     expect(rowDeclarationOf(agentJournalRow)).toEqual({
       row: 'agent-journal',
       implementation: 'real',
@@ -65,11 +66,15 @@ describe('the agent-journal row: declaration', () => {
           'agentModelReceptionTargets',
           'agentToolReceptionTargets',
           'sessionAdoptedRequests',
+          'sessionExecutionLog',
+          'sessionModelHistoryReadiness',
         ],
         injects: [
           'sessionAccessCheck',
           'storage',
           'tenantDomainLookup',
+          'tenantDomains',
+          'tenantDomainScannerPrincipal',
           'runtimeContext',
           'runtimeContextReaderEligibility',
         ],
@@ -84,14 +89,14 @@ describe('the agent-journal row: declaration', () => {
     const manifest = compositeManifestDigest(storageCatalog())
     if (manifest.kind !== 'manifest') throw new Error(manifest.diagnostic)
     expect(agentJournalCombination()).toEqual({
-      combinationVersion: 'session-composite/19',
+      combinationVersion: 'session-composite/27',
       manifestDigest: manifest.digest,
     })
   })
 })
 
 describe('the agent-journal row: on the real storage rows', () => {
-  it('is ACTIVE and provides the three Journal keys', { timeout: 60_000 }, async () => {
+  it('serves the Journal and model history readiness', { timeout: 60_000 }, async () => {
     const tree = await start()
     expect(tree.allActive).toBe(true)
     expect(tree.state('agent-journal')).toMatchObject({ state: 'ACTIVE', missing: [] })
@@ -104,6 +109,10 @@ describe('the agent-journal row: on the real storage rows', () => {
       agentToolReceptionTargetsKey,
     ])
       expect(tree.service(key), key).toBeDefined()
+    expect(tree.service(sessionModelHistoryReadinessKey)).toMatchObject({
+      ensure: expect.any(Function),
+      qualify: expect.any(Function),
+    })
   })
 
   it(

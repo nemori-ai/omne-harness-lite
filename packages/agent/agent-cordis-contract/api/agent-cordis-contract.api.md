@@ -27,6 +27,7 @@
 - `AgentJournalService` · `cordis.d.ts`
 - `AgentLocalRoute` · `index.d.ts`
 - `AgentMaterialsService` · `cordis.d.ts`
+- `AgentNestedActionsService` · `cordis.d.ts`
 - `AgentPublicationAuthority` · `cordis.d.ts`
 - `AgentPublicationAuthorityService` · `cordis.d.ts`
 - `AgentReceivedCommitsService` · `cordis.d.ts`
@@ -52,6 +53,7 @@
 - `agentCompactionKey` · `cordis.d.ts`
 - `agentConditionsKey` · `cordis.d.ts`
 - `agentDecisionCardsKey` · `cordis.d.ts`
+- `agentDefinitionsPoint` · `cordis.d.ts`
 - `agentExecutionControlKey` · `cordis.d.ts`
 - `agentExecutionRecoveryKey` · `cordis.d.ts`
 - `agentExtensionsKey` · `cordis.d.ts`
@@ -65,6 +67,7 @@
 - `agentMessageHandoffKey` · `cordis.d.ts`
 - `agentModelReceptionTargetsKey` · `cordis.d.ts`
 - `agentModelSelectionKey` · `cordis.d.ts`
+- `agentNestedActionsKey` · `cordis.d.ts`
 - `agentPublicationAuthorityKey` · `cordis.d.ts`
 - `agentReadsKey` · `cordis.d.ts`
 - `agentReceivedCommitsKey` · `cordis.d.ts`
@@ -88,7 +91,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type NestedActionAdmission, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -149,6 +152,7 @@ export declare abstract class DecisionCardsService<P> extends Service implements
     abstract readonly lookup: DecisionCards<P>['lookup'];
     abstract readonly read: DecisionCards<P>['read'];
     abstract readonly invalidate: DecisionCards<P>['invalidate'];
+    abstract readonly changes: DecisionCards<P>['changes'];
 }
 export declare const agentDecisionCardsKey = "agentDecisionCards";
 export declare abstract class MessageHandoffService<P> extends Service implements MessageHandoff<P> {
@@ -247,6 +251,7 @@ export declare abstract class AgentExecutionRecoveryService<P> extends Service i
     abstract readonly load: AgentExecutionRecovery<P>['load'];
     abstract readonly reconcile: AgentExecutionRecovery<P>['reconcile'];
     abstract readonly detach: AgentExecutionRecovery<P>['detach'];
+    abstract readonly handOver: AgentExecutionRecovery<P>['handOver'];
     abstract readonly contact: AgentExecutionRecovery<P>['contact'];
 }
 export declare const agentExecutionRecoveryKey = "agentExecutionRecovery";
@@ -291,6 +296,12 @@ export declare abstract class AgentExecutionControlService<P> extends Service im
     abstract readonly control: AgentExecutionControl<P>['control'];
 }
 export declare const agentExecutionControlKey = "agentExecutionControl";
+export declare abstract class AgentNestedActionsService<P> extends Service implements NestedActionAdmission<P> {
+    static readonly provide = "agentNestedActions";
+    constructor(ctx: Context);
+    abstract readonly admit: NestedActionAdmission<P>['admit'];
+}
+export declare const agentNestedActionsKey = "agentNestedActions";
 export declare abstract class AgentInstanceProvisionService<P> extends Service implements AgentInstanceProvision<P> {
     static readonly provide = "agentInstanceProvision";
     constructor(ctx: Context);
@@ -352,6 +363,7 @@ declare module '@deepseek-ai/cordis' {
         agentModelReceptionTargets: ModelReceptionTargetsService<unknown>;
         agentToolReceptionTargets: ToolReceptionTargetsService<unknown>;
         agentExecutionControl: AgentExecutionControlService<unknown>;
+        agentNestedActions: AgentNestedActionsService<unknown>;
         agentInstances: AgentInstancesService<unknown>;
         agentInstanceProvision: AgentInstanceProvisionService<unknown>;
     }
@@ -359,6 +371,26 @@ declare module '@deepseek-ai/cordis' {
         'agent-cordis-contract/instance-retired'(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: 'withdrawn' | 'contributor-removed' | 'superseded'): void;
     }
 }
+export declare const agentDefinitionsPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<Exclude<keyof import("@omne-harness/assets").HeldItem, 'within' | 'valueAt' | 'from'>, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 ```
 
 ## 声明文件 `index.d.ts`

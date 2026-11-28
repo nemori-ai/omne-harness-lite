@@ -53,6 +53,7 @@ function hooked() {
     usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     read: d => memory.read(d),
     commit: async input => {
       const i = hooks.findIndex(h => h.matches(input))

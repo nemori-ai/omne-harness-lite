@@ -17,10 +17,16 @@ import {
   decodeToolInvocationRef,
   defaultResultPolicy,
   deriveDefinition,
+  commandSignature,
+  programSignature,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
-import { createToolsAuthor, filesToolModule } from '@omne-harness/tool-definitions'
+import {
+  createFilesAuthor,
+  createToolsAuthor,
+  filesToolModule,
+} from '@omne-harness/tool-definitions'
 import { OPEN_LIMITS } from './fixtures/files.ts'
 import { value } from './run-author.ts'
 
@@ -201,6 +207,77 @@ describe('Tools complete author', () => {
       tools: [{ name: 'Files', resident: false, directCall: false }],
       next: 'opaque-next',
     })
+    // C103: each command carries its parameter signature, derived as the usage line of inspect is.
+    if (definition.kind !== 'commands') throw new Error('Files has commands')
+    const commands = JSON.parse(textOf(reply)).tools[0].commands
+    expect(commands.map((command: { signature: string }) => command.signature)).toEqual(
+      definition.commands.map(command => commandSignature(command.parameters)),
+    )
+    expect(commands.find((command: { name: string }) => command.name === 'read').signature).toMatch(
+      /^\{path/u,
+    )
+  })
+
+  it('search with programmable: true asks only for what a program can call and shows the functions of each tool', async () => {
+    const files = value(createFilesAuthor(tree({ resultMaxBytes: 1024, ...OPEN_LIMITS })))
+    const definition = deriveDefinition(
+      { asset: { name: 'Files', adoption }, requiredCapabilities: [], programmable: true },
+      files.facts,
+    )
+    const seen: unknown[] = []
+    const found = capability({
+      search: async args => {
+        seen.push(args)
+        return succeed({
+          entries: [
+            {
+              kind: 'available',
+              definition,
+              executor: filesToolModule.executor,
+              layer: { kind: 'official' },
+              resident: false,
+            },
+          ],
+          next: null,
+        })
+      },
+    })
+    const asked = { query: 'read', after: null, limit: 5 }
+    const narrowed = JSON.parse(
+      textOf(value(await call('search', { ...asked, programmable: true }, found))),
+    )
+    expect(narrowed.tools[0].program).toBe(programSignature(definition))
+    expect(narrowed.tools[0].program).toContain('declare const Files: {')
+    // Without the condition, and with false, the call and its answer are what they were.
+    const plain = textOf(value(await call('search', asked, found)))
+    expect(JSON.parse(plain).tools[0]).not.toHaveProperty('program')
+    expect(textOf(value(await call('search', { ...asked, programmable: false }, found)))).toBe(
+      plain,
+    )
+    expect(seen).toEqual([{ ...asked, programmable: true }, asked, asked])
+    for (const programmable of ['true', 1, null])
+      expect(await call('search', { ...asked, programmable }, found)).toHaveProperty('failure')
+  })
+
+  it('search takes a text query, a cursor that is text or null, and a page of at least one', async () => {
+    const seen: unknown[] = []
+    const found = capability({
+      search: async args => {
+        seen.push(args)
+        return succeed({ entries: [], next: null })
+      },
+    })
+    const asked = { query: 'read', after: null, limit: 1 }
+    expect(await call('search', asked, found)).not.toHaveProperty('failure')
+    expect(await call('search', { ...asked, after: 'cursor' }, found)).not.toHaveProperty('failure')
+    for (const wrong of [
+      { ...asked, limit: 0 },
+      { ...asked, limit: '5' },
+      { ...asked, query: 5 },
+      { ...asked, after: 5 },
+    ])
+      expect(await call('search', wrong, found)).toHaveProperty('failure')
+    expect(seen).toEqual([asked, { ...asked, after: 'cursor' }])
   })
 
   it.each(['schema', 'executor-owned'] as const)(
@@ -295,6 +372,43 @@ describe('Tools complete author', () => {
       expect(result).not.toHaveProperty('parameters')
     },
   )
+
+  it('inspect gives the functions of a programmable tool as a TypeScript declaration', async () => {
+    const files = value(createFilesAuthor(tree({ resultMaxBytes: 1024, ...OPEN_LIMITS })))
+    const definition = deriveDefinition(
+      { asset: { name: 'Files', adoption }, requiredCapabilities: [], programmable: true },
+      files.facts,
+    )
+    const view: ToolUsageView = {
+      kind: 'available',
+      definition,
+      executor: adoption,
+      layer: { kind: 'official' },
+      usage: null,
+    }
+    const reply = value(
+      await call(
+        'inspect',
+        { name: 'Files', command: null },
+        capability({ inspect: async () => succeed(view) }),
+      ),
+    )
+    const result = JSON.parse(textOf(reply))
+    expect(result.programmable).toBe(true)
+    expect(result.program).toBe(programSignature(definition))
+    expect(result.program).toContain('declare const Files: {')
+    expect(result.program).toContain('read(params: { path: string;')
+    expect(result.program).not.toContain('open(')
+    const plain = { ...view, definition: { ...definition, programmable: false } }
+    const other = value(
+      await call(
+        'inspect',
+        { name: 'Files', command: null },
+        capability({ inspect: async () => succeed(plain) }),
+      ),
+    )
+    expect(JSON.parse(textOf(other))).not.toHaveProperty('program')
+  })
 
   it.each(['waiting', 'commit-unknown'] as const)(
     'retains both references for %s without calling completion a success',

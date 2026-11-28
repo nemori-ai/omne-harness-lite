@@ -1,43 +1,75 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@omne-harness/ui-kit'
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  DropdownMenuItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@omne-harness/ui-kit'
+import { useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useOffered } from './use-offered.ts'
-import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
+import type { ModelChoice, ModelSelectionStore, ReasoningEffort } from '../model/model-selection.ts'
+import {
+  FOLD_RANK,
+  FoldedChoice,
+  HeadingChoice,
+  HeadingEntriesContext,
+  useHeadingFolded,
+  useHeadingOpening,
+  useHeadingRead,
+} from './heading-fold.tsx'
+import { useModelChoiceAsked } from '../model/model-choice-ask.ts'
+import { sessionHeaderModel } from '../parts.ts'
 
-const DEFAULT = '::default'
-const OPTION = 'omne-session-model-option'
+const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
+const DEFAULT = 'default'
+const defaultLabel = (choice: ModelChoice | undefined) =>
+  `模型默认（${choice?.defaultReasoningEffort ?? '供应商默认'}）`
 
-function ModelSelect({
+type ChoiceProps = Parameters<typeof FoldedChoice>[0]
+
+type Opening = Readonly<{ open?: boolean; onOpenChange?: (open: boolean) => void }>
+
+function InlineChoice({
   label,
   value,
   shown,
-  choices,
-  lead,
-  onValueChange,
-}: {
-  readonly label: string
-  readonly value: string
-  readonly shown: string
-  readonly choices: readonly ModelChoice[]
-  readonly lead?: ReactNode
-  readonly onValueChange: (value: string) => void
-}) {
+  options,
+  onPick,
+  onOpen,
+  open,
+  onOpenChange,
+}: ChoiceProps & Opening) {
+  if (options === null)
+    return (
+      <span>
+        {label}：{shown}
+      </span>
+    )
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select
+      value={value}
+      onValueChange={onPick}
+      {...(open === undefined ? {} : { open })}
+      onOpenChange={next => {
+        onOpenChange?.(next)
+        if (next) onOpen?.()
+      }}
+    >
       <SelectTrigger aria-label={label} size="sm">
         <SelectValue>{shown}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {lead}
-        {choices.map(choice => (
+        {options.map(option => (
           <SelectItem
-            key={choice.route}
-            className={OPTION}
-            value={choice.route}
-            disabled={!choice.selectable}
+            key={option.value}
+            className="omne-session-model-option"
+            value={option.value}
+            disabled={option.disabled ?? false}
           >
-            {choice.route}
-            {choice.note === null ? null : (
-              <span className="omne-session-model-note">（{choice.note}）</span>
+            {option.label}
+            {option.note == null ? null : (
+              <span className="omne-session-model-note">（{option.note}）</span>
             )}
           </SelectItem>
         ))}
@@ -46,75 +78,140 @@ function ModelSelect({
   )
 }
 
-// The model a session has stays in the list even when nobody offers it any more.
-const withCurrent = (choices: readonly ModelChoice[], model: string): readonly ModelChoice[] =>
-  choices.some(choice => choice.route === model)
-    ? choices
-    : [{ route: model, selectable: false, note: '不在现在的列表里' }, ...choices]
+function routeOption(choice: ModelChoice, previous: ReasoningEffort | undefined) {
+  const effort =
+    previous !== undefined && choice.reasoningEfforts?.includes(previous) ? previous : undefined
+  const usesDefault = choice.selectable && previous !== effort
+  const note = usesDefault
+    ? [choice.note, `未提供 ${previous}，切换并使用模型默认强度`].filter(Boolean).join('；')
+    : choice.note
+  return { value: choice.route, label: choice.route, disabled: !choice.selectable, note, effort }
+}
+
+// A model that cannot be picked is offered while it is the current one, or while this session's
+// content is what stops it, to say why.
+function routesOf(
+  choices: readonly ModelChoice[],
+  model: string,
+  previous: ReasoningEffort | undefined,
+) {
+  const routes = choices
+    .filter(choice => choice.selectable || choice.route === model || (choice.blocks ?? 0) > 0)
+    .map(choice => routeOption(choice, previous))
+  if (!choices.some(choice => choice.route === model))
+    routes.unshift({
+      value: model,
+      label: model,
+      disabled: true,
+      note: '不在现在的列表里',
+      effort: undefined,
+    })
+  return routes
+}
 
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
+function useAskedOpen({ store, tenant, session }: Props, inBar: boolean) {
+  const folded = useHeadingFolded(FOLD_RANK.model)
+  const state = useState(false)
+  const [, setOpen] = state
+  const asked = useCallback(() => {
+    if (!inBar) return
+    void store.loadChoices({ tenant, session })
+    if (!folded) setOpen(true)
+  }, [store, tenant, session, inBar, folded, setOpen])
+  useModelChoiceAsked(session, asked)
+  return state
+}
+
 export function ModelAction({ store, tenant, session }: Props) {
+  const inBar = useHeadingRead(store, tenant, session)
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
-  const listing = useOffered(store, tenant)
+  const where = useMemo(() => ({ tenant, session }), [tenant, session])
+  const listing = useOffered(store, where, inBar)
+  const entries = useContext(HeadingEntriesContext)
   const [said, say] = useState<string | null>(null)
+  const [open, setOpen] = useAskedOpen({ store, tenant, session }, inBar)
+  const opening = useHeadingOpening(FOLD_RANK.model)
   useEffect(() => {
-    say(null)
-    void store.load(tenant, session)
-  }, [store, tenant, session])
+    if (inBar) say(null)
+  }, [store, tenant, session, inBar])
   if (view.kind === 'unread') return null
-  if (view.kind === 'unreadable')
+  if (view.kind === 'unreadable') {
+    const reason = `模型读不到：${view.reason}`
     return (
-      <span className="omne-session-model" role="status">
-        模型读不到：{view.reason}
-      </span>
+      <HeadingChoice
+        rank={FOLD_RANK.model}
+        bar={
+          <span className="omne-session-model" {...sessionHeaderModel.props} role="status">
+            {reason}
+          </span>
+        }
+        menu={() => <DropdownMenuItem disabled>{reason}</DropdownMenuItem>}
+      />
     )
+  }
+  const choices = listing.kind === 'listed' ? listing.choices : null
+  const current = choices?.find(choice => choice.route === view.model)
+  const routes = choices === null ? null : routesOf(choices, view.model, view.reasoningEffort)
+  const modelChoice = (tell: (text: string) => void): ChoiceProps => ({
+    label: '模型',
+    value: view.model,
+    shown: view.model,
+    options: routes,
+    // What the session holds changes as it goes: the list is read again whenever it is opened.
+    onOpen: () => void store.loadChoices(where),
+    onPick(model) {
+      const selected = routes?.find(option => option.value === model)
+      if (selected !== undefined && !selected.disabled)
+        void store.select(tenant, session, model, selected.effort, entries).then(tell)
+    },
+  })
+  const effortChoice = (tell: (text: string) => void): ChoiceProps => ({
+    label: '推理强度',
+    value: view.reasoningEffort ?? DEFAULT,
+    shown: view.reasoningEffort ?? defaultLabel(current),
+    options:
+      choices === null
+        ? null
+        : [
+            { value: DEFAULT, label: defaultLabel(current), disabled: !current?.selectable },
+            ...EFFORTS.map(value => {
+              const supported = current?.reasoningEfforts?.includes(value)
+              return {
+                value,
+                label: value,
+                disabled: !current?.selectable || !supported,
+                note: supported ? null : '此型号未提供',
+              }
+            }),
+          ],
+    onPick(picked) {
+      const effort = EFFORTS.find(value => value === picked)
+      if (picked !== DEFAULT && effort === undefined) return
+      void store.select(tenant, session, view.model, effort).then(tell)
+    },
+  })
   return (
-    <span className="omne-session-model">
-      {listing.kind === 'listed' ? (
-        <ModelSelect
-          label="模型"
-          value={view.model}
-          shown={view.model}
-          choices={withCurrent(listing.choices, view.model)}
-          onValueChange={model => void store.select(tenant, session, model).then(say)}
-        />
-      ) : (
-        <span>模型：{view.model}</span>
-      )}
-      {said === null ? null : <span role="status">{said}</span>}
-    </span>
-  )
-}
-
-/** The model the next new session starts with: none named until a person picks one on offer. */
-export function useNewSessionModel(
-  store: ModelSelectionStore,
-  tenant: string,
-): Readonly<{ model: string | undefined; picker: ReactNode }> {
-  const listing = useOffered(store, tenant)
-  const [picked, pick] = useState<string | null>(null)
-  if (listing.kind !== 'listed' || listing.choices.length === 0)
-    return { model: undefined, picker: null }
-  const offered = listing.choices.some(choice => choice.route === picked && choice.selectable)
-  const model = offered && picked !== null ? picked : undefined
-  const picker = (
-    <ModelSelect
-      label="新会话的模型"
-      value={model ?? DEFAULT}
-      shown={model ?? '默认模型'}
-      choices={listing.choices}
-      lead={
-        <SelectItem className={OPTION} value={DEFAULT}>
-          默认模型
-        </SelectItem>
+    <HeadingChoice
+      rank={FOLD_RANK.model}
+      bar={
+        <span className="omne-session-model" {...sessionHeaderModel.props}>
+          <InlineChoice {...modelChoice(say)} open={open} onOpenChange={setOpen} />
+          <InlineChoice {...effortChoice(say)} />
+          {said === null ? null : <span role="status">{said}</span>}
+        </span>
       }
-      onValueChange={value => pick(value === DEFAULT ? null : value)}
+      menu={tell => (
+        <>
+          <FoldedChoice {...modelChoice(tell)} opened={opening} />
+          <FoldedChoice {...effortChoice(tell)} />
+        </>
+      )}
     />
   )
-  return { model, picker }
 }

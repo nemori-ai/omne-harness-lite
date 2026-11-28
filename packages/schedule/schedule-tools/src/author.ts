@@ -63,12 +63,13 @@ const utf8 = (text: string) => encoder.encode(text)
 const guide = [
   'A definition has label, recurrence, limits and purpose. It always follows the user time zone and calendar; you cannot pick a calendar. Preview a definition before you create it.',
   'create makes a schedule that takes effect now. draft saves one that does not run until promote; use it when the owner should look first.',
+  'A purpose of kind execution carries work. Agent work is {kind: "agent", instruction, session}. instruction is a goal body: purpose, criteria whose evidence a tool can produce (not a person), exits. The judge reads only that evidence: for a thing the run is to say in the session, write evidence {kind: "activity"}, which is the tool calls of the run and its last reply. session is {mode: "existing", sessionRef}, where sessionRef "current" is this session, or {mode: "new"}, which takes the Agent definition, modes and workspace of this session for what it leaves out. Each Job succeeds only when that goal is achieved; a session that is busy or has a goal in progress blocks the Job.',
   'Every change to a saved schedule takes the revision you last read with show or list; a stale revision answers conflict and changes nothing.',
   'A write that answers unknown may or may not have happened: call recover with its operation; do not send it again.',
   'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, limited, invalid, coverage_insufficient, not_configured, unavailable.',
 ].join('\n\n')
 
-const returns = {
+export const returns = {
   kind: 'ordinary',
   value: {
     kind: 'encoded-value',
@@ -153,7 +154,10 @@ async function execute(args: SchedulesArguments, execution: ToolExecutionContext
   if (typeof reached === 'string') return reached
   const { bound, faces } = reached
   if (!isWrite(args)) return read(faces, args as ReadArguments, bound.now())
-  const request = writeRequestOf(args, { operationKey: bound.operationKey('initial') })
+  const carries = 'definition' in args.params
+  const defaults = carries ? await faces.defaults() : { current: null, forNew: null }
+  const meta = { operationKey: bound.operationKey('initial') }
+  const request = writeRequestOf(args, meta, defaults)
   if ('invalid' in request) return request.invalid
   return writeLine(args.command, await submit(faces, request))
 }
@@ -163,7 +167,34 @@ export const schedulesExecutor = {
     execute(args, context),
 }
 
-function resultMaxBytesOf(construction: JsonValue): number | undefined {
+/** A text result: UTF-8 bytes, checked against the tool's resultMaxBytes. */
+export function textResult(tool: string, maximum: number) {
+  return {
+    codec: {
+      adoption: schedulesAdoption,
+      encode: (value: unknown) =>
+        typeof value === 'string' ? succeed(utf8(value)) : fail({ reason: 'text-required' }),
+      decode(bytes: Uint8Array) {
+        try {
+          return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+        } catch {
+          return fail({ reason: 'invalid-utf8' })
+        }
+      },
+    },
+    output: {
+      adoption: schedulesAdoption,
+      check: ({ value }: { value: unknown }) =>
+        typeof value === 'string' && utf8(value).byteLength <= maximum
+          ? succeed(value)
+          : fail({ reason: `the ${tool} result exceeds resultMaxBytes` }),
+    },
+    renderer: { render: (value: string) => succeed(value) },
+    program: { kind: 'none' as const },
+  }
+}
+
+export function resultMaxBytesOf(construction: JsonValue): number | undefined {
   if (construction.kind !== 'object' || construction.entries.length !== 1) return undefined
   const [entry] = construction.entries
   if (entry?.key !== 'resultMaxBytes' || entry.value.kind !== 'number') return undefined
@@ -186,6 +217,7 @@ export function createSchedulesAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
+      readOnly: boolean
     }
   > = {}
   for (const name of schedulesCommandNames) {
@@ -205,27 +237,7 @@ export function createSchedulesAuthor(
         parameters: schedulesParameterCodec(name),
         waits: [],
         executor: schedulesExecutor,
-        codec: {
-          adoption: schedulesAdoption,
-          encode: (value: unknown) =>
-            typeof value === 'string' ? succeed(utf8(value)) : fail({ reason: 'text-required' }),
-          decode(bytes) {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption: schedulesAdoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && utf8(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'the Schedules result exceeds resultMaxBytes' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
+        ...textResult('Schedules', maximum),
       },
     })
     if ('failure' in operation)
@@ -239,6 +251,7 @@ export function createSchedulesAuthor(
             detail: { kind: ACTIVATION_KIND, schema: activationSchema },
           }
         : { gate: SCHEDULES_GATE_OF[name] },
+      readOnly: SCHEDULES_GATE_OF[name] === 'read',
     }
   }
   const author = defineCommandTool({

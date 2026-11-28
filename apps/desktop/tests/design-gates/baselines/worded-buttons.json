@@ -1,0 +1,102 @@
+{
+  "gate": "worded-buttons",
+  "entries": {
+    "packages/assets/assets-ui/src/view/assets-page.tsx | {labelOf(category)}": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/category-page.tsx | 收起/新建": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/create-form.tsx | 提交": {
+      "commit": 2
+    },
+    "packages/assets/assets-ui/src/view/setting-row.tsx | 清除": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/setting-row.tsx | 设置": {
+      "commit": 3,
+      "R9": 1
+    },
+    "packages/calendar/calendar-ui/src/view/calendar-page.tsx | 查": {
+      "commit": 1
+    },
+    "packages/goal/goal-ui/src/view/goal-panel.tsx | 改成这样": {
+      "commit": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {option.label}": {
+      "choice": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 取消": {
+      "commit": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 另有 ${…} 张放行卡没答，可以先提交已答的": {
+      "name": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 提交": {
+      "commit": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 还差 ${…} 题": {
+      "name": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | 不回答这一题": {
+      "choice": 1
+    },
+    "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
+      "commit": 1
+    },
+    "packages/media/media-ui/src/view/attachment-tray.tsx | 打开系统设置": {
+      "primary": 1
+    },
+    "packages/model/model-ui/src/view/run-failure-remedy.tsx | 去填/换模型": {
+      "primary": 1
+    },
+    "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
+      "name": 1
+    },
+    "packages/plugin/plugin-ui/src/view/plugin-page.tsx | 在「 {member.categoryTitle ?? category} 」里看": {
+      "name": 1
+    },
+    "packages/schedule/schedule-ui/src/view/job-provenance.tsx | {words}": {
+      "name": 1
+    },
+    "packages/schedule/schedule-ui/src/view/schedule-runs.tsx | {body}": {
+      "name": 1
+    },
+    "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
+      "name": 1
+    },
+    "packages/session/session-ui/src/view/composer.tsx | 按原样发送": {
+      "commit": 1
+    },
+    "packages/session/session-ui/src/view/session-list-panel.tsx | 新建会话": {
+      "primary": 1
+    },
+    "packages/session/session-ui/src/view/side-frame.tsx | {seat} {name}": {
+      "name": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 上移": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 下移": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 去掉": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 恢复缺省": {
+      "R10": 1
+    },
+    "packages/workspace/workspace-ui/src/view/workspaces-page.tsx | {item.workspace}": {
+      "name": 1
+    },
+    "packages/workspace/workspace-ui/src/view/workspaces-page.tsx | 授予参与": {
+      "commit": 1
+    },
+    "packages/workspace/workspace-ui/src/view/workspaces-page.tsx | 登记": {
+      "commit": 1
+    },
+    "packages/workspace/workspace-ui/src/view/workspaces-page.tsx | 移除": {
+      "commit": 1
+    }
+  }
+}

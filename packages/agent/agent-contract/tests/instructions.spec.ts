@@ -169,7 +169,11 @@ describe('the body contract applies the same instruction rules', () => {
   }
   const judge = (content: unknown) => {
     const registry = createCategoryPoint()
-    registry.contribute({ contract: agentBodyContract(), display: agentDefinitionCategoryDisplay })
+    registry.contribute({
+      contract: agentBodyContract(),
+      display: agentDefinitionCategoryDisplay,
+      point: 'agent.definitions',
+    })
     const contract = registry.lookup('AgentDefinition')
     const read = readBodyText(JSON.stringify(content), limits)
     if (contract === undefined || read.kind !== 'ok') throw new Error('fixture')

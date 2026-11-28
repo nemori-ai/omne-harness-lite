@@ -68,7 +68,7 @@ function materializing(change: (materialized: MaterializedTransport) => Material
     ...prepared,
     async materialize(signal) {
       const outcome = await prepared.materialize(signal)
-      return 'ok' in outcome ? succeed(change(outcome.ok)) : outcome
+      return 'ok' in outcome && 'start' in outcome.ok ? succeed(change(outcome.ok)) : outcome
     },
   })
 }
@@ -133,7 +133,7 @@ describe('the conformance suite on a transport', () => {
                 close: async () => undefined,
               })
             const outcome = await prepared.materialize(signal)
-            if ('ok' in outcome) first = outcome.ok
+            if ('ok' in outcome && 'start' in outcome.ok) first = outcome.ok
             return outcome
           },
         }
@@ -445,7 +445,7 @@ describe('the conformance suite on the other ways that a transport can go wrong'
           async materialize(signal) {
             if (first === undefined) {
               const outcome = await prepared.materialize(signal)
-              first = 'ok' in outcome ? outcome.ok : undefined
+              first = 'ok' in outcome && 'start' in outcome.ok ? outcome.ok : undefined
               return outcome
             }
             return succeed({
@@ -521,7 +521,7 @@ describe('the conformance suite on the other ways that a transport can go wrong'
                   close: async () => undefined,
                 })
               const outcome = await prepared.materialize(signal)
-              if ('ok' in outcome) first = outcome.ok
+              if ('ok' in outcome && 'start' in outcome.ok) first = outcome.ok
               return outcome
             },
           }
@@ -547,7 +547,7 @@ describe('the conformance suite on the other ways that a transport can go wrong'
                 close: async () => undefined,
               })
             const outcome = await prepared.materialize(signal)
-            if ('ok' in outcome) first = outcome.ok
+            if ('ok' in outcome && 'start' in outcome.ok) first = outcome.ok
             return outcome
           },
         }
@@ -720,12 +720,13 @@ describe('the conformance suite on the other ways that a transport can go wrong'
             },
             async materialize(signal) {
               const outcome = await prepared.materialize(signal)
-              if (!('ok' in outcome)) return outcome
+              if (!('ok' in outcome) || !('start' in outcome.ok)) return outcome
               opened.materialized += 1
-              const { close } = outcome.ok
+              const materialized = outcome.ok
+              const { close } = materialized
               return succeed({
-                ...outcome.ok,
-                start: signal2 => outcome.ok.start(signal2),
+                ...materialized,
+                start: signal2 => materialized.start(signal2),
                 async close() {
                   closed.materialized += 1
                   await close()

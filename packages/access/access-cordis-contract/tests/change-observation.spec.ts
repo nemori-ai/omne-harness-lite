@@ -65,7 +65,7 @@ function setup() {
   const controller = new AbortController()
   const open = () =>
     observe(
-      { principal: LOGIN, messageId: 'm-observe', signal: controller.signal },
+      { principal: LOGIN, messageId: 'm-observe', revision: 1, signal: controller.signal },
       { tenant: TENANT },
     )
   const frames = async () => {

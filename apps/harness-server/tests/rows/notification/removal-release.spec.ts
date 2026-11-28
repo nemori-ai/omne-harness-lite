@@ -50,7 +50,7 @@ describe('the release tree without the two notification rows', () => {
 
         expect(toolResults(working).join('\n')).toContain('"ok":{"receipt"')
         const response = await fetch(
-          `http://127.0.0.1:${String(tree.port)}/api/notification/v1/list-sources`,
+          `http://127.0.0.1:${String(tree.port)}/api/notification/v2/list-sources`,
           {
             method: 'POST',
             headers: {

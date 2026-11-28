@@ -2,6 +2,7 @@
 @import '@omne-harness/usage-ui/usage-ui.css';
 @source '.';
 
+@layer omne-builtin {
 body {
   margin: 0;
   background: var(--omne-surface-page);
@@ -9,4 +10,5 @@ body {
 }
 .probe {
   color: var(--omne-chart-1);
+}
 }

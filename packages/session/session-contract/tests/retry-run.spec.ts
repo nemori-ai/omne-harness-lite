@@ -176,7 +176,7 @@ describe('retryRun over the totalized table', () => {
         input: {
           ...s.base,
           operation: operationId('freeze'),
-          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+          verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
         },
       }),
       'freeze',
@@ -261,7 +261,7 @@ describe('after a retry', () => {
     succeeded(await retry(s, 'retry', run), 'retry')
     expect(judgeRunStart(await s.read(), 'interactive')).toEqual({
       kind: 'eligible',
-      first: 'first',
+      initial: ['first'],
     })
   })
 

@@ -117,6 +117,16 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                             };
                                                         };
                                                     };
@@ -219,6 +229,16 @@ declare const item: {
                                                                 rule: {
                                                                     readonly kind: 'text';
                                                                 };
+                                                            };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
                                                             };
                                                         };
                                                     };
@@ -356,6 +376,16 @@ declare const item: {
                                                                     readonly rule: {
                                                                         readonly kind: 'text';
                                                                     };
+                                                                };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly offered: {
                                                                     readonly rule: {
@@ -480,6 +510,16 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                             };
                                                         };
                                                     };
@@ -582,6 +622,16 @@ declare const item: {
                                                                 rule: {
                                                                     readonly kind: 'text';
                                                                 };
+                                                            };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
                                                             };
                                                         };
                                                     };
@@ -719,6 +769,16 @@ declare const item: {
                                                                     readonly rule: {
                                                                         readonly kind: 'text';
                                                                     };
+                                                                };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly offered: {
                                                                     readonly rule: {
@@ -1018,6 +1078,16 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                             };
                                                         };
                                                     };
@@ -1120,6 +1190,16 @@ declare const item: {
                                                                 rule: {
                                                                     readonly kind: 'text';
                                                                 };
+                                                            };
+                                                            readonly program: {
+                                                                readonly rule: {
+                                                                    readonly kind: "literal";
+                                                                    readonly values: readonly [
+                                                                        true
+                                                                    ];
+                                                                };
+                                                                readonly optional: true;
+                                                                readonly since: 2;
                                                             };
                                                         };
                                                     };
@@ -1258,6 +1338,16 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
+                                                                readonly role: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'literal';
+                                                                        readonly values: readonly [
+                                                                            "approve",
+                                                                            "reject"
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                                 readonly offered: {
                                                                     readonly rule: {
                                                                         readonly kind: "boolean";
@@ -1345,6 +1435,12 @@ declare const item: {
             rule: {
                 readonly kind: 'text';
             };
+        };
+        readonly askedAt: {
+            readonly rule: {
+                readonly kind: 'text';
+            };
+            readonly optional: true;
         };
     };
 };
@@ -1455,6 +1551,16 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
+                                                                                };
                                                                             };
                                                                         };
                                                                     };
@@ -1557,6 +1663,16 @@ declare const cardPage: {
                                                                                 rule: {
                                                                                     readonly kind: 'text';
                                                                                 };
+                                                                            };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
                                                                             };
                                                                         };
                                                                     };
@@ -1694,6 +1810,16 @@ declare const cardPage: {
                                                                                     readonly rule: {
                                                                                         readonly kind: 'text';
                                                                                     };
+                                                                                };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
                                                                                 };
                                                                                 readonly offered: {
                                                                                     readonly rule: {
@@ -1818,6 +1944,16 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
+                                                                                };
                                                                             };
                                                                         };
                                                                     };
@@ -1920,6 +2056,16 @@ declare const cardPage: {
                                                                                 rule: {
                                                                                     readonly kind: 'text';
                                                                                 };
+                                                                            };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
                                                                             };
                                                                         };
                                                                     };
@@ -2057,6 +2203,16 @@ declare const cardPage: {
                                                                                     readonly rule: {
                                                                                         readonly kind: 'text';
                                                                                     };
+                                                                                };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
                                                                                 };
                                                                                 readonly offered: {
                                                                                     readonly rule: {
@@ -2356,6 +2512,16 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
+                                                                                };
                                                                             };
                                                                         };
                                                                     };
@@ -2458,6 +2624,16 @@ declare const cardPage: {
                                                                                 rule: {
                                                                                     readonly kind: 'text';
                                                                                 };
+                                                                            };
+                                                                            readonly program: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "literal";
+                                                                                    readonly values: readonly [
+                                                                                        true
+                                                                                    ];
+                                                                                };
+                                                                                readonly optional: true;
+                                                                                readonly since: 2;
                                                                             };
                                                                         };
                                                                     };
@@ -2596,6 +2772,16 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
+                                                                                readonly role: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: 'literal';
+                                                                                        readonly values: readonly [
+                                                                                            "approve",
+                                                                                            "reject"
+                                                                                        ];
+                                                                                    };
+                                                                                    readonly optional: true;
+                                                                                };
                                                                                 readonly offered: {
                                                                                     readonly rule: {
                                                                                         readonly kind: "boolean";
@@ -2683,6 +2869,12 @@ declare const cardPage: {
                             rule: {
                                 readonly kind: 'text';
                             };
+                        };
+                        readonly askedAt: {
+                            readonly rule: {
+                                readonly kind: 'text';
+                            };
+                            readonly optional: true;
                         };
                     };
                 };
@@ -2986,6 +3178,7 @@ export declare const humanInterventionProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly completeness: "complete" | "partial";
                     readonly items: readonly {
+                        readonly askedAt?: string;
                         readonly card: {
                             readonly kind: "pending";
                             readonly question: {
@@ -2997,6 +3190,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3034,9 +3228,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3099,6 +3295,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3136,9 +3333,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3167,6 +3366,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3204,9 +3404,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3267,6 +3469,7 @@ export declare const humanInterventionProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly item: {
+                        readonly askedAt?: string;
                         readonly card: {
                             readonly kind: "pending";
                             readonly question: {
@@ -3278,6 +3481,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3315,9 +3519,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3380,6 +3586,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3417,9 +3624,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {
@@ -3448,6 +3657,7 @@ export declare const humanInterventionProtocol: {
                                     readonly description: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly title: string;
                             } | {
@@ -3485,9 +3695,11 @@ export declare const humanInterventionProtocol: {
                                     readonly label: string;
                                     readonly lasting: boolean;
                                     readonly offered: boolean;
+                                    readonly role?: "approve" | "reject";
                                 }[];
                                 readonly origin: {
                                     readonly agent: string;
+                                    readonly program?: true;
                                     readonly session: string;
                                 };
                                 readonly target: {

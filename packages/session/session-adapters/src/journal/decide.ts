@@ -1,7 +1,9 @@
 import type {
   AgentCheckpoint,
   AgentOperationId,
+  ExtensionChain,
   JournalCommitState,
+  Passage,
   PendingCall,
   StepId,
   VoidedIntent,
@@ -18,8 +20,12 @@ import {
   refOf,
   type Batch,
   type BatchEnvelope,
+  type ChainBlock,
   type CursorMembers,
   type FactBody,
+  type PassageBlock,
+  type PassageIndex,
+  type Ref,
   type HoldKind,
   type HoldRef,
   type ResultKey,
@@ -55,8 +61,8 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
     requestPreparation:
       checkpoint.requestPreparation === null ? null : refOf(checkpoint.requestPreparation),
     adoptedContext: checkpoint.adoptedContext,
-    passages: refOf(checkpoint.passages),
-    completedPassages: checkpoint.completedPassages,
+    passages: refOf(passageIndex(checkpoint.passages)),
+    chain: checkpoint.chain === null ? null : refOf(chainBlock(checkpoint.chain)),
     batch: checkpoint.batch === null ? null : refOf(checkpoint.batch),
     calls: refOf(checkpoint.calls),
     schema: checkpoint.schema,
@@ -96,17 +102,24 @@ export function heldBy(checkpoint: AgentCheckpoint): HoldRef[] {
   ]
 }
 
+const accepted = (call: PendingCall): boolean =>
+  call.kind === 'tool' && call.association === 'associated' && call.acceptance === 'accepted'
+
 // The sources a checkpoint still reads: the request or answer each batch action was judged with,
-// and the request every call was fixed on.
+// and the request every call was fixed on, until the Tool has accepted that request.
 function heldMaterials(checkpoint: AgentCheckpoint): string[] {
-  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ judgment }) =>
+  const calls = checkpointCalls(checkpoint)
+  const sent = new Set(calls.filter(accepted).map(call => call.action))
+  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ id, judgment }) =>
     judgment.kind === 'allowed'
-      ? [judgment.request]
+      ? sent.has(id)
+        ? []
+        : [judgment.request]
       : judgment.kind === 'denied' && judgment.answer !== undefined
         ? [judgment.answer]
         : [],
   )
-  for (const call of checkpointCalls(checkpoint)) sources.push(call.fixed)
+  for (const call of calls) if (!accepted(call)) sources.push(call.fixed)
   return [...new Set(sources.map(source => materialHold(canonical(source))))]
 }
 
@@ -116,8 +129,29 @@ export type Blob = readonly [digest: string, value: unknown]
 
 export const blobOf = (value: unknown): Blob => [refOf(value).digest, value]
 
+function passageBlock(passage: Passage): PassageBlock {
+  return { ...passage, declaration: refOf(passage.declaration) }
+}
+
+function chainBlock(chain: ExtensionChain): ChainBlock {
+  return {
+    ...chain,
+    members: chain.members.map(member => ({ ...member, declaration: refOf(member.declaration) })),
+  }
+}
+
+function passageIndex(passages: readonly Passage[]): PassageIndex {
+  return passages.map(passage => refOf(passageBlock(passage)))
+}
+
 export function blobsOf(checkpoint: AgentCheckpoint): Blob[] {
-  const out: Blob[] = [blobOf(checkpoint.passages), blobOf(checkpoint.calls)]
+  const out: Blob[] = [blobOf(passageIndex(checkpoint.passages)), blobOf(checkpoint.calls)]
+  for (const passage of checkpoint.passages)
+    out.push(blobOf(passageBlock(passage)), blobOf(passage.declaration))
+  if (checkpoint.chain !== null) {
+    out.push(blobOf(chainBlock(checkpoint.chain)))
+    for (const member of checkpoint.chain.members) out.push(blobOf(member.declaration))
+  }
   if (checkpoint.guard !== null) out.push(blobOf(checkpoint.guard))
   if (checkpoint.replyAdmissionRead.kind === 'verified')
     out.push(blobOf(checkpoint.replyAdmissionRead.prefix))
@@ -133,6 +167,18 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
   if (!blobs.has(ref.digest))
     throw new TypeError(`the Journal holds no block for the ${what} the cursor refers to`)
   return structuredClone(blobs.get(ref.digest)) as T
+}
+
+function chainOf(blobs: BlobStore, ref: Ref<ChainBlock> | null): ExtensionChain | null {
+  if (ref === null) return null
+  const block = held<ChainBlock>(blobs, ref, 'chain')
+  return {
+    ...block,
+    members: block.members.map(member => ({
+      ...member,
+      declaration: held(blobs, member.declaration, 'chain declaration'),
+    })),
+  }
 }
 
 export function checkpointOf(
@@ -168,7 +214,10 @@ export function checkpointOf(
     step: need('step'),
     position: need('position'),
     calls: held(blobs, need('calls'), 'calls'),
-    passages: held(blobs, need('passages'), 'passages'),
+    passages: held<PassageIndex>(blobs, need('passages'), 'passages').map((ref): Passage => {
+      const block = held<PassageBlock>(blobs, ref, 'passage')
+      return { ...block, declaration: held(blobs, block.declaration, 'passage declaration') }
+    }),
     batch: need('batch') === null ? null : held(blobs, need('batch')!, 'batch'),
     inputBatch: structuredClone(inputBatch),
     requestPreparation:
@@ -178,7 +227,7 @@ export function checkpointOf(
     compaction: need('compaction') === null ? null : held(blobs, need('compaction')!, 'compaction'),
     adoptedContext: need('adoptedContext'),
     guard: need('guard') === null ? null : held(blobs, need('guard')!, 'guard'),
-    completedPassages: need('completedPassages'),
+    chain: chainOf(blobs, need('chain')),
     priorConditions: need('priorConditions'),
     currentHandoff: need('currentHandoff'),
     replyAdmissionRead: (() => {

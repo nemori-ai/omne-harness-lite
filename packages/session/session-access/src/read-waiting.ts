@@ -1,6 +1,6 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { SessionAccess } from '@omne-harness/session-contract'
+import type { RunId, SessionAccess } from '@omne-harness/session-contract'
 import {
   readCall,
   refused,
@@ -20,7 +20,7 @@ export type ReadWaitingPorts = Readonly<{
 async function causeOf(
   ports: ReadWaitingPorts,
   access: SessionAccess<Principal>,
-  execution: string,
+  run: RunId,
 ): Promise<RunFailureCause | null> {
   try {
     const causes = ports.causes()
@@ -28,11 +28,12 @@ async function causeOf(
     const reading = await causes.read({
       principal: access.principal,
       tenant: access.tenant,
-      execution,
+      session: access.session,
+      run,
     })
     if (reading.kind !== 'cause' || reading.cause.kind === '') return null
-    const { kind, detail } = reading.cause
-    return { kind, detail: detail === '' ? null : detail }
+    const { kind, detail, fault } = reading.cause
+    return { kind, detail: detail === '' ? null : detail, fault }
   } catch {
     return null
   }
@@ -51,7 +52,7 @@ export async function readWaiting(
   if ('failure' in result) return refused('read-waiting', result.failure)
   const waiting = result.ok
   if (waiting === null) return { outcome: 'succeeded', body: { waiting: null } }
-  const cause = waiting.execution === null ? null : await causeOf(ports, access, waiting.execution)
+  const cause = await causeOf(ports, access, waiting.run)
   return {
     outcome: 'succeeded',
     body: { waiting: { run: waiting.run, pending: waiting.pending, cause } },

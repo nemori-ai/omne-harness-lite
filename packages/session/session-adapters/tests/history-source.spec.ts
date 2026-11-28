@@ -28,21 +28,27 @@ import type {
   SessionAdoptedRequest,
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
+  SessionRequestChoicesRead,
 } from '@omne-harness/session-cordis-contract'
 import {
   SessionAdoptedRequestsService,
   SessionService,
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { createSessionHistorySource } from '../src/cordis/history-source.ts'
+import {
+  createSessionHistorySource,
+  type SessionHistorySourceInput,
+} from '../src/cordis/history-source.ts'
 import {
   invocation,
   m0Checkpoint,
   samplePrefix,
   type FixedValues,
 } from './fixtures/adopted-request.ts'
+import { adopt, endAndSettle, openHanded } from './fixtures/adopted-settled.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 import { take } from './fixtures/progression.ts'
+import { cordisScene, sqlScene } from './fixtures/sql-scene.ts'
 
 type Call = Readonly<{ method: string; caller: unknown; principal: unknown }>
 type Faults = {
@@ -65,6 +71,7 @@ async function world(
     ctx?: Context
     mount?: readonly Mounted[]
     adopted?: 'absent'
+    historyPorts?: Pick<SessionHistorySourceInput, 'ensureModelHistory' | 'qualifyHistory'>
   }> = {},
 ) {
   const qualification: { -readonly [K in keyof SceneQualification]: SceneQualification[K] } = {
@@ -144,6 +151,7 @@ async function world(
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   const head: DurableEvidence = loaded.history
   const ad04 = createSessionHistorySource({
+    ...options.historyPorts,
     heads: {
       sessionOf: evidence =>
         evidence.record === head.record
@@ -303,6 +311,8 @@ function scriptedAdoptedRequests() {
       if (state.answer === 'throw') throw new Error('the provider read threw')
       return state.answer ?? { kind: 'value', value: state.saved }
     }
+    readonly readRequestChoices = (): Promise<SessionRequestChoicesRead> =>
+      Promise.resolve({ kind: 'value', value: null })
   }
   return { state, Plugin }
 }
@@ -965,6 +975,37 @@ describe('the narrow adoption source reads the a part of the session', () => {
       value: { order: '1', committed: ready.source, candidate: 'action-1' },
     })
   })
+
+  it('the request the journal keeps after its execution settled reads as the same fact as while it lived', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const s = await sqlScene('history-retained')
+    disposers.push(() => s.close())
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const requests = c.ctx.get(sessionAdoptedRequestsKey) as SessionAdoptedRequests<unknown>
+    const read = async () => {
+      const answer = await requests.readAdoptedRequest({
+        access: s.access,
+        session: s.access.session,
+      })
+      if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+      return answer.value
+    }
+    const opened = await openHanded(s, c.journal())
+    await adopt(s, c.journal(), opened, target, '1')
+    const live = await read()
+    w.provider.state.saved = live
+    const before = await source()
+    expect(before).toMatchObject({
+      kind: 'value',
+      value: { order: live.order, committed: live.fixed },
+    })
+    await endAndSettle(s, c.journal(), opened)
+    const retained = await read()
+    expect(retained).toEqual(live)
+    w.provider.state.saved = retained
+    expect(await source()).toEqual(before)
+  })
 })
 
 const CALLS_PER_TAIL_READ = 2
@@ -1102,4 +1143,36 @@ describe('the sub-plugins on real Cordis 4.1.0', () => {
     const second = await w.borrow()
     expect(second.parts).not.toBe(first.parts)
   })
+})
+
+it('requalifies history with read-only ports without reentering the journal readiness serial', async () => {
+  let readiness = 0
+  let checking = false
+  let answer: Awaited<ReturnType<NonNullable<SessionHistorySourceInput['qualifyHistory']>>> = {
+    ok: undefined,
+  }
+  const w = await world({
+    historyPorts: {
+      ensureModelHistory: async () => {
+        if (checking) throw new Error('attempted to reacquire the held journal serial')
+        readiness++
+        return { ok: null }
+      },
+      qualifyHistory: async () => answer,
+    },
+  })
+  const { parts } = await w.borrow()
+  const { target } = await resolved(w, parts)
+  const before = readiness
+  checking = true
+  const check = () => parts.eligibility.check({ access: w.access, target, operation: 'history' })
+  expect(await check()).toMatchObject({ kind: 'allowed' })
+  answer = { failure: { kind: 'denied' } }
+  expect(await check()).toEqual({ kind: 'denied' })
+  answer = { failure: { kind: 'unavailable', diagnostic: 'unknown workspace qualification' } }
+  expect(await check()).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'unknown workspace qualification',
+  })
+  expect(readiness).toBe(before)
 })

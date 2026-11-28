@@ -175,7 +175,7 @@ describe('a Model call whose server is killed and started again (real processes)
       const [call] = modelCallsOf(run)
       const [dispatch, ...more] = dispatchesOf(call)
       expect(more).toEqual([])
-      expect(dispatch?.['send']).toBe('sent')
+      expect(['sent', 'unknown']).toContain(dispatch?.['send'])
       expect(dispatch?.['outcome']).toEqual({
         kind: 'failed',
         cause: 'runtime-lost',

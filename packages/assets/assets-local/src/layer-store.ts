@@ -1,20 +1,29 @@
 import {
   capabilityId,
   type AssetContent,
+  type AssetLayerSource,
   type AssetRow,
   type CategoryView,
   type JsonValue,
   type StoreChange,
+  type StoreOperation,
   type StorePublication,
   type TenantLayerStore,
+  withPlaced,
+  type AssetEntry,
 } from '@omne-harness/assets'
-import { tenantLayerSource } from './layer.ts'
 import { originOf } from './origin.ts'
 import { manifestOf } from './packages.ts'
 import type { PublicationRecall } from './results.ts'
 import { publishRejected } from './tenant-publisher.ts'
 import type { Failure } from './schema.ts'
-import type { AssetsListResult, AssetsLocal, AssetsOperationResult } from './types.ts'
+import type { Mutation } from './schema.ts'
+import type {
+  AssetsListResult,
+  AssetsLocal,
+  AssetsOperationRecord,
+  AssetsOperationResult,
+} from './types.ts'
 
 type Listed = Extract<AssetsListResult, { kind: 'page' }>['items'][number]
 
@@ -84,18 +93,85 @@ function changeOf(result: AssetsOperationResult): StoreChange | Readonly<{ kind:
   }
 }
 
+const NOT_FOUND = Object.freeze({ kind: 'not-found' } as const)
+type Recorded = Extract<AssetsOperationRecord, Readonly<{ kind: 'recorded' }>>
+
+/** The capability a holding names now; null when the holding cannot be read. */
+async function capabilityOfHolding(local: AssetsLocal, holdingRef: string, scopeRef: string) {
+  const read = await local.readHolding({ holdingRef, scopeRef })
+  if (read.kind !== 'holding') return null
+  const capability = capabilityId(read.holding.category, read.holding.name)
+  return capability.ok ? capability.id : null
+}
+
+function publishedOf(
+  command: Extract<Mutation, Readonly<{ kind: 'publishAndHold' }>>,
+  result: Recorded['result'],
+): StoreOperation {
+  const capability = capabilityId(command.category, command.name)
+  if (!capability.ok) return UNAVAILABLE
+  const { version } = command
+  const outcome =
+    result.kind === 'committed'
+      ? {
+          kind: 'published' as const,
+          version,
+          holdingRef: command.holding.holdingRef,
+          changed: result.changed,
+        }
+      : publishRejected(result.reason)
+  return { kind: 'publish', capability: capability.id, version, outcome }
+}
+
+/** Only a publication and hold, an enablement or a removal of this tenant's layer is an operation here. */
+async function operationOf(
+  local: AssetsLocal,
+  tenantRef: string,
+  { command, result }: Recorded,
+): Promise<StoreOperation> {
+  if (command.kind === 'publishAndHold')
+    return command.holding.scopeRef === tenantRef ? publishedOf(command, result) : NOT_FOUND
+  if (command.kind !== 'changeHolding' || command.scopeRef !== tenantRef) return NOT_FOUND
+  const { change, holdingRef } = command
+  if (change.kind !== 'remove' && change.kind !== 'setEnabled') return NOT_FOUND
+  const answer = changeOf(result)
+  if (answer.kind === 'not-found') return UNAVAILABLE
+  const capability = await capabilityOfHolding(local, holdingRef, tenantRef)
+  return { kind: 'change', holding: holdingRef, capability, change, answer }
+}
+
+const BROUGHT = 'brought:'
+
+/** A definition a plugin brought, as a row: no holding of its own, so its holding names the plugin, and nothing can change it alone. */
+function broughtRow(entry: AssetEntry, from: string): AssetRow {
+  const { category, name } = entry.capability
+  return {
+    ...entry,
+    from,
+    holding: `${BROUGHT}${from}/${category}/${name}`,
+    origin: 'customized',
+    summary: null,
+  }
+}
+
 /** The tenant layer of one tenant's local assets, as the management service reads and changes it. */
 export function createTenantLayerStore(
   local: AssetsLocal,
   tenantRef: string,
   categories: Pick<CategoryView, 'lookup'>,
+  layers: readonly AssetLayerSource[],
+  placed: (category: string) => readonly AssetEntry[] = () => [],
 ): TenantLayerStore {
   return Object.freeze({
     async list(request) {
       const read = await local.listHeld(request)
       if (read.kind === 'rejected')
         return read.reason === 'invalid_input' ? { kind: 'invalid' } : UNAVAILABLE
-      return { kind: 'page', items: read.items.map(rowOf), next: read.next }
+      const brought = placed(request.category).flatMap(entry =>
+        entry.from === undefined ? [] : [broughtRow(entry, entry.from)],
+      )
+      const page = { kind: 'page' as const, items: read.items.map(rowOf), next: read.next }
+      return withPlaced(page, brought, request)
     },
     async held(capability) {
       const read = await local.readHeldCapability({ capability })
@@ -126,7 +202,19 @@ export function createTenantLayerStore(
         settings: selected.definitionRef !== null,
       }
     },
+    async files(capability) {
+      const read = await local.readHeldCapability({ capability })
+      if (read.kind === 'rejected') return UNAVAILABLE
+      if (read.kind === 'absent' || read.selected === null) return { kind: 'absent' }
+      const { version, body } = read.selected
+      if (categories.lookup(capability.category)?.layout === undefined)
+        return { kind: 'body', version, body }
+      const from = local.packages.reader({ assetRef: read.holding.assetRef, version })
+      return { kind: 'files', version, from }
+    },
     async holding(holdingRef) {
+      if (holdingRef.startsWith(BROUGHT))
+        return { kind: 'brought', from: holdingRef.slice(BROUGHT.length).split('/')[0] ?? '' }
       const read = await local.readHolding({ holdingRef, scopeRef: tenantRef })
       if (read.kind === 'rejected') return UNAVAILABLE
       if (read.kind === 'absent') return { kind: 'absent' }
@@ -150,7 +238,12 @@ export function createTenantLayerStore(
     async recallPublication(operationId) {
       return publicationOf(await local.recallPublication(operationId))
     },
+    async recallById(operationId) {
+      const read = await local.readOperation(operationId)
+      if (read.kind === 'not_found') return NOT_FOUND
+      return read.kind === 'recorded' ? operationOf(local, tenantRef, read) : UNAVAILABLE
+    },
     uploads: local.uploads,
-    layer: tenantLayerSource(local),
+    layers,
   } satisfies TenantLayerStore)
 }

@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -106,7 +106,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的类别（工具、技能、模型供应商……），这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
@@ -149,8 +149,9 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Skill](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#skill)（rev 32） · [PF-006 §4 技能的说明](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#技能的说明)（rev 24）
+- **出处**：[Skill 产品：产品需求描述](../../product/skills/design.md#产品需求描述)（rev 11）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
+- **别混 ②**：**不是 [MCP 技能](reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill)**。MCP 技能由 MCP 接入点的对端经连接提供，不是资产，没有持有、版本与发布
 - **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
 
@@ -166,7 +167,7 @@
 > lower layer can shadow it with a Skill of the same name.
 
 - **形态**：变体（父：[技能](#ul-skill--技能--skill)）
-- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 5）
+- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 11）
 - **⚠️ 别混**：**不是 [meta 能力](#ul-meta-capability--meta-能力--meta-capability)**——meta 能力是一整类能力的统一入口（`Tools()`、`Skills()` 这类元工具）；元技能是那扇门后的一份方法，经 `Skills()` 读取。名字只差一个字，跨 topic 引用写全称
 - **注意**：它的「不可替换」来自它自己的 `immutable` 声明，不是 meta 能力的那条规则。租户自己写的、同样教人写 Skill 的 Skill 不是元技能
 
@@ -201,8 +202,8 @@
 > **中**：**一个外部工具来源的接入点。**接进来之后，它提供的动作可被 agent 使用。
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
-> **对端的每一个动作在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
-> 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它的动作在采用点成为常驻工具**。
+> **一个接入点在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)：一个多命令工具，对端的每一个动作是它的一个命令**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
+> 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它在采用点成为一条常驻工具，命令是它此刻的动作**。
 > 动作集**按当下事实现算，清单变了下一次发现就不同；每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前同样与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
 > 对端服务在本系统之外运行，本系统只按地址与它通信。
 >
@@ -211,19 +212,22 @@
 > actions it brings are not assets of their own** — they are held, authorized and
 > governed along with it. **Availability and versioning on the far side lie outside
 > this system's control**, so an action present today may be gone tomorrow — **and
-> that is not a fault**. **Each action on the far side is one tool entry in the tool
-> entry point**, handed over by the tool entry source that MCP registers. Actions are
+> that is not a fault**. **One access point is one tool entry in the tool entry point: a
+> multi-command tool, and each action on the far side is one of its commands.** The tool
+> entry source that MCP registers hands it over. Actions are
 > normally not resident and are found through the discovery entry; **the exception is an
-> access point marked resident, whose actions become resident tools at the adoption point**.
+> access point marked resident, which becomes one resident tool at the adoption point, its commands
+> being the actions it offers then**.
 > The action set is **computed from the facts at the moment, so a changed catalog shows at
 > the next discovery; it is also recomputed before each run attempt together with availability;
 > lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 8）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
+- **注意 ③**：接入点还可以带来 [MCP 事件类型](reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type)与 [MCP 技能](reach-and-availability.md#ul-mcp-skill--mcp-技能--mcp-skill)。它们和动作一样不单独成为资产，随接入点一起被持有、授权与治理
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
 - **弃用**：~~「端点」~~、~~Endpoint~~（指本条时；指对端地址时不是术语）
 - **能组合**：**不组合任何资产**
@@ -324,6 +328,22 @@
 - **注意 ①**：未订阅的类型送来，受理拒绝，不是静默丢弃
 - **注意 ②**：组合了这份连接件的 agent，上下文里**只带被订阅的那几种**的说明——怎么带归 PF-010
 
+### UL-loop-definition · 环定义 · Loop Definition
+
+> **中**：一份 [Agent Loop](agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) 的**资产**：一段脚本、一句说明，
+> 加上它声明的 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
+> **发布出不可变的版本**；一个会话选了它，之后开始的每一次 [Agent 执行](agent-runtime-loop.md#ul-agent-execution--agent-执行--agent-execution)在开始时钉住当时的那一版。
+>
+> **EN**: An **asset** that holds one agent loop: a script, a one-line summary, and the loop
+> extension points it declares. **It is published as immutable versions**; once a session
+> selects it, each agent execution that starts afterwards pins the version current at its start.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[产品页 可替换的环](../../product/agent-progression/design.md#可替换的环)（rev 8）；负责人 2026-11-26、2026-11-28
+- **⚠️ 别混**：**它不是 [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)**——
+  Agent 定义说这个 agent 是谁、能用什么；环定义说一次执行怎样往前推。同一个 Agent 定义可以跑在不同的环上
+- **注意**：会话选了哪个环，是会话的事实；一次执行用的是哪一版，是那次执行的事实。两者分开查
+
 ### UL-loop-extension · 拓展件 · Loop Extension
 
 > **中**：挂在某个 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的**一段判断或动作**。
@@ -408,7 +428,7 @@
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片) ·
   [转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**不是[拓展件](#ul-loop-extension--拓展件--loop-extension)**——它不挂在任何 Loop 拓展点上，Agent 只看到已经带着表示的消息
@@ -435,7 +455,7 @@
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[媒体：转换件可以换](../../product/media/design.md#转换件可以换)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **别混**：**不是[转换引擎](#ul-converter-engine--转换引擎--converter-engine)**——定义是数据，引擎是做事的部件；定义生效而它指名的引擎此刻不在时，这种媒体的转换答不可用，不当成没有转换件
 - **注意 ①**：发行版自带语音与 PDF 两份
 - **注意 ②**：内容要送出本机时，界面在转换之前说明去向；是否要组织或租户先许可，产品未裁，见[媒体：按租户许可内容外传](../../product/media/design.md#按租户许可内容外传)
@@ -462,63 +482,119 @@
 
 ### UL-slash-command · 斜杠命令 · Slash Command
 
-> **中**：**人主动发起某件事的入口**，人在交付面敲 `/什么` 触发；**只由交付面识别、只对人**，模型不调用它。
-> 它**绑定**要做的事，**绑定目标恰有三种**：**一段自定义提示词**；**装配的一个 skill**（其正文直接成为消息里的一个内容块）；
-> **一条系统业务流程**（命令服务或查询服务的某一个动作，不进队列、不成为消息）。
-> **命令本身不是做事的东西，它是指路牌**。**不含键盘控制或 shell 命令。**
+> **中**：**人在交付面写 `/名字` 点名一个[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的那种写法，以及这样点名的总称。**写在开头的是命令（提示词命令或系统命令），后面整段是它的参数；写在一句话任何位置的是[斜杠引用](interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference)，只能绑到 Skill。只对人：模型不调用它，只有成员本人经交付面发的输入才这样识别。**命令本身不是做事的东西，它是指路牌。**
 >
-> **EN**: **An entry point through which a person initiates something**, triggered by
-> typing `/something` on a delivery surface; **recognized only by the delivery surface and
-> only for people** — the model never invokes it. It **binds** to the thing to be done, and
-> **the binding target is exactly one of three**: **a custom prompt**; **an assembled skill**
-> (whose text becomes one content block of the message); or **a system business flow** (one
-> action of a command or query service, which enters no queue and becomes no message).
-> **The command is not the doing; it is a signpost.** It covers **no keyboard control and no
-> shell commands.**
+> **EN**: **The spelling `/name` with which a person names a command entry on a delivery surface, and the general term for naming things this way.** Written at the start it is a command (a prompt command or a system command), and everything after it is the command's argument; written anywhere in a sentence it is a slash reference, which binds only to a skill. It is for people only: the model never invokes it, and only input a member sends through a delivery surface is recognized this way. **The command is not the doing; it is a signpost.**
 
-- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32）
-- **别混**：Skill 是方法本身，Slash Command 是**发起它的入口**。绑定是**多对多**——一个 skill 可以有多个入口，也可以完全没有
-- **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，**一律在 `omne-official` 前缀下**；前两种绑定的命令**不得使用这个前缀**；同能力标识按资产替换规则
-- **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
-- **注意 ③**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
-- **注意 ④**：**绑定目标与[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)是这条命令本身，不是设置**——各层配不出不同的值；想改一条命令展开什么，换一份同名的
-- **能组合**：Skill（绑定）
+- **形态**：总称
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [斜杠怎样被认出来](../../product/slash-commands/design.md#斜杠怎样被认出来)（rev 5）
+- **别混**：Skill 是方法本身，斜杠引用是**点名它的一种写法**；Skill 不需要谁为它创作命令，可取用的就自动是入口项
+- **注意 ①**：**名字**——见[全名与短名](interaction-and-dispatch.md#ul-command-name--全名与短名--command-name)；系统命令在保留空间 `omne-official` 下，提示词命令与 Skill 不能占用它
+- **注意 ②**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
+- **注意 ③**：按键、命令面板、按钮是同一条命令的别的触发；键只绑[外壳动作](interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action)
+- **能组合**：Skill（引用）
 
 ### UL-command-parameter-declaration · 命令参数声明 · Command Parameter Declaration
 
-> **中**：**一条[斜杠命令](#ul-slash-command--斜杠命令--slash-command)可选带的那份参数说明，每个参数配一句给人看的提示。**
+> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)可选带的那份参数说明：有几个参数，每个的名字（也是给人看的提示），能不能省，有没有[参数候选](#ul-argument-candidate--参数候选--argument-candidate)。**
 > 它是这条命令本身的一部分，**不是设置**——不随持有它的那一层配出不同的值。
-> **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。三种绑定目标一条规则。
+> **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。
 >
-> **EN**: **The optional description of a slash command's parameters, each carrying a short hint for
-> the person typing it.** It is part of the command itself, **not a setting** — no holding layer can give
+> **EN**: **The optional description of a command-kind entry's parameters: how many there are, the name of
+> each (also the hint for the person typing it), whether it may be left out, and whether it has argument candidates.** It is part of the command itself, **not a setting** — no holding layer can give
 > it a different value. **Where declared, input is parsed against it**, and a failed parse is reported on
 > the spot, saying what is wrong, and nothing is sent; **where not, everything after the command name is
-> one free-form argument**. The same rule holds for all three binding targets.
+> one free-form argument**.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
 - **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
-- **注意**：② 型命令里，人附带的参数**另成一个内容块**，不拼进 skill 的正文
+- **注意**：斜杠引用没有参数；引用所在的整句话原样是人的消息
+
+
+### UL-argument-candidate · 参数候选 · Argument Candidate
+
+> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的某个参数此刻能填的一个值**：由交出这条命令的[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)按发问的租户、主体与会话现算，带给人看的一句话，正在用的那个带标记。它只帮人打对，**不是许可**：候选里没有的值照样可以发出去，由受理与那个操作自己判；候选取不到不是「没有可选的」。
+>
+> **EN**: **One value a parameter of a command-kind entry can take right now**: computed by the command entry source that hands over the command, for the asking tenant, subject and session, with one line for people; the value in use is marked. It only helps the person type correctly and **is not a permission**: a value outside the candidates can still be sent, and intake and the operation itself decide; candidates that cannot be read are not "nothing to choose".
+
+- **形态**：视图
+- **出处**：[Slash Command J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
+- **别混**：不是[已校验装配候选](scope-and-resolution.md#ul-validated-assembly-candidate--已校验装配候选--validated-assembly-candidate)，也不是[请求候选](record-and-context.md#ul-request-candidate--请求候选--request-candidate)：那两个是采用与模型请求一侧的「候选」。裸写「候选」在跨 topic 的正文里不作这个术语
+- **注意**：参数有没有候选写在[命令参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)里；候选不存，每次问现算
+
+### UL-prompt-command · 提示词命令 · Prompt Command
+
+> **中**：**资产的一个类别：一个名字、给人看的一句话、一段提示词与可选的[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)。**人在开头敲 `/名字 参数`，提示词代入参数之后作为一块带来路标记的文字，接在人敲的那一行之后。它在名字空间 `prompt` 下，不能占用保留空间。
+>
+> **EN**: **One category of asset: a name, one line for people, a prompt and an optional parameter declaration.** A person types `/name arguments` at the start; the arguments are put into the prompt, and the result follows the line the person typed as one text block with an origin tag. It lives in the namespace `prompt` and cannot take the reserved namespace.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC03](../../product/slash-commands/design.md#j-sc03-用提示词命令发出一条消息)（rev 5）
+- **别混**：不是系统提示词，也不是 Agent 定义里的提示词；它展开成的是人的一条消息
+- **注意**：同名替换、持有与锁定照资产的规则；改它是一次修订，不是设置
 
 ### UL-plugin · 插件 · Plugin
 
-> **中**：**把若干资产打包在一起分发与启用的单元。**装一个 plugin，等于一次性获得
-> 它里面的全部东西；停用它，那些东西一起退场。
-> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个 skill。
+> **中**：**一份定义：它列出若干成员，每个成员是某个[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)上的一项。**
+> 成员可以是另一类资产，也可以是不单独持有的东西：界面的样子与画法、一份对客户端开放的协议。
+> 装一个 plugin，它的全部成员一起出现；停用它，全部一起退场。
+> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个成员。
 >
-> **EN**: **A unit for distributing and enabling a bundle of assets together.**
-> Installing one grants everything inside at once; disabling it withdraws them all.
-> **Its members have no independent top-level lifecycle** — one cannot uninstall a
-> single skill out of a plugin.
+> **EN**: **A definition that lists members, each one item on an extension point.**
+> A member may be an asset of another category, or something that is not held on its own:
+> a look or a drawing of the interface, a protocol open to clients.
+> Loading one brings all its members up together; disabling it withdraws them all.
+> **Its members have no independent top-level lifecycle** — one cannot unload a
+> single member out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Plugin](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 32）
-- **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
+- **出处**：[资产与规则：把资产加入使用范围，并看清为什么采用这份实现](../../product/assets-and-rules/design.md#把资产加入使用范围并看清为什么采用这份实现)（rev 11）
+- **别混 ①**：Plugin 是定义，是数据；它装上之后由一个 Cordis fiber 承载，那是它的活体。指运行时的代码装载单元本身时仍**写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
-- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
+- **别混 ③**：把 Skill、Agent、Hook 打包在一起的那种 plugin 是它的一种：成员都落在这几类资产的拓展点上
+- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员；界面的令牌、样式、画法与布局；对客户端开放的协议
+
+### UL-skin · 皮肤 · Skin
+
+> **中**：**一份只改界面样子的 [plugin](#ul-plugin--插件--plugin)：它在清单里写明自己是皮肤，成员都在客户端一侧。**
+> 一个租户可以持有并启用几套，界面同一时刻至多用其中一套；换一套时界面各处一起换，应用画在窗口之外的东西也在内。
+> 皮肤在资产里自成一类，不列在 plugin 那一类里。
+>
+> **EN**: **A [plugin](#ul-plugin--插件--plugin) that changes only how the interface looks: its manifest
+> says that it is a skin, and all its members are on the client side.**
+> A tenant can hold and enable more than one. The interface uses at most one of them at a time,
+> and every place of the interface changes together when the skin changes. This includes what the
+> application draws outside its window.
+> Skins are a category of their own among the assets. They are not listed with the plugins.
+
+- **形态**：变体（父：[插件](#ul-plugin--插件--plugin)）
+- **出处**：[桌面应用：皮肤](../../product/desktop-application/design.md#皮肤)（rev 15）
+- **别混 ①**：不是主题。主题是浅色、深色、跟随系统三选一，由应用自带；皮肤是持有的资产，一套皮肤自己要顾到浅色与深色
+- **别混 ②**：启用不等于在用。启用是这一套装着、可以用；界面此刻用哪一套是人在这台设备上的[观感偏好](interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)
+- **别混 ③**：一份只改几处样子的普通 plugin 不是皮肤：它没有在清单里写明，不进皮肤这一类，也不受「至多用一套」的约束
+
+### UL-canvas-app · 画布小应用 · Canvas App
+
+> **中**：**agent 做的、只管画的一段界面：它是一份 [plugin](#ul-plugin--插件--plugin) 的一个成员，按名字被摆上[画布](interaction-and-dispatch.md#ul-canvas--画布--canvas)。**
+> [画布项](interaction-and-dispatch.md#ul-canvas-item--画布项--canvas-item)按名字指着它。它只能用 plugin 交给界面代码的那些能力，没有自己去取数据的办法；它要显示的内容，在 agent 做它的时候写进去。
+> agent 改了它再发布，画布上那一项换成新的样子，位置不变。发布它的 plugin 被禁用或移除时，那一项写着「这个小应用现在不在」，画布项留着。
+> 两份 plugin 带了同名的画布小应用时，这个名字画不出来。
+>
+> **EN**: **A piece of interface that the agent makes and that only draws. It is one member of a
+> plugin, and it is placed on a canvas by its name.** A canvas item points to it by name. It can
+> use only the abilities that a plugin gives to interface code, and it has no way to fetch data
+> itself. The agent writes the content that it shows when the agent makes it. When the agent
+> changes it and publishes it again, the canvas item shows the new look in the same position. When
+> the plugin that published it is disabled or removed, the canvas item stays and says that the app
+> is not there now. When two plugins bring a canvas app with the same name, that name cannot be
+> drawn.
+
+- **形态**：属性
+- **出处**：[画布「画布小应用」](../../product/canvas/design.md#画布小应用) · [「能摆什么」](../../product/canvas/design.md#能摆什么)（rev 2）
+- **别混 ①**：不是[皮肤](#ul-skin--皮肤--skin)。皮肤换整个界面的样子；画布小应用只画画布上的一项。
+- **别混 ②**：画布项指着的是画布小应用的名字，不是发布它的那份 plugin。
+- **注意**：人不直接做画布小应用，人要一个就对 agent 说。画布小应用这一类由画布自己声明[可画布渲染](reach-and-availability.md#ul-canvas-renderable--可画布渲染--canvas-renderable)。
 
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
@@ -632,7 +708,7 @@
 > uses it to know what the package holds and to check the bytes of each file it reads.
 
 - **形态**：属性
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——那是「当时那个 agent 是什么样」；这一条只列一个版本里的文件。也不是 MCP 对端的动作清单
 - **注意**：清单在记录里，字节在内容存放处；两边靠摘要对上，对不上答材料不可用
 - **注意**：Skill 这一侧对应的值是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)。读已发布版本时，快照由包的清单封出，两者列的是同一批文件
@@ -650,7 +726,7 @@
 > the manifest, and never hands over bytes that do not match the digest.
 
 - **形态**：视图
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[绑定读者](scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader)**——那是 Runtime Context 里按读取资格建立、带游标的读取入口；这一条读的是一份不变的已发布内容，没有游标，丢了按同一组（层、能力标识、版本）再取一个即可
 - **注意**：「许不许读」不由它回答。主体能不能读一份 Skill，仍由使用资格与授权每次判断
 - **注意**：它不给路径，这一条不变。「这份目录加载到本机之后在哪」是另一件事：单机装配下它是一个事实，`Skills` 把它告诉 agent，供 Shell 使用
@@ -671,7 +747,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 15）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -690,7 +766,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 15） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
@@ -707,7 +783,7 @@
 > The format rules inside the package belong to the skill kind.
 
 - **形态**：属性
-- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 7）
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 9）
 - **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
 - **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
 - **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
@@ -728,7 +804,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
@@ -757,7 +833,7 @@
 > source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 11）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
 - **别混 ②**：**不是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在 Skill 材料依据里，调用方不能用它指定从哪里读取
@@ -801,33 +877,21 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 16） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 15） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 23） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
 ### UL-session-slash-command-set · 会话斜杠命令集 · Session Slash-Command Set
 
-> **中**：**一个会话此刻认得的那批[斜杠命令](#ul-slash-command--斜杠命令--slash-command)**：
-> 这个会话[装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)时从求值结果里取出、
-> 会话所属的那个人有权使用的那些，再去掉此后被收回了权限的。
-> 交付面只按它识别命令——**不在里面的名字，对这个会话就是不存在**，
-> 不论那条命令在别处有没有、这个人为什么用不了。
-> 它住在会话的一张注册表里；资产的增删与禁用不会让它自己变，**要等人发对应的 reload 热更新那张注册表**（③ 型失败后系统自动刷新；一次完整的重新装配也会重填它）。
+> **中**：**一个会话此刻能点名的全部[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)**：按发问的租户、主体与会话，向每个[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)现问得到的那些。交付面与受理都只按它识别——**不在里面的名字，对这个会话就是不存在**，不论它在别处有没有、这个人为什么用不了。它不存：资产或 Skill 一变，下一次读就是新的；某个来源此刻答不出，只有它那一部分写明无法判断。
 >
-> **EN**: **The slash commands a session recognizes right now**: those taken from the
-> evaluation result when the session is assembled and that the person the session belongs
-> to is permitted to use, less any whose permission has been withdrawn since. The delivery
-> surface recognizes commands against this set alone — **a name outside it does not exist
-> for this session**, whether or not such a command exists elsewhere and whatever the
-> reason the person cannot use it. Adding, removing or disabling assets does not change it
-> by itself; it lives in a session registry and **changes only when the matching reload hot-updates that registry** (refreshed automatically after a type-③ failure; a full re-assembly refills it too).
+> **EN**: **All the command entries a session can name right now**: those obtained by asking every command entry source, at that moment, on behalf of the asking tenant, subject and session. The delivery surface and intake recognize names against this set alone — **a name outside it does not exist for this session**, whether or not it exists elsewhere and whatever the reason the person cannot use it. It is not stored: when an asset or a skill changes, the next read is the new one; when a source cannot answer now, only its part is marked as undecidable.
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 32）
+- **出处**：[Slash Command J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 5）
 - **别混**：[动作空间](#ul-action-space--动作空间--action-space)在权限变了时**不变**，agent 因此知道「存在，只是不许」；
   会话斜杠命令集**恰好相反**——无权使用的**就不在里面**，人得到的回答是「没有这个命令」
-- **注意**：**收窄即时，放宽要等 reload**——权限一收回，那条命令此刻起就不在；
-  会话进行中新得到权限的，要等下一次 reload 或重新装配才进来
+- **注意**：收窄与放宽都从下一次读起生效，不等重新加载，也不重新装配 agent
 
 ### UL-meta-capability · meta 能力 · Meta Capability
 
@@ -843,7 +907,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 16） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 16）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 23） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 23）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -881,7 +945,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 16）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 23）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -897,8 +961,8 @@
 > **它是数据，不是[资产](#ul-asset--资产--asset)**：「用哪个模型」是某份
 > [Agent 定义](#ul-agent-definition--agent-定义--agent-definition)的一项[设置](#ul-setting--设置--setting)，
 > **那项设置记的是一个路由名，名字背后必须是一条档案**——档案自己独立存在、读得出来。
-> **一条档案是哪一条，看它所在的范围（出厂默认、某个组织或某个租户）加它的路由名**：
-> 同一个范围里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；
+> **一条档案是哪一条，看它所在的范围（出厂默认、某个组织或某个租户）、它的[模型类型](#ul-model-kind--模型类型--model-kind)加它的路由名**：
+> 同一个范围、同一种模型类型里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；
 > **路由名一旦定下不可改**，改了就是另一条档案。
 > **同名的几条按层覆盖**：一个会话用到这个名字时，在它所在的范围链上取最具体一格的那一条（租户 > 组织 > 官方），
 > 先滤掉已撤回的与这个范围不允许的，模态对不上的与缺凭据的不滤；**用哪一条由层序定，不由引用它的人挑**。
@@ -915,8 +979,8 @@
 > **It is data, not an asset**: "which model" is a
 > setting on an agent definition, and **that setting records a routing name behind which
 > there must be one profile**, which exists in its own right and can be read back. **Which profile it is
-> follows from its scope (factory default, one organization or one tenant) plus its
-> routing name**: within one scope a routing name maps to exactly one profile (listed or
+> follows from its scope (factory default, one organization or one tenant), its model kind and its
+> routing name**: within one scope and one model kind a routing name maps to exactly one profile (listed or
 > withdrawn), while different scopes may each hold one under the same name; **the routing
 > name never changes** — change it and it is a different profile. **Same-named profiles override
 > by layer**: when a session uses the name, the most specific slot on its scope chain wins
@@ -929,7 +993,8 @@
   [上游限制与档案提供的上限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
   [档案的身份：所在范围加路由名](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
   [PF-013 flows §3.1 一条模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换) ·
+  [档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -947,22 +1012,46 @@
 - **注意 ④**：**「已下架」说的是一个名字**——链上同名的每一条都撤回了才说；最具体那一条撤回而链上另有同名在册的，调用照发、用那一条，不是替用户改选
 - **注意 ⑤**：**组织的锁锁的是名字**——锁得住名字锁不住实现：成员在自己那层建一条同名的，供应商与参数就是他的了；组织建了与官方同名的自建档案，没配自己凭据的成员这个名字就用不了
 
+### UL-model-kind · 模型类型 · Model Kind
+
+> **中**：**一条[模型档案](#ul-model-profile--模型档案--model-profile)按调用的方式属于的那一类，取 `llm`、`decisions`、`live` 三者之一。**
+> `llm` 是一问一答的生成，回复一段一段到达。`decisions` 是对一份材料答一组固定题型的题，一次交回全部答案。
+> `live` 是一通持续的实时会话，进行中双方都在送内容。
+> **它说的是怎样调用，不是收发什么**：一条档案收发哪些[模态](record-and-context.md#ul-modality--模态--modality)另外写明，两者互不决定。
+> 同一个上游型号在一家[模型供应商](#ul-model-provider--模型供应商--model-provider)下可以有两条模型类型不同的档案。
+>
+> **EN**: **The class that a model profile belongs to by the way it is called, one of `llm`, `decisions`
+> and `live`.** An `llm` call is one request, and its reply arrives in parts. A `decisions` call puts a fixed
+> set of typed questions to one material and returns all answers at one time. A `live` call is one
+> continuous real-time session, and both sides send content while it runs. **The kind states how the model
+> is called, not what it takes and gives**: a profile states its modalities separately, and neither decides
+> the other. One upstream model can have two profiles of different kinds under the same model provider.
+
+- **形态**：属性（[模型档案](#ul-model-profile--模型档案--model-profile)身份的一部分）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
+- **别混**：**不是[模态](record-and-context.md#ul-modality--模态--modality)**——模态说进出的是文字、图片还是语音；一个 `llm` 型号可以输出图片，它仍是 `llm`
+- **别混 ②**：**不是型号的家族或厂商**——同一个型号经两种接口提供时属于两类
+
 ### UL-official-model-profile · 官方档案 · Official Model Profile
 
 > **中**：**随系统发布、位于出厂默认层的那种[模型档案](#ul-model-profile--模型档案--model-profile)。**
 > 它自己**不含凭据**——没有自带凭据的租户用它时，取的是所用[模型供应商](#ul-model-provider--模型供应商--model-provider)凭据项的官方层，那一层只由部署写入，产品里的设置操作改不了它；
 > 它与自建档案**在同一份列表里**展示；**自建档案与它同路由名时，自建的按层覆盖它**。
+> 每条官方档案对应一家官方供应商的[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)里的一个型号，路由名就是那个型号在这家的名字。
 >
 > **EN**: **A model profile that ships with the system and sits at the factory-default layer.** It
 > **carries no credential** of its own — a tenant without its own credential uses the official layer of
 > the credential items of the model provider it sends to, which only the deployment writes and no
 > setting operation in the product can change; it is shown **in the same single list**
 > as custom profiles, and **a custom profile under the same routing name overrides it by layer**.
+> Each official profile matches one model in the provider model catalog of an official provider, and its
+> routing name is the name that provider gives the model.
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
 - **出处**：[PF-013 §4 官方档案 / 自建档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
   [§5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
-  [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）
+  [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17） ·
+  [模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
 - **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
 
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
@@ -1025,7 +1114,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
-  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6）
+  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
   模型供应商是一份资产，档案不是资产、只引用它；[模型凭据](#ul-model-credential--模型凭据--model-credential)按模型供应商与层配置，不挂在档案或这一项上
@@ -1052,6 +1141,7 @@
 > 正文说明它用哪些协议、每种协议的端点在哪里、怎样计费，以及它需要哪些凭据项。
 > 每个凭据项是它声明的一项秘密[设置](#ul-setting--设置--setting)，某一层为这一项配上的值是[模型凭据](#ul-model-credential--模型凭据--model-credential)；
 > 一家可以声明多个凭据项，也可以一个都不声明。
+> 正文还带它的[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)；它另声明两项普通设置，各型号的[模型启用](#ul-model-enablement--模型启用--model-enablement)与[缺省推理强度](#ul-default-reasoning-effort--缺省推理强度--default-reasoning-effort)。
 > 它的身份按资产的规则确定：能力标识是「`model-provider` ＋ name」，同一个能力标识下可以有不同的具体资产，
 > 分得出这一家与那一家靠的是具体资产。官方供应商对每个合法租户视为已持有。
 >
@@ -1059,13 +1149,15 @@
 > category `model-provider`. Its body states which protocols it speaks, where the endpoint for each protocol is,
 > how it charges, and which credential items it needs. Each credential item is a secret setting that the provider declares,
 > and the value set for that item at one layer is a model credential. A provider may declare several
-> credential items, or none. Its identity follows the asset rules: the capability identifier is
+> credential items, or none. The body also carries its provider model catalog. The provider also declares two
+> ordinary settings: the model enablement and the default reasoning effort of each model.
+> Its identity follows the asset rules: the capability identifier is
 > "`model-provider` + name", one capability identifier can have different concrete assets, and the concrete
 > asset tells one provider apart from another. An official provider counts as held by every legitimate tenant.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
-  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 10）
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8） ·
+  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 11）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
   [环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)这类「提供者」**——那些是系统里兑现一项能力的角色；
@@ -1092,8 +1184,8 @@
 > usable and when it was set, but never the secret value.
 
 - **形态**：属性
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
-  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8） ·
+  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -1101,6 +1193,70 @@
 - **注意 ①**：**组织那一层不持有它**——本域不提供组织持有凭据、供成员共用的操作；组织层建的档案，成员在自己这一层配上凭据之前用不上
 - **注意 ②**：清除后按缺失处理，不翻改已经发出的事实；实际用量与费用归真实调用及其租户
 - **弃用说法**：~~BYOK~~——OpenRouter 响应里的 `is_byok` 是上游字段，说的是**上游那一侧**用了谁的 key，与本词条不是一回事，正文不用这个缩写
+
+### UL-provider-model-catalog · 供应商模型目录 · Provider Model Catalog
+
+> **中**：**一家[模型供应商](#ul-model-provider--模型供应商--model-provider)正文里列出的、这家适配的全部型号。**
+> 每一项先说它属于哪种[模型类型](#ul-model-kind--模型类型--model-kind)，再说这家怎样称呼这个型号、它收发哪些[模态](record-and-context.md#ul-modality--模态--modality)、发行时缺省开不开，
+> 以及这一类给人看的事实：`llm` 的是输入窗口多大、能选哪几档[推理强度](#ul-reasoning-effort--推理强度--reasoning-effort)。
+> 一项由模型类型加称呼识别，对应一条同模型类型、同名的[官方档案](#ul-official-model-profile--官方档案--official-model-profile)。
+>
+> **EN**: **The list of all models that a model provider adapts, as its body states it.** Each entry
+> states its model kind, the name the provider gives the model, the modalities it takes and gives, whether
+> the release enables it by default, and the facts of its kind that a person reads: for `llm`, the input
+> window and the reasoning efforts a user can choose. The model kind and the name identify an entry. Each
+> entry matches one official model profile with the same model kind and the same routing name.
+
+- **形态**：属性（挂在模型供应商的正文上）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
+- **别混**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)**——那是档案指向供应商；目录是供应商列出它的型号
+- **别混 ②**：**不是设置的「目录」**——资产设置里按目标列出设置项的那份也叫目录，跨 topic 引用写全名
+
+### UL-model-enablement · 模型启用 · Model Enablement
+
+> **中**：**租户对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)里一项定的开或关。**
+> 一项是一种[模型类型](#ul-model-kind--模型类型--model-kind)下的一个型号；同一个型号属于两类时，两项各自开关。
+> 它是这家供应商声明的一项普通[设置](#ul-setting--设置--setting)在租户层的值；没有配过的项按目录里的发行缺省。
+> 关着的那一项对应的官方档案，在这个租户的同名求值里算被配置排除。
+>
+> **EN**: **The on or off that a tenant sets for one entry in the provider model catalog of a model
+> provider.** An entry is one model under one model kind. When a model has two kinds, the tenant sets each
+> entry separately. The value is the tenant-layer value of an ordinary setting that the provider declares.
+> An entry without a value uses the release default in the catalog. When an entry is off, its official
+> profile counts as excluded by configuration in the same-name resolution for that tenant.
+
+- **形态**：属性（挂在租户对这家供应商的持有上）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换) · [凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 8）
+- **别混**：**不是资产的启禁**——资产的启禁作用于整份资产，官方资产不能禁用；模型启用作用于目录里的一个型号
+- **别混 ②**：**不是[模型切换](#ul-model-switch--模型切换--model-switch)**——切换是会话换选中模型；启用决定一个型号能不能被选
+
+### UL-reasoning-effort · 推理强度 · Reasoning Effort
+
+> **中**：**用户为一次模型请求选的推理深浅，取 low、medium、high、xhigh 四档之一。**
+> 一个型号支持哪几档，写在它的档案里；各家怎样把这一档翻成自己的请求参数，归各家的适配。
+>
+> **EN**: **How deeply a user wants the model to reason for a request, one of the four levels low,
+> medium, high and xhigh.** The profile of a model states which levels it supports. How each provider
+> turns a level into its own request parameter belongs to the adapter of that provider.
+
+- **形态**：属性（[模型请求参数](#ul-model-request-parameters--模型请求参数--model-request-parameters)里的一项）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用)（rev 8）
+- **弃用**：~~「推理档位」~~
+
+### UL-default-reasoning-effort · 缺省推理强度 · Default Reasoning Effort
+
+> **中**：**租户给[供应商模型目录](#ul-provider-model-catalog--供应商模型目录--provider-model-catalog)里一个型号定的[推理强度](#ul-reasoning-effort--推理强度--reasoning-effort)，会话没有显式选择时采用。**
+> 它只能是这个型号支持的一档；型号后来不再支持存下的那一档时，按没有设处理。
+> 它是这家供应商声明的一项普通设置在租户层的值。
+>
+> **EN**: **The reasoning effort that a tenant sets for one model in a provider model catalog, used when the
+> session has no explicit choice.** It can only be a level that the model supports. When the model stops
+> supporting the stored level, the system treats the value as not set. It is the tenant-layer value of an
+> ordinary setting that the provider declares.
+
+- **形态**：属性（挂在租户对这家供应商的持有上）
+- **出处**：[模型调用：档案、选择与实际调用](../../product/model-invocation/design.md#档案选择与实际调用) · [用户看到的列表与切换](../../product/model-invocation/design.md#用户看到的列表与切换)（rev 8）
+- **别混**：**不是供应商自己的默认**——两者都没有时，请求不带推理强度，由供应商按它的默认处理
 
 ### UL-model-request-parameters · 模型请求参数 · Model Request Parameters
 
@@ -1237,7 +1393,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -1247,7 +1403,7 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
@@ -1267,7 +1423,7 @@
 > **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 6）
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 7）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 
@@ -1278,7 +1434,7 @@
 > **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 6）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 7）
 - **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

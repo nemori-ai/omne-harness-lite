@@ -9,7 +9,14 @@ import type {
   TaskReport,
   UnusableCause,
 } from './outcomes.ts'
+import type {
+  EventListingPage,
+  EventPollAnswer,
+  EventRequest,
+  EventStreamMessage,
+} from './events.ts'
 import type { HttpCredentialHandle } from './ports.ts'
+import type { ResourceContent, SkillListingPage } from './skills.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
@@ -53,10 +60,36 @@ export type TaskAnswer =
   | Readonly<{ kind: 'not-finished' }>
   | Readonly<{ kind: 'expired' }>
 
+/** What a long request listens for; the peer may agree to less, and says so first. */
+export type ListenFilter = Readonly<{ toolsListChanged: boolean }>
+
+export type ListenEvent =
+  | Readonly<{ kind: 'acknowledged'; agreed: ListenFilter }>
+  | Readonly<{ kind: 'tools-changed' }>
+
+/** How a long request ends; it is never settled as a failed request, and a broken one is opened again by its opener. */
+export type ListenEnd =
+  | Readonly<{ kind: 'stopped' }>
+  | Readonly<{ kind: 'broken' }>
+  | Readonly<{ kind: 'ended' }>
+  | Readonly<{ kind: 'refused'; failure: TransportFailure }>
+
 export interface McpTransport {
   readonly generation: Generation
   discover(): Promise<Outcome<PeerIdentity, TransportFailure>>
   listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>>
+  /** `events/list`, only to a peer that declared the events extension. */
+  listEventTypes?(cursor?: string): Promise<Outcome<EventListingPage, TransportFailure>>
+  listSkills?(cursor?: string): Promise<Outcome<SkillListingPage, TransportFailure>>
+  getSkill?(uri: string): Promise<Outcome<JsonValue, TransportFailure>>
+  readResource?(uri: string): Promise<Outcome<ResourceContent, TransportFailure>>
+  pollEvents?(request: EventRequest): Promise<Outcome<EventPollAnswer, TransportFailure>>
+  /** `events/stream`: a long request; its messages go to `observe`, and it ends as any long request does. */
+  streamEvents?(
+    request: EventRequest,
+    signal: AbortSignal,
+    observe: (message: EventStreamMessage) => void,
+  ): Promise<ListenEnd>
   call(
     request: CallRequest,
     signal: AbortSignal,
@@ -70,6 +103,12 @@ export interface McpTransport {
   ): Promise<Outcome<'accepted', TransportFailure>>
   getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>>
   cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>>
+  /** A long request: `subscriptions/listen`, on a connection of the 2026-07-28 revision only. */
+  listen?(
+    filter: ListenFilter,
+    signal: AbortSignal,
+    observe: (event: ListenEvent) => void,
+  ): Promise<ListenEnd>
   close(): Promise<void>
 }
 

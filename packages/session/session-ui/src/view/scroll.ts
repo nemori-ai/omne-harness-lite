@@ -19,8 +19,10 @@ function staysAtEnd(followed: ScrollExtent | null, now: ScrollGeometry): boolean
   return followed !== null && isNearBottom({ ...followed, scrollTop: now.scrollTop })
 }
 
+/** `end` is what stands at the end of the transcript (the dock): its growing is followed like the scroller's own box. */
 export function useFollowBottom(...changes: readonly unknown[]) {
   const scroller = useRef<HTMLDivElement | null>(null)
+  const end = useRef<HTMLDivElement | null>(null)
   const pinned = useRef(true)
   const followed = useRef<ScrollExtent | null>(null)
   const follow = useCallback(() => {
@@ -39,7 +41,8 @@ export function useFollowBottom(...changes: readonly unknown[]) {
     if (element === null || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(follow)
     observer.observe(element)
+    if (end.current !== null) observer.observe(end.current)
     return () => observer.disconnect()
   }, [follow])
-  return { scroller, onScroll }
+  return { scroller, onScroll, end }
 }

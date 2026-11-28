@@ -132,14 +132,14 @@ async function original(
   storage: SqlStorage,
   scope: Scope,
   entry: string,
-  epoch: string | null,
+  frozenEpoch: string,
   wanted: string,
 ): Reply<string> {
   const result = await readOutput(storage, {
     domain: scope.domain,
     handler: SESSION_ENTRY_MESSAGE_HANDLER,
     protocol: SESSION_READ_PROTOCOL,
-    input: { tenant: scope.tenant, session: scope.session, entry, epoch },
+    input: { tenant: scope.tenant, session: scope.session, entry, epoch: null, frozenEpoch },
   })
   if (result.kind === 'unread') return fail(unavailable(result.reason))
   const decoded = entryMessageSchema.safeParse(result.output)
@@ -288,6 +288,7 @@ export function createSqlCompactionInputs<P>(
           domain: scope.ok.domain,
           combination: options.combination,
           operation,
+          recall: undefined,
           commands,
           generations,
         })
@@ -301,12 +302,13 @@ export function createSqlCompactionInputs<P>(
           scope.ok.domain,
           operation,
           result.attempt,
+          undefined,
         )
         return standing === 'committed'
           ? succeed(source)
           : fail(unavailable('publication is not yet established under the original operation'))
       }
-      if (result.kind === 'refused') return fail(refusalFailure(result.reason))
+      if (result.kind === 'refused') return fail(refusalFailure(result))
       return fail(
         unavailable(
           result.kind === 'rolled-back' ? 'input publication rolled back' : result.diagnostic,
@@ -318,6 +320,11 @@ export function createSqlCompactionInputs<P>(
       if ('failure' in source) return source
       const manifest = await blob(options.storage, source.ok.scope, source.ok.manifest)
       if ('failure' in manifest) return manifest
+      const history = z
+        .object({ history: z.object({ epoch: z.string() }) })
+        .safeParse(JSON.parse(manifest.ok))
+      if (!history.success) return fail(invalid('invalid frozen history epoch'))
+      const epoch = sessionEpochOf(history.data.history.epoch)
       const originals = new Map(source.ok.originals.map(body => [body.digest, body.entry]))
       return succeed({
         manifest: manifest.ok,
@@ -325,7 +332,7 @@ export function createSqlCompactionInputs<P>(
           const entry = originals.get(digest)
           return entry === undefined
             ? blob(options.storage, source.ok.scope, digest)
-            : original(options.storage, source.ok.scope, entry, null, digest)
+            : original(options.storage, source.ok.scope, entry, epoch, digest)
         },
       })
     },

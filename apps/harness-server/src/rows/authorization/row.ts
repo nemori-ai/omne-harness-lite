@@ -1,3 +1,6 @@
+import type { Access } from '@omne-harness/legal-identity'
+import { currentHeldTool } from '../tool-host/held-current.ts'
+import { rememberAdmittedTarget } from './admitted-targets.ts'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   referenceAdmissionCheck,
@@ -39,10 +42,9 @@ import {
   systemActionAuthorizationKey,
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
-import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
 import { createTenantPicks } from './tenant-picks.ts'
-import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import { tenantPermissionDeclarations } from '../../entry/permission-declarations.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { currentPermissionOf } from './current-permission.ts'
 import { toolCatalogKey, toolReleaseDetailsKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -50,6 +52,7 @@ import {
   createToolActionResolution,
   createToolCallLabeling,
 } from '../../entry/tool-action-resolution.ts'
+import { sourcedEntriesOf } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 
@@ -131,6 +134,8 @@ const plugin: Plugin.Object = {
       release: () => releaseOf(ctx),
       catalog: () => ctx.get(toolCatalogKey, false),
       view: () => releaseCatalogViewOf(ctx),
+      held: (access: Access<unknown>, name: string) => currentHeldTool(ctx, access, name),
+      sourced: () => sourcedEntriesOf(ctx),
     }
     const resolution = createToolActionResolution(forwarding)
     const labeling = createToolCallLabeling({
@@ -139,19 +144,10 @@ const plugin: Plugin.Object = {
     })
     const authorizations = sessionAuthorizationWriter(ctx)
     const picks = createTenantPicks({
-      declarations: () => permissionDeclarationsOf(ctx),
+      declarations: tenant => tenantPermissionDeclarations(ctx, tenant),
       settings: () => ctx.get(tenantSettingsKey, false),
     })
     const readPermission = () => (active ? permission : undefined)
-    installToolTargetPolicy(
-      ctx,
-      createToolTargetPolicy(
-        actionRules,
-        () => (active ? ports.admission : undefined),
-        readPermission,
-        () => (active ? resolution : undefined),
-      ),
-    )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
     new AgentAccessCheckImpl(ctx, createAgentAccessCheck(ports))
@@ -165,6 +161,7 @@ const plugin: Plugin.Object = {
         readLabeling: () => (active ? labeling : undefined),
         readAuthorizations: () => (active ? authorizations : undefined),
         readPicks: () => (active ? picks : undefined),
+        carried: (action, target) => rememberAdmittedTarget(ctx, action, target),
       }),
     )
   },

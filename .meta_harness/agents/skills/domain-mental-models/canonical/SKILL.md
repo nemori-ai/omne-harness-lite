@@ -1,6 +1,6 @@
 ---
 name: domain-mental-models
-description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、接入层、资产、Skill、MCP、工作区、媒体等任何一个领域里做设计或实现时加载；判断一个能力怎样到 agent 手上、一次变化要不要重新装配时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
+description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、执行环境、接入层、资产、设置与权限、Skill、MCP、Plugin、工作区、媒体等任何一个领域里做设计或实现时加载；要让一个领域能被别的领域拓展、开或迁一个拓展点时加载；判断一个能力怎样到 agent 手上、一次变化要不要重新装配时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
 ---
 
 # 各领域的心智模型
@@ -25,6 +25,8 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 谁可以认识谁；端口归谁；要不要一个适配成员 | [references/cross-domain.md](references/cross-domain.md)「谁认识谁」 |
 | 谁可以写一类事实；另一个领域要留下事实怎么办；「每次写入之后都要做的事」挂在哪 | [references/cross-domain.md](references/cross-domain.md)「一类事实只有一个写入者」 |
 | 新增一个领域，或判断一个领域还缺什么 | [references/cross-domain.md](references/cross-domain.md)「一个完整的领域提供什么」 |
+| 一个领域要让别的领域拓展自己；要不要开一个拓展点、怎样声明；同一个键来了两份怎样答；贡献放上去生没生效；给 agent 看的拓展树 | [references/dynamis.md](references/dynamis.md) |
+| 进程这一层的装配：官方层与租户层、谁能换官方的行、一行怎样在服务不停时换、坏了怎样自恢复或重启、版本目录与指针 | [references/assembly.md](references/assembly.md) |
 | 装上、卸下、替换；在途的工作怎样处置；Cordis 该做什么 | [references/cross-domain.md](references/cross-domain.md)「动态性与 Cordis」 |
 | 在会话这个领域里：输入、Run、生命周期、会话日志 | [references/session.md](references/session.md) |
 | 在 Agent 这个领域里：循环、拓展点、对 Model 和 Tool 的调用 | [references/agent.md](references/agent.md) |
@@ -36,11 +38,21 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 谁持有一份能力、选哪一版；类别怎样登记；内容存在哪、怎样读、怎样发布 | [references/assets.md](references/assets.md) |
 | 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
 | 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
+| 人怎样用一个名字点名一件事：斜杠命令、Skill 引用、键盘命令、命令面板；装卸一个 Skill 之后人的菜单怎样变 | [references/command.md](references/command.md)，跨领域的一步一步见 [references/cross-domain.md](references/cross-domain.md)「人点名的能力怎样到这一轮」 |
+| 写一份 Plugin、让它装上或卸下；判断一样东西该写成成员还是新开一个点；装载、换代、应用起不来时怎样兜住 | [references/plugin.md](references/plugin.md) |
 | 在拓展件这个领域里：包与声明、租户启用了哪些、实现怎样取得与运行、命令型 | [references/loop-extension.md](references/loop-extension.md) |
+| 一个动作许不许、在哪判、结论记在哪；资格与许可的分别；撤回影响什么 | [references/authorization.md](references/authorization.md) |
+| 卡片、人的答复交回哪里；谁出卡、卡上的字谁写 | [references/human-intervention.md](references/human-intervention.md) |
+| Tool 作为被调用的一方：受理核什么、不判什么、定义与贡献的寿命 | [references/tool.md](references/tool.md) |
+| 一份事实该存几份、存多久；一次调用写进存储多少 | [references/cross-domain.md](references/cross-domain.md)「存一次，寿命跟着用途」 |
 | 在工作区这个领域里：登记与实例、关系与授权、管理类型、附着核验、会话的工作目录、agent 自己更换 | [references/workspace.md](references/workspace.md) |
+| Model 作为被调用的一方：受理核什么、不判什么；调用的寿命；型号、供应商与引擎 | [references/model.md](references/model.md) |
+| 一次模型请求的输入怎样算出来；每一块归谁；采用点上定下的与每次现算的；压缩 | [references/request-context.md](references/request-context.md) |
+| 动作在哪里跑：落点、设施、提供者；Tool 向执行环境要什么；受限执行域 | [references/execution-environment.md](references/execution-environment.md) |
+| 设置项与权限项由谁声明、值配在哪一层、求值怎样给出胜出的值；它和授权的分别 | [references/settings-and-permissions.md](references/settings-and-permissions.md) |
 | 在媒体这个领域里：非文字内容的保管与上传、表示与转换件、受理时的处理件、存放与元数据的端口；或别的领域要存、取、引用图片、语音、文件 | [references/media.md](references/media.md) |
 
-还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
+还没有写的领域：通知；日历与日程；画布；用量；身份；派发；目标。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
 
 ## 这些文字的地位
 

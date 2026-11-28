@@ -16,7 +16,7 @@ import type {
 } from './values.ts'
 import { settledControls } from './call-control.ts'
 import { equalValue } from './session-validation.ts'
-import { stopReminderInput, stoppedText } from './stop-reminder.ts'
+import { namedText, stopReminderInput, stoppedText } from './stop-reminder.ts'
 import { controlSource, originOf } from './decision-support.ts'
 import {
   INTAKE_GUARD_OWNER,
@@ -120,14 +120,19 @@ function decideBackgrounded(
 
 function reminderInput(
   fact: Outcome,
+  record: BackgroundCallRecord | null,
   stop: BackgroundCallStop | null,
   name: InputSourceName,
 ): Ordinary {
   const { producer, result, reminder, source } = fact
+  const named =
+    record === null
+      ? reminder
+      : ({ ...reminder, blocks: [namedText(reminder.id, record), ...reminder.blocks] } as Message)
   const message =
     stop === null
-      ? reminder
-      : ({ ...reminder, blocks: [...reminder.blocks, stoppedText(reminder.id, stop)] } as Message)
+      ? named
+      : ({ ...named, blocks: [...named.blocks, stoppedText(reminder.id, stop)] } as Message)
   return {
     kind: 'ordinary',
     input: backgroundInputId(producer, result),
@@ -153,6 +158,7 @@ function reminderEntries(
     encodeEntry(
       {
         kind: 'message.system_reminder',
+        provenance: [],
         message: input.message,
         source: input.origin,
         admission: null,
@@ -246,7 +252,12 @@ function decideOutcome(
     }
   const source = admitDerivedOf(derived, 'background-outcome', { wake: judged.stop === null })
   if (source === null) return { kind: 'rejected', failure: noTerms('a background outcome') }
-  const input = reminderInput(fact, judged.stop, source.name)
+  const input = reminderInput(
+    fact,
+    backgroundRecordOf(snapshot, consumption),
+    judged.stop,
+    source.name,
+  )
   return {
     kind: 'entries',
     entries: [
@@ -313,6 +324,14 @@ export function applyBackgroundSettled(
   const placeholders = draft.backgroundPlaceholders ?? []
   if (!placeholders.includes(entry.consumption)) return 'a settlement of a call not in background'
   draft.backgroundPlaceholders = placeholders.filter(item => item !== entry.consumption)
+  if (draft.workspaceBackgroundVisits !== undefined)
+    draft.workspaceBackgroundVisits = draft.workspaceBackgroundVisits.flatMap(item =>
+      item.consumption !== entry.consumption
+        ? [item]
+        : entry.disposition.kind === 'input'
+          ? [{ ...item, input: entry.disposition.input }]
+          : [],
+    )
   const settled = entry.disposition.kind
   draft.backgroundCalls = (draft.backgroundCalls ?? []).map(item =>
     item.consumption === entry.consumption ? { ...item, settled } : item,
@@ -323,6 +342,12 @@ export function applyBackgroundSettled(
 /** An input keeps what it was accepted as while it is pending or its bracket is open. */
 export function pruneInputLists(draft: Draft): void {
   const alive = new Set([...draft.pending, ...(draft.unanswered ?? [])])
+  if (draft.workspaceBackgroundVisits?.length) {
+    const awaitingOutcome = new Set(draft.backgroundPlaceholders)
+    draft.workspaceBackgroundVisits = draft.workspaceBackgroundVisits.filter(item =>
+      item.input === undefined ? awaitingOutcome.has(item.consumption) : alive.has(item.input),
+    )
+  }
   if (draft.uncountedInputs !== undefined)
     draft.uncountedInputs = draft.uncountedInputs.filter(input => alive.has(input))
   if (draft.quietInputs !== undefined)

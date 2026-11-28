@@ -48,6 +48,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly "basis-unavailable": true;
                 readonly denied: true;
@@ -76,16 +77,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -96,6 +87,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -154,6 +146,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -187,6 +180,7 @@ export declare const scheduleProtocol: {
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -223,16 +217,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -243,12 +227,14 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -285,16 +271,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -305,6 +281,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -337,16 +314,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -357,12 +324,14 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
+                    readonly reason?: string;
                 }>;
                 readonly unsupported: import("@omne-harness/public-contract").Codec<{
                     readonly code: string;
@@ -386,7 +355,7 @@ export declare const scheduleProtocol: {
                     readonly kind: "rename";
                     readonly label: string;
                 } | {
-                    readonly instruction: string;
+                    readonly instruction: import("@omne-harness/json-text").JsonValue;
                     readonly kind: "edit";
                 } | {
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -413,16 +382,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -433,6 +392,7 @@ export declare const scheduleProtocol: {
                         readonly local: string;
                         readonly version: string | null;
                     } | null;
+                    readonly reasons?: readonly string[];
                     readonly revision: number;
                     readonly schedule: string;
                     readonly standing: "blocked" | "ready" | "terminallyInvalidated";
@@ -452,7 +412,7 @@ export declare const scheduleProtocol: {
                     readonly kind: "rename";
                     readonly label: string;
                 } | {
-                    readonly instruction: string;
+                    readonly instruction: import("@omne-harness/json-text").JsonValue;
                     readonly kind: "edit";
                 } | {
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -468,10 +428,454 @@ export declare const scheduleProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'list-jobs': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly ({
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly disposition: string;
+                        readonly job: {
+                            readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                            readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                            readonly job: string;
+                            readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                            readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly reason?: string | null;
+                            readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                            readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                            readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        } | null;
+                        readonly kind: "slot";
+                        readonly local: string;
+                        readonly reason: string;
+                        readonly row: string;
+                        readonly schedule: string;
+                    } | {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly cause: string;
+                        readonly count: number | null;
+                        readonly kind: "lapse";
+                        readonly reason: string;
+                        readonly row: string;
+                        readonly schedule: string;
+                        readonly selected: number;
+                        readonly through: import("@omne-harness/utc-instant").Instant;
+                    } | {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly job: {
+                            readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                            readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                            readonly job: string;
+                            readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                            readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                            readonly reason?: string | null;
+                            readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                            readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                            readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        };
+                        readonly kind: "direct";
+                        readonly row: string;
+                    })[];
+                    readonly next: string | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly code: string;
+                    readonly reason?: string;
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly cursor: string | null;
+                readonly limit: number;
+                readonly schedule: string | null;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'read-job': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly events: readonly {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly kind: string;
+                        readonly seq: number;
+                    }[];
+                    readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                    readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                    readonly reason: string | null;
+                    readonly revision: number;
+                    readonly schedule: string | null;
+                    readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                    readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
+                    readonly where: {
+                        readonly execution: string;
+                        readonly kind: "program";
+                        readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
+                    } | null;
+                    readonly work: import("@omne-harness/json-text").JsonValue;
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly job: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'read-session-jobs': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                        readonly calendar: string | null;
+                        readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly events: readonly {
+                            readonly at: import("@omne-harness/utc-instant").Instant;
+                            readonly kind: string;
+                            readonly seq: number;
+                        }[];
+                        readonly job: string;
+                        readonly local: string | null;
+                        readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                        readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                        readonly reason: string | null;
+                        readonly revision: number;
+                        readonly schedule: string | null;
+                        readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                        readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                        readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        readonly version: string | null;
+                        readonly where: {
+                            readonly execution: string;
+                            readonly kind: "program";
+                            readonly program: string;
+                        } | {
+                            readonly account: {
+                                readonly definition: {
+                                    readonly name: string;
+                                    readonly version: string;
+                                } | null;
+                                readonly deliverables: readonly string[];
+                                readonly outcome: string | null;
+                                readonly run: string | null;
+                                readonly since: string | null;
+                            } | null;
+                            readonly kind: "session";
+                            readonly session: string;
+                        } | null;
+                        readonly work: import("@omne-harness/json-text").JsonValue;
+                    }[];
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'cancel-job': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly changed: boolean;
+                    readonly job: {
+                        readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                        readonly calendar: string | null;
+                        readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly events: readonly {
+                            readonly at: import("@omne-harness/utc-instant").Instant;
+                            readonly kind: string;
+                            readonly seq: number;
+                        }[];
+                        readonly job: string;
+                        readonly local: string | null;
+                        readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                        readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                        readonly reason: string | null;
+                        readonly revision: number;
+                        readonly schedule: string | null;
+                        readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                        readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                        readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                        readonly version: string | null;
+                        readonly where: {
+                            readonly execution: string;
+                            readonly kind: "program";
+                            readonly program: string;
+                        } | {
+                            readonly account: {
+                                readonly definition: {
+                                    readonly name: string;
+                                    readonly version: string;
+                                } | null;
+                                readonly deliverables: readonly string[];
+                                readonly outcome: string | null;
+                                readonly run: string | null;
+                                readonly since: string | null;
+                            } | null;
+                            readonly kind: "session";
+                            readonly session: string;
+                        } | null;
+                        readonly work: import("@omne-harness/json-text").JsonValue;
+                    };
+                }>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'commit';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly actionId: string;
+                readonly job: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'query-cancel-job': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly events: readonly {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly kind: string;
+                        readonly seq: number;
+                    }[];
+                    readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                    readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                    readonly reason: string | null;
+                    readonly revision: number;
+                    readonly schedule: string | null;
+                    readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                    readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
+                    readonly where: {
+                        readonly execution: string;
+                        readonly kind: "program";
+                        readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
+                    } | null;
+                    readonly work: import("@omne-harness/json-text").JsonValue;
+                }>;
+                readonly 'not-committed': import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'not-visible': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly actionId: string;
+                readonly job: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'start-job': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly events: readonly {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly kind: string;
+                        readonly seq: number;
+                    }[];
+                    readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                    readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                    readonly reason: string | null;
+                    readonly revision: number;
+                    readonly schedule: string | null;
+                    readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                    readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
+                    readonly where: {
+                        readonly execution: string;
+                        readonly kind: "program";
+                        readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
+                    } | null;
+                    readonly work: import("@omne-harness/json-text").JsonValue;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly code: string;
+                    readonly reason?: string;
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly code: string;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'commit';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly startId: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly work: import("@omne-harness/json-text").JsonValue;
+            }>;
+        };
+        readonly 'query-start-job': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly acceptedAt: import("@omne-harness/utc-instant").Instant;
+                    readonly calendar: string | null;
+                    readonly endedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly events: readonly {
+                        readonly at: import("@omne-harness/utc-instant").Instant;
+                        readonly kind: string;
+                        readonly seq: number;
+                    }[];
+                    readonly job: string;
+                    readonly local: string | null;
+                    readonly origin: "agent" | "catchUp" | "due" | "human" | "system";
+                    readonly outcome: "cancelled" | "failed" | "succeeded" | null;
+                    readonly reason: string | null;
+                    readonly revision: number;
+                    readonly schedule: string | null;
+                    readonly slot: import("@omne-harness/utc-instant").Instant | null;
+                    readonly startedAt: import("@omne-harness/utc-instant").Instant | null;
+                    readonly state: "accepted" | "blocked" | "concluded" | "running" | "startPending" | "waiting";
+                    readonly stop: "confirmed" | "none" | "pending" | "requested" | "unknown";
+                    readonly version: string | null;
+                    readonly where: {
+                        readonly execution: string;
+                        readonly kind: "program";
+                        readonly program: string;
+                    } | {
+                        readonly account: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly version: string;
+                            } | null;
+                            readonly deliverables: readonly string[];
+                            readonly outcome: string | null;
+                            readonly run: string | null;
+                            readonly since: string | null;
+                        } | null;
+                        readonly kind: "session";
+                        readonly session: string;
+                    } | null;
+                    readonly work: import("@omne-harness/json-text").JsonValue;
+                }>;
+                readonly 'not-committed': import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly code: string;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly startId: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly work: import("@omne-harness/json-text").JsonValue;
+            }>;
+        };
     };
     readonly name: "schedule";
-    readonly major: 1;
-    readonly observations: {};
+    readonly major: 3;
+    readonly observations: {
+        readonly 'observe-jobs': {
+            readonly identity: "login";
+            readonly open: import("@omne-harness/public-contract").Codec<{
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly kind: "changed";
+            }>;
+            readonly ends: readonly [
+            ];
+        };
+    };
 };
 export type ScheduleProtocol = typeof scheduleProtocol;
 ```

@@ -4,16 +4,17 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
+import { createCloseProtocol, LeaseId, type CloseProtocol } from '@omne-harness/assembly'
 import type {
-  CloseLeaseHandle,
   CloseLeasePort,
   SqlMaterialCatalog,
   StorageCloseResult,
   StorageControl,
   StorageHost,
+  StorageReadings,
 } from '@omne-harness/sql-contract'
 import { StorageHostService, storageHostKey } from '@omne-harness/sql-contract/cordis'
-import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../lifecycle.ts'
+import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../row.ts'
 import { productionStorageCatalog } from '../rows/storage/production-catalog.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { AssemblyLifecycle, EntryObjectModule, RowId, StopResult } from '../types.ts'
@@ -55,9 +56,13 @@ export function catalogProblems(catalog: SqlMaterialCatalog): string[] {
 
 type AdapterState = {
   readonly controls: StorageControl[]
-  readonly leases: Set<CloseLeaseHandle>
-  admitting: boolean
+  /** The leases of the storage workers. Closing it stops admission; the workers release as they exit. */
+  readonly leases: CloseProtocol
 }
+
+/** The leases are not waited for here: a control's close is what makes its workers exit and release. */
+const NO_DRAIN_MS = 0
+const neverDelays = { delay: () => new Promise<void>(() => {}) }
 
 type CloseSummary = Readonly<{ failed: number; writer: number; reader: number }>
 
@@ -80,7 +85,7 @@ function summarize(results: readonly PromiseSettledResult<StorageCloseResult>[])
 }
 
 async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promise<StopResult> {
-  state.admitting = false
+  void state.leases.close()
   const pending = state.controls.map(control => control.close({ initiator: 'assembly' }))
   const timer = monotonicClock.after(deadlineMonotonicMs - monotonicClock.now())
   const raced = await Promise.race([
@@ -104,27 +109,74 @@ async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promi
   }
 }
 
+type Counted = Readonly<Record<string, string | number>>
+
+/** The lists of several providers as one: rows of the same names add up. */
+function summed<T extends Counted>(
+  lists: readonly (readonly T[])[],
+  names: readonly string[],
+): T[] {
+  const rows = new Map<string, Record<string, string | number>>()
+  for (const row of lists.flat()) {
+    const key = JSON.stringify(names.map(name => row[name]))
+    const kept = rows.get(key)
+    if (kept === undefined) rows.set(key, { ...row })
+    else
+      for (const [name, value] of Object.entries(row))
+        if (typeof value === 'number') kept[name] = Number(kept[name]) + value
+  }
+  return [...rows.values()] as T[]
+}
+
 export class StorageHostAdapter extends StorageHostService {
   readonly materials: SqlMaterialCatalog
   readonly closeLeases: CloseLeasePort
   readonly attachControl: StorageHost['attachControl']
   private readonly state: AdapterState
 
+  /** What the providers attached to this host counted so far. */
+  readings(): StorageReadings {
+    const all = this.state.controls.map(control => control.readings())
+    return {
+      reads: summed(
+        all.map(one => one.reads),
+        ['domain', 'handler'],
+      ),
+      commits: summed(
+        all.map(one => one.commits),
+        ['domain'],
+      ),
+      participants: summed(
+        all.map(one => one.participants),
+        ['domain', 'participant'],
+      ),
+      queries: summed(
+        all.map(one => one.queries),
+        ['domain'],
+      ),
+    }
+  }
+
   constructor(ctx: Context, materials: SqlMaterialCatalog) {
     super(ctx)
     this.materials = materials
-    const state: AdapterState = { controls: [], leases: new Set(), admitting: true }
+    const leases = createCloseProtocol({
+      steps: [],
+      drainTimeoutMs: NO_DRAIN_MS,
+      clock: neverDelays,
+    })
+    const state: AdapterState = { controls: [], leases }
     this.state = state
     this.closeLeases = {
-      admit(name: string): CloseLeaseHandle {
-        if (!state.admitting)
+      admit(name) {
+        try {
+          return leases.admit(name)
+        } catch {
           throw new Error(`storage close lease refused: the assembly stopped admission (${name})`)
-        const handle: CloseLeaseHandle = Object.freeze({ name })
-        state.leases.add(handle)
-        return handle
+        }
       },
-      release(handle: CloseLeaseHandle): void {
-        state.leases.delete(handle)
+      release(handle) {
+        if (handle instanceof LeaseId) leases.release(handle)
       },
     }
     this.attachControl = function attachControl(this: StorageHostAdapter, control: StorageControl) {

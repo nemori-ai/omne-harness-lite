@@ -1,5 +1,6 @@
 {
   "request": {
+    "kind": "llm",
     "profile": {
       "owner": "pi-ai-openai-tests",
       "name": "profile",

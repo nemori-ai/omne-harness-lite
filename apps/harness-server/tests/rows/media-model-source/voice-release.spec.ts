@@ -15,6 +15,7 @@ import {
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 import { mediaClientOf } from '../media-access/support.ts'
+import { setModelSwitches } from '../../support/model-switches.ts'
 import { send, treeOf, uploaded, words, type Reference } from '../media-intake/support.ts'
 
 const MODEL = 'qwen/qwen3.8-omni-flash'
@@ -96,6 +97,8 @@ describe('a voice an input refers to, sent to a model that hears speech (C32)', 
       const { received, script } = recording()
       const speech = wav()
       const exitCode = await onReleaseTree({ script, model: MODEL }, async tree => {
+        // The release starts this model off; the tenant turns it on.
+        await setModelSwitches(tree, { [MODEL]: true })
         const created = await tree.cli(['create-session', '--definition', 'coding'])
         expect(created.status, created.stderr).toBe(0)
         const session = String(bodyOf(created)['session'])

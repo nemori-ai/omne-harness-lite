@@ -10,7 +10,9 @@ import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import {
   configuration,
   dummyRequest,
+  fixedRequestForNamedSourceGuard,
   guards,
+  knownDefinition,
   principalA,
   tenantA,
   invokeAuthority,
@@ -26,7 +28,7 @@ function assembly<P>(input: {
   snapshotPrincipal: (principal: P) => P
   beforeIssue?: () => void
 }) {
-  const source = createTestInvocationSource(input)
+  const source = createTestInvocationSource({ ...input, definition: knownDefinition })
   const config = configuration()
   const missing = (): never => {
     throw new Error('not on the logical terminal path')
@@ -65,17 +67,7 @@ function assembly<P>(input: {
       withdraw: missing,
       directory: { connect: missing },
     },
-    catalog: { inspect: missing, usage: missing, search: missing },
-    children: {
-      reserve: missing,
-      admitted: missing,
-      retain: missing,
-      list: missing,
-      close: missing,
-      closure: missing,
-      confirmBarrier: missing,
-      finish: missing,
-    },
+    catalog: { inspect: missing, inspectEach: missing, usage: missing, search: missing },
     operationIdentities: ids.operationIdentities,
     sourceIssuer: source.issuer,
     bindingsFor: () => ({ inspect: missing, resolve: missing, recover: missing }),
@@ -248,7 +240,10 @@ describe('semantic principal snapshots in the paired non-durable source', () => 
         tenant: tenantA,
         call: binding.call,
         operation: binding.admission,
-        request: { ...binding.request, invocation: binding.invocation },
+        request: fixedRequestForNamedSourceGuard({
+          ...binding.request,
+          invocation: binding.invocation,
+        }),
       }),
     ).toMatchObject({ kind: 'forged' })
   })

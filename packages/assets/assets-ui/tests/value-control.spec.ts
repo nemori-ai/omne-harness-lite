@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
-import { controlOf, formOf } from '../src/model/value-control.ts'
+import { controlOf, formOf, valueKindOf } from '../src/model/value-control.ts'
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
 const object = (entries: Record<string, JsonValue>): JsonValue => ({
@@ -33,9 +33,12 @@ describe('the control a declared value gets', () => {
     ).toEqual({ kind: 'text' })
   })
 
+  it('a boolean is a switch', () => {
+    expect(controlOf(object({ type: text('boolean') }))).toEqual({ kind: 'switch' })
+  })
+
   it.each([
     ['an integer', object({ type: text('integer') })],
-    ['a boolean', object({ type: text('boolean') })],
     [
       'an enum with a value that is not a string',
       object({ enum: array(text('a'), { kind: 'null' }) }),
@@ -98,5 +101,48 @@ describe('the form a data body gets', () => {
     ['a schema that is not an object', text('object')],
   ])('%s is taken as JSON text', (_case, schema) => {
     expect(formOf(schema)).toEqual({ kind: 'json' })
+  })
+})
+
+describe('the kind of a declared value, which its control is chosen by', () => {
+  it.each([
+    [
+      'its format when it declares one',
+      object({ type: text('string'), format: text('color') }),
+      'color',
+    ],
+    [
+      'its format before its enum',
+      object({ format: text('color'), enum: array(text('red'), text('blue')) }),
+      'color',
+    ],
+    [
+      'enum when it has an enum and no format',
+      object({ type: text('string'), enum: array(text('a')) }),
+      'enum',
+    ],
+    ['enum when it has only an enum', object({ enum: array(text('a')) }), 'enum'],
+    ['its type when it has neither', object({ type: text('boolean') }), 'boolean'],
+    ['its type, for a string', object({ type: text('string') }), 'string'],
+  ] as const)('is %s', (_name, schema, kind) => {
+    expect(valueKindOf(schema)).toBe(kind)
+  })
+
+  it.each([
+    [
+      'a schema that names none of the three',
+      object({ minLength: { kind: 'number', lexeme: '1' } }),
+    ],
+    ['a format that is not text', object({ format: array(text('color')) })],
+    ['an empty format and no type', object({ format: text('') })],
+    ['a type that is not text', object({ type: array(text('string'), text('null')) })],
+    ['a schema that is not an object', text('string')],
+  ] as const)('is none for %s', (_name, schema) => {
+    expect(valueKindOf(schema)).toBeNull()
+  })
+
+  it('an empty format falls through to the enum, then the type', () => {
+    expect(valueKindOf(object({ format: text(''), type: text('number') }))).toBe('number')
+    expect(valueKindOf(object({ format: text(''), enum: array(text('a')) }))).toBe('enum')
   })
 })

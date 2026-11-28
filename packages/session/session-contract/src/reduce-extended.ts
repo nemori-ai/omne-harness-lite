@@ -7,12 +7,12 @@ import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
 import { requestControl, validateControlProgress } from './control-state.ts'
 import {
-  decimal,
   annotationTargets,
-  evidenceFields,
+  decimal,
   equalValue,
+  evidenceFields,
   invalidAt,
-  unavailableAt,
+  missingAt,
 } from './session-validation.ts'
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
 import {
@@ -46,6 +46,19 @@ function applyResidentAdmitted(
   if (draft.residents.some(item => item.capability === entry.resident.capability))
     return 'resident admitted twice'
   draft.residents = [...draft.residents, entry.resident]
+  return null
+}
+
+function applySegmentAdmitted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.prompt-segment-admitted' }>,
+): string | null {
+  const { segment } = entry
+  const segments = draft.segments ?? []
+  const prior = segments.find(item => item.key === segment.key)
+  if (prior !== undefined && !segment.text.startsWith(prior.text))
+    return 'resident segment revision does not begin with the previous text'
+  draft.segments = [...segments.filter(item => item.key !== segment.key), segment]
   return null
 }
 
@@ -142,7 +155,12 @@ function applyFrozen(
   if (draft.tasks.some(task => task.kind === 'initialization'))
     return 'session frozen before every initialization item was ready'
   if (draft.frozen !== null) return 'a second freeze'
-  draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
+  draft.frozen = {
+    cause: 'tool-shape-lost',
+    capability: entry.capability,
+    evidence: entry.evidence,
+    commit: source,
+  }
   return null
 }
 
@@ -239,7 +257,7 @@ function applyExtensionPassage(
           item.registration.kind === 'associated' &&
           equalValue(item.registration.binding, wait.binding),
       )
-      if (record === undefined) unavailableAt('waiting.registration')
+      if (record === undefined) missingAt('waiting.registration')
       return [{ consumption: record.consumption, position: wait.position }]
     })
     registeredWaiting(
@@ -351,6 +369,8 @@ export function applyExtended(
       return null
     case 'session.tool-resident-admitted':
       return applyResidentAdmitted(draft, entry)
+    case 'session.prompt-segment-admitted':
+      return applySegmentAdmitted(draft, entry)
     case 'session.mode-changed':
     case 'session.model-selected':
     case 'session.declaration-adopted':
@@ -361,6 +381,9 @@ export function applyExtended(
       return applyWorkspaceChanged(draft, entry)
     case 'session.resident':
       draft.resident = entry.resident
+      return null
+    case 'session.command-recorded':
+    case 'session.adoption-noted':
       return null
     case 'session.child-recorded':
       return applyChildRecorded(draft, entry)

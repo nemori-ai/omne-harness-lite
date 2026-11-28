@@ -7,7 +7,7 @@ import {
 } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
-import { returnGuide, returnSummary } from './return-description.ts'
+import { declaredReturn, declaredReturnGuide } from './return-description.ts'
 
 export const COMMAND_CALL_ENCODINGS = ['wrapped', 'flat'] as const
 export type CommandCallEncoding = (typeof COMMAND_CALL_ENCODINGS)[number]
@@ -222,7 +222,7 @@ export function commandMenu(definition: CommandTable): string {
     `Call with ${form}. In signatures, ? marks an optional field and a|b lists the allowed values.`,
     ...definition.commands.map(
       command =>
-        `${command.name} ${commandSignature(command.parameters)} - ${command.summary} ${returnSummary(command.returns)}${command.background === undefined ? '' : INTENT_NOTE}`,
+        `${command.name} ${commandSignature(command.parameters)} - ${command.summary} ${declaredReturn(command.returns)}${command.background === undefined ? '' : INTENT_NOTE}`,
     ),
   ].join('\n')
 }
@@ -231,6 +231,22 @@ const INTENT_NOTE = ' The call also needs "intent": one line saying why you make
 
 const string = (value: string): JsonValue => ({ kind: 'string', value })
 const entry = (key: string, value: JsonValue): JsonEntry => ({ key, value })
+
+/** A flat call writes the fields beside the command, so the declaration names each field of each command once. */
+function flatFields(commands: CommandTable['commands']): JsonEntry[] {
+  const fields = new Map<string, JsonValue>()
+  for (const command of commands) {
+    if (command.parameters.kind === 'executor-owned') continue
+    const properties = member(command.parameters.value.schema, 'properties')
+    if (properties?.kind !== 'object') continue
+    for (const { key, value } of properties.entries) {
+      const known = fields.get(key)
+      const same = known !== undefined && writeJsonText(known) === writeJsonText(value)
+      fields.set(key, known === undefined || same ? value : EMPTY)
+    }
+  }
+  return [...fields].map(([key, value]) => entry(key, value))
+}
 
 export function commandCallSchema(definition: CommandTable): JsonValue {
   const command = {
@@ -258,6 +274,7 @@ export function commandCallSchema(definition: CommandTable): JsonValue {
     properties.push(
       entry(PARAMS_FIELD, { kind: 'object', entries: [entry('type', string('object'))] }),
     )
+  else properties.push(...flatFields(definition.commands))
   return {
     kind: 'object',
     entries: [
@@ -304,13 +321,14 @@ export function commandGuide(definition: CommandTable, command?: string): string
 
 function commandUsage(definition: CommandTable, command: ToolCommandDeclaration): string[] {
   const lines = [`Usage: ${commandExample(definition, command.name)}`, command.summary]
-  if (command.parameters.kind === 'executor-owned') return [...lines, returnGuide(command.returns)]
+  if (command.parameters.kind === 'executor-owned')
+    return [...lines, declaredReturnGuide(command.returns)]
   const { schema, descriptions } = command.parameters.value
   return [
     ...lines,
     `JSON Schema: ${writeJsonText(schema)}`,
     ...descriptions.map(item => `${item.path}: ${item.text}`),
-    returnGuide(command.returns),
+    declaredReturnGuide(command.returns),
   ]
 }
 

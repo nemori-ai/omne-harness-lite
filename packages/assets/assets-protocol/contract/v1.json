@@ -1,0 +1,4008 @@
+{
+  "digests": {
+    "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c",
+    "2": "sha256:d0fd75b96c239c86a84fc5b48b61db1f33940b230a1ddb7f0e95a4de060b2086",
+    "3": "sha256:7be64b15dc032604b467c193e2552ecd24cad5bff312c8bdb22adafd819ac00f"
+  },
+  "major": 1,
+  "name": "assets",
+  "revision": 3,
+  "rules": {
+    "observations": {
+      "observe-assets": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "kind": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        }
+      }
+    },
+    "operations": {
+      "append-asset-upload": {
+        "body": {
+          "fields": {
+            "bytes": {
+              "rule": {
+                "kind": "bytes"
+              }
+            },
+            "offset": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "path": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "missing": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "received": {
+                "rule": {
+                  "kind": "count"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "begin-asset-upload": {
+        "body": {
+          "fields": {
+            "category": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "manifest": {
+              "rule": {
+                "item": {
+                  "fields": {
+                    "bytes": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
+                    "path": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "kind": "array"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "missing": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "partBytes": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
+              "received": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "bytes": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "path": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "clear-setting": {
+        "body": {
+          "fields": {
+            "expectedRevision": {
+              "rule": {
+                "kind": "revision"
+              }
+            },
+            "item": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "owner": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "category": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "asset"
+                          ]
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "definitionId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "independent"
+                          ]
+                        }
+                      },
+                      "providerId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-writable": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "locked",
+                    "out-of-bound",
+                    "prohibited-above",
+                    "not-a-source"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "revision"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "commit-asset-upload": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "missing": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "changed": {
+                "rule": {
+                  "kind": "boolean"
+                }
+              },
+              "holding": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "create-asset": {
+        "body": {
+          "fields": {
+            "body": {
+              "rule": {
+                "kind": "json"
+              }
+            },
+            "category": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "missing": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "changed": {
+                "rule": {
+                  "kind": "boolean"
+                }
+              },
+              "holding": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "describe-asset": {
+        "body": {
+          "fields": {
+            "category": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "content": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "body": {
+                          "rule": {
+                            "kind": "json"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "data"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "entries": {
+                          "rule": {
+                            "item": {
+                              "fields": {
+                                "bytes": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "path": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "directory"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "effect": {
+                "optional": true,
+                "rule": {
+                  "fields": {
+                    "advice": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "clients": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "label": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "disable": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "id": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "key": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "mark": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "+",
+                                      "-",
+                                      "~",
+                                      "!"
+                                    ]
+                                  }
+                                },
+                                "of": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "point": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "pointTitle": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "title": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "places": {
+                      "rule": {
+                        "item": {
+                          "fields": {
+                            "category": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "categoryTitle": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "id": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "key": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "point": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "pointTitle": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
+                            },
+                            "says": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "side": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "literal",
+                                    "values": [
+                                      "client",
+                                      "server"
+                                    ]
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "standing": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "title": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        "kind": "array"
+                      }
+                    },
+                    "remove": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "item": {
+                              "fields": {
+                                "id": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "key": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "mark": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "+",
+                                      "-",
+                                      "~",
+                                      "!"
+                                    ]
+                                  }
+                                },
+                                "of": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "point": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "pointTitle": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                },
+                                "says": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "title": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "since": 2
+              },
+              "item": {
+                "rule": {
+                  "fields": {
+                    "category": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "enabled": {
+                      "rule": {
+                        "kind": "boolean"
+                      }
+                    },
+                    "from": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "text"
+                      },
+                      "since": 2
+                    },
+                    "holding": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "origin": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "customized",
+                          "official"
+                        ]
+                      }
+                    },
+                    "selection": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "follow",
+                          "pinned"
+                        ]
+                      }
+                    },
+                    "summary": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "fields": {
+                              "description": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "facts": {
+                                "rule": {
+                                  "item": {
+                                    "fields": {
+                                      "name": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      },
+                                      "text": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  },
+                                  "kind": "array",
+                                  "max": 8
+                                }
+                              },
+                              "title": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "version": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              },
+              "revision": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
+              "settings": {
+                "rule": {
+                  "kind": "boolean"
+                }
+              },
+              "standing": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "selected"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "by": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "text"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "filtered"
+                            ]
+                          }
+                        },
+                        "reason": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "disabled",
+                              "ineligible",
+                              "blocked"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "unavailable"
+                            ]
+                          }
+                        },
+                        "layer": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "describe-category": {
+        "body": {
+          "fields": {
+            "category": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "category": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "creation": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "none"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "data"
+                            ]
+                          }
+                        },
+                        "schema": {
+                          "rule": {
+                            "kind": "json"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "directory"
+                            ]
+                          }
+                        },
+                        "limits": {
+                          "rule": {
+                            "fields": {
+                              "fileBytes": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              },
+                              "files": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              },
+                              "totalBytes": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "hint": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "string"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "summary": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "title": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "describe-setting": {
+        "body": {
+          "fields": {
+            "item": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "owner": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "category": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "asset"
+                          ]
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "definitionId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "independent"
+                          ]
+                        }
+                      },
+                      "providerId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "item": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "declaration": {
+                          "rule": {
+                            "fields": {
+                              "appliesAt": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "clearEffect": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "group": {
+                                "rule": {
+                                  "fields": {
+                                    "description": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    },
+                                    "id": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "title": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "purpose": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "title": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "default": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "unset"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "set"
+                                      ]
+                                    }
+                                  },
+                                  "value": {
+                                    "rule": {
+                                      "kind": "json"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "editable": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "yes"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "no"
+                                      ]
+                                    }
+                                  },
+                                  "reason": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "locked",
+                                        "not-a-source",
+                                        "prohibited-above"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "effective": {
+                          "rule": {
+                            "fields": {
+                              "source": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "kind": "literal",
+                                      "values": [
+                                        "default",
+                                        "organization",
+                                        "tenant"
+                                      ]
+                                    },
+                                    {
+                                      "kind": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "value": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "fields": {
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "unset"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    {
+                                      "fields": {
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "set"
+                                            ]
+                                          }
+                                        },
+                                        "value": {
+                                          "rule": {
+                                            "kind": "json"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "item": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "ordinary"
+                            ]
+                          }
+                        },
+                        "lockedBy": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "literal",
+                                "values": [
+                                  "organization"
+                                ]
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "own": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "unset"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "set"
+                                      ]
+                                    }
+                                  },
+                                  "value": {
+                                    "rule": {
+                                      "kind": "json"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "owner": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "category": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "asset"
+                                      ]
+                                    }
+                                  },
+                                  "name": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "definitionId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "independent"
+                                      ]
+                                    }
+                                  },
+                                  "providerId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "revision": {
+                          "rule": {
+                            "kind": "revision"
+                          }
+                        },
+                        "valueSchema": {
+                          "rule": {
+                            "kind": "json"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "bound": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "item": {
+                                  "kind": "text"
+                                },
+                                "kind": "array"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "choices": {
+                          "rule": {
+                            "item": {
+                              "fields": {
+                                "description": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "label": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "permitsOperation": {
+                                  "rule": {
+                                    "kind": "boolean"
+                                  }
+                                },
+                                "value": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            "kind": "array"
+                          }
+                        },
+                        "declaration": {
+                          "rule": {
+                            "fields": {
+                              "appliesAt": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "clearEffect": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "group": {
+                                "rule": {
+                                  "fields": {
+                                    "description": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    },
+                                    "id": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "title": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "purpose": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "title": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "default": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "editable": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "yes"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "no"
+                                      ]
+                                    }
+                                  },
+                                  "reason": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "locked",
+                                        "not-a-source",
+                                        "prohibited-above"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "effective": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "value"
+                                      ]
+                                    }
+                                  },
+                                  "source": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "default",
+                                        "organization",
+                                        "tenant"
+                                      ]
+                                    }
+                                  },
+                                  "value": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "by": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "organization",
+                                        "tenant"
+                                      ]
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "prohibited"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "empty-bound"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "item": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "permission"
+                            ]
+                          }
+                        },
+                        "own": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "text"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "owner": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "category": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "asset"
+                                      ]
+                                    }
+                                  },
+                                  "name": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "definitionId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "independent"
+                                      ]
+                                    }
+                                  },
+                                  "providerId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "revision": {
+                          "rule": {
+                            "kind": "revision"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "declaration": {
+                          "rule": {
+                            "fields": {
+                              "appliesAt": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "clearEffect": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "group": {
+                                "rule": {
+                                  "fields": {
+                                    "description": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    },
+                                    "id": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "title": {
+                                      "rule": {
+                                        "kind": "string"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "purpose": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              },
+                              "title": {
+                                "rule": {
+                                  "kind": "string"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "editable": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "yes"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "no"
+                                      ]
+                                    }
+                                  },
+                                  "reason": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "locked",
+                                        "not-a-source",
+                                        "prohibited-above"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "item": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "secret"
+                            ]
+                          }
+                        },
+                        "official": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "unset",
+                              "available",
+                              "revoked",
+                              "unreadable"
+                            ]
+                          }
+                        },
+                        "own": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "unset",
+                              "available",
+                              "revoked",
+                              "unreadable"
+                            ]
+                          }
+                        },
+                        "owner": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "category": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "asset"
+                                      ]
+                                    }
+                                  },
+                                  "name": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "definitionId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "independent"
+                                      ]
+                                    }
+                                  },
+                                  "providerId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "revision": {
+                          "rule": {
+                            "kind": "revision"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "list-assets": {
+        "body": {
+          "fields": {
+            "after": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "category": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete",
+                    "partial"
+                  ]
+                }
+              },
+              "items": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "category": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "enabled": {
+                        "rule": {
+                          "kind": "boolean"
+                        }
+                      },
+                      "from": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        },
+                        "since": 2
+                      },
+                      "holding": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "origin": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "customized",
+                            "official"
+                          ]
+                        }
+                      },
+                      "selection": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "follow",
+                            "pinned"
+                          ]
+                        }
+                      },
+                      "summary": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "fields": {
+                                "description": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "facts": {
+                                  "rule": {
+                                    "item": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "string"
+                                          }
+                                        },
+                                        "text": {
+                                          "rule": {
+                                            "kind": "string"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    "kind": "array",
+                                    "max": 8
+                                  }
+                                },
+                                "title": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "version": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "list-categories": {
+        "body": {
+          "fields": {
+            "after": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "items": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "category": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "creation": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "none",
+                            "data",
+                            "directory"
+                          ]
+                        }
+                      },
+                      "summary": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "title": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "list-settings": {
+        "body": {
+          "fields": {
+            "after": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            },
+            "scope": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "asset": {
+                        "optional": true,
+                        "rule": {
+                          "fields": {
+                            "category": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "name": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "asset"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "independent"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete",
+                    "partial"
+                  ]
+                }
+              },
+              "items": {
+                "rule": {
+                  "item": {
+                    "kind": "one-of",
+                    "rules": [
+                      {
+                        "fields": {
+                          "declaration": {
+                            "rule": {
+                              "fields": {
+                                "appliesAt": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "clearEffect": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "group": {
+                                  "rule": {
+                                    "fields": {
+                                      "description": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      },
+                                      "id": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "title": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "purpose": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "title": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "default": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unset"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "set"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "json"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "editable": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "yes"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "no"
+                                        ]
+                                      }
+                                    },
+                                    "reason": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "locked",
+                                          "not-a-source",
+                                          "prohibited-above"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "effective": {
+                            "rule": {
+                              "fields": {
+                                "source": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "literal",
+                                        "values": [
+                                          "default",
+                                          "organization",
+                                          "tenant"
+                                        ]
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "value": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "fields": {
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "unset"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      {
+                                        "fields": {
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "set"
+                                              ]
+                                            }
+                                          },
+                                          "value": {
+                                            "rule": {
+                                              "kind": "json"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "item": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "ordinary"
+                              ]
+                            }
+                          },
+                          "lockedBy": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "kind": "literal",
+                                  "values": [
+                                    "organization"
+                                  ]
+                                },
+                                {
+                                  "kind": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "own": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unset"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "set"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "json"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "owner": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "category": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "asset"
+                                        ]
+                                      }
+                                    },
+                                    "name": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "definitionId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "independent"
+                                        ]
+                                      }
+                                    },
+                                    "providerId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "revision": {
+                            "rule": {
+                              "kind": "revision"
+                            }
+                          },
+                          "valueSchema": {
+                            "rule": {
+                              "kind": "json"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      {
+                        "fields": {
+                          "bound": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "item": {
+                                    "kind": "text"
+                                  },
+                                  "kind": "array"
+                                },
+                                {
+                                  "kind": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "choices": {
+                            "rule": {
+                              "item": {
+                                "fields": {
+                                  "description": {
+                                    "rule": {
+                                      "kind": "string"
+                                    }
+                                  },
+                                  "label": {
+                                    "rule": {
+                                      "kind": "string"
+                                    }
+                                  },
+                                  "permitsOperation": {
+                                    "rule": {
+                                      "kind": "boolean"
+                                    }
+                                  },
+                                  "value": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              "kind": "array"
+                            }
+                          },
+                          "declaration": {
+                            "rule": {
+                              "fields": {
+                                "appliesAt": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "clearEffect": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "group": {
+                                  "rule": {
+                                    "fields": {
+                                      "description": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      },
+                                      "id": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "title": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "purpose": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "title": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "default": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "editable": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "yes"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "no"
+                                        ]
+                                      }
+                                    },
+                                    "reason": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "locked",
+                                          "not-a-source",
+                                          "prohibited-above"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "effective": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "value"
+                                        ]
+                                      }
+                                    },
+                                    "source": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "default",
+                                          "organization",
+                                          "tenant"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "by": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "organization",
+                                          "tenant"
+                                        ]
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "prohibited"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "empty-bound"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "item": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "permission"
+                              ]
+                            }
+                          },
+                          "own": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "kind": "text"
+                                },
+                                {
+                                  "kind": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "owner": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "category": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "asset"
+                                        ]
+                                      }
+                                    },
+                                    "name": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "definitionId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "independent"
+                                        ]
+                                      }
+                                    },
+                                    "providerId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "revision": {
+                            "rule": {
+                              "kind": "revision"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      {
+                        "fields": {
+                          "declaration": {
+                            "rule": {
+                              "fields": {
+                                "appliesAt": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "clearEffect": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "group": {
+                                  "rule": {
+                                    "fields": {
+                                      "description": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      },
+                                      "id": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "title": {
+                                        "rule": {
+                                          "kind": "string"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "purpose": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                },
+                                "title": {
+                                  "rule": {
+                                    "kind": "string"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "editable": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "yes"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "no"
+                                        ]
+                                      }
+                                    },
+                                    "reason": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "locked",
+                                          "not-a-source",
+                                          "prohibited-above"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "item": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "secret"
+                              ]
+                            }
+                          },
+                          "official": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "unset",
+                                "available",
+                                "revoked",
+                                "unreadable"
+                              ]
+                            }
+                          },
+                          "own": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "unset",
+                                "available",
+                                "revoked",
+                                "unreadable"
+                              ]
+                            }
+                          },
+                          "owner": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "category": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "asset"
+                                        ]
+                                      }
+                                    },
+                                    "name": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "definitionId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "independent"
+                                        ]
+                                      }
+                                    },
+                                    "providerId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "revision": {
+                            "rule": {
+                              "kind": "revision"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    ]
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-asset-operation": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "request": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "body": {
+                        "rule": {
+                          "kind": "json"
+                        }
+                      },
+                      "category": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "create-asset"
+                          ]
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "category": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "begin-asset-upload"
+                          ]
+                        }
+                      },
+                      "manifest": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "bytes": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              },
+                              "path": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "commit-asset-upload"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "enabled": {
+                        "rule": {
+                          "kind": "boolean"
+                        }
+                      },
+                      "holding": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "set-asset-enabled"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "holding": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "remove-asset"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "missing": {
+                "optional": true,
+                "rule": {
+                  "item": {
+                    "kind": "text"
+                  },
+                  "kind": "array"
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {},
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-writable": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "official",
+                    "removed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "changed": {
+                    "rule": {
+                      "kind": "boolean"
+                    }
+                  },
+                  "holding": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "version": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "partBytes": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "received": {
+                    "rule": {
+                      "item": {
+                        "fields": {
+                          "bytes": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          },
+                          "path": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      "kind": "array"
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {},
+                "kind": "object"
+              }
+            ]
+          }
+        }
+      },
+      "remove-asset": {
+        "body": {
+          "fields": {
+            "holding": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {
+              "broughtBy": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 2
+              }
+            },
+            "kind": "object"
+          },
+          "not-writable": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "official",
+                    "removed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "set-asset-enabled": {
+        "body": {
+          "fields": {
+            "enabled": {
+              "rule": {
+                "kind": "boolean"
+              }
+            },
+            "holding": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {
+              "broughtBy": {
+                "optional": true,
+                "rule": {
+                  "kind": "text"
+                },
+                "since": 2
+              }
+            },
+            "kind": "object"
+          },
+          "not-writable": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "official",
+                    "removed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "set-setting": {
+        "body": {
+          "fields": {
+            "expectedRevision": {
+              "rule": {
+                "kind": "revision"
+              }
+            },
+            "item": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "owner": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "category": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "asset"
+                          ]
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "definitionId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "independent"
+                          ]
+                        }
+                      },
+                      "providerId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "value": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "ordinary"
+                          ]
+                        }
+                      },
+                      "value": {
+                        "rule": {
+                          "kind": "json"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "permission"
+                          ]
+                        }
+                      },
+                      "pick": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "secret"
+                          ]
+                        }
+                      },
+                      "secret": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-writable": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "locked",
+                    "out-of-bound",
+                    "prohibited-above",
+                    "not-a-source"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "revision": {
+                "rule": {
+                  "kind": "revision"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      }
+    }
+  }
+}

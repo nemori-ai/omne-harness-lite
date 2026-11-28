@@ -126,3 +126,13 @@ export function slotSource<P>(access: Access<P>, action: Action, slot: ActionSlo
     result: slot.kind === 'result' ? slot.result : slot.placeholder,
   }
 }
+
+/** A quiesce hands over asleep on a saved wait; a reload only where no Model call is open: such a wait, or between steps. */
+export function handoverReady(
+  at: 'safe-point' | undefined,
+  state: Readonly<{ atBoundary: boolean; savedWait: boolean; checkpoint: AgentCheckpoint | null }>,
+): boolean {
+  if (at !== 'safe-point') return state.savedWait
+  const asking = state.checkpoint?.calls.some(call => call.kind === 'model') ?? false
+  return state.atBoundary || (state.savedWait && !asking)
+}

@@ -25,7 +25,7 @@ import type {
   CallAccess,
   ConsumerRef,
   DispatchId,
-  FixedModelRequest,
+  LlmModelRequest,
   Identity,
   ModelCallId,
   ModelDiagnosticCursor,
@@ -39,6 +39,8 @@ import type {
   Parameter,
   ProviderName,
   ReadId,
+  ReasoningEffort,
+  ReasoningEffortMapping,
   ResultVersion,
   Revision,
   Supplier,
@@ -156,6 +158,15 @@ it('access inputs carry the tenant and nest the call and the operation', () => {
   expectTypeOf<TenantId>().toEqualTypeOf<Access<string>['tenant']>()
 })
 
+it('distinguishes the four user efforts from the native effort in a model mapping', () => {
+  expectTypeOf<ReasoningEffort>().toEqualTypeOf<'low' | 'medium' | 'high' | 'xhigh'>()
+  expectTypeOf<Extract<Parameter, { scale: 'unified' }>['value']>().toEqualTypeOf<ReasoningEffort>()
+  expectTypeOf<keyof ReasoningEffortMapping>().toEqualTypeOf<ReasoningEffort>()
+  expectTypeOf<ReasoningEffortMapping['high']>().toEqualTypeOf<
+    ReasoningEffort | 'max' | undefined
+  >()
+})
+
 it('Parameter is a closed union of kinds', () => {
   const values: Parameter[] = [
     { kind: 'temperature', value: 0.2 },
@@ -200,13 +211,13 @@ it('a request value names its suppliers and tools', () => {
   expectTypeOf<Supplier['credential']>().toEqualTypeOf<CredentialLayer>()
   expectTypeOf(provider).toEqualTypeOf<ProviderName>()
   // @ts-expect-error a request needs at least one supplier
-  const noSupplier: FixedModelRequest = { ...request, suppliers: [] }
+  const noSupplier: LlmModelRequest = { ...request, suppliers: [] }
   // @ts-expect-error a request carries no budget: the send path measures nothing
-  const withBudget: FixedModelRequest = { ...request, budget: undefined }
+  const withBudget: LlmModelRequest = { ...request, budget: undefined }
   // @ts-expect-error a request carries no limits, which the profile keeps
-  const withLimits: FixedModelRequest = { ...request, limits: [] }
+  const withLimits: LlmModelRequest = { ...request, limits: [] }
   // @ts-expect-error a request carries no meter adoption
-  const withMeter: FixedModelRequest = { ...request, meter: undefined }
+  const withMeter: LlmModelRequest = { ...request, meter: undefined }
   void [declaration, route, secret, loose, noSupplier, withBudget, withLimits, withMeter]
   expectTypeOf(request.suppliers[0]).toEqualTypeOf<Supplier>()
   expectTypeOf(supplier).toEqualTypeOf<Supplier>()
@@ -298,10 +309,10 @@ it('the limit and the prefix table are literal values, and no other helper is pu
 })
 
 it('request messages are the shared messages, tool messages included, and not bare parts', () => {
-  expectTypeOf<FixedModelRequest['messages']>().toEqualTypeOf<readonly Message[]>()
+  expectTypeOf<LlmModelRequest['messages']>().toEqualTypeOf<readonly Message[]>()
   expectTypeOf<AssembledModelInput['messages']>().toEqualTypeOf<readonly Message[]>()
-  expectTypeOf<ToolMessage>().toExtend<FixedModelRequest['messages'][number]>()
+  expectTypeOf<ToolMessage>().toExtend<LlmModelRequest['messages'][number]>()
   // @ts-expect-error a tool call is a part of a message, not a message
-  const bare: FixedModelRequest['messages'][number] = toolCall
+  const bare: LlmModelRequest['messages'][number] = toolCall
   void bare
 })

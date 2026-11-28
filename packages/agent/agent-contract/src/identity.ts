@@ -86,6 +86,22 @@ export const decodeAgentInstanceId = decoderOf<AgentInstanceId, 'AgentInstanceId
 export const decodeStepId = decoderOf<StepId, 'StepId'>('StepId')
 export const decodeActionId = decoderOf<ActionId, 'ActionId'>('ActionId')
 export const decodePassageId = decoderOf<PassageId, 'PassageId'>('PassageId')
+const TOOL_ACTION_SUFFIX = /\/tool\/(?:0|[1-9]\d*)$/u
+
+export function toolActionOf(step: StepId, ordinal: number): ReturnType<typeof decodeActionId> {
+  if (!Number.isSafeInteger(ordinal) || ordinal < 0)
+    return fail({ field: 'ActionId', reason: 'type' })
+  return decodeActionId(`${step}/tool/${ordinal}`)
+}
+
+/** The Agent step that published this action, as named by the original consumer reference. */
+export function stepOfToolAction(position: string): StepId | null {
+  const suffix = TOOL_ACTION_SUFFIX.exec(position)
+  if (suffix === null) return null
+  const step = decodeStepId(position.slice(0, suffix.index))
+  return 'ok' in step ? step.ok : null
+}
+
 const ADMISSION_SUFFIX = '/admission'
 
 export function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId> {
@@ -96,6 +112,26 @@ export function admissionActionOf(passage: PassageId): ActionId | null {
   if (!passage.endsWith(ADMISSION_SUFFIX)) return null
   const action = decodeActionId(passage.slice(0, -ADMISSION_SUFFIX.length))
   return 'ok' in action ? action.ok : null
+}
+
+const NESTED = /^(.+)\/nested\/(0|[1-9]\d*)$/u
+
+/** The action a program makes at one position under a running tool call (its parent action). */
+export function nestedActionOf(
+  parent: ActionId,
+  ordinal: number,
+): ReturnType<typeof decodeActionId> {
+  return decodeActionId(`${parent}/nested/${String(ordinal)}`)
+}
+
+export function nestedPositionOf(
+  action: ActionId,
+): Readonly<{ parent: ActionId; ordinal: number }> | null {
+  const [, parent, ordinal] = NESTED.exec(action) ?? []
+  const decoded = parent === undefined ? null : decodeActionId(parent)
+  return decoded === null || 'failure' in decoded
+    ? null
+    : { parent: decoded.ok, ordinal: Number(ordinal) }
 }
 
 export const decodeCardRoundId = decoderOf<CardRoundId, 'CardRoundId'>('CardRoundId')

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AgentEvaluator, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
 import { succeed } from '@omne-harness/operation-result'
-import { adoption, execution, failure, instance, ok } from './journal-support.ts'
+import { adoption, execution, instance, ok } from './journal-support.ts'
 import {
   alice,
   eventually,
@@ -10,7 +10,7 @@ import {
   loopAssembly,
   selected,
   shown,
-  stoppedAt,
+  haltedAt,
   type LoopAssembly,
 } from './loop-support.ts'
 
@@ -96,28 +96,6 @@ describe('observe wakes on a change of the slot', () => {
   })
 })
 
-describe('slot release before E1 (SPEC 受理与单执行槽)', () => {
-  it('an adopted loop extension refuses invoke before open and gives the slot back', async () => {
-    const assembly = await loopAssembly([execution(), execution('exec-2')])
-    const extension: LoopExtensionDeclaration = {
-      name: 'observer',
-      position: 'execution_started',
-      power: 'observe',
-      implementation: { kind: 'builtin', builtinName: 'observer' },
-    }
-    adopt(assembly, agentEvaluator, [extension])
-    expect(failure(await invoke(assembly))).toEqual({
-      kind: 'unavailable',
-      owner: '@omne-harness/agent',
-      diagnostic: 'an adopted loop extension is not implemented until #502 stage 3',
-    })
-    expect(await shown(assembly)).toEqual({ kind: 'idle', instance: instance() })
-    adopt(assembly, agentEvaluator)
-    ok(await invoke(assembly, 'exec-2'))
-    assembly.release.open()
-  })
-})
-
 describe('E4 failure and authoritative stops', () => {
   it('a thrown value that cannot become text ends without an unhandled rejection', async () => {
     const assembly = await loopAssembly([execution()])
@@ -144,15 +122,20 @@ describe('E4 failure and authoritative stops', () => {
   })
 
   it.each(['terminal', 'superseded'] as const)(
-    'a stop (%s) keeps the execution at E4',
+    'a stop (%s) leaves the execution at E4 and gives the slot back',
     async reason => {
-      const assembly = await loopAssembly([execution()])
+      const reports: unknown[] = []
+      const assembly = await loopAssembly([execution()], undefined, undefined, undefined, {
+        failed: ({ node, failure }) => reports.push({ node, failure }),
+      })
       adopt(assembly, {
         ...agentEvaluator,
         next: () => succeed({ kind: 'stop', reason }),
       })
       ok(await invoke(assembly))
-      expect((await stoppedAt(assembly, 'E4')).kind).not.toBe('ended')
+      expect((await haltedAt(assembly, 'E4')).kind).not.toBe('ended')
+      await eventually(async () => reports.length > 0)
+      expect(reports).toEqual([{ node: 'E4', failure: { kind: 'stale-advance' } }])
     },
   )
 

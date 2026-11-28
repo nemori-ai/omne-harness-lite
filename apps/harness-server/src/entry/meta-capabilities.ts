@@ -3,7 +3,8 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { SessionAccess } from '@omne-harness/session-contract'
 import { unmetConditions, type ToolDefinition } from '@omne-harness/tool-contract'
 
-export type SessionFacts = Pick<SessionInteraction, 'attendance' | 'humanInteraction' | 'child'>
+export type SessionFacts = Pick<SessionInteraction, 'attendance' | 'humanInteraction' | 'child'> &
+  Readonly<{ examining?: boolean | undefined }>
 
 export type SessionInteractionRead = (
   access: SessionAccess<unknown>,
@@ -13,8 +14,8 @@ export type SessionCommandReads = Readonly<{ interaction: SessionInteractionRead
 
 type Condition = Readonly<{ holds(facts: SessionFacts): boolean; lacking: string }>
 
-// The names a command may declare, each a fact the session publishes. Which command needs which
-// is written in the definition of its tool: no tool and no command is named here.
+// The names a command may declare: each a fact the session publishes, or whether it examines for a
+// goal, which the goal domain answers. Which command needs which is written in the definition of its tool.
 const CONDITIONS: Readonly<Record<string, Condition>> = Object.freeze({
   'person-present': {
     holds: facts => facts.attendance === 'attended',
@@ -27,6 +28,14 @@ const CONDITIONS: Readonly<Record<string, Condition>> = Object.freeze({
   dispatched: {
     holds: facts => facts.child,
     lacking: 'this session was not dispatched by another agent',
+  },
+  examining: {
+    holds: facts => facts.examining === true,
+    lacking: 'this session does not examine for a goal',
+  },
+  working: {
+    holds: facts => facts.examining === false,
+    lacking: 'this session examines for a goal: it reads the brief and hands in its readings',
   },
 })
 

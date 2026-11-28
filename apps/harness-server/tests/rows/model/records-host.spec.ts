@@ -43,6 +43,7 @@ import { authorization } from '../../../src/rows/authorization/row.ts'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { lateBoundSendBoundary, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { everyModelOnRow, everyModelSwitchedOnRow } from '../../support/model-preferences.ts'
 import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
 import { modelRecordsRow } from '../../../src/rows/model-records/index.ts'
@@ -155,8 +156,9 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
             plugin: 'secretCustodyRow',
             config: { path: seedTestVault(model.vault) },
           },
+          { id: 'every-model-switched-on', plugin: 'everyModelSwitchedOnRow', config: {} },
         ]
-      : []),
+      : [{ id: 'every-model-on', plugin: 'everyModelOnRow', config: {} }]),
     { id: 'model-records', plugin: 'modelRecordsRow', config: model.records },
     { id: 'model-host', plugin: 'modelHostRow', config: model.host },
   ]
@@ -173,6 +175,8 @@ const plugins = {
   modelRequestPreparationRow,
   modelCredentialRow,
   secretCustodyRow,
+  everyModelOnRow,
+  everyModelSwitchedOnRow,
   modelRecordsRow,
   modelHostRow,
 }
@@ -217,6 +221,7 @@ describe('the model-records and model-host rows', () => {
       manifest: {
         provides: [
           'modelRuntime',
+          'modelLiveCalls',
           'modelInstanceHost',
           'modelStreamReferences',
           'modelStreamObservation',

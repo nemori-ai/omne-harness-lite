@@ -6,10 +6,11 @@ import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import {
   definitionMappingsKey,
-  definitionResolverOf,
+  mappedDefinitionFor,
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   openRequestJournal,
+  type DefinitionResolver,
   type ListFilters,
   type PrincipalFacts,
   type SessionListEntry,
@@ -38,6 +39,7 @@ import {
 } from '../../assembly/session-context-initialization.ts'
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
+import { sessionCommandsPlugin } from './commands.ts'
 import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
 import { modelTargets } from './model-targets.ts'
@@ -174,9 +176,10 @@ export function sessionListingOf(directory: SessionDirectory<Principal>): Sessio
   }
 }
 
-function definitionsOf(ctx: Context) {
+function definitionsOf(ctx: Context): DefinitionResolver | undefined {
   const mappings = ctx.get(definitionMappingsKey)
-  return mappings === undefined ? undefined : definitionResolverOf(mappings)
+  if (mappings === undefined) return undefined
+  return (name, tenant) => mappedDefinitionFor(mappings, { tenant }, name)
 }
 
 function prepareCreation(input: SessionCreateInput): SessionCreateInput {
@@ -212,5 +215,9 @@ export const sessionAccessRow = defineRow({
     ...plugin,
     inject: [accessRegistryKey, principalIssuerKey],
     Config: sessionAccessConfig,
+    async apply(ctx: Context, config: z.infer<typeof sessionAccessConfig>) {
+      ctx.plugin(sessionCommandsPlugin(principalFacts))
+      await plugin.apply(ctx, config)
+    },
   },
 })

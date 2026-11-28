@@ -19,10 +19,11 @@ import type {
   ToolValueSchema,
 } from './definitions.ts'
 import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
+import type { ToolSourceWithheld } from './entry-source.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
 import type { ToolReleaseDescriber } from './release-detail.ts'
-import type { Reply, ToolRenderedResult } from './results.ts'
+import type { Reply, ToolFailure, ToolRenderedResult } from './results.ts'
 
 export type ToolDeclarations = Readonly<{
   adoption: Adoption
@@ -72,6 +73,9 @@ export type ToolPresentation = Readonly<{
 export type ToolCatalogSearchEntry = ToolAvailability & Readonly<{ resident: boolean }>
 export interface ToolCatalog<P> {
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
+  inspectEach(
+    input: Access<P> & Readonly<{ names: readonly string[]; consumer: ToolConsumerProfile }>,
+  ): Reply<readonly Outcome<ToolAvailability, ToolFailure>[]>
   usage(input: ToolInspection<P> & Readonly<{ adoption: Adoption }>): Reply<ToolUsage>
   search(
     input: Access<P> &
@@ -82,7 +86,14 @@ export interface ToolCatalog<P> {
         after: string | null
         limit: number
       }>,
-  ): Reply<Readonly<{ entries: readonly ToolCatalogSearchEntry[]; next: string | null }>>
+  ): Reply<
+    Readonly<{
+      entries: readonly ToolCatalogSearchEntry[]
+      /** Names that exist but have no lawful definition to show, on the first page only. */
+      withheld?: readonly ToolSourceWithheld[]
+      next: string | null
+    }>
+  >
 }
 export interface ParameterCodec<A> {
   readonly adoption: Adoption
@@ -108,7 +119,8 @@ export type ToolProgramOutput<R> =
       kind: 'json'
       adoption: Adoption
       schema: ToolValueSchema<unknown>
-      encode(value: R): Outcome<JsonValue, Readonly<{ reason: string }>>
+      /** `null`: this answer has no value for a program, only text to read (a refusal, a notice). */
+      encode(value: R): Outcome<JsonValue | null, Readonly<{ reason: string }>>
     }>
 export type ToolAuthor<A, R, E, B extends ContentBlock> = Readonly<{
   parameters: ParameterCodec<A>

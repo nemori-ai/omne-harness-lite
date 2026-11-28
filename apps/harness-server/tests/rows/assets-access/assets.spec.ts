@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantAssetsKey } from '../../../src/rows/tenant-assets/service.ts'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
 import { runOmne, savedTenant } from '../../r9/support.ts'
 import { until } from '../../support/listening.ts'
@@ -27,14 +28,22 @@ function foreignTenant(tenant: string): string {
   return JSON.stringify({ ...parsed, account: `${parsed.account.slice(0, -1)}${last}` })
 }
 
-async function upload(assets: Assets, tenant: TenantId, operation: string, text: string) {
+const REVIEW = { category: 'skill', name: 'review', path: 'SKILL.md' } as const
+
+async function upload(
+  assets: Assets,
+  tenant: TenantId,
+  operation: string,
+  text: string,
+  { category, name, path }: Readonly<{ category: string; name: string; path: string }> = REVIEW,
+) {
   const bytes = new TextEncoder().encode(text)
   const begun = await assets['begin-asset-upload']({
     tenant,
     operation,
-    category: 'skill',
-    name: 'review',
-    manifest: [{ path: 'SKILL.md', bytes: bytes.length }],
+    category,
+    name,
+    manifest: [{ path, bytes: bytes.length }],
   })
   if (begun.outcome !== 'succeeded') throw new Error(`begin: ${begun.outcome}`)
   const part = Math.min(begun.body.partBytes, 40)
@@ -43,7 +52,7 @@ async function upload(assets: Assets, tenant: TenantId, operation: string, text:
     const sent = await assets['append-asset-upload']({
       tenant,
       upload: operation,
-      path: 'SKILL.md',
+      path,
       offset,
       bytes: bytes.subarray(offset, offset + part),
     })
@@ -67,10 +76,16 @@ describe('assets/v1 asset operations on the release tree', () => {
         const categories = await assets['list-categories']({ after: null, limit: 100 })
         if (categories.outcome !== 'succeeded') throw new Error(categories.outcome)
         expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
+          ['AgentDefinition', 'directory'],
           ['converter', 'data'],
+          ['loop-extension', 'directory'],
+          ['mcp', 'data'],
           ['model-provider', 'none'],
+          ['plugin', 'directory'],
+          ['prompt', 'directory'],
           ['skill', 'directory'],
-          ['tool', 'none'],
+          ['skin', 'directory'],
+          ['tool', 'directory'],
         ])
         expect(await assets['describe-category']({ category: 'skill' })).toMatchObject({
           outcome: 'succeeded',
@@ -79,12 +94,22 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(
           await assets['create-asset']({
             tenant,
+            operation: 'make-provider',
+            category: 'model-provider',
+            name: 'mine',
+            body: { kind: 'null' },
+          }),
+        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        // A tool is made from a directory: a body alone is refused, and says so.
+        expect(
+          await assets['create-asset']({
+            tenant,
             operation: 'make-tool',
             category: 'tool',
             name: 'shell',
             body: { kind: 'null' },
           }),
-        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        ).toEqual({ outcome: 'invalid', body: { reason: 'a-directory-category' } })
 
         const controller = new AbortController()
         const frames: unknown[] = []
@@ -114,6 +139,24 @@ describe('assets/v1 asset operations on the release tree', () => {
             outcome: 'succeeded',
             body: {
               items: [
+                {
+                  name: 'extending-the-app',
+                  holding: 'official/skill/extending-the-app',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
+                  name: 'skill-authoring',
+                  holding: 'official/skill/skill-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
+                  name: 'skin-authoring',
+                  holding: 'official/skill/skin-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
                 {
                   name: 'review',
                   holding: made.body.holding,
@@ -156,7 +199,31 @@ describe('assets/v1 asset operations on the release tree', () => {
           })
           expect(
             await assets['list-assets']({ tenant, category: 'skill', after: null, limit: 10 }),
-          ).toMatchObject({ outcome: 'succeeded', body: { items: [] } })
+          ).toMatchObject({
+            outcome: 'succeeded',
+            body: {
+              items: [
+                {
+                  name: 'extending-the-app',
+                  holding: 'official/skill/extending-the-app',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
+                  name: 'skill-authoring',
+                  holding: 'official/skill/skill-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+                {
+                  name: 'skin-authoring',
+                  holding: 'official/skill/skin-authoring',
+                  origin: 'official',
+                  enabled: true,
+                },
+              ],
+            },
+          })
           await until(() => frames.length >= 3, 'a frame after the holding changes', 10_000)
 
           const again = await upload(assets, tenant, 'up-2', SKILL)
@@ -245,7 +312,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         const listed = await omne('asset', 'list', 'skill')
         expect(listed.status).toBe(0)
         expect(listed.stdout).toMatch(
-          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nreview +yes +customized /,
+          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nextending-the-app +yes +official +\S+ +extending-the-app\nskill-authoring +yes +official +\S+ +skill-authoring\nskin-authoring +yes +official +\S+ +skin-authoring\nreview +yes +customized /,
         )
 
         const shown = await omne('asset', 'show', 'skill:review')
@@ -262,9 +329,131 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(refused.status).toBe(2)
         expect((await omne('asset', 'remove', 'skill:review', '--yes')).status).toBe(0)
         expect((await omne('asset', 'list', 'skill', '--json')).result).toMatchObject({
-          body: { items: [] },
+          body: {
+            items: [
+              {
+                name: 'extending-the-app',
+                holding: 'official/skill/extending-the-app',
+                origin: 'official',
+                enabled: true,
+              },
+              {
+                name: 'skill-authoring',
+                holding: 'official/skill/skill-authoring',
+                origin: 'official',
+                enabled: true,
+              },
+              {
+                name: 'skin-authoring',
+                holding: 'official/skill/skin-authoring',
+                origin: 'official',
+                enabled: true,
+              },
+            ],
+          },
         })
         expect((await omne('asset', 'create', 'skill:review', '--dir', dir)).status).toBe(0)
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'a tenant whose first request is a write publishes at once; a name the deployment holds irreplaceably is refused on every path and nothing is held; an illegal Skill says what is wrong',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'omne-asset-first-')))
+        const dir = (name: string, files: Readonly<Record<string, string>>) => {
+          for (const [path, text] of Object.entries(files)) {
+            mkdirSync(join(cwd, name, path, '..'), { recursive: true })
+            writeFileSync(join(cwd, name, path), text)
+          }
+          return join(cwd, name)
+        }
+        const omne = (...args: string[]) =>
+          runOmne({ args, home: tree.home, server: `http://127.0.0.1:${tree.port}`, cwd })
+
+        // P10: no session, no setting: the first request of this tenant is a write.
+        const assets = tree.scope.get(tenantAssetsKey)
+        expect(await assets?.standing(savedTenant(tree.home))).toBe('unregistered')
+        const first = await omne(
+          'asset',
+          'create',
+          'skill:review',
+          '--dir',
+          dir('review', { 'SKILL.md': SKILL }),
+        )
+        expect(first.result).toMatchObject({ outcome: 'succeeded', body: { changed: true } })
+        expect(first.status).toBe(0)
+
+        // P3: the CLI, then an upload in parts, under the name of a definition the deployment holds.
+        const coding = `---\nname: coding\nsummary: MARK-FAKE-CODING is not the coding agent.\n---\nNot the coding agent.\n`
+        const refused = await omne(
+          'asset',
+          'create',
+          'AgentDefinition:coding',
+          '--dir',
+          dir('coding', { 'AGENT.md': coding }),
+        )
+        expect(refused.status).not.toBe(0)
+        expect(refused.stdout).toContain(
+          'irreplaceable-official: AgentDefinition coding is held on the official layer and cannot be replaced; nothing was published',
+        )
+        const tenant = tenantOf(savedTenant(tree.home))
+        const uploaded = await upload(tree.clients.assets, tenant, 'upload-coding', coding, {
+          category: 'AgentDefinition',
+          name: 'coding',
+          path: 'AGENT.md',
+        })
+        expect(uploaded).toMatchObject({ outcome: 'invalid' })
+        expect(JSON.stringify(uploaded)).toContain('irreplaceable-official')
+        const held = await omne('asset', 'list', 'AgentDefinition', '--json')
+        expect(JSON.stringify(held.result)).not.toContain('MARK-FAKE-CODING')
+        expect(
+          (held.result as { body: { items: { name: string; origin: string }[] } }).body.items
+            .filter(item => item.name === 'coding')
+            .map(item => item.origin),
+        ).toEqual(['official'])
+
+        // P3 for a Skill: the meta skill the release brings cannot be replaced.
+        const meta = `---\nname: skill-authoring\ndescription: MARK-FAKE-META.\n---\nMine.\n`
+        const metaRefused = await omne(
+          'asset',
+          'create',
+          'skill:skill-authoring',
+          '--dir',
+          dir('skill-authoring', { 'SKILL.md': meta }),
+        )
+        expect(metaRefused.status).not.toBe(0)
+        expect(metaRefused.stdout).toContain(
+          'irreplaceable-official: skill skill-authoring is held on the official layer and cannot be replaced; nothing was published',
+        )
+
+        // P2: a name the deployment brings and lets be replaced: the tenant's own is held and is the one in use.
+        const skin = `---\nname: skin-authoring\ndescription: MARK-OWN-SKIN writes skins my way.\n---\nMine.\n`
+        const own = await omne(
+          'asset',
+          'create',
+          'skill:skin-authoring',
+          '--dir',
+          dir('skin-authoring', { 'SKILL.md': skin }),
+        )
+        expect(own.status).toBe(0)
+        const shownSkin = (await omne('asset', 'show', 'skill:skin-authoring')).stdout
+        expect(shownSkin).toContain('In use: yes')
+        expect(shownSkin).toContain('About: MARK-OWN-SKIN writes skins my way.')
+
+        // P12: an illegal Skill is refused with its code and what is wrong.
+        const illegal = await omne(
+          'asset',
+          'create',
+          'skill:broken',
+          '--dir',
+          dir('broken', { 'notes.md': 'no SKILL.md here' }),
+        )
+        expect(illegal.status).not.toBe(0)
+        expect(illegal.stdout).toContain('manifest-missing: the package has no SKILL.md')
       })
       expect(exitCode).toBe(0)
     },

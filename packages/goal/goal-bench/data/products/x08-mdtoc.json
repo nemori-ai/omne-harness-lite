@@ -1,0 +1,82 @@
+{
+  "id": "x08-mdtoc",
+  "purpose": "写一个命令行小工具 mdtoc.js：node mdtoc.js <文件.md>，打印这份文档的目录",
+  "files": {
+    "mdtoc.js": "#!/usr/bin/env node\n'use strict'\nconst fs = require('node:fs')\n\nfunction anchorOf(title) {\n  return title\n    .toLowerCase()\n    .replace(/[^a-z0-9\\s-]/g, '')\n    .trim()\n    .replace(/\\s+/g, '-')\n}\n\nfunction toc(markdown) {\n  const seen = new Map()\n  const lines = []\n  let fenced = false\n  for (const line of markdown.split(/\\r?\\n/)) {\n    if (line.startsWith('```')) {\n      fenced = !fenced\n      continue\n    }\n    if (fenced) continue\n    const found = /^(#{1,6})\\s+(.*)$/.exec(line)\n    if (found === null) continue\n    const level = found[1].length\n    const title = found[2].trim()\n    const base = anchorOf(title)\n    const count = seen.get(base) || 0\n    seen.set(base, count + 1)\n    const anchor = count === 0 ? base : base + '-' + String(count)\n    lines.push('  '.repeat(level - 1) + '- [' + title + '](#' + anchor + ')')\n  }\n  return lines.join('\\n')\n}\n\nif (require.main === module) console.log(toc(fs.readFileSync(process.argv[2], 'utf8')))\nmodule.exports = { toc }\n",
+    "README.md": "# mdtoc\n\n`node mdtoc.js README.md` 打印目录。每个标题一行：`- [标题](#锚点)`，按层级缩进。\n\n## Usage\n\n见上。\n"
+  },
+  "criteria": [
+    {
+      "statement": "每个标题一行，按层级缩进：一级不缩进，二级缩进两个空格，三级四个空格",
+      "method": "写一份有 # A、## B、### C 三个标题的 md 文件，运行 node mdtoc.js <文件>：三行的开头依次要是 0、2、4 个空格再接 \"- [\"",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('t1.md', '# a\\n\\n## b\\n\\n### c\\n')\nconst lines = execFileSync('node', ['mdtoc.js', 't1.md'], { encoding: 'utf8' }).trimEnd().split('\\n')\nassert.deepStrictEqual(lines.map(line => line.indexOf('- [')), [0, 2, 4])\n"
+    },
+    {
+      "statement": "链接的锚点是标题的小写，空格换成连字符，标点去掉（Getting Started! 的锚点是 #getting-started）",
+      "method": "写一份只有一个标题 \"# Getting Started!\" 的 md 文件，运行 node mdtoc.js <文件>，要输出 - [Getting Started!](#getting-started)",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('t2.md', '# Getting Started!\\n')\nassert.strictEqual(execFileSync('node', ['mdtoc.js', 't2.md'], { encoding: 'utf8' }).trim(), '- [Getting Started!](#getting-started)')\n"
+    },
+    {
+      "statement": "代码围栏（三个反引号之间）里以 # 开头的行不算标题",
+      "method": "写一份 md：一个标题 \"# real\"，下面一段三个反引号围起来的代码，代码里有一行 \"# not a heading\"。运行 node mdtoc.js <文件>，目录要只有 real 这一行",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('t3.md', '# real\\n\\n```sh\\n# not a heading\\n```\\n')\nassert.strictEqual(execFileSync('node', ['mdtoc.js', 't3.md'], { encoding: 'utf8' }).trim(), '- [real](#real)')\n"
+    },
+    {
+      "statement": "重名的标题锚点不相同：第二个加 -1，第三个加 -2",
+      "method": "写一份 md，有三个都叫 \"## setup\" 的标题。运行 node mdtoc.js <文件>，三行的锚点依次要是 #setup、#setup-1、#setup-2",
+      "check": "const assert = require('node:assert')\nconst { execFileSync, spawnSync } = require('node:child_process')\nconst here = process.cwd()\nconst fs = require('node:fs'); fs.writeFileSync('t4.md', '## setup\\n\\n## setup\\n\\n## setup\\n')\nconst out = execFileSync('node', ['mdtoc.js', 't4.md'], { encoding: 'utf8' })\nassert.deepStrictEqual(out.match(/#setup(-\\d)?/g), ['#setup', '#setup-1', '#setup-2'])\n"
+    }
+  ],
+  "breaks": [
+    {
+      "name": "flat-below-second",
+      "criterion": "A1",
+      "edits": [
+        {
+          "path": "mdtoc.js",
+          "find": "lines.push('  '.repeat(level - 1) + '- ['",
+          "replace": "lines.push('  '.repeat(Math.min(level - 1, 1)) + '- ['"
+        }
+      ]
+    },
+    {
+      "name": "anchor-keeps-punctuation",
+      "criterion": "A2",
+      "edits": [
+        {
+          "path": "mdtoc.js",
+          "find": "\n    .replace(/[^a-z0-9\\s-]/g, '')",
+          "replace": ""
+        }
+      ]
+    },
+    {
+      "name": "fences-not-seen",
+      "criterion": "A3",
+      "edits": [
+        {
+          "path": "mdtoc.js",
+          "find": "      fenced = !fenced\n      continue",
+          "replace": "      continue"
+        }
+      ]
+    },
+    {
+      "name": "same-anchor-twice",
+      "criterion": "A4",
+      "edits": [
+        {
+          "path": "mdtoc.js",
+          "find": "const anchor = count === 0 ? base : base + '-' + String(count)",
+          "replace": "const anchor = base"
+        }
+      ]
+    }
+  ],
+  "mended": "fences-not-seen",
+  "spoiled": [
+    "flat-below-second",
+    "same-anchor-twice"
+  ],
+  "source": "written for this bench; the breaks are the kinds of half-done work the journeys of card 1720 met"
+}

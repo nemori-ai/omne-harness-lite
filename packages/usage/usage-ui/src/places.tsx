@@ -2,6 +2,7 @@ import type { PointSink } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import type { ReactNode } from 'react'
 import type { Layouts, Position } from './model/layout.ts'
+import { usagePage } from './parts.ts'
 import { contributePresentations } from './view/presentations.tsx'
 import { Panel, useRefreshEvery, type LayoutStore } from './view/panel.tsx'
 import type { UsageReads } from './view/reads.ts'
@@ -87,9 +88,10 @@ export function contributeUsage(
     title: '用量',
     order: USAGE_PAGE_ORDER,
     icon: 'overview',
+    group: 'utility',
     render: ({ scope }) =>
       scope === undefined ? null : (
-        <div className="usage-page">
+        <div className="usage-page" {...usagePage.props}>
           <h2 className="usage-page-title">用量</h2>
           {live(scope, 'tenant', null)}
         </div>

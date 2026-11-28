@@ -1,4 +1,6 @@
+import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { instantSchema, type Instant } from '@omne-harness/notification-contract'
 import {
   notificationCatalogKey,
@@ -29,7 +31,7 @@ import {
   runtimeContextTenantBlocksKey,
   runtimeContextTenantScopeKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
-import { readSystemInstant } from '../../entry/session-clock.ts'
+import { instantTextOf, runTimeOf } from '../../entry/time.ts'
 import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
@@ -38,20 +40,17 @@ import {
   type TenantDomainRegistration,
 } from '../governance/tenant-domain-registration-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
-import { callConsent } from '../tool-bindings/call-consent.ts'
+import { liveCallOrigin } from '../tool-bindings/live-calls.ts'
 import { createNotificationAuthority } from './authority.ts'
-import { subscriptionConsents } from './consent.ts'
+import { subscriptionCreators } from './creators.ts'
 import { createTenantBindings, NOTIFICATION_PARTICIPANTS, type Combination } from './binding.ts'
 import { OWNER_POSTS } from './owner-source.ts'
 import { createStandingItemsReader, standingContribution } from './standing.ts'
 
 export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
 
-function now(): Instant {
-  const instant = readSystemInstant()
-  if (!instant.ok) throw new Error('notification clock unavailable')
-  return instantSchema.parse(instant.text)
-}
+const nowOf = (ctx: Context) => (): Instant =>
+  instantSchema.parse(instantTextOf(ctx, 'notification'))
 
 /** The storage combination of the notification participant, from the catalogue of the running code. */
 export async function notificationCombination(): Promise<Combination> {
@@ -82,6 +81,7 @@ export const notificationRow = defineRow({
     ],
     injects: [
       storageKey,
+      dynamisKey,
       tenantDomainLookupKey,
       tenantDomainsKey,
       TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
@@ -110,13 +110,14 @@ export const notificationRow = defineRow({
       sql: bindings,
       ports: {
         authority: createNotificationAuthority(),
-        consent: subscriptionConsents(callConsent(ctx)),
+        creators: subscriptionCreators(liveCallOrigin(ctx)),
         standing: createStandingItemsReader<unknown>({
           scope: () => ctx.get(runtimeContextTenantScopeKey),
           principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,
         }),
       },
-      clock: { now },
+      clock: { now: nowOf(ctx) },
+      timers: runTimeOf(ctx),
       report: error => logger.warn('notification work failed: %s', String(error)),
     })
     await provider.await()

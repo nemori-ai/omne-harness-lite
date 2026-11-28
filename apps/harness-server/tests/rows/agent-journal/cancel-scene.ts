@@ -67,7 +67,7 @@ function checkpoint(): AgentCheckpoint {
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -107,27 +107,29 @@ function openInputOf(
     ...access,
     execution,
     operation: entry,
-    original: {
-      entry: invoke,
-      handoff,
-      outcome: {
-        request: {
-          kind: 'input',
-          reference: handoff,
-          entry: invoke,
-          source: { kind: 'external-input', input: initial.id },
-        },
-        origin: { kind: 'invoke', ...runtime },
-        provider: PROVIDER,
-        qualification: evidence(`qualification/${entry}`),
-        record: evidence(`record/${entry}`),
-        decision: {
-          kind: 'prepared',
-          message: initial.content,
-          admission: evidence(`admission/${entry}`),
+    originals: [
+      {
+        entry: invoke,
+        handoff,
+        outcome: {
+          request: {
+            kind: 'input',
+            reference: handoff,
+            entry: invoke,
+            source: { kind: 'external-input', input: initial.id },
+          },
+          origin: { kind: 'invoke', ...runtime },
+          provider: PROVIDER,
+          qualification: evidence(`qualification/${entry}`),
+          record: evidence(`record/${entry}`),
+          decision: {
+            kind: 'prepared',
+            message: initial.content,
+            admission: evidence(`admission/${entry}`),
+          },
         },
       },
-    },
+    ],
     runtime,
     checkpoint: checkpoint(),
   }
@@ -157,7 +159,6 @@ export async function cancelTree(cancellation: 'release' | 'absent'): Promise<Ca
         providerConfig(base.storageRoot, {
           maxCommandsPerCommit: 256,
           maxJsonDepth: 256,
-          maxJsonMembers: 1048576,
         }),
       ),
       declared(policy.plugin),
@@ -224,7 +225,7 @@ export async function cancelTree(cancellation: 'release' | 'absent'): Promise<Ca
     const snapshot = ok(await port!.readWork(access))
     if (snapshot.run.kind !== 'active') throw new Error('not active')
     const execution = must(decodeAgentExecutionId(snapshot.run.execution.execution))
-    const admitted = ok(await port!.readInput({ ...access, input: snapshot.run.first }))
+    const admitted = ok(await port!.readInput({ ...access, input: snapshot.run.initial[0] }))
     const initial: AcceptedInput = {
       id: must(decodeInputId(admitted.input)),
       content: admitted.message,

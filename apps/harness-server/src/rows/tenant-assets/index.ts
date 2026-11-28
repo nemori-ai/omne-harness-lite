@@ -1,7 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { createTenantManagement, createTenantPublishing } from '@omne-harness/assets'
-import { createTenantLayerStore, createTenantPublisher } from '@omne-harness/assets-local'
+import {
+  createTenantLayerStore,
+  createTenantPublisher,
+  type AssetsLocal,
+} from '@omne-harness/assets-local'
 import {
   assetCategoriesKey,
   assetChangesKey,
@@ -15,11 +19,20 @@ import {
 } from '@omne-harness/assets-cordis-contract/cordis'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { every } from '@omne-harness/time-source'
 import { defineRow } from '../../row.ts'
+import {
+  tenantDomainRegistrationKey,
+  type TenantDomainRegistration,
+} from '../governance/tenant-domain-registration-service.ts'
+import { runTimeOf } from '../../entry/time.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { publishActing } from './acting.ts'
 import { createAssetChangeFeed } from './changes.ts'
+import { heldOnRegistry } from './held.ts'
+import { publishStandingOf } from './held-standing.ts'
 import { openTenantAssets, TenantAssetsHost } from './host.ts'
 import { provideTenantAssets, tenantAssetsKey } from './service.ts'
 
@@ -38,19 +51,21 @@ export const tenantAssetsRowConfig = z.strictObject({
 
 /** Sweeps idle uploads of every open tenant on a timer bound to the row's scope. */
 function sweepUploads(ctx: Context, host: TenantAssetsHost, idleMs: number): void {
-  ctx.effect(() => {
-    const timer = setInterval(
-      () => {
-        void host
-          .opened()
-          .then(all => Promise.all(all.map(assets => assets.uploads.sweep())))
-          .catch(() => undefined)
-      },
-      Math.max(1000, Math.floor(idleMs / 2)),
-    )
-    timer.unref()
-    return () => clearInterval(timer)
-  }, 'tenant-assets.sweep-uploads')
+  ctx.effect(
+    () =>
+      every(
+        runTimeOf(ctx),
+        Math.max(1000, Math.floor(idleMs / 2)),
+        () => {
+          void host
+            .opened()
+            .then(all => Promise.all(all.map(assets => assets.uploads.sweep())))
+            .catch(() => undefined)
+        },
+        { background: true },
+      ),
+    'tenant-assets.sweep-uploads',
+  )
 }
 
 export const tenantAssetsRow = defineRow({
@@ -73,6 +88,13 @@ export const tenantAssetsRow = defineRow({
     const release = releaseOf(ctx)
     const categories = ctx.assetCategories.view
     const changes = createAssetChangeFeed()
+    const logger = ctx.logger('tenant-assets')
+    const held = heldOnRegistry(
+      () => ctx.assetCategories,
+      message => logger.warn(message),
+      () => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry(),
+    )
+    ctx.on('dynamis-cordis/changed', () => held.registryChanged())
     const idleMs = config.uploads.idleSeconds * 1000
     const store = {
       storage: ctx.storage,
@@ -81,18 +103,40 @@ export const tenantAssetsRow = defineRow({
       categories,
       uploads: { idleMs, maxOpen: config.uploads.maxOpen, partBytes: config.uploads.partBytes },
       changed: changes.changed,
+      heldOf: held.heldOf,
     }
     const host = new TenantAssetsHost({
       domains: ctx.tenantDomainLookup,
       open: domain => openTenantAssets(store, domain),
+      async register(tenant) {
+        const registration = ctx.get(tenantDomainRegistrationKey) as
+          | TenantDomainRegistration
+          | undefined
+        return (await registration?.ensure({ tenant }))?.kind === 'ready'
+      },
     })
-    provideTenantAssets(ctx, host)
+    const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
+    const official = () => ctx.assetCategories.official()
+    provideTenantAssets(ctx, {
+      open: tenantRef => host.open(tenantRef),
+      standing: tenantRef => host.standing(tenantRef),
+      layerSources,
+      official,
+      heldNames: held.namesOf,
+    })
+    const layerStoreOf = (tenant: string, assets: AssetsLocal | undefined) =>
+      assets === undefined
+        ? undefined
+        : createTenantLayerStore(assets, tenant, categories, layerSources(tenant), category =>
+            held.placed(category, tenant),
+          )
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,
       categories,
+      standing: async (tenant, capability) => publishStandingOf(ctx, capability, tenant),
       async publisherOf(tenant) {
-        const assets = await host.open(tenant)
+        const assets = await host.openForWriting(tenant)
         return assets === undefined ? undefined : createTenantPublisher(assets, tenant)
       },
     })
@@ -103,12 +147,9 @@ export const tenantAssetsRow = defineRow({
         acting,
         categories,
         publishing,
-        async storeOf(tenant) {
-          const assets = await host.open(tenant)
-          return assets === undefined
-            ? undefined
-            : createTenantLayerStore(assets, tenant, categories)
-        },
+        storeOf: async tenant => layerStoreOf(tenant, await host.open(tenant)),
+        writableStoreOf: async tenant => layerStoreOf(tenant, await host.openForWriting(tenant)),
+        official,
       }),
     )
     new AssetChangesService(ctx, changes)

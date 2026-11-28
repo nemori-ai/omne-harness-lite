@@ -131,6 +131,7 @@ function overridden(
     observe: input => source.observe(input),
     reserve: input => source.reserve(input),
     settle: input => source.settle(input),
+    release: input => source.release(input),
     recover: input => source.recover(input),
     ...overrides,
   }
@@ -227,10 +228,8 @@ it('lets revocation seal the original before business and prevents late apply', 
     plan = await w.accepted()
   await w.submitted(plan)
   expect(await w.remove()).toMatchObject({ kind: 'succeeded' })
-  expect(await w.sql.send(plan.operation, 'apply')).toMatchObject({
-    kind: 'applied',
-    response: { record: { state: 'aborted' } },
-  })
+  expect(await w.sql.send(plan.operation, 'apply')).toEqual({ kind: 'unplanned' })
+  expect(await w.sql.observe(plan.operation)).toMatchObject({ record: { state: 'aborted' } })
   expect(await w.driver.settle(plan.operation)).toMatchObject({
     kind: 'settled',
     outcome: 'aborted',

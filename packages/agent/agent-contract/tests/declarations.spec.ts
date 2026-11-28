@@ -14,10 +14,9 @@ const definition = (extra: Record<string, unknown> = {}) => ({
 const builtin = { kind: 'builtin', builtinName: 'format' }
 const command = {
   kind: 'command',
-  host: 'codex',
-  dialect: 'claude-hooks',
-  event: 'PreToolUse',
-  command: './check.sh',
+  interpreter: 'node',
+  entry: 'check.mjs',
+  timeout: 'PT30S',
 }
 
 const extension = (extra: Record<string, unknown> = {}) => ({
@@ -98,7 +97,7 @@ describe('the value of an accepted definition', () => {
 })
 
 describe('the value of an accepted extension declaration', () => {
-  it('keeps a command implementation without `matcher` and `timeout` free of both members', async () => {
+  it('keeps the interpreter, the entry and the timeout of a command implementation, and nothing else', async () => {
     const judged = await judgeLoopExtensions([extension({ implementation: command })])
     expect(judged).toStrictEqual({
       kind: 'accepted',
@@ -107,24 +106,10 @@ describe('the value of an accepted extension declaration', () => {
     if (judged.kind !== 'accepted') throw new Error('refused')
     expect(Object.keys(judged.value[0]?.implementation ?? {})).toEqual([
       'kind',
-      'host',
-      'dialect',
-      'event',
-      'command',
+      'interpreter',
+      'entry',
+      'timeout',
     ])
-  })
-
-  it('keeps `matcher` and `timeout` when each is given alone', async () => {
-    const matcher = { ...command, matcher: 'Bash' }
-    const timeout = { ...command, timeout: 'PT30S' }
-    expect(await judgeLoopExtensions([extension({ implementation: matcher })])).toStrictEqual({
-      kind: 'accepted',
-      value: [extension({ implementation: matcher })],
-    })
-    expect(await judgeLoopExtensions([extension({ implementation: timeout })])).toStrictEqual({
-      kind: 'accepted',
-      value: [extension({ implementation: timeout })],
-    })
   })
 
   it('accepts both endings and both scopes of a dimension, and returns them unchanged', async () => {

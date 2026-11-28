@@ -10,7 +10,7 @@ import {
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator, type ExecutionEntry } from '../src/loop/coordinator.ts'
-import { localFailure, nodeFailureCategory } from '../src/loop/node-failure.ts'
+import { failureDiagnostic, localFailure, nodeFailureCategory } from '../src/loop/node-failure.ts'
 import {
   acceptedInput,
   afterTerminalPassage,
@@ -46,7 +46,7 @@ function coordinator(
     access: alice,
     execution: execution(),
     operation: operation('invoke-node-failure'),
-    initial: acceptedInput('input-node-failure', 'original input'),
+    initial: [acceptedInput('input-node-failure', 'original input')],
     grant: null,
     idle() {},
     ...change,
@@ -122,6 +122,38 @@ describe('an accepted node failure', () => {
       expect(nodeFailureCategory(denied)).toBeNull()
     },
   )
+
+  it('takes as the diagnostic only the line the producer of a failure disclosed, bounded to one line', () => {
+    const limit = 'command_limit: maxCommandBytes 5 > 4'
+    expect(
+      failureDiagnostic({ kind: 'invalid', field: 'storage', reason: 'private', disclosed: limit }),
+    ).toBe(limit)
+    expect(
+      failureDiagnostic({ kind: 'unavailable', owner: 'o', diagnostic: 'private', disclosed: 'x' }),
+    ).toBe('x')
+    expect(failureDiagnostic({ kind: 'invalid', field: 'node', reason: 'private' })).toBeNull()
+    expect(failureDiagnostic({ kind: 'unavailable', owner: 'o', diagnostic: 'private' })).toBeNull()
+    expect(failureDiagnostic({ kind: 'denied', action: 'access' })).toBeNull()
+    const long = failureDiagnostic({
+      kind: 'invalid',
+      field: 'f',
+      reason: 'r',
+      disclosed: `first\nsecond ${'x'.repeat(400)}`,
+    })
+    expect(long).toHaveLength(200)
+    expect(long?.startsWith('first second x')).toBe(true)
+    expect(
+      failureDiagnostic({ kind: 'invalid', field: 'f', reason: 'r', disclosed: '' }),
+    ).toBeNull()
+    expect(
+      failureDiagnostic({
+        kind: 'invalid',
+        field: 'f',
+        reason: 'r',
+        disclosed: 'a\u007fb\u0000c d',
+      }),
+    ).toBe('a b c d')
+  })
 
   it('keeps separate local classifications without marking a reused provider failure', () => {
     const shared = Object.freeze({ kind: 'denied', action: 'access' } satisfies Failure)
@@ -689,7 +721,12 @@ describe('an accepted node failure', () => {
           next() {
             evaluations += 1
             if (category === 'exception') throw new Error('private credential must not persist')
-            return fail({ kind: 'invalid', field: 'node', reason: 'private request' })
+            return fail({
+              kind: 'invalid',
+              field: 'node',
+              reason: 'private request',
+              disclosed: 'the node limit 5 > 4',
+            })
           },
         },
       })
@@ -705,6 +742,9 @@ describe('an accepted node failure', () => {
         category,
       })
       expect(JSON.stringify(read.settlement.candidate)).not.toMatch(/private|credential/)
+      expect(Reflect.get(read.settlement.candidate?.failure ?? {}, 'diagnostic')).toBe(
+        category === 'rejected' ? 'the node limit 5 > 4' : undefined,
+      )
       const inputs = ok(
         await assembly.dependencies.journal.inputs({
           ...alice,

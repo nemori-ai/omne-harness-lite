@@ -4,6 +4,7 @@ export type {
   ConformanceAction,
   ConformanceCall,
   ConformanceHooks,
+  ConformanceLive,
   ConformanceObligation,
   ConformanceOptions,
   ConformanceReport,

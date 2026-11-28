@@ -11,9 +11,11 @@ import { TENANT, bodyOf, person, world } from './fixtures/world.ts'
 
 class RecordingRegistry extends AccessRegistryService {
   readonly mounted: AccessContribution<NotificationProtocol>[] = []
-  protected attach(contribution: never) {
-    this.mounted.push(contribution)
-    return async () => {}
+  mount(contribution: never): void {
+    this.ctx.effect(() => {
+      this.mounted.push(contribution)
+      return () => undefined
+    }, 'test.mount')
   }
 }
 
@@ -53,7 +55,7 @@ it('the root entry gives the contribution factory and nothing else at run time',
   expect(Object.keys(root)).toEqual(['createNotificationContribution'])
 })
 
-it('mounts notification/v1 with every operation and its observation', async () => {
+it('mounts notification/v2 with every operation and its observation', async () => {
   const { registry, seen } = await mount(true)
   expect(registry.mounted).toHaveLength(1)
   const contribution = registry.mounted[0]!

@@ -1,0 +1,260 @@
+import type { ContentBlock } from '@omne-harness/content-block'
+import { readJsonText, type JsonValue } from '@omne-harness/json-text'
+import type { ToolSourceAnswer, ToolSourceCall } from '@omne-harness/tool-contract/provider'
+import { describedAdoption, isToolSourceSuspension } from '@omne-harness/tool-contract/provider'
+import { describe, expect, it } from 'vitest'
+import {
+  GUEST_TOOL_GATE,
+  guestEntrySource,
+  guestToolExecutor,
+  type GuestEntryContext,
+} from '../src/guest-entry-source.ts'
+
+const SHAPE = {
+  resultContract: describedAdoption({ owner: 'test', name: 'tool-result', revision: '1' }),
+}
+const LIMITS = {
+  maxBytes: 4096,
+  maxDepth: 8,
+  maxItems: 64,
+  maxMembers: 64,
+  maxStringLength: 4096,
+  maxNumberLength: 32,
+} as const
+
+const json = (value: unknown): JsonValue => {
+  const read = readJsonText(JSON.stringify(value), LIMITS)
+  if (read.kind !== 'ok') throw new Error('not json')
+  return read.value
+}
+
+/** The loader's side: who the ports were opened for, and when they were closed. */
+function host(log: string[]): GuestEntryContext {
+  return {
+    key: 'weather__',
+    plugin: 'weather',
+    bind(principal) {
+      log.push(`open ${String(principal)}`)
+      return { ports: { web: { fetch: () => 'sunny' } }, close: () => log.push('close') }
+    },
+  }
+}
+
+const call = (name: string, args: unknown): ToolSourceCall<string> =>
+  ({
+    principal: 'alice-principal',
+    tenant: 'alice' as never,
+    name,
+    command: 'run',
+    declared: null,
+    arguments: json(args),
+    invocation: 'call-1' as never,
+    program: false,
+    signal: new AbortController().signal,
+  }) as ToolSourceCall<string>
+
+const forecast = {
+  summary: 'Tells the weather of a city.',
+  params: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+  effect: 'read',
+}
+
+/** A function of a plugin answers a result; it never suspends. */
+function resultOf<B extends ContentBlock>(answer: ToolSourceAnswer<B>) {
+  if (isToolSourceSuspension(answer)) throw new Error('a guest tool does not suspend')
+  return answer
+}
+
+describe('the form a plugin writes its tools in (TL-77)', () => {
+  it('makes each tool an entry named prefix and tool, of the plugin, with the gate, no program calls and no background fixed by the form', async () => {
+    const source = guestEntrySource<string>(
+      {
+        tools: {
+          forecast: { ...forecast, run: () => 'sunny', gate: 'auto', programmable: true },
+          remember: { ...forecast, effect: 'write', run: () => null },
+        },
+      },
+      host([]),
+      SHAPE,
+    )
+    expect(source.prefix).toBe('weather__')
+    const listed = await source.list({ principal: 'p', tenant: 't' as never })
+    if (!('ok' in listed)) throw new Error('not listed')
+    expect(listed.ok.withheld).toEqual([])
+    const [first, second] = listed.ok.entries
+    expect(listed.ok.entries.map(entry => entry.definition.name)).toEqual([
+      'weather__forecast',
+      'weather__remember',
+    ])
+    expect(first?.capability).toEqual({ category: 'plugin', name: 'weather' })
+    expect(first?.executor).toEqual(guestToolExecutor)
+    expect(first?.availability).toEqual({ kind: 'available' })
+    for (const entry of [first, second]) {
+      const definition = entry?.definition
+      if (definition?.kind !== 'commands') throw new Error('not a command tool')
+      expect(definition.gates).toEqual([GUEST_TOOL_GATE])
+      expect(GUEST_TOOL_GATE.default).toBe('ask')
+      expect(definition.programmable).toBeUndefined()
+      expect(definition.backgroundAllowed).toBe(false)
+      expect(
+        definition.commands.map(command => [command.name, command.release, command.readOnly]),
+      ).toEqual([['run', { gate: 'invoke' }, undefined]])
+      expect(definition.commands[0]?.returns).toMatchObject({ program: { kind: 'none' } })
+    }
+    expect(source.select({ principal: 'p', tenant: 't' as never }, 'weather__forecast')).toBe(first)
+    expect(
+      source.select({ principal: 'p', tenant: 't' as never }, 'weather__nothing'),
+    ).toBeUndefined()
+  })
+
+  it('hands the function the parsed arguments and the ports opened as the caller, never the principal; the ports close when it returns', async () => {
+    const log: string[] = []
+    const seen: unknown[] = []
+    const source = guestEntrySource<string>(
+      {
+        tools: {
+          forecast: {
+            ...forecast,
+            run: async (input: unknown, given: Readonly<Record<string, unknown>>) => {
+              seen.push(input, Object.keys(given))
+              log.push('run')
+              return { city: (input as { city: string }).city, sky: 'sunny' }
+            },
+          },
+        },
+      },
+      host(log),
+      SHAPE,
+    )
+    const result = resultOf(await source.execute(call('weather__forecast', { city: 'Oslo' })))
+    expect(seen).toEqual([{ city: 'Oslo' }, ['ports']])
+    expect(log).toEqual(['open alice-principal', 'run', 'close'])
+    expect(result.content).toMatchObject([
+      { kind: 'text', text: 'done weather__forecast\n{"city":"Oslo","sky":"sunny"}' },
+    ])
+    expect(result.content[0]).toMatchObject({ visibility: { toHuman: true, toModel: true } })
+    expect([result.data, result.original, result.attachments]).toEqual([
+      { kind: 'none' },
+      { kind: 'none' },
+      [],
+    ])
+  })
+
+  it('answers a read whose function threw with its failure, and leaves a write whose function threw unknown; neither runs again, and the ports close', async () => {
+    const log: string[] = []
+    let runs = 0
+    const boom = () => {
+      runs += 1
+      throw new Error('no network')
+    }
+    const source = guestEntrySource<string>(
+      {
+        tools: {
+          forecast: { ...forecast, run: boom },
+          remember: { ...forecast, effect: 'write', run: boom },
+        },
+      },
+      host(log),
+      SHAPE,
+    )
+    const failed = resultOf(await source.execute(call('weather__forecast', { city: 'Oslo' })))
+    expect(failed.content).toMatchObject([
+      { kind: 'text', text: 'weather__forecast failed: no network' },
+    ])
+    await expect(source.execute(call('weather__remember', { city: 'Oslo' }))).rejects.toThrow(
+      /weather__remember threw: no network\. Whether it changed anything is not known/u,
+    )
+    expect(runs).toBe(2)
+    expect(log.filter(line => line === 'close')).toHaveLength(2)
+  })
+
+  it('refuses what is not the form, with the reason', () => {
+    const refused =
+      (made: unknown, key = 'weather__') =>
+      () =>
+        guestEntrySource<string>(made, { ...host([]), key }, SHAPE)
+    expect(refused({ tools: { forecast: { ...forecast, run: () => 1 } } }, 'weather')).toThrow(
+      /not a prefix/u,
+    )
+    expect(refused({ tools: {} })).toThrow(/at least one tool/u)
+    expect(refused({})).toThrow(/at least one tool/u)
+    expect(refused({ tools: { Forecast: { ...forecast, run: () => 1 } } })).toThrow(/tool name/u)
+    expect(refused({ tools: { forecast: { ...forecast, summary: '', run: () => 1 } } })).toThrow(
+      /summary/u,
+    )
+    expect(
+      refused({ tools: { forecast: { ...forecast, params: { type: 'string' }, run: () => 1 } } }),
+    ).toThrow(/JSON Schema of an object/u)
+    expect(
+      refused({ tools: { forecast: { ...forecast, effect: 'delete', run: () => 1 } } }),
+    ).toThrow(/read or write/u)
+    expect(refused({ tools: { forecast } })).toThrow(/run is a function/u)
+    expect(refused({ tools: { forecast: 'x' } })).toThrow(
+      'forecast: a tool is { summary, params, effect, run }',
+    )
+    for (const summary of ['  ', 7])
+      expect(refused({ tools: { forecast: { ...forecast, summary, run: () => 1 } } })).toThrow(
+        'forecast: summary is one sentence',
+      )
+    expect(refused({ tools: ['x'] })).toThrow('the code gives { tools }: at least one tool')
+    expect(refused({ tools: null })).toThrow('the code gives { tools }: at least one tool')
+    expect(refused({ tools: { 'forecast-x': { ...forecast, run: () => 1 } } })).toThrow(
+      'forecast-x: a tool name is lower case letters, digits and _',
+    )
+  })
+
+  it('says a name that is not one of its tools; a value that is not JSON is the failure of a read; a write keeps what it threw as the cause', async () => {
+    const thrown = new Error('disk full')
+    const source = guestEntrySource<string>(
+      {
+        tools: {
+          forecast: { ...forecast, run: () => () => 'a function' },
+          remember: {
+            ...forecast,
+            effect: 'write',
+            run: () => {
+              throw thrown
+            },
+          },
+        },
+      },
+      host([]),
+      SHAPE,
+    )
+    await expect(source.execute(call('weather__nothing', {}))).rejects.toThrow(
+      'weather__nothing is not a tool of this plugin',
+    )
+    expect(resultOf(await source.execute(call('weather__forecast', {}))).content).toMatchObject([
+      { kind: 'text', text: 'weather__forecast failed: it returned a value that is not JSON' },
+    ])
+    await expect(source.execute(call('weather__remember', {}))).rejects.toMatchObject({
+      cause: thrown,
+    })
+  })
+
+  it('runs the function inside what the loader wraps it in, and declares text in and out with no capability required', async () => {
+    const log: string[] = []
+    const source = guestEntrySource<string>(
+      { tools: { forecast: { ...forecast, run: () => log.push('run') } } },
+      {
+        ...host(log),
+        within: run => {
+          log.push('within')
+          return run()
+        },
+      },
+      SHAPE,
+    )
+    await source.execute(call('weather__forecast', { city: 'Oslo' }))
+    expect(log).toEqual(['open alice-principal', 'within', 'run', 'close'])
+    const listed = await source.list({ principal: 'p', tenant: 't' as never })
+    if (!('ok' in listed)) throw new Error('not listed')
+    const definition = listed.ok.entries[0]?.definition
+    if (definition?.kind !== 'commands') throw new Error('not a command tool')
+    expect(definition.requiredCapabilities).toEqual([])
+    expect([
+      definition.declarations.inputModalities,
+      definition.declarations.outputModalities,
+    ]).toEqual([['text'], ['text']])
+  })
+})

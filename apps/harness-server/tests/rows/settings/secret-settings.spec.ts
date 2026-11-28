@@ -5,7 +5,7 @@ import type {
   SettingsSecretItems,
 } from '@omne-harness/settings'
 import { describe, expect, it } from 'vitest'
-import type { SystemInstant } from '../../../src/entry/session-clock.ts'
+import type { SystemInstant } from '../../../src/entry/time.ts'
 import type { SettingsVerdict } from '../../../src/rows/authorization/settings-access.ts'
 import { createSecretSettings } from '../../../src/rows/settings/secret-settings.ts'
 import { fixtureTenant } from '../../entry/support.ts'
@@ -21,7 +21,7 @@ const at = { principal, tenant: A, asset: WEB, item: ITEM }
 const TEXT = {
   title: 'Exa API key',
   purpose: 'The key search sends to Exa.',
-  appliesAt: 'Applies from the next read of the item.',
+  appliesAt: '下一次读到这一项时起生效。',
   clearEffect: 'Search is unconfigured until a key is set again.',
   group: { id: 'web', title: 'Web', description: 'Web search' },
 }
@@ -73,7 +73,7 @@ function world(given: Partial<Answers> = {}) {
     items: input => (input.scope.layer === 'official' ? answers.official : answers.tenant),
   }
   const face = createSecretSettings({
-    items,
+    items: async () => items,
     qualify: async () => ({ kind: answers.verdict }),
     now: (): SystemInstant =>
       answers.clock

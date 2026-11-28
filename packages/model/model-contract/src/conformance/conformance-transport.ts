@@ -51,6 +51,7 @@ async function viaMaterialized<T>(
   body: (materialized: MaterializedTransport) => Promise<T>,
 ): Promise<T> {
   const materialized = succeeded(await prepared.materialize(signal), 'materialize')
+  expect('start' in materialized, 'materialize opened a live session, not a request')
   try {
     return await body(materialized)
   } finally {
@@ -126,6 +127,10 @@ export function transportChecks<P>(): readonly Check<P>[] {
             const second = await attempt(() => prepared.materialize(signal))
             if (!second.threw && 'ok' in second.value) {
               const extra = second.value.ok
+              expect(
+                'start' in extra,
+                'the second materialize opened a live session, not a request',
+              )
               const facts = await collectThenClose(scene, extra, signal)
               expect(
                 facts.length === 0,
@@ -161,10 +166,11 @@ export function transportChecks<P>(): readonly Check<P>[] {
               same(receipt.supplier, supplier.adoption),
               `the receipt names the supplier ${show(receipt.supplier)}`,
             )
-            expect(
-              same(receipt.representation, request.representation),
-              `the receipt names the representation ${show(receipt.representation)}`,
-            )
+            if (request.kind === 'llm')
+              expect(
+                same(receipt.representation, request.representation),
+                `the receipt names the representation ${show(receipt.representation)}`,
+              )
             expect(same(receipt, materialized.receipt), 'the receipt changes between two reads')
             const format = receipt.replayFormat
             expect(

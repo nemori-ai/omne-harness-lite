@@ -48,6 +48,7 @@
 - `judgeMessage` · `message.d.ts`
 - `judgePart` · `parts.d.ts`
 - `messageIdEquals` · `message.d.ts`
+- `originHeader` · `projection.d.ts`
 - `parseMessageId` · `message.d.ts`
 - `parseRecordEntryRef` · `compaction-shape.d.ts`
 - `projectMessage` · `projection.d.ts`
@@ -141,7 +142,7 @@ export { judgePart } from './parts.ts';
 export { REASONING_STATE_PAYLOAD_MAX_LENGTH, REPLAY_TAG_MAX_LENGTH, REPLAY_PREFIX_MAX_LENGTH, isReplayTag, } from './reasoning.ts';
 export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts';
 export type { CallPart, IncompleteToolCallPart, MessageContentBlock, MessagePart, ToolCallPart, ToolPart, ToolResultPart, UnparsedToolCallPart, } from './parts.ts';
-export { projectMessage } from './projection.ts';
+export { originHeader, projectMessage } from './projection.ts';
 ```
 
 ## 声明文件 `message.d.ts`
@@ -290,8 +291,9 @@ export {};
 ## 声明文件 `projection.d.ts`
 
 ```ts
-import type { BlockId } from '@omne-harness/content-block';
+import type { BlockId, TextOrigin } from '@omne-harness/content-block';
 import { type Message } from './message.ts';
+export declare function originHeader(origin: TextOrigin): string;
 export declare function projectMessage(message: Message, side: 'toHuman' | 'toModel'): {
     message: Message;
     dropped: readonly BlockId[];

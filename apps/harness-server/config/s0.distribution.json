@@ -46,6 +46,11 @@
       "config": {}
     },
     {
+      "id": "dynamis",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "stubPlugin",
       "config": {}
@@ -316,12 +321,42 @@
       "config": {}
     },
     {
+      "id": "tool-entry-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "slash-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "mcp-storage-sql",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "mcp",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-bindings",
       "plugin": "stubPlugin",
       "config": {}
     },
     {
       "id": "skills",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "skill-command-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "prompt-command-source",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -371,6 +406,11 @@
       "config": {}
     },
     {
+      "id": "execution-program",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "execution-host",
       "plugin": "stubPlugin",
       "config": {}
@@ -391,6 +431,11 @@
       "config": {}
     },
     {
+      "id": "loop-extension",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "runtime-context",
       "plugin": "stubPlugin",
       "config": {}
@@ -402,6 +447,11 @@
     },
     {
       "id": "session-intake-budget",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "workspace-outside-files",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -422,6 +472,56 @@
     },
     {
       "id": "dispatch-tool",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "schedule-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-decisions",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "system-extensions",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "goal-check",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "canvas",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-canvas",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-canvas",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -451,7 +551,22 @@
       "config": {}
     },
     {
+      "id": "goal-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "slash-command-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "mcp-access",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -492,6 +607,36 @@
     },
     {
       "id": "usage-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "canvas-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "interface-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-server",
       "plugin": "stubPlugin",
       "config": {}
     }

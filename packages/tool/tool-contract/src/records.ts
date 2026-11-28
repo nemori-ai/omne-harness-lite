@@ -24,7 +24,6 @@ import type {
   ToolStartLookup,
   ToolStartRecord,
 } from './ports.ts'
-import type { ChildReservation, ProgramEnd } from './program.ts'
 import type { Reply, WaitState } from './results.ts'
 
 export type PhysicalExecution =
@@ -120,35 +119,15 @@ export interface ToolStartAuthority<P> {
   ): Reply<DurableEvidence>
 }
 export type ToolStartFence<P> = Pick<ToolStartAuthority<P>, 'invalidate'>
-export type ToolPermitRef = Readonly<{ tenant: TenantId; permit: string }>
-export type ToolPermitConsumption = Readonly<{
-  permit: ToolPermitRef
-  consumer: Readonly<{ owner: string; work: string; position: string }>
-  evidence: DurableEvidence
-}>
 export type ToolStartAcceptance = Readonly<{
   tenant: TenantId
   call: ToolCallId
   start: ToolStartRecord
   permit: DurableEvidence
   guards: readonly StartGuard[]
-  authorizations: readonly ToolPermitConsumption[]
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
-  release?: ToolStartRelease
 }>
-/** What a start was released on, as the request-access owner answered it; kept as given, unread. */
-export type ToolStartRelease = Readonly<
-  | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: string }
-  | { by: 'carrier' | 'ungated'; grant: null }
->
-export type ToolStartReleaseReading =
-  | Readonly<{ kind: 'released'; release: ToolStartRelease }>
-  | Readonly<{ kind: 'absent' }>
-/** What a call's start was released on, for an owner that keeps a consent basis. */
-export interface ToolStartReleases<P> {
-  releaseOf(input: CallAccess<P>): Reply<ToolStartReleaseReading>
-}
 export type WaitIntent = Readonly<{
   wait: ToolWaitId
   resume: DurableEvidence
@@ -319,13 +298,6 @@ export type ToolTask = Readonly<{
         evidence: DurableEvidence
       }>
     | Readonly<{ kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock'; basis: DurableEvidence }>
-    | Readonly<{
-        kind: 'child'
-        reservation: ChildReservation
-        action: 'reconcile' | 'collect' | 'control'
-        cause: ProgramEnd | null
-      }>
-    | Readonly<{ kind: 'program-fence'; end: ProgramEnd; guard: StartGuard }>
     | Readonly<{
         kind: 'resource-wait'
         wait: Extract<WaitIntent, { kind: 'resource' }>

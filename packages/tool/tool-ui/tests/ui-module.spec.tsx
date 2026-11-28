@@ -2,14 +2,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { definePoint } from '@omne-harness/shell-contract'
-import { CALL_OUTPUT_ID, createToolUiModule, toolClientService } from '../src/cordis.ts'
+import { definePoint, partsOn } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { toolProtocol } from '@omne-harness/tool-protocol'
+import { CALL_CHILDREN_ID, CALL_OUTPUT_ID, createToolUiModule } from '../src/cordis.ts'
 import { CallOutputStore } from '../src/index.ts'
-import { startShell } from './fixtures/reference-shell.ts'
+import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const detail = definePoint<{ readonly session: string; readonly call: string }>({
+  title: 'test',
   name: 'session.call-detail',
   subject: {
     encode: value => JSON.stringify([value.session, value.call]),
@@ -20,7 +23,19 @@ const detail = definePoint<{ readonly session: string; readonly call: string }>(
   },
 })
 
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [detail]) point.declare(started.shell)
+  return started
+}
+
 afterEach(cleanup)
+
+// happy-dom cancels a notice's arrival animation on unmount; the look is not under test here.
+Object.assign(Element.prototype, {
+  animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+})
 
 const attached = (root: Context) =>
   (root.shell as unknown as { items(slot: 'attached'): { id: string }[] })
@@ -35,21 +50,34 @@ function client(answers: readonly unknown[]) {
 }
 
 describe('the tool-ui module (C26)', () => {
-  it('with the Tool client, puts the output into the point it was given; without it, nothing', async () => {
+  it('with the Tool client, puts the positions and the output into the point it was given; without it, nothing', async () => {
     const { root } = await startShell()
     await root.plugin(createToolUiModule({ callDetail: detail }))
     expect(attached(root)).toEqual([])
-    const unprovide = root.reflect.provide(toolClientService, client([]).client)
+    const served = await serveProtocol(root, toolProtocol, client([]).client)
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(attached(root)).toEqual([CALL_OUTPUT_ID])
-    unprovide()
+    expect(attached(root)).toEqual([CALL_CHILDREN_ID, CALL_OUTPUT_ID])
+    await served.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(attached(root)).toEqual([])
   })
 
+  it('M4 declares its parts', async () => {
+    const { root, shell } = await startShell()
+    await serveProtocol(root, toolProtocol, client([]).client)
+    await root.plugin(createToolUiModule({ callDetail: detail }))
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+      ['tool.call-children', 'session.side.background-call'],
+      ['tool.call-output', 'session.side.background-call'],
+      ['tool.code-card', 'session.transcript'],
+    ])
+  })
+
   it('without a point, it places nothing', async () => {
     const { root } = await startShell()
-    root.reflect.provide(toolClientService, client([]).client)
+    await serveProtocol(root, toolProtocol, client([]).client)
     await root.plugin(createToolUiModule())
     expect(attached(root)).toEqual([])
   })
@@ -79,16 +107,59 @@ describe('the output of a call as the view keeps it (C26, C24)', () => {
     stop()
   })
 
-  it('says when there is no output yet, or when it cannot be read', async () => {
+  it('says when there is no output yet; reading it is the activity mark with its words', async () => {
     const { CallOutput } = await import('../src/index.ts')
-    for (const [answer, words] of [
-      [{ outcome: 'succeeded', body: { kind: 'none' } }, '还没有可读的输出'],
-      [{ outcome: 'basis-unavailable' }, '输出现在读不到：basis-unavailable'],
-    ] as const) {
-      const store = new CallOutputStore(client([answer]).client as never, 60_000)
-      render(<CallOutput store={store} tenant={TENANT} reference="ref-2" />)
-      expect(await screen.findByText(words)).toBeTruthy()
+    const store = new CallOutputStore(
+      client([{ outcome: 'succeeded', body: { kind: 'none' } }]).client as never,
+      60_000,
+    )
+    render(<CallOutput store={store} tenant={TENANT} reference="ref-2" />)
+    const reading = screen.getByRole('status', { name: '正在读输出…' })
+    expect(reading.querySelector('[data-loading-indicator]')).not.toBeNull()
+    // The empty line is weak ink, said at caption size (SPEC 界面模块).
+    expect((await screen.findByText('还没有可读的输出')).className).toContain('text-ink-muted')
+  })
+
+  it('an output it cannot read is said in words, its outcome kept in 详情; a refusal or an unknown is neutral', async () => {
+    const { CallOutput } = await import('../src/index.ts')
+    const tones: (string | null)[] = []
+    for (const outcome of ['basis-unavailable', 'denied', 'uncertain']) {
+      const store = new CallOutputStore(client([{ outcome }]).client as never, 60_000)
+      render(<CallOutput store={store} tenant={TENANT} reference="ref-3" />)
+      const notice = (await screen.findByText('输出现在读不到。')).closest('[data-inline-notice]')
+      expect(notice?.textContent).not.toContain(`读不到：${outcome}`)
+      expect(screen.getByRole('button', { name: '详情' })).toBeTruthy()
+      expect(notice?.querySelector('code')?.textContent).toBe(outcome)
+      tones.push(notice?.getAttribute('data-tone') ?? null)
       cleanup()
     }
+    expect(tones).toEqual(['caution', 'neutral', 'neutral'])
+  })
+
+  it('the output is a code surface named 调用的输出; while open a neutral 输出还在写, once sealed nothing', async () => {
+    const { CallOutput } = await import('../src/index.ts')
+    const fake = client([
+      {
+        outcome: 'succeeded',
+        body: { kind: 'open', from: '0', through: '4', total: '4', text: 'one\n' },
+      },
+      {
+        outcome: 'succeeded',
+        body: { kind: 'sealed', from: '4', through: '8', total: '8', text: 'two\n' },
+      },
+    ])
+    const store = new CallOutputStore(fake.client as never, 60_000)
+    render(<CallOutput store={store} tenant={TENANT} reference="ref-4" />)
+    const output = await screen.findByRole('group', { name: '调用的输出' })
+    expect(output.getAttribute('data-omne-part')).toBe('tool.call-output')
+    const surface = output.querySelector('.code-surface')
+    expect(surface?.querySelector('pre')?.textContent).toBe('one\n')
+    const word = output.querySelector('[data-state-word]')
+    expect([word?.textContent, word?.getAttribute('data-tone')]).toEqual(['输出还在写', 'neutral'])
+    expect(word?.querySelector('[data-loading-indicator]')).toBeNull()
+    await act(async () => store.refresh(TENANT, 'ref-4'))
+    expect(surface?.querySelector('pre')?.textContent).toBe('one\ntwo\n')
+    expect(output.querySelector('[data-state-word]')).toBeNull()
+    expect(output.textContent).not.toContain('输出已写完')
   })
 })

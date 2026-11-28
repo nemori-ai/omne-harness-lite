@@ -135,6 +135,7 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
     root: repo.root,
     base,
     files: options.files,
+    tests: options.tests,
     outDir,
     exec: deps.exec,
     stryker: options,
@@ -148,6 +149,10 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
   const lineCount = (path: string) => (repo.read(path) ?? '').split('\n').length
   const plan = planLines(plans, lineCount, options.maxLines ?? DEFAULT_MAX_LINES)
   deps.print(`差分变异范围：基线 ${base.slice(0, 9)} 到工作树；只跑快层`)
+  if (options.tests.length > 0)
+    deps.print(
+      `点名用例 ${String(options.tests.length)} 份：被点到的成员只跑它们，只被别的用例守着的变异体会记成存活或无覆盖`,
+    )
   for (const line of plan.lines) deps.print(line)
   return { members, plans, plan, lineCount, context }
 }
@@ -174,6 +179,7 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
     '--base',
     '--scope',
     '--files',
+    '--tests',
     '--plan-only',
     '--max-lines',
     '--out',

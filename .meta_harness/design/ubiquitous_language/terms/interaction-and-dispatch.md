@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 16）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 23）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -62,7 +62,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 16）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 23）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [agent 间通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)对两者一视同仁
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -93,7 +93,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 16）
+- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 23）
 - **注意 ①**：**「没有归档」就是通路存在的条件**——一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了。
   **没有删除会话的概念，也就没有「会话结束」这回事**
 - **注意 ②**：**发不出去时要说清是哪一条不满足**：对方不存在或不在本租户（两者答同一句）、对方已归档、发给了自己、此刻不许。
@@ -121,7 +121,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 16）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 23）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -129,7 +129,7 @@
   子 agent 两样都能用：**干到一半要确认事实、澄清需求，走消息**（什么都不终结，来回多少次都行）；
   **干完了必须交报告**（只有一次，一交这次派发就结束）。
   **混为一谈的代价是两头的**——把消息当报告，派发者以为活已干完；把报告当消息，那次派发永远不返回
-- **注意**：**它只交到一处**：派发者那次调用还在等，它就是调用的结果；等待已经结束，它作为一条系统提醒送进派发者的会话。被派发的那一轮正常结束而没有交报告时，**它的最终回复就是报告**；那一轮失败或被取消而没有报告，这次派发以失败收场
+- **注意**：**它只交到一处**：派发者那次调用还在等，它就是调用的结果；等待已经结束，它作为一条系统提醒送进派发者的会话。被派发的 agent 没交报告就停了下来（没有在跑的一轮、待处理的输入与后台调用）时，**它最近一轮的最终回复就是报告**；那一轮失败或被取消，这次派发以失败收场
 - **注意**：发起方可以附上「**我期望报告长什么样**」，但那是**指引，不是校验**——
   写成硬校验，子就会为了通过校验而编造格式
 
@@ -145,7 +145,7 @@
 > dispatching tool call.**
 
 - **形态**：对象
-- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 16）
+- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 23）
 - **身份靠什么**：受理时定下的派发标识；建出的会话的身份由它派生，所以重做认回同一个会话
 - **怎么生怎么灭**：受理即生；`spawn`、`delegate` 以报告成立、失败或撤回了结，`handoff` 以会话建成或建不成了结。了结之后仍读得到
 - **别混 ①**：**不是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**。派发了结了，那个会话照旧在
@@ -310,14 +310,17 @@
 - **形态**：过程
 - **出处**：[PF-008 §4 放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于不用再问人
-- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16））
+- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 20））
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
 - **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
   **不该放的放了就是做了没有人批准过的事**
 - **注意 ④**：**它此刻不可用时，顶上的是系统预先声明的[全拒件](agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy)**——
-  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作及判断依据仍有效时不重复出相同的卡片，但实际启动仍核当前主体、授权及环境资格；排队期间撤权不得沿用旧批准。重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
+  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作及判断依据仍有效时不重复出相同的卡片。重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
+- **注意 ⑥**：**它只在动作发起时判这一次**（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 20））——
+  放行之后交给工具，工具做[调用受理](execution-and-outcome.md#ul-call-acceptance--调用受理--call-acceptance)，只核主体资格、推进资格与环境，不再判许不许；
+  之后的撤回只影响之后的放行判断，要停一个已经交出的调用用取消
 
 ### UL-inquiry · 问询 · Inquiry
 
@@ -331,11 +334,11 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 23）
 - **别混**：与系统发起的放行卡片**问的不是一类事**——
   **问询要的是信息或选择，答复交回 agent 接着想；放行卡片问的是许不许，答复交授权的拥有者，不经 agent**。
   agent 不拿问询向人要授权：人在问询里答的话不产生任何许可
-  （[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16））
+  （[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 20））
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
 - **注意 ②**：**一次问全。**打断的代价**与问题多少无关，只与打断次数有关**——
   **挤牙膏式连问是产品缺陷**
@@ -353,7 +356,7 @@
 > is needed the system raises the release card.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 23）
 - **别混**：agent 主动问人的只有[问询](#ul-inquiry--问询--inquiry)，它不产生许可
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
@@ -371,7 +374,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 16）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 23）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -412,7 +415,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 16）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 23）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -427,22 +430,24 @@
 > 归哪个对象（租户，或会话）；是哪一笔[授权表达](#ul-authorization-expression--授权表达--authorization-expression)、
 > 哪一次运行模式的设定，或哪一次权限裁定。它由[放行判断](#ul-admission-decision--放行判断--admission-decision)在放行时给出。
 > 那份授权仍由它那一层保存，引用只指向它，寿命跟着那一层。
-> 要以同意作依据的领域，把它原样记进自己的记录，不解读。
+> 它和放行的结论一起记在这次放行判断的记录里，只记这一处：不交给执行动作的工具，也不复制进别的领域。
 >
 > **EN**: The value a release carries to name the one authorization the release rests on.
 > It states three things: the layer of that authorization (global, or this session); the
 > object that keeps it (the tenant, or the session); and which authorization expression,
 > run-mode setting or permission verdict it is. The admission decision produces it when it
 > releases an action. The authorization stays where its layer keeps it. The reference only
-> points to it and lives as long as that layer. A domain that needs consent as its basis
-> stores the reference unchanged in its own record and does not interpret it.
+> points to it and lives as long as that layer. It is recorded once, with the release verdict,
+> in the record of that admission decision: it is not handed to the tool that runs the action,
+> and no other domain copies it.
 
 - **形态**：属性
-- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16）
+- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 23）
 - **别混**：**不是[放行详情](#ul-release-detail--放行详情--release-detail)**——
-  放行详情讲这次调用要做什么，写给人看；授权引用讲这次放行凭什么，留给要依据的领域存
+  放行详情讲这次调用要做什么，写给人看；授权引用讲这次放行凭什么，记在放行判断的记录里
 - **别混**：**不是一次工具调用的引用**——调用引用点名一次调用，授权引用点名一份授权；
   调用的记录会被清理，授权引用不指向它
+- **别混**：**不是条目的创建者**——日程、订阅这类由动作创建的条目记的是创建者，不记授权引用
 - **注意**：**放行不凭任何授权时没有它**——经 `Tools()` 转调时，`Tools()` 这次调用只核了没被禁止，
   它的放行不带授权引用；被转调的那个动作自己放行时才带
 
@@ -490,7 +495,7 @@
 > but it does not become an input.
 
 - **形态**：属性
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 13）
 - **别混**：**它不是工具结果的交付。**交付是 Tool 把结果推给受理时冻结的消费位置，有没有这项资格都照推；
   这项资格只管结局能不能再进会话，成为一条输入
 - **注意 ①**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
@@ -509,7 +514,7 @@
 > of a call that was stopped by itself.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 13）
 - **别混**：**它不是被留存的结局。**被留存的结局不成为输入，模型读不到；不叫醒的输入是输入，模型在下一次承接时读到
 - **注意**：一条输入叫不叫醒由它的[输入来源](#ul-input-source--输入来源--input-source)决定，在受理时定下，之后不改
 
@@ -531,7 +536,7 @@
 > permission; whether a submission to one session is allowed is checked at every intake.
 
 - **形态**：对象
-- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 12）
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 13）
 - **别混 ①**：不是[来源标记](record-and-context.md#ul-source-tag--来源标记--source-tag)。来源标记是一条输入身上记着的那个值；输入来源是登记的那份声明，标记的值取自它的名字
 - **别混 ②**：不是[通知来源](#ul-notification-source--通知来源--notification-source)。通知来源向通知登记，说的是谁在发事件；输入来源向会话登记，说的是谁在送输入
 - **注意**：身份是它的名字，`<领域>.<名字>`。同名的第二份登记失败，不覆盖
@@ -548,7 +553,7 @@
 > session is not it.
 
 - **形态**：视图
-- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 12）
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 13）
 - **别混**：不是提交的结局。结局答「这一次送，会话接下了没有」；去向答「接下之后它怎样了」
 
 
@@ -564,7 +569,7 @@
 > search was complete: when it could not finish, the answer says so and does not say there is none.
 
 - **形态**：过程
-- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 12）
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 13）
 - **别混**：不是搜会话。搜会话按标题找会话；搜历史按消息里的字找到具体的那句话
 
 
@@ -578,7 +583,7 @@
 > message is a hit is decided by the original text in the session log.
 
 - **形态**：视图
-- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 12）
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 13）
 - **别混**：不是会话日志。它不保存任何别处没有的事实
 
 
@@ -595,7 +600,7 @@
 > identity of the call and has no meaning outside this session.
 
 - **形态**：属性
-- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 10）
+- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 15）
 - **别混**：**它不是调用引用。**调用引用是 Tool 认得的身份，跨会话有效；短号只在一个会话里指认一项
 
 ### UL-inbound-target · 投递目标 · Inbound Target
@@ -726,7 +731,7 @@
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
   [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
-  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 4）
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 15）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -866,19 +871,86 @@
 
 ---
 
+### UL-ui-part · 界面部位 · UI Part
+
+> **中**：**界面上一种有名字、可以被指认的东西**，由画它的[界面模块](#ul-ui-module--界面模块--ui-module)声明：
+> 名字、给人看的叫法、一句说明、它可以出现在哪些界面部位里。
+> 同一种界面部位可以同时在屏幕上画好几处。人指的、agent 改的，按这个名字说。
+>
+> **EN**: **A named kind of thing on the user interface that can be pointed at**, declared by the
+> UI module that draws it: a name, a label for people, a one-line summary, and the UI parts it can
+> appear in. One UI part can be drawn in several places on the screen at once. What a person points
+> at and what the agent changes are named by this name.
+
+- **形态**：位置
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 15）
+- **别混**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)。界面插入位置是界面模块往里放东西的地方；界面部位是画出来、能被指认的东西。
+- **注意**：屏幕上的一处是它此刻的一个实例，没有名字，也没有跨时间的身份。一个没有声明名字的页面元素不是界面部位。
+
+---
+
+### UL-interface-inspection · 界面检视 · Interface Inspection
+
+> **中**：**agent 向一个连着的客户端问界面长什么样的那一次问答：点名的一页在点名的模式下会是什么样，或人此刻在这个客户端上看到的是什么样。**
+> 答案是一张图、这一刻的结构（画着的部位与每一处的字、框），或两样都有。模式是明暗、字号档、皮肤与内容区的宽高。
+> 它没有效果：人正在看的页面、焦点、输入框里的字与本机记着的选择都不变。没有客户端连着时，答案是客户端不在。
+>
+> **EN**: **One question an agent puts to a connected client about how its interface looks: how the named page would look in the named mode, or what the person sees on that client now.**
+> The answer is one image, the structure at that moment (the UI parts drawn and the text and box of each place), or both. The mode is the theme, the type scale, the skin, and the width and height of the content area.
+> It has no effect: the page the person is looking at, the focus, the text in the input and the choices kept on the device do not change. With no client connected, the answer is that no client is there.
+
+- **形态**：过程
+- **出处**：[桌面应用：agent 给应用加东西](../../product/desktop-application/design.md#agent-给应用加东西)、[开发模式](../../product/desktop-application/design.md#开发模式)（rev 15）
+- **别混**：不是执行环境的屏幕截取（那是服务端那台机器的屏幕）；「此刻」只看人用的那扇窗，不看整块屏幕；不是[界面开发模式](#ul-ui-developer-mode--界面开发模式--ui-developer-mode)里人的选取，也不在人的屏幕上标东西。
+
+---
+
+### UL-ui-developer-mode · 界面开发模式 · UI Developer Mode
+
+> **中**：**一个图形[交付面](#ul-delivery-surface--交付面--delivery-surface)上的开关。**
+> 开着时，人可以在界面上选取[界面部位](#ul-ui-part--界面部位--ui-part)，把选中的随消息交给 agent。
+> 关着时，交付面的行为与没有这个开关时相同。正文里没有歧义时简称「开发模式」。
+>
+> **EN**: **A switch on a graphical delivery surface.** While it is on, a person can pick UI parts
+> on the interface and hand the picks to the agent with a message. While it is off, the surface
+> behaves as if the switch did not exist.
+
+- **形态**：状态
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 15）
+- **别混**：不是应用的开发构建，也不是给开发者调试用的检查器。它是给使用者的。
+
+---
+
+### UL-ui-selection · 界面选择 · UI Selection
+
+> **中**：**一条输入里的一部分：人在一个[交付面](#ul-delivery-surface--交付面--delivery-surface)上选中的一组[界面部位](#ul-ui-part--界面部位--ui-part)的各一处，每处带一个序号。**
+> 它记下每一处是哪个界面部位、是同类里的第几处、画的是什么。输入被受理之后它不变。
+>
+> **EN**: **A part of one input: the places of UI parts that a person picked on one delivery
+> surface, each with a number.** For each place it records which UI part it is, which one of its
+> kind it is, and what it draws. It does not change after the input is accepted.
+
+- **形态**：属性
+- **出处**：[桌面应用：开发模式](../../product/desktop-application/design.md#开发模式)（rev 15）
+- **别混**：不是人写的字里的引用。它和人写的字分开，标题与搜索不含它。
+- **注意**：它是选中那一刻的记录。之后界面变了，它不变。还没随消息发出去的那一份只在交付面里，不是输入的一部分。
+
+---
+
 ### UL-asset-page · 资产页 · Asset Page
 
 > **中**：**桌面应用里人管理本租户各类资产的那一部分。**
-> 它按资产的类别分开，每一类一个页签。它自己只有页标题与页签；页签下面是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
+> 它按资产的类别分开，每一类在左边的一条栏里占一行。它自己只有页标题与这条栏；选中一行，右边是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
 > 一份资产自己的设置在这里改，不在「设置」那一部分。
 >
 > **EN**: **The part of the desktop application where a person manages the assets of the tenant.**
-> It is divided by asset category, one tab for each category. The page itself has only a title
-> and the tabs. Under each tab is the asset category page of that category. A person changes the
+> It is divided by asset category, and each category has one row in a rail on the left. The page
+> itself has only a title and this rail. When a row is selected, the asset category page of that
+> category shows on the right. A person changes the
 > settings of an asset here, not in the Settings part.
 
 - **形态**：位置
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 15）
 - **别混**：不是「设置」那一部分：设置只放不属于任何一份资产的设置项。
   不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：它是资产的界面模块放进外壳「页面」这个位置里的一项。
 
@@ -888,17 +960,19 @@
 
 > **中**：**一类资产在[资产页](#ul-asset-page--资产页--asset-page)里自己的那一页。**
 > 它由这一类资产的[界面模块](#ul-ui-module--界面模块--ui-module)带来，画什么、怎样排由这一类自己定。
-> 这一类没有带来时用通用的页面：列出这个租户这一类正持有的资产，点开一份看它的[资产简介](capabilities-and-composition.md#ul-asset-summary--资产简介--asset-summary)、内容与设置项，并在这里新建、禁用、启用、移除。同一类至多一页。简称类别页面。
+> 这一类没有带来时用通用的页面：列出这个租户这一类正持有的资产，点开一份看它的[资产简介](capabilities-and-composition.md#ul-asset-summary--资产简介--asset-summary)、内容与设置项，并在这里新建、禁用、启用、移除；一份 plugin 带来的这一类条目也列在这里，标着来自哪份 plugin，只能看，回到那份 plugin 的页去改。同一类至多一页。简称类别页面。
 >
 > **EN**: **The page that one asset category has inside the asset page.** The UI module of that
 > category brings the page, and the category decides what the page shows and how. When the
 > category brings no page, a general page is used. The general page lists the assets of that
 > category that the tenant holds. A person opens one asset to see its asset summary, its content
-> and its setting entries, and creates, disables, enables and removes assets there. One category
-> has at most one page.
+> and its setting entries, and creates, disables, enables and removes assets there. The entries of
+> that category that a plugin brought are listed there too, marked with the plugin they came from;
+> they can only be looked at, and are changed on the page of that plugin. One category has at most
+> one page.
 
 - **形态**：视图
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 15）
 - **别混**：不是资产本身，也不存任何事实：页面上的每个值取自服务端此刻的答复。
   有没有这一页只说明这次部署装没装这一类的界面，不说明这个人许不许用这一类资产。
 - **注意**：它是放进资产页的[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一项[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)。
@@ -925,6 +999,376 @@
   不是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)：拓展点让贡献流向宿主，它让宿主的能力流向贡献方。
   规则不由它判：一项能不能改、秘密给不给，都由服务端的答复说。
 
+---
+
+### UL-agent-figure · Agent 形 · Agent Figure
+
+> **中**：**桌面应用里代表 agent 的那一个墨圆**：一支毛笔写出，留一个口。
+> 屏幕上同一时刻只有一个。它在窗口里坐在[形座位](#ul-figure-seat--形座位--figure-seat)上，用自己的笔画说出它代表的会话此刻在做什么，并在口外写出[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)。
+> 人可以把它拿起来；拿出窗口放下，它留在桌面上，画在[桌面层](#ul-desk-layer--桌面层--desk-layer)里，仍然是这一个。
+> 人看着某个会话时，它代表这个会话的 agent；人没在看任何会话时，它代表这个租户的全部会话。
+> 它不存任何事实：它的样子每次从会话报出的状态与待答数算出。简称形。
+> 一套[皮肤](capabilities-and-composition.md#ul-skin--皮肤--skin)可以换它看起来的样子；它是哪一个、坐在哪、代表谁、在做什么时怎样表示，都不因此改变。
+>
+> **EN**: **The one ink circle that stands for the agent in the desktop application.** One brush
+> stroke writes it, and it has an open gap. The screen shows exactly one at a time. In the window it
+> sits on a figure seat. Its own strokes show what the session it stands for is doing now. It writes
+> the awaiting-answer count outside its gap. A person can lift it. When the person drops it outside
+> the window, it stays on the desktop. The desk layer draws it there, and it is still the same one. When the person looks at a session, it stands for the agent
+> of that session. When the person looks at no session, it stands for all sessions of the tenant.
+> It keeps no facts. Each time, the application computes its look from the state that sessions
+> report and from the awaiting-answer count.
+> A [skin](capabilities-and-composition.md#ul-skin--皮肤--skin) can change how it looks. Which figure it is, where it sits, what it
+> stands for and what it shows of the work stay the same.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 15）
+- **别混**：不是图标、头像或产品标志。不是 agent 本身：形只是 agent 在桌面应用里的样子，不带 agent 的任何事实。
+  在桌面上的形不是另一个东西：它离开的座位空着，回去时还是坐那个座位。
+
+---
+
+### UL-figure-seat · 形座位 · Figure Seat
+
+> **中**：**界面里给 [Agent 形](#ul-agent-figure--agent-形--agent-figure)留出的一处固定位置。**
+> 座位自己不画任何东西，只给出一个中点。桌面应用的登录门与[正面](#ul-application-face--应用的面--application-face)上有三个：登录门的上方（门）、正面侧栏的左上角（家）、正面对话页的头部（对话头）。
+> 人在反面时，形坐在反面上的座位上，那个座位由[画布](#ul-canvas--画布--canvas)放在纸的中间。收起的那一面不给形座位。
+> 几个座位同时看得见时，形坐优先级最高的那一个；形离开的座位上什么都不留。
+>
+> **EN**: **A fixed place in the interface for the agent figure.** A seat draws nothing
+> itself and only gives a centre point. The sign-in gate and the front face of the desktop
+> application have three seats. The gate is above the sign-in gate. Home is the top-left corner of
+> the sidebar on the front face. The conversation header is in the header of the conversation page
+> on the front face. When the person is on the back face, the figure sits on the seat of the back
+> face, which the canvas puts in the middle of its sheet. The hidden face gives the figure no seat.
+> When several seats are visible, the figure sits on the one with the highest priority. A seat that
+> the figure left shows nothing.
+
+- **形态**：位置
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 15） ·
+  [画布「应用的两面」](../../product/canvas/design.md#应用的两面)（rev 2）
+- **别混 ①**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：插入位置里放的是界面模块的一项；座位上只坐形。
+- **别混 ②**：画布中间的座位不叫家。家只指正面侧栏左上角的那一个座位。
+
+---
+
+### UL-figure-port · 形口 · Figure Port
+
+> **中**：**[界面外壳](#ul-app-shell--界面外壳--app-shell)交给[界面模块](#ul-ui-module--界面模块--ui-module)的一个口**：
+> 界面模块经它报出它代表的会话此刻在做什么，以及它算出的[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)；外壳把各个模块的报告合起来，画出 [Agent 形](#ul-agent-figure--agent-形--agent-figure)。
+> 报告绑在报告方的作用域上，报告方卸载时撤掉。报告只交数据，没有结果。
+>
+> **EN**: **A port that the app shell gives to UI modules.** Through it, a UI module reports what
+> the session it stands for is doing now. It also reports the awaiting-answer count that it
+> computed. The shell
+> combines the reports of all modules and draws the agent figure. A report is bound to the scope of
+> the module that made it and is withdrawn when that module unloads. A report hands over data only
+> and has no result.
+
+- **形态**：位置
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 15）
+- **别混**：不是[资产治理口](#ul-asset-governance-port--资产治理口--asset-governance-port)：那个口让宿主的事实与操作流向贡献方；形口让贡献方的数据流向外壳。
+  报了一条不表示人看到了。
+- **注意**：它是[宿主交给贡献方的口](../../../../docs/architecture/cross-cutting-concepts.md#宿主交给贡献方的口)的一个，宿主是界面外壳。
+
+---
+
+### UL-awaiting-answer-count · 待答数 · Awaiting-Answer Count
+
+> **中**：**一个租户的[决策池](#ul-decision-pool--决策池--decision-pool)里此刻等着人回答的[决策卡片](#ul-decision-card--决策卡片--decision-card)的张数**，即待答的问询与放行。
+> 桌面应用把它用琥珀色写在 [Agent 形](#ul-agent-figure--agent-形--agent-figure)的口外，导航里「待你决定」后面是同一个数。
+> 没了结的[通知](#ul-notification--通知--notification)与[告知笺](#ul-told-note--告知笺--told-note)都不算进去。
+>
+> **EN**: **The number of decision cards that wait for an answer in the decision pool of one tenant
+> now**: the open inquiries and release cards. The desktop application writes it in amber outside
+> the gap of the agent figure, and the same number follows the decision page in the navigation.
+> Unresolved notifications and told notes do not count.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 15）
+- **别混**：不是通知的未了结条数：那个数不要人回答，界面上用中性的样子显示。
+
+---
+
+### UL-ink-bubble · 墨框 · Ink Bubble
+
+> **中**：**[Agent 形](#ul-agent-figure--agent-形--agent-figure)展开给人看的内容外面的那一圈墨边。**
+> 边从形的口写出，边合上之后内容才出现；收起时内容先走，墨沿来路卷回口里。内容长了在边里面滚，边不动。
+> 墨有浓淡两种：浓的用在一两句话，淡的用在一大块内容。
+>
+> **EN**: **The ink edge around content that the agent figure unfolds for the person.** The figure
+> writes the edge out of its gap, and the content appears only after the edge closes. On
+> close, the content leaves first and the ink rolls back into the gap along its path. Long content
+> scrolls inside the edge, and the edge does not move. The ink has two strengths: full for one or
+> two sentences, light for a large block of content.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 15）
+- **别混**：应用自己的菜单、下拉、提示、确认与常驻在版面里的东西都不是墨框，它们用应用的平样式。
+
+---
+
+### UL-told-note · 告知笺 · Told Note
+
+> **中**：**一个界面部分要临时告诉人一件事时，[Agent 形](#ul-agent-figure--agent-形--agent-figure)在自己身边用浓墨的[墨框](#ul-ink-bubble--墨框--ink-bubble)写出的一句话**，最多三行。
+> 形在哪它就写在哪：正面的家旁，反面的座位旁，或桌面上的形身边。同一条只写在一处。形在别的座位上、正被拿着、正在走，或坐在家而侧栏折着时不写。
+> 同一时刻只有最新的一条。人点它就去它指的那一处；人去了那一处或点掉它，它收回。它不按时间消失。
+> 它不存任何东西：写过一条不表示人看到了，关掉窗口它就没有了。
+>
+> **EN**: **One sentence that the agent figure writes next to itself in a full-ink ink bubble.** A
+> part of the interface uses it to tell the person something for a moment. It has at most three
+> lines. The figure writes it where the figure is: next to home on the front face, next to its seat
+> on the back face, or next to the figure on the desktop. One told note is written in one place
+> only. It is not written when the figure sits on another seat, is held, is on its way, or sits at
+> home while the sidebar is folded. Only the newest one shows at a time. When the person presses it, the application goes to the place it points to. When the person
+> goes there or dismisses it, it folds back. It does not disappear on a timer. It keeps nothing: a
+> told note written does not mean that the person saw it, and closing the window removes it.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 15）
+- **别混**：不是[通知](#ul-notification--通知--notification)：通知在收件箱里有记录，告知笺只是一次提醒的样子。
+
+---
+
+### UL-companion-entry · 随身入口 · Companion Entry
+
+> **中**：**浮在桌面应用整个窗口之上的一处，人在哪一面、哪一页都能按它对 agent 说一句话**：按它，它身边写出[说话笺](#ul-say-note--说话笺--say-note)。
+> 它浮在两个[应用的面](#ul-application-face--应用的面--application-face)之上，翻面时它不动。
+> 人可以把它拖到窗口里任何地方，它留在人放下的地方。它说的话和对话页输入框发的是同一件事。
+> 它默认的样子是[墨点](#ul-ink-motes--墨点--ink-motes)，人可以用 plugin 把样子换掉。
+>
+> **EN**: **A place that floats over the whole window of the desktop application, where a person
+> can say a sentence to the agent from any face and any page.** It floats over both application
+> faces and does not move when the face turns. When the person presses it, it writes the say note
+> next to itself. The person can drag it anywhere in the window, and it stays where it was dropped.
+> A sentence said through it is the same thing as one sent from the composer of the conversation
+> page. Its default look is the ink motes, and a plugin can replace the look.
+
+- **形态**：视图
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 15）
+- **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：形是 agent 本身，屏幕上只有一个；随身入口是人对 agent 说话的地方，不坐[形座位](#ul-figure-seat--形座位--figure-seat)，不写[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)。
+
+---
+
+### UL-ink-motes · 墨点 · Ink Motes
+
+> **中**：**[随身入口](#ul-companion-entry--随身入口--companion-entry)默认的样子：同一支毛笔点出来的几粒墨，落在一个不画出来的圆上。**
+> 圆的口和 [Agent 形](#ul-agent-figure--agent-形--agent-figure)的口开在同一处，人看得出一个圆，纸上没有圆。
+> 它只会点与干：没事时静着；打开着的会话在做事时一粒粒重点；被拖起来时只留一粒。
+>
+> **EN**: **The default look of the companion entry: a few dabs of ink from one brush, set on a
+> circle that is never drawn.** The gap of that circle is where the gap of the agent figure is, so
+> a person reads a circle though none is on the paper. It only dabs and dries. It is still when
+> nothing happens. While the open session is working, the dabs are written again one after another.
+> While it is dragged, one dab stays.
+
+- **形态**：视图
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 15）
+- **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：没有那一笔圆，不算进「屏幕上只有一个形」。不是活动标记：活动标记说某一处在加载，墨点说这里可以对 agent 说话。
+
+---
+
+### UL-desk-layer · 桌面层 · Desk Layer
+
+> **中**：**桌面应用在自己的窗口之外的一块画面**：透明，在所有窗口之上，铺满一块屏，形身边之外的地方点得穿。
+> [Agent 形](#ul-agent-figure--agent-形--agent-figure)被拿出窗口时画在它里面，形身边的签、它写出的[说话笺](#ul-say-note--说话笺--say-note)、[告知笺](#ul-told-note--告知笺--told-note)与[观测框](#ul-observation-frame--观测框--observation-frame)也画在它里面。
+> 它不存任何事实，也不含任何领域的界面：它只画[界面外壳](#ul-app-shell--界面外壳--app-shell)交给它的东西，穿着[皮肤](capabilities-and-composition.md#ul-skin--皮肤--skin)时它里面的样子和窗口里是同一套。它没了，形回到座位上。
+>
+> **EN**: **A surface of the desktop application outside its own window.** It is transparent, above
+> all windows, and covers one screen. Pointer input passes through it except near the figure. It
+> draws the agent figure when a person takes the figure out of the window. It also draws the label
+> next to the figure, and the say note, the told note and the observation frame that the figure
+> writes next to itself. It keeps no
+> facts and holds no UI of any domain. It draws only what the app shell hands to it. When a skin is
+> in use, the look in it is the same as the look in the window. When it goes away, the figure
+> returns to its seat.
+
+- **形态**：位置
+- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 15）
+- **别混 ①**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：界面模块不能往它里面放东西。皮肤与 plugin 改的样子到得了它，那是外壳把同一份样子交给了它。
+- **别混 ②**：不是[应用的面](#ul-application-face--应用的面--application-face)，也不是[画布](#ul-canvas--画布--canvas)。两面都在应用的窗口里。
+- **别混 ③**：不是截图时盖住屏幕的遮罩。遮罩只在人框选的那一会儿在，接走整块屏的指针。
+
+---
+
+### UL-say-note · 说话笺 · Say Note
+
+> **中**：**人要对 agent 说一句话时，[随身入口](#ul-companion-entry--随身入口--companion-entry)或桌面上的 [Agent 形](#ul-agent-figure--agent-形--agent-figure)在身边用[墨框](#ul-ink-bubble--墨框--ink-bubble)写出的一张笺。**
+> 人在里面选说给一个新会话还是某个已有的会话，写一句话，发出去；结局如实写在笺里，受理之后 agent 回的话也写在笺里。让形看过的窗口的图也先放进这张笺，人看过再发。
+> 应用里只有这一张：窗口里它从随身入口写出，桌面上它从形写出，同一刻至多开着一处。
+> 它说的话和对话页输入框发的是同一件事。它在桌面上开着时，人正在用的应用不变。
+>
+> **EN**: **A note that the companion entry, or the agent figure on the desktop, writes next to
+> itself in an ink bubble when a person wants to say a sentence to the agent.** In the note, the
+> person chooses a new session or an existing one, writes a sentence and sends it. The note reports
+> the outcome. After the sentence is accepted, the note also shows the words that the agent says in
+> reply. The pictures of a window that the figure looked at go into this note first, and the person
+> sees them before sending. The application has one such note. In the window the companion entry
+> writes it, and on the desktop the figure writes it. At most one of the two places shows it at a
+> time. A sentence said through it is the same thing as one sent from the composer of the
+> conversation page. While it is open on the desktop, the application that the person works in
+> stays in front.
+
+- **形态**：视图
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 15）
+- **别混 ①**：不是[告知笺](#ul-told-note--告知笺--told-note)。告知笺是界面告诉人一件事；说话笺是人对 agent 说话。
+- **别混 ②**：不是随身入口。随身入口是窗口里人按的那一处，一直在窗口里；说话笺是写出来的那张笺。在桌面上，笺由形写出，不由随身入口写出。
+
+---
+
+### UL-observation-frame · 观测框 · Observation Frame
+
+> **中**：**人拿着 [Agent 形](#ul-agent-figure--agent-形--agent-figure)、按住 ⌘ 时，围住光标下那个别的应用的窗口的一笔带口的墨。**
+> 它说的是「松手，形看的就是这一个」：框住的是哪个窗口，读的就是哪个；没有框就什么都不读。
+> 被别的窗口挡住的地方不画。旁边的一张签写应用名与窗口标题。
+>
+> **EN**: **One ink stroke with a gap around the window of another application under the cursor,
+> shown while a person holds the agent figure and presses the Command key.** It says that on release
+> the figure looks at this window. The window in the frame is the window that is read. With no
+> frame, nothing is read. The stroke is not drawn where another window covers this one. A label
+> next to it gives the application name and the window title.
+
+- **形态**：视图
+- **出处**：[桌面应用「把形拿出窗口」](../../product/desktop-application/design.md#把形拿出窗口)（rev 15）
+- **别混 ①**：不是[界面选择](#ul-ui-selection--界面选择--ui-selection)。界面选择选的是应用自己界面上的部位；观测框围的是别的应用的窗口。
+- **别混 ②**：不是 agent 自己看屏幕。读是人松手的那一下做的，图由人发给自己的会话。
+
+---
+
+### UL-size-tier · 字号档 · Size Tier
+
+> **中**：**桌面应用里整个界面的字与尺寸一起放大、缩小的档位**，恰有四档：小楷、中楷、大楷、老花，缺省是中楷。
+> 换一档，版式不变，[Agent 形](#ul-agent-figure--agent-形--agent-figure)的大小跟着变。人选的那一档是一项[观感偏好](#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)。
+>
+> **EN**: **The level at which all text and sizes of the desktop application interface grow or
+> shrink together.** There are exactly four: 小楷, 中楷, 大楷 and 老花, and 中楷 is the default.
+> A change of level keeps the layout and changes the size of the agent figure with it. The level
+> that the person chose is a look-and-feel preference.
+
+- **形态**：属性
+- **出处**：[桌面应用「观感」](../../product/desktop-application/design.md#观感)（rev 15）
+- **别混**：不是窗口或浏览器的缩放：那会把整页当一张图放大，形与版式的规则都不再成立。
+
+---
+
+### UL-application-face · 应用的面 · Application Face
+
+> **中**：**桌面应用登录之后的两面之一：正面或反面。**正面是会话管理、对话、资产、设置与用量这几部分所在的那一面；反面是[画布](#ul-canvas--画布--canvas)。
+> 登录之后两面一直都在，同一时刻只露着一面。人**翻面**只换露着的那一面，不改变服务端的任何事实。
+> 收起的那一面保持原来的样子，不接指针与键盘，不给 [Agent 形](#ul-agent-figure--agent-形--agent-figure)座位。
+> 部署没有开放画布时，应用只有正面。没有登录时没有面，只有登录门。
+>
+> **EN**: **One of the two faces that the desktop application has after sign-in: the front face or
+> the back face.** The front face holds the session management, conversation, asset, settings and
+> usage parts. The back face is the canvas. After sign-in both faces exist the whole time, and one
+> face is exposed at a time. **Turning the face** changes only which face is exposed. It changes no
+> fact on the server. The hidden face keeps its state, takes no pointer or keyboard input, and gives
+> the agent figure no seat. When the deployment does not open the canvas, the application has only
+> the front face. Before sign-in there is no face, only the sign-in gate.
+
+- **形态**：位置
+- **出处**：[桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述) · [「两面与翻面」](../../product/desktop-application/design.md#两面与翻面)（rev 15） ·
+  [画布「应用的两面」](../../product/canvas/design.md#应用的两面)（rev 2）
+- **别混 ①**：不是[交付面](#ul-delivery-surface--交付面--delivery-surface)。交付面是桌面应用、命令行应用这一类东西本身；应用的面是桌面应用窗口里的一面。
+- **别混 ②**：不是[共用界面件](../../../../packages/frontend/SPEC.md#纸的面)里的「纸面」。纸面是一张可以平移、缩放的纸，画布用它画出反面上的那张纸。
+- **别混 ③**：翻面不是换页。各部分的页都在正面，正面的导航里没有画布；人在反面要去某一页时，应用先翻回正面，再到那一页。
+- **注意**：人最后停在哪一面，是这台设备上的[观感偏好](#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)，存在本机，不分租户。它和观感偏好词条的承载说法对不上，见 [C-97](../conflicts.md#c-97观感偏好由谁承载)。
+
+---
+
+### UL-canvas · 画布 · Canvas
+
+> **中**：**一个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)的一张有边的纸，人和 agent 共用。**
+> 每个租户恰有一张，一开始是空的；纸的大小与网格的疏密由部署配置。
+> 它只记哪些对象摆在纸上、各怎样摆，也就是它上面的[画布项](#ul-canvas-item--画布项--canvas-item)与[一叠](#ul-canvas-pile--一叠--canvas-pile)。
+> 它不保存、不复制被摆上的对象，也不判断它们在不在、谁能看。
+> 只有这个租户的人，和在这个租户的会话里工作的 agent，能看、能改它；人和 agent 用同一组操作。
+> 在桌面应用里，它露在[反面](#ul-application-face--应用的面--application-face)上。
+>
+> **EN**: **The one bounded sheet of one tenant, shared by the people of the tenant and the agent.**
+> Each tenant has exactly one canvas, and it starts empty. The deployment configures the size of the
+> sheet and the spacing of its grid. The canvas records only which objects lie on the sheet and how:
+> its canvas items and piles. It does not store or copy the objects, and it does not decide whether
+> they exist or who can see them. Only the people of the tenant and the agent that works in a session
+> of the tenant can read or change it, and both use the same set of operations. In the desktop
+> application it shows on the back face.
+
+- **形态**：对象
+- **出处**：[画布「产品需求描述」](../../product/canvas/design.md#产品需求描述) · [「画布、画布项与一叠」](../../product/canvas/design.md#画布画布项与一叠) ·
+  [「人和 agent 用同一组操作」](../../product/canvas/design.md#人和-agent-用同一组操作)（rev 2）
+- **别混 ①**：不是[应用的面](#ul-application-face--应用的面--application-face)。反面是桌面应用窗口里的一个位置，画布是一个租户的对象。正文说「画布是应用的反面」，指反面上露出的是它：换一台设备，反面是那台设备上的，画布还是同一张。
+- **别混 ②**：不是浏览器里画图用的 canvas 元素。共用界面件画墨迹时用到那种元素，它的[上游说明](../../../../packages/frontend/ui-kit/UPSTREAM.md)里也叫「画布」。
+- **注意**：它不是[形态](../conventions.md#形态这个词指的是哪一类东西)意义上的视图。[摆法](#ul-canvas-arrangement--摆法--canvas-arrangement)是画布自己的事实，只有它写，丢了不能从别处算回来。
+
+---
+
+### UL-canvas-item · 画布项 · Canvas Item
+
+> **中**：**[画布](#ul-canvas--画布--canvas)上的一条记录：指着别处的一个对象，带着这个对象在画布上的[摆法](#ul-canvas-arrangement--摆法--canvas-arrangement)。**
+> 被指着的对象归拥有它的领域，画布项不含它的内容。
+> 同一个对象在一张画布上至多有一个画布项，所以一张画布加一个被指着的对象，认出一个画布项。
+> 画布项要么摆着，要么拿走过。**拿走**只让它离开纸面，记录留在「拿走过的」清单里；再摆上同一个对象就是**放回**。
+> 这份清单有上限，超出时最早拿走的那一条从清单里消失。
+>
+> **EN**: **One record on a canvas: it points to one object elsewhere and carries the arrangement of
+> that object on the canvas.** The object belongs to the domain that owns it, and the canvas item
+> holds none of its content. One object has at most one canvas item on one canvas, so a canvas and
+> the object that the item points to identify the item. A canvas item is either placed or taken
+> away. **Taking it away** only removes it from the sheet. Its record stays in the list of items
+> taken away, and placing the same object again **puts it back**. The list has a limit. When the
+> list is over the limit, the record taken away first leaves the list.
+
+- **形态**：对象
+- **出处**：[画布「画布、画布项与一叠」](../../product/canvas/design.md#画布画布项与一叠) · [「拿走与放回」](../../product/canvas/design.md#拿走与放回) ·
+  [「锁定」](../../product/canvas/design.md#锁定)（rev 2）
+- **别混 ①**：拿走不是删除。画布上没有删除：拿走之后，被指着的对象照旧在原来的地方，仍然能被重新摆上来。要删掉那个对象，到拥有它的领域去删。
+- **别混 ②**：画布项「锁着」不是设置项的「被上层锁定」。锁没锁是摆法里的一项：只有摆着、不在一叠里的画布项锁得上；锁着的画布项谁也挪不动、改不了大小、拿不走、叠不进一叠、放不到最上面，人和 agent 一样。人点锁的记号解开它。agent 解不开，是因为「锁」这一项权限缺省禁止。
+- **注意**：画布项上「最近是谁摆的」是来历，不是权限。人摆的画布项 agent 照样能挪，agent 摆的人也照样能挪。
+
+---
+
+### UL-canvas-arrangement · 摆法 · Canvas Arrangement
+
+> **中**：**一个[画布项](#ul-canvas-item--画布项--canvas-item)摆在[画布](#ul-canvas--画布--canvas)上的样子：在哪里、多大、压在谁上面、在不在一叠里、锁没锁，以及最近是谁摆的。**
+> 摆法是画布的事实，记在服务端，只有画布写它；换一台设备、另开一个窗口，看到的是同一份。
+> 人拖动画布项时，跟着指针走的那一下是预览，不是摆法；松手之后，屏幕上是服务端答复的摆法。
+>
+> **EN**: **How one canvas item lies on the canvas: where it is, how large it is, which items it
+> covers, whether it is in a pile, whether it is locked, and who placed it last.** The arrangement
+> is a fact of the canvas. The server keeps it, and only the canvas writes it. Another device or
+> another window shows the same arrangement. While a person drags an item, the item that follows the
+> pointer is a preview, not the arrangement. After the release, the screen shows the arrangement
+> that the server answered.
+
+- **形态**：属性
+- **出处**：[画布「画布、画布项与一叠」](../../product/canvas/design.md#画布画布项与一叠)（rev 2）
+- **别混 ①**：不是[落点](grounding-and-isolation.md#ul-placement--落点--placement)。英文 Placement 归落点，摆法的英文是 Canvas Arrangement。
+- **别混 ②**：不是界面外壳与用量面板里的「布局」。
+- **别混 ③**：看着画布的哪一块、放多大、磁吸开没开，是这台设备上的[观感偏好](#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)，不是摆法。磁吸只影响人这一次手势落在哪里，不改已有的摆法。
+- **注意**：拿走过的画布项不在纸上、不在任何一叠里、不锁；它记着拿走之前的位置，放回时没给位置就回到那里。说「画布的摆法」时，指一张画布上全部画布项的摆法合在一起。
+
+---
+
+### UL-canvas-pile · 一叠 · Canvas Pile
+
+> **中**：**[画布](#ul-canvas--画布--canvas)上叠在一起的几个[画布项](#ul-canvas-item--画布项--canvas-item)，只由「叠成一叠」这个操作产生。**
+> 它有自己的位置，可以有名字，里面至少有一项。一个画布项至多在一叠里；拿走过的画布项与锁着的画布项都不在一叠里。
+> 最后一项离开时，这一叠就没有了，画布上不会留下空的一叠。散开一叠时，里面的画布项各自落到它旁边的空处。
+>
+> **EN**: **Several canvas items stacked together on a canvas. Only the operation that stacks items
+> into a pile creates one.** A pile has its own position, may have a name, and holds at least one
+> item. A canvas item is in at most one pile. An item that was taken away and a locked item are in no
+> pile. When the last item leaves, the pile no longer exists, and no empty pile stays on the canvas.
+> When a pile is scattered, each of its items lands in free space next to it.
+
+- **形态**：对象
+- **出处**：[画布「画布、画布项与一叠」](../../product/canvas/design.md#画布画布项与一叠) · [「一叠」](../../product/canvas/design.md#一叠)（rev 2）
+- **别混 ①**：压着不是一叠。一个画布项盖在另一个上面只是压着，后来的在上面。
+- **别混 ②**：不是[共用界面件](../../../../packages/frontend/SPEC.md#纸的面)里画出来的「一叠」。那是几页叠在一起的画法；哪几项在一叠里，由画布定。
+- **注意**：正文里的「这一叠」「那一叠」「哪一叠」都指它；「叠成一叠」是产生它的那个操作的名字。
+
+---
+
 ### UL-notification · 通知 · Notification
 
 > **中**：一个收件人的收件箱里的一条。它是一个被接下的通知事件为这个收件人留下的记录，带着接下那一刻定下的强度、缘由与备注，以及收件人对它的处置标记。一次发送对一个收件人至多留下一条。
@@ -932,7 +1376,7 @@
 > **EN**: One entry in one recipient's inbox. It is the record that an accepted notification event left for that recipient. It carries the level, cause and note that were fixed when the event was accepted, and the marks that the recipient put on it. One send leaves at most one notification for one recipient.
 
 - **形态**：对象
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 6）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 7）
 - **别混**：不是会话规格里指「提交之后的唤醒」的那个通知；不是运行时 context 给模型的变化提醒；不是[复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)。
 - **注意**：它在收件箱里就是已送达。往界面、会话或外面推的结果不改这一点。
 
@@ -944,7 +1388,7 @@
 > **EN**: Something that produces notification events and is registered with the notification domain. It declares its name and a set of notification event types. The registration is a fact of the deployment. It is not per tenant, and it gives no principal the right to send.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 6）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 7）
 - **别混**：不是会话的输入来源。输入来源说一条输入是谁送进会话的；通知来源说一件事是哪里发生的。
 - **注意**：系统里的领域、agent、通知自己都可以是通知来源。[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)恢复之后也是一种。
 
@@ -956,7 +1400,7 @@
 > **EN**: One kind of occurrence that a notification source declares. There are two kinds. A one-off event is sent by the source. A standing item is published by the source as runtime data and is never sent. The declaration says which recipient kinds can subscribe, whether a recipient can be named, the default level for each recipient kind, and whether the content comes from outside the system.
 
 - **形态**：属性
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 6）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 7）
 - **别混**：[连接件事件类型](capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)是连接件这一种来源的事件类型。
 
 
@@ -967,7 +1411,7 @@
 > **EN**: One occurrence of a one-off event that a notification source hands over. Its identity is the tenant, the source and the event id that the source gives. A second send with the same identity returns the first result. It carries the event type, the subject in the source that it is about, the time and the content.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 6）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 7）
 - **别混**：不是内核总线上的事件，也不是会话日志里发生的事。「事件」裸用不是术语，见[冲突 C-11](../conflicts.md)。
 
 
@@ -978,7 +1422,7 @@
 > **EN**: Something on a notification source's side that is still open and needs the recipient, for example a card that waits for a decision or a blocked schedule. Only the source decides whether it is open or closed. The source publishes the items that are open now. The notification domain reads them to remind the recipient and does not store them.
 
 - **形态**：视图
-- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 6）
+- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 7）
 - **别混**：不是[通知](#ul-notification--通知--notification)。它不进收件箱，收件人不能划掉它；了结它要在来源那里把事办了。
 
 
@@ -989,7 +1433,7 @@
 > **EN**: The party that notifications are given to. There are two kinds: a person, which is the tenant itself, or an entrusted agent. To the notification domain an entrusted agent is an opaque reference that only the delivery channel able to reach it understands. A recipient exists within one tenant.
 
 - **形态**：对象
-- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 6）
+- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 7）
 - **注意**：两种收件人用同一套通知订阅、收件箱、强度与节拍。
 
 
@@ -1000,18 +1444,18 @@
 > **EN**: All notifications of one notification recipient. For a person, the inbox is the "new" section of the panel in the interface.
 
 - **形态**：视图
-- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 6）
+- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 7）
 - **别混**：不是人工介入规格里「原等待的答复箱」，见冲突 C-88。
 
 
 ### UL-notification-subscription · 通知订阅 · Notification Subscription
 
-> **中**：一个通知收件人对一类通知事件、在一个范围里的选择：不收、弱或强。它还带一句备注、一个期限，以及它凭什么成立。范围是全部、对象等于某个引用，或对象以某一段开头；越具体越优先。受托 agent 的通知订阅要 owner 的同意作依据。
+> **中**：一个通知收件人对一类通知事件、在一个范围里的选择：不收、弱或强。它还带一句备注、一个期限，以及它的创建者：user、agent 或 system，agent 时带它所在的会话与那一次工具调用。范围是全部、对象等于某个引用，或对象以某一段开头；越具体越优先。agent 的订阅许不许，在 agent 发起时由放行判断判过，订阅不另记同意。
 >
-> **EN**: The choice that one notification recipient makes for one notification event type within a scope: off, weak or strong. It also carries a note, a term and the basis on which it stands. The scope is everything, a subject equal to a reference, or a subject that starts with a prefix. The most specific scope wins. A subscription of an entrusted agent needs the owner's consent as its basis.
+> **EN**: The choice that one notification recipient makes for one notification event type within a scope: off, weak or strong. It also carries a note, a term and its creator: user, agent or system; for an agent, the session it runs in and the tool call that made it. The scope is everything, a subject equal to a reference, or a subject that starts with a prefix. The most specific scope wins. Whether an agent may subscribe is judged by the admission decision when the agent starts the action; the subscription records no consent of its own.
 
 - **形态**：对象
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 6）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 7）
 - **别混**：[事件订阅](capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)是连接件持有上的设置，定哪几种外部事件进系统，agent 不在运行时改它。通知订阅定进来之后谁收，agent 可以为自己订。
 - **别混**：[日程订阅](execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription)订的是系统提供的定时功能，不是事件。
 
@@ -1023,7 +1467,7 @@
 > **EN**: The value of a notification subscription, and the value fixed on a notification. Strong: the notification is delivered immediately after it enters the inbox. Weak: it is not delivered by itself and waits for the beat. Off is a subscription value only: no notification is left for this recipient.
 
 - **形态**：属性
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 6）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 7）
 - **注意**：来源只给缺省强度，之后归收件人。被点名的收件人选了不收时按弱。
 
 
@@ -1034,7 +1478,7 @@
 > **EN**: One place where a notification recipient receives deliveries: a delivery channel, an address that the channel understands, the lowest level it takes, and whether it is enabled. One notification is delivered to every enabled destination of the recipient, and each delivery has its own result.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 6）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 7）
 - **别混**：连接件的[投递目标](#ul-inbound-target--投递目标--inbound-target)说外部事件送进哪个会话，见冲突 C-87。
 
 
@@ -1045,7 +1489,7 @@
 > **EN**: A way to deliver notifications to a recipient, registered with the notification domain. It declares which addresses it understands and whether it leaves the system. It promises that a repeated delivery with the same identity has no second effect.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 6）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 7）
 
 
 ### UL-delivery-unit · 投递单元 · Delivery Unit
@@ -1055,7 +1499,7 @@
 > **EN**: The unit of one delivery: a set of notifications fixed for one delivery destination. Strong notifications are grouped into units under the minimum interval. A beat groups everything that needs a reminder at that time. The members and content of a unit are fixed when it is formed, and every retry delivers the same unit.
 
 - **形态**：对象
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 6）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 7）
 
 
 ### UL-notification-delivered · 通知送达 · Notification Delivered
@@ -1065,7 +1509,7 @@
 > **EN**: A notification is in the recipient's inbox and the recipient can retrieve it at any time. This holds from the moment the notification event is accepted. No delivery result to any destination changes it.
 
 - **形态**：状态
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 6）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 7）
 - **别混**：不是已投递、看过或了结；也不是模型与工具的[交付责任解除](execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release)。
 
 
@@ -1076,7 +1520,7 @@
 > **EN**: A key that a send can carry. When a new notification with the same recipient, source and key enters the inbox, the earlier ones are marked as superseded by it and cannot be restored. By default the superseding notification is not delivered again.
 
 - **形态**：属性
-- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 6）
+- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 7）
 
 
 ### UL-notification-beat · 通知节拍 · Notification Beat
@@ -1086,8 +1530,60 @@
 > **EN**: A recurring point in time of one notification recipient. When it comes and the inbox has something that needs a reminder, those notifications are composed into one digest and delivered once. Otherwise nothing happens. The owner sets the interval.
 
 - **形态**：属性
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 6）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 7）
 - **别混**：节拍只提醒已有的通知，不带任何工作。定期要 agent 做一件事归日程。
+
+### UL-command-name · 全名与短名 · Command Name
+
+> **中**：[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的名字有两种写法。全名是「空间:名字」，空间由交出它的[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)声明，全名永不相撞；`omne-official` 是保留空间。短名是不带空间的那一段，按它写在哪里解析：在开头，系统命令先于提示词命令先于 Skill；在句中，只认 Skill。
+>
+> **EN**: The two spellings of a command entry's name. The full name is "namespace:name"; the namespace is declared by the command entry source that hands the entry over, and full names never collide; `omne-official` is reserved. The short name is the part without the namespace and is resolved by where it is written: at the start, a system command wins over a prompt command, which wins over a skill; inside a sentence, only skills count.
+
+- **形态**：属性
+- **出处**：[Slash Command 名字](../../product/slash-commands/design.md#名字)（rev 5）
+- **别混**：不是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)：同一份 Skill 的能力标识是「类别加名字」，它的全名是「空间:名字」，空间不是类别
+- **注意**：拿掉一项可能让一个短名改绑到另一项，所以「少一项不会多出引用」不成立；看得见的标记与[发送方所见](#ul-sender-view--发送方所见--sender-view)守住这一点
+
+### UL-slash-reference · 斜杠引用 · Slash Reference
+
+> **中**：一句话里认出来的、绑到一份引用型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的一处 `/名字`。它不改写人的话：受理时人的话原样一块，被引用的那份 Skill 的正文另成一块，块上带[来路标记](record-and-context.md#ul-origin-tag--来路标记--origin-tag)。同一份被引用几次只带一次。
+>
+> **EN**: A `/name` recognized in a sentence and bound to a reference-kind command entry. It does not rewrite what the person wrote: at intake the person's words stay one block as written, and the referenced skill's body becomes a separate block carrying an origin tag. A skill referenced several times is carried once.
+
+- **形态**：属性
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 5）
+- **别混**：不是 agent 调读取工具读一份 Skill，那是一次工具调用；引用走受理，不运行脚本，不放宽读取权。也不是「按引用找它」里那个泛称的引用，跨 topic 写全称
+
+### UL-sender-view · 发送方所见 · Sender View
+
+> **中**：一次提交里交付面随输入带上的识别结果：开头是哪条命令或没有，引用了哪几份入口项（全名，去重，按第一次出现的次序）。受理侧按当下的清单再认一遍，结果不等于它就整条不受理，写明哪一项变了。
+>
+> **EN**: The recognition result a delivery surface sends along with an input: which command is at the start, if any, and which entries are referenced (full names, without duplicates, in order of first appearance). Intake recognizes the input again against the list as it is now; if the result differs, the whole input is not accepted and the reply says which item changed.
+
+- **形态**：属性
+- **出处**：[Slash Command 看到的就是受理的](../../product/slash-commands/design.md#看到的就是受理的)（rev 5）
+- **注意**：只比绑到了哪些名字，不比版本；没带所见的提交照受理侧认出的受理，回执写明绑定了什么
+
+### UL-shell-action · 外壳动作 · Shell Action
+
+> **中**：客户端外壳的动作表里按名字登记的一件事：名字、标题、此刻能不能用及原因、怎样执行。按键、命令面板、按钮、系统菜单都只引用它的名字，可用性只在它这里算一处。它由某个界面模块登记，随那个模块的作用域挂上与撤下。对在跑的一轮的控制与界面自己的动作都是外壳动作；控制执行时点名界面此刻看到的那一轮或那一次调用。
+>
+> **EN**: One thing registered by name in the client shell's action table: a name, a title, whether it can be done now and why not, and how to do it. Keys, the command palette, buttons and the system menu refer to it only by name, and its availability is computed in this one place. A UI module registers it, and it is added and removed with that module's scope. Controls over a running run and the interface's own actions are both shell actions; a control names the run or call the interface sees at that moment.
+
+- **形态**：对象
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
+- **别混**：不是 agent 的[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里的动作，那是模型能发起的；外壳动作只由人触发，模型看不到。裸写「动作」不作术语
+- **注意**：外壳不认识任何一个动作的含义，含义归登记它的界面模块。它是一种[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)：身份是动作表里的名字，随登记它的模块挂上与撤下
+
+### UL-key-binding · 键位绑定 · Key Binding
+
+> **中**：「在哪一层按哪个键，执行哪个[外壳动作](#ul-shell-action--外壳动作--shell-action)」的一条对应。层从里到外是浮层、输入框或当前页、全局，按键时先查最里面的一层。缺省的一套随应用发；人改过的跟着账号存，换一个客户端登录读到同一份。只能绑到控制与界面动作上。
+>
+> **EN**: One mapping of "in this layer, this key performs this shell action". Layers run from the innermost outwards: overlay, composer or current page, global; a key press looks in the innermost layer first. A default set ships with the application; the person's changes are kept with the account, so another client signed in to the same account reads the same set. Keys bind only to controls and interface actions.
+
+- **形态**：属性
+- **出处**：[Slash Command 同一条命令的四种触发](../../product/slash-commands/design.md#同一条命令的四种触发)（rev 5）
+- **注意**：不是某个租户的设置；它是账号的偏好，切换租户不变
 
 ---
 

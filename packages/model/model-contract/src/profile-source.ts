@@ -1,5 +1,5 @@
 import type { MessageId } from '@omne-harness/message'
-import type { Access, ModelCallId } from './root.ts'
+import type { Access, ModelCallId, ReasoningEffort } from './root.ts'
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts'
 import type { Supplier } from './root.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -21,6 +21,8 @@ export type ModelProfileSnapshot = Readonly<{
     excluded: boolean
     locked: boolean
     credential: 'available' | 'missing' | 'unreadable' | 'unavailable'
+    /** The effort the tenant set for this model, when the model supports it. */
+    defaultReasoningEffort?: ReasoningEffort
   }>[]
   source: DurableEvidence
 }>
@@ -30,7 +32,7 @@ export interface ModelProfileSource<P> {
 export interface ModelRequestRules {
   plan(
     input: Readonly<{
-      profile: ModelProfile
+      profile: ModelProfile<'llm'>
       supplier: Supplier
       assembled: AssembledModelInput
     }>,
@@ -59,7 +61,7 @@ export type PreparationLineage = Readonly<{
 }>
 export interface ModelPreparationResources<P> {
   acquire(
-    input: Access<P> & Readonly<{ profile: ModelProfile; lineage?: PreparationLineage }>,
+    input: Access<P> & Readonly<{ profile: ModelProfile<'llm'>; lineage?: PreparationLineage }>,
   ): Reply<ModelPreparationLease>
 }
 export interface ModelContentAuthority<P> {

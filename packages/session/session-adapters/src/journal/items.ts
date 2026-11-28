@@ -101,6 +101,13 @@ const keyOf = (fact: Parameters<typeof factKey>[0]): string => {
 export const finishing = (view: ExecutionView): boolean =>
   view.cursor.state === 'settling' || view.finish.ended !== null
 
+export function settled(view: ExecutionView | undefined): boolean {
+  if (view === undefined || view.finish.ended === null || view.acknowledged < view.emitted)
+    return false
+  for (const obligation of view.finish.obligations.values()) if (!obligation.settled) return false
+  return true
+}
+
 type Open = (entry: Entry, view: ExecutionView, item: string) => boolean
 
 function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: string): boolean {
@@ -134,6 +141,19 @@ export function held(view: ExecutionView, kind: HoldKind, id: string): boolean {
 
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
   held(view, 'action', item.action)
+
+export const materialHeld = (item: MaterialView, view: ExecutionView, key: string): boolean =>
+  held(view, 'material', materialHold(key)) || item.pub > view.holdsJudged
+
+export const materialReleased = (item: MaterialView, view: ExecutionView, key: string): boolean =>
+  item.readers === 'until-release' && !materialHeld(item, view, key)
+
+export const releasedMaterials = (view: ExecutionView): ReadonlySet<string> =>
+  new Set(
+    [...view.materials]
+      .filter(([key, item]) => materialReleased(item, view, key))
+      .map(([key]) => key),
+  )
 
 export function callHeld(consumption: string, view: ExecutionView): boolean {
   if (held(view, 'consumption', consumption)) return true
@@ -270,8 +290,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'material',
     holder: table(at('materials')),
-    open: (item: MaterialView, view: ExecutionView, key: string) =>
-      held(view, 'material', materialHold(key)) || item.pub > view.holdsJudged,
+    open: materialHeld,
   },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {

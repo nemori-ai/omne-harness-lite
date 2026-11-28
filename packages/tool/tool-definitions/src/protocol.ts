@@ -1,6 +1,7 @@
 import { judgeJsonValue, readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ParameterContract, ToolCommandBackground } from '@omne-harness/tool-contract'
+import type { ProgramSide } from './program-side.ts'
 import {
   createDefaultParameterCodec,
   describedAdoption,
@@ -34,6 +35,8 @@ export type Field = Readonly<{
     | 'terminal'
     | 'edits'
     | 'strings'
+    | 'json'
+    | 'region'
   required?: boolean
   choices?: readonly string[]
   description: string
@@ -43,6 +46,9 @@ export type Command = Readonly<{
   summary: string
   fields: readonly Field[]
   background?: ToolCommandBackground
+  program?: ProgramSide
+  /** The command changes nothing another call can observe. */
+  readOnly?: true
 }>
 export type ExactEdit = Readonly<{ path: string; old_text: string; new_text: string }>
 export function tree(value: unknown): JsonValue {
@@ -88,6 +94,19 @@ function validTerminal(value: JsonValue): boolean {
     )
   )
 }
+const REGION_SIDES = ['x', 'y', 'width', 'height'] as const
+function validRegion(value: JsonValue): boolean {
+  const fields = entries(value)
+  return (
+    fields !== null &&
+    fields.size === REGION_SIDES.length &&
+    REGION_SIDES.every(key => {
+      const side = fields.get(key)
+      if (side?.kind !== 'number' || !Number.isSafeInteger(Number(side.lexeme))) return false
+      return Number(side.lexeme) >= (key === 'width' || key === 'height' ? 1 : 0)
+    })
+  )
+}
 function validEdit(value: JsonValue): boolean {
   const fields = entries(value)
   return (
@@ -113,6 +132,8 @@ const validators: Record<Field['kind'], (value: JsonValue, field: Field) => bool
   env: validEnv,
   terminal: validTerminal,
   edits: validEdits,
+  json: () => true,
+  region: validRegion,
 }
 function textValue(value: JsonValue | undefined): string {
   return value?.kind === 'string' ? value.value : ''
@@ -150,6 +171,16 @@ export class Arguments {
     return value?.kind === 'object'
       ? Object.fromEntries(value.entries.map(entry => [entry.key, textValue(entry.value)]))
       : {}
+  }
+  region(): Readonly<{ x: number; y: number; width: number; height: number }> | null {
+    const value = this.fields.get('region')
+    const fields = value === undefined ? null : entries(value)
+    if (fields === null) return null
+    const side = (key: (typeof REGION_SIDES)[number]) => {
+      const each = fields.get(key)
+      return each?.kind === 'number' ? Number(each.lexeme) : 0
+    }
+    return { x: side('x'), y: side('y'), width: side('width'), height: side('height') }
   }
   terminal() {
     const value = this.fields.get('terminal')
@@ -217,6 +248,8 @@ function fieldSchema(field: Field): unknown {
       }
     case 'boolean':
       return { type: 'boolean' }
+    case 'json':
+      return {}
     case 'strings':
       return { type: 'array', items: { type: 'string' } }
     case 'env':
@@ -229,6 +262,18 @@ function fieldSchema(field: Field): unknown {
         properties: {
           id: { type: 'string', minLength: 1 },
           generation: { type: 'string', minLength: 1 },
+        },
+      }
+    case 'region':
+      return {
+        type: 'object',
+        additionalProperties: false,
+        required: [...REGION_SIDES],
+        properties: {
+          x: { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
+          y: { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
+          width: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+          height: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
         },
       }
     case 'edits':

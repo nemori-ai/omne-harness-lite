@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GatewayScript } from '../../fixtures/model-gateway.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import { executionRecords } from '../../support/execution-records.ts'
 import { onReleaseTree, pollUntil, type ReleaseTree } from '../../support/release-tree.ts'
 
 type Answer = Readonly<{ status: number; outcome: string; body: Record<string, unknown> }>
@@ -89,6 +90,12 @@ describe('read-waiting on the release tree', () => {
         )
         expect(waiting).toMatchObject({ pending: 1, cause: { kind: 'no-reply' } })
         expect(waiting?.run).toMatch(/.+/)
+        await pollUntil(
+          'the failed execution to settle and leave its records',
+          () => executionRecords(tree.storageRoot),
+          records => records.settled === 1 && records.unsettled === 0 && records.facts === 0,
+        )
+        expect(await readWaiting(tree, session)).toEqual(waiting)
         gateway.open()
         const retried = await call(tree, 'retry-run', {
           tenant: savedTenant(tree.home),

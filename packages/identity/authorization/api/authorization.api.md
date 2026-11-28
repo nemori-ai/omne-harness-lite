@@ -401,6 +401,7 @@ export type ReleaseCardAction = Readonly<{
     effectiveArguments: string;
     session: string;
     agent: string;
+    program?: true;
     detail?: ReleaseCardDetail;
 }>;
 export type ReleaseOffer = Readonly<Record<ReleaseOption, boolean>>;
@@ -410,6 +411,7 @@ export type ReleaseCardOption = Readonly<{
     scope: string;
     offered: boolean;
     lasting: boolean;
+    role: 'approve' | 'reject';
 }>;
 export type ReleaseCard = Readonly<{
     title: string;
@@ -427,6 +429,7 @@ export type ReleaseCard = Readonly<{
     origin: Readonly<{
         session: string;
         agent: string;
+        program?: true;
     }>;
     detail?: ReleaseCardDetail;
     options: readonly [

@@ -1,0 +1,24 @@
+{
+  "gate": "scale",
+  "entries": {
+    "packages/assets/assets-ui/src/view/assets-ui.css | css gap 2px": 1,
+    "packages/assets/assets-ui/src/view/assets-ui.css | css grid-template-columns 22rem": 1,
+    "packages/assets/assets-ui/src/view/assets-ui.css | css padding-inline 10px": 1,
+    "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class min-w-[8rem]": 2,
+    "packages/frontend/ui-kit/src/controls/select.tsx | class min-w-[8rem]": 1,
+    "packages/frontend/ui-kit/src/controls/switch.tsx | class h-[1.15rem]": 1,
+    "packages/frontend/ui-kit/src/controls/switch.tsx | class translate-x-[calc(100%-2px)]": 1,
+    "packages/frontend/ui-kit/src/controls/tooltip.tsx | class rounded-[2px]": 1,
+    "packages/frontend/ui-kit/src/controls/tooltip.tsx | class translate-y-[calc(-50%_-_2px)]": 1,
+    "packages/frontend/ui-kit/src/motion/motion.ts | script 4px": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/receipt-pill.tsx | icon size-3": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/status-mark.tsx | icon size-3": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/trace.tsx | class left-[3px]": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/trace.tsx | class ml-[5px]": 1,
+    "packages/frontend/ui-kit/src/patterns/loading-state.css | css line-height: 1": 1,
+    "packages/identity/identity-ui/src/view/identity-ui.css | css gap 14px": 1,
+    "packages/session/session-ui/src/view/session-ui.css | css gap 8px": 2,
+    "packages/session/session-ui/src/view/session-ui.css | css padding 4px": 1,
+    "packages/session/session-ui/src/view/session-ui.css | css padding 8px": 1
+  }
+}

@@ -2,9 +2,22 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   modelCommandsKey,
   modelCredentialKey,
+  modelDecisionPreparationKey,
+  modelLivePreparationKey,
+  modelProfilesKey,
   modelRequestPreparationKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { createModelRequestPreparationPlugin } from '@omne-harness/model-host-local/cordis'
+import {
+  createDecisionPreparation,
+  createLivePreparation,
+  type DecisionPreparationOptions,
+} from '@omne-harness/model-host-local'
+import { chatBindingsOf } from '@omne-harness/pi-ai-transport'
+import {
+  createModelRequestPreparationPlugin,
+  serveModelDecisionPreparation,
+  serveModelLivePreparation,
+} from '@omne-harness/model-host-local/cordis'
 import { modelTokenizersKey } from '@omne-harness/tokenizer-tiktoken/cordis'
 import { defineRow } from '../../row.ts'
 import { modelRequestPreparationConfig, type ModelRequestPreparationConfig } from './config.ts'
@@ -12,6 +25,14 @@ import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 import { releaseFamilies } from '../../model/families.ts'
 import { qualifyingReads } from '../../model/commands-qualifying.ts'
 import { modelReadersPortOf } from '../../model/ports.ts'
+
+const PROFILES_AWAY = Object.freeze({
+  failure: Object.freeze({
+    kind: 'unavailable',
+    dependency: 'model-profiles',
+    diagnostic: 'not-provided',
+  }),
+} as const)
 
 const plugin: Plugin.Object = {
   name: 'model-request-preparation',
@@ -27,9 +48,17 @@ const plugin: Plugin.Object = {
         'model-request-preparation: the modelHostAuthority entry object of this release is not installed',
       )
     const reader = readers.bindReader(ctx)
+    const supplierOf = credentialLayerSupplier(() => ctx.get(modelCredentialKey))
+    // The profiles are read at each call: while they are away a decision or a live call answers unavailable.
+    const profiles: DecisionPreparationOptions<unknown>['profiles'] = {
+      resolve: async input =>
+        (await ctx.get(modelProfilesKey, false)?.resolve(input)) ?? PROFILES_AWAY,
+    }
+    serveModelDecisionPreparation(ctx, createDecisionPreparation({ profiles, supplierOf }))
+    serveModelLivePreparation(ctx, createLivePreparation({ profiles, supplierOf }))
     const preparation = createModelRequestPreparationPlugin({
-      bindings,
-      supplierOf: credentialLayerSupplier(() => ctx.get(modelCredentialKey)),
+      bindings: chatBindingsOf(bindings),
+      supplierOf,
       readFacts: commands => qualifyingReads(commands, access => reader.qualifyRead(access)),
     })
     await ctx.plugin(preparation.plugin, { maxCitedCalls: config.maxCitedCalls })
@@ -40,7 +69,7 @@ export const modelRequestPreparationRow = defineRow({
   row: 'model-request-preparation',
   implementation: 'real',
   manifest: {
-    provides: [modelRequestPreparationKey],
+    provides: [modelRequestPreparationKey, modelDecisionPreparationKey, modelLivePreparationKey],
     injects: [modelCommandsKey, modelTokenizersKey],
     sameProviderGroup: null,
   },

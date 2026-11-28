@@ -167,6 +167,9 @@ catalogs:
     '@deepseek-ai/cordis':
       specifier: 4.1.0
       version: 4.1.0
+    '@earendil-works/pi-codemode':
+      specifier: 1.6.0
+      version: 1.6.0
     '@electron/fuses':
       specifier: 2.1.3
       version: 2.1.3
@@ -186,14 +189,14 @@ catalogs:
       specifier: 2.4.0
       version: 2.4.0
     '@modelcontextprotocol/server-everything':
-      specifier: 2.1.0
-      version: 2.1.0
+      specifier: 2.3.1
+      version: 2.3.1
     '@omne-harness/repo-config':
-      specifier: 0.0.7
-      version: 0.0.7
+      specifier: 0.0.8
+      version: 0.0.8
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.20
-      version: 0.0.20
+      specifier: 0.0.21
+      version: 0.0.21
     '@playwright/test':
       specifier: 1.64.1
       version: 1.64.1
@@ -254,6 +257,9 @@ catalogs:
     ajv:
       specifier: 8.20.0
       version: 8.20.0
+    amaro:
+      specifier: 1.3.0
+      version: 1.3.0
     antd:
       specifier: 6.6.5
       version: 6.6.5
@@ -264,8 +270,8 @@ catalogs:
       specifier: 2.1.1
       version: 2.1.1
     dependency-cruiser:
-      specifier: 18.6.0
-      version: 18.6.0
+      specifier: 18.9.0
+      version: 18.9.0
     electron:
       specifier: 45.3.2
       version: 45.3.2
@@ -281,6 +287,9 @@ catalogs:
     eventsource-parser:
       specifier: 3.1.1
       version: 3.1.1
+    fast-check:
+      specifier: 4.10.2
+      version: 4.10.2
     happy-dom:
       specifier: 21.0.4
       version: 21.0.4
@@ -329,6 +338,9 @@ catalogs:
     react-is:
       specifier: 19.3.0
       version: 19.3.0
+    react-screenshots:
+      specifier: 0.5.22
+      version: 0.5.22
     recharts:
       specifier: 3.11.0
       version: 3.11.0
@@ -369,6 +381,7 @@ catalogs:
 packageExtensionsChecksum: sha256-3MGTjzmjlgnhjcqVqzjDdnL5Y1xWwi2kaTEc0nFiVqM=
 
 patchedDependencies:
+  '@earendil-works/pi-codemode@1.6.0': f9e35b5b0d088e944675b34a63f53a04e29185dac89ee5b5f3054ac1a83cef52
   app-builder-lib@26.18.0: e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488
   rrule@2.8.1: 5568cd08bde38550aa34fc6e170d3d9551381935a845e2b8a1ec9a37d6298fd6
 
@@ -378,16 +391,16 @@ importers:
     devDependencies:
       '@omne-harness/repo-config':
         specifier: 'catalog:'
-        version: 0.0.7
+        version: 0.0.8
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
       dependency-cruiser:
         specifier: 'catalog:'
-        version: 18.6.0
+        version: 18.9.0
       knip:
         specifier: 'catalog:'
         version: 6.41.0
@@ -418,6 +431,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-protocol
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../../packages/media/media-protocol
@@ -442,6 +458,12 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-contract
+      '@omne-harness/slash-command-protocol':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-protocol
       '@omne-harness/tool-protocol':
         specifier: workspace:*
         version: link:../../packages/tool/tool-protocol
@@ -467,6 +489,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly
+      '@omne-harness/assembly-cordis':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly-cordis
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../../packages/assets/assets-protocol
@@ -479,9 +507,27 @@ importers:
       '@omne-harness/calendar-ui':
         specifier: workspace:*
         version: link:../../packages/calendar/calendar-ui
+      '@omne-harness/canvas-protocol':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-protocol
+      '@omne-harness/canvas-ui':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-ui
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../packages/access/client-assembly
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis-cordis
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-protocol
+      '@omne-harness/goal-ui':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-ui
       '@omne-harness/human-intervention-protocol':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-protocol
@@ -494,12 +540,21 @@ importers:
       '@omne-harness/identity-ui':
         specifier: workspace:*
         version: link:../../packages/identity/identity-ui
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-protocol
+      '@omne-harness/interface-ui':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-ui
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../packages/common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-protocol
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
@@ -521,6 +576,12 @@ importers:
       '@omne-harness/notification-ui':
         specifier: workspace:*
         version: link:../../packages/notification/notification-ui
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-protocol
+      '@omne-harness/plugin-ui':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-ui
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -533,6 +594,9 @@ importers:
       '@omne-harness/schedule-ui':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-ui
+      '@omne-harness/screen':
+        specifier: workspace:*
+        version: link:../../packages/execution/screen
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -548,6 +612,15 @@ importers:
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../packages/frontend/shell-contract
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-contract
+      '@omne-harness/slash-command-protocol':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-protocol
+      '@omne-harness/slash-command-ui':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-ui
       '@omne-harness/tool-protocol':
         specifier: workspace:*
         version: link:../../packages/tool/tool-protocol
@@ -575,12 +648,18 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.19
+      node-screenshots:
+        specifier: 'catalog:'
+        version: 0.2.8
       react:
         specifier: 'catalog:'
         version: 19.3.0
       react-dom:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
+      react-screenshots:
+        specifier: 'catalog:'
+        version: 0.5.22(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
       '@electron/fuses':
         specifier: 'catalog:'
@@ -654,6 +733,12 @@ importers:
       '@omne-harness/agent-host-local':
         specifier: workspace:*
         version: link:../../packages/agent/agent-host-local
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly
+      '@omne-harness/assembly-cordis':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly-cordis
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../packages/assets/assets
@@ -666,6 +751,9 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local
+      '@omne-harness/assets-tools':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-tools
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization
@@ -693,6 +781,21 @@ importers:
       '@omne-harness/calendar-tools':
         specifier: workspace:*
         version: link:../../packages/calendar/calendar-tools
+      '@omne-harness/canvas-access':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-access
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-contract
+      '@omne-harness/canvas-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-cordis-contract
+      '@omne-harness/canvas-local':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-local
+      '@omne-harness/canvas-tools':
+        specifier: workspace:*
+        version: link:../../packages/canvas/canvas-tools
       '@omne-harness/context-compaction':
         specifier: workspace:*
         version: link:../../packages/context/context-compaction
@@ -717,6 +820,12 @@ importers:
       '@omne-harness/dispatch-tools':
         specifier: workspace:*
         version: link:../../packages/dispatch/dispatch-tools
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis-cordis
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
@@ -732,6 +841,39 @@ importers:
       '@omne-harness/execution-environment-host-local':
         specifier: workspace:*
         version: link:../../packages/execution/execution-environment-host-local
+      '@omne-harness/execution-environment-program':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-program
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal
+      '@omne-harness/goal-access':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-access
+      '@omne-harness/goal-check':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-check
+      '@omne-harness/goal-command':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-command
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-contract
+      '@omne-harness/goal-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-cordis-contract
+      '@omne-harness/goal-decisions':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-decisions
+      '@omne-harness/goal-local':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-local
+      '@omne-harness/goal-session':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-session
+      '@omne-harness/goal-tools':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-tools
       '@omne-harness/governance-contract':
         specifier: workspace:*
         version: link:../../packages/governance/governance-contract
@@ -759,6 +901,15 @@ importers:
       '@omne-harness/identity-sql':
         specifier: workspace:*
         version: link:../../packages/identity/identity-sql
+      '@omne-harness/interface-access':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-access
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-protocol
+      '@omne-harness/interface-tools':
+        specifier: workspace:*
+        version: link:../../packages/interface/interface-tools
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../packages/common/json-text
@@ -768,6 +919,42 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/loop-extension':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension
+      '@omne-harness/loop-extension-contract':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-contract
+      '@omne-harness/loop-extension-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-cordis-contract
+      '@omne-harness/loop-extension-host-local':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-host-local
+      '@omne-harness/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp
+      '@omne-harness/mcp-access':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-access
+      '@omne-harness/mcp-authorization':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-authorization
+      '@omne-harness/mcp-bridge':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-bridge
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-contract
+      '@omne-harness/mcp-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-cordis-contract
+      '@omne-harness/mcp-host-local':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-host-local
+      '@omne-harness/mcp-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-storage-sql
       '@omne-harness/media':
         specifier: workspace:*
         version: link:../../packages/media/media
@@ -792,12 +979,18 @@ importers:
       '@omne-harness/media-image':
         specifier: workspace:*
         version: link:../../packages/media/media-image
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/media-storage-local':
         specifier: workspace:*
         version: link:../../packages/media/media-storage-local
       '@omne-harness/media-storage-sql':
         specifier: workspace:*
         version: link:../../packages/media/media-storage-sql
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../packages/common/message
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../../packages/model/model
@@ -843,6 +1036,18 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-anthropic
+      '@omne-harness/pi-ai-deepseek':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-deepseek
+      '@omne-harness/pi-ai-glm':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-glm
+      '@omne-harness/pi-ai-jev':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-jev
+      '@omne-harness/pi-ai-kimi':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-kimi
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-openai
@@ -852,6 +1057,21 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
+      '@omne-harness/plugin-access':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-access
+      '@omne-harness/plugin-host-local':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-host-local
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-protocol
+      '@omne-harness/plugin-tools':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-tools
+      '@omne-harness/prompt-command-source':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/prompt-command-source
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -900,6 +1120,9 @@ importers:
       '@omne-harness/schedule-protocol':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-protocol
+      '@omne-harness/schedule-session':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-session
       '@omne-harness/schedule-tools':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-tools
@@ -954,6 +1177,9 @@ importers:
       '@omne-harness/skill':
         specifier: workspace:*
         version: link:../../packages/skills/skill
+      '@omne-harness/skill-command-source':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-command-source
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../../packages/skills/skill-contract
@@ -963,6 +1189,21 @@ importers:
       '@omne-harness/skill-host-local':
         specifier: workspace:*
         version: link:../../packages/skills/skill-host-local
+      '@omne-harness/slash-command':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command
+      '@omne-harness/slash-command-access':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-access
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-contract
+      '@omne-harness/slash-command-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-cordis-contract
+      '@omne-harness/slash-command-protocol':
+        specifier: workspace:*
+        version: link:../../packages/slash-command/slash-command-protocol
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../packages/storage/sql-contract
@@ -1053,10 +1294,19 @@ importers:
       '@omne-harness/workspace-tools':
         specifier: workspace:*
         version: link:../../packages/workspace/workspace-tools
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       zod:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@modelcontextprotocol/node':
+        specifier: 'catalog:'
+        version: 2.1.2(@modelcontextprotocol/server@2.4.0)
+      '@modelcontextprotocol/server':
+        specifier: 'catalog:'
+        version: 2.4.0
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../../packages/assets/assets-protocol
@@ -1066,18 +1316,18 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../packages/common/content-block
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../../packages/goal/goal-protocol
       '@omne-harness/human-intervention-protocol':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-protocol
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
-      '@omne-harness/mcp-host-local':
+      '@omne-harness/mcp-protocol':
         specifier: workspace:*
-        version: link:../../packages/mcp/mcp-host-local
-      '@omne-harness/media-protocol':
-        specifier: workspace:*
-        version: link:../../packages/media/media-protocol
+        version: link:../../packages/mcp/mcp-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -1090,6 +1340,40 @@ importers:
       '@omne-harness/usage-contract':
         specifier: workspace:*
         version: link:../../packages/usage/usage-contract
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  benchmarks:
+    dependencies:
+      '@omne-harness/perf-harness':
+        specifier: workspace:*
+        version: link:../tools/perf-harness
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../packages/access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../packages/access/sdk
+      '@omne-harness/session-protocol':
+        specifier: workspace:*
+        version: link:../packages/session/session-protocol
+    devDependencies:
+      '@omne-harness/cli':
+        specifier: workspace:*
+        version: link:../apps/cli
+      '@omne-harness/harness-server':
+        specifier: workspace:*
+        version: link:../apps/harness-server
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1124,6 +1408,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
@@ -1193,6 +1483,12 @@ importers:
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../access-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -1243,6 +1539,9 @@ importers:
       '@typescript/typescript6':
         specifier: 'catalog:'
         version: 6.0.2
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -1294,6 +1593,9 @@ importers:
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -1316,6 +1618,9 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -1384,6 +1689,9 @@ importers:
       '@omne-harness/agent-context':
         specifier: workspace:*
         version: link:../../context/agent-context
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../../common/message
@@ -1455,6 +1763,31 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/assembly/assembly-cordis:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/assembly':
+        specifier: workspace:*
+        version: link:../assembly
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/assembly/kernel-basis:
     dependencies:
       '@deepseek-ai/cordis':
@@ -1498,6 +1831,9 @@ importers:
         specifier: workspace:*
         version: link:../settings
     devDependencies:
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1547,6 +1883,12 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
@@ -1610,6 +1952,43 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/assets/assets-tools:
+    dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../assets
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../plugin/plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1956,6 +2335,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
@@ -2042,6 +2424,263 @@ importers:
       '@omne-harness/ui-kit':
         specifier: workspace:*
         version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas:
+    dependencies:
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+      '@omne-harness/canvas-protocol':
+        specifier: workspace:*
+        version: link:../canvas-protocol
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@omne-harness/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-contract:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+      '@omne-harness/canvas-cordis-contract':
+        specifier: workspace:*
+        version: link:../canvas-cordis-contract
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-tools:
+    dependencies:
+      '@omne-harness/canvas-contract':
+        specifier: workspace:*
+        version: link:../canvas-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@omne-harness/canvas-access':
+        specifier: workspace:*
+        version: link:../canvas-access
+      '@omne-harness/canvas-protocol':
+        specifier: workspace:*
+        version: link:../canvas-protocol
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/canvas/canvas-ui:
+    dependencies:
+      '@omne-harness/canvas-protocol':
+        specifier: workspace:*
+        version: link:../canvas-protocol
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       react:
         specifier: 'catalog:'
         version: 19.3.0
@@ -2710,6 +3349,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -2828,6 +3470,25 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/dynamis/dynamis-cordis:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../dynamis
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/execution/execution-environment:
     dependencies:
       '@omne-harness/execution-environment-contract':
@@ -2933,6 +3594,40 @@ importers:
         specifier: 'catalog:'
         version: 1.1.0
     devDependencies:
+      '@omne-harness/execution-environment-program':
+        specifier: workspace:*
+        version: link:../execution-environment-program
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/execution/execution-environment-program:
+    dependencies:
+      '@earendil-works/pi-codemode':
+        specifier: 'catalog:'
+        version: 1.6.0(patch_hash=f9e35b5b0d088e944675b34a63f53a04e29185dac89ee5b5f3054ac1a83cef52)
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../execution-environment-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      amaro:
+        specifier: 'catalog:'
+        version: 1.3.0
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -2986,6 +3681,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
@@ -3066,6 +3767,358 @@ importers:
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../goal-protocol
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+    devDependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-bench:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../model/pi-ai-transport
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-check:
+    dependencies:
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-command:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command-contract
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/slash-command':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-contract:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-decisions:
+    dependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+    devDependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/goal-cordis-contract':
+        specifier: workspace:*
+        version: link:../goal-cordis-contract
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-session:
+    dependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-tools:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../goal-contract
+      '@omne-harness/human-intervention-tool':
+        specifier: workspace:*
+        version: link:../../human-intervention/human-intervention-tool
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../goal
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/goal/goal-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/goal-protocol':
+        specifier: workspace:*
+        version: link:../goal-protocol
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -3576,6 +4629,272 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/interface/interface-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../interface-protocol
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/interface/interface-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/interface/interface-tools:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/image':
+        specifier: workspace:*
+        version: link:../../execution/image
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../interface-protocol
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/interface/interface-ui:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/interface-protocol':
+        specifier: workspace:*
+        version: link:../interface-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/loop-extension/loop-extension:
+    dependencies:
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/loop-extension-contract':
+        specifier: workspace:*
+        version: link:../loop-extension-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/loop-extension/loop-extension-contract:
+    dependencies:
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/loop-extension/loop-extension-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/loop-extension-contract':
+        specifier: workspace:*
+        version: link:../loop-extension-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/loop-extension/loop-extension-host-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/agent-cordis-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-cordis-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness/loop-extension-contract':
+        specifier: workspace:*
+        version: link:../loop-extension-contract
+      '@omne-harness/loop-extension-cordis-contract':
+        specifier: workspace:*
+        version: link:../loop-extension-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+    devDependencies:
+      '@omne-harness/assets-local':
+        specifier: workspace:*
+        version: link:../../assets/assets-local
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-host-local
+      '@omne-harness/runtime-context':
+        specifier: workspace:*
+        version: link:../../context/runtime-context
+      '@omne-harness/settings-local':
+        specifier: workspace:*
+        version: link:../../assets/settings-local
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/mcp/mcp:
     dependencies:
       '@omne-harness/assets':
@@ -3593,6 +4912,111 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/mcp-bridge':
+        specifier: workspace:*
+        version: link:../mcp-bridge
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../mcp-protocol
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-authorization:
+    dependencies:
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-bridge:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../../skills/skill-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3637,6 +5061,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/mcp-contract':
         specifier: workspace:*
         version: link:../mcp-contract
@@ -3692,7 +5119,10 @@ importers:
         version: 2.4.0
       '@modelcontextprotocol/server-everything':
         specifier: 'catalog:'
-        version: 2.1.0(supports-color@7.2.0)
+        version: 2.3.1(supports-color@7.2.0)
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3709,8 +5139,64 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
 
+  packages/mcp/mcp-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-storage-sql:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/mcp/mcp-ui:
     dependencies:
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../mcp-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../frontend/shell-contract
@@ -3850,6 +5336,9 @@ importers:
         specifier: workspace:*
         version: link:../../tool/tool-cordis-contract
     devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3896,6 +5385,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/media-contract':
         specifier: workspace:*
         version: link:../media-contract
@@ -4038,6 +5530,12 @@ importers:
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../media-protocol
@@ -4216,6 +5714,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -4271,6 +5772,18 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
+      '@omne-harness/pi-ai-deepseek':
+        specifier: workspace:*
+        version: link:../pi-ai-deepseek
+      '@omne-harness/pi-ai-glm':
+        specifier: workspace:*
+        version: link:../pi-ai-glm
+      '@omne-harness/pi-ai-jev':
+        specifier: workspace:*
+        version: link:../pi-ai-jev
+      '@omne-harness/pi-ai-kimi':
+        specifier: workspace:*
+        version: link:../pi-ai-kimi
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../pi-ai-openai
@@ -4293,6 +5806,9 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/model-storage-sql':
         specifier: workspace:*
         version: link:../model-storage-sql
@@ -4373,6 +5889,9 @@ importers:
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../model-protocol
@@ -4385,16 +5904,40 @@ importers:
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -4438,6 +5981,118 @@ importers:
       js-tiktoken:
         specifier: 'catalog:'
         version: 1.0.21
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-deepseek:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
+    devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-glm:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
+    devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-jev:
+    dependencies:
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-kimi:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
+    devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -4637,6 +6292,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/notification-contract':
         specifier: workspace:*
         version: link:../notification-contract
@@ -4656,6 +6317,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/notification':
         specifier: workspace:*
         version: link:../notification
@@ -4675,6 +6339,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4761,6 +6428,182 @@ importers:
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-host-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+    devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-tools:
+    dependencies:
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
       react:
         specifier: 'catalog:'
         version: 19.3.0
@@ -4956,6 +6799,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/time-source':
+        specifier: workspace:*
+        version: link:../../assembly/time-source
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4975,6 +6821,28 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/schedule/schedule-session:
+    dependencies:
+      '@omne-harness/goal-contract':
+        specifier: workspace:*
+        version: link:../../goal/goal-contract
+      '@omne-harness/schedule-contract':
+        specifier: workspace:*
+        version: link:../schedule-contract
+    devDependencies:
+      '@omne-harness/goal':
+        specifier: workspace:*
+        version: link:../../goal/goal
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -5126,6 +6994,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5169,6 +7040,9 @@ importers:
         specifier: workspace:*
         version: link:../../common/utc-instant
     devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../identity/identity
@@ -5256,6 +7130,9 @@ importers:
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command-contract
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
@@ -5287,6 +7164,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5318,6 +7198,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5491,6 +7374,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5730,6 +7616,34 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/skills/skill-command-source:
+    dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../skill-contract
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../../slash-command/slash-command-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/skills/skill-contract:
     dependencies:
       '@omne-harness/assets':
@@ -5763,6 +7677,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
@@ -5794,6 +7717,9 @@ importers:
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
+      '@omne-harness/skill-cordis-contract':
+        specifier: workspace:*
+        version: link:../skill-cordis-contract
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -5801,6 +7727,9 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../assets/settings-local
@@ -5816,6 +7745,214 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/prompt-command-source:
+    dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command:
+    dependencies:
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+      '@omne-harness/slash-command-protocol':
+        specifier: workspace:*
+        version: link:../slash-command-protocol
+    devDependencies:
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command-contract:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+    devDependencies:
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/slash-command/slash-command-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/slash-command-protocol':
+        specifier: workspace:*
+        version: link:../slash-command-protocol
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/slash-command-contract':
+        specifier: workspace:*
+        version: link:../slash-command-contract
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -6061,9 +8198,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -6132,6 +8278,9 @@ importers:
         specifier: workspace:*
         version: link:../../util/unix-format
     devDependencies:
+      '@omne-harness/execution-environment-program':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-program
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -6156,6 +8305,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
@@ -6205,6 +8357,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-host-local
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -6946,6 +9101,9 @@ importers:
 
   tools/artifact-builder:
     devDependencies:
+      '@omne-harness/assembly-cordis':
+        specifier: workspace:*
+        version: link:../../packages/assembly/assembly-cordis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -6960,7 +9118,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -6974,11 +9132,26 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  tools/perf-harness:
+    devDependencies:
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.21(vitest@4.1.11)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   tools/pqw-adapter:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@stryker-mutator/api':
         specifier: 'catalog:'
         version: 10.1.1
@@ -7005,7 +9178,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -7037,7 +9210,7 @@ importers:
         version: 6.0.2
       dependency-cruiser:
         specifier: 'catalog:'
-        version: 18.6.0
+        version: 18.9.0
       yaml:
         specifier: 'catalog:'
         version: 2.9.1
@@ -7077,7 +9250,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.20(vitest@4.1.11)
+        version: 0.0.21(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -7365,6 +9538,10 @@ packages:
 
   '@deepseek-ai/cosmokit@1.9.0':
     resolution: {integrity: sha512-5O1S53mZiJyZYcvxxD0Qv1EY7qFPSxbGyD8CbVK6gw7W9FvcXZj2YIX1ZkOqyQQ3Xt2rFkZDHJv0+V3Zmmp8CA==}
+
+  '@earendil-works/pi-codemode@1.6.0':
+    resolution: {integrity: sha512-GAgAy7iJCVbeiuqq2dTIuNj3aXTMUeTF8Nu8LZs72e8ueGGDU5L3/D8VxzTHALIpQ1/q8u1tfmB3iYS2Nopchw==}
+    engines: {node: '>=22.19.0'}
 
   '@electron-internal/extract-zip@1.0.8':
     resolution: {integrity: sha512-8iajeLFbzNwM0m3AsQZSZgYREWglAImyGvvFSWU34FgMW8sHlzdwj9QKvv9dgN7jMP591EFUF/sLOC3Jl9YIjQ==}
@@ -7970,8 +10147,8 @@ packages:
     peerDependencies:
       '@modelcontextprotocol/server': ^2.4.0
 
-  '@modelcontextprotocol/server-everything@2.1.0':
-    resolution: {integrity: sha512-frpLCQv+IgGH+y4gSOcaQRxUBZ7yYZY2xZ5Ve8yz2vubltPfrilDxRTCjPQEk3W8fsaZSdabvagkfs+T6Bf6mw==}
+  '@modelcontextprotocol/server-everything@2.3.1':
+    resolution: {integrity: sha512-fOONra8VnAjlVp5xO+dWWoKGkZYg8sBEg52txVoLT0N43B3F5nX3UmsgHch79DM0L+nVCi/w5d/WV6UfhBH7kA==}
     engines: {node: '>=24'}
     hasBin: true
 
@@ -8113,12 +10290,12 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@omne-harness/repo-config@0.0.7':
-    resolution: {integrity: sha512-SM0Xvwb1+ppDIJcUIUVF8CPvSwZPWVD3YB4ncH/J+shGsfb7JXUG3DpoXNP9wtLpNwhYbgPOI/v+7ARara3OTw==}
+  '@omne-harness/repo-config@0.0.8':
+    resolution: {integrity: sha512-pTPIqo4IEJuGDA2HKV5cIJ1GhfMztTCQNz+BQl2B7nfNHUB0Bu0k4Z9yo2LjnyKkIhGTv9QvatmmAOafUf4P8A==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.20':
-    resolution: {integrity: sha512-rpmq9qktyEob8c6Oma6CfOtPrEDp0FHxPXXNO+JZ2duSIMTw8KcQbdBwWAYp7MhIEkRhMGXBC556eHWLTFUxPQ==}
+  '@omne-harness/repo-toolchain@0.0.21':
+    resolution: {integrity: sha512-eYulva9a1nFHOdzFC8sAaOHxrgFpcoYwZionAE+BWl2lNT28hTFo0gOxzut4Kcf8DpahnFVO+EeVWQha4hMKIw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -10371,6 +12548,10 @@ packages:
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
 
+  amaro@1.3.0:
+    resolution: {integrity: sha512-AuQra8VNxiToMaXpQWLEeDZZqo13unyNvKq81VhdtIh0cO9ZE+fElw+rpwrdVwjzomaqB40bin8ycHmoLlhvoQ==}
+    engines: {node: '>=22'}
+
   angular-html-parser@10.11.0:
     resolution: {integrity: sha512-3vERzJ65UFDr3C7uozLJwsNcQS3FS784dSh583oDgDTTZMgXe3/pdyXgKndxiP5R2lvYRfW6gSl145Hnyf2OFA==}
     engines: {node: '>= 14'}
@@ -10617,8 +12798,8 @@ packages:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
     engines: {node: '>=20'}
 
-  commander@15.0.0:
-    resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
+  commander@15.1.0:
+    resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
     engines: {node: '>=22.12.0'}
 
   commander@5.1.0:
@@ -10939,8 +13120,8 @@ packages:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
 
-  dependency-cruiser@18.6.0:
-    resolution: {integrity: sha512-It7NW5AmCDBCLMq7I91Nfu8VRKzrIE6S+M/FMQzALDceJ0B1PWRHo77q9YJg/HwyBBEWHVtOuTptIQki+xecOw==}
+  dependency-cruiser@18.9.0:
+    resolution: {integrity: sha512-b6fjm/8OI0HYRW3Mo/y6GlUMPk//3LPBxd0CsEaPNDJXospJDYG8rpyoz/Izk5xTkfYWEMYl8cTQWupgpmkBOg==}
     engines: {node: ^22||^24||>=26}
     hasBin: true
 
@@ -11047,6 +13228,10 @@ packages:
 
   enhanced-resolve@5.26.0:
     resolution: {integrity: sha512-9vhedylFonb2YGogzUKX6+Ja72gOJbN1QHAqdrvqLwhdl/QWbKopzoUC9EbQNVsAns/bx/4uyqalrQAoy1IByw==}
+    engines: {node: '>=10.13.0'}
+
+  enhanced-resolve@5.27.0:
+    resolution: {integrity: sha512-Do6BB2xzlcc/odFg+XEYyneAx4T/WfywO71yw9ePS2tVfRsf7JVR4mUeELadIeHzixkzbG5DpluiEFPi2WGfYQ==}
     engines: {node: '>=10.13.0'}
 
   entities@7.0.1:
@@ -11157,6 +13342,10 @@ packages:
 
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
+  fast-check@4.10.2:
+    resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==}
+    engines: {node: '>=12.17.0'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -11433,12 +13622,9 @@ packages:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
     engines: {node: '>=0.10.0'}
 
-  ignore@7.0.12:
-    resolution: {integrity: sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg==}
+  ignore@7.0.16:
+    resolution: {integrity: sha512-52N+Y4HRMOJmbLmr+DqO4iSRyyB7N52gm7PWCT6h0p978+oKbqHCB7gIJIwZvBUsjlSdWbrBFqUSmIFNZMpn0A==}
     engines: {node: '>= 4'}
-
-  immediate@3.0.6:
-    resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
 
   immer@11.2.10:
     resolution: {integrity: sha512-pzANBj+0A9u+prdhBJ14DVi44vCvVUQzBa8DKt6I0AMCokPHtt722BK9IX5bFC70xUSU9TnzLRIJLTGqIzjEFw==}
@@ -11627,9 +13813,6 @@ packages:
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
 
-  jszip@3.10.2:
-    resolution: {integrity: sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==}
-
   katex@0.16.27:
     resolution: {integrity: sha512-aeQoDkuRWSqQN6nSvVCEFvfXdqo1OQiCmmW1kc9xSdjutPv7BGO7pqY9sQRJpMOGrEdfDgF2TfRXe5eUAD2Waw==}
     hasBin: true
@@ -11661,9 +13844,6 @@ packages:
 
   lazy-val@1.0.5:
     resolution: {integrity: sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==}
-
-  lie@3.3.0:
-    resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -12471,9 +14651,6 @@ packages:
   package-manager-detector@1.9.0:
     resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
 
-  pako@1.0.11:
-    resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
-
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
 
@@ -12617,6 +14794,9 @@ packages:
   pump@3.0.4:
     resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
 
+  pure-rand@8.4.2:
+    resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
+
   pvtsutils@1.3.6:
     resolution: {integrity: sha512-PLgQXQ6H2FWCaeRak8vvk1GW462lMxB5s3Jm673N82zI4vqtVUPuZdffdZbPDFRoU8kAhItWFtPCWiPpp4/EDg==}
 
@@ -12638,6 +14818,9 @@ packages:
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
+
+  quickjs-wasi@3.6.2:
+    resolution: {integrity: sha512-FCqGtGOrMgzUiIrMNMA2YnsOxCNwo31dzqXvclXUC6xeT35NJLKXQJsvbeCTjvoFAwZgEAPg8U6+KAPDGXn8Mg==}
 
   radix-ui@1.6.7:
     resolution: {integrity: sha512-QBdhh1arIEUvPC0dQ5+nwWAxt7+N+oP/9jPwjJkGFoSk/sqxg32gJtSXGtFh8frAIcS6oC9cx2Q+7KYCQLOAeA==}
@@ -12706,6 +14889,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-screenshots@0.5.22:
+    resolution: {integrity: sha512-aooIlb1k6161BTqhhyADlMrlF0n1UdudjuhyvXaCQfwURXZNuUerMxFuOfwNCgSbPAHlxdHCWtYQ6iQT+RaF+w==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
   react-style-singleton@2.2.3:
     resolution: {integrity: sha512-b6jSvxvVnyptAiLjbkWLE/lOnR4lfTtDAl+eUC7RZy+QQWc6wRzIV2CE6xBuMmDxc2qIihtDCZD5NPOFl7fRBQ==}
@@ -12934,6 +15123,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.6:
+    resolution: {integrity: sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   send@1.2.1:
     resolution: {integrity: sha512-1gnZf7DFcoIcajTjTwjwuDjzuz4PPcY2StKPlsGAQ1+YH20IRVrBaXSWmdjowTJ6u8Rc01PoYOGHXfP1mYcZNQ==}
     engines: {node: '>= 18'}
@@ -12945,9 +15139,6 @@ packages:
   serve-static@2.2.1:
     resolution: {integrity: sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==}
     engines: {node: '>= 18'}
-
-  setimmediate@1.0.5:
-    resolution: {integrity: sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA==}
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
@@ -13891,6 +16082,10 @@ snapshots:
 
   '@deepseek-ai/cosmokit@1.9.0': {}
 
+  '@earendil-works/pi-codemode@1.6.0(patch_hash=f9e35b5b0d088e944675b34a63f53a04e29185dac89ee5b5f3054ac1a83cef52)':
+    dependencies:
+      quickjs-wasi: 3.6.2
+
   '@electron-internal/extract-zip@1.0.8': {}
 
   '@electron/asar@3.4.1':
@@ -14420,14 +16615,13 @@ snapshots:
       '@modelcontextprotocol/server': 2.4.0
       hono: 4.13.19
 
-  '@modelcontextprotocol/server-everything@2.1.0(supports-color@7.2.0)':
+  '@modelcontextprotocol/server-everything@2.3.1(supports-color@7.2.0)':
     dependencies:
       '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
       '@modelcontextprotocol/server': 2.4.0
       '@modelcontextprotocol/server-legacy': 2.4.0(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)
       cors: 2.8.6
       express: 5.3.0(supports-color@7.2.0)
-      jszip: 3.10.2
       zod: 4.6.5
     transitivePeerDependencies:
       - supports-color
@@ -14532,15 +16726,15 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@omne-harness/repo-config@0.0.7': {}
+  '@omne-harness/repo-config@0.0.8': {}
 
-  '@omne-harness/repo-toolchain@0.0.20(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.21(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1
       '@types/node': 24.13.6
       '@typescript/typescript6': 6.0.2
-      dependency-cruiser: 18.6.0
+      dependency-cruiser: 18.9.0
       yaml: 2.9.1
     optionalDependencies:
       vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -16626,6 +18820,8 @@ snapshots:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
+  amaro@1.3.0: {}
+
   angular-html-parser@10.11.0: {}
 
   ansi-regex@5.0.1: {}
@@ -16952,7 +19148,7 @@ snapshots:
 
   commander@14.0.3: {}
 
-  commander@15.0.0: {}
+  commander@15.1.0: {}
 
   commander@5.1.0: {}
 
@@ -17276,16 +19472,16 @@ snapshots:
 
   depd@2.0.0: {}
 
-  dependency-cruiser@18.6.0:
+  dependency-cruiser@18.9.0:
     dependencies:
       acorn: 8.19.0
       acorn-jsx: 5.3.2(acorn@8.19.0)
       acorn-jsx-walk: 2.0.0
       acorn-loose: 8.5.2
       acorn-walk: 8.3.5
-      commander: 15.0.0
-      enhanced-resolve: 5.26.0
-      ignore: 7.0.12
+      commander: 15.1.0
+      enhanced-resolve: 5.27.0
+      ignore: 7.0.16
       interpret: 3.1.1
       is-installed-globally: 1.0.1
       json5: 2.2.3
@@ -17293,7 +19489,7 @@ snapshots:
       prompts: 2.4.2
       rechoir: 0.8.0
       safe-regex: 2.1.1
-      semver: 7.8.5
+      semver: 7.8.6
       tsconfig-paths-webpack-plugin: 4.2.0
       typescript: 6.0.3
       watskeburt: 6.0.0
@@ -17437,6 +19633,11 @@ snapshots:
       once: 1.4.0
 
   enhanced-resolve@5.26.0:
+    dependencies:
+      graceful-fs: 4.2.11
+      tapable: 2.3.3
+
+  enhanced-resolve@5.27.0:
     dependencies:
       graceful-fs: 4.2.11
       tapable: 2.3.3
@@ -17588,6 +19789,10 @@ snapshots:
       - supports-color
 
   extend@3.0.2: {}
+
+  fast-check@4.10.2:
+    dependencies:
+      pure-rand: 8.4.2
 
   fast-deep-equal@3.1.3: {}
 
@@ -17987,9 +20192,7 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  ignore@7.0.12: {}
-
-  immediate@3.0.6: {}
+  ignore@7.0.16: {}
 
   immer@11.2.10: {}
 
@@ -18132,13 +20335,6 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jszip@3.10.2:
-    dependencies:
-      lie: 3.3.0
-      pako: 1.0.11
-      readable-stream: 2.3.8
-      setimmediate: 1.0.5
-
   katex@0.16.27:
     dependencies:
       commander: 8.3.0
@@ -18175,10 +20371,6 @@ snapshots:
   layout-base@2.0.1: {}
 
   lazy-val@1.0.5: {}
-
-  lie@3.3.0:
-    dependencies:
-      immediate: 3.0.6
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -19063,8 +21255,6 @@ snapshots:
 
   package-manager-detector@1.9.0: {}
 
-  pako@1.0.11: {}
-
   parse-entities@4.0.2:
     dependencies:
       '@types/unist': 2.0.11
@@ -19214,6 +21404,8 @@ snapshots:
       end-of-stream: 1.4.5
       once: 1.4.0
 
+  pure-rand@8.4.2: {}
+
   pvtsutils@1.3.6:
     dependencies:
       tslib: 2.8.1
@@ -19232,6 +21424,8 @@ snapshots:
   quick-format-unescaped@4.0.4: {}
 
   quick-lru@5.1.1: {}
+
+  quickjs-wasi@3.6.2: {}
 
   radix-ui@1.6.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
@@ -19343,6 +21537,11 @@ snapshots:
       use-sidecar: 1.1.3(@types/react@19.3.0)(react@19.3.0)
     optionalDependencies:
       '@types/react': 19.3.0
+
+  react-screenshots@0.5.22(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   react-style-singleton@2.2.3(@types/react@19.3.0)(react@19.3.0):
     dependencies:
@@ -19634,6 +21833,8 @@ snapshots:
 
   semver@7.8.5: {}
 
+  semver@7.8.6: {}
+
   send@1.2.1(supports-color@7.2.0):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
@@ -19663,8 +21864,6 @@ snapshots:
       send: 1.2.1(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
-
-  setimmediate@1.0.5: {}
 
   setprototypeof@1.2.0: {}
 
@@ -19933,7 +22132,7 @@ snapshots:
   tsconfig-paths-webpack-plugin@4.2.0:
     dependencies:
       chalk: 4.1.2
-      enhanced-resolve: 5.26.0
+      enhanced-resolve: 5.27.0
       tapable: 2.3.3
       tsconfig-paths: 4.2.0
 

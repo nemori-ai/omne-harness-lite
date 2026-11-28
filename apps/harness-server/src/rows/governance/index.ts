@@ -1,4 +1,9 @@
-import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import {
+  permissionDeclarationsOf,
+  registerPermissionDeclaration,
+  registeredPermissionDeclarations,
+  type PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { agentDecisionCardsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { z } from 'zod'
@@ -14,11 +19,17 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
-import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets-cordis-contract'
+import {
+  assetCategoriesKey,
+  assetChangesKey,
+  independentSettingsKey,
+} from '@omne-harness/assets-cordis-contract'
 import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
+import { toolEffectOf } from '../tool-host/tool-effect.ts'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -26,15 +37,20 @@ import { monotonicClock } from '../../shutdown.ts'
 import { governanceInstallationPrincipalsKey } from '../../entry/governance-installation-principals.ts'
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
-import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
+import { epochMillisOf } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
+import { categoryGateTemplatesSchema } from '../../entry/category-gates.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
+import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
 import {
   SessionPermissionBackendService,
   sessionPermissionBackendKey,
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
-import { createToolAssetCategory } from './tool-assets.ts'
+import { releaseProviders } from '../../assets/model-providers.ts'
+import { createToolAssetCategory, toolAssetPublication } from './tool-assets.ts'
+import { officialItem } from '../../assets/official-holdings.ts'
 import {
   provideTenantIndependentSettings,
   tenantIndependentSettingsKey,
@@ -45,7 +61,15 @@ import { tenantDomainRegistrationKey } from './tenant-domain-registration-servic
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
-import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
+import {
+  provideTenantSettings,
+  tenantActingSettingsKey,
+  tenantAssetSettingsKey,
+  tenantSettingsKey,
+  type TenantSettingsServiceOptions,
+} from './tenant-settings-service.ts'
+import { provideExtensionSources } from './extension-sources.ts'
+import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -54,7 +78,29 @@ const configSchema = z.strictObject({
   logicalServiceId: GovernanceIdSchema,
   recoveryPagesPerPass: z.number().int().min(1),
   closeTimeoutMs: z.number().int().min(0).max(60_000),
+  installationConcurrency: z
+    .number()
+    .int()
+    .min(1)
+    .default(LOCAL_GOVERNANCE_OPENING.installationConcurrency),
+  categoryGates: categoryGateTemplatesSchema.default([]),
 })
+
+const releasedNames =
+  (release: { manifest: { entries: readonly { asset: { name: string } }[] } }) => (name: string) =>
+    release.manifest.entries.some(entry => entry.asset.name === name)
+
+function governedOf(ctx: Context, tenantRef: string) {
+  return {
+    permissionDeclarations: () => permissionDeclarationsOf(ctx, tenantRef),
+    permissionDeclared: () => registeredPermissionDeclarations(ctx, tenantRef),
+    declarePermission: (declaration: PermissionDeclaration) =>
+      registerPermissionDeclaration(ctx, declaration),
+    assetsChanged: (listener: () => void) =>
+      ctx.assetChanges.subscribe(tenantRef, { changed: listener, closed() {} }),
+    releaseProviders,
+  }
+}
 
 class SessionBackend extends SessionPermissionBackendService {
   readonly basis: SessionPermissionBackendService['basis']
@@ -100,8 +146,11 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      tenantAssetSettingsKey,
+      tenantActingSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
+      loopExtensionSourcesKey,
     ],
     injects: [
       storageKey,
@@ -115,6 +164,7 @@ export const governanceRow = defineRow({
       toolContributionAuthorityKey,
       assetCategoriesKey,
       tenantAssetsKey,
+      assetChangesKey,
     ],
     sameProviderGroup: null,
   },
@@ -124,11 +174,22 @@ export const governanceRow = defineRow({
     const release = releaseOf(ctx)
     const materials = await productionStorageCatalog(async () => release)
     if (release.kind !== 'trusted') throw new Error('governance Tool release unavailable')
-    ctx.assetCategories.contribute({
-      contract: createToolAssetCategory(release),
-      display: toolCategoryDisplay,
-      generalCreation: 'closed',
-    })
+    ctx.assetCategories.contribute(
+      {
+        contract: createToolAssetCategory(release),
+        display: toolCategoryDisplay,
+        effect: toolEffectOf(ctx, releasedNames(release)),
+      },
+      toolToolsPoint,
+    )
+    ctx.assetCategories.bring(
+      toolToolsPoint.name,
+      release.manifest.entries.map(entry => ({
+        name: entry.asset.name,
+        item: officialItem('tool', entry.asset.name, entry.asset.adoption.digest),
+        body: toolAssetPublication(entry).pinned.body,
+      })),
+    )
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')
@@ -176,11 +237,14 @@ export const governanceRow = defineRow({
           installationPrincipal,
           login: () => ctx.identityGovernance,
           release,
+          installationConcurrency: config.installationConcurrency,
           categories,
           tenantAssets: () => ctx.tenantAssets.open(tenantRef),
           independentSettings: () => independent.list(),
+          warn: message => ctx.logger('governance').warn(message),
           permissionOrigins: () => permissionOriginsOf(ctx),
-          permissionDeclarations: () => permissionDeclarationsOf(ctx),
+          ...governedOf(ctx, tenantRef),
+          categoryGates: config.categoryGates,
           organizationTargets: sources.targets,
           scope,
           domain,
@@ -191,11 +255,7 @@ export const governanceRow = defineRow({
           identity,
           registry,
           clock: {
-            now() {
-              const instant = readSystemInstant()
-              if (!instant.ok) throw new Error('governance Settings clock unavailable')
-              return epochMillisOf(instant.text)
-            },
+            now: () => epochMillisOf(instantTextOf(ctx, 'governance Settings')),
           },
           cursorLifetimeMs: 60_000,
           grants: [
@@ -213,6 +273,7 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
+    provideExtensionSources(ctx, tenantRef => host.settings(tenantRef), config.deploymentId)
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {
       identity: {
@@ -229,18 +290,20 @@ export const governanceRow = defineRow({
       'governance.tenant-settings.active',
     )
     provideTenantIndependentSettings(ctx, { host, deploymentRef: config.deploymentId })
-    provideTenantSettings(ctx, {
+    const settingsFace = {
       host,
       scope: config,
       storage: ctx.storage,
       release: () => release,
+      declared: (tenantRef: string) => registeredPermissionDeclarations(ctx, tenantRef),
       identity: {
         verifier: { verify: input => ctx.principalVerifier.verify(input) },
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       active: () => active,
       cards: () => ctx.get(agentDecisionCardsKey, false),
-    })
+    } satisfies TenantSettingsServiceOptions
+    provideTenantSettings(ctx, settingsFace)
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),
       'governance.close',

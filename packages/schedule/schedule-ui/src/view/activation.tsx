@@ -1,6 +1,7 @@
 import { FactList, FactRow } from '@omne-harness/ui-kit'
 import type { JSX } from 'react'
 import { readActivation } from '../model/activation.ts'
+import { scheduleActivation } from '../parts.ts'
 
 /** What a release would bring into effect, drawn from the call's typed value on the card. Anything
  * it cannot read throws, and the card draws the rows instead. */
@@ -9,7 +10,7 @@ export function ActivationDetail({ value }: Readonly<{ value: string }>): JSX.El
   if (activation === undefined) throw new Error('not a schedule activation')
   const { next } = activation
   return (
-    <div className="schedule-activation">
+    <div className="schedule-activation" {...scheduleActivation.props}>
       <FactList>
         <FactRow term="动作">{activation.action}</FactRow>
         <FactRow term="日程">{activation.name}</FactRow>

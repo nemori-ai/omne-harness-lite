@@ -11,15 +11,12 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { Adoption, FixedModelRequest } from '@omne-harness/model-contract'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import type { Adoption, LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { OPENAI_OWNER } from '../../src/owner.ts'
 import type { OpenAiRecord, OpenAiResponsesRecord } from '../../src/record.ts'
 import { OPENAI_RECORDS } from '../../src/records.ts'
@@ -68,7 +65,7 @@ const shown = { toHuman: true, toModel: true }
 
 function requestOf(record: OpenAiResponsesRecord): Readonly<{
   plain: Record<string, unknown>
-  request: FixedModelRequest
+  request: LlmModelRequest
 }> {
   const adoption = recordAdoption(OPENAI_OWNER, record)
   const supplier = {
@@ -87,6 +84,7 @@ function requestOf(record: OpenAiResponsesRecord): Readonly<{
     { kind: 'reasoning-effort', value: 'high' },
   ]
   const plain = {
+    kind: 'llm',
     profile: TEST_ADOPTION('profile'),
     suppliers: [supplier],
     fallback: false,
@@ -123,7 +121,7 @@ function requestOf(record: OpenAiResponsesRecord): Readonly<{
     ],
     toolChoice: 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(OPENAI_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(parameter => ({
       supplier: adoption,
       applied: parameter,
@@ -131,12 +129,12 @@ function requestOf(record: OpenAiResponsesRecord): Readonly<{
     })),
     source: TEST_ADOPTION('source'),
   }
-  const judged = judgeFixedModelRequest(plain)
+  const judged = judgeModelRequest('llm', plain)
   if (!('ok' in judged)) throw new Error(`${record.name}: ${JSON.stringify(judged.failure)}`)
   return { plain, request: judged.ok }
 }
 
-function bindingOf(record: OpenAiResponsesRecord, request: FixedModelRequest) {
+function bindingOf(record: OpenAiResponsesRecord, request: LlmModelRequest) {
   const supplier = request.suppliers[0]
   const unavailable = async () =>
     ({ failure: { kind: 'unavailable', dependency: 'capture', diagnostic: 'no meter' } }) as const
@@ -150,7 +148,7 @@ function bindingOf(record: OpenAiResponsesRecord, request: FixedModelRequest) {
         measureCalibrated: unavailable,
       },
       represent: () => ({
-        adoption: componentAdoption(record, 'representation'),
+        adoption: componentAdoption(OPENAI_OWNER, record, 'representation'),
         tokenInput: { kind: 'null' },
         units: [],
       }),

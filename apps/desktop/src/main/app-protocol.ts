@@ -31,7 +31,20 @@ export type AppProtocolOptions = {
   readonly upstream: PortFetch
   readonly cookies: CookieJar
   readonly log: Logger
+  readonly local?: LocalRoute
 }
+
+export type LocalRoute = (request: Request) => Promise<Response> | undefined
+
+export const firstRoute =
+  (routes: readonly LocalRoute[]): LocalRoute =>
+  request => {
+    for (const route of routes) {
+      const answer = route(request)
+      if (answer !== undefined) return answer
+    }
+    return undefined
+  }
 
 const refuse = (status: number, body: string): Response =>
   new Response(body, {
@@ -120,7 +133,7 @@ export function serveAppProtocol(session: AppProtocolSession, options: AppProtoc
     if (controller === undefined && key.startsWith(prefix)) return Response.error()
     const signal = controller?.signal ?? new AbortController().signal
     try {
-      return await answer(request, signal, options)
+      return await (options.local?.(request) ?? answer(request, signal, options))
     } catch (err) {
       if (signal.aborted) return Response.error()
       // A failed load, so the window's recovery reloads it: a 503 would load as a page of text.

@@ -1,5 +1,6 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
+import { setModelSwitches } from '../../support/model-switches.ts'
 import { onReleaseTree, pollUntil, type ReleaseTree } from '../../support/release-tree.ts'
 
 const sse = (events: readonly unknown[]) =>
@@ -62,6 +63,8 @@ describe('usage/v1 over the release tree, through the command line and a member 
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: answerWithUsage }, async tree => {
+        // The release starts the pro model off; the tenant turns it on.
+        await setModelSwitches(tree, { 'openai/gpt-5.6-sol-pro': true })
         const ids = tree.records.filter(r => r['kind'] === 'tree').map(r => r['id'])
         expect(ids).toContain('usage-access')
         // openai/gpt-5.6-sol counts the uncached input; openai/gpt-5.6-sol-pro leaves it unknown.

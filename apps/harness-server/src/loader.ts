@@ -1,6 +1,7 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { ConfigError, distributionSchema, operatorSchema, parseBoundary } from './config-schema.ts'
-import { awaitReadiness, type LoadedRow, type ReadinessReport } from './readiness.ts'
+import { awaitReadiness, stopOf, type LoadedRow, type ReadinessReport } from './readiness.ts'
+import type { RowEntry } from './row.ts'
 import type { Trust } from './trust.ts'
 import type { Implementation, RowId, RowManifest, ServiceName, TreeRow } from './types.ts'
 
@@ -30,6 +31,12 @@ export type RowSpec = Readonly<{
   plugin: Plugin
   implementation?: Implementation
   declared?: Readonly<{ row: RowId; via: ServiceName | null }>
+  swap?: 'implementation' | 'rerun' | 'restart'
+  contracts?: Readonly<Record<ServiceName, string>>
+  /** The row plugin the release ships for this row, as a new generation of it would apply it. */
+  shipped?: Plugin.Object
+  entries?: readonly RowEntry[]
+  fixed?: readonly Plugin.Object[]
 }>
 
 export type EntryObject = Readonly<{
@@ -141,8 +148,14 @@ export function preflight(
 
 export type StartResult =
   | Readonly<{ kind: 'rejected'; exitCode: 2; diagnostics: readonly PreflightDiagnostic[] }>
-  | Readonly<{ kind: 'preparation-failed'; exitCode: 3; error: unknown }>
-  | Readonly<{ kind: 'entry-failed'; exitCode: 3; name: ServiceName; error: unknown }>
+  | Readonly<{ kind: 'preparation-failed'; exitCode: 3; error: unknown; deadline: boolean }>
+  | Readonly<{
+      kind: 'entry-failed'
+      exitCode: 3
+      name: ServiceName
+      error: unknown
+      deadline: boolean
+    }>
   | Readonly<{ kind: 'started'; rows: readonly LoadedRow[]; report: ReadinessReport }>
 
 type StartOptions = {
@@ -152,9 +165,43 @@ type StartOptions = {
   entryObjects: readonly EntryObject[]
   omitEntryObjects?: readonly ServiceName[] | undefined
   prepare?: () => void | Promise<void>
+  /** The deadline of the start, taken twice: by the steps before the rows, then by the loading and the wait. */
   readinessTimeoutMs: number
   barrier: () => void | Promise<void>
+  stop?: AbortSignal | undefined
 }
+
+const DEADLINE: unique symbol = Symbol('deadline')
+const STOP: unique symbol = Symbol('stop')
+
+/** The budget of one start: what is left of its deadline, and a wait that ends at the deadline or at a stop. */
+function startBudget(options: StartOptions) {
+  const now = (): number =>
+    /* wall-clock: operation-timing -- One deadline shared by every step of the start. */ Date.now()
+  const startedAt = now()
+  const leftMs = (): number => Math.max(0, options.readinessTimeoutMs - (now() - startedAt))
+  const stopping = stopOf(options.stop)
+  return {
+    leftMs,
+    stopped: (): boolean => options.stop?.aborted === true,
+    async within<T>(work: PromiseLike<T>): Promise<T | typeof DEADLINE | typeof STOP> {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const deadline = new Promise<typeof DEADLINE>(resolve => {
+        timer = setTimeout(() => resolve(DEADLINE), leftMs())
+      })
+      try {
+        const stop = stopping.asked.then((): typeof STOP => STOP)
+        return await Promise.race([Promise.resolve(work), deadline, stop])
+      } finally {
+        clearTimeout(timer)
+      }
+    },
+    end: () => stopping.cancel(),
+  }
+}
+type Budget = ReturnType<typeof startBudget>
+
+const passed = (step: string): Error => new Error(`the start deadline passed while ${step}`)
 
 function preflightStart(options: StartOptions): PreflightDiagnostic[] {
   return preflight(
@@ -172,7 +219,8 @@ function preflightStart(options: StartOptions): PreflightDiagnostic[] {
 
 async function installEntryObjects(
   options: StartOptions,
-): Promise<Extract<StartResult, { kind: 'entry-failed' }> | undefined> {
+  budget: Budget,
+): Promise<Extract<StartResult, { kind: 'entry-failed' }> | typeof STOP | undefined> {
   const { root, trust } = options
   const omitted = new Set(options.omitEntryObjects ?? [])
   for (const name of omitted) {
@@ -187,78 +235,110 @@ async function installEntryObjects(
       scoped.provide(object.name, object.value)
       continue
     }
+    const { name } = object
     try {
-      await object.install(scoped)
+      const done = await budget.within(Promise.resolve().then(() => object.install(scoped)))
+      if (done === STOP) return STOP
+      if (done === DEADLINE)
+        return {
+          kind: 'entry-failed',
+          exitCode: 3,
+          name,
+          error: passed(`entry object ${name} was installed`),
+          deadline: true,
+        }
     } catch (error) {
-      return { kind: 'entry-failed', exitCode: 3, name: object.name, error }
+      return { kind: 'entry-failed', exitCode: 3, name, error, deadline: false }
     }
   }
   return undefined
 }
 
+/** Loads the rows in order and waits for each; once a row has failed or the deadline has passed it waits no more. */
 async function loadRows(
   options: StartOptions,
-): Promise<{ loaded: LoadedRow[]; elapsedMs: number }> {
+  budget: Budget,
+): Promise<{ loaded: LoadedRow[]; complete: boolean }> {
   const { root, trust } = options
-  const startedAt =
-    /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const deadline = new Promise<'deadline'>(resolve => {
-    timer = setTimeout(() => resolve('deadline'), options.readinessTimeoutMs)
-  })
   const loaded: LoadedRow[] = []
   let stalled = false
-  try {
-    for (const { row, manifest, plugin } of options.rows) {
-      const ctx = trust.contextForRow(root, row.id)
-      const fiber = ctx.plugin(plugin, row.config)
-      const entry: LoadedRow = {
-        id: row.id,
-        ctx,
-        fiber,
-        manifest,
-        visible: trust.visibleNames(row.id),
-      }
-      loaded.push(entry)
-      if (stalled) continue
-      const settled = fiber.then(
-        () => 'loaded' as const,
-        (error: unknown) => {
-          entry.error = error
-          return 'loaded' as const
-        },
-      )
-      if ((await Promise.race([settled, deadline])) === 'deadline') stalled = true
+  for (const { row, manifest, plugin, entries, fixed } of options.rows) {
+    if (budget.stopped()) return { loaded, complete: false }
+    const ctx = trust.contextForRow(root, row.id)
+    for (const beside of [...(entries ?? []).map(entry => entry.plugin), ...(fixed ?? [])])
+      ctx.plugin(beside)
+    const fiber = ctx.plugin(plugin, row.config)
+    const entry: LoadedRow = {
+      id: row.id,
+      ctx,
+      fiber,
+      manifest,
+      visible: trust.visibleNames(row.id),
     }
-  } finally {
-    clearTimeout(timer)
+    loaded.push(entry)
+    if (stalled) continue
+    const settled = fiber.then(
+      () => 'loaded' as const,
+      (error: unknown) => {
+        entry.error = error
+        return 'failed' as const
+      },
+    )
+    const won = await budget.within(settled)
+    if (won === STOP) return { loaded, complete: false }
+    if (won === DEADLINE || won === 'failed') stalled = true
   }
-  const elapsedMs =
-    /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now() -
-    startedAt
-  return { loaded, elapsedMs }
+  return { loaded, complete: true }
 }
 
 export async function startTree(options: StartOptions): Promise<StartResult> {
   const diagnostics = preflightStart(options)
   if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
 
+  let budget = startBudget(options)
   try {
-    await options.prepare?.()
-  } catch (error) {
-    return { kind: 'preparation-failed', exitCode: 3, error }
+    const stoppedEarly = async (): Promise<StartResult> => ({
+      kind: 'started',
+      rows: [],
+      report: await awaitReadiness({
+        rows: [],
+        timeoutMs: 0,
+        barrier: options.barrier,
+        stop: options.stop,
+        complete: false,
+      }),
+    })
+    if (budget.stopped()) return await stoppedEarly()
+    try {
+      const prepared = await budget.within(Promise.resolve().then(() => options.prepare?.()))
+      if (prepared === STOP) return await stoppedEarly()
+      if (prepared === DEADLINE) {
+        const error = passed('the tenant directories were prepared')
+        return { kind: 'preparation-failed', exitCode: 3, error, deadline: true }
+      }
+    } catch (error) {
+      return { kind: 'preparation-failed', exitCode: 3, error, deadline: false }
+    }
+
+    const entryFailed = await installEntryObjects(options, budget)
+    if (entryFailed === STOP) return await stoppedEarly()
+    if (entryFailed !== undefined) return entryFailed
+
+    // The rows get the whole deadline again: what the steps before them took is not theirs to pay.
+    budget.end()
+    budget = startBudget(options)
+    const { loaded, complete } = await loadRows(options, budget)
+    const report = await awaitReadiness({
+      rows: loaded,
+      timeoutMs: budget.leftMs(),
+      barrier: options.barrier,
+      stop: options.stop,
+      complete,
+    })
+    return { kind: 'started', rows: loaded, report }
+  } finally {
+    budget.end()
   }
-
-  const entryFailed = await installEntryObjects(options)
-  if (entryFailed !== undefined) return entryFailed
-
-  const { loaded, elapsedMs } = await loadRows(options)
-  const report = await awaitReadiness({
-    rows: loaded,
-    timeoutMs: Math.max(0, options.readinessTimeoutMs - elapsedMs),
-    barrier: options.barrier,
-  })
-  return { kind: 'started', rows: loaded, report }
 }
 
 /** Explicit unload waits for the fiber before the entry runs its maintenance callback. */

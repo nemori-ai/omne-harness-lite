@@ -25,6 +25,7 @@ import {
   type ProxyConfig,
 } from '@omne-harness/pi-ai-transport'
 import type {
+  PiChatBinding,
   PiFamilyBinding,
   PiFamilyContributions,
   PiMaterializedMedia,
@@ -63,7 +64,7 @@ it('materialized media lends bytes with its reference and measurement', () => {
 it('a binding fixes supplier and adoption and owns its release', () => {
   expectTypeOf<PiFamilyBinding['supplier']>().toEqualTypeOf<Supplier>()
   expectTypeOf<PiFamilyBinding['adoption']>().toEqualTypeOf<Adoption>()
-  expectTypeOf<PiFamilyBinding['createDecoder']>().returns.toEqualTypeOf<PiResponseDecoder>()
+  expectTypeOf<PiChatBinding['createDecoder']>().returns.toEqualTypeOf<PiResponseDecoder>()
   expectTypeOf<PiFamilyBinding['release']>().returns.toEqualTypeOf<Promise<void>>()
 })
 
@@ -97,12 +98,21 @@ it('a route names its endpoints by interface, its accounting and auth, and the c
       endpoints: Readonly<
         Partial<
           Record<
-            'chat-completions' | 'messages' | 'responses',
+            | 'chat-completions'
+            | 'messages'
+            | 'responses'
+            | 'decisions'
+            | 'decisions-v1'
+            | 'live-sessions',
             Readonly<{ url: string; endMarker: string | null }>
           >
         >
       >
-      accounting: Readonly<{ place: string; costUnit: string }>
+      accounting: Readonly<{
+        place: string
+        costUnit: string
+        generation?: Readonly<{ requestHeader: string; path: string }>
+      }>
       auth: Readonly<{ kind: 'bearer'; item: string }> | null
     }>
   >()

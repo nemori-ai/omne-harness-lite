@@ -83,7 +83,15 @@ export type {
   ResidentTool,
   ToolReloadResult,
 } from './dynamics.ts'
-export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
+export { judgeFixedToolRequest, judgeToolCall, judgeToolInvokeRequest } from './judge-request.ts'
+export {
+  fixToolRequest,
+  fixedRequestReference,
+  namesDefinition,
+  toolAvailabilityOf,
+  toolAvailabilityReference,
+  toolInvokeRequestOf,
+} from './request-reference.ts'
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
@@ -229,15 +237,7 @@ export type {
   ToolStartAuthority,
   ToolTask,
 } from './records.ts'
-export type {
-  ToolPermitConsumption,
-  ToolPermitRef,
-  ToolStartAcceptance,
-  ToolStartFence,
-  ToolStartRelease,
-  ToolStartReleaseReading,
-  ToolStartReleases,
-} from './records.ts'
+export type { ToolStartAcceptance, ToolStartFence } from './records.ts'
 export type {
   ToolAccounts,
   ToolUsageFact,
@@ -248,15 +248,22 @@ export type {
   ToolOffloader,
   ToolReads,
 } from './custody.ts'
+export { attachProgramTools, inReachOf, isProgramSettled, owesDisposal } from './program.ts'
 export type {
-  ChildPosition,
-  ChildReservation,
-  ChildState,
-  ProgramClosure,
-  ProgramEnd,
-  ProgramToolResult,
-  ProgramTools,
+  NestedAdmission,
+  NestedAdmissionInput,
+  PositionExclusion,
+  PositionStop,
+  PositionTarget,
+  ProgramActionAdmission,
+  ProgramFence,
+  ProgramParent,
+  ProgramPosition,
+  ProgramTable,
+  ProgramTargetOutcome,
   ToolChildren,
+  ToolProgramRuntime,
+  ToolProgramSource,
 } from './program.ts'
 
 export { projectToolBackgroundCalls } from './background-calls-projection.ts'
@@ -280,6 +287,7 @@ export {
 } from './command-call.ts'
 export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts'
 export { attachToolsCapability } from './tools-capability.ts'
+export { isProgramCall, markProgramCall } from './program-call.ts'
 export type {
   ToolForwardParent,
   ToolForwardBinding,
@@ -287,5 +295,52 @@ export type {
   ToolForwardSource,
   ToolForwardRuntime,
 } from './forwarding.ts'
-export { returnGuide } from './return-description.ts'
+export { returnGuide, returnSummary } from './return-description.ts'
+export {
+  PROGRAM_FAILURE,
+  functionsSignature,
+  isProgramName,
+  programCallRefusal,
+  programFunctions,
+  PROGRAM_RUN_CAPABILITY,
+  programSignature,
+  schemaType,
+} from './program-signature.ts'
+export {
+  TOOL_ENTRY_SOURCES_POINT,
+  isToolSourcePrefix,
+  isToolSourceSuspension,
+  judgeToolSourceListing,
+  type ToolCapabilityIdentity,
+  type ToolEntrySource,
+  type ToolSourceAnswer,
+  type ToolSourceBreach,
+  type ToolSourceCall,
+  type ToolSourceCheckpoint,
+  type ToolSourceEntry,
+  type ToolSourceListing,
+  type ToolSourceResume,
+  type ToolSourceSuspension,
+  type ToolSourceWithheld,
+} from './entry-source.ts'
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'
+export {
+  SCRIPT_EXECUTOR,
+  SCRIPT_MODULE,
+  SCRIPT_TOOL_FILE,
+  checkScriptArguments,
+  readScriptConstruction,
+  scriptConstructionOf,
+  scriptParametersSchema,
+  scriptToolAuthoring,
+  scriptToolLayout,
+  type ScriptConstruction,
+  type ScriptParameters,
+  type ScriptProperty,
+} from './script-tool.ts'
+export {
+  scriptToolImpact,
+  scriptToolPlace,
+  type ScriptToolLoad,
+  type ScriptToolPublishFacts,
+} from './script-tool-effect.ts'

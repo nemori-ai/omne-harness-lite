@@ -41,7 +41,7 @@ function storeOver(
   ) as unknown as AssetsLocal
   const looked = { directory: { layout: {} }, data: {}, unknown: undefined }[category]
   const categories = { lookup: () => looked } as never
-  return createTenantLayerStore(local, 'tenant-a', categories)
+  return createTenantLayerStore(local, 'tenant-a', categories, [])
 }
 
 const LIST = { scopeRef: 'tenant-a', limit: 10, after: null } as never
@@ -145,6 +145,63 @@ describe('the tenant layer over the local store', () => {
     expect(await storeOver(answers).held(id('note', 'a'))).toEqual({ kind })
   })
 
+  it('gives the files of the held version: a package in a category with a layout, else the body', async () => {
+    const asked: unknown[] = []
+    const answers = {
+      readHeldCapability: {
+        kind: 'holding',
+        holding: HOLDING,
+        selected: { version: 'v1', body: { text: 'hi' }, definitionRef: null },
+      },
+    }
+    const reader = { manifest: async () => ({ ok: { entries: [] } }), open: async () => ({}) }
+    const local = {
+      readHeldCapability: async () => answers.readHeldCapability,
+      packages: {
+        reader: (input: unknown) => {
+          asked.push(input)
+          return reader
+        },
+      },
+    } as unknown as AssetsLocal
+    const directory = createTenantLayerStore(
+      local,
+      'tenant-a',
+      {
+        lookup: () => ({ layout: {} }),
+      } as never,
+      [],
+    )
+    expect(await directory.files(id('note', 'a'))).toEqual({
+      kind: 'files',
+      version: 'v1',
+      from: reader,
+    })
+    expect(asked).toEqual([{ assetRef: 'asset-1', version: 'v1' }])
+    const data = createTenantLayerStore(local, 'tenant-a', { lookup: () => ({}) } as never, [])
+    expect(await data.files(id('note', 'a'))).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: { text: 'hi' },
+    })
+  })
+
+  it.each([
+    [
+      'a refused read',
+      { readHeldCapability: { kind: 'rejected', reason: 'unavailable' } },
+      'unavailable',
+    ],
+    ['no holding', { readHeldCapability: { kind: 'absent' } }, 'absent'],
+    [
+      'a holding with nothing selected',
+      { readHeldCapability: { kind: 'holding', holding: HOLDING, selected: null } },
+      'absent',
+    ],
+  ] as const)('reads %s of the files of one capability as %s', async (_case, answers, kind) => {
+    expect(await storeOver(answers, 'directory').files(id('note', 'a'))).toEqual({ kind })
+  })
+
   it('reads a holding; a refused read is unavailable', async () => {
     expect(
       await storeOver({
@@ -207,5 +264,107 @@ describe('the tenant layer over the local store', () => {
     expect(await storeOver({ recallPublication: answer }).recallPublication('op-1')).toEqual(
       expected,
     )
+  })
+})
+
+const PUBLISHED = {
+  kind: 'publishAndHold',
+  operationId: 'op-1',
+  category: 'note',
+  name: 'a',
+  version: 'v2',
+  holding: { holdingRef: 'held-1', scopeRef: 'tenant-a' },
+}
+const DISABLED = {
+  kind: 'changeHolding',
+  operationId: 'op-1',
+  holdingRef: 'held-1',
+  scopeRef: 'tenant-a',
+  change: { kind: 'setEnabled', enabled: false },
+}
+const COMMITTED = { kind: 'committed', operationId: 'op-1', revision: 2, changed: true }
+const recorded = (command: object, result: object = COMMITTED) => ({
+  kind: 'recorded',
+  command,
+  result,
+})
+const HELD_A = { kind: 'holding', holding: { category: 'note', name: 'a' }, selected: null }
+
+describe('an operation recalled by its id alone', () => {
+  it('a publication and hold answers its capability, version and outcome', async () => {
+    expect(await storeOver({ readOperation: recorded(PUBLISHED) }).recallById('op-1')).toEqual({
+      kind: 'publish',
+      capability: id('note', 'a'),
+      version: 'v2',
+      outcome: { kind: 'published', version: 'v2', holdingRef: 'held-1', changed: true },
+    })
+  })
+
+  it('a publication that was refused answers the refusal as a publish outcome', async () => {
+    const refused = recorded(PUBLISHED, { kind: 'rejected', reason: 'version_conflict' })
+    expect(await storeOver({ readOperation: refused }).recallById('op-1')).toMatchObject({
+      kind: 'publish',
+      outcome: { kind: 'conflict' },
+    })
+  })
+
+  it('a change of enablement or a removal reads its capability from the holding', async () => {
+    expect(
+      await storeOver({ readOperation: recorded(DISABLED), readHolding: HELD_A }).recallById(
+        'op-1',
+      ),
+    ).toEqual({
+      kind: 'change',
+      holding: 'held-1',
+      capability: id('note', 'a'),
+      change: { kind: 'setEnabled', enabled: false },
+      answer: { kind: 'committed', changed: true },
+    })
+    const removal = recorded(
+      { ...DISABLED, change: { kind: 'remove' } },
+      { kind: 'rejected', reason: 'revision_conflict' },
+    )
+    expect(
+      await storeOver({ readOperation: removal, readHolding: HELD_A }).recallById('op-1'),
+    ).toMatchObject({ change: { kind: 'remove' }, answer: { kind: 'conflict' } })
+  })
+
+  it.each([
+    ['is absent', { kind: 'absent' }],
+    ['cannot be read', { kind: 'rejected', reason: 'unavailable' }],
+  ])('a change whose holding %s gives no capability', async (_, holding) => {
+    expect(
+      await storeOver({ readOperation: recorded(DISABLED), readHolding: holding }).recallById(
+        'op-1',
+      ),
+    ).toMatchObject({ kind: 'change', capability: null })
+  })
+
+  it.each([
+    ['nothing under the id', { kind: 'not_found' }],
+    ['a change of another tenant', recorded({ ...DISABLED, scopeRef: 'tenant-b' })],
+    [
+      'a publication held for another tenant',
+      recorded({ ...PUBLISHED, holding: { holdingRef: 'held-1', scopeRef: 'tenant-b' } }),
+    ],
+    ['a hold', recorded({ kind: 'hold', operationId: 'op-1' })],
+    ['a publication not held', recorded({ kind: 'publish', operationId: 'op-1' })],
+    [
+      'another change of a holding',
+      recorded({ ...DISABLED, change: { kind: 'selectVersion', selection: { kind: 'follow' } } }),
+    ],
+  ])('%s is not found', async (_, answer) => {
+    expect(
+      await storeOver({ readOperation: answer, readHolding: HELD_A }).recallById('op-1'),
+    ).toEqual({ kind: 'not-found' })
+  })
+
+  it.each([
+    ['a receipt not known', { kind: 'unknown', operationId: 'op-1' }],
+    ['a refused read', { kind: 'rejected', reason: 'unavailable' }],
+  ])('%s is unavailable', async (_, answer) => {
+    expect(await storeOver({ readOperation: answer }).recallById('op-1')).toEqual({
+      kind: 'unavailable',
+    })
   })
 })

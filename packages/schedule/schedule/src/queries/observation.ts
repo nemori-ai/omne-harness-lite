@@ -204,8 +204,9 @@ export class QueryObservation {
       fail(this.context, 'provider_failure', 'Invalid history pagination')
     const ids = new Set<string>()
     for (const row of page.items) {
+      const scheduleId = row.kind === 'direct' ? null : row.scheduleId
       if (
-        row.scheduleId !== request.scheduleId ||
+        (request.scheduleId !== null && scheduleId !== request.scheduleId) ||
         ids.has(row.rowRef) ||
         (request.from !== null && row.originalScheduledAt < request.from) ||
         (request.to !== null && row.originalScheduledAt >= request.to)
@@ -268,6 +269,7 @@ export function predictionInput(
     definitionRevision: record.view.definitionRevision,
     activationExclusive: record.activationExclusive,
     eligibleConsumed: record.view.eligibleConsumed,
+    eligibleFrom: record.view.nextOccurrence?.scheduledAt ?? null,
     acceptedJobCount: record.view.acceptedJobCount,
     after,
     count,

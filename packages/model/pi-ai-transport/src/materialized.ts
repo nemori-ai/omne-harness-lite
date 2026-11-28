@@ -1,8 +1,6 @@
 import type {
   ConnectRetryReason,
-  FixedModelRequest,
   MaterializationReceipt,
-  ReplayDeclaration,
   Supplier,
   TransportFailure,
 } from '@omne-harness/model-contract'
@@ -16,24 +14,21 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ConnectionReservation } from './capacity.ts'
 import type { CheckedConfig, CheckedRoute } from './config.ts'
-import type { PiFamilyBinding } from './family.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
 import { retryBeforeRequestSent } from './retry.ts'
-import { gatherMedia } from './media.ts'
 import { digestOf, serializeBody } from './payload.ts'
+import type { PiRequestSend } from './send.ts'
 import type { SendEnd } from './termination.ts'
 
 export type MaterializedHandle = MaterializedTransport
 
 export type MaterializeInput = Readonly<{
   config: CheckedConfig
-  route: CheckedRoute
-  request: FixedModelRequest
+  route: CheckedRoute & Readonly<{ framing: 'events' | 'whole' }>
   supplier: Supplier
-  declaration: ReplayDeclaration
   resent: TransportDispatch['resent']
-  binding: PiFamilyBinding
+  send: PiRequestSend
   signal: AbortSignal
 }>
 
@@ -45,23 +40,23 @@ type MaterializedPhase =
 export async function materialize(
   input: MaterializeInput,
 ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
-  const { config, request, supplier, declaration, resent, binding, signal } = input
+  const { config, supplier, resent, send, signal } = input
   const reservation = await config.network.capacity.reserve(signal)
   if (reservation === undefined)
     return { failure: capacityUnavailable(signal.aborted ? 'cancelled' : 'network-closed') }
   let handedOver = false
   try {
     if (signal.aborted) return { failure: capacityUnavailable('cancelled') }
-    const media = await gatherMedia({ request, binding, read: config.media, signal })
+    const media = await send.media(config.media, signal)
     if (!('ok' in media)) return media
-    const encoded = binding.encode({ request, media: media.ok, declaration, resent })
+    const encoded = send.encode(media.ok, resent)
     if (!('ok' in encoded)) return encoded
     const body = serializeBody(encoded.ok.body)
     const diagnostics = Object.freeze([...encoded.ok.diagnostics])
-    const { replayFormat } = binding
+    const { replayFormat } = send
     const receipt: MaterializationReceipt = Object.freeze({
       supplier: supplier.adoption,
-      representation: request.representation,
+      representation: send.representation,
       payloadDigest: digestOf(body),
       ...(media.ok.length === 0
         ? {}
@@ -134,16 +129,13 @@ function createMaterialized(
     const secret = route.auth === null ? null : secrets?.get(route.auth.item)
     if (secrets === undefined || secret === undefined)
       return refusedBeforeSend(held, { kind: 'credential-missing' })
-    const decoder = input.binding.createDecoder({
-      request: input.request,
-      accounting: route.accounting,
-    })
+    const decoder = input.send.createDecoder(route.accounting)
     const exchangeInput = {
       url: route.url,
       headers: {
         ...(secret !== null && { authorization: `Bearer ${secret}` }),
         'content-type': 'application/json',
-        accept: 'text/event-stream',
+        accept: route.framing === 'whole' ? 'application/json' : 'text/event-stream',
       },
       body: held.body,
       connectTimeoutMs: config.limits.connectTimeoutMs,

@@ -34,7 +34,7 @@ const entry = () => ({
   access: alice,
   execution: execution(),
   operation: operation('invoke-exec-1'),
-  initial: acceptedInput('input-exec-1', 'hello exec-1'),
+  initial: [acceptedInput('input-exec-1', 'hello exec-1')] as const,
   grant: null,
 })
 
@@ -220,7 +220,7 @@ it('S1 J-AG02: public invoke processes the actual complete reply and ends once',
       watermark: initial.inputWatermark,
     }),
   )
-  expect(accepted.messages).toEqual([entry().initial.content])
+  expect(accepted.messages).toEqual([entry().initial[0].content])
   assembly.release.open()
   const events = await eventsOf(handle)
   const saved = await snapshot(assembly.controls.journal.port)
@@ -605,7 +605,10 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
       null,
       registration.observed,
     ])
-    expect(second.calls.map(call => call.path.join('.'))).not.toContain('journal.tryFinish')
+    const resumed = second.calls.map(call => call.path.join('.'))
+    expect(resumed).not.toContain('journal.tryFinish')
+    // The pending observer is asked for again; its implementation is not there, so it stays pending.
+    expect(resumed).toContain('extensions.resolve')
     expect(
       second.calls
         .filter(call => call.path[0] === 'models')

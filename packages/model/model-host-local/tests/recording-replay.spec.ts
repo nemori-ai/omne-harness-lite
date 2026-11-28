@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { payableAmount } from '@omne-harness/call-account'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { createCertificate, startHttpsServer } from './support/https-server.ts'
 import { assembleLocalHost, PLACEHOLDER, isGatewayPath } from './support/local-host.ts'
@@ -121,7 +121,7 @@ function privateDirectory(): string {
   return realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-toolcall-')))
 }
 
-async function replaySynthetic(name: RecordCaseName, request: FixedModelRequest) {
+async function replaySynthetic(name: RecordCaseName, request: LlmModelRequest) {
   const { stream, note } = readRecording(syntheticDirectory(name))
   const served = await serving(stream)
   const vault = privateDirectory()

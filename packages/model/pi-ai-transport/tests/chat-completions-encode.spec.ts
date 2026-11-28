@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { FixedModelRequest, ReplayDeclaration } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ReplayDeclaration } from '@omne-harness/model-contract'
 import type { TransportDispatch } from '@omne-harness/model-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
@@ -9,7 +9,7 @@ import {
   type GatewayParam,
   type VendorHooks,
 } from '../src/chat-completions/index.ts'
-import { composeFamilies, defineFamily, type PiFamilyBinding } from '../src/index.ts'
+import { composeFamilies, defineFamily, type PiChatBinding } from '../src/index.ts'
 import {
   EXTENSION,
   LIMITS,
@@ -56,7 +56,7 @@ function bind(
   record: ChatCompletionsRecord = testRecord(),
   probe: EngineProbe = engineProbe(),
   hooks: VendorHooks = testHooks(probe),
-): PiFamilyBinding {
+): PiChatBinding {
   return bindChatCompletions({
     record,
     supplier: supplierOf(record),
@@ -69,9 +69,9 @@ function bind(
   })
 }
 
-type Media = Parameters<PiFamilyBinding['encode']>[0]['media']
+type Media = Parameters<PiChatBinding['encode']>[0]['media']
 function inputOf(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   resent: TransportDispatch['resent'] = [],
   media: Media = [],
 ) {
@@ -310,16 +310,25 @@ describe('encode: tool calls and results', () => {
   const hashed = `call_${createHash('sha256').update(longId).digest('base64url').slice(0, 32)}`
 
   it('keeps a valid call id, normalizes any other, and writes the tool message with the same id', () => {
+    const probe = engineProbe()
     const messages = messagesOf(
-      encode(testRecord(), {
-        messages: [
-          message('u1', 'user', [textBlock('b1', 'go')]),
-          message('a1', 'assistant', [callBlock('c1', 'call_ok'), callBlock('c2', longId)]),
-          message('t1', 'tool', [resultBlock('r1', 'call_ok'), textBlock('b2', 'one')]),
-          message('t2', 'tool', [resultBlock('r2', longId), textBlock('b3', 'two')]),
-        ],
-      }),
+      encode(
+        testRecord(),
+        {
+          messages: [
+            message('u1', 'user', [textBlock('b1', 'go')]),
+            message('a1', 'assistant', [callBlock('c1', 'call_ok'), callBlock('c2', longId)]),
+            message('t1', 'tool', [resultBlock('r1', 'call_ok'), textBlock('b2', 'one')]),
+            message('t2', 'tool', [resultBlock('r2', longId), textBlock('b3', 'two')]),
+          ],
+        },
+        probe,
+      ),
     )
+    const meteredIds = probe.views[0]?.turns.flatMap(turn =>
+      turn.blocks.flatMap(block => ('callId' in block ? [block.callId] : [])),
+    )
+    expect(meteredIds).toEqual(['call_ok', hashed, 'call_ok', hashed])
     expect(messages).toEqual([
       { role: 'user', content: 'go' },
       {
@@ -525,6 +534,15 @@ describe('encode: tool calls and results', () => {
       expect(encodeWith({ messages: inResult }, [speechRead()])).toMatchObject({
         failure: { kind: 'unsupported', field: '/messages/1/blocks/1' },
       })
+    })
+  })
+
+  it('requires a tool while rejecting a named choice on the same endpoint', () => {
+    const record = testRecord({ accepts: { forcedToolChoice: true, namedToolChoice: false } })
+    const tools = [tool('lookup')]
+    expect(encode(record, { tools, toolChoice: 'required' })).toHaveProperty('ok')
+    expect(encode(record, { tools, toolChoice: { name: 'lookup' } })).toMatchObject({
+      failure: { kind: 'unsupported', field: 'toolChoice' },
     })
   })
 
@@ -1101,9 +1119,9 @@ describe('encode: a file by reference, and words kept apart (chat-completions)',
   const sent = (
     record: typeof plain,
     parts: RequestParts,
-    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+    media: Parameters<PiChatBinding['encode']>[0]['media'],
   ) => {
-    const request: FixedModelRequest = fixedRequest(record, parts)
+    const request: LlmModelRequest = fixedRequest(record, parts)
     const outcome = bind(record).encode({
       request,
       media,

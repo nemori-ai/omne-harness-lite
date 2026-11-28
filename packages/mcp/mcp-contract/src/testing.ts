@@ -29,7 +29,46 @@ export {
   mcpCatalogStoreConformance,
   type CatalogStoreFixture,
   type MemoryCatalogStore,
+  sampleCatalogRecord,
 } from './testing-catalog-store.ts'
+export {
+  createMemoryContinuationRecords,
+  mcpContinuationRecordsConformance,
+  type ContinuationRecordsFixture,
+  type MemoryContinuationRecords,
+} from './testing-continuations.ts'
+export {
+  createMemoryTaskRecords,
+  mcpTaskRecordsConformance,
+  type MemoryTaskRecords,
+  type TaskRecordsFixture,
+} from './testing-tasks.ts'
+export {
+  createMemoryAuthorizationRecords,
+  createMemoryGrantSecrets,
+  mcpAuthorizationRecordsConformance,
+  sampleGrant,
+  samplePending,
+  type AuthorizationRecordsFixture,
+  type MemoryAuthorizationRecords,
+  type MemoryGrantSecrets,
+} from './testing-grants.ts'
+export {
+  createMemoryEventRecords,
+  mcpEventRecordsConformance,
+  occurrenceOf,
+  sampleSubscription,
+  subscriptionKeyOf,
+  type EventRecordsFixture,
+  type MemoryEventRecords,
+} from './testing-subscriptions.ts'
+export {
+  createMemoryEventConsumer,
+  mcpEventConsumerConformance,
+  subscriptionRefOf,
+  type EventConsumerFixture,
+  type MemoryEventConsumer,
+} from './testing-consumer.ts'
 export {
   actionNameOf,
   adoptionRevisionOf,
@@ -49,8 +88,8 @@ export {
 } from './testing-values.ts'
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'
+export { mcpTransportConformance } from './testing-transport-long.ts'
 export {
-  mcpTransportConformance,
   type PeerNeeds,
   type PeerNotificationScript,
   type PeerReceived,

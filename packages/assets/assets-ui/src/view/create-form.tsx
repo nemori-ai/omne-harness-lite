@@ -17,6 +17,7 @@ import { bodyOfFields, bodyOfText, type Entered } from '../model/create-body.ts'
 import type { Creating } from '../model/creation.ts'
 import type { CategoryGovernance } from '../model/governance.ts'
 import { formOf, type FormField } from '../model/value-control.ts'
+import { assetsCreate, assetsCreateSubmit } from '../parts.ts'
 import { NoticeLine } from './notice.tsx'
 
 type Creatable = Exclude<CreationDetail, { kind: 'none' }>
@@ -40,7 +41,12 @@ export function CreateForm({ view, creation, hint, creating, listed }: CreateFor
   const trimmed = name.trim()
   const blocked = busy(creating) || trimmed === ''
   return (
-    <form className="assets-create" aria-label="新建" onSubmit={event => event.preventDefault()}>
+    <form
+      className="assets-create"
+      aria-label="新建"
+      {...assetsCreate.props}
+      onSubmit={event => event.preventDefault()}
+    >
       {hint !== null && <p className="assets-create-hint">{hint}</p>}
       <Field id={`${id}-name`} label="名字（必填）">
         <Input id={`${id}-name`} value={name} onChange={event => setName(event.target.value)} />
@@ -148,6 +154,7 @@ function DataBody({
       )}
       {read.kind === 'invalid' && <p className="assets-create-note">{read.reason}</p>}
       <Button
+        {...assetsCreateSubmit.props}
         disabled={blocked || read.kind === 'invalid'}
         onClick={() => read.kind === 'body' && submit(read.body)}
       >
@@ -234,7 +241,11 @@ function DirectoryBody({
           }}
         />
       )}
-      <Button disabled={blocked || picked.kind !== 'read'} onClick={() => submit(files)}>
+      <Button
+        {...assetsCreateSubmit.props}
+        disabled={blocked || picked.kind !== 'read'}
+        onClick={() => submit(files)}
+      >
         提交
       </Button>
     </>

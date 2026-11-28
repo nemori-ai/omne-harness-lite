@@ -1,3 +1,4 @@
+import type { StartedRun } from '@omne-harness/session-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   sourceRequestIdentities,
@@ -152,8 +153,8 @@ describe('a source that is withdrawn leaves what was accepted (SE-29)', () => {
         instance: { owner: 'agent', id: 'instance-1' },
       }),
       'startRun',
-    )
-    expect(started.first).toBe('kept')
+    ) as StartedRun
+    expect(started.initial).toEqual(['kept'])
   })
 
   it('recall comes before the source is looked at: the registry is not asked for an accepted request', async () => {

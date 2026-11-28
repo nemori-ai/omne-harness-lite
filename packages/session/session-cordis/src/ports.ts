@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type { Current, SessionDependencies } from '@omne-harness/session'
-import type { Reply } from '@omne-harness/session-contract'
+import type { Reply, SessionEvidenceBridge } from '@omne-harness/session-contract'
 import { describe, type Diagnose } from './diagnostics.ts'
 
 type CheckedKey =
@@ -60,6 +60,12 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
     },
     evidence: {
       prepare: (command, access) => through('sessionEvidence', s => s.prepare(command, access)),
+      runAdoption: (access, input) =>
+        through('sessionEvidence', async (bridge: SessionEvidenceBridge) =>
+          bridge.runAdoption === undefined
+            ? { ok: { kind: 'adopt' as const, candidate: input.work.definition.adopted } }
+            : bridge.runAdoption(access, input),
+        ),
     },
     idle: {
       inspect: input => through('sessionIdleInput', s => s.inspect(input)),

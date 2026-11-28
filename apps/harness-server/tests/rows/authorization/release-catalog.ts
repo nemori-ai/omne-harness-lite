@@ -28,10 +28,22 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Skills: { resultMaxBytes: 4096 },
   Calendar: { resultMaxBytes: 16 },
   Schedules: { resultMaxBytes: 64 },
+  Jobs: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
+  Canvas: { resultMaxBytes: 64 },
+  AppView: {
+    resultMaxBytes: 4096,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
+  Goal: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
+  OmneExtensionPoints: { resultMaxBytes: 4096 },
+  OmneExtensions: { resultMaxBytes: 4096 },
   Screen: {
     resultMaxBytes: 4096,
     captureMaxLongSide: 2048,
@@ -39,6 +51,15 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
     imageMaxHeight: 4096,
     imageMaxDecodedBytes: 67_108_864,
     imageConcurrency: 2,
+  },
+  Code: {
+    resultMaxBytes: 4096,
+    computeMs: 5000,
+    memoryBytes: 33_554_432,
+    outputBytes: 65_536,
+    calls: 50,
+    callsInFlight: 4,
+    sourceBytes: 16_384,
   },
 }
 

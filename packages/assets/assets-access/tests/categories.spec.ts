@@ -54,14 +54,17 @@ function deployment(): CategoriesPort {
     contract: contract('model-provider', false),
     display: { title: '模型供应商', summary: '模型供应商。' },
     generalCreation: 'closed',
+    point: 'model-provider.items',
   })
   point.contribute({
     contract: contract('skill', true),
     display: { title: '技能', summary: '技能。', creation: '选一个技能目录。' },
+    point: 'skill.items',
   })
   point.contribute({
     contract: contract('tool', false),
     display: { title: '工具', summary: '工具。' },
+    point: 'tool.items',
   })
   return point
 }
@@ -222,6 +225,7 @@ describe('describe-category', () => {
       contract: contract('bundle', true),
       display: { title: '包', summary: '包。' },
       generalCreation: 'closed',
+      point: 'bundle.items',
     })
     expect(
       wire('describe-category', (await describeOf('bundle', () => point)).answer),

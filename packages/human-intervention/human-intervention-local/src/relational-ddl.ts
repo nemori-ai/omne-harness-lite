@@ -260,6 +260,9 @@ export const requestDdl = [
 ) STRICT, WITHOUT ROWID;`,
   `CREATE INDEX hi_pool_scoped_order_v2 ON hi_pool_scoped_buckets_v2(tenant_ref,actor_ref,session_key,origin_key,bucket,request_sequence);`,
 ] as const
+// Added after the table shipped, by its own migration, so the table's first migration keeps its bytes.
+export const askedAtDdl = `ALTER TABLE hi_requests_v2 ADD COLUMN asked_at TEXT CHECK(${stringCheck('asked_at', 66)})`
+
 export const requestTables = [
   'hi_request_versions_v2',
   'hi_requests_v2',

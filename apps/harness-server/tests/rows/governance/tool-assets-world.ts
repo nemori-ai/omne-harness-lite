@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCategoryPoint } from '@omne-harness/assets'
@@ -22,7 +22,10 @@ import {
   settingsStandaloneMaterials,
   type SettingsTargetProjection,
 } from '@omne-harness/settings-local'
-import { GovernanceAdoptionCurrentSchema } from '@omne-harness/governance-local'
+import {
+  GovernanceAdoptionCurrentSchema,
+  governanceAdoptionCurrentFact,
+} from '@omne-harness/governance-local'
 import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
 import {
   createGovernanceAdoptionProjection,
@@ -44,6 +47,21 @@ import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-
 import { loadProductionRelease, type ToolRelease } from '../../../src/entry/tool-release.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 
+const PROBE = new URL('./current-evidence-probe.mjs', import.meta.url)
+/** A fixture participant after the current one: the evidence is a fact, and only a participant reads facts. */
+const evidenceProbe: SqlMaterialCatalog['participants'][number] = {
+  participant: 'fixture.current-evidence',
+  protocol: '1',
+  moduleUrl: PROBE.href,
+  codeDigest: createHash('sha256').update(readFileSync(PROBE)).digest('hex'),
+  ownedTables: [],
+  readTables: [],
+  allowedFunctions: [],
+  grouping: 'groupable',
+  requiresFacts: [governanceAdoptionCurrentFact],
+  providesFacts: [],
+}
+
 export async function toolAssetsWorld(
   existingRoot?: string,
   options: {
@@ -52,6 +70,7 @@ export async function toolAssetsWorld(
     release?: Extract<ToolRelease, { kind: 'trusted' }>
     releaseParticipant?: SqlMaterialCatalog['participants'][number]
     projectionMembers?: readonly string[]
+    categories?: readonly Parameters<ReturnType<typeof createCategoryPoint>['contribute']>[0][]
   } = {},
 ) {
   const release = options.release ?? (await loadProductionRelease())
@@ -74,6 +93,7 @@ export async function toolAssetsWorld(
       ),
       options.releaseParticipant ?? toolPermissionReleaseParticipant(release),
       governanceCurrentParticipant(),
+      evidenceProbe,
     ],
     migrations: [...assets.migrations, ...standalone.migrations, ...settings.migrations],
     readHandlers: [...assets.readHandlers, ...standalone.readHandlers, ...settings.readHandlers],
@@ -155,7 +175,9 @@ export async function toolAssetsWorld(
   categories.contribute({
     contract: createToolAssetCategory(release),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
+  for (const category of options.categories ?? []) categories.contribute(category)
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
   const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)
   let closed = false
@@ -226,6 +248,7 @@ export async function toolAssetsWorld(
     },
     async captureCurrent(
       transform?: (commands: readonly FactCommandV2[]) => readonly FactCommandV2[],
+      request: 'whole' | 'sizes' = 'whole',
     ) {
       const scope = {
         tenantRef: domain.scope.tenant,
@@ -269,15 +292,26 @@ export async function toolAssetsWorld(
         },
         combinationVersion: combination.combinationVersion,
         manifestDigest: combination.manifestDigest,
-        commands: transform?.(commands) ?? commands,
+        commands: [
+          ...(transform?.(commands) ?? commands),
+          { participant: evidenceProbe.participant, facts: { request } },
+        ],
       })
-      return reply.kind === 'committed'
-        ? GovernanceAdoptionCurrentSchema.parse(
-            reply.responses.find(
-              value => value.participant === ADOPTION_CURRENT_PARTICIPANT.participant,
-            )?.reply.response,
-          )
-        : reply
+      if (reply.kind !== 'committed') return reply
+      const answer = (participant: string) =>
+        reply.responses.find(value => value.participant === participant)?.reply.response
+      if (request === 'whole')
+        return GovernanceAdoptionCurrentSchema.parse(answer(evidenceProbe.participant))
+      return {
+        answerBytes: Buffer.byteLength(
+          JSON.stringify(answer(ADOPTION_CURRENT_PARTICIPANT.participant)),
+        ),
+        evidence: answer(evidenceProbe.participant) as Readonly<{
+          bytes: number
+          bindings: number
+          targets: number
+        }>,
+      }
     },
     async close(remove = true) {
       if (!closed) {

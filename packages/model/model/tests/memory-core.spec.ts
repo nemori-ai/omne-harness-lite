@@ -40,7 +40,9 @@ it('tenant-wide operation bindings reject cross-call, cross-method and changed i
   expect(await f.commands.admit({ ...f.admit, call: callId('other') })).toMatchObject({
     failure: { kind: 'conflict' },
   })
-  expect(await f.commands.control(f.admit)).toMatchObject({ failure: { kind: 'conflict' } })
+  expect(await f.commands.control({ ...f.admit, intent: 'cancel' })).toMatchObject({
+    failure: { kind: 'conflict' },
+  })
   expect(
     await f.commands.admit({
       ...f.admit,
@@ -93,6 +95,26 @@ for (const effect of ['applied', 'not-applied'] as const)
     )
     expect(unbox(await f.commands.admit(f.admit)).recovered).toBe(effect === 'applied')
   })
+it('a control names its intent: an unknown one is refused, and its operation does not take another', async () => {
+  const f = setup()
+  unbox(await f.commands.admit(f.admit))
+  const target = { principal: f.principal, tenant: f.tenant, call: f.admit.call }
+  const odd = (intent: unknown) =>
+    Reflect.apply(f.commands.control, f.commands, [
+      { ...target, operation: op('odd-control'), intent },
+    ])
+  expect(await odd('pause')).toMatchObject({
+    failure: { kind: 'invalid', field: 'intent', reason: 'unknown' },
+  })
+  await expect(async () => odd(undefined)).rejects.toThrow(TypeError)
+  const end = { ...target, operation: op('end'), intent: 'end' } as const
+  expect(await f.commands.control(end)).toMatchObject({ ok: { kind: 'requested', intent: 'end' } })
+  expect(await f.commands.control(end)).toMatchObject({ ok: { kind: 'requested', intent: 'end' } })
+  expect(await f.commands.control({ ...end, intent: 'cancel' })).toMatchObject({
+    failure: { kind: 'conflict' },
+  })
+})
+
 it('claim recognizes its original generation and excludes old writes after succession', async () => {
   const f = setup()
   unbox(await f.commands.admit(f.admit))

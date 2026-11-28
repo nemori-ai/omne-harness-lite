@@ -1,4 +1,5 @@
 import type { Failure } from '@omne-harness/agent-contract'
+import { chatNeedOf } from '@omne-harness/model-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, test } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
@@ -46,6 +47,89 @@ describe('the selected model', () => {
     expect(selected.evidence).toEqual(SAVED_SOURCE)
   })
 
+  test('changing effort on the same route affects the next selection and preserves other parameters', async () => {
+    const base = profileOf(ROUTE)
+    const profile = {
+      ...base,
+      definition: {
+        ...base.definition,
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'low' },
+        ] as const,
+        reasoningEfforts: { low: 'low', high: 'high' } as const,
+      },
+    }
+    const state = savedSelection(ROUTE)
+    let reasoningEffort: 'high' | 'xhigh' = 'high'
+    const { value } = await withLiveRow(
+      {
+        session: () => succeed({ ...state, selection: { ...state.selection, reasoningEffort } }),
+        profiles: { [ROUTE]: succeed(resolvedOf(profile)) },
+      },
+      async ({ select }) => {
+        const first = await select(selectInput)
+        reasoningEffort = 'xhigh'
+        return { first, second: await select(selectInput) }
+      },
+    )
+    expect(value.first).toMatchObject({
+      ok: {
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'high', scale: 'unified' },
+        ],
+      },
+    })
+    expect(value.second).toMatchObject({ failure: { kind: 'invalid', field: 'reasoningEffort' } })
+    expect(profile.definition.parameters[1].value).toBe('low')
+  })
+
+  test('without a session choice the tenant default effort of the model is taken, marked as such (C7)', async () => {
+    const base = profileOf(ROUTE)
+    const profile = {
+      ...base,
+      definition: {
+        ...base.definition,
+        parameters: [
+          { kind: 'max-output-tokens', value: '256' },
+          { kind: 'reasoning-effort', value: 'low' },
+        ] as const,
+        reasoningEfforts: { low: 'low', high: 'high' } as const,
+      },
+    }
+    const state = savedSelection(ROUTE)
+    let chosen: 'low' | undefined
+    const { value } = await withLiveRow(
+      {
+        session: () =>
+          succeed({
+            ...state,
+            selection: {
+              ...state.selection,
+              ...(chosen === undefined ? {} : { reasoningEffort: chosen }),
+            },
+          }),
+        profiles: { [ROUTE]: succeed(resolvedOf(profile, { defaultReasoningEffort: 'high' })) },
+      },
+      async ({ select }) => {
+        const preferred = await select(selectInput)
+        chosen = 'low'
+        return { preferred, chosen: await select(selectInput) }
+      },
+    )
+    const parametersOf = (selected: typeof value.preferred) =>
+      'ok' in selected ? selected.ok.parameters : selected
+    expect(parametersOf(value.preferred)).toEqual([
+      { kind: 'max-output-tokens', value: '256' },
+      { kind: 'reasoning-effort', value: 'high', scale: 'unified', basis: 'preference' },
+    ])
+    expect(parametersOf(value.chosen)).toEqual([
+      { kind: 'max-output-tokens', value: '256' },
+      { kind: 'reasoning-effort', value: 'low', scale: 'unified' },
+    ])
+  })
+
   test('the Session is read as a maintainer with exactly the principal, tenant and session', async () => {
     const { value } = await withLiveRow(happy, async ({ select, session }) => {
       await select(selectInput)
@@ -70,7 +154,7 @@ describe('the selected model', () => {
         principal: sessionAccess.principal,
         tenant: sessionAccess.tenant,
         route: ROUTE,
-        required: textRequirement,
+        required: chatNeedOf(textRequirement),
       },
     ])
   })
@@ -122,14 +206,30 @@ describe('the three failures differ', () => {
     expect(failure).toMatchObject({ owner: 'session' })
   })
 
-  test('the profile cannot be resolved: unavailable, owned by the profiles', async () => {
+  test('a route with no profile at all: invalid, because no such model comes back by waiting', async () => {
     const failure = await failureFor({
       session: () => succeed(savedSelection(ROUTE)),
       profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'unknown-name' }) },
     })
-    expect(failure.kind).toBe('unavailable')
-    expect(failure).toMatchObject({ owner: 'modelProfiles' })
-    expect(JSON.stringify(failure)).toContain('unknown-name')
+    expect(failure).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'unknown-name',
+      disclosed: 'model unknown-name',
+    })
+  })
+
+  test('a route whose profiles were all withdrawn: invalid, with its own reason', async () => {
+    const failure = await failureFor({
+      session: () => succeed(savedSelection(ROUTE)),
+      profiles: { [ROUTE]: succeed({ kind: 'absent', reason: 'withdrawn' }) },
+    })
+    expect(failure).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'withdrawn',
+      disclosed: 'model withdrawn',
+    })
   })
 
   test('the three results are pairwise different', async () => {
@@ -154,8 +254,27 @@ describe('no other model is chosen', () => {
     [ROUTE]: answer,
   })
 
+  test('a route the tenant has turned off fails as invalid, so the Run ends instead of waiting', async () => {
+    const { value } = await withLiveRow(
+      {
+        session: () => succeed(savedSelection(ROUTE)),
+        profiles: withDefault(succeed({ kind: 'absent', reason: 'excluded' } as const)),
+      },
+      async ({ select, profiles }) => ({
+        outcome: await select(selectInput),
+        asked: profiles.resolves.map(input => (input as { route: string }).route),
+      }),
+    )
+    expect(failureOf(value.outcome)).toEqual({
+      kind: 'invalid',
+      field: 'model',
+      reason: 'not-enabled',
+      disclosed: 'model not-enabled',
+    })
+    expect(value.asked).toEqual([ROUTE])
+  })
+
   test.each([
-    ['absent', succeed({ kind: 'absent', reason: 'excluded' } as const) as ProfilesAnswer],
     [
       'resolved but not selectable',
       succeed(

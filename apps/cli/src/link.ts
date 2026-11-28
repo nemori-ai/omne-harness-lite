@@ -1,4 +1,10 @@
-import type { OperationContract, ProtocolContract } from '@omne-harness/public-contract'
+import type { Rejection } from '@omne-harness/public-contract'
+import {
+  accessProtocol,
+  type AvailabilityFrame,
+  type OperationContract,
+  type ProtocolContract,
+} from '@omne-harness/public-contract'
 import {
   ClientRequestError,
   createClient,
@@ -13,7 +19,9 @@ import type { CommandEnvironment } from './cli-types.ts'
 export type CallResult =
   | { readonly kind: 'response'; readonly outcome: string; readonly body: unknown }
   | { readonly kind: 'uncertain' }
-  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'unavailable'; readonly reason?: string }
+  /** The body did not fit the contract: nothing was sent. */
+  | { readonly kind: 'rejected'; readonly rejection: Rejection }
 
 export type Login = { readonly proof: string; readonly tenant: string }
 
@@ -21,13 +29,13 @@ export type WatchEnd = Readonly<{ kind: string; reason?: string; outcome?: strin
 
 export interface Link {
   readonly origin: string
-  /** Resolves to undefined when the body does not fit the contract: a usage error. */
+  /** Resolves to a refusal when the body does not fit the contract: a usage error that says why. */
   call<P extends ProtocolContract, K extends keyof P['operations'] & string>(
     protocol: P,
     operation: K,
     body: BodyOf<P['operations'][K]>,
     messageId: string,
-  ): Promise<CallResult | undefined>
+  ): Promise<CallResult>
   /** The frames of an observation as plain values, until it ends; the end is the return value. */
   observe<P extends ProtocolContract, K extends keyof P['observations'] & string>(
     protocol: P,
@@ -82,6 +90,22 @@ function plain(value: Wire): unknown {
   }
 }
 
+type Served = Extract<AvailabilityFrame, { kind: 'snapshot' }>
+
+/** Why the server did not run a call of this protocol, by what it tells it serves; nothing when it serves it. */
+export function unservedReason(frame: Served, protocol: ProtocolContract): string | undefined {
+  const { name, major } = protocol
+  const same = (other: { name: string; major: number }): boolean =>
+    other.name === name && other.major === major
+  if ((frame.conflicts ?? []).some(same))
+    return `two parts of the server claim ${name}/v${major}, neither is served`
+  if (frame.protocols.some(same)) return undefined
+  const others = frame.protocols.filter(other => other.name === name).map(other => other.major)
+  if (others.length === 0) return `the server does not serve ${name}/v${major}`
+  const served = others.sort((left, right) => left - right).map(other => `${name}/v${other}`)
+  return `the server serves ${served.join(', ')}, this command speaks ${name}/v${major}`
+}
+
 function credentialsOf(
   identity: OperationContract['identity'],
   login: Login | undefined,
@@ -111,6 +135,33 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
     observe: request => inner.observe(request),
   }
 
+  let told: Promise<Served | undefined> | undefined
+  /** What the server serves, asked at most once a run: the first frame, then the subscription is left. */
+  const serves = (): Promise<Served | undefined> => {
+    told ??= (async () => {
+      credentials = {}
+      const leave = new AbortController()
+      const frames = createClient(accessProtocol, transport).observe.availability(
+        {},
+        { signal: leave.signal, messageId: environment.services.newId() },
+      )
+      try {
+        const first = await frames.next()
+        return first.done !== true && first.value.kind === 'snapshot' ? first.value : undefined
+      } catch {
+        return undefined
+      } finally {
+        leave.abort()
+      }
+    })()
+    return told
+  }
+  const unavailable = async (protocol: ProtocolContract): Promise<CallResult> => {
+    const frame = await serves()
+    const reason = frame === undefined ? undefined : unservedReason(frame, protocol)
+    return reason === undefined ? { kind: 'unavailable' } : { kind: 'unavailable', reason }
+  }
+
   const link: Link = {
     origin: new URL(origin).origin,
     async call(protocol, operation, body, messageId) {
@@ -121,10 +172,11 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
       try {
         answer = await client[operation]!(body, { messageId })
       } catch (error) {
-        if (error instanceof ClientRequestError) return undefined
+        if (error instanceof ClientRequestError)
+          return { kind: 'rejected', rejection: error.rejection }
         throw error
       }
-      if (answer.outcome === 'unavailable') return { kind: 'unavailable' }
+      if (answer.outcome === 'unavailable') return unavailable(protocol)
       if (answer.outcome === 'uncertain' || answered === undefined) return { kind: 'uncertain' }
       return { kind: 'response', outcome: answer.outcome, body: plain(answered) }
     },

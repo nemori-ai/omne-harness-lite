@@ -1,0 +1,3927 @@
+{
+  "digests": {
+    "1": "sha256:db4bd6352472a2bcd4b4ac323cf2b65a676afb367f98dee4364db9c23da9d026",
+    "2": "sha256:a1fd8ec5632fea9b6a0a8254759c8112bbc0413384dc60dd45806e389382dbcd"
+  },
+  "major": 1,
+  "name": "human-intervention",
+  "revision": 2,
+  "rules": {
+    "observations": {
+      "observe-cards": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "kind": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        }
+      }
+    },
+    "operations": {
+      "list-cards": {
+        "body": {
+          "fields": {
+            "cursor": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "filter": {
+              "rule": {
+                "fields": {
+                  "delivery": {
+                    "optional": true,
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "pending",
+                        "accepted",
+                        "superseded"
+                      ]
+                    }
+                  },
+                  "originKind": {
+                    "optional": true,
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "tool",
+                        "agent-extension",
+                        "admission"
+                      ]
+                    }
+                  },
+                  "sessionRef": {
+                    "optional": true,
+                    "rule": {
+                      "kind": "session"
+                    }
+                  },
+                  "states": {
+                    "rule": {
+                      "item": {
+                        "kind": "literal",
+                        "values": [
+                          "pending",
+                          "decided",
+                          "invalidated"
+                        ]
+                      },
+                      "kind": "array",
+                      "max": 3,
+                      "nonempty": true
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "positive-integer"
+                }
+              },
+              "resource": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "completeness": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "complete",
+                    "partial"
+                  ]
+                }
+              },
+              "items": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "askedAt": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "card": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "fields": {
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "pending"
+                                    ]
+                                  }
+                                },
+                                "question": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "fields": {
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "question",
+                                                "extension"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      {
+                                        "fields": {
+                                          "arguments": {
+                                            "rule": {
+                                              "fields": {
+                                                "digest": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "text": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "truncated": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "detail": {
+                                            "optional": true,
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "rows": {
+                                                      "rule": {
+                                                        "item": {
+                                                          "fields": {
+                                                            "label": {
+                                                              "rule": {
+                                                                "kind": "text"
+                                                              }
+                                                            },
+                                                            "value": {
+                                                              "rule": {
+                                                                "kind": "one-of",
+                                                                "rules": [
+                                                                  {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  {
+                                                                    "item": {
+                                                                      "kind": "text"
+                                                                    },
+                                                                    "kind": "array",
+                                                                    "nonempty": true
+                                                                  }
+                                                                ]
+                                                              }
+                                                            }
+                                                          },
+                                                          "kind": "object"
+                                                        },
+                                                        "kind": "array",
+                                                        "nonempty": true
+                                                      }
+                                                    },
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "given"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "typed": {
+                                                      "optional": true,
+                                                      "rule": {
+                                                        "fields": {
+                                                          "kind": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unavailable"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "gate": {
+                                            "optional": true,
+                                            "rule": {
+                                              "fields": {
+                                                "basis": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "capabilityId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "enforcementKey": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "gateTitle": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "release"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "lasting": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "offered": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "origin": {
+                                            "rule": {
+                                              "fields": {
+                                                "agent": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
+                                                },
+                                                "session": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "target": {
+                                            "rule": {
+                                              "fields": {
+                                                "command": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "text"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "preview": {
+                                                  "rule": {
+                                                    "kind": "string"
+                                                  }
+                                                },
+                                                "tool": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "ref": {
+                                  "rule": {
+                                    "fields": {
+                                      "cardId": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "request": {
+                                        "rule": {
+                                          "fields": {
+                                            "requestId": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "tenantRef": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "revision": {
+                                  "rule": {
+                                    "kind": "revision"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "fields": {
+                                "decision": {
+                                  "rule": {
+                                    "fields": {
+                                      "basisRef": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "commitReceipt": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "ref": {
+                                        "rule": {
+                                          "fields": {
+                                            "card": {
+                                              "rule": {
+                                                "fields": {
+                                                  "cardId": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "request": {
+                                                    "rule": {
+                                                      "fields": {
+                                                        "requestId": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        },
+                                                        "tenantRef": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "object"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              }
+                                            },
+                                            "decisionId": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "submission": {
+                                              "rule": {
+                                                "fields": {
+                                                  "actorRef": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "operationId": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "tenantRef": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      },
+                                      "reply": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "fields": {
+                                                "kind": {
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "selection"
+                                                    ]
+                                                  }
+                                                },
+                                                "optionId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            {
+                                              "fields": {
+                                                "kind": {
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "text"
+                                                    ]
+                                                  }
+                                                },
+                                                "text": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            {
+                                              "fields": {
+                                                "kind": {
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "decline"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "delivery": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "fields": {
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "pending"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      {
+                                        "fields": {
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "accepted",
+                                                "superseded"
+                                              ]
+                                            }
+                                          },
+                                          "receiptRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "decided"
+                                    ]
+                                  }
+                                },
+                                "question": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "fields": {
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "question",
+                                                "extension"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      {
+                                        "fields": {
+                                          "arguments": {
+                                            "rule": {
+                                              "fields": {
+                                                "digest": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "text": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "truncated": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "detail": {
+                                            "optional": true,
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "rows": {
+                                                      "rule": {
+                                                        "item": {
+                                                          "fields": {
+                                                            "label": {
+                                                              "rule": {
+                                                                "kind": "text"
+                                                              }
+                                                            },
+                                                            "value": {
+                                                              "rule": {
+                                                                "kind": "one-of",
+                                                                "rules": [
+                                                                  {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  {
+                                                                    "item": {
+                                                                      "kind": "text"
+                                                                    },
+                                                                    "kind": "array",
+                                                                    "nonempty": true
+                                                                  }
+                                                                ]
+                                                              }
+                                                            }
+                                                          },
+                                                          "kind": "object"
+                                                        },
+                                                        "kind": "array",
+                                                        "nonempty": true
+                                                      }
+                                                    },
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "given"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "typed": {
+                                                      "optional": true,
+                                                      "rule": {
+                                                        "fields": {
+                                                          "kind": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unavailable"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "gate": {
+                                            "optional": true,
+                                            "rule": {
+                                              "fields": {
+                                                "basis": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "capabilityId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "enforcementKey": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "gateTitle": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "release"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "lasting": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "offered": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "origin": {
+                                            "rule": {
+                                              "fields": {
+                                                "agent": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
+                                                },
+                                                "session": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "target": {
+                                            "rule": {
+                                              "fields": {
+                                                "command": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "text"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "preview": {
+                                                  "rule": {
+                                                    "kind": "string"
+                                                  }
+                                                },
+                                                "tool": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "ref": {
+                                  "rule": {
+                                    "fields": {
+                                      "cardId": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "request": {
+                                        "rule": {
+                                          "fields": {
+                                            "requestId": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "tenantRef": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "revision": {
+                                  "rule": {
+                                    "kind": "revision"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "fields": {
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "invalidated"
+                                    ]
+                                  }
+                                },
+                                "question": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "fields": {
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "question",
+                                                "extension"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      {
+                                        "fields": {
+                                          "arguments": {
+                                            "rule": {
+                                              "fields": {
+                                                "digest": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "text": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "truncated": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "cardId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "declineConsequence": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "description": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "detail": {
+                                            "optional": true,
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "rows": {
+                                                      "rule": {
+                                                        "item": {
+                                                          "fields": {
+                                                            "label": {
+                                                              "rule": {
+                                                                "kind": "text"
+                                                              }
+                                                            },
+                                                            "value": {
+                                                              "rule": {
+                                                                "kind": "one-of",
+                                                                "rules": [
+                                                                  {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  {
+                                                                    "item": {
+                                                                      "kind": "text"
+                                                                    },
+                                                                    "kind": "array",
+                                                                    "nonempty": true
+                                                                  }
+                                                                ]
+                                                              }
+                                                            }
+                                                          },
+                                                          "kind": "object"
+                                                        },
+                                                        "kind": "array",
+                                                        "nonempty": true
+                                                      }
+                                                    },
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "given"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "typed": {
+                                                      "optional": true,
+                                                      "rule": {
+                                                        "fields": {
+                                                          "kind": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "state": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unavailable"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "gate": {
+                                            "optional": true,
+                                            "rule": {
+                                              "fields": {
+                                                "basis": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "capabilityId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "enforcementKey": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "gateTitle": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "release"
+                                              ]
+                                            }
+                                          },
+                                          "options": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "description": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "id": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "label": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "lasting": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "offered": {
+                                                    "rule": {
+                                                      "kind": "boolean"
+                                                    }
+                                                  },
+                                                  "role": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "approve",
+                                                        "reject"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "origin": {
+                                            "rule": {
+                                              "fields": {
+                                                "agent": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
+                                                },
+                                                "session": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "target": {
+                                            "rule": {
+                                              "fields": {
+                                                "command": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "text"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "preview": {
+                                                  "rule": {
+                                                    "kind": "string"
+                                                  }
+                                                },
+                                                "tool": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "title": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "reason": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "cancelled",
+                                      "archived",
+                                      "origin-terminal",
+                                      "continuity-lost"
+                                    ]
+                                  }
+                                },
+                                "ref": {
+                                  "rule": {
+                                    "fields": {
+                                      "cardId": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "request": {
+                                        "rule": {
+                                          "fields": {
+                                            "requestId": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "tenantRef": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  }
+                                },
+                                "revision": {
+                                  "rule": {
+                                    "kind": "revision"
+                                  }
+                                },
+                                "terminalEvidenceRef": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          ]
+                        }
+                      },
+                      "displayContext": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "origin": {
+                        "rule": {
+                          "fields": {
+                            "kind": {
+                              "rule": {
+                                "kind": "literal",
+                                "values": [
+                                  "tool",
+                                  "agent-extension",
+                                  "admission"
+                                ]
+                              }
+                            },
+                            "runRef": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "sessionRef": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "toolCallRef": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "snapshotRef": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-submit-reply": {
+        "body": {
+          "fields": {
+            "card": {
+              "rule": {
+                "fields": {
+                  "cardId": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "request": {
+                    "rule": {
+                      "fields": {
+                        "requestId": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "tenantRef": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "expectedRevision": {
+              "rule": {
+                "kind": "revision"
+              }
+            },
+            "reply": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "selection"
+                          ]
+                        }
+                      },
+                      "optionId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "text"
+                          ]
+                        }
+                      },
+                      "text": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "decline"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "replyId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "positive-integer"
+                }
+              },
+              "resource": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "decisionRef": {
+                    "rule": {
+                      "fields": {
+                        "card": {
+                          "rule": {
+                            "fields": {
+                              "cardId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "request": {
+                                "rule": {
+                                  "fields": {
+                                    "requestId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "tenantRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "decisionId": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "submission": {
+                          "rule": {
+                            "fields": {
+                              "actorRef": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "operationId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "tenantRef": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  },
+                  "delivery": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "pending",
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "decided"
+                      ]
+                    }
+                  },
+                  "revision": {
+                    "rule": {
+                      "kind": "revision"
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "decision": {
+                    "rule": {
+                      "fields": {
+                        "basisRef": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "commitReceipt": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "ref": {
+                          "rule": {
+                            "fields": {
+                              "card": {
+                                "rule": {
+                                  "fields": {
+                                    "cardId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "request": {
+                                      "rule": {
+                                        "fields": {
+                                          "requestId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "tenantRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "decisionId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "submission": {
+                                "rule": {
+                                  "fields": {
+                                    "actorRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "operationId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "tenantRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "reply": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "selection"
+                                      ]
+                                    }
+                                  },
+                                  "optionId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "text"
+                                      ]
+                                    }
+                                  },
+                                  "text": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "decline"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  },
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "already-decided"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "invalidated"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            ]
+          },
+          "unknown": true
+        }
+      },
+      "read-card": {
+        "body": {
+          "fields": {
+            "card": {
+              "rule": {
+                "fields": {
+                  "cardId": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "request": {
+                    "rule": {
+                      "fields": {
+                        "requestId": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "tenantRef": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "positive-integer"
+                }
+              },
+              "resource": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "item": {
+                "rule": {
+                  "fields": {
+                    "askedAt": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "card": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "fields": {
+                              "kind": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "pending"
+                                  ]
+                                }
+                              },
+                              "question": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "fields": {
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "question",
+                                              "extension"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    {
+                                      "fields": {
+                                        "arguments": {
+                                          "rule": {
+                                            "fields": {
+                                              "digest": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "text": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "truncated": {
+                                                "rule": {
+                                                  "kind": "boolean"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "detail": {
+                                          "optional": true,
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "fields": {
+                                                  "rows": {
+                                                    "rule": {
+                                                      "item": {
+                                                        "fields": {
+                                                          "label": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "one-of",
+                                                              "rules": [
+                                                                {
+                                                                  "kind": "text"
+                                                                },
+                                                                {
+                                                                  "item": {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  "kind": "array",
+                                                                  "nonempty": true
+                                                                }
+                                                              ]
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      },
+                                                      "kind": "array",
+                                                      "nonempty": true
+                                                    }
+                                                  },
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "given"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "typed": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "fields": {
+                                                        "kind": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        },
+                                                        "value": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "object"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              {
+                                                "fields": {
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "unavailable"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "gate": {
+                                          "optional": true,
+                                          "rule": {
+                                            "fields": {
+                                              "basis": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "capabilityId": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "enforcementKey": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "gateTitle": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "release"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "lasting": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "offered": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "origin": {
+                                          "rule": {
+                                            "fields": {
+                                              "agent": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
+                                              },
+                                              "session": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "target": {
+                                          "rule": {
+                                            "fields": {
+                                              "command": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "preview": {
+                                                "rule": {
+                                                  "kind": "string"
+                                                }
+                                              },
+                                              "tool": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  ]
+                                }
+                              },
+                              "ref": {
+                                "rule": {
+                                  "fields": {
+                                    "cardId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "request": {
+                                      "rule": {
+                                        "fields": {
+                                          "requestId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "tenantRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "revision": {
+                                "rule": {
+                                  "kind": "revision"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          {
+                            "fields": {
+                              "decision": {
+                                "rule": {
+                                  "fields": {
+                                    "basisRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "commitReceipt": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "ref": {
+                                      "rule": {
+                                        "fields": {
+                                          "card": {
+                                            "rule": {
+                                              "fields": {
+                                                "cardId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "request": {
+                                                  "rule": {
+                                                    "fields": {
+                                                      "requestId": {
+                                                        "rule": {
+                                                          "kind": "text"
+                                                        }
+                                                      },
+                                                      "tenantRef": {
+                                                        "rule": {
+                                                          "kind": "text"
+                                                        }
+                                                      }
+                                                    },
+                                                    "kind": "object"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "decisionId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "submission": {
+                                            "rule": {
+                                              "fields": {
+                                                "actorRef": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "operationId": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "tenantRef": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "reply": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "fields": {
+                                              "kind": {
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    "selection"
+                                                  ]
+                                                }
+                                              },
+                                              "optionId": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          },
+                                          {
+                                            "fields": {
+                                              "kind": {
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    "text"
+                                                  ]
+                                                }
+                                              },
+                                              "text": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          },
+                                          {
+                                            "fields": {
+                                              "kind": {
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    "decline"
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "delivery": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "fields": {
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "pending"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    {
+                                      "fields": {
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "accepted",
+                                              "superseded"
+                                            ]
+                                          }
+                                        },
+                                        "receiptRef": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  ]
+                                }
+                              },
+                              "kind": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "decided"
+                                  ]
+                                }
+                              },
+                              "question": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "fields": {
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "question",
+                                              "extension"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    {
+                                      "fields": {
+                                        "arguments": {
+                                          "rule": {
+                                            "fields": {
+                                              "digest": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "text": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "truncated": {
+                                                "rule": {
+                                                  "kind": "boolean"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "detail": {
+                                          "optional": true,
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "fields": {
+                                                  "rows": {
+                                                    "rule": {
+                                                      "item": {
+                                                        "fields": {
+                                                          "label": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "one-of",
+                                                              "rules": [
+                                                                {
+                                                                  "kind": "text"
+                                                                },
+                                                                {
+                                                                  "item": {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  "kind": "array",
+                                                                  "nonempty": true
+                                                                }
+                                                              ]
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      },
+                                                      "kind": "array",
+                                                      "nonempty": true
+                                                    }
+                                                  },
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "given"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "typed": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "fields": {
+                                                        "kind": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        },
+                                                        "value": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "object"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              {
+                                                "fields": {
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "unavailable"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "gate": {
+                                          "optional": true,
+                                          "rule": {
+                                            "fields": {
+                                              "basis": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "capabilityId": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "enforcementKey": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "gateTitle": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "release"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "lasting": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "offered": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "origin": {
+                                          "rule": {
+                                            "fields": {
+                                              "agent": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
+                                              },
+                                              "session": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "target": {
+                                          "rule": {
+                                            "fields": {
+                                              "command": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "preview": {
+                                                "rule": {
+                                                  "kind": "string"
+                                                }
+                                              },
+                                              "tool": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  ]
+                                }
+                              },
+                              "ref": {
+                                "rule": {
+                                  "fields": {
+                                    "cardId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "request": {
+                                      "rule": {
+                                        "fields": {
+                                          "requestId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "tenantRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "revision": {
+                                "rule": {
+                                  "kind": "revision"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          {
+                            "fields": {
+                              "kind": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "invalidated"
+                                  ]
+                                }
+                              },
+                              "question": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "fields": {
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "question",
+                                              "extension"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    {
+                                      "fields": {
+                                        "arguments": {
+                                          "rule": {
+                                            "fields": {
+                                              "digest": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "text": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "truncated": {
+                                                "rule": {
+                                                  "kind": "boolean"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "cardId": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "declineConsequence": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "description": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "detail": {
+                                          "optional": true,
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "fields": {
+                                                  "rows": {
+                                                    "rule": {
+                                                      "item": {
+                                                        "fields": {
+                                                          "label": {
+                                                            "rule": {
+                                                              "kind": "text"
+                                                            }
+                                                          },
+                                                          "value": {
+                                                            "rule": {
+                                                              "kind": "one-of",
+                                                              "rules": [
+                                                                {
+                                                                  "kind": "text"
+                                                                },
+                                                                {
+                                                                  "item": {
+                                                                    "kind": "text"
+                                                                  },
+                                                                  "kind": "array",
+                                                                  "nonempty": true
+                                                                }
+                                                              ]
+                                                            }
+                                                          }
+                                                        },
+                                                        "kind": "object"
+                                                      },
+                                                      "kind": "array",
+                                                      "nonempty": true
+                                                    }
+                                                  },
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "given"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "typed": {
+                                                    "optional": true,
+                                                    "rule": {
+                                                      "fields": {
+                                                        "kind": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        },
+                                                        "value": {
+                                                          "rule": {
+                                                            "kind": "text"
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "object"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              {
+                                                "fields": {
+                                                  "state": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "unavailable"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "gate": {
+                                          "optional": true,
+                                          "rule": {
+                                            "fields": {
+                                              "basis": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "capabilityId": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "enforcementKey": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "gateTitle": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "release"
+                                            ]
+                                          }
+                                        },
+                                        "options": {
+                                          "rule": {
+                                            "item": {
+                                              "fields": {
+                                                "description": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "id": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "label": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "lasting": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "offered": {
+                                                  "rule": {
+                                                    "kind": "boolean"
+                                                  }
+                                                },
+                                                "role": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      "approve",
+                                                      "reject"
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            },
+                                            "kind": "array"
+                                          }
+                                        },
+                                        "origin": {
+                                          "rule": {
+                                            "fields": {
+                                              "agent": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
+                                              },
+                                              "session": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "target": {
+                                          "rule": {
+                                            "fields": {
+                                              "command": {
+                                                "rule": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "text"
+                                                    },
+                                                    {
+                                                      "kind": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "preview": {
+                                                "rule": {
+                                                  "kind": "string"
+                                                }
+                                              },
+                                              "tool": {
+                                                "rule": {
+                                                  "kind": "text"
+                                                }
+                                              }
+                                            },
+                                            "kind": "object"
+                                          }
+                                        },
+                                        "title": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  ]
+                                }
+                              },
+                              "reason": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "cancelled",
+                                    "archived",
+                                    "origin-terminal",
+                                    "continuity-lost"
+                                  ]
+                                }
+                              },
+                              "ref": {
+                                "rule": {
+                                  "fields": {
+                                    "cardId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "request": {
+                                      "rule": {
+                                        "fields": {
+                                          "requestId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "tenantRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "revision": {
+                                "rule": {
+                                  "kind": "revision"
+                                }
+                              },
+                              "terminalEvidenceRef": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        ]
+                      }
+                    },
+                    "displayContext": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "origin": {
+                      "rule": {
+                        "fields": {
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "tool",
+                                "agent-extension",
+                                "admission"
+                              ]
+                            }
+                          },
+                          "runRef": {
+                            "optional": true,
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "sessionRef": {
+                            "optional": true,
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "toolCallRef": {
+                            "optional": true,
+                            "rule": {
+                              "kind": "text"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "submit-reply": {
+        "body": {
+          "fields": {
+            "card": {
+              "rule": {
+                "fields": {
+                  "cardId": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "request": {
+                    "rule": {
+                      "fields": {
+                        "requestId": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "tenantRef": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "expectedRevision": {
+              "rule": {
+                "kind": "revision"
+              }
+            },
+            "reply": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "selection"
+                          ]
+                        }
+                      },
+                      "optionId": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "text"
+                          ]
+                        }
+                      },
+                      "text": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "decline"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "replyId": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {},
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "positive-integer"
+                }
+              },
+              "resource": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "decisionRef": {
+                    "rule": {
+                      "fields": {
+                        "card": {
+                          "rule": {
+                            "fields": {
+                              "cardId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "request": {
+                                "rule": {
+                                  "fields": {
+                                    "requestId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "tenantRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "decisionId": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "submission": {
+                          "rule": {
+                            "fields": {
+                              "actorRef": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "operationId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "tenantRef": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  },
+                  "delivery": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "pending",
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "decided"
+                      ]
+                    }
+                  },
+                  "revision": {
+                    "rule": {
+                      "kind": "revision"
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "decision": {
+                    "rule": {
+                      "fields": {
+                        "basisRef": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "commitReceipt": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "ref": {
+                          "rule": {
+                            "fields": {
+                              "card": {
+                                "rule": {
+                                  "fields": {
+                                    "cardId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "request": {
+                                      "rule": {
+                                        "fields": {
+                                          "requestId": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "tenantRef": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              },
+                              "decisionId": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "submission": {
+                                "rule": {
+                                  "fields": {
+                                    "actorRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "operationId": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "tenantRef": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        },
+                        "reply": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "selection"
+                                      ]
+                                    }
+                                  },
+                                  "optionId": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "text"
+                                      ]
+                                    }
+                                  },
+                                  "text": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "decline"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  },
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "already-decided"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "invalidated"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            ]
+          },
+          "unknown": true
+        }
+      }
+    }
+  }
+}

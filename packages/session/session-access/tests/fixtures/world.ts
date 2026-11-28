@@ -1,5 +1,10 @@
 import type { HistorySearch } from '@omne-harness/session-search'
-import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import type {
+  InProcessAnswer,
+  InProcessCall,
+  LoginIdentity,
+  Principal,
+} from '@omne-harness/access-cordis-contract'
 import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
   accountCodec,
@@ -67,7 +72,7 @@ function definitionOf(name: string): ResolvedDefinition {
   }
 }
 
-export const resolveDefinition: DefinitionResolver = name =>
+export const resolveDefinition = (name: string) =>
   name === DEFINITION || name === DEFAULT_DEFINITION ? definitionOf(name) : undefined
 
 export type FixtureLogin = Readonly<{
@@ -384,6 +389,29 @@ export function createWorld(
   }
 
   const faces = () => (removed.has('faces') ? undefined : session.faces)
+  /** The entry's in-process call as the world gives it: the session protocol's own handler, for the login the queue kept. */
+  const perform = async (call: InProcessCall): Promise<InProcessAnswer> => {
+    const operations = assembled.contribution.operations as Record<string, unknown>
+    const handler = Object.hasOwn(operations, call.operation)
+      ? (operations[call.operation] as (
+          c: unknown,
+          b: unknown,
+        ) => Promise<{ outcome: string; body?: unknown }>)
+      : undefined
+    if (call.protocol.name !== 'session' || handler === undefined)
+      return { kind: 'not-executed', reason: 'not-offered' }
+    const tenant = tenantCodec.parse(call.tenant)
+    if (!tenant.ok) return { kind: 'answered', outcome: 'denied', body: undefined }
+    const login = {
+      account: tenant.value.account,
+      loginText: call.login,
+      tenant: tenant.value,
+      tenantText: call.tenant,
+    }
+    const signal = new AbortController().signal
+    const answer = await handler({ principal: login, messageId: call.id, signal }, call.body)
+    return { kind: 'answered', outcome: answer.outcome, body: answer.body }
+  }
   const complete: SessionAccessSettings = {
     maxPageBytes: 65536,
     historyKinds: ['message.user', 'message.assistant'],
@@ -399,7 +427,7 @@ export function createWorld(
       journal: opened,
       admit: request => {
         admissions.push(request)
-        return admitRequest({ principals, facts, faces }, request)
+        return admitRequest({ principals, facts, faces, perform }, request)
       },
       limit: complete.requestQueueLimit,
       retryDelaysMs: complete.requestRetryDelaysMs,

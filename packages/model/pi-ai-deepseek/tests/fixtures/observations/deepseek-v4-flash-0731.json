@@ -1,0 +1,823 @@
+{
+  "model": "deepseek/deepseek-v4-flash-0731",
+  "measuredAt": "2026-11-23",
+  "pin": "siliconflow/fp8",
+  "allowFallbacks": false,
+  "endpointSnapshotSha256": "78d761cca6568eabda65eb8f4e5db2696feb1dff926909814713e1b000276bc1",
+  "endpoint": {
+    "tag": "siliconflow/fp8",
+    "context_length": 1048576,
+    "max_completion_tokens": 393216,
+    "max_prompt_tokens": null
+  },
+  "samples": {
+    "adjacent-users": {
+      "requestSha256": "b43cea6f36d6be1e2e9b26e0479be22a04a3f84a88372f4949f18d5e33298a6e",
+      "responseSha256": "75d5252e68e39fe2bed83c3191254d134bceed8505596d8a847266aadb5b21fc",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449253-kxPnkBSIfo6I2ePQMAt0",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 101,
+        "completion_tokens": 18,
+        "cost": "0.0000341",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "assistant-last": {
+      "requestSha256": "16d34028f20f4df3ece0db91c1bad2d9c2fc5df6eeb0d174f994003cdf0b6691",
+      "responseSha256": "7a5fb00dc6326c1ca8da56e22ac5d594d6fbf77a56a9b10e6aa0a6d02d1ff305",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449227-sOTObOhw7pmNHUJd3Xw6",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 20,
+        "completion_tokens": 3,
+        "cost": "0.00000638",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": " 40."
+    },
+    "cache-1": {
+      "requestSha256": "62b21c27970decf12c825dd7adddaa1ae2cf7131e972a594c9e82d4af3d607c8",
+      "responseSha256": "3658bc18a3416e0ab1f2bc333cacc2ed0cfc173c5f995b663300a437b443f654",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448321-ktbfCSuWY5ZRNBCizCl7",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3704,
+        "completion_tokens": 22,
+        "cost": "0.0008294",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "blueblue"
+    },
+    "cache-2": {
+      "requestSha256": "6d9764ebcda470e5326327cd996625ff8af356a5442af53bce5ce2d18682dd54",
+      "responseSha256": "3062ce546a0bb62d0326199f503d542eaf4895c5badf1cbe9e545d38b4adfbb1",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448369-9GUuwVyYQddM4ZQbd3vV",
+      "finish": "length",
+      "cachedTokens": 3584,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3723,
+        "completion_tokens": 52,
+        "cost": "0.000165252",
+        "completion_tokens_details": {
+          "reasoning_tokens": 52,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "cache-3": {
+      "requestSha256": "76d9219c81f054daa5efdcff5c6a57c70eb2f1d3e5108ea0e7e2d8cda0f45a06",
+      "responseSha256": "455d0df421a28e3c5e718cbf0ecb11c33b560021c7faabf36ac3c3663ad565b0",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448429-6363GHr8mZmyaOIuv5Li",
+      "finish": "stop",
+      "cachedTokens": 3584,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3742,
+        "completion_tokens": 16,
+        "cost": "0.000145672",
+        "completion_tokens_details": {
+          "reasoning_tokens": 14,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Blue."
+    },
+    "calib-code": {
+      "requestSha256": "595f21ae4a64b3ead1e9944aa09aa4318b122138698a2d657054ee862f7dfacb",
+      "responseSha256": "901d0370ff06823b5bdd91a0ffce7afa871b2e94d7c1e59abf2bbe5f9eef36db",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448622-v8cyqOWkxtuiDxDvVRyu",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 109,
+        "completion_tokens": 52,
+        "cost": "0.0000583",
+        "completion_tokens_details": {
+          "reasoning_tokens": 52,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "calib-zh": {
+      "requestSha256": "5e308fd54c46c16ce5ae58e6e7816a403ff6782560f20634417eea3e171e2a37",
+      "responseSha256": "ad02edd93b933088320c9160fa39fdf3e26da5791efcaec63189317903a0f17f",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448536-zTtIeFpE3vSSpedt7SGe",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 94,
+        "completion_tokens": 14,
+        "cost": "0.00002992",
+        "completion_tokens_details": {
+          "reasoning_tokens": 14,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "16"
+    },
+    "changed-prefix": {
+      "requestSha256": "58b4398089de0f66654d39cd031136896293f9f60bf06bca1e2189ad27fda8e0",
+      "responseSha256": "d383af28fad491a9e2e73bb10c285f946b89e919ea34a7d2e38658997b367b16",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448478-4o4LFXu1RAne5wXKuo84",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 460,
+        "completion_tokens": 13,
+        "cost": "0.00010978",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "continuation": {
+      "requestSha256": "ba9dc8351892114248384c3bd1405b0a87791735ae07d9034fa3a47be72a461c",
+      "responseSha256": "de98803008fc55efd40fc8c1ca2d7c440d6be8c4eba48326093fd85f8eca0106",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448206-EKKiQdJuzFOQvYkkWcpq",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 457,
+        "completion_tokens": 13,
+        "cost": "0.00010912",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "effort-high": {
+      "requestSha256": "d78befbcf59df749869d150d013cf0aa97ad5d67eb299e67566ae900b2d5cdb2",
+      "responseSha256": "d135dd7f6ba250152a60cf18454754255580cbeb00edb63f072d0f7b6df810af",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448889-TVLkwqtoV4OkgJNO3c1d",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 17,
+        "cost": "0.00003234",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-low": {
+      "requestSha256": "18b3e9b25cec77fdbed4fb8e237b9045cb8bc5a412f5698075f62de58dfaffba",
+      "responseSha256": "4149500f9f6bade12a6fb93a99982aed53606e513805ea0e04d1d67e7b67a60e",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448814-kHNsjjPdkmVjsQPReI9s",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 21,
+        "cost": "0.0000176",
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-max": {
+      "requestSha256": "f7ab9efaf9fa71b9833e644f02cfe2efee9b487ed608591a031a5724885d4051",
+      "responseSha256": "ce302b41ae6aee94301ccfd877af8ed4fed4dc47ce8fd1b701f838734513d6a1",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448919-mtUbc3QDwqAlGVkJJplq",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 109,
+        "completion_tokens": 13,
+        "cost": "0.00003256",
+        "completion_tokens_details": {
+          "reasoning_tokens": 13,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "effort-medium": {
+      "requestSha256": "103856f7d7bee26dd00410f2e777f2a185926bd324502f83cb0c6d9b09a57426",
+      "responseSha256": "f59e29d7e8ce4c51a3ea41fc888bfa42413867211deb045756ced6be6a952372",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448859-jczKOMngxPePUdNEQmT6",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 15,
+        "cost": "0.00001364",
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-minimal": {
+      "requestSha256": "c1d044cbe76b16786418e395d946fbfda2b55cddd522e088df0966cf49198673",
+      "responseSha256": "360340b4ef6fd4969759cb594d69a8fa3ec92f7bbbdfbc49f73847eeeb2a8be6",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449052-Buvap8eIe8tW9AAWWz6E",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 15,
+        "cost": "0.00001364",
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-none": {
+      "requestSha256": "f1b6831113503eb93b36f81fc1aeed4565f547d8bdf1feb6e4606db0833ca535",
+      "responseSha256": "7e3fe20d1e909033fe9075a985e1a2f08bdc08fe9fb265ba6c49406ecff850fb",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448959-nZGYH5FFTnVOacBPmBJ0",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 1,
+        "cost": "0.0000044",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "effort-xhigh": {
+      "requestSha256": "d86a494f716dcde1f422be3a246a6a81cef651489558801bb776bbaed044b85e",
+      "responseSha256": "ef41ea090bf2ad089dcfc8d005714de41b8ad8f099dc38e43d3e60980bc8f6d2",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448993-YD0YGdlAf44sFWN24I0E",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 10,
+        "cost": "0.00002772",
+        "completion_tokens_details": {
+          "reasoning_tokens": 10,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "empty-content": {
+      "requestSha256": "57a91fe955a62602413aa9b26947293a16b4cde4b92afbd4fa061844fc9323c0",
+      "responseSha256": "e1289b22e070ab58a191b1c52e428bb5f8a9fc884c2937a88ae258ed56dd7bb6",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449286-ar8KEh2UHTQ4YNSSIz5B",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 17,
+        "cost": "0.00003234",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "fixture": {
+      "requestSha256": "9fb1e3c3a8bce6115863cb8860ac68761cbffddc77153a811ba31d110d8fccf0",
+      "responseSha256": "739aa2c61a5c96ee50cbc528e511c740beb4707689bb4724fdbddfbdeb3a0e48",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449360-sU1CQV0mnU4rVbQZhTAP",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 360,
+        "completion_tokens": 46,
+        "cost": "0.00010956",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{}"
+    },
+    "plain": {
+      "requestSha256": "1b04e8202de60fb1f654a5123d2bb4b2504b3a84e063b39beaffddfc7dd71160",
+      "responseSha256": "2528b96717c43ceda3e40d27fc6ce24f110f1cfbdaf8458045876df0ae2823c2",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448045-STfVFPA0m9WKscHQ2zLm",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 95,
+        "completion_tokens": 13,
+        "cost": "0.00002948",
+        "completion_tokens_details": {
+          "reasoning_tokens": 12,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "21"
+    },
+    "reasoning-off": {
+      "requestSha256": "ea9a6d85c4b1225bd6cb24dcccba8a6a454b6256559ec78339d9812f580c6bd9",
+      "responseSha256": "fc26aac06db4b7b09df7af6e8c1178924373066487dc6d36783eb170eb5d2e5c",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448783-lUN4sKjoNWR5tJTDufT8",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 1,
+        "cost": "0.0000044",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "release-tools": {
+      "requestSha256": "542569e3fe28b84be17caace2c39363135adb6a23099e5dcd9eedbd479d91488",
+      "responseSha256": "6773048e1d427a88a6db07567f56caec90d612cc158fd8b583e3ff82d15c2b23",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449721-nmBpSeZ2HZo74QdrnLcs",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 8187,
+        "completion_tokens": 28,
+        "cost": "0.00181962",
+        "completion_tokens_details": {
+          "reasoning_tokens": 27,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "51"
+    },
+    "replay-altered": {
+      "requestSha256": "92d50cb8ed4a0816b3203f2b11199b6ea14ad643e74d0763c34e1ad90a957413",
+      "responseSha256": "fbb0d9313fe85d9086216589d585a82e2eabfd216be00280364ec0639f7ea59d",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449564-LsrrKWcwuU81tZAn3mvg",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 20,
+        "cost": "0.0000385",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-changed": {
+      "requestSha256": "01f50a7b0a16f48ff7d90a4607d32774ed4361cfa4fe853bfa65cf6d55afa028",
+      "responseSha256": "e97fa7ad659c0f967cc5baee92ec34bf8d83823d682aaa4c5f348155ffc4d4c1",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449485-lx6QXnj9NdBo4P921CfL",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 120,
+        "completion_tokens": 20,
+        "cost": "0.0000396",
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-omitted": {
+      "requestSha256": "c8bc089f5c72412f7e6ac4e7303c58165b0ebd920b3e1f2e9e975c3ea6e25c9a",
+      "responseSha256": "c8aaa48dd7c7473562a6e78be0a66d4d8532f98c5d6a61530ca449c3564637fd",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449624-lgLxeWzyLnbyWCLuHilu",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 20,
+        "cost": "0.0000385",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-retained": {
+      "requestSha256": "61dc4d60fae2128fb8bc3b4886d9f07dd395a90a27d171639c18f12efcf2baf6",
+      "responseSha256": "99c6e34158e1397ebc64cf82cf08b7fc64827b5f7082505797adc013aec9e2e3",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449429-pAxcyYiDJGp1F4bQNNyI",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 115,
+        "completion_tokens": 25,
+        "cost": "0.0000418",
+        "completion_tokens_details": {
+          "reasoning_tokens": 25,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "sampling-seed": {
+      "requestSha256": "b831cc5c039fd0e645ba4f4f2a063ec98d4e69ed7238da32291a646c64098626",
+      "responseSha256": "e6ac13e014d88a43cbb3388f8e10435a956137c4faa1bbd6cb67f4e869846058",
+      "status": 404,
+      "usage": {},
+      "detailFormats": [],
+      "answer": "",
+      "gatewayError": "{\"error\":{\"message\":\"No endpoints found for deepseek/deepseek-v4-flash-0731. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp8/flex (Excluded tier endpoint rows the request did not opt into); Filter by Parameters removed baidu/fp8, relace/fp4, digitalocean, baseten/fp8, baseten/fp32, venice, streamlake/fp8, siliconflow/fp8; Filter by Fallback removed wafer/us, deepinfra/fp8, deepinfra/fp8/priority, cohere/fp8, coreweave/fp8, inceptron/fp4, wafer/fast, nebius/fp8, parasail/fp8, sail-research/us, sail-research/fp4, mancer/fp8, alibaba, alibaba/us-east-1, novita/fp8, chutes/fp8, primeintellect/fp4.\",\"code\":404,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":26},{\"step\":\"Filter by Tier Endpoint Rows\",\"endpoint_count\":25,\"reason\":\"Excluded tier endpoint rows the request did not opt into\"},{\"step\":\"Filter by Parameters\",\"endpoint_count\":17},{\"step\":\"Filter by Fallback\",\"endpoint_count\":0}],\"failed_routing_step\":\"Filter by Fallback\"}},\"user_id\":\"org_3GWoYKDH0pVwjQAbWAVm7ed910A\"}"
+    },
+    "sampling-temperature": {
+      "requestSha256": "3ea6c7b02590cab35027602cd8d0aa1246202b4937d42ee63308bb89f992c3f6",
+      "responseSha256": "310444933754ef88613093e5df775cd543d07eb1de142284ea96951cfd93f02e",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449083-jBESnHlI9RGAdjlpUJJu",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 19,
+        "cost": "0.00003366",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "sampling-top_k": {
+      "requestSha256": "e68e61233f78dea822cbfb85b4c4dc1d58777358bd635fc8a84b3dd04b902337",
+      "responseSha256": "114c6b3abd5f57e200be0a67e0b75201f5e317d7fa2037ce51dd3f8bc077879d",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449140-Ws0SLrpj7pJxYLz63f47",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 17,
+        "cost": "0.00003234",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "sampling-top_p": {
+      "requestSha256": "80f5d92971a5dd11df6bfe4cc8e129bdc390d86bd42da752d915ba313b0dc096",
+      "responseSha256": "1480db7a75510bc27a58c7d0e3fb39c232ff1ecb987897b4d017b686c05ed255",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449115-NNEgFSOqEeXw0Icd4ETb",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 9,
+        "cost": "0.00002706",
+        "completion_tokens_details": {
+          "reasoning_tokens": 9,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "short-output": {
+      "requestSha256": "98723ff844a469ff1916b40f4a53abbd79cc5f7e22aca45e8ddb3bd08480b752",
+      "responseSha256": "32872bbb523d0ca3990acf05745bca7798d7cc28d12240a9954f35a035bdca26",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795449326-j4wNY5V5mbMACu4PRyC7",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 1,
+        "cost": "0.00002178",
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "tool-named": {
+      "requestSha256": "56bcfd870357223c7d74f7d6a08154e9c121c89b37a382de5811e7a6809869b1",
+      "responseSha256": "e247b01083cf40a8b7819c85fdb86029f97fbdbcf402c0b056be9871ad49133f",
+      "status": 404,
+      "usage": {},
+      "detailFormats": [],
+      "answer": "",
+      "gatewayError": "{\"error\":{\"message\":\"No endpoints found for deepseek/deepseek-v4-flash-0731. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp8/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed deepinfra/fp8/priority, coreweave/fp8, mancer/fp8, alibaba, alibaba/us-east-1, siliconflow/fp8, novita/fp8; Filter by Fallback removed wafer/us, baidu/fp8, deepinfra/fp8, relace/fp4, cohere/fp8, digitalocean, baseten/fp8, baseten/fp32, venice, inceptron/fp4, streamlake/fp8, wafer/fast, nebius/fp8, parasail/fp8, sail-research/us, sail-research/fp4, chutes/fp8, primeintellect/fp4.\",\"code\":404,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":26},{\"step\":\"Filter by Tier Endpoint Rows\",\"endpoint_count\":25,\"reason\":\"Excluded tier endpoint rows the request did not opt into\"},{\"step\":\"Filter by Tool Compatibility\",\"endpoint_count\":18},{\"step\":\"Filter by Fallback\",\"endpoint_count\":0}],\"failed_routing_step\":\"Filter by Fallback\"}},\"user_id\":\"org_3GWoYKDH0pVwjQAbWAVm7ed910A\"}"
+    },
+    "tool-none": {
+      "requestSha256": "52f795a57bfbe5358391608c6c0e59188cf7241e593fb2b54433a1f61acb83ca",
+      "responseSha256": "c7a220771ba80e7fb9def3e5ff11c5955e9e175ec5a0b1a4b41627b5e658a420",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448729-BXXjukK7sYrbapxc6F8P",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 104,
+        "completion_tokens": 52,
+        "cost": "0.0000572",
+        "completion_tokens_details": {
+          "reasoning_tokens": 52,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "tool-required": {
+      "requestSha256": "c29c82adad65ad99ba4e40f9be6c63d0c3b5e2541faf2e6e3c17f6684b1694c3",
+      "responseSha256": "e247b01083cf40a8b7819c85fdb86029f97fbdbcf402c0b056be9871ad49133f",
+      "status": 404,
+      "usage": {},
+      "detailFormats": [],
+      "answer": "",
+      "gatewayError": "{\"error\":{\"message\":\"No endpoints found for deepseek/deepseek-v4-flash-0731. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp8/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed deepinfra/fp8/priority, coreweave/fp8, mancer/fp8, alibaba, alibaba/us-east-1, siliconflow/fp8, novita/fp8; Filter by Fallback removed wafer/us, baidu/fp8, deepinfra/fp8, relace/fp4, cohere/fp8, digitalocean, baseten/fp8, baseten/fp32, venice, inceptron/fp4, streamlake/fp8, wafer/fast, nebius/fp8, parasail/fp8, sail-research/us, sail-research/fp4, chutes/fp8, primeintellect/fp4.\",\"code\":404,\"metadata\":{\"routing_funnel\":[{\"step\":\"Initial Endpoints\",\"endpoint_count\":26},{\"step\":\"Filter by Tier Endpoint Rows\",\"endpoint_count\":25,\"reason\":\"Excluded tier endpoint rows the request did not opt into\"},{\"step\":\"Filter by Tool Compatibility\",\"endpoint_count\":18},{\"step\":\"Filter by Fallback\",\"endpoint_count\":0}],\"failed_routing_step\":\"Filter by Fallback\"}},\"user_id\":\"org_3GWoYKDH0pVwjQAbWAVm7ed910A\"}"
+    },
+    "tool": {
+      "requestSha256": "c4e3eb2a947a03b3e7f49f90c140dbf130d72b65a075b01d4de007fd6292d21e",
+      "responseSha256": "39c29b7b0d3fa272f9b7abd3a1562ccf99357933151ef32a8f546234bd2d4d47",
+      "status": 200,
+      "provider": "SiliconFlow",
+      "upstreamModel": "deepseek/deepseek-v4-flash-0731",
+      "requestId": "gen-1795448046-xs0AYPEU4RzyrjVv3SDi",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 385,
+        "completion_tokens": 46,
+        "cost": "0.00011506",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}"
+    }
+  },
+  "coldCalibration": {
+    "tokenizer": "o200k_base",
+    "measuredRequests": 28,
+    "allowanceTokens": "934",
+    "sampleWithLargestResidual": {
+      "name": "deepseek-v4-flash-0731",
+      "case": "release-tools",
+      "prompt": 8187,
+      "visible": 7253,
+      "media": 0,
+      "residual": 934,
+      "replay": false
+    }
+  }
+}

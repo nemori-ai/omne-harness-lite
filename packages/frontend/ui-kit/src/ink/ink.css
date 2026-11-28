@@ -1,0 +1,379 @@
+.omne-figure-ink {
+  position: relative;
+  display: block;
+  overflow: visible;
+  color: var(--omne-ink-primary);
+}
+
+.omne-figure-paper {
+  position: absolute;
+  display: block;
+  max-width: none;
+  max-height: none;
+  color: var(--omne-caution-ink);
+  pointer-events: none;
+}
+
+.omne-figure-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--omne-layer-figure);
+  pointer-events: none;
+}
+
+:root:has([data-keyboard-modal][data-state='open'] [data-figure-seat]) .omne-figure-layer {
+  z-index: var(--omne-layer-figure-raised);
+}
+
+.omne-figure-carried {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: var(--omne-layer-figure);
+  pointer-events: none;
+  touch-action: none;
+  will-change: transform;
+}
+
+.omne-figure-reach {
+  position: absolute;
+  inset: 10%;
+  z-index: 1;
+  border-radius: var(--omne-radius-pill);
+  pointer-events: auto;
+}
+
+.omne-figure-carried:is([data-phase='flying'], [data-phase='dropped'], [data-phase='away'])
+  .omne-figure-reach {
+  pointer-events: none;
+}
+
+.omne-figure-vacant {
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--omne-radius-pill);
+  background: transparent;
+  pointer-events: auto;
+}
+
+.omne-figure-carried .omne-figure-ink,
+.omne-figure-journeys .omne-figure-ink,
+.omne-motes {
+  filter: drop-shadow(
+      0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
+    )
+    drop-shadow(
+      0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
+    );
+}
+
+.omne-figure-journeys {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.omne-figure-journeys .omne-figure-remnant {
+  position: absolute;
+}
+
+.omne-figure-seat {
+  display: inline-block;
+  flex: none;
+}
+
+.omne-ink-bubble {
+  --omne-ink-bubble-paper: 1;
+  isolation: isolate;
+}
+
+.omne-ink-bubble,
+.omne-paper-edge {
+  --omne-ink-bubble-edge: var(--omne-ink-bubble-edge-full);
+}
+
+.omne-ink-bubble[data-ink-strength='light'] {
+  --omne-ink-bubble-edge: var(--omne-ink-bubble-edge-light);
+}
+
+.omne-ink-bubble-paper {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--omne-radius-window);
+  pointer-events: none;
+}
+
+.omne-ink-bubble-paper::before,
+.omne-ink-bubble-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.omne-ink-bubble-paper::before {
+  background: var(--omne-surface-field);
+  mask-image: radial-gradient(
+    circle at var(--omne-ink-bubble-paper-at, 0 0),
+    var(--omne-ink-mask)
+      calc(
+        var(--omne-ink-bubble-paper) * (100% + var(--omne-ink-bubble-paper-soft)) -
+          var(--omne-ink-bubble-paper-soft)
+      ),
+    transparent calc(var(--omne-ink-bubble-paper) * (100% + var(--omne-ink-bubble-paper-soft)))
+  );
+}
+
+.omne-ink-bubble-paper::after {
+  box-shadow: 0 var(--omne-ink-shadow-y) var(--omne-ink-shadow-blur) var(--omne-ink-shadow);
+  opacity: var(--omne-ink-bubble-paper);
+}
+
+.omne-ink-bubble-edge,
+.omne-ink-bubble-wet {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(
+      0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
+    )
+    drop-shadow(
+      0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
+    );
+}
+
+.omne-ink-bubble-wet {
+  color: var(--omne-ink-primary);
+}
+
+.omne-ink-bubble-edge path,
+.omne-paper-edge path {
+  fill: var(--omne-ink-bubble-edge);
+}
+
+.omne-ink-bubble[data-ink='writing'] .omne-ink-bubble-edge path {
+  opacity: 0;
+}
+
+.omne-ink-bubble > :not(.omne-ink-bubble-paper, .omne-ink-bubble-edge, .omne-ink-bubble-wet) {
+  transition: opacity var(--omne-motion-state) var(--omne-motion-ease);
+}
+
+.omne-ink-bubble[data-ink='writing']
+  > :not(.omne-ink-bubble-paper, .omne-ink-bubble-edge, .omne-ink-bubble-wet) {
+  opacity: 0;
+}
+
+.omne-ink-bubble[data-ink='folding']
+  > :not(.omne-ink-bubble-paper, .omne-ink-bubble-edge, .omne-ink-bubble-wet) {
+  opacity: 0;
+  transition-duration: var(--omne-motion-feedback);
+}
+
+.omne-told-note {
+  position: fixed;
+  z-index: 32;
+  width: max-content;
+  max-width: min(26em, calc(100vw - var(--omne-told-note-room)));
+  margin: 0;
+  padding: var(--omne-told-note-padding);
+}
+
+.omne-told-note[data-side='left'] {
+  text-align: end;
+}
+
+.omne-told-note-words {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--omne-told-lines, 3);
+  margin: 0;
+  padding: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-wrapped);
+  text-align: inherit;
+  overflow-wrap: anywhere;
+  cursor: default;
+}
+
+.omne-told-note-words:is(:hover, :focus-visible) {
+  color: var(--omne-ink-primary);
+}
+
+.omne-say-bubble {
+  position: fixed;
+  z-index: var(--omne-layer-figure);
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: var(--omne-space-block);
+}
+
+.omne-say-to {
+  align-self: flex-start;
+}
+
+.omne-say-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.omne-say-picture {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.omne-say-thumb {
+  display: block;
+  max-width: 100%;
+  height: calc(var(--omne-control-height) * 2);
+  border-radius: var(--omne-radius-chip);
+  object-fit: cover;
+}
+
+.omne-say-told {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+}
+
+.omne-say-field {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.omne-say-line {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+
+.omne-say-line[data-tone='failed'] {
+  color: var(--omne-danger-ink);
+}
+
+.omne-say-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--omne-space-inline);
+}
+
+.omne-say-reply {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-wrapped);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.omne-say-reply-text {
+  margin: 0;
+}
+
+.omne-say-reply-told {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+
+.omne-say-phrases {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--omne-space-inline);
+  width: max-content;
+}
+
+.omne-say-phrases[data-side='right'] {
+  left: calc(100% + var(--omne-space-inline));
+}
+
+.omne-say-phrases[data-side='left'] {
+  right: calc(100% + var(--omne-space-inline));
+  align-items: flex-end;
+}
+
+.omne-figure-label {
+  position: fixed;
+  z-index: var(--omne-layer-figure);
+  display: grid;
+  max-width: 22em;
+  margin: 0;
+  padding: calc(var(--omne-space-inline) * 0.75) calc(var(--omne-space-inline) * 1.25);
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-surface-overlay);
+  box-shadow: var(--omne-elevation-raised);
+  pointer-events: none;
+}
+
+.omne-figure-label-line {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omne-figure-label-line:first-child {
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-ui);
+}
+
+.omne-figure-label-line[data-tone='hint'] {
+  color: var(--omne-info-ink);
+}
+
+.omne-observation-frame {
+  position: fixed;
+  z-index: calc(var(--omne-layer-figure) - 1);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.omne-observation-frame-line {
+  fill: var(--omne-ink-primary);
+  filter: drop-shadow(
+      0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
+    )
+    drop-shadow(
+      0 0 var(--omne-ink-breath-far) color-mix(in oklab, var(--omne-surface-page) 60%, transparent)
+    );
+}
+
+.omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 18%, transparent);
+}
+
+.omne-observation-frame[data-closed='true'] .omne-observation-frame-wash {
+  fill: color-mix(in oklab, var(--omne-info-fill) 32%, transparent);
+}

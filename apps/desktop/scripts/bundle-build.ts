@@ -15,7 +15,12 @@ import {
 
 export const desktopDir = resolve(import.meta.dirname, '..')
 
-const EXTERNAL = ['electron', ...builtinModules.flatMap(name => [name, `node:${name}`])]
+// The screenshot library loads its binary by path at run time (src/main/screen-host.ts); it is never bundled.
+const EXTERNAL = [
+  'electron',
+  'node-screenshots',
+  ...builtinModules.flatMap(name => [name, `node:${name}`]),
+]
 
 export const modulesRecordName = (bundle: string): string => `${bundle}.modules.json`
 
@@ -97,7 +102,8 @@ export function bundleConfig(
   watch = false,
   outDir = resolve(desktopDir, bundleDir(profile)),
 ): InlineConfig {
-  const name = bundle.replace(/\.js$/, '')
+  const name = bundle.replace(/\.c?js$/, '')
+  const commonJs = bundle.endsWith('.cjs')
   const production = profile !== 'dev'
   return {
     configFile: false,
@@ -120,7 +126,11 @@ export function bundleConfig(
       rolldownOptions: {
         input: { [name]: resolve(desktopDir, BUNDLE_ENTRIES[bundle]) },
         external: EXTERNAL,
-        output: { format: 'es', entryFileNames: '[name].js', codeSplitting: false },
+        output: {
+          format: commonJs ? 'cjs' : 'es',
+          entryFileNames: commonJs ? '[name].cjs' : '[name].js',
+          codeSplitting: false,
+        },
       },
     },
   }

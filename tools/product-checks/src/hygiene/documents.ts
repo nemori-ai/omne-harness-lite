@@ -6,6 +6,7 @@ const ALWAYS: readonly RegExp[] = [
   /^docs\/architecture\/.+/u,
   /^docs\/domains\/.+/u,
   /^(packages|apps|tools)\/[^/]+\/SPEC\.md$/u,
+  /^benchmarks\/SPEC\.md$/u,
   /(^|\/)api\/[^/]+\.api\.md$/u,
   /(^|\/)verification\/(.+\/)?formal-mapping\.md$/u,
   /(^|\/)verification\/(.+\/)?proofs\/(?!README\.md$|index\.md$)[^/]+\.md$/u,
@@ -15,6 +16,7 @@ const ALWAYS: readonly RegExp[] = [
   /^\.meta_harness\/design\/product\/.+/u,
   /^\.meta_harness\/agents\/skills\/.+/u,
   /^\.github\/.+/u,
+  /^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/skills\/[^/]+\/(SKILL|references\/[^/]+)\.md$/u,
 ]
 
 const RESERVED_DESIGN: readonly RegExp[] = [

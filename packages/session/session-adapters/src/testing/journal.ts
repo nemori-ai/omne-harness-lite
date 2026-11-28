@@ -28,6 +28,7 @@ import {
 import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
+import { acknowledgedFacts } from './obligation-ledger.ts'
 import {
   fixAnswer,
   keptAnswer,
@@ -216,6 +217,7 @@ import {
   undetermined,
   validatedCustody,
 } from './journal-handoff-checks.ts'
+import { initialInputs, openedBlobs, openedFacts, openRefusal, stepBegun } from './journal-open.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
 
@@ -2258,9 +2260,8 @@ export function createJournal<P>(
 
     open(input) {
       const key = openKey(input)
-      const { original: acceptance, runtime } = input
-      const entry = acceptance.entry
-      const initial = entry.kind === 'invoke' ? entry.initial : entry.value
+      const { originals, runtime } = input
+      const initial = initialInputs(originals)
       return write('open', input, key, () => {
         const existing = state().executions.get(executionKey(input.tenant, input.execution))
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
@@ -2273,21 +2274,13 @@ export function createJournal<P>(
         )
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
-        const malformed = acceptanceFailure('open', input, acceptance)
+        const malformed =
+          originals.map(item => acceptanceFailure('open', input, item)).find(Boolean) ??
+          openRefusal(originals, runtime)
         if (malformed !== undefined) return answer(fail(malformed))
-        if (entry.kind !== 'invoke') return answer(fail(invalid('original.entry', 'not an invoke')))
-        const origin = acceptance.outcome.origin
-        if (
-          origin?.kind === 'invoke' &&
-          (!sameValue(origin.scope, runtime.scope) ||
-            !sameValue(origin.definition, runtime.definition))
-        )
-          return answer(
-            fail(invalid('runtime', 'not the scope and definition of the invoke origin')),
-          )
         if (!grantHolds({ ...input, grant: runtime.grant }, 'open'))
           return answer(fail(denied('open')))
-        if (initial.source === null) return answer(fail(denied('open')))
+        if (initial.some(value => value.source === null)) return answer(fail(denied('open')))
         const authority: Authority = {
           execution: input.execution,
           executionAttachment: attachmentIdOf(input.execution, 1),
@@ -2296,7 +2289,6 @@ export function createJournal<P>(
           source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
         const checkpoint = input.checkpoint
-        const outcome = acceptance.outcome
         const bound = receiving.newBindings(
           { id: input.execution, tenant: input.tenant, checkpoint, effects: [] },
           runtime.instance,
@@ -2308,39 +2300,14 @@ export function createJournal<P>(
             schema: checkpoint.schema,
             instance: runtime.instance,
             scope: runtime.scope,
-            original: {
-              input: initial.id,
-              entry: acceptance.handoff.entry,
-              handoff: acceptance.handoff,
-            },
             coordination: 'coordinated',
           },
           { kind: 'exec.attached', authority, grant: runtime.grant, basis: { kind: 'open' } },
-          {
-            kind: 'input.accepted',
-            input: initial.id,
-            entry: acceptance.handoff.entry,
-            message: refOf(initial.content),
-            source: initial.source,
-            priority: initial.priority,
-            watermark: outcome.record,
-          },
-          {
-            kind: 'handoff.resolved',
-            handoff: acceptance.handoff,
-            resolution: 'recorded',
-            outcome: refOf(outcome),
-            history: outcome.record,
-          },
+          ...openedFacts(originals),
           ...cursorPlaced(checkpoint, { kind: 'advancing' }),
           ...bound.facts,
         ]
-        const blobs: Blob[] = [
-          blobOf(initial.content),
-          blobOf(outcome),
-          ...blobsOf(checkpoint),
-          ...bound.blobs,
-        ]
+        const blobs: Blob[] = [...openedBlobs(originals), ...blobsOf(checkpoint), ...bound.blobs]
         return {
           kind: 'batch',
           facts,
@@ -2366,8 +2333,8 @@ export function createJournal<P>(
                   handoffRevision: 0,
                 },
               ],
-              inputs: [copy(initial)],
-              inputRevisions: new Map([[initial.id, view.revision]]),
+              inputs: initial.map(value => copy(value)),
+              inputRevisions: new Map(initial.map(value => [value.id, view.revision])),
               events: [],
               retainedFrom: 1,
               acknowledged: 0,
@@ -2387,7 +2354,9 @@ export function createJournal<P>(
               ),
               entries: [],
               deliveries: new Map(),
-              handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
+              handoffs: originals.map(acceptance =>
+                inputHandoff(acceptance, input.operation, view.revision),
+              ),
               custodyAttempts: new Map(),
               finishing: emptyFinishing(),
               serial: batch.pub,
@@ -2747,7 +2716,7 @@ export function createJournal<P>(
           !view.steps.some(item => item.batch.id === taken.id) &&
           !input.events.some(body => body.kind === 'input-taken')
         )
-          facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(taken) })
+          facts.push(stepBegun(input.checkpoint.step, taken))
         const adopted = input.checkpoint.adoptedRequest ?? null
         const adoptedBefore = execution.checkpoint.adoptedRequest ?? null
         if (adopted !== null && canonical(adopted) !== canonical(adoptedBefore)) {
@@ -2769,8 +2738,7 @@ export function createJournal<P>(
           return answer(fail(invalid('checkpoint.voided', 'the voided request was not adopted')))
         facts.push(...closed)
         for (const body of input.events) {
-          if (body.kind === 'input-taken')
-            facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
+          if (body.kind === 'input-taken') facts.push(stepBegun(input.checkpoint.step, body.batch))
           if (body.kind === 'waiting') {
             blobs.push(blobOf(body.waits))
             facts.push({
@@ -3148,9 +3116,8 @@ export function createJournal<P>(
         const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
-        if (through === undefined || through < 1 || through > execution.events.length) {
+        if (through === undefined || through < 1 || through > execution.events.length)
           return answer(fail(invalid('through', 'beyond the emitted events')))
-        }
         if (through <= execution.acknowledged)
           return recognitionBatch(
             reachedStamp(state(), execution.id, execution.acknowledgedAt),
@@ -3159,7 +3126,7 @@ export function createJournal<P>(
           )
         return {
           kind: 'batch',
-          facts: [{ kind: 'ack.through', sequence: through }],
+          facts: acknowledgedFacts(viewOf(execution.id).finish.obligations, through),
           blobs: [],
           kinds: [],
           derive: receiptIn,

@@ -1,8 +1,20 @@
 // @module-tag slow
 import { execFile, spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rowIds } from '../src/s0/rows.ts'
@@ -107,7 +119,7 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 97, 'contract-double': 0, 's0-double': 2 },
+      implementations: { real: 126, 'contract-double': 0, 's0-double': 2 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
@@ -144,6 +156,157 @@ describe('serve process', () => {
       child.kill()
       await exited
     }
+  })
+
+  it('a row that fails at start: the process leaves by itself with 3, names the stuck rows, needs no signal', async () => {
+    const release = await releaseRun()
+    const args = [
+      'serve',
+      ...common(release.stateRoot),
+      ...release.args,
+      '--root-disposal-deadline-ms',
+      '1500',
+    ]
+    const storage = join(release.stateRoot, 'storage')
+    expect((await serveUntilStartup([...args, '--stop-on-stdin-close'])).code).toBe(0)
+    // A tenant the server knows: its next start registers the session combination in the tenant's domain.
+    const tenant =
+      '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_aaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+    const directory = join(storage, 'tenant-domains.json')
+    const listed = JSON.parse(readFileSync(directory, 'utf8')) as { tenants: string[] }
+    writeFileSync(directory, JSON.stringify({ ...listed, tenants: [tenant] }))
+    expect((await serveUntilStartup([...args, '--stop-on-stdin-close'])).code).toBe(0)
+    // What an older build leaves: the same combination version, registered with another digest.
+    let changed = 0
+    for (const name of readdirSync(join(storage, 'domains')).filter(each =>
+      each.endsWith('.sqlite'),
+    )) {
+      const db = new DatabaseSync(join(storage, 'domains', name))
+      const has = db.prepare("select 1 from sqlite_master where name='_sql_registration'").get()
+      if (has !== undefined)
+        changed += Number(
+          db
+            .prepare(
+              "update _sql_registration set manifest_digest = ? where combination_version like 'session-composite/%'",
+            )
+            .run('f'.repeat(64)).changes,
+        )
+      db.close()
+    }
+    expect(changed).toBe(1)
+
+    const began = performance.now()
+    const out = await runBin(args)
+    const tookMs = performance.now() - began
+    expect(out.code).toBe(3)
+    expect(tookMs).toBeLessThan(20_000)
+    const of = (kind: string) => out.records.filter(r => r.kind === kind)
+    const states = new Map(of('row-state').map(r => [r['id'], r['state']]))
+    expect(states.size).toBe(rowIds.length)
+    expect(states.get('session-storage')).toBe('FAILED')
+    const startup = of('startup-result')[0] as Rec & { stuck: string[] }
+    expect(startup).toMatchObject({ accepting: false, outcome: 'failed' })
+    expect(startup.stuck).toEqual(
+      [...states].filter(([, state]) => state === 'LOADING').map(([id]) => id),
+    )
+    expect(startup.stuck).toEqual(expect.arrayContaining(['tool-instances', 'tool-environments']))
+    expect(out.records.at(-1)?.kind).toBe('shutdown-result')
+    expect(out.stderr).toMatch(
+      /root disposal did not settle within 1500 ms; the process ends without it; stuck rows: .*tool-environments/,
+    )
+  })
+
+  it('a stop asked while the rows load: the process turns to shutdown and leaves with 4', async () => {
+    const release = await releaseRun()
+    const child = spawn(
+      process.execPath,
+      [bin, 'serve', ...common(release.stateRoot), ...release.args],
+      {
+        env: { ...process.env, NO_COLOR: '1' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    let stdout = ''
+    let asked = false
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk
+      if (!asked && stdout.includes('"kind":"entry-object"')) {
+        asked = true
+        child.kill('SIGTERM')
+      }
+    })
+    const began = performance.now()
+    const code = await new Promise<number | null>(resolve => child.on('exit', resolve))
+    expect(code).toBe(4)
+    expect(performance.now() - began).toBeLessThan(15_000)
+    const records = parse(stdout)
+    expect(records.find(r => r.kind === 'startup-result')).toMatchObject({
+      accepting: false,
+      outcome: 'stopped',
+    })
+    expect(records.at(-1)?.kind).toBe('shutdown-result')
+  })
+
+  it('the stamp of the state directory: written at the first ready start, refused with 2 when it names a newer format', async () => {
+    const release = await releaseRun()
+    const args = ['serve', ...common(release.stateRoot), ...release.args]
+    const stampPath = join(release.stateRoot, 'state-stamp.json')
+    expect(existsSync(stampPath)).toBe(false)
+    expect((await serveUntilStartup([...args, '--stop-on-stdin-close'])).code).toBe(0)
+    const written = JSON.parse(readFileSync(stampPath, 'utf8')) as {
+      writtenBy: string
+      formats: Record<string, number>
+    }
+    expect(written.writtenBy).toMatch(/^harness-server@\d+\.\d+\.\d+/)
+    expect(written.formats).toEqual({ 'state-directory': 1, 'session-composite': 27 })
+
+    // A later build left this directory: one format this build does not know, one at a newer number.
+    writeFileSync(
+      stampPath,
+      JSON.stringify({
+        writtenBy: 'harness-server@9.9.9',
+        formats: { ...written.formats, 'session-composite': 28, 'page-bundles': 1 },
+      }),
+    )
+    const digests = (): Record<string, string> =>
+      Object.fromEntries(
+        (readdirSync(release.stateRoot, { recursive: true }) as string[])
+          .filter(name => statSync(join(release.stateRoot, name)).isFile())
+          .sort()
+          .map(name => [
+            name,
+            createHash('sha256')
+              .update(readFileSync(join(release.stateRoot, name)))
+              .digest('hex'),
+          ]),
+      )
+    const before = digests()
+    expect(Object.keys(before).length).toBeGreaterThan(5)
+    const refused = await runBin(args)
+    expect(refused.code).toBe(2)
+    expect(refused.stdout).toBe('')
+    expect(refused.stderr).toContain(
+      'state-root-newer: written by harness-server@9.9.9; this build does not know: page-bundles, session-composite',
+    )
+    expect(digests()).toEqual(before)
+
+    // An unreadable stamp says nothing of who wrote the directory: refused the same way, nothing touched.
+    writeFileSync(stampPath, '{')
+    const unread = await runBin(args)
+    expect(unread.code).toBe(2)
+    expect(unread.stderr).toContain('state-stamp-unreadable')
+
+    // An older build left it: this build starts, and the stamp names this build again.
+    writeFileSync(
+      stampPath,
+      JSON.stringify({
+        writtenBy: 'harness-server@0.0.0-old',
+        formats: { 'session-composite': 22 },
+      }),
+    )
+    expect((await serveUntilStartup([...args, '--stop-on-stdin-close'])).code).toBe(0)
+    expect(JSON.parse(readFileSync(stampPath, 'utf8'))).toEqual(written)
   })
 
   it('missing --state-root on a host without setup: exit 2, the setup hint, nothing on stdout', async () => {

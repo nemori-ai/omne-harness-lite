@@ -37,6 +37,15 @@ export const modelHostConfig = z.strictObject({
     maxCostMisses: count(1),
     delaysMs: z.array(count(1)).min(1),
   }),
+  live: z.strictObject({
+    capacity: count(1),
+    deadlines: z.strictObject({
+      openMs: count(0),
+      closeMs: count(0),
+      drainMs: count(0),
+      redeliverMs: count(0),
+    }),
+  }),
 })
 
 export type ModelHostConfig = z.output<typeof modelHostConfig>

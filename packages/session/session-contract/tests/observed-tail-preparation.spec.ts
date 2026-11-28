@@ -25,7 +25,7 @@ import { open } from './scene.ts'
 async function observedTail() {
   const s = await open()
   const { run } = await s.active()
-  const handover = async (input: typeof run.first) =>
+  const handover = async (input: (typeof run.initial)[0]) =>
     succeeded(
       await s.commit({
         kind: 'receive',
@@ -42,7 +42,7 @@ async function observedTail() {
       }),
       'handover',
     )
-  await handover(run.first)
+  await handover(run.initial[0])
   const observation = (sequence: string, consequences: readonly SessionLogConsequence[]) =>
     ({
       ...s.base,
@@ -62,7 +62,7 @@ async function observedTail() {
           batch: {
             id: 'original-batch' as never,
             watermark: evidence('original-watermark'),
-            ordered: [run.first],
+            ordered: [run.initial[0]],
           },
         },
       ]),
@@ -80,7 +80,7 @@ async function observedTail() {
       input: {
         ...s.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     }),
     'freeze',
@@ -359,6 +359,35 @@ describe('final decisions after an observed-only tail', () => {
     }
   })
 
+  it('owes no observed tail to an execution Session closed as uninterpretable; without that mark it does', async () => {
+    const f = await observedTail()
+    const reads = { ...f.reads, prefixes: [] }
+    const marked = (mark: Partial<NonNullable<WorkSnapshot['executions']>[number]>): Fixture => ({
+      ...f,
+      snapshot: {
+        ...f.snapshot,
+        executions: (f.snapshot.executions ?? []).map(item =>
+          item.run === f.run.run ? { ...item, ...mark } : item,
+        ),
+      },
+    })
+    expect(cancel(marked({ uninterpretable: true }), reads).kind).toBe('entries')
+    const held = f.snapshot.executions ?? []
+    const earlier = {
+      ...held[0]!,
+      run: 'run-earlier' as typeof f.run.run,
+      uninterpretable: true as const,
+    }
+    const beside: Fixture = { ...f, snapshot: { ...f.snapshot, executions: [earlier, ...held] } }
+    expect(cancel(beside, reads)).toMatchObject({
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('committedConsequences'),
+      },
+    })
+  })
+
   it('does not treat an explicitly empty consequence list as observed even when the index agrees', async () => {
     const f = await observedTail()
     expect(cancel(f).kind).toBe('entries')
@@ -436,6 +465,7 @@ describe('final decisions after an observed-only tail', () => {
           outcome: 'completed' as const,
           cause: null,
           disposition: evidence('disposition'),
+          end: null,
         },
       ],
     }

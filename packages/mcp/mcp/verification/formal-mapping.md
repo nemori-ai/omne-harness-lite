@@ -96,3 +96,62 @@
 | `calls-bad-send-after-shut`    | 负控                 | `P13_NoSendAfterShut` 违反                       |
 | `calls-bad-send-unguarded`     | 负控                 | `P16_NoRequestOnRefusing` 违反                   |
 | `calls-bad-wait-answer`        | 负控（活性）         | `LiveSpec` 下 `P14_EveryCallAnswers` 有时序反例  |
+
+## 接续与事件订阅
+
+[Continuation.tla](models/Continuation.tla)、[Events.tla](models/Events.tla) 是两份独立的小模型，各守[包组规格](../../SPEC.md#不变式)里新加的一组不变式。它们与上面两份模型之间没有精化关系，也没有到实现的精化证明：有限实例没有反例，不等于实现符合；实现的符合由各成员的用例与发行应用里的用例核对。OAuth 授权的模型在成员 `mcp-authorization` 里，见[它的形式映射](../../mcp-authorization/verification/formal-mapping.md)。
+
+模型的前提，都是别人的保证：
+
+- `Continuation`：一个检查点只有一个后继，一份答复只被采用一次，已关的等待不接受答复。这三条归 Tool（它的不变式 TL-29）。
+- `Events`：对端的事件按产生的次序交来，可以重复交，可以忘掉最旧的；存储的一次提交要么全成立要么全不成立。
+
+模型省掉的：真实的传输与时限（归 `TransportSession` 与 `Calls`）；多个订阅之间、多个接入点之间的交错；写入结果不知道时存储一侧的认回（归存储契约）。
+
+### 性质
+
+| 规格不变式 | 模型性质 | 实现与用例 |
+| --- | --- | --- |
+| MC-27 | `Continuation`：`I1_InitialOnce`、`I1_ContinuationOnce`、`P_CancelOnce` | `mcp-bridge` 的恢复段：发出之前写接续记录；进程丢失后的接续用例 |
+| MC-28 | `Continuation`：`P_RowBeforePark`、`P_RowMatchesWait` | `mcp` 的任务看守：交出与任务行的转移同一次提交 |
+| MC-29 | `Continuation`：`I6_CompleteIsTrue` | 任务结局到调用结局的映射 |
+| MC-36 | `Events`：`I12_NothingLostSilently`、`I13_StoredOnce`、`P_PositionForward` | `mcp` 的事件接收：落盘与位置前进同一次提交 |
+| MC-37 | `Events`：`I14_GapIsReported`、`P_TerminatedIsReported` | 缺口与终止的记录与报告 |
+| MC-38 | `Events`：`I16_NoSubscriberNoStream`、`P_StreamOnlyWhenReceiving` | 订阅者的增减与流的开关 |
+
+### 动作
+
+| 模型动作 | 设计里的哪一步 |
+| --- | --- |
+| `Continuation`：`FirstSegment` | 第一段发出 `tools/call`，对端答完成、要输入、建任务或不答 |
+| `PersonAnswers` | 人答了卡片，Tool 采用答复并计划恢复段 |
+| `ResumeRecord`、`ResumeSend`、`ResumeCommit` | 恢复段：先写接续记录，再发出接续或 `tasks/update`，再提交这一段的结果 |
+| `Watch` | 任务的看守去查并交出「到了」或「要输入」 |
+| `ResumeTask` | 恢复段读任务的结果，或换成等人 |
+| `Crash` | 进程丢失：第一个检查点之前以未知收场；停泊的不丢；恢复段从同一检查点重来 |
+| `Events`：`Subscribe`、`Unsubscribe` | 订阅者来与走；第一个建订阅，最后一个删订阅 |
+| `Open` | 带着位置开流；对端服务不了这个位置时记缺口并跳过 |
+| `Receive`、`Again` | 收到下一条事件；对端重复交来的不再落盘 |
+| `Deliver` | 消费者收下一条已落盘的事件 |
+| `Terminate`、`ConnectionLost`、`ConnectionBack`、`Break` | 对端终止；连接丢了与回来；流断了 |
+
+### 负控的缺陷
+
+| 缺陷钩子 | 模拟的实现缺陷 | 须违反的性质 |
+| --- | --- | --- |
+| `no-record` | 恢复段不写接续记录就发出 | `I1_ContinuationOnce` |
+| `mark-later` | 看守交出答复之后才改任务行 | `P_RowMatchesWait` |
+| `complete-on-gone` | 任务过期或查不到时把调用写成完成 | `I6_CompleteIsTrue` |
+| `park-before-row` | 调用先停泊、任务行后写 | `P_RowBeforePark` |
+| `cursor-first` | 位置先前进、事件后落盘 | `I12_NothingLostSilently` |
+| `no-dedup` | 对端重复交来的事件再落盘一次 | `I13_StoredOnce` |
+| `silent-gap` | 位置跳过对端忘掉的事件而不记缺口 | `I12_NothingLostSilently` |
+| `keep-stream` | 最后一个订阅者走了或进程丢了之后流还开着 | `I16_NoSubscriberNoStream` |
+
+### 配置的预期
+
+| 配置 | 用途 | 预期 |
+| --- | --- | --- |
+| `cont-valid` | 正控：三个检查点、两次进程丢失 | 通过 |
+| `events-valid` | 正控：三条事件、两个订阅者、两次进程丢失 | 通过 |
+| `cont-bad-*`、`events-bad-*` | 负控，每份开一个缺陷钩子 | 违反上表那一行的性质 |

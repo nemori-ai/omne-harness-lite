@@ -1,5 +1,5 @@
 export { AttachmentTrayView, type AttachmentTrayProps } from './view/attachment-tray.tsx'
-export { MediaBlock, type MediaBlockProps } from './view/media-block.tsx'
+export { MEDIA_BLOCKS, type MediaBlockKind, type MediaBlockProps } from './view/media-block.tsx'
 export {
   AttachmentTray,
   IMAGE_TYPES,

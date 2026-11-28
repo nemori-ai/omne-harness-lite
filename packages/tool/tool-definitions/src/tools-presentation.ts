@@ -1,7 +1,11 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { writeJsonText } from '@omne-harness/json-text'
-import { returnSummary } from '@omne-harness/tool-contract'
-import { returnGuide } from '@omne-harness/tool-contract/provider'
+import {
+  commandSignature,
+  programSignature,
+  returnGuide,
+  returnSummary,
+} from '@omne-harness/tool-contract/provider'
 import type {
   SearchPage,
   ToolFailure,
@@ -31,7 +35,11 @@ export const toolsFailure = (failure: ToolFailure) =>
     `ERROR: ${failure.kind}${failure.kind === 'invalid' ? ` (${failure.field}: ${failure.reason})` : ''}`,
   )
 
-export function presentSearch(page: SearchPage): ToolResult<ToolMessageContentBlock> {
+/** `functions`: the search asked for what a program can call, so each tool shows how a program calls it. */
+export function presentSearch(
+  page: SearchPage,
+  functions: boolean,
+): ToolResult<ToolMessageContentBlock> {
   return toolsText(
     JSON.stringify({
       tools: page.entries.map(entry => ({
@@ -46,13 +54,16 @@ export function presentSearch(page: SearchPage): ToolResult<ToolMessageContentBl
             ? entry.definition.commands.map(command => ({
                 name: command.name,
                 summary: command.summary,
+                signature: commandSignature(command.parameters),
                 returns: returnSummary(command.returns),
               }))
             : [],
         ...(entry.definition.kind === 'function'
           ? { returns: returnSummary(entry.definition.returns) }
           : {}),
+        ...(functions ? { program: programSignature(entry.definition) } : {}),
       })),
+      ...(page.withheld === undefined ? {} : { withheld: page.withheld }),
       next: page.next,
     }),
   )
@@ -72,9 +83,11 @@ export function presentInspection(view: ToolUsageView): ToolResult<ToolMessageCo
       `${JSON.stringify(overview)}\ncommand: ${view.usage.command ?? 'null'}\n${view.usage.description}\nparameters: ${'schema' in parameters ? writeJsonText(parameters.schema) : parameters.usage}\n${returnGuide(view.usage.returns)}`,
     )
   }
+  const program = programSignature(definition)
   return toolsText(
     JSON.stringify({
       ...overview,
+      ...(program === '' ? {} : { program }),
       commands:
         definition.kind === 'commands'
           ? definition.commands.map(command => ({

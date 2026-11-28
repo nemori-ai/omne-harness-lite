@@ -13,7 +13,6 @@ import {
   operationId,
   evidence,
   inputId,
-  ordinaryInput,
   succeeded,
   refused,
 } from '@omne-harness/session-contract/testing'
@@ -95,7 +94,7 @@ describe('Session governance beyond the first path', () => {
       input: {
         ...idle.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('lost') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('lost') },
       },
     } satisfies SessionCommand
     const first = succeeded(await idle.commit(freeze), 'freeze')
@@ -153,7 +152,13 @@ describe('Session governance beyond the first path', () => {
       source: evidence('ended'),
       sequence: '1',
       consequences: [
-        { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+        {
+          kind: 'ended',
+          outcome: 'completed',
+          cause: null,
+          disposition: evidence('complete'),
+          end: null,
+        },
       ] satisfies readonly SessionLogConsequence[],
     }
     expect((await s.read()).run.kind).toBe('active')
@@ -199,7 +204,13 @@ describe('Session governance beyond the first path', () => {
           sequence: '1',
           source: evidence('ended'),
           consequences: [
-            { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+            {
+              kind: 'ended',
+              outcome: 'completed',
+              cause: null,
+              disposition: evidence('complete'),
+              end: null,
+            },
           ],
         },
         operationId('project'),
@@ -521,7 +532,7 @@ describe('Session governance beyond the first path', () => {
               handover: evidence(`deliver/${input}`),
             },
             value: {
-              deliveries: [{ input: input as never, message: ordinaryInput(input).message }],
+              inputs: [input as never],
               source: evidence(`step/${input}`),
               admission: evidence(`step/${input}`),
             },

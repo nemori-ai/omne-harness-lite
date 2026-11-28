@@ -280,7 +280,7 @@ for (const boundary of ['preserve', 'settle'] as const)
         inputs.push(structuredClone(input))
         if (!raced) {
           raced = true
-          unbox(await commands.control({ ...f.admit, operation: op('race') }))
+          unbox(await commands.control({ ...f.admit, operation: op('race'), intent: 'cancel' }))
         }
       }
       return boundary === 'preserve'
@@ -545,7 +545,9 @@ it('shares one replacement budget between terminal preserve and settle in the sa
     preserve: async input => {
       if (!preserved) {
         preserved = true
-        unbox(await commands.control({ ...f.admit, operation: op('preserve-race') }))
+        unbox(
+          await commands.control({ ...f.admit, operation: op('preserve-race'), intent: 'cancel' }),
+        )
       }
       return commands.preserve(input)
     },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
+  decodeResidentKey,
   encodeResidentKey,
   projectResidentReferences,
   residentToolFacts,
@@ -164,6 +165,33 @@ describe('encodeResidentKey', () => {
     expect(encodeResidentKey({ ...base, layer: { kind: 'galaxy' } as never })).toEqual({
       failure: { field: 'layer.kind', reason: 'type' },
     })
+  })
+})
+
+describe('decodeResidentKey', () => {
+  it('gives back a key that sameBindingKey takes for the one encoded, for each source layer', () => {
+    for (const layer of layers()) {
+      const original = key(layer, '7', 'write_file')
+      const decoded = decodeResidentKey(encoded(original))
+      expect('ok' in decoded && sameBindingKey(decoded.ok, original)).toBe(true)
+      expect('ok' in decoded && encoded(decoded.ok)).toBe(encoded(original))
+    }
+  })
+
+  it('refuses any text encodeResidentKey does not make', () => {
+    const good = JSON.parse(encoded(key({ kind: 'official' }))) as string[]
+    const bad = [
+      'not json',
+      '{}',
+      JSON.stringify(good.slice(0, 7)),
+      JSON.stringify(['rk0', ...good.slice(1)]),
+      JSON.stringify([...good.slice(0, 2), 'x', ...good.slice(3)]),
+      JSON.stringify(['rk1', 'tenant', '{"organization":"bad","account":"bad"}', ...good.slice(3)]),
+      JSON.stringify([...good.slice(0, 3), '', ...good.slice(4)]),
+      JSON.stringify([...good.slice(0, 7), 7]),
+      JSON.stringify(['rk1', 'planet', '', ...good.slice(3)]),
+    ]
+    for (const text of bad) expect(decodeResidentKey(text)).toHaveProperty('failure')
   })
 })
 

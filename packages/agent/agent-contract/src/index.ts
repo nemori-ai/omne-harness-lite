@@ -1,5 +1,5 @@
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts'
-export { obligationCategoryOf } from './finishing.ts'
+export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts'
 export {
   AGENT_TYPES,
   ATTRIBUTE_ITEMS,
@@ -41,7 +41,11 @@ export type {
 export {
   AGENT_IDENTITY_MAX_LENGTH,
   admissionActionOf,
+  stepOfToolAction,
+  toolActionOf,
   admissionPassageOf,
+  nestedActionOf,
+  nestedPositionOf,
   decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,
@@ -92,4 +96,9 @@ export type * from './request.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
 
 export type * from './action-qualification.ts'
-export type * from './tool-qualification.ts'
+export {
+  definitionImpact,
+  definitionPlaces,
+  type DefinitionFacts,
+  type ResidentTool,
+} from './effect.ts'

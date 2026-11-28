@@ -3,7 +3,9 @@ import type {
   ScheduleCallContext,
   ScheduleCommands,
   ScheduleInstant,
+  ScheduleJobs,
   ScheduleQueries,
+  ScheduleSessionDefaults,
 } from '@omne-harness/schedule-contract'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 
@@ -14,12 +16,15 @@ export type ScheduleCallSource = Readonly<{
   queries(): ScheduleQueries | undefined
   context(): Promise<ScheduleCallContext | undefined>
   now(): ScheduleInstant
+  /** What a new session takes from the session of this call when the work leaves it out; undefined when it cannot be read now. With the session itself it is what `defaults()` of the faces answers. */
+  newSessionDefaults(): Promise<ScheduleSessionDefaults['forNew'] | undefined>
 }>
 
 export type ScheduleFaces = Readonly<{
   commands: ScheduleCommands
   queries: ScheduleQueries
   context: ScheduleCallContext
+  defaults(): Promise<ScheduleSessionDefaults>
 }>
 
 export type ScheduleUnreachable = Readonly<{
@@ -27,10 +32,9 @@ export type ScheduleUnreachable = Readonly<{
   reason: 'unavailable' | 'forbidden'
 }>
 
-/** The schedule services bound to one call. Keys derive from the call, not the model. */
+/** The schedule services bound to one call. Keys derive from the call, not the model: the same step of the same call is the same write. */
 export type BoundSchedules = Readonly<{
   faces(): Promise<ScheduleFaces | ScheduleUnreachable>
-  /** The operation key of one write of this call; the same step of the same call is the same write. */
   operationKey(step: string): string
   now(): ScheduleInstant
 }>
@@ -78,7 +82,14 @@ export function bindScheduleReads(source: ScheduleReadSource): ScheduleReads {
       if (context === undefined) return unavailable
       if (context.owner.kind !== 'tenant' || context.owner.tenantId !== source.tenant)
         return { kind: 'unreachable', reason: 'forbidden' }
-      return { queries, context }
+      const current = context.originatingSessionRef
+      const defaults = async () => {
+        const forNew = await Promise.resolve()
+          .then(() => source.newSessionDefaults())
+          .catch(() => undefined)
+        return { current, forNew: forNew ?? null }
+      }
+      return { queries, context, defaults }
     },
     now: () => source.now(),
   }
@@ -119,6 +130,49 @@ export function attachSchedules(
     finish(exit) {
       if (finished !== undefined) return finished
       if (attachments.get(context.signal) === schedules) attachments.delete(context.signal)
+      finished = Promise.resolve().then(() => scope.finish(exit))
+      return finished
+    },
+  }
+}
+
+export type JobsCallSource = Omit<ScheduleCallSource, 'commands'> &
+  Readonly<{ jobs(): ScheduleJobs | undefined }>
+export type JobsFaces = ScheduleReadFaces & Readonly<{ jobs: ScheduleJobs }>
+
+export type BoundJobs = Readonly<{
+  faces(): Promise<JobsFaces | ScheduleUnreachable>
+  operationKey(step: string): string
+}>
+
+export function bindJobs(source: JobsCallSource): BoundJobs {
+  const reads = bindScheduleReads(source)
+  return {
+    async faces() {
+      const jobs = source.jobs()
+      if (jobs === undefined) return unavailable
+      const faces = await reads.faces()
+      return 'kind' in faces ? faces : { ...faces, jobs }
+    },
+    operationKey: step => `tool:${digestOf([source.tenant, source.call, 'Jobs', step])}`,
+  }
+}
+
+const jobAttachments = new WeakMap<AbortSignal, BoundJobs>()
+export function jobsOf(context: Pick<ToolExecutionContext, 'signal'>): BoundJobs | undefined {
+  return jobAttachments.get(context.signal)
+}
+
+export function attachJobs(scope: ToolExecutionScope, jobs: BoundJobs): ToolExecutionScope {
+  const context = scope.context
+  jobAttachments.set(context.signal, jobs)
+  let finished: ReturnType<ToolExecutionScope['finish']> | undefined
+  return {
+    context,
+    limits: scope.limits,
+    finish(exit) {
+      if (finished !== undefined) return finished
+      if (jobAttachments.get(context.signal) === jobs) jobAttachments.delete(context.signal)
       finished = Promise.resolve().then(() => scope.finish(exit))
       return finished
     },

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { mergeListing, type ActionCatalogRecord, type CatalogState } from './catalog.ts'
 import { completeListing } from './listing.ts'
+import type { CatalogRevision } from './brands.ts'
 import type { CatalogStore } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
 import { generationOf, jsonOf, protocolVersionOf, revisionOf } from './testing-values.ts'
@@ -13,7 +14,11 @@ export type CatalogStoreFixture = Readonly<{
   unavailable?: () => Promise<void>
 }>
 
-function sampleRecord(revision: number, names: readonly string[]): ActionCatalogRecord {
+/** A catalog record of `revision` rounds, each listing `names`, as a store holds it. */
+export function sampleCatalogRecord(
+  revision: number,
+  names: readonly string[],
+): ActionCatalogRecord {
   let state: CatalogState = { kind: 'not-acquired' }
   for (let round = 1; round <= revision; round += 1) {
     const basedOn = state.kind === 'acquired' ? state.record.revision : 'absent'
@@ -49,11 +54,11 @@ async function written(
   fixture: CatalogStoreFixture,
   revision: number,
 ): Promise<ActionCatalogRecord> {
-  const record = sampleRecord(revision, ['read', 'write'])
+  const record = sampleCatalogRecord(revision, ['read', 'write'])
   const expected = revision === 1 ? 'absent' : revisionOf(revision - 1)
   if (revision > 1)
     assert.deepStrictEqual(
-      await fixture.store.write(fixture.key, sampleRecord(revision - 1, ['read']), 'absent'),
+      await fixture.store.write(fixture.key, sampleCatalogRecord(revision - 1, ['read']), 'absent'),
       { ok: true },
     )
   assert.deepStrictEqual(await fixture.store.write(fixture.key, record, expected), { ok: true })
@@ -77,7 +82,11 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
       'CS3',
       'refuses a write that expects a revision for a key never written',
       async fixture => {
-        const answer = await fixture.store.write(fixture.key, sampleRecord(2, ['a']), revisionOf(1))
+        const answer = await fixture.store.write(
+          fixture.key,
+          sampleCatalogRecord(2, ['a']),
+          revisionOf(1),
+        )
         assert.deepStrictEqual(answer, { failure: 'revision-conflict' })
         assert.deepStrictEqual(await fixture.store.read(fixture.key), { ok: 'absent' })
       },
@@ -87,7 +96,11 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
       'refuses a write that expects absent when a record exists, and keeps the record',
       async fixture => {
         const record = await written(fixture, 1)
-        const answer = await fixture.store.write(fixture.key, sampleRecord(1, ['other']), 'absent')
+        const answer = await fixture.store.write(
+          fixture.key,
+          sampleCatalogRecord(1, ['other']),
+          'absent',
+        )
         assert.deepStrictEqual(answer, { failure: 'revision-conflict' })
         assert.deepStrictEqual(await fixture.store.read(fixture.key), { ok: record })
       },
@@ -97,7 +110,7 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
       'refuses a write based on an older revision, and keeps the newer record',
       async fixture => {
         const record = await written(fixture, 2)
-        const late = sampleRecord(2, ['late'])
+        const late = sampleCatalogRecord(2, ['late'])
         assert.deepStrictEqual(await fixture.store.write(fixture.key, late, revisionOf(1)), {
           failure: 'revision-conflict',
         })
@@ -106,7 +119,7 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
     ),
     conformanceCase('CS6', 'writes against the current revision', async fixture => {
       await written(fixture, 1)
-      const next = sampleRecord(2, ['read', 'write', 'list'])
+      const next = sampleCatalogRecord(2, ['read', 'write', 'list'])
       assert.deepStrictEqual(await fixture.store.write(fixture.key, next, revisionOf(1)), {
         ok: true,
       })
@@ -125,7 +138,7 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
         await unavailable()
         assert.deepStrictEqual(await fixture.store.read(fixture.key), { failure: 'unavailable' })
         assert.deepStrictEqual(
-          await fixture.store.write(fixture.key, sampleRecord(1, ['a']), 'absent'),
+          await fixture.store.write(fixture.key, sampleCatalogRecord(1, ['a']), 'absent'),
           { failure: 'unavailable' },
         )
       },
@@ -133,15 +146,18 @@ export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogSt
   ]
 }
 
-export type MemoryCatalogStore = CatalogStore &
-  Readonly<{ setUnavailable(unavailable: boolean): void }>
+export type MemoryCatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+> = CatalogStore<R> & Readonly<{ setUnavailable(unavailable: boolean): void }>
 
 function accountText(account: PeerAccount): string {
   return account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
 }
 
-export function createMemoryCatalogStore(): MemoryCatalogStore {
-  const records = new Map<string, ActionCatalogRecord>()
+export function createMemoryCatalogStore<
+  R extends Readonly<{ revision: CatalogRevision }> = ActionCatalogRecord,
+>(): MemoryCatalogStore<R> {
+  const records = new Map<string, R>()
   let unavailable = false
   const keyOf = (key: CatalogKey) =>
     JSON.stringify([tenantText(key.tenant), accountText(key.account), key.holding])

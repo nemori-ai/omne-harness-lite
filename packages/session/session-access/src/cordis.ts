@@ -1,6 +1,15 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import type { Principal } from '@omne-harness/access-cordis-contract'
-import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
+import type {
+  InProcessAnswer,
+  InProcessCall,
+  Principal,
+} from '@omne-harness/access-cordis-contract'
+import {
+  accessCallsKey,
+  accessRegistryKey,
+  defineAccessPlugin,
+  type AccessCallsService,
+} from '@omne-harness/access-cordis-contract/cordis'
 import type { SessionDirectory, SessionManagement } from '@omne-harness/session-contract'
 import {
   sessionInputSourcesKey,
@@ -51,6 +60,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
 }>
 
 const SESSION_ACCESS_PLUGIN = 'session-access'
+const NOT_EXECUTED: InProcessAnswer = Object.freeze({ kind: 'not-executed', reason: 'unavailable' })
 
 function sessionOf(ctx: Context, caller: 'intake' | 'reader'): SessionService | undefined {
   return ctx.intercept(sessionKey, { caller }).get(sessionKey)
@@ -70,6 +80,7 @@ function facesOf(
       create: creation => management.create(prepare === undefined ? creation : prepare(creation)),
       interrupt: urgent => management.interrupt(urgent),
       change: declared => management.change(declared),
+      recordCommand: given => management.recordCommand(given),
     },
     work,
     history,
@@ -91,6 +102,10 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
       })
       const principals = input.principals(ctx)
       const faces = () => facesOf(ctx, input.prepareCreation)
+      const perform = async (call: InProcessCall): Promise<InProcessAnswer> => {
+        const calls = ctx.get(accessCallsKey) as AccessCallsService | undefined
+        return calls === undefined ? NOT_EXECUTED : calls.call(call)
+      }
       const opening = input.journal(settings)
       let drain: ReturnType<typeof createRequestDrain> | undefined
       ctx.effect(() => async () => {
@@ -102,7 +117,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
       if (ctx.fiber.uid === null) return
       const requests = createRequestDrain({
         journal,
-        admit: request => admitRequest({ principals, facts: input.facts, faces }, request),
+        admit: request => admitRequest({ principals, facts: input.facts, faces, perform }, request),
         limit: settings.requestQueueLimit,
         retryDelaysMs: settings.requestRetryDelaysMs,
       })

@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .usage-page {
   display: grid;
   gap: var(--omne-space-section);
@@ -43,10 +46,17 @@
   border-radius: var(--omne-radius-card);
   background: var(--omne-surface-panel);
 }
-.usage-panel[data-position='status'] .usage-card {
+/* In a session's side and its composer row a card is no card: no frame, no paper of its own (usage SPEC). */
+.usage-panel:is([data-position='session'], [data-position='status']) .usage-card {
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: none;
+}
+/* In the side, one segment after another, a hairline between them. */
+.usage-panel[data-position='session'] .usage-card + .usage-card {
+  padding-top: var(--omne-space-block);
+  border-top: 1px solid var(--omne-line-subtle);
 }
 .usage-card[data-width='1'] {
   grid-column: span 1;
@@ -114,7 +124,23 @@
   gap: var(--omne-space-inline);
   margin: 0;
 }
-.usage-reading-text {
+.usage-facts dd {
+  font-variant-numeric: tabular-nums;
+}
+.usage-fact-detail {
+  margin-inline-start: var(--omne-space-inline);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+}
+/* The context's quiet number in the composer row: caption size, table figures, muted; amber when it needs care. */
+.usage-percent {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.usage-percent[data-tone='caution'] {
+  color: var(--omne-caution-ink);
+}
 }

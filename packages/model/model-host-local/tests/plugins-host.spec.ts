@@ -11,7 +11,7 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   decodeRevision,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelHandle,
@@ -63,6 +63,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
@@ -93,7 +95,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
 
 const PRINCIPAL = Object.freeze({ subject: 'trusted' })
 const principals = new WeakSet<object>([PRINCIPAL])
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
+  kind: 'llm',
   profile: { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) },
   suppliers: [
     {

@@ -30,6 +30,7 @@ export type ReleaseCardAction = Readonly<{
   effectiveArguments: string
   session: string
   agent: string
+  program?: true
   detail?: ReleaseCardDetail
 }>
 
@@ -43,6 +44,7 @@ export type ReleaseCardOption = Readonly<{
   offered: boolean
   /** The answer lasts beyond this one call. */
   lasting: boolean
+  role: 'approve' | 'reject'
 }>
 
 export type ReleaseCard = Readonly<{
@@ -50,7 +52,7 @@ export type ReleaseCard = Readonly<{
   target: Readonly<{ tool: string; command: string | null; preview: string }>
   gateTitle: string
   arguments: Readonly<{ text: string; truncated: boolean; digest: string }>
-  origin: Readonly<{ session: string; agent: string }>
+  origin: Readonly<{ session: string; agent: string; program?: true }>
   detail?: ReleaseCardDetail
   options: readonly [ReleaseCardOption, ...ReleaseCardOption[]]
 }>
@@ -101,6 +103,7 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
     scope: scopeOf(id, gate),
     offered: offer[id],
     lasting: id !== 'deny-once' && id !== 'allow-once',
+    role: id === 'deny-once' || id === 'deny-always' ? 'reject' : 'approve',
   })
   const [first, ...rest] = RELEASE_OPTIONS
   return {
@@ -108,7 +111,11 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
     target,
     gateTitle: action.gateTitle,
     arguments: argumentsOf(action.effectiveArguments),
-    origin: { session: action.session, agent: action.agent },
+    origin: {
+      session: action.session,
+      agent: action.agent,
+      ...(action.program === undefined ? {} : { program: true as const }),
+    },
     ...(action.detail === undefined ? {} : { detail: action.detail }),
     options: [optionOf(first), ...rest.map(optionOf)],
   }

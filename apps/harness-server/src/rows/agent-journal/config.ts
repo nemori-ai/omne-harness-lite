@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 
-export const COMBINATION_VERSION = 'session-composite/19'
+export const COMBINATION_VERSION = 'session-composite/27'
 
 // What a row that commits under the session storage combination is configured with: the version
 // alone. The manifest digest has one source, the storage catalog of the running code.

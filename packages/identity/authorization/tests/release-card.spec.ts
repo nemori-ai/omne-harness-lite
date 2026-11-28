@@ -26,6 +26,15 @@ const all: ReleaseOffer = {
 }
 
 describe('the content of a release card', () => {
+  it('says so when a program made the action, and changes nothing else of the card', () => {
+    const made = releaseCard({ ...action, program: true }, all)
+    expect(made.origin).toEqual({ session: 'session-1', agent: 'coding', program: true })
+    const { origin: _made, ...rest } = made
+    const { origin, ...plain } = releaseCard(action, all)
+    expect(origin).not.toHaveProperty('program')
+    expect(rest).toEqual(plain)
+  })
+
   it('names the action, its arguments, its origin and the five options in their fixed order', () => {
     const card = releaseCard(action, all)
     expect(card.title).toBe('要执行 Shell run，放行吗？')
@@ -55,6 +64,16 @@ describe('the content of a release card', () => {
       'allow-session',
       'allow-always',
       'deny-always',
+    ])
+  })
+
+  it('gives every option the role of its answer: the two that release nothing reject, the three that release approve', () => {
+    expect(releaseCard(action, all).options.map(option => [option.id, option.role])).toEqual([
+      ['deny-once', 'reject'],
+      ['allow-once', 'approve'],
+      ['allow-session', 'approve'],
+      ['allow-always', 'approve'],
+      ['deny-always', 'reject'],
     ])
   })
 

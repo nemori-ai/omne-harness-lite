@@ -159,7 +159,7 @@
 > scheduled job sessions are unattended.
 
 - **形态**：属性
-- **出处**：[会话与工作：管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 12）
+- **出处**：[会话与工作：管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 13）
 - **别混**：**不是协作模式。**协作模式是人选的做法（要不要 agent 来问），能改；值守是事实（有没有人可问），不能改。
   有人值守的会话选了 `auto-drive`，只关掉提问，仍然可以通知人；无人值守的会话什么模式都问不到人
 - **注意 ①**：**无人值守不放松权限**——需要人决定的动作被拒绝并说明没有人可以批准，不因此放行
@@ -178,7 +178,7 @@
 > saw, and none of the work the source has in progress.
 
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 16）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 23）
 - **别混 ①**：**不是复制。**复制得到两份互不相干的内容；分叉之后前缀仍只有来源名下的一份，
   新会话读的是同一批记录
 - **别混 ②**：**不是共用一本日志。**一个会话仍然只有一个写入者；分叉之后来源写的，新会话看不见
@@ -208,7 +208,7 @@
 - **自动触发**：默认关闭，租户显式开启；自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到租户配置的时限（产品不规定固定天数）；标记常驻的主会话豁免；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
 - **输入处置**：归档取消待处理任务并保留历史；归档期间拒绝新任务，迟到执行事实只留痕、不入队，撤销归档不自动恢复已取消任务。
 - **形态**：过程
-- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 12）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
+- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 13）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -241,7 +241,7 @@
 > undoing that archival returns it to frozen, not to dormant.
 
 - **形态**：状态
-- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 12）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
+- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 13）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
 - **别混 ①**：不是[会话归档](#ul-session-archival--会话归档--session-archival)。冻结不中断在途的运行；归档会中断未完成的工具执行与模型响应
 - **别混 ②**：不是休眠。休眠的会话可以开始新的运行，冻结的会话不能
 - **注意 ①**：只在采用点判定。「耐久地不可装载」要有耐久证据：实现包的摘要缺失，或装载被确定性拒绝。实现暂时缺席、状态未知或被撤权时，会话用[替换件](reach-and-availability.md#ul-stand-in--替换件--stand-in)，不冻结
@@ -289,7 +289,7 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 23）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
@@ -441,7 +441,7 @@
 - **形态**：视图
 - **出处**：[现行词义](../index.md)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
   **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）；
-  会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，也不是 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)**——
   后两者是 Agent 一侧的概念；执行尝试是会话一侧「这次运行的第几次推进」。
   **一次尝试对应 Agent 一侧的哪次[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)或 Agent 执行，由外部协调者维护**，不是本条的内容
@@ -543,7 +543,7 @@
 
 - **形态**：对象
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）；
-  它推进的是 Agent 执行而不是某个执行尝试，见[产品页 使用场景](../../product/agent-progression/design.md#使用场景)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  它推进的是 Agent 执行而不是某个执行尝试，见[产品页 使用场景](../../product/agent-progression/design.md#使用场景)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **它就是 [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) 说的「活体」**——
   那一段描述的计算资源、可回收可重建、因资源治理而生灭，**逐条说的都是协程**
 - **注意 ①**：**会话路径中，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
@@ -566,7 +566,7 @@
 > **EN**: **One logical execution of the agent: from the start of a new advancement until the agent itself ends it once the required checks hold.** Continuing it through a new execution attachment or another agent runtime, including re-attachment and instance replacement, is still the same execution; only a newly started logical execution is a new one. Judgements, effects and answers already obtained stay in use after it continues. **The agent neither requires nor explains any session, run or attempt for it**; on the session path, an external coordinator maintains how it corresponds to a run.
 
 - **形态**：对象
-- **出处**：[产品页 使用场景](../../product/agent-progression/design.md#使用场景) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 使用场景](../../product/agent-progression/design.md#使用场景) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混 ①**：**不是[运行](#ul-run--运行--run)**——运行是会话一侧的一次逻辑执行请求，成本与失败的归属单位，由会话治理；Agent 执行是 Agent 自己的一次推进，Agent 不知道运行存在
 - **别混 ②**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进它的协程，会换；执行是被推进的那一件事，不随协程没而没
 - **别混 ③**：**不是[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)**——工具执行是一次工具调用，一次 Agent 执行里可以发起多次
@@ -581,7 +581,7 @@
 > **EN**: **One physical taking-up of one agent execution by one agent runtime.** Re-attaching and replacing the instance both give the same execution a new execution attachment. A new execution attachment does not make the execution a new one and does not pass the execution-started position again. It is not a run attempt, which the session side owns.
 
 - **形态**：对象
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
 - **别混 ①**：**不是[附件](execution-and-outcome.md#ul-attachment--附件--attachment)**——附件是存进存储、agent 自己去取的文件，Tool 结果里的 attachments 也指它；本条只指 agent runtime 对执行的承接
 - **别混 ②**：**不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)**——尝试是会话一侧的推进记账，执行挂接是 Agent 一侧的概念
 - **注意 ①**：**不许简称 attachment**，英文与代码名都写全称（Execution Attachment、`ExecutionAttachment`、`ExecutionAttachmentId`、`executionAttachment`），因为裸写的 attachment 已指[附件](execution-and-outcome.md#ul-attachment--附件--attachment)；中文同理写「执行挂接」，正文在没有歧义处可以写「挂接」。Agent 契约已按此命名；已接受页的旧写法已回改，见 [C-64](../conflicts.md#c-64执行挂接的候选类型名)
@@ -599,7 +599,7 @@
 > **EN**: **The record a host makes when it publishes one agent runtime instance so that the instance can be discovered and can accept calls.** It has an identity of its own and three states: published, withdrawing and withdrawn. When the host publishes the same live instance again, a successor registration replaces the old one, and the identity of the old registration cannot act on the successor. A withdrawn registration leaves an identity record so that the same withdrawal can be recognized. A registration is a record the host owns. It is not the agent runtime itself and it grants no authority to advance an execution.
 
 - **形态**：对象
-- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 6）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念
+- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 8）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的[对象模型](../../../../packages/agent/SPEC.md#领域边界)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念
 - **别混 ①**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进执行的协程，登记是宿主对它的发布记录。runtime 失联后重新启动的进程是新实例，不继承原登记
 - **别混 ②**：**不是[运行时 context 注册](scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)**——那一条是会话纳入一块 context 来源的声明，与 agent runtime 的发布无关
 - **注意**：登记缺席不证明工作结束。执行的存续与恢复依据在执行记录里，不在登记里，见 [Agent 契约的创建、登记与复用](../../../../packages/agent/SPEC.md#受理恢复与接管)
@@ -631,7 +631,7 @@
 > **EN**: **The rule by which the agent, per source, validates and then accepts or rejects an external input, a complete model reply or a tool result before it becomes a message.** It tells the three sources apart: a rejection has a different consequence for each source, and the product page section on model replies and tool results states those consequences. **It is the agent's own rule, not an extension position, and it does not pass through extensions.**
 
 - **形态**：规则
-- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混 ①**：**不是[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**——放行判断管一个动作能不能发起，站在执行动作之前；消息准入管一条内容能不能成为消息
 - **别混 ②**：**不是[拓展位置](#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的否决**——产品暂不在消息成立前后另设拓展位置，准入不依附任何位置
 - **注意 ①**：产品页也称「消息入口」，指同一件事
@@ -688,18 +688,18 @@
 
 - **形态**：位置
 - **出处**：[PF-012 §4 Loop 拓展点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）；
-  位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **⚠️ 别混**：**它不是[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**——
   **拓展点是位置，拓展件是挂上去的东西**（第八类资产）
-- **注意 ①**：**位置由状态点推出，因此数目有限且可穷举**——
-  **当前恰好九个**，位置集合与各位置的触发边界归[系统页 Loop extensions](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)，本词条不重述；**挂什么没有上限**
+- **注意 ①**：**位置由状态点推出，因此一个环上的位置数目有限且可穷举**——
+  **官方的环有九个，其中七个每一种环都有**；别的环在[环定义](capabilities-and-composition.md#ul-loop-definition--环定义--loop-definition)里声明自己的，随版本固定；位置集合与各位置的触发边界归[系统页 Loop extensions](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)，本词条不重述；**挂什么没有上限**
 - **注意 ②**：**纯派生的动作不是状态点，所以它前后没有位置**——
   [组装](record-and-context.md#ul-context-assembly--上下文组装--context-assembly)与「量一量」都不构成挂点
 - **注意 ③**：挂在这里的东西**只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，
   **不改方程本身**
 - **注意 ④**：**「拓展」与「扩展」是同一个词的两种写法，不是两个概念**——
   本卷与词表写「拓展点」「拓展件」，系统页与成员正文写「扩展位置」「扩展」，所指相同；见 [C-62](../conflicts.md#c-62拓展与扩展)
-- **注意 ⑤**：**位置只有这九个，没有「消息落盘之前」「消息落盘之后」**——消息持久化归会话，不归 Agent，消息持久化前后的处理挂在会话的[业务流程拓展点](interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；
+- **注意 ⑤**：**官方的环的位置只有这九个，没有「消息落盘之前」「消息落盘之后」**——消息持久化归会话，不归 Agent，消息持久化前后的处理挂在会话的[业务流程拓展点](interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；
   消息准入仍然存在，见[消息准入](#ul-message-admission--消息准入--message-admission)
 - **注意 ⑥**：它是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一种，宿主是 Agent。
   裸写「拓展点」指那个统称；指这一种时写「Loop 拓展点」
@@ -713,10 +713,10 @@
 > **EN**: **One of the loop extension points, passed once after each new agent execution starts.** Re-attachment, instance replacement and continuing an existing execution do not pass it again. An extension cannot use it to grant advancement qualification again to an execution attachment that is no longer valid.
 
 - **形态**：位置
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混**：**不是以执行尝试开始为触发点的位置**——尝试是会话一侧拥有的关联；换一次执行挂接或换一副 agent runtime 接续，并不新开 Agent 执行，因此不经过这个位置
 - **弃用**：~~「尝试开始之后」~~（~~attempt_started~~）
-- **注意**：九个位置里只有它单独立条：它的触发边界是新的 Agent 执行，不是执行尝试，读错就会与会话一侧的尝试混淆；它也承接弃用说法的登记。其余八个位置的名称已说明所在状态点，集合与触发边界归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
+- **注意**：官方的环的九个位置里只有它单独立条：它的触发边界是新的 Agent 执行，不是执行尝试，读错就会与会话一侧的尝试混淆；它也承接弃用说法的登记。其余八个位置的名称已说明所在状态点，集合与触发边界归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
 
 ### UL-intervention-power · 干预力 · Intervention Power
 
@@ -791,7 +791,7 @@
 > **EN**: **One call the agent makes to one extension within a pass, in order to obtain its conclusion.** A call can spend money or raise a card, so on continuation it cannot be re-run like a pure function: a call that already has a final conclusion is not called again, a call without one resumes under its original identity, and judgements, effects and answers already obtained are reused.
 
 - **形态**：过程
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 6）
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 8）
 - **别混 ①**：**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**——一次经过是 loop 走到一个位置的那一次，挂在该位置的各件在其中各被调用一次
 - **别混 ②**：**不是[回放](#ul-replay--回放--replay)**——回放是接续时把挂起中的拓展件重新跑到停处的方式，调用是普通的一次
 - **注意 ①**：词表写「拓展」，系统页与成员正文写「扩展调用」，所指相同；见 [C-62](../conflicts.md#c-62拓展与扩展)
@@ -807,7 +807,7 @@
 > **EN**: **The judgement result an extension invocation leaves once the agent has obtained and adopted it. The agent keeps it in its own execution record.** A result that asks a person to decide (`ask` in code) is a non-final conclusion: it does not end the invocation, and once the answers are complete the same extension obtains the next conclusion. Every other conclusion is final. An invocation that already has a final conclusion is read, not called again, on continuation. Code and specifications may shorten it to *Conclusion*.
 
 - **形态**：属性
-- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 6）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
+- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 8）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
 - **别混 ①**：**不是[干预力](#ul-intervention-power--干预力--intervention-power)**——干预力是拓展件能做到什么的上限，结论是一次调用实际得出的结果
 - **别混 ②**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)**——结论只说一次调用的判断，不结束任何运行或执行
 - **注意**：它是挂在 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)记录上的一项值，不是会话日志里的条目，也没有独立于所属调用的身份。作者不返回结论，由 Agent 把校验通过的输出包装并保存
@@ -821,7 +821,7 @@
 > **EN**: **The judgements for one batch of actions must all be complete, and any cards needing a person must all be handled, before any approved action in that batch is started.** An action that has already passed cannot overtake judgements still open for other actions. Later extensions may raise further cards, and those stay in the same batch. When every action in the batch is rejected there is no tool execution to wait for, and the agent evaluates again from the facts it already has.
 
 - **形态**：规则
-- **出处**：[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）
+- **出处**：[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 8）
 - **别混 ①**：**不是执行动作之后的整批范围**——后者是执行动作之后那个位置按「整批齐备」这一维选择拓展件，发生在动作已执行之后；屏障发生在执行之前
 - **别混 ②**：**不是[等待原语](#ul-wait-primitive--等待原语--wait-primitive)**——等待原语是协程停下来等外面应答的办法，屏障规定的是什么时候才可以发起动作
 
@@ -934,7 +934,7 @@
 > the middle of a Run changes only current availability.
 
 - **形态**：位置
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 10）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 15）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
 - **别混**：不是当下可用性的核对时点。可用性每次尝试开始时核对，Run 中途也可以变
 - **注意**：会话初始化不判冻结，也不谈前进；它只确定集合与每一项的首次定义
 
@@ -1052,7 +1052,7 @@
 > **EN**: A session subtype created to execute one job that requests a new session. It retains session identity and lifecycle semantics, with capabilities for reporting that job’s results and checking its objective.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 6）
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 7）
 - **别混**：它只对应 agent-new 路径。向已有会话提交 Job 不把该会话转换为作业会话，也不自动建立 parent-child 关系。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
@@ -1076,3 +1076,85 @@
 - **形态**：属性
 - **出处**：[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）
 - **别混**：不是持久化的调用／执行身份，不是独立治理对象；取得句柄不另授控制权限，也不规定具体语言的句柄类型。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-session-goal · 会话目标 · Session Goal
+
+> **中**：一个会话上的一份有限委托：写明做到什么算完、怎样量、什么情形该停。它有自己的编号与修订，跨这个会话的若干次运行，由它的主人设下、修订、暂停与取消，以一个结局收场；一个会话同时至多一个没收场的。
+>
+> **EN**: A finite commission on one session that states what counts as done, how it is measured and when to stop. It has its own identity and revisions, spans several runs of the session, is set, revised, paused and cancelled by its owner, and ends with one outcome. A session has at most one that has not ended.
+
+- **形态**：对象
+- **出处**：[目标](../../product/goals/design.md#产品需求描述)（rev 2）
+- **别混**：不是[运行](#ul-run--运行--run)：一个目标跨若干运行。不是[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)：设目标不改模式。它不授予任何权限，也不决定什么时候再触发一次工作。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-criterion · 目标判据 · Goal Criterion
+
+> **中**：会话目标正文里的一条达成条件：一句「成立是什么样子」的陈述，加上证据从哪来、证据要显示出什么才算数。证据从哪来定下这一条由谁判。全部判据成立才算达成。
+>
+> **EN**: One condition of achievement in a session goal: a statement of what holding looks like, with where its evidence comes from and what that evidence must show. Where the evidence comes from fixes who judges the criterion. The goal is achieved only when every criterion holds.
+
+- **形态**：属性
+- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 2）
+- **别混**：不是做的步骤，也不是进度。判据之间没有权重：做到一部分也行，只能写成一条退出路径。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-exit-path · 目标退出路径 · Goal Exit Path
+
+> **中**：会话目标正文里事先写下的一种正当的停法：什么情形该停，停了交什么，算成功还是失败。
+>
+> **EN**: A legitimate way to stop that a session goal declares in advance: the situation in which to stop, what to hand over, and whether stopping this way counts as success or failure.
+
+- **形态**：属性
+- **出处**：[目标](../../product/goals/design.md#目标的正文)（rev 2）
+- **别混**：不是取消：取消是主人的动作，不算成功也不算失败。不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-judgment · 目标判定 · Goal Judgment
+
+> **中**：agent 想结束一次运行时，按会话目标的正文核一次：先对每条判据与每条退出路径得出一份观察，再由固定的规则算出目标收场、接着做、等证据，还是暂停交给人。要等的证据到了而没有运行在跑时也核一次。
+>
+> **EN**: The check made against a session goal when the agent is about to end a run. It first yields an observation for every criterion and exit path; fixed rules then decide whether the goal ends, continues, waits for evidence, or pauses for a person. The same check is made when awaited evidence arrives while no run is going.
+
+- **形态**：过程
+- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 2）
+- **别混**：不是放行判断：放行判断回答一个动作许不许，目标判定回答这份委托完没完。判定不要求目标必须达成。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-examination · 目标查验 · Goal Examination
+
+> **中**：为一个会话目标里要等的判据取证的一次：一批判据交给独立于干活的 agent 的一方，由它把命令在干净的副本里再跑一遍，或照写好的查法动手去验，交回每条判据的读数。
+>
+> **EN**: One taking of evidence for the criteria of a session goal that cannot be judged on the spot: a batch of criteria goes to a party independent of the working agent, which runs a command again in a clean copy or checks by hand as the written method says, and hands back a reading for each criterion.
+
+- **形态**：对象
+- **出处**：[目标](../../product/goals/design.md#一条判据由谁判)（rev 2）
+- **别混**：不是目标判定：判定读干活的 agent 留下的证据，不动手；查验自己动手。查验交回的是读数，不是结论，目标达没达成仍由判定的规则算。也不是派发：派发是会话里的 agent 交出一份工作，查验由系统发起，干活的 agent 加不进一个字。同一个目标、同一个修订、之后没有再写过文件的，是同一次查验。
+
+### UL-goal-progress-list · 目标进展清单 · Goal Progress List
+
+> **中**：干活的 agent 为一份会话目标维护的记录：每条判据做到哪了、证据指到哪一次工具调用、遇到的阻碍与交付物。它是 agent 的说法，不是证据。
+>
+> **EN**: The record a working agent keeps for a session goal: where each criterion stands, which tool call its evidence points to, blockers and deliverables. It is the agent's claim, not evidence.
+
+- **形态**：属性
+- **出处**：[目标](../../product/goals/design.md#谁说了算)（rev 2）
+- **别混**：不是目标的正文：正文由主人确认，清单由 agent 维护。算不算成立看它指到的真实工具结果，不看清单怎样写。
+
+返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
+
+### UL-goal-outcome · 目标结局 · Goal Outcome
+
+> **中**：会话目标收场时落下的那一个结论：达成、按某条退出路径收场、无法达成、停滞、判定不可用、执行中止，或被取消。落下之后不变。
+>
+> **EN**: The single conclusion recorded when a session goal ends: achieved, ended by an exit path, unattainable, stalled, judgment unavailable, aborted, or cancelled. It does not change afterwards.
+
+- **形态**：状态
+- **出处**：[目标](../../product/goals/design.md#推进与收场)（rev 2）
+- **别混**：不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)：一个目标跨若干运行，运行完成不等于目标达成。暂停不是结局。

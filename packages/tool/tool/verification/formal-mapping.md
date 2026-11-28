@@ -86,6 +86,27 @@
 | `SuspendedSlots-unsafe-parkdelete.cfg`    | 负控 | 违反 `NoResurrection`（动作性质）        |
 | `SuspendedSlots-unsafe-parkanyholder.cfg` | 负控 | 违反 `RunningImpliesHeld`                |
 
+## BackgroundWaits
+
+模型 [BackgroundWaits.tla](models/BackgroundWaits.tla)。它是 2 个调用、名额 1 的有界实例，只看一次调用的前后台关系、暂停时等的那种 Ask、控制、收场与名额；等待被答与被关竞争同一次提交，交付的细节（占位与 final 怎样送到消费者）只数份数。等人的 Ask 记作 `askFg`（契约不声明能在后台等），等报告的记作 `askBg`。
+
+| 性质                               | 守的规则                                                                               | 代码位置                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BackgroundWaitsOnlyWhereDeclared` | 后台在等的只会是契约声明能在后台等的 Ask                                               | [ledger-background.ts](../src/ledger-background.ts) 的 `mayWaitInBackground`；[ledger-facts.ts](../src/ledger-facts.ts) 的 `refuseOrder`；[ledger-suspension.ts](../src/ledger-suspension.ts) 的 `runningCall`                                                                                                                                   |
+| `HumanAskStaysForeground`          | 等人的 Ask 永远在前台                                                                  | 同上：`human-intervention-tool` 的契约不声明 `background`，缺省是 `never`                                                                                                                                                                                                                                                                        |
+| `PlaceholderOnlyBackground`        | 占位只给转了后台的调用，至多一份；占位不撤，所以它也守住「后台不回前台」               | [ledger-decider.ts](../src/ledger-decider.ts) 的 `launchedPlaceholder` 与 `acceptedRelation`；暂停、恢复与收场不改关系：[ledger-state.ts](../src/ledger-state.ts) 的 `keptRelation` 与 `resumePlanningBody`，[ledger-suspension.ts](../src/ledger-suspension.ts)、[ledger-resumption.ts](../src/ledger-resumption.ts) 里用 `keptRelation` 的四处 |
+| `OneFinal`                         | final 恰好一份，只在收场之后                                                           | [ledger-control.ts](../src/ledger-control.ts) 的 `decideSuspendedControl`；[ledger-settlement.ts](../src/ledger-settlement.ts)                                                                                                                                                                                                                   |
+| `RunCancelNeverEndsBackground`     | 原 Run 取消（`withdraw` 的 `foreground-and-unadmitted`）够不到后台调用，暂停中的也一样 | [ledger-control.ts](../src/ledger-control.ts) 的 `decideControl` 与 `outOfReach`                                                                                                                                                                                                                                                                 |
+| `SuspendedHoldsNoSlot`             | 暂停（不论前后台）不持有名额                                                           | 暂停的关系由 [ledger-state.ts](../src/ledger-state.ts) 的 `keptRelation` 保持，停泊照 `SuspendedSlots` 的路径走                                                                                                                                                                                                                                  |
+| `SlotsWithinLimit`                 | 持有名额的调用数不超过上限                                                             | [ledger-start.ts](../src/ledger-start.ts) 的 `decideQueueHold`                                                                                                                                                                                                                                                                                   |
+
+| 配置                                   | 种类 | 预期                                       |
+| -------------------------------------- | ---- | ------------------------------------------ |
+| `BackgroundWaits.cfg`                  | 正控 | 全部不变式成立（关闭死锁检查，192 个状态） |
+| `BackgroundWaits-unsafe-bganywait.cfg` | 负控 | 违反 `BackgroundWaitsOnlyWhereDeclared`    |
+| `BackgroundWaits-unsafe-runcancel.cfg` | 负控 | 违反 `RunCancelNeverEndsBackground`        |
+| `BackgroundWaits-unsafe-waitslot.cfg`  | 负控 | 违反 `SuspendedHoldsNoSlot`                |
+
 ## CallLifecycle
 
 模型 [CallLifecycle.tla](models/call-lifecycle/CallLifecycle.tla)。它假设消费者先保存再确认、保存后不重发，`ack-before-save` 与 `consumer-resends-after-save` 是这两条前提的负控；清扫删除与并发写入的竞争不建模。
@@ -116,3 +137,31 @@
 | `CallLifecycle-exclusion-without-due.cfg`       | 负控 | 违反 `IdleIsScheduled`                                      |
 | `CallLifecycle-drop-before-body-bytes.cfg`      | 负控 | 违反 `NoOrphanBytes`                                        |
 | `CallLifecycle-drop-while-busy.cfg`             | 负控 | 违反 `NotRemovedWhileBusy`                                  |
+
+## ProgramChildren
+
+模型 [ProgramChildren.tla](models/program-children/ProgramChildren.tla)。它是 3 个位置的有界实例。父调用域与每个子调用域各自原子提交，两者之间没有共同事务；子调用的启动与屏障在同一个启动排序域里排先后。它假设放行判断在取消生效之后不再放行；人可能永远不答，所以进展只在屏障成立之后承诺。不建模名额与结果的内容。动作名对应父调用域的登记、交出、排除、承接与关闭这几种提交。
+
+| 性质 | 守的规则 |
+| --- | --- |
+| `StartAtMostOnce` | 同一位置的函数至多执行一次 |
+| `NoLateRegistration` | 关闭之后没有新的位置被登记 |
+| `NoStartBehindFence` | 屏障范围之内的子调用不在屏障之后首次启动 |
+| `CompletedMeansSettled` | 报完成时每个位置已排除或已承接，被承接的子调用已真实收场 |
+| `ClosedKeepsCause` | 关闭过的程序不报完成，结局就是关闭的原因 |
+| `NoOrphanChild` | 每个被受理的子调用都在位置表里，不会被记成已排除 |
+| `WithdrawSparesBackground` | 撤回前台与未受理不停屏障成立时已在后台的子调用 |
+| `AdmittedOnlyIfAllowed` | 没有放行就没有子调用 |
+| `ClosedSettles` | 屏障成立之后每个位置最终都有交代（`FairSpec`） |
+
+| 配置 | 种类 | 预期 |
+| --- | --- | --- |
+| `ProgramChildren-positive.cfg` | 正控 | 全部不变式成立 |
+| `ProgramChildren-progress.cfg` | 正控 | `ClosedSettles` 成立（`FairSpec`） |
+| `ProgramChildren-register-after-close.cfg` | 负控 | 违反 `NoLateRegistration`（关闭之后仍接受登记） |
+| `ProgramChildren-start-after-close.cfg` | 负控 | 违反 `NoStartBehindFence`（启动不核屏障） |
+| `ProgramChildren-finish-early.cfg` | 负控 | 违反 `CompletedMeansSettled`（正文返回就报完成） |
+| `ProgramChildren-withdraw-stops-background.cfg` | 负控 | 违反 `WithdrawSparesBackground`（撤回时不看范围） |
+| `ProgramChildren-exclude-without-fence.cfg` | 负控 | 违反 `NoOrphanChild`（记排除而不排除受理操作） |
+| `ProgramChildren-redeliver.cfg` | 负控 | 违反 `StartAtMostOnce`（重送建出新的执行） |
+| `ProgramChildren-no-close-exclude.cfg` | 负控 | 违反 `ClosedSettles`（关闭之后不处置已登记的位置） |

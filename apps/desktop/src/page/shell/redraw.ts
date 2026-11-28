@@ -1,0 +1,125 @@
+import {
+  defineRenderPoint,
+  type Declared,
+  type ProjectionRange,
+  type RenderDrawer,
+  type RenderPoint,
+  type Trouble,
+} from '@omne-harness/shell-contract'
+import { iconNames, PIECES, type Redraw, type RedrawKind } from '@omne-harness/ui-kit'
+import type { ReactNode } from 'react'
+
+/** One icon of the set as a host draws it: its name, and the size and class it was asked for with. */
+export type IconSubject = Readonly<{
+  name: string
+  size: number | string
+  className: string | undefined
+}>
+
+const ICON_EXAMPLE = [
+  '{"point":"shell.icon","key":"send","module":"send-icon.js","export":"icon"}',
+  'send-icon.js:',
+  'export const icon = ({ React }) => ({ subject }) =>',
+  "  React.createElement('svg', { viewBox: '0 0 24 24', width: subject.size, height: subject.size, fill: 'currentColor', 'aria-hidden': 'true', className: subject.className },",
+  "    React.createElement('path', { d: 'M3 20 21 12 3 4v6l11 2-11 2z' }))",
+].join('\n')
+
+export const iconPoint: RenderPoint<IconSubject> = defineRenderPoint({
+  name: 'shell.icon',
+  title: '图标',
+  key: 'the name of the icon: OmneExtensionPoints show shell.icon lists the names',
+  summary:
+    'How one icon is drawn everywhere the interface shows it, by its name: in the sidebar, on a button, in a list.',
+  subject:
+    'the icon as it is asked for: name; size, a number of pixels or a CSS length; className, the classes to put on the root, or none',
+  example: ICON_EXAMPLE,
+})
+
+const PIECE_EXAMPLE = [
+  '{"point":"shell.piece","key":"loading","module":"loading.js","export":"loading"}',
+  'loading.js:',
+  'export const loading = ({ React }) => ({ subject, generic }) =>',
+  "  subject.counted ? generic() : React.createElement('span', { 'aria-hidden': 'true', className: subject.className }, '…')",
+].join('\n')
+
+export const piecePoint: RenderPoint<object> = defineRenderPoint({
+  name: 'shell.piece',
+  title: '共用件的画法',
+  key: `one of the shared pieces of the interface: ${PIECES.join(', ')}`,
+  summary:
+    'How one shared piece of the interface is drawn wherever a page shows it: the loading mark, an empty state, a notice in a page, the body of the figure of the agent.',
+  subject:
+    'what the page asks the piece to show. loading: size (sm or md), active, counted, className. empty-state: title, hint, action, role, className. inline-notice: tone, title, body, detail, action. figure: size in pixels, phase (seated: still, on a seat or set down at a point; flying: on its way by itself; held: following the hand, or left where the hand let go), hover, doing (idle, thinking, looking, writing or background), waiting, the count of what waits for the person; the shell still places the figure, moves it and takes the press. note: the inside of the say note; note, what it holds (targets, target, text, pictures, told, fate, reply, phrases), and act, what it does (write, choose, send, phrase, drop, open, close, settings); the shell still places the note and keeps its words',
+  example: PIECE_EXAMPLE,
+})
+
+type Through = (
+  shell: RenderDrawer,
+  key: string,
+  subject: object,
+  builtIn: () => ReactNode,
+) => ReactNode
+
+const THROUGH: Readonly<Record<RedrawKind, Through | undefined>> = {
+  icon: (shell, key, subject, builtIn) =>
+    iconPoint.draw(shell, key, subject as IconSubject, builtIn),
+  piece: (shell, key, subject, builtIn) => piecePoint.draw(shell, key, subject, builtIn),
+}
+
+/** The points the shell declares for what the shared kit draws by name. */
+export const redrawPoints: readonly Declared[] = [iconPoint, piecePoint]
+
+/** What another surface draws of the changes: the drawings on the two points of the kit; the shell's own parts open no drawing. */
+export const projectedRange: ProjectionRange = {
+  points: [iconPoint.name, piecePoint.name],
+  parts: [],
+}
+
+/** The names a point of the kit draws by; none for a point that is not one of them. */
+export function redrawKeys(point: string): readonly string[] | undefined {
+  if (point === iconPoint.name) return iconNames()
+  return point === piecePoint.name ? PIECES : undefined
+}
+
+/** Draws what the kit asks for through the points of the shell. */
+export function redrawThrough(shell: RenderDrawer): Redraw {
+  return (kind, key, subject, builtIn) => {
+    const through = THROUGH[kind]
+    return through === undefined ? builtIn() : through(shell, key, subject, builtIn)
+  }
+}
+
+export type RedrawRelay = Readonly<{ draw: Redraw; bind(source: Redraw): () => void }>
+
+/** Stands at the root of the page before the shell is there: until one is bound, the kit draws its own. */
+export function redrawRelay(): RedrawRelay {
+  let source: Redraw | undefined
+  return {
+    draw: (kind, key, subject, builtIn) =>
+      source === undefined ? builtIn() : source(kind, key, subject, builtIn),
+    bind(next) {
+      source = next
+      return () => {
+        if (source === next) source = undefined
+      }
+    },
+  }
+}
+
+export function iconTroubles(
+  pages: readonly Readonly<{ id: string; icon: string }>[],
+  drawn: (name: string) => boolean,
+): readonly Trouble[] {
+  const known = new Set(iconNames())
+  return pages
+    .filter(page => !known.has(page.icon) && !drawn(page.icon))
+    .map(page => ({
+      point: 'shell.pages',
+      key: '',
+      id: page.id,
+      at: ['icon'],
+      given: JSON.stringify(page.icon),
+      allows:
+        'a name the kit knows, or one shell.icon draws: the sidebar draws a question mark instead. OmneExtensionPoints show shell.icon lists the names',
+    }))
+}

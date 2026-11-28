@@ -5,7 +5,7 @@ const SENTENCES: Readonly<Record<string, string>> = {
   invalid: '服务端认为这个请求的内容不合规定。',
   conflict: '和服务端已有的记录冲突。',
   archived: '这个会话已归档，不能再发消息。',
-  frozen: '这个会话已冻结，暂时不能发消息。',
+  frozen: '这个会话已冻结，不能再发消息。',
   denied: '没有权限，或登录已失效。',
   'not-found': '服务端找不到这一轮。',
   'protocol-rejected': '服务端不认这个请求的格式。',
@@ -14,8 +14,11 @@ const SENTENCES: Readonly<Record<string, string>> = {
   'uniform-auth-failure': '登录没有通过。',
 }
 
-export function refused(outcome: string, prefix: string): Notice {
-  return { kind: 'refused', text: `${prefix}${SENTENCES[outcome] ?? `服务端答复「${outcome}」。`}` }
+export function refused(outcome: string, prefix: string, reason?: string): Notice {
+  const sentence = SENTENCES[outcome] ?? `服务端答复「${outcome}」。`
+  return reason === undefined
+    ? { kind: 'refused', text: `${prefix}${sentence}` }
+    : { kind: 'refused', text: `${prefix}${sentence}原因：${reason}`, reason }
 }
 
 export const NOT_SENT = (what: string): Notice => ({

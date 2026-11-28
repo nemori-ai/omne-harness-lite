@@ -36,7 +36,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -338,7 +338,7 @@ async function secondSession(s: SqlScene, name: string) {
   const snapshot = ok(await s.port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('not active')
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await s.port.readInput({ ...access, input: snapshot.run.first }))
+  const admitted = ok(await s.port.readInput({ ...access, input: snapshot.run.initial[0] }))
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
@@ -803,9 +803,9 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       consumer: draft.consumer,
       reference: draft.delivery.key.reference,
     }
-    expect(ok(await targets().resolve({ ...query, execution: s.execution })).execution).toBe(
-      s.execution,
-    )
+    expect(ok(await targets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
@@ -927,9 +927,9 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
       consumer: tool.pending.position,
       reference: tool.pending.reference,
     }
-    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))?.execution).toBe(
-      s.execution,
-    )
+    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await toolTargets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
@@ -1051,6 +1051,39 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     expect(
       await held.readAdoptedRequest({ access: s.access, session: s.access.session }),
     ).toMatchObject({ kind: 'unavailable' })
+    expect(
+      await held.readRequestChoices({
+        access: s.access,
+        session: s.access.session,
+        reference: invocation(s.access.tenant, '1'),
+      }),
+    ).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('the choices of a call check history.readAdoptedRequest on the session: denied, undecided and unminted answer as the adopted request does', async () => {
+    const s = await scene('adopted-plugin-choices')
+    const { adopted, wiring, journal } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    const reference = invocation(s.access.tenant, '1')
+    const read = (access = s.access) =>
+      adopted().readRequestChoices({ access, session: s.access.session, reference })
+    expect(await read()).toEqual({ kind: 'value', value: [] })
+    expect(wiring.decided.at(-1)).toEqual({
+      access: s.access,
+      operation: 'history.readAdoptedRequest',
+      target: { kind: 'session', session: s.access.session },
+    })
+    const reads = wiring.reads
+    wiring.decide = () => ({ kind: 'denied' })
+    expect(await read()).toEqual({ kind: 'denied' })
+    wiring.decide = () => ({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(await read()).toEqual({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(wiring.reads).toBe(reads)
+    wiring.decide = undefined
+    expect(await read({ ...s.access, tenant: structuredClone(s.access.tenant) })).toEqual({
+      kind: 'denied',
+    })
   })
 })
 
@@ -1384,7 +1417,9 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
-        const interpreter = await cordisScene(s)
+        const interpreter = await cordisScene(s, {
+          acknowledge: () => async () => fail({ kind: 'unsupported' }),
+        })
         disposers.push(() => interpreter.dispose())
         const interpretation = createSessionJournalInterpretationPlugin<string>({
           coordinator: async () => succeed(s.access.principal),

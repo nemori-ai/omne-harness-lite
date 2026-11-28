@@ -2,12 +2,12 @@ import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolForwardRuntime } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import type { ToolForwardSource } from '@omne-harness/tool-contract/provider'
+import { toolInvokeRequestOf, type ToolForwardSource } from '@omne-harness/tool-contract/provider'
 import { testAssembly } from './testing-values.ts'
 import {
   callId,
+  fixedRequestForNamedSourceGuard,
   operationId,
-  request,
   principalA,
   tenantA,
   instanceId,
@@ -16,10 +16,9 @@ import {
 
 it('passes the complete original programmatic source to shared admission and resumes the same fixed request', async () => {
   const base = testAssembly()
-  const fixed: FixedToolRequest = {
-    ...request(),
+  const fixed = fixedRequestForNamedSourceGuard({
     invocation: { kind: 'programmatic', source: evidence('original-program') },
-  }
+  })
   if (fixed.availability.kind !== 'available') throw new Error('fixture unavailable')
   const bound = {
     call: callId('target'),
@@ -57,7 +56,7 @@ it('passes the complete original programmatic source to shared admission and res
     },
   }
   if (fixed.availability.kind !== 'available') throw new Error('fixture unavailable')
-  const { invocation: _, ...target } = fixed
+  const target = toolInvokeRequestOf(fixed)
   const first = await runtime.invoke({
     ...parent,
     target,
@@ -94,12 +93,11 @@ it('never admits when the original association is unresolved', async () => {
     },
     source,
   )
-  const fixed: FixedToolRequest = {
-    ...request(),
+  const fixed = fixedRequestForNamedSourceGuard({
     invocation: { kind: 'direct', source: evidence('parent') },
-  }
+  })
   if (fixed.availability.kind !== 'available') throw new Error('fixture unavailable')
-  const { invocation: _, ...target } = fixed
+  const target = toolInvokeRequestOf(fixed)
   expect(
     await runtime.invoke({
       principal: principalA,

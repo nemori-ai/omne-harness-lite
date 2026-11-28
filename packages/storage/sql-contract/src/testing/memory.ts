@@ -7,9 +7,11 @@ import {
   DOMAIN_BYTES,
   clipDiagnostic,
   decodeIdentity,
+  decodeReleases,
   decodeScope,
   isDigest,
   isName,
+  releasesInDomain,
   scopeKey,
 } from '../fields.ts'
 import { combinationManifest, manifestDigest } from '../manifest.ts'
@@ -53,7 +55,6 @@ export type MemorySqlStorageLimits = Readonly<{
   maxDiagnosticBytes: number
   maxReadInputBytes: number
   maxJsonDepth: number
-  maxJsonMembers: number
 }>
 
 const DEFAULT_LIMITS: MemorySqlStorageLimits = {
@@ -65,7 +66,6 @@ const DEFAULT_LIMITS: MemorySqlStorageLimits = {
   maxDiagnosticBytes: 512,
   maxReadInputBytes: 64 << 10,
   maxJsonDepth: 64,
-  maxJsonMembers: 100_000,
 }
 
 export type MemorySqlStorageInput = Readonly<{
@@ -163,6 +163,13 @@ const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protoco
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
 const keepsReceipt = (identity: SqlIdentity): boolean => identity.recall !== 'never'
+const SETTLEMENT_PROOFS = {
+  writerGenerationExcluded: true,
+  oldTransactionTerminated: true,
+  databaseRecoveryFinished: true,
+  authoritativeReadSucceeded: true,
+  operationNotQueued: true,
+} as const
 const sortNames = (names: readonly string[]): string[] => [...names].sort()
 
 type PortViolation = 'port_violation' | 'fact_violation'
@@ -232,6 +239,7 @@ class MemorySqlStorage implements SqlStorage {
   readonly queue = new SerialQueue()
   private readonly domains = new Map<string, Domain>()
   private readonly modules = new Map<string, Promise<unknown>>()
+  private readonly pending = new Map<string, number>()
   private readonly descriptors: ReadonlyMap<string, ParticipantDescriptor>
 
   private readonly catalog: SqlMaterialCatalog
@@ -366,6 +374,13 @@ class MemorySqlStorage implements SqlStorage {
     const early = this.controlRejection(input, signal, reject, unknownOf)
     if (early !== null) return Promise.resolve(early)
     const identity = decoded.identity as SqlIdentity
+    const key = canonicalJson(identity)
+    this.pending.set(key, (this.pending.get(key) ?? 0) + 1)
+    const leave = (): void => {
+      const left = (this.pending.get(key) ?? 1) - 1
+      if (left > 0) this.pending.set(key, left)
+      else this.pending.delete(key)
+    }
     return new Promise(resolve => {
       let settled = false
       const settle = (result: CommitResultV2): void => {
@@ -378,8 +393,15 @@ class MemorySqlStorage implements SqlStorage {
       const onAbort = (): void => settle(unknown('observer_detached'))
       signal?.addEventListener('abort', onAbort, { once: true })
       this.queue.submit({
-        start: async () => settle(await this.execute(input, identity, reject)),
-        withdraw: () => settle(unknown('withdrawn_before_start')),
+        start: async () => {
+          const result = await this.execute(input, identity, reject)
+          leave()
+          settle(result)
+        },
+        withdraw: () => {
+          leave()
+          settle(unknown('withdrawn_before_start'))
+        },
       })
     })
   }
@@ -406,14 +428,17 @@ class MemorySqlStorage implements SqlStorage {
           (command as { facts?: unknown }).facts !== null &&
           !Array.isArray((command as { facts?: unknown }).facts),
       )
+    const releases = decodeReleases(input.releases)
     if (
       decoded.fields === null ||
       !isName(input.combinationVersion) ||
       !isDigest(input.manifestDigest) ||
-      !commandsOk
+      !commandsOk ||
+      releases === null
     )
       return reject('field_missing')
-    if (decoded.protocol !== '2') return reject('unsupported_protocol')
+    if (decoded.protocol !== '2' || decoded.identity === null) return reject('unsupported_protocol')
+    if (!releasesInDomain(decoded.identity, releases)) return reject('release_outside_domain')
     const list = commands as CommitRequestV2['commands'][number][]
     if (new Set(list.map(command => command.participant)).size !== list.length)
       return reject('participant_repeated')
@@ -430,14 +455,11 @@ class MemorySqlStorage implements SqlStorage {
     const { limits } = this
     if (list.length > limits.maxCommandsPerCommit) return false
     if (utf8Length(canonicalJson(input)) > limits.maxRequestBytes) return false
-    let members = 0
     for (const command of list) {
       if (utf8Length(canonicalJson(command)) > limits.maxCommandBytes) return false
-      const shape = jsonShape(command.facts)
-      if (shape.depth > limits.maxJsonDepth) return false
-      members += shape.members
+      if (jsonShape(command.facts).depth > limits.maxJsonDepth) return false
     }
-    return members <= limits.maxJsonMembers
+    return true
   }
 
   private async execute(
@@ -508,6 +530,8 @@ class MemorySqlStorage implements SqlStorage {
       manifestDigest: input.manifestDigest,
       responses: entries,
     } as unknown as ReceiptV2
+    for (const released of decodeReleases(input.releases) ?? [])
+      if (keepsReceipt(released)) domain.receipts.delete(receiptKey(released))
     if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
     return { ...receipt, recalled: false }
   }
@@ -615,24 +639,22 @@ class MemorySqlStorage implements SqlStorage {
     if (this.closing) return Promise.resolve(unknown('closing'))
     if (decoded.identity === null) return Promise.resolve(unknown('invalid_identity'))
     const valid = decoded.identity
-    if (!keepsReceipt(valid)) return Promise.resolve({ kind: 'not_recallable', identity: valid })
+    const inFlight = (): boolean => !keepsReceipt(valid) && this.pending.has(canonicalJson(valid))
+    if (inFlight()) return Promise.resolve(unknown('operation_pending'))
     return new Promise(resolve => {
       this.queue.submit({
         start: () => {
           const domain = this.domainOf(valid.scope, valid.transactionDomain)
           if (domain === null) resolve(unknown('domain_unavailable'))
+          else if (inFlight()) resolve(unknown('operation_pending'))
+          else if (!keepsReceipt(valid))
+            resolve({ kind: 'settled', identity: valid, proofs: SETTLEMENT_PROOFS })
           else
             resolve(
               domain.receipts.get(receiptKey(valid)) ?? {
                 kind: 'not_committed',
                 identity: valid,
-                proofs: {
-                  writerGenerationExcluded: true,
-                  oldTransactionTerminated: true,
-                  databaseRecoveryFinished: true,
-                  authoritativeReadSucceeded: true,
-                  operationNotQueued: true,
-                },
+                proofs: SETTLEMENT_PROOFS,
               },
             )
           return Promise.resolve()
@@ -668,11 +690,9 @@ class MemorySqlStorage implements SqlStorage {
       !isStrictJson(raw.input)
     )
       return unavailable('invalid')
-    const shape = jsonShape(raw.input)
     if (
       utf8Length(canonicalJson(raw.input)) > this.limits.maxReadInputBytes ||
-      shape.depth > this.limits.maxJsonDepth ||
-      shape.members > this.limits.maxJsonMembers
+      jsonShape(raw.input).depth > this.limits.maxJsonDepth
     )
       return unavailable('read_limit')
     const handler = this.catalog.readHandlers.find(
@@ -740,6 +760,7 @@ export async function createMemorySqlStorage(
       return { kind: 'closed' }
     },
     assemblyReportSettled() {},
+    readings: () => ({ reads: [], commits: [], participants: [], queries: [] }),
   }
   return { storage, control }
 }

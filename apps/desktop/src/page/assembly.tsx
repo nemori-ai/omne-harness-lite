@@ -1,85 +1,221 @@
 import type { Plugin } from '@deepseek-ai/cordis'
+import * as ui from '@omne-harness/ui-kit'
 import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
+  assetsCategory,
   assetsCategoryPage,
+  assetsHolding,
+  assetsPageTarget,
   assetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
 import '@omne-harness/calendar-ui/calendar-ui.css'
 import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
+import '@omne-harness/canvas-ui/canvas-ui.css'
+import {
+  canvasElement,
+  canvasIntake,
+  canvasPicker,
+  createCanvasUiModule,
+} from '@omne-harness/canvas-ui/cordis'
+import { createGoalUiModule } from '@omne-harness/goal-ui/cordis'
+import '@omne-harness/goal-ui/goal-ui.css'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import {
   createHumanInterventionUiModule,
   releaseDetail,
 } from '@omne-harness/human-intervention-ui/cordis'
-import { identityUiModule } from '@omne-harness/identity-ui/cordis'
+import { accountPreferencesKey, identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
-import { createMediaUiModule, mediaComposerIntakeKey } from '@omne-harness/media-ui/cordis'
+import { createMediaUiModule, mediaPictureIntakeKey } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
-import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
+import '@omne-harness/model-ui/model-ui.css'
+import {
+  PROVIDER_CATEGORY,
+  createModelUiModule,
+  modelChoicesKey,
+} from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
+import type { InspectionResult } from '@omne-harness/interface-protocol'
+import { measure, waitFor } from '@omne-harness/interface-ui'
+import { createInterfaceUiModule } from '@omne-harness/interface-ui/cordis'
+import { createPluginUiModule, createPluginViewModule } from '@omne-harness/plugin-ui/cordis'
+import '@omne-harness/plugin-ui/plugin-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
+import * as React from 'react'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
-  sessionBlock,
-  sessionBlockReadsKey,
+  conversationTarget,
+  createSessionUiModule,
+  sessionBlockRender,
   sessionCallDetail,
+  sessionToolCall,
   sessionComposerAttachments,
   sessionComposerIntakeKey,
+  sessionComposerKey,
   sessionDock,
-  sessionModelChoicesKey,
   sessionReadsSourceKey,
   sessionReadsUiModule,
+  sessionModelChoiceKey,
+  sessionRunFailure,
   sessionSide,
   sessionStatus,
-  sessionUiModule,
-  sessionWorkspaceChoicesKey,
 } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createComposer } from '@omne-harness/slash-command-contract'
+import {
+  createSlashCommandUiModule,
+  slashCommandComposerKey,
+} from '@omne-harness/slash-command-ui/cordis'
 import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { storedLayouts } from '@omne-harness/usage-ui'
 import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
+import { pluginFilePath } from '../shared/plugin-path.ts'
+import { storedCanvasPreferences } from './canvas-preferences.ts'
+import { storedFloor, whenDrawn, type PageFloor } from './shell/floor.ts'
+import type { ViewReading } from './shell/view.ts'
 import { domainProtocols } from '../shared/protocols.ts'
-import { handOver } from './hand-over.ts'
+import { LOOK_KEY, storedTenantTexts, type TenantTexts } from './shell/tenant-text.ts'
+import { hostScreen } from './screen-source.ts'
+import { hostShot, hostView } from './view-source.ts'
 
 export const USAGE_REFRESH_MS = 60_000
 
 export type Assembly = Readonly<{
   protocols: readonly ProtocolContract[]
   modules: readonly Plugin.Object[]
+  /** The floor of this page: the loader asks it, and the page hears from it when everything has an outcome. */
+  floor: PageFloor
+  reading: ViewReading
 }>
 
-export const assembly: Assembly = {
-  protocols: domainProtocols,
-  modules: [
-    identityUiModule,
-    sessionUiModule,
-    createHumanInterventionUiModule({ sessionDock }),
-    notificationUiModule,
-    createScheduleUiModule({ releaseDetail }),
-    calendarUiModule,
-    assetsUiModule,
-    createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
-    createToolUiModule({ callDetail: sessionCallDetail }),
-    modelUiModule,
-    handOver(sessionModelChoicesKey, modelChoicesKey),
-    workspaceUiModule,
-    handOver(sessionWorkspaceChoicesKey, workspaceChoicesKey),
-    createUsageUiModule({
-      sessionSide,
-      sessionStatus,
-      store: storedLayouts(() => window.localStorage),
-      refreshMs: USAGE_REFRESH_MS,
-    }),
-    createMediaUiModule({ composerAttachments: sessionComposerAttachments, block: sessionBlock }),
-    handOver(mediaComposerIntakeKey, sessionComposerIntakeKey),
-    sessionReadsUiModule,
-    handOver(sessionBlockReadsKey, sessionReadsSourceKey),
-  ],
+export type PageOptions = Readonly<{
+  /** Where the page keeps what it remembers on this device. */
+  store: () => Storage
+  /** The look to wear, where the page is not to remember a person's choice. */
+  looks?: TenantTexts
+  /** A page drawn only to be looked at: it tells the server nothing of itself and takes no requests to draw. */
+  viewing: boolean
+}>
+
+/** Whether the page has put its own interface where the line it boots with stood. */
+function pageDrawn(): boolean {
+  const root = document.getElementById('root')
+  return root !== null && root.childElementCount > 0 && root.querySelector('.booting') === null
 }
+
+export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
+  const floor = storedFloor(store, whenDrawn(pageDrawn))
+  const view = hostView()
+  return {
+    protocols: domainProtocols,
+    floor,
+    reading: {
+      waitFor: (until, signal) => waitFor(document, until, signal),
+      drawn: (part, page) => measure(document, { ...(part === undefined ? {} : { part }), page }),
+    },
+    modules: [
+      identityUiModule,
+      createSessionUiModule({
+        modelChoices: modelChoicesKey,
+        workspaceChoices: workspaceChoicesKey,
+        blockReads: sessionReadsSourceKey,
+        canvasElement,
+        canvasPicker,
+        composerAssistant: slashCommandComposerKey,
+        pictureIntake: mediaPictureIntakeKey,
+      }),
+      createSlashCommandUiModule({
+        composer: createComposer,
+        writer: sessionComposerKey,
+        preferences: accountPreferencesKey,
+      }),
+      createHumanInterventionUiModule({ sessionDock }),
+      createGoalUiModule({ sessionSide, conversation: conversationTarget }),
+      notificationUiModule,
+      createScheduleUiModule({ releaseDetail, conversation: conversationTarget, sessionStatus }),
+      calendarUiModule,
+      assetsUiModule,
+      createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+      createPluginViewModule({
+        page: assetsCategoryPage,
+        governance: assetGovernanceKey,
+        target: assetsPageTarget,
+      }),
+      createToolUiModule({ callDetail: sessionCallDetail, toolCall: sessionToolCall }),
+      createModelUiModule({
+        runFailure: sessionRunFailure,
+        providers: assetsPageTarget(PROVIDER_CATEGORY),
+        holding: assetsHolding,
+        assets: assetGovernanceKey,
+        modelChoice: sessionModelChoiceKey,
+      }),
+      workspaceUiModule,
+      createUsageUiModule({
+        sessionSide,
+        sessionStatus,
+        store: storedLayouts(store),
+        refreshMs: USAGE_REFRESH_MS,
+      }),
+      createMediaUiModule({
+        screen: hostScreen(),
+        composerAttachments: sessionComposerAttachments,
+        block: sessionBlockRender,
+        drafts: sessionComposerIntakeKey,
+        holding: assetsHolding,
+        assets: assetGovernanceKey,
+        canvasElement,
+        canvasIntake,
+      }),
+      sessionReadsUiModule,
+      createCanvasUiModule({ preferences: storedCanvasPreferences(store) }),
+      createPluginUiModule({
+        floor,
+        skinsAbove: assetsCategory,
+        looks: looks ?? storedTenantTexts(store, LOOK_KEY),
+        reports: !viewing,
+        code: {
+          given: { React, ui },
+          load: (name, version, path) =>
+            import(/* @vite-ignore */ pluginFilePath(name, version, path)),
+          files: (name, version) => pluginFilePath(name, version, ''),
+        },
+      }),
+      ...(viewing
+        ? []
+        : [
+            createInterfaceUiModule({
+              draw: async ({ page, subject, mode, part, until }, signal, tenant) =>
+                (await view(
+                  {
+                    tenant,
+                    page,
+                    ...(subject === undefined ? {} : { subject }),
+                    ...mode,
+                    ...(part === undefined ? {} : { part }),
+                    ...(until === undefined ? {} : { until }),
+                  },
+                  signal,
+                )) as InspectionResult,
+              see: {
+                root: () => document,
+                page: () =>
+                  document
+                    .querySelector('section[data-page]:not([hidden])')
+                    ?.getAttribute('data-page') ?? null,
+                capture: hostShot(),
+              },
+            }),
+          ]),
+    ],
+  }
+}
+
+/** The page a person uses: it remembers on this device and takes requests to draw. */
+export const assembly = pageAssembly({ store: () => window.localStorage, viewing: false })

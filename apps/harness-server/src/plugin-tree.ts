@@ -6,6 +6,8 @@ export type DisabledRow = Readonly<{ id: RowId; source: 'operator' }>
 export type ResolvedTree = Readonly<{
   rows: readonly TreeRow[]
   disabled: readonly DisabledRow[]
+  /** The version directories the operator named: taken without a publisher's signature. */
+  named?: readonly string[]
 }>
 
 function unknownTarget(op: OperatorOp, target: RowId): ConfigError {
@@ -64,7 +66,10 @@ export function loadTree(
       ? { ops: [] }
       : parseBoundary(operatorSchema(pluginAllowlist), operatorInput)
   const rows: TreeRow[] = distribution.rows.map(row => ({ ...row, source: 'distribution' }))
-  return applyOperatorOps(rows, operator.ops)
+  const tree = applyOperatorOps(rows, operator.ops)
+  return 'versionDirectories' in operator && operator.versionDirectories !== undefined
+    ? { ...tree, named: operator.versionDirectories }
+    : tree
 }
 
 function canonicalJson(value: unknown): string {

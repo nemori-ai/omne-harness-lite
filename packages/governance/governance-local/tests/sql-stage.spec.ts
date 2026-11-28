@@ -178,8 +178,8 @@ it('keeps an old pending envelope when its material is missing and later sends o
       inputDigest: saved.inputDigest,
     },
   })
-  expect(await recovery.send(request.binding, 'apply')).toEqual(first)
-  expect(await recovery.readStage(request.binding, 'apply')).toEqual(saved)
+  expect(await recovery.send(request.binding, 'apply')).toEqual({ kind: 'unplanned' })
+  expect(await recovery.readStage(request.binding, 'apply')).toEqual({ kind: 'unplanned' })
   expect(await recovery.observe(request.binding)).toMatchObject({
     kind: 'found',
     record: { state: 'committed' },

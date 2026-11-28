@@ -37,6 +37,26 @@ describe('the word said of a model', () => {
       '不能选：被锁定、不在这个租户能用的范围里',
     ],
     [{ selectable: false, reasons: [], credential: 'available' }, '现在不能选'],
+    [
+      {
+        selectable: false,
+        reasons: ['modality'],
+        credential: 'available',
+        blocks: [
+          { message: 'm-1', block: 'b-1' },
+          { message: 'm-2', block: 'b-2' },
+        ],
+      },
+      '不能选：读不了这段会话里的 2 块内容',
+    ],
+    [
+      { selectable: false, reasons: [], credential: 'available', enabled: false },
+      '不能选：没有启用',
+    ],
+    [
+      { selectable: false, reasons: ['locked'], credential: 'available', enabled: false },
+      '不能选：没有启用、被锁定',
+    ],
   ] as const)('%j is said as %j', (given, said) => {
     expect(noteOf(given as never)).toBe(said)
   })
@@ -48,7 +68,7 @@ describe('the list of models of a tenant', () => {
       outcome: 'succeeded',
       body: {
         models: [
-          model('anthropic/claude-sonnet-5'),
+          model('anthropic/claude-sonnet-5', { reasoningEfforts: ['low', 'xhigh'] }),
           model('openai/gpt-6-sol', { credential: 'missing' }),
           model('locked', { selectable: false, reasons: ['locked'] }),
         ],
@@ -57,13 +77,66 @@ describe('the list of models of a tenant', () => {
     expect(await choices.list(TENANT)).toEqual({
       kind: 'listed',
       choices: [
-        { route: 'anthropic/claude-sonnet-5', selectable: true, note: null },
-        { route: 'openai/gpt-6-sol', selectable: true, note: '还没有配置凭据，选了也暂时调不了' },
-        { route: 'locked', selectable: false, note: '不能选：被锁定' },
+        {
+          route: 'anthropic/claude-sonnet-5',
+          selectable: true,
+          note: null,
+          reasoningEfforts: ['low', 'xhigh'],
+        },
+        {
+          route: 'openai/gpt-6-sol',
+          selectable: true,
+          note: '还没有配置凭据，选了也暂时调不了',
+          reasoningEfforts: [],
+        },
+        { route: 'locked', selectable: false, note: '不能选：被锁定', reasoningEfforts: [] },
       ],
     })
     expect(asked).toHaveLength(1)
     expect(JSON.stringify(asked[0])).toContain('org_00000000000000000000000000')
+  })
+
+  it('asks for a session when given one, and gives how many of its blocks stop a model', async () => {
+    const SESSION = '0123456789abcdef'.repeat(4)
+    const blocks = [{ message: 'm-1', block: 'b-1' }]
+    const { asked, choices } = choicesOver({
+      outcome: 'succeeded',
+      body: {
+        models: [
+          model('text-only', { selectable: false, reasons: ['modality'], blocks }),
+          model('anthropic/claude-sonnet-5'),
+        ],
+      },
+    })
+    const listed = await choices.list(TENANT, SESSION)
+    expect((asked[0] as { session?: string }).session).toBe(SESSION)
+    expect(
+      listed.kind === 'listed' && listed.choices.map(each => [each.route, each.blocks]),
+    ).toEqual([
+      ['text-only', 1],
+      ['anthropic/claude-sonnet-5', undefined],
+    ])
+    await choices.list(TENANT)
+    expect('session' in (asked[1] as object)).toBe(false)
+  })
+
+  it('gives the default effort the tenant set for a model, and none where it set none', async () => {
+    const { choices } = choicesOver({
+      outcome: 'succeeded',
+      body: {
+        models: [
+          model('z-ai/glm-5.3', {
+            reasoningEfforts: ['low', 'high'],
+            defaultReasoningEffort: 'high',
+          }),
+          model('z-ai/glm-5.2', { reasoningEfforts: ['high'] }),
+        ],
+      },
+    })
+    const listed = await choices.list(TENANT)
+    if (listed.kind !== 'listed') throw new Error(listed.reason)
+    expect(listed.choices.map(choice => choice.defaultReasoningEffort)).toEqual(['high', undefined])
+    expect(Object.hasOwn(listed.choices[1] ?? {}, 'defaultReasoningEffort')).toBe(false)
   })
 
   it('gives an empty list as an empty list', async () => {

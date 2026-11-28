@@ -129,6 +129,14 @@ function retriesLine(retries: readonly string[]): string {
     : `connect retries: ${retries.length} (${retries.join(', ')})`
 }
 
+const BASIS = { selection: 'session choice', preference: 'default reasoning effort' } as const
+
+function effortLine(effort: NonNullable<SessionModelAttemptDiagnostic['effort']>): string {
+  if ('kind' in effort) return `effort: unknown (${effort.reason})`
+  if (effort.basis === 'provider') return 'effort: provider default'
+  return `effort: ${effort.value ?? 'none'} (${BASIS[effort.basis]})`
+}
+
 function renderDispatch(attempt: SessionModelAttemptDiagnostic): string[] {
   const { timing } = attempt
   const toResponse = timing.sendToResponse ?? { kind: 'unknown' }
@@ -143,6 +151,7 @@ function renderDispatch(attempt: SessionModelAttemptDiagnostic): string[] {
       `timing: materialize ${milliseconds(timing.materialize)}, send to response ${milliseconds(toResponse)}, send to first content ${milliseconds(timing.sendToFirstContent)}, execution ${milliseconds(timing.execution)}`,
     ),
     ...(attempt.connectRetries === undefined ? [] : [at(4, retriesLine(attempt.connectRetries))]),
+    ...(attempt.effort === undefined ? [] : [at(4, effortLine(attempt.effort))]),
     at(4, accountLine(attempt.account)),
   ]
 }

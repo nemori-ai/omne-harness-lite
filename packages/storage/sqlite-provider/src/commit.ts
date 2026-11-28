@@ -8,7 +8,7 @@ import {
   type SqlStorage,
 } from '@omne-harness/sql-contract'
 import { type Core, identityKey, sameScope } from './core.ts'
-import { decodeIdentity, isDigest, isName } from './fields.ts'
+import { decodeIdentity, decodeReleases, isDigest, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
 import type { Acquired, Granted } from './waiting.ts'
@@ -20,8 +20,18 @@ const WITHDRAWN_DIAGNOSTIC = {
 } as const
 
 type Judged =
-  | Readonly<{ kind: 'rejected'; reason: CommitRejectReason }>
+  | Readonly<{ kind: 'rejected'; reason: CommitRejectReason; measured?: string }>
   | Readonly<{ kind: 'accepted'; identity: SqlIdentity; requestBytes: number; inputDigest: string }>
+
+type CommandLimit = 'maxJsonDepth' | 'maxCommandsPerCommit' | 'maxCommandBytes' | 'maxRequestBytes'
+
+function firstOf<T, R>(items: readonly T[], judge: (item: T) => R | null): R | null {
+  for (const item of items) {
+    const found = judge(item)
+    if (found !== null) return found
+  }
+  return null
+}
 
 function commandsValid(commands: unknown): commands is CommitRequestV2['commands'] {
   return (
@@ -46,52 +56,90 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (signal?.aborted === true) return rejected('cancelled')
   const decoded = decodeIdentity((input as Partial<CommitRequestV2> | null)?.identity)
   const commands: unknown = input?.commands
+  const releases = decodeReleases(input?.releases)
   if (
     decoded.fields === null ||
     !isName(input.combinationVersion) ||
     !isDigest(input.manifestDigest) ||
-    !commandsValid(commands)
+    !commandsValid(commands) ||
+    releases === null
   )
     return rejected('field_missing')
   if (decoded.protocol !== '2' || decoded.identity === null) return rejected('unsupported_protocol')
+  const { identity } = decoded
+  if (
+    releases.some(
+      item =>
+        !sameScope(item.scope, identity.scope) ||
+        item.transactionDomain !== identity.transactionDomain,
+    )
+  )
+    return rejected('release_outside_domain')
   if (new Set(commands.map(command => command.participant)).size !== commands.length)
     return rejected('participant_repeated')
   if (!commands.every(command => isStrictJson(command.facts))) return rejected('facts_not_json')
-  let members = 0
-  for (const command of commands) {
-    const shape = jsonShape(command.facts)
-    if (shape.depth > config.maxJsonDepth) return rejected('command_limit')
-    members += shape.members
-  }
-  if (members > config.maxJsonMembers || commands.length > config.maxCommandsPerCommit)
-    return rejected('command_limit')
-  for (const command of commands)
-    if (utf8Length(canonicalJson(command)) > config.maxCommandBytes)
-      return rejected('command_limit')
+  const over = (limit: CommandLimit, measured: number, participant?: string): Judged | null =>
+    measured <= config[limit]
+      ? null
+      : {
+          kind: 'rejected',
+          reason: 'command_limit',
+          measured: `${limit} ${String(measured)} > ${String(config[limit])}${participant === undefined ? '' : ` (participant ${participant})`}`,
+        }
+  const limited =
+    firstOf(commands, item =>
+      over('maxJsonDepth', jsonShape(item.facts).depth, item.participant),
+    ) ??
+    over('maxCommandsPerCommit', commands.length) ??
+    firstOf(commands, item =>
+      over('maxCommandBytes', utf8Length(canonicalJson(item)), item.participant),
+    )
+  if (limited !== null) return limited
   const requestBytes = utf8Length(canonicalJson(input))
-  if (requestBytes > config.maxRequestBytes) return rejected('command_limit')
+  const whole = over('maxRequestBytes', requestBytes)
+  if (whole !== null) return whole
   return {
     kind: 'accepted',
-    identity: decoded.identity,
+    identity,
     requestBytes,
     inputDigest: inputDigestV2(input),
   }
 }
 
+const tally =
+  (core: Core, input: CommitRequestV2, identity: SqlIdentity | null) =>
+  (result: CommitResultV2, bytes: number): CommitResultV2 => {
+    const commands = (input as Partial<CommitRequestV2> | null)?.commands
+    core.readings.commit(
+      identity?.transactionDomain ?? '',
+      Array.isArray(commands) ? commands.map(command => String(command.participant)) : [],
+      bytes,
+      result,
+    )
+    return result
+  }
+
 export function createCommit(core: Core): SqlStorage['commit'] {
   return (input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2> => {
     const signal = options?.signal
     const decoded = decodeIdentity((input as Partial<CommitRequestV2> | null)?.identity)
-    const rejection = (reason: CommitRejectReason, identity: SqlIdentity | null): CommitResultV2 =>
+    const rejection = (
+      reason: CommitRejectReason,
+      identity: SqlIdentity | null,
+      measured?: string,
+    ): CommitResultV2 =>
       ({
         kind: 'rejected_before_accept',
         identity,
         reason,
-        diagnostic: core.diagnostic(reason),
+        diagnostic: core.diagnostic(measured === undefined ? reason : `${reason}: ${measured}`),
       }) as CommitResultV2
+    const counted = tally(core, input, decoded.identity)
     const judged = judge(core, input, signal)
     if (judged.kind === 'rejected')
-      return Promise.resolve(rejection(judged.reason, decoded.identity))
+      return Promise.resolve(
+        counted(rejection(judged.reason, decoded.identity, judged.measured), 0),
+      )
     const { identity, requestBytes, inputDigest } = judged
     const key = identityKey(identity)
     core.pending.add(key)
@@ -102,7 +150,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
       return Promise.resolve(rejection(WAIT_REFUSAL[acquired.kind], identity))
     }
     const acquired = core.admission.reserveWrite(identity.transactionDomain, requestBytes, signal)
-    return acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
+    const settled = acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
+    return settled.then(result => counted(result, requestBytes))
   }
 
   function admitted(grant: Granted, sent: Sent): Promise<CommitResultV2> {

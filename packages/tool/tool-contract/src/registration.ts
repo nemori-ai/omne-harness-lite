@@ -15,6 +15,7 @@ import type {
 import type {
   ToolCallConditions,
   ToolCommandBackground,
+  ToolProgramAccess,
   ToolCommandRelease,
   ToolGate,
   ToolImplementationFacts,
@@ -27,6 +28,7 @@ import {
   commandName,
   callConditions,
   commandRelease,
+  programAccess,
   commandSummary,
   implementationDeclaration,
   judgeImplementationFacts,
@@ -36,6 +38,7 @@ import {
   unknownGateAt,
 } from './judge-definition.ts'
 import {
+  bool,
   filled,
   inheritedSlot,
   judgeUnknown,
@@ -317,35 +320,43 @@ export function defineFunctionTool<E, B extends ContentBlock>(
     implementation: ToolImplementationDeclaration
     operation: ToolOperation<E, B, Extract<ToolOperationParameters, { kind: 'declared' }>>
     conditions?: ToolCallConditions
+    program?: ToolProgramAccess
+    readOnly?: boolean
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
     record(
       { implementation: implementationDeclaration, operation: operationHandle },
-      { conditions: callConditions },
+      { conditions: callConditions, program: programAccess, readOnly: bool },
     ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, operation, conditions } = checked.ok
+  const { implementation, operation, conditions, program, readOnly } = checked.ok
   if (operation.parameters.kind !== 'declared')
     return reject('operation.parameters.kind', 'executor-owned')
   const { value: parameters } = operation.parameters
-  const shape = { kind: 'function', parameters, returns: operation.returns } as const
-  return implement(implementation, conditions === undefined ? shape : { ...shape, conditions }, {
+  const shape = {
     kind: 'function',
-    operation,
-  })
+    parameters,
+    returns: operation.returns,
+    ...(conditions === undefined ? {} : { conditions }),
+    ...(program === undefined ? {} : { program }),
+    ...(readOnly === undefined ? {} : { readOnly }),
+  } as const
+  return implement(implementation, shape, { kind: 'function', operation })
 }
 
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
   {
-    background: record({ unless: list(filled) }),
+    background: record({ unless: list(filled) }, { start: literal('launch') }),
+    program: programAccess,
     release: commandRelease,
     modalities: commandModalities,
     conditions: callConditions,
+    readOnly: bool,
   },
 )
 type CommandEntry = readonly [
@@ -354,9 +365,11 @@ type CommandEntry = readonly [
     summary: string
     operation: ToolOperationSlot
     background?: ToolCommandBackground
+    program?: ToolProgramAccess
     release?: ToolCommandRelease
     modalities?: readonly Modality[]
     conditions?: ToolCallConditions
+    readOnly?: boolean
   }>,
 ]
 
@@ -392,9 +405,11 @@ export function defineCommandTool<E, B extends ContentBlock>(
           summary: string
           operation: ToolOperation<E, B>
           background?: ToolCommandBackground
+          program?: ToolProgramAccess
           release?: ToolCommandRelease
           modalities?: readonly Modality[]
           conditions?: ToolCallConditions
+          readOnly?: boolean
         }>
       >
     >
@@ -430,21 +445,21 @@ export function defineCommandTool<E, B extends ContentBlock>(
       encoding,
       ...(guide === undefined ? {} : { guide }),
       ...(gates === undefined ? {} : { gates }),
-      commands: commands.map(
-        ([name, { summary, operation, background, release, modalities, conditions }]) => ({
-          name,
-          summary,
-          parameters:
-            operation.parameters.kind === 'declared'
-              ? { kind: 'declared', value: operation.parameters.value }
-              : { kind: 'executor-owned' },
-          returns: operation.returns,
-          ...(background === undefined ? {} : { background }),
-          ...(release === undefined ? {} : { release }),
-          ...(modalities === undefined ? {} : { modalities }),
-          ...(conditions === undefined ? {} : { conditions }),
-        }),
-      ),
+      commands: commands.map(([name, { summary, operation, readOnly, ...declared }]) => ({
+        name,
+        summary,
+        parameters:
+          operation.parameters.kind === 'declared'
+            ? { kind: 'declared', value: operation.parameters.value }
+            : { kind: 'executor-owned' },
+        returns: operation.returns,
+        ...(declared.background === undefined ? {} : { background: declared.background }),
+        ...(declared.program === undefined ? {} : { program: declared.program }),
+        ...(declared.release === undefined ? {} : { release: declared.release }),
+        ...(declared.modalities === undefined ? {} : { modalities: declared.modalities }),
+        ...(declared.conditions === undefined ? {} : { conditions: declared.conditions }),
+        ...(readOnly === undefined ? {} : { readOnly }),
+      })),
     },
     {
       kind: 'commands',

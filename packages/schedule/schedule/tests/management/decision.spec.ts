@@ -200,6 +200,24 @@ it('replace preserves predecessor history and uses the verified new author', () 
   })
 })
 
+it('pause clears the next time: nothing comes due while it is paused; resume leaves it to the dispatcher', () => {
+  const active = record('active')
+  expect(active.view.nextOccurrence).not.toBeNull()
+  expect(decide(decisionInput('pause', 'active'))).toMatchObject({
+    kind: 'save',
+    result: { control: 'paused', nextOccurrence: null },
+  })
+  const paused = record('paused')
+  const resumed = decide({
+    ...decisionInput('resume', 'paused'),
+    current: { ...paused, view: { ...paused.view, nextOccurrence: null } },
+  })
+  expect(resumed).toMatchObject({
+    kind: 'save',
+    result: { control: 'active', nextOccurrence: null },
+  })
+})
+
 it('adopts confirmed ordinary dependency recovery on resume', () => {
   const input = decisionInput('resume', 'paused')
   const current = record('paused')
@@ -299,6 +317,48 @@ it('rejects mismatched owner, author scope, operation binding and total revision
   expect(context.actor.kind).toBe('human')
 })
 
+it('an agent manages what it created from a later call of its session, not from another session', () => {
+  const base = decisionInput('pause', 'active')
+  const author = (session: string, call: string) =>
+    ({
+      kind: 'agent',
+      actorRef: 'agent-1',
+      originatingSessionRef: session,
+      originatingCallRef: call,
+    }) as const
+  const current = record('active')
+  const created = { ...current, view: { ...current.view, author: author('session-1', 'call-a') } }
+  const asAgentOf = (session: string) => {
+    const agentScope = {
+      ...scope,
+      actor: { kind: 'agent', actorRef: 'agent-1' },
+      originatingSessionRef: session,
+    } as const
+    return {
+      ...base,
+      operation: createScheduleManagementIdentity(agentScope, base.request),
+      current: created,
+      access: {
+        ...base.access,
+        authority: {
+          ...base.access.authority,
+          scope: agentScope,
+          role: 'author',
+          authorOnCreate: author(session, 'call-b'),
+        },
+      },
+    } as const
+  }
+  expect(decide(asAgentOf('session-1'))).toMatchObject({
+    kind: 'save',
+    result: { control: 'paused', author: author('session-1', 'call-a') },
+  })
+  expect(decide(asAgentOf('session-2'))).toMatchObject({
+    kind: 'rejected',
+    error: { code: 'forbidden' },
+  })
+})
+
 it('draft text changes preserve the time axis; actual rule changes advance it', () => {
   const input = decisionInput('reviseDraft', 'draft')
   expect(decide(input)).toMatchObject({
@@ -364,7 +424,7 @@ it('executionText only edits an agent instruction and preserves the original wor
       kind: 'execution',
       work: {
         kind: 'agent',
-        instruction: 'Old instruction',
+        instruction: { purpose: 'Old instruction' },
         session: { mode: 'existing', sessionRef: 'session:execution' },
         materials: [],
         returnTo: null,
@@ -388,7 +448,7 @@ it('executionText only edits an agent instruction and preserves the original wor
     kind: 'execute',
     input: ScheduleCommandSchema.parse({
       ...base.request.input,
-      patch: { kind: 'executionText', instruction: 'New instruction', label: null },
+      patch: { kind: 'executionText', instruction: { purpose: 'New instruction' }, label: null },
     }),
   } as const
   const input = {
@@ -405,7 +465,7 @@ it('executionText only edits an agent instruction and preserves the original wor
       definition: {
         purpose: {
           work: {
-            instruction: 'New instruction',
+            instruction: { purpose: 'New instruction' },
             session: { mode: 'existing', sessionRef: 'session:execution' },
           },
         },

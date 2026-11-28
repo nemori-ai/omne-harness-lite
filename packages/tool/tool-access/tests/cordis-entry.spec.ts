@@ -16,11 +16,11 @@ import { expect, it } from 'vitest'
 class RecordingRegistry extends AccessRegistryService {
   readonly mounted: AccessContribution<ToolProtocol>[] = []
   readonly unmounted: AccessContribution<ToolProtocol>[] = []
-  protected attach(contribution: never) {
-    this.mounted.push(contribution)
-    return async () => {
-      this.unmounted.push(contribution)
-    }
+  mount(contribution: never): void {
+    this.ctx.effect(() => {
+      this.mounted.push(contribution)
+      return () => void this.unmounted.push(contribution)
+    }, 'test.mount')
   }
 }
 
@@ -70,7 +70,7 @@ it('the cordis entry gives the plugin factory and nothing else at run time', asy
   expect(Object.keys(cordis)).toEqual(['createToolAccessPlugin'])
 })
 
-it('mounts tool/v1 with its three reads and its one observation', async () => {
+it('mounts tool/v1 with its four reads and its one observation', async () => {
   const { registry, contribution } = await assemble()
   expect(registry.mounted).toHaveLength(1)
   expect(contribution.protocol).toBe(toolProtocol)
@@ -78,6 +78,7 @@ it('mounts tool/v1 with its three reads and its one observation', async () => {
     'read-call',
     'read-call-result',
     'read-call-output',
+    'list-call-children',
   ])
   expect(Object.keys(contribution.observations)).toEqual(['observe-call'])
 })

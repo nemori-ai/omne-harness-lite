@@ -43,6 +43,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type {
   DomainRef,
+  FactCommandV2,
   JsonValue,
   SqlStorage,
   TenantDomainLookup,
@@ -116,7 +117,14 @@ function sha256(text: string): string {
 
 const handoffOf = (request: HandoffRequest): string => canonical(request.reference)
 
-const entryOf = (execution: string, operation: string): string => canonical([execution, operation])
+const entryOf = (of: Readonly<{ execution: string; entry: string; input: string }>): string =>
+  canonical([of.execution, of.entry, of.input])
+
+const preadmissionCommit = (tenant: string, handoff: string, command: FactCommandV2) => ({
+  operation: `pre_${sha256(canonical([tenant, handoff, command.facts]))}`,
+  recall: 'never' as const,
+  commands: [command],
+})
 
 function recordEvidence(record: PreadmissionRecord): DurableEvidence {
   return {
@@ -305,7 +313,7 @@ function createMessageHandoff<P>(
         session,
         execution: reference.execution,
         handoff: handoffOf(prepare.request),
-        entry: entryOf(reference.execution, reference.entry),
+        entry: entryOf(reference),
       },
       origin: { kind: 'invoke', instance, scope, definition, grant },
       basis: allowed.ok,
@@ -334,7 +342,7 @@ function createMessageHandoff<P>(
         session: session.ok,
         execution,
         handoff: handoffOf(prepare.request),
-        entry: entryOf(execution, reference.entry),
+        entry: entryOf(reference),
       },
       origin: {
         kind: 'submit',
@@ -439,11 +447,10 @@ function createMessageHandoff<P>(
       storage: ports.storage,
       domain: domain.ok,
       combination: ports.combination,
-      operation: `pre_${sha256(canonical([bound.tenantText, bound.handoff, command.facts]))}`,
-      commands: [command],
+      ...preadmissionCommit(bound.tenantText, bound.handoff, command),
       generations,
     })
-    if (outcome.kind === 'refused') return fail(refusalFailure(outcome.reason))
+    if (outcome.kind === 'refused') return fail(refusalFailure(outcome))
     if (outcome.kind === 'unknown' || outcome.kind === 'unavailable')
       return fail(unavailable(`the preadmission write is ${outcome.kind}: ${outcome.diagnostic}`))
     const reply = outcome.receipt.responses.find(item => item.participant === 'execution-record')
@@ -610,7 +617,7 @@ function createMessageHandoff<P>(
       session: '' as SessionId,
       execution: input.execution,
       handoff: input.kind === 'execution' ? canonical(input.handoff) : '',
-      entry: input.kind === 'execution' ? null : entryOf(input.execution, input.operation),
+      entry: input.kind === 'execution' ? null : entryOf({ ...input, entry: input.operation }),
     }
     const held = await recordOf(bound)
     if ('failure' in held) return held

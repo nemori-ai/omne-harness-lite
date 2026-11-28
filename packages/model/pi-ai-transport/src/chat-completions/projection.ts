@@ -7,7 +7,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ReplayDeclaration,
   type ToolDeclaration,
   type TransportFailure,
@@ -66,7 +66,7 @@ export type Projection = Readonly<{
   tools: readonly JsonValue[]
   toolChoice: JsonValue | undefined
   declared: readonly ToolDeclaration[]
-  choice: FixedModelRequest['toolChoice']
+  choice: LlmModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
   replayPrefix: string
@@ -80,7 +80,7 @@ export type ProjectionInput = Readonly<{
   system: readonly ContentBlock[]
   messages: readonly ChatMessage[]
   tools: readonly ToolDeclaration[]
-  toolChoice: FixedModelRequest['toolChoice']
+  toolChoice: LlmModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
   media: MediaView
@@ -378,7 +378,7 @@ function assistantMessage(
           }),
         )
         pending.set(id, at)
-        blocks.push({ ...block, name })
+        blocks.push({ ...block, callId: id, name })
         continue
       }
       case 'tool_call_incomplete':
@@ -453,7 +453,7 @@ function toolMessage(
   const id = normalizeToolCallId(result.callId)
   if (!pending.delete(id)) return invalid(`${path}/blocks/0`, 'orphan-tool-result')
   const parts: WirePart[] = []
-  const blocks: ProjectedPart[] = [result]
+  const blocks: ProjectedPart[] = [{ ...result, callId: id }]
   const images: WirePart[] = []
   const imageBlocks: ProjectedPart[] = []
   for (const [offset, block] of body.entries()) {
@@ -513,12 +513,12 @@ function toolPayload(
 }
 
 function toolChoiceOf(
-  choice: FixedModelRequest['toolChoice'],
+  choice: LlmModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
   names: ToolNames,
   input: Pick<ProjectionInput, 'record' | 'adapter'>,
 ): Outcome<
-  Readonly<{ json: JsonValue | undefined; choice: FixedModelRequest['toolChoice'] }>,
+  Readonly<{ json: JsonValue | undefined; choice: LlmModelRequest['toolChoice'] }>,
   TransportFailure
 > {
   if (tools.length === 0)
@@ -526,8 +526,12 @@ function toolChoiceOf(
       ? { ok: { json: undefined, choice } }
       : invalid('toolChoice', 'no-tools')
   if (choice === 'auto' || choice === 'none') return { ok: { json: text(choice), choice } }
-  if (input.record.accepts?.forcedToolChoice === false)
-    return unsupported('toolChoice', input.adapter)
+  const accepts = input.record.accepts
+  const supported =
+    choice === 'required'
+      ? accepts?.forcedToolChoice
+      : (accepts?.namedToolChoice ?? accepts?.forcedToolChoice)
+  if (supported === false) return unsupported('toolChoice', input.adapter)
   if (choice === 'required') return { ok: { json: text(choice), choice } }
   if (!tools.some(tool => tool.name === choice.name)) return invalid('toolChoice', 'unknown-tool')
   const name = names.wire(choice.name)

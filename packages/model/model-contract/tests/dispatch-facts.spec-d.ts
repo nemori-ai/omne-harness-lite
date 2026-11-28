@@ -2,7 +2,8 @@ import { expectTypeOf, it } from 'vitest'
 import type {
   ContextWindow,
   CostLookupState,
-  FixedModelRequest,
+  DispatchEffort,
+  LlmModelRequest,
   ModelDispatchFact,
   ModelDispatchFacts,
   ModelDispatchFactsPage,
@@ -23,13 +24,15 @@ it('a dispatch fact names the call, the consumer and the adoptions, and carries 
     | 'connectRetries'
     | 'account'
     | 'costLookup'
+    | 'effort'
   >()
+  expectTypeOf<ModelDispatchFact['effort']>().toEqualTypeOf<DispatchEffort | undefined>()
   expectTypeOf<ModelDispatchFact['costLookup']>().toEqualTypeOf<CostLookupState>()
   expectTypeOf<CostLookupState>().toEqualTypeOf<
     'not-needed' | 'pending' | 'found' | 'not-found' | 'no-request-id'
   >()
   expectTypeOf<ModelDispatchFact['contextWindow']>().toEqualTypeOf<ContextWindow | null>()
-  expectTypeOf<FixedModelRequest['contextWindow']>().toEqualTypeOf<ContextWindow | undefined>()
+  expectTypeOf<LlmModelRequest['contextWindow']>().toEqualTypeOf<ContextWindow | undefined>()
 })
 
 it('the read takes a query and answers a page with the undated count', () => {

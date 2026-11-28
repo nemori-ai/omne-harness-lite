@@ -1,0 +1,24 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+  .omne-model-group + .omne-model-group {
+    margin-top: var(--omne-space-section);
+  }
+  .omne-model-group-title {
+    margin: 0 0 var(--omne-space-block);
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-ui);
+    font-weight: var(--omne-weight-strong);
+    line-height: var(--omne-leading-ui);
+  }
+  .omne-model-row-title {
+    font-weight: var(--omne-weight-strong);
+  }
+  .omne-model-row-fact,
+  .omne-model-note {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
+  }
+}

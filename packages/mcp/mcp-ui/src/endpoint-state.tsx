@@ -1,0 +1,224 @@
+import type { McpProtocol } from '@omne-harness/mcp-protocol'
+import { readTenantText, type Codec } from '@omne-harness/public-contract'
+import { InlineNotice, LoadingIndicator, LoadingState } from '@omne-harness/ui-kit'
+import { useCallback, useEffect, useState, type JSX } from 'react'
+import { mcpEndpointActions, mcpEndpointStatus } from './parts.ts'
+import type { McpStatus } from './port.ts'
+
+type Succeeded = McpProtocol['operations']['read-endpoint']['outcomes']['succeeded']
+export type ReadBody = Succeeded extends Codec<infer T> ? T : never
+type Endpoint = ReadBody['endpoint']
+
+export type EndpointState =
+  | Readonly<{ kind: 'reading' }>
+  | Readonly<{ kind: 'unreadable' }>
+  | Readonly<{ kind: 'read'; body: ReadBody; refreshing: boolean }>
+
+const CONNECTION: Readonly<Record<Endpoint['connection']['state'], string>> = {
+  none: '还没连过',
+  preparing: '正在连接',
+  ready: '已连上',
+  degraded: '已连上，动作取不全',
+  lost: '连不上',
+}
+
+type Ended = Readonly<{ kind: string; reason?: string }>
+
+const reopenAfterMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 10_000)
+
+// An observation that ended for good is not opened again: it was refused, denied, or the page left.
+const final = (end: Ended): boolean =>
+  end.kind === 'refused' ||
+  end.kind === 'aborted' ||
+  (end.kind === 'ended' && end.reason === 'denied')
+
+/** Counts the frames that say the endpoints of the tenant may have changed; a broken observation is opened again. */
+export function useEndpointChanges(status: McpStatus | null, tenant: string): number {
+  const [changes, setChanges] = useState(0)
+  useEffect(() => {
+    const owner = readTenantText(tenant)
+    const observe = status?.observe?.['observe-endpoints']
+    if (observe === undefined || owner === undefined) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let attempt = 0
+    const open = async (): Promise<void> => {
+      let end: Ended = { kind: 'uncertain' }
+      try {
+        const frames = observe({ tenant: owner }, { signal: controller.signal })
+        for (;;) {
+          const next = await frames.next()
+          if (next.done === true) {
+            end = next.value
+            break
+          }
+          attempt = 0
+          if (next.value.about === 'endpoints') setChanges(count => count + 1)
+        }
+      } catch {}
+      if (controller.signal.aborted || final(end)) return
+      timer = setTimeout(() => void open(), reopenAfterMs(attempt))
+      attempt += 1
+    }
+    void open()
+    return () => {
+      controller.abort()
+      if (timer !== undefined) clearTimeout(timer)
+    }
+  }, [status, tenant])
+  return changes
+}
+
+export function useEndpointState(
+  status: McpStatus | null,
+  tenant: string,
+  name: string,
+  changes = 0,
+): Readonly<{ state: EndpointState; refresh: () => void; reread: () => void }> {
+  const [state, setState] = useState<EndpointState>({ kind: 'reading' })
+  const [turn, setTurn] = useState(0)
+  useEffect(() => {
+    const owner = readTenantText(tenant)
+    if (status === null || owner === undefined) {
+      setState({ kind: 'unreadable' })
+      return
+    }
+    let live = true
+    const settle = (next: EndpointState) => {
+      if (live) setState(next)
+    }
+    status['read-endpoint']({ tenant: owner, name }).then(
+      answer =>
+        settle(
+          answer.outcome === 'succeeded'
+            ? { kind: 'read', body: answer.body, refreshing: false }
+            : { kind: 'unreadable' },
+        ),
+      () => settle({ kind: 'unreadable' }),
+    )
+    return () => {
+      live = false
+    }
+  }, [status, tenant, name, turn, changes])
+  const refresh = () => {
+    const owner = readTenantText(tenant)
+    if (status === null || owner === undefined) return
+    setState(now => (now.kind === 'read' ? { ...now, refreshing: true } : now))
+    void status['refresh-endpoint']({ tenant: owner, name })
+      .catch(() => undefined)
+      .finally(() => setTurn(count => count + 1))
+  }
+  const reread = useCallback(() => setTurn(count => count + 1), [])
+  return { state, refresh, reread }
+}
+
+const CREDENTIAL: Readonly<Partial<Record<NonNullable<Endpoint['credentialState']>, string>>> = {
+  absent: '凭据没配',
+  invalid: '凭据的配值不对',
+  rejected: '凭据被拒，要在设置里改成对的',
+  'reconnect-required': '要重新连接',
+}
+
+function skillsText(skills: Endpoint['skills']): string | undefined {
+  if (skills?.kind !== 'acquired' || skills.taken + skills.refused === 0) return undefined
+  const refused = skills.refused === 0 ? '' : `（${String(skills.refused)} 个没收）`
+  return `带 ${String(skills.taken)} 个技能${refused}`
+}
+
+function statusText({ connection, credential, credentialState, use, skills }: Endpoint): string {
+  const said = CONNECTION[connection.state]
+  const parts = [connection.reason === null ? said : `${said}：${connection.reason}`]
+  const credentialSaid = CREDENTIAL[credentialState ?? credential]
+  if (credentialSaid !== undefined) parts.push(credentialSaid)
+  if (use.kind === 'blocked') parts.push(`不能用：${use.reason}`)
+  const skillsSaid = skillsText(skills)
+  if (skillsSaid !== undefined) parts.push(skillsSaid)
+  return parts.join('；')
+}
+
+export function EndpointStatus({ state }: { readonly state: EndpointState }): JSX.Element {
+  return (
+    <p className="mcp-endpoint-status" {...mcpEndpointStatus.props}>
+      {state.kind === 'reading' ? (
+        <LoadingState label="正在读取状态……" />
+      ) : state.kind === 'read' ? (
+        statusText(state.body.endpoint)
+      ) : (
+        '状态读不出。'
+      )}
+    </p>
+  )
+}
+
+export function EndpointActions({
+  state,
+  refresh,
+}: {
+  readonly state: EndpointState
+  readonly refresh: () => void
+}): JSX.Element | null {
+  if (state.kind === 'reading') return null
+  if (state.kind === 'unreadable')
+    return (
+      <p className="mcp-endpoint-status" {...mcpEndpointActions.props}>
+        动作清单读不出。
+      </p>
+    )
+  const { endpoint, actions } = state.body
+  return actions === null ? (
+    <NotAcquired catalog={endpoint.catalog} refreshing={state.refreshing} refresh={refresh} />
+  ) : (
+    <div className="mcp-endpoint-actions" {...mcpEndpointActions.props}>
+      {actions.length === 0 ? (
+        <p className="mcp-endpoint-status">这个接入点没有动作。</p>
+      ) : (
+        <ActionList actions={actions} />
+      )}
+    </div>
+  )
+}
+
+function NotAcquired({
+  catalog,
+  refreshing,
+  refresh,
+}: {
+  readonly catalog: Endpoint['catalog']
+  readonly refreshing: boolean
+  readonly refresh: () => void
+}): JSX.Element {
+  const why = catalog.kind === 'not-acquired' ? catalog.reason : null
+  return (
+    <div className="mcp-endpoint-actions" aria-busy={refreshing} {...mcpEndpointActions.props}>
+      <InlineNotice
+        tone="neutral"
+        role="status"
+        {...(refreshing ? {} : { action: { label: '刷新', onClick: refresh } })}
+      >
+        <p>{why === null ? '动作清单还没取得。' : `动作清单还没取得：${why}`}</p>
+      </InlineNotice>
+      {refreshing ? <LoadingIndicator size="sm" /> : null}
+    </div>
+  )
+}
+
+function ActionList({
+  actions,
+}: {
+  readonly actions: NonNullable<ReadBody['actions']>
+}): JSX.Element {
+  return (
+    <ul className="mcp-action-list" aria-label="这个接入点的动作">
+      {actions.map(action => (
+        <li key={action.name} className="mcp-action">
+          <span className="mcp-action-name">{action.name}</span>
+          <span className="mcp-action-summary">
+            {action.available
+              ? action.summary
+              : `${action.summary}（用不了：${action.reason ?? ''}）`}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}

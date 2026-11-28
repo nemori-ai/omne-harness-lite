@@ -26,9 +26,9 @@ export { createDiagnosticsCursors } from './cursor.ts'
 export type { DiagnosticsCursors, DiagnosticsCursorState } from './cursor.ts'
 export { PROJECTED_KINDS } from './project.ts'
 export type {
-  AgentFinishReader,
   DiagnosticPorts,
   ModelAttemptReader,
+  ModelFactReader,
   ModelCallInspector,
   ModelRequestReader,
   RequestBlockChoice,
@@ -129,21 +129,23 @@ async function modelAnswersOf(
   const lookup = await sources.inspectModelCall(reference)
   const call =
     lookup.kind === 'value' && lookup.value.kind === 'found' ? lookup.value.state.call : null
-  if (call === null) return { lookup, attempts: null, dispatches: null, choices: null }
+  if (call === null) return { lookup, attempts: null, dispatches: null, facts: null, choices: null }
   const attempts = await sources.listModelAttempts(call)
   const listed = attempts.kind === 'value' && attempts.value.entries.length > 0
-  const dispatches = listed ? await sources.listModelDispatches(call) : null
+  const [dispatches, facts] = listed
+    ? await Promise.all([sources.listModelDispatches(call), sources.listModelFacts(call)])
+    : [null, null]
   const choices = await sources.readRequestChoices(reference)
-  return { lookup, attempts, dispatches, choices }
+  return { lookup, attempts, dispatches, facts, choices }
 }
 
 async function toolAnswersOf(sources: DiagnosticSources, reference: string): Promise<ToolAnswers> {
-  const [lookup, account, diagnostics] = await Promise.all([
-    sources.lookupToolCall(reference),
+  const [current, account, diagnostics] = await Promise.all([
+    sources.readToolState(reference),
     sources.readToolAccount(reference),
     sources.readToolDiagnostics(reference),
   ])
-  return { lookup, account, diagnostics }
+  return { current, account, diagnostics }
 }
 
 const projectedOf = (skeleton: RunSkeleton, limits: DiagnosticsLimits): number =>
@@ -154,8 +156,6 @@ async function answersOf(
   skeleton: RunSkeleton,
   projected: number,
 ): Promise<RunAnswers> {
-  const ended = skeleton.terminal !== null && skeleton.terminal.outcome !== 'completed'
-  const finish = ended ? await sources.readFinish(skeleton.execution) : null
   const models = new Map<string, ModelAnswers>()
   const tools = new Map<string, ToolAnswers>()
   for (const call of skeleton.calls.slice(0, projected)) {
@@ -164,7 +164,7 @@ async function answersOf(
       models.set(call.position, await modelAnswersOf(sources, call.reference))
     else tools.set(call.position, await toolAnswersOf(sources, call.reference))
   }
-  return { finish, models, tools, blocks: null }
+  return { models, tools, blocks: null }
 }
 
 function wantedBlocks(runs: readonly RunAnswers[]): Set<string> {

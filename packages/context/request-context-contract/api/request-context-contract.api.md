@@ -150,6 +150,7 @@
 - `decodeRegistrationRef` · `refs.d.ts`
 - `decodeSourceGeneration` · `refs.d.ts`
 - `encodeFixedRequestRecord` · `fixed-request.d.ts`
+- `guidanceDirectories` · `guidance-directories.d.ts`
 - `judgeBudget` · `budget.d.ts`
 - `measureCandidate` · `measurement.d.ts`
 - `modalityOfBlock` · `representation.d.ts`
@@ -366,6 +367,12 @@ export declare function encodeFixedRequestRecord(value: FixedRequestRecord): Jso
 export declare function decodeFixedRequestRecord(value: unknown): Outcome<FixedRequestRecord, FixedRequestRecordRejection>;
 ```
 
+## 声明文件 `guidance-directories.d.ts`
+
+```ts
+export declare function guidanceDirectories(root: string, visited: Iterable<string>): readonly string[];
+```
+
 ## 声明文件 `history-read.d.ts`
 
 ```ts
@@ -408,6 +415,7 @@ export type HistoryEvidenceResolver<P> = (input: HistoryResolution<P>) => Promis
 ## 声明文件 `index.d.ts`
 
 ```ts
+export { guidanceDirectories } from './guidance-directories.js';
 export type { ScopeRef, ContextBlockKey } from '@omne-harness/runtime-context-contract';
 export type { Path, Decoded, Decoder } from './schema.js';
 export { standardSchema, compactionPolicySchema, representationPolicyConfigSchema, coverageSchema, } from './schema.js';
@@ -548,7 +556,7 @@ export type MeasurementFailure = AssemblyFailure | AssemblyUnknown;
 type Failure = MeasurementFailure;
 export declare function leaseFailure(failure: M.ModelFailure): Failure;
 export declare function measureCandidate<P>(context: MeasureContext<P>, selection: SelectedModel, lineage: M.PreparationLineage, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
-export declare function measureWithLease(lease: M.ModelPreparationLease, profile: M.ModelProfile, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
+export declare function measureWithLease(lease: M.ModelPreparationLease, profile: M.ModelProfile<'llm'>, assembled: M.AssembledModelInput): Promise<M.RequestBudget | Failure>;
 export {};
 ```
 
@@ -887,7 +895,7 @@ import { type Message, type MessageId } from '@omne-harness/message';
 import { type Modality } from '@omne-harness/modality';
 import type { RepresentationChoice } from './values.js';
 import type { RepresentationPolicyPort } from './ports.js';
-export type NativeCapability = Pick<M.ModelProfileDefinition, 'input' | 'fileTypes'>;
+export type NativeCapability = Pick<M.ModelProfileDefinition<'llm'>, 'input' | 'fileTypes'>;
 export type RepresentationResult = Readonly<{
     kind: 'chosen';
     choices: readonly RepresentationChoice[];
@@ -1406,7 +1414,7 @@ export declare function message(raw: string, id?: string): Extract<Message, {
 }>;
 export declare function row(index?: number): HistoryRow;
 export declare function fixtureTenant(account?: string): TenantId;
-export declare const profile: ModelProfile;
+export declare const profile: ModelProfile<'llm'>;
 export declare const countingBasis: ModelCountingBasis;
 export declare function fixtureBudget(amount?: string): RequestBudget;
 export declare function testingAccess<P>(principal: P, tenant: TenantId): import('../refs.js').Access<P>;
@@ -1619,7 +1627,7 @@ export type SelectedModel = Readonly<{
         route: string;
         model: string;
     }>;
-    profile: M.ModelProfile;
+    profile: M.ModelProfile<'llm'>;
     parameters: readonly M.ParameterAdoption[];
     replay: 'on' | 'off';
     toolsEvidence: DurableEvidence;

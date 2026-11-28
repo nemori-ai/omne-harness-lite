@@ -1,9 +1,9 @@
-import { readJsonText, type JsonLimits } from '@omne-harness/json-text'
+import { readJsonBytes, readJsonText, type JsonLimits } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiProtocolFrame } from './family.ts'
 import { closeIterable, closeSourceOnEarlyEnd } from './iteration.ts'
 
-export type FrameFailure = 'invalid-json' | 'event-after-end'
+export type FrameFailure = 'invalid-json' | 'event-after-end' | 'body-too-large'
 
 export type FrameOptions = Readonly<{
   endMarker: string | null
@@ -40,4 +40,24 @@ async function* frameData(events: AsyncIterable<string>, options: FrameOptions):
     }
     yield { ok: { kind: 'data', value: read.value } }
   }
+}
+
+/** A body that is one JSON value: read whole, within the limits, and handed over as its one frame. */
+export async function* readWholeBody(
+  body: AsyncIterable<Uint8Array>,
+  json: JsonLimits,
+): ProtocolFrames {
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for await (const chunk of body) {
+    size += chunk.byteLength
+    if (size > json.maxBytes) {
+      yield { failure: 'body-too-large' }
+      return
+    }
+    chunks.push(chunk)
+  }
+  const read = readJsonBytes(Buffer.concat(chunks), json)
+  if (read.kind !== 'ok') yield { failure: 'invalid-json' }
+  else yield { ok: { kind: 'data', value: read.value } }
 }

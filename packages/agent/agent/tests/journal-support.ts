@@ -111,7 +111,7 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -212,25 +212,24 @@ export function withLineage(input: PlainSubmit): SubmitInput {
 }
 
 type OpenInput = Parameters<Journal['open']>[0]
-type PlainOpen = Omit<OpenInput, 'original' | 'runtime' | 'checkpoint'> &
+type PlainOpen = Omit<OpenInput, 'originals' | 'runtime' | 'checkpoint'> &
   Readonly<{
     instance?: AgentInstanceId
     grant?: DurableEvidence | null
-    initial?: AcceptedInput
+    initial?: readonly AcceptedInput[]
     checkpoint?: AgentCheckpoint
   }>
 
 export function openInput(input: PlainOpen): OpenInput {
   const { instance: instanceId, grant, initial, checkpoint: initialCheckpoint, ...rest } = input
   const runtime = runtimeContext(instanceId ?? instance(), grant ?? null)
+  const [first, ...others] = (initial ?? [acceptedInput('input-1')]).map(one =>
+    invokeAcceptance(rest.execution, rest.operation, one, runtime),
+  )
+  if (first === undefined) throw new Error('an open needs an initial input')
   return {
     ...rest,
-    original: invokeAcceptance(
-      rest.execution,
-      rest.operation,
-      initial ?? acceptedInput('input-1'),
-      runtime,
-    ),
+    originals: [first, ...others],
     runtime,
     checkpoint: initialCheckpoint ?? checkpoint(),
   }
@@ -295,7 +294,7 @@ export async function open(journal: Journal, id = 'exec-1', initial = 'input-1')
         ...access,
         execution: execution(id),
         operation: operation(`open-${id}`),
-        initial: acceptedInput(initial),
+        initial: [acceptedInput(initial)],
       }),
     ),
   )

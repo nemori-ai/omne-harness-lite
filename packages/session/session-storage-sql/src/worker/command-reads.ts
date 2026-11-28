@@ -1,4 +1,7 @@
+import { readCompactionWindow } from './compaction-window.ts'
+import { modelViewPrefix } from '../model-view-identity.ts'
 import {
+  deliveryReads,
   relatedOf,
   relatedSessionOf,
   type CommitReceipt,
@@ -11,8 +14,10 @@ import {
   type WorkSnapshot,
   type decide,
 } from '@omne-harness/session-contract'
+import type { Message } from '@omne-harness/message'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
-import { canonicalText, sha256 } from '../codec.ts'
+import { canonicalText, decodeValue, sha256 } from '../codec.ts'
 import type { CoveringSnapshot } from './log.ts'
 import { forkFacts } from './fork.ts'
 import { big, definite, oneRow, packed, rowsOf, text } from './support.ts'
@@ -22,6 +27,21 @@ const MAX_INITIALIZATION_RECEIPTS = 1000
 
 type Reads = Parameters<typeof decide>[4]
 type Started = Readonly<{ tenant: string; session: string; previous: WorkSnapshot | null }>
+
+function admittedMessage(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  input: string,
+): Message | undefined {
+  const row = oneRow(
+    port,
+    'SELECT value FROM sl_input WHERE tenant = ? AND session = ? AND input = ? LIMIT 1',
+    [tenant, session, input],
+  )
+  if (row === undefined) return undefined
+  return (decodeValue(JSON.parse(text(row['value'])) as JsonValue) as { message: Message }).message
+}
 
 function mint(record: string, content: unknown): DurableEvidence {
   return { owner: OWNER, record, revision: '1', digest: `sha256:${sha256(canonicalText(content))}` }
@@ -105,13 +125,37 @@ export function commandReads(
     return definite('read-bound', 'the operation receipts of the session exceed the read bound')
   const related = relatedReads(port, command, tenant, covering)
   if ('kind' in related) return related
+  let projection: Pick<Reads, 'compaction' | 'compactionEpoch'> = { compaction: null }
+  if (command.kind === 'commitDerived' && command.input.value.kind === 'model-projection') {
+    const head = oneRow(
+      port,
+      'SELECT epoch FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
+      [tenant, session],
+    )
+    if (head === undefined) return definite('missing-row', 'model projection without its journal')
+    const epoch = text(head['epoch'])
+    const window = readCompactionWindow(port, {
+      tenant,
+      session,
+      epoch,
+      upper: null,
+      coverTo: null,
+    })
+    if (window.kind !== 'context')
+      return definite('read-bound', 'the model projection basis is unreadable')
+    projection = {
+      compaction: window.value,
+      compactionEpoch: `${modelViewPrefix(tenant, session)}${epoch}`,
+    }
+  }
   return {
-    compaction: null,
+    ...projection,
     ...related,
     ...(frozen === undefined
       ? {}
       : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
     ...(previous === null ? {} : controlLookups(command, previous)),
+    ...deliveryReads(command, input => admittedMessage(port, tenant, session, input)),
     ...(command.kind === 'completeInitialization'
       ? {
           initializationReceipts: receipts,

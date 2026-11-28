@@ -3,6 +3,7 @@ import { decide } from '@omne-harness/session-contract'
 import { contextInitialization } from '../../src/assembly/session-context-initialization.ts'
 import { AdoptionSourcesImpl } from '../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
+import { tableMappings } from '../../src/rows/agent-adoptions/held-definitions.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
 import { createCommand, mappingConfig, plainOf } from '../rows/adoptions/support.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
@@ -86,6 +87,7 @@ it('mounts one real producer per tenant through the production authority and wit
     expect(initial.blocks.map(item => item.block.item)).toEqual([
       'session.modes',
       'session.working-directory',
+      'session.workspace-guidance',
     ])
     const command = {
       ...original,
@@ -99,7 +101,7 @@ it('mounts one real producer per tenant through the production authority and wit
       },
     }
     const table = await buildTable(agentAdoptionsConfig.parse(mappingConfig()))
-    const source = new AdoptionSourcesImpl(fixture.root, table.mappings)
+    const source = new AdoptionSourcesImpl(fixture.root, tableMappings(table))
     const access = { tenant, session: input.session, principal: input.principal }
     const guarded = await source.prepare(command, access)
     expect(guarded).toHaveProperty('ok')

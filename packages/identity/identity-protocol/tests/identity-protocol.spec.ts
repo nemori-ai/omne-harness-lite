@@ -57,6 +57,8 @@ const table = {
   'judge-admission': ['acting-tenant', 'read', 'small'],
   'submit-authorization-expression': ['acting-tenant', 'commit', 'small'],
   'withdraw-authorization-expression': ['acting-tenant', 'commit', 'small'],
+  'read-account-preference': ['login', 'read', 'small'],
+  'write-account-preference': ['login', 'commit', 'small'],
 } as const
 
 const account = 'acc_00000000000000000000000000'
@@ -71,6 +73,8 @@ const bodies: Readonly<Record<Name, Readonly<Record<string, unknown>>>> = {
   'replace-credential': { currentCredential: 'old-secret', newCredential: 'new-secret' },
   'query-own-valid-logins': {},
   'query-current-tenant': {},
+  'read-account-preference': { name: 'keys.mac' },
+  'write-account-preference': { name: 'keys.mac', value: '{}', expected: '0' },
   'query-own-memberships': {},
   'query-received-invitations': {},
   'query-create-organization': {
@@ -180,7 +184,7 @@ describe('C1: the operations and their columns', () => {
     expect(identityProtocol.name).toBe('identity')
     expect(identityProtocol.major).toBe(1)
     expect(Object.keys(identityProtocol.operations).sort()).toEqual([...names].sort())
-    expect(names).toHaveLength(33)
+    expect(names).toHaveLength(35)
     expect(identityProtocol.observations).toEqual({})
   })
 
@@ -228,6 +232,7 @@ describe('a body reads as the governance family reads it', () => {
     const body = bodies[name]
     const invalid: Readonly<Record<string, unknown>>[] = [{ ...body, forbidden: 'secret' }]
     for (const key of Object.keys(body)) {
+      if (name === 'write-account-preference' && key === 'value') continue
       invalid.push({ ...body, [key]: null })
       if (typeof body[key] === 'string') invalid.push({ ...body, [key]: '' })
       if (optional.has(key)) continue
@@ -236,7 +241,7 @@ describe('a body reads as the governance family reads it', () => {
       invalid.push(missing)
     }
     for (const sample of invalid) {
-      expect(identityProtocol.operations[name].body.read(json(sample), limits)).toEqual({
+      expect(identityProtocol.operations[name].body.read(json(sample), limits)).toMatchObject({
         ok: false,
       })
     }
@@ -264,7 +269,7 @@ describe('a body reads as the governance family reads it', () => {
     const body = { tenantId: JSON.stringify({ organization }) }
     expect(
       identityProtocol.operations['switch-current-tenant'].body.read(json(body), limits),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })
 
@@ -299,6 +304,6 @@ describe('C5: issue-login carries the credential', () => {
 
   it('rejects a succeeded body without loginId', () => {
     const { loginId: _, ...withoutId } = issued
-    expect(succeeded.read(json(withoutId), limits)).toEqual({ ok: false })
+    expect(succeeded.read(json(withoutId), limits).ok).toBe(false)
   })
 })

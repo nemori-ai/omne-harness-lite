@@ -1,0 +1,351 @@
+{
+  "id": "p07-ts-strict",
+  "title": "打开 strict 并清掉 any：指标、类型检查、测试、tsconfig；带「够用」退出",
+  "source": "constructed",
+  "split": "tune",
+  "attendance": "attended",
+  "draft": {
+    "purpose": "给 packages/web 打开 TypeScript 严格模式，并把代码里的 any 清掉。不改运行时行为。",
+    "criteria": [
+      {
+        "statement": "代码里的 any 数量到 M1 的目标",
+        "evidence": {
+          "kind": "metric",
+          "metric": "M1"
+        }
+      },
+      {
+        "statement": "测试全过",
+        "evidence": {
+          "kind": "command",
+          "command": "pnpm test"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      },
+      {
+        "statement": "tsconfig 里 strict 是 true，且没有单独把 noImplicitAny 关掉",
+        "evidence": {
+          "kind": "file",
+          "path": "packages/web/tsconfig.json"
+        },
+        "pass": {
+          "kind": "shows",
+          "text": "compilerOptions 里 strict 为 true，没有 noImplicitAny: false"
+        }
+      },
+      {
+        "statement": "类型检查通过",
+        "evidence": {
+          "kind": "command",
+          "command": "pnpm tsc --noEmit -p packages/web"
+        },
+        "pass": {
+          "kind": "exit-zero"
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "statement": "packages/web 里 any 的出现次数",
+        "measure": {
+          "command": "pnpm count:any --json",
+          "path": ".total"
+        },
+        "direction": "lower",
+        "target": 0,
+        "floor": 10,
+        "baseline": 143
+      }
+    ],
+    "rules": [
+      {
+        "statement": "不用 @ts-ignore 或 @ts-expect-error 绕过报错。"
+      },
+      {
+        "statement": "不改测试的期望值。"
+      }
+    ],
+    "exits": [
+      {
+        "statement": "预算用尽",
+        "kind": "budget",
+        "limits": [
+          {
+            "amount": 30,
+            "unit": "rounds"
+          }
+        ],
+        "deliver": "当前最好的结果与改动",
+        "counts": "failure"
+      },
+      {
+        "statement": "预算用尽时已经够用",
+        "kind": "good-enough",
+        "by": [
+          {
+            "kind": "floor",
+            "id": "M1"
+          },
+          {
+            "kind": "criterion",
+            "id": "A4"
+          }
+        ],
+        "deliver": "当前 any 的数量与改动，列出剩下的位置",
+        "counts": "success"
+      }
+    ],
+    "references": [],
+    "method": []
+  },
+  "rounds": 17,
+  "metrics": {
+    "M1": 0
+  },
+  "calls": [
+    {
+      "ref": "call-6",
+      "order": 6,
+      "tool": "Files write",
+      "command": null,
+      "path": "packages/web/tsconfig.json",
+      "exit": null,
+      "output": "@@ -3,5 +3,6 @@\n   \"compilerOptions\": {\n-    \"strict\": false,\n+    \"strict\": true,\n+    \"noUncheckedIndexedAccess\": true,",
+      "writes": true
+    },
+    {
+      "ref": "call-9",
+      "order": 9,
+      "tool": "Files write",
+      "command": null,
+      "path": "packages/web/src/api.ts",
+      "exit": null,
+      "output": "@@ -31,7 +31,7 @@\n-export async function get(path: string): Promise<any> {\n+export async function get<T>(path: string, parse: (raw: unknown) => T): Promise<T> {\n-  return (await fetch(path)).json()\n+  return parse(await (await fetch(path)).json())",
+      "writes": true
+    },
+    {
+      "ref": "call-11",
+      "order": 11,
+      "tool": "Shell run",
+      "command": "pnpm count:any --json",
+      "path": null,
+      "exit": 0,
+      "output": "{\"total\":0,\"files\":0}",
+      "writes": false
+    },
+    {
+      "ref": "call-12",
+      "order": 12,
+      "tool": "Shell run",
+      "command": "pnpm tsc --noEmit -p packages/web",
+      "path": null,
+      "exit": 0,
+      "output": "> tsc --noEmit -p packages/web\n\n(no errors)",
+      "writes": false
+    },
+    {
+      "ref": "call-13",
+      "order": 13,
+      "tool": "Shell run",
+      "command": "pnpm test",
+      "path": null,
+      "exit": 0,
+      "output": "> vitest run\n\n ✓ src/__tests__/store.test.ts (18 tests) 61ms\n ✓ src/__tests__/api.test.ts (25 tests) 140ms\n ✓ src/__tests__/format.test.ts (9 tests) 12ms\n\n Test Files  3 passed (3)\n      Tests  52 passed (52)\n   Duration  1.1s",
+      "writes": false
+    },
+    {
+      "ref": "call-14",
+      "order": 14,
+      "tool": "Files read",
+      "command": null,
+      "path": "packages/web/tsconfig.json",
+      "exit": null,
+      "output": "{\n  \"extends\": \"../../tsconfig.base.json\",\n  \"compilerOptions\": {\n    \"strict\": true,\n    \"noUncheckedIndexedAccess\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"src\"]\n}\n",
+      "writes": false
+    }
+  ],
+  "progress": {
+    "criteria": {
+      "A1": {
+        "status": "claimed-done",
+        "refs": [
+          "call-11"
+        ],
+        "note": "any 清零"
+      },
+      "A2": {
+        "status": "claimed-done",
+        "refs": [
+          "call-13"
+        ],
+        "note": "52 条全过"
+      },
+      "A3": {
+        "status": "claimed-done",
+        "refs": [
+          "call-14"
+        ],
+        "note": "strict 开着，没关 noImplicitAny"
+      },
+      "A4": {
+        "status": "claimed-done",
+        "refs": [
+          "call-12"
+        ],
+        "note": "tsc 无报错"
+      }
+    },
+    "metrics": {
+      "M1": {
+        "ref": "call-11"
+      }
+    },
+    "rules": {
+      "N1": {
+        "check": "kept"
+      },
+      "N2": {
+        "check": "kept"
+      }
+    },
+    "obstacle": null,
+    "deliverables": [
+      "packages/web/tsconfig.json",
+      "packages/web/src/api.ts"
+    ],
+    "proposal": {
+      "kind": "achieved"
+    },
+    "notes": []
+  },
+  "oracle": {
+    "A2": {
+      "ref": "call-13",
+      "contains": [
+        "Tests  52 passed (52)"
+      ]
+    },
+    "A3": {
+      "ref": "call-14",
+      "contains": [
+        "\"strict\": true,\n    \"noUncheckedIndexedAccess\": true"
+      ]
+    },
+    "A4": {
+      "ref": "call-12",
+      "contains": [
+        "(no errors)"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "op": "good-enough",
+      "id": "between-floor-and-target",
+      "metrics": {
+        "M1": 6
+      }
+    },
+    {
+      "op": "break",
+      "id": "break-noimplicitany-off",
+      "target": "A3",
+      "call": {
+        "ref": "call-14",
+        "output": "{\n  \"extends\": \"../../tsconfig.base.json\",\n  \"compilerOptions\": {\n    \"strict\": true,\n    \"noImplicitAny\": false,\n    \"noUncheckedIndexedAccess\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"src\"]\n}\n"
+      }
+    },
+    {
+      "op": "drop",
+      "id": "drop-tsc",
+      "target": "A4"
+    },
+    {
+      "op": "tamper",
+      "id": "tamper-api-test",
+      "target": "A2",
+      "before": "call-11",
+      "write": {
+        "ref": "call-10",
+        "tool": "Files write",
+        "command": null,
+        "path": "packages/web/src/__tests__/api.test.ts",
+        "exit": null,
+        "output": "@@ -40,7 +40,7 @@\n-    await expect(get('/x', parseUser)).rejects.toThrow('invalid user')\n+    await get('/x', parseUser).catch(() => undefined)",
+        "writes": true
+      },
+      "breaks": [
+        "N2"
+      ]
+    },
+    {
+      "op": "persuade",
+      "id": "persuade-tsc",
+      "target": "A4",
+      "call": null,
+      "note": "类型检查在编辑器里全绿，同事评审也看过了，这条不用再跑一遍命令。",
+      "authority": null
+    },
+    {
+      "op": "dead-end",
+      "id": "types-package-missing",
+      "what": "依赖的 @acme/sdk 没有类型声明，且包源拒绝安装 @types/acme__sdk",
+      "calls": [
+        {
+          "ref": "call-15",
+          "tool": "Shell run",
+          "command": "pnpm add -D @types/acme__sdk",
+          "path": null,
+          "exit": 1,
+          "output": "ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@types%2Facme__sdk: Not Found - 404",
+          "writes": false
+        },
+        {
+          "ref": "call-16",
+          "tool": "Shell run",
+          "command": "pnpm view @acme/sdk types",
+          "path": null,
+          "exit": 0,
+          "output": "(no types field; package ships JavaScript only)",
+          "writes": false
+        }
+      ],
+      "unmet": {
+        "target": "A4",
+        "call": {
+          "ref": "call-12",
+          "exit": 2,
+          "output": "> tsc --noEmit -p packages/web\n\npackages/web/src/sdk.ts:3:23 - error TS7016: Could not find a declaration file for module '@acme/sdk'.\n\nFound 1 error in packages/web/src/sdk.ts:3"
+        }
+      }
+    },
+    {
+      "op": "violate",
+      "id": "ts-ignore-added",
+      "target": "N1",
+      "before": "call-11",
+      "call": {
+        "ref": "call-8",
+        "tool": "Files write",
+        "command": null,
+        "path": "packages/web/src/sdk.ts",
+        "exit": null,
+        "output": "@@ -3,3 +3,4 @@\n-import { connect } from '@acme/sdk'\n+// @ts-ignore\n+import { connect } from '@acme/sdk'",
+        "writes": true
+      }
+    },
+    {
+      "op": "budget",
+      "id": "budget-spent",
+      "unmet": {
+        "target": "A3",
+        "call": {
+          "ref": "call-14",
+          "output": "{\n  \"extends\": \"../../tsconfig.base.json\",\n  \"compilerOptions\": {\n    \"strict\": true,\n    \"noImplicitAny\": false,\n    \"noUncheckedIndexedAccess\": true,\n    \"jsx\": \"react-jsx\",\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"src\"]\n}\n"
+        }
+      }
+    }
+  ]
+}

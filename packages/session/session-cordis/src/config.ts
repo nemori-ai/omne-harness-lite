@@ -17,12 +17,14 @@ export type SessionProviderConfig = Readonly<{
   policy?: Overrides<SchedulingPolicy>
   disposeWaitMs?: number
   admission?: 'none'
+  resolver?: 'none'
 }>
 
 export type ResolvedProviderConfig = Readonly<{
   policy: SchedulingPolicy
   disposeWaitMs: number
   admission: 'none' | undefined
+  resolver: 'none' | undefined
 }>
 
 export const defaultDisposeWaitMs = 10_000
@@ -32,7 +34,7 @@ type Parsed =
   | Readonly<{ value: SessionProviderConfig; issues?: undefined }>
   | Readonly<{ issues: readonly Issue[] }>
 
-const FIELDS = ['policy', 'disposeWaitMs', 'admission'] as const
+const FIELDS = ['policy', 'disposeWaitMs', 'admission', 'resolver'] as const
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -61,28 +63,40 @@ function mergePolicy(
   return { value: merged }
 }
 
+const omittedOrNone = (value: unknown, key: 'admission' | 'resolver'): Issue | undefined =>
+  value === undefined || value === 'none'
+    ? undefined
+    : { message: `${key} must be omitted or 'none'`, path: [key] }
+
+function fieldIssue(config: Readonly<Record<string, unknown>>): Issue | undefined {
+  const unknown = Object.keys(config).find(key => !FIELDS.some(field => field === key))
+  if (unknown !== undefined) return { message: `unknown field ${unknown}`, path: [unknown] }
+  const { disposeWaitMs = defaultDisposeWaitMs } = config
+  if (typeof disposeWaitMs !== 'number' || !Number.isFinite(disposeWaitMs) || disposeWaitMs <= 0)
+    return { message: 'disposeWaitMs must be a positive finite number', path: ['disposeWaitMs'] }
+  return (
+    omittedOrNone(config['admission'], 'admission') ?? omittedOrNone(config['resolver'], 'resolver')
+  )
+}
+
 export function resolveProviderConfig(
   config: unknown,
 ): { value: ResolvedProviderConfig } | { issues: readonly Issue[] } {
   if (config === undefined || config === null) return resolveProviderConfig({})
   if (!isRecord(config)) return { issues: [{ message: 'configuration must be an object' }] }
-  for (const key of Object.keys(config))
-    if (!FIELDS.some(field => field === key))
-      return { issues: [{ message: `unknown field ${key}`, path: [key] }] }
-
-  const { disposeWaitMs = defaultDisposeWaitMs, admission } = config
-  if (typeof disposeWaitMs !== 'number' || !Number.isFinite(disposeWaitMs) || disposeWaitMs <= 0)
-    return {
-      issues: [
-        { message: 'disposeWaitMs must be a positive finite number', path: ['disposeWaitMs'] },
-      ],
-    }
-  if (admission !== undefined && admission !== 'none')
-    return { issues: [{ message: "admission must be omitted or 'none'", path: ['admission'] }] }
-
+  const issue = fieldIssue(config)
+  if (issue !== undefined) return { issues: [issue] }
+  const { disposeWaitMs = defaultDisposeWaitMs, admission, resolver } = config
   const policy = mergePolicy(defaultSchedulingPolicy, config['policy'], ['policy'])
   if ('issue' in policy) return { issues: [policy.issue] }
-  return { value: { policy: policy.value as SchedulingPolicy, disposeWaitMs, admission } }
+  return {
+    value: {
+      policy: policy.value as SchedulingPolicy,
+      disposeWaitMs: disposeWaitMs as number,
+      admission: admission as ResolvedProviderConfig['admission'],
+      resolver: resolver as ResolvedProviderConfig['resolver'],
+    },
+  }
 }
 
 const probeDependencies = {

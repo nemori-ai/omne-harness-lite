@@ -1,6 +1,8 @@
 import type {
   AgentCheckpoint,
+  AgentExecutionId,
   DurableEvidence,
+  FailureCandidate,
   PendingCall,
   ProducedResult,
   Failure,
@@ -10,7 +12,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import { replyMessageId } from './identities.ts'
+import { agentEvidence, replyMessageId } from './identities.ts'
 
 type Message = LoopFacts['inputs'][number]
 export type ModelOutcome = Readonly<{
@@ -126,4 +128,28 @@ export function noReplyReason(result: Pick<ModelResult, 'settlement' | 'parts'>)
   if (terminal.kind !== 'failed') return truncated(result.parts) ? 'model-truncated' : 'no-reply'
   const diagnostic = encodeURIComponent(terminal.fault.diagnostic.slice(0, DIAGNOSTIC_LIMIT))
   return `model-failed/${terminal.fault.cause}/${diagnostic === '' ? '-' : diagnostic}`
+}
+
+export type UnusableResult = Extract<ModelResult, { kind: 'unusable' }>
+
+/** The Run ends without a reply: the candidate names the call, its result and the fault of the supplier. */
+export function noReplyEnd(
+  execution: AgentExecutionId,
+  step: StepId,
+  call: M.ModelCallId,
+  result: UnusableResult,
+  at: FailureCandidate['at'],
+) {
+  const { termination } = result.settlement
+  const failure: FailureCandidate = {
+    kind: 'no-reply',
+    step,
+    at,
+    source: result.settlement.source,
+    call,
+    result: result.produced,
+    ...(termination.kind === 'failed' ? { fault: termination.fault } : {}),
+  }
+  const cause = agentEvidence(`${execution}/${step}/${noReplyReason(result)}`, failure)
+  return { kind: 'try-finish' as const, conclusion: { kind: 'fail' as const, cause }, failure }
 }

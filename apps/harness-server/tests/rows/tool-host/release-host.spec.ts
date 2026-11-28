@@ -116,8 +116,8 @@ describe('tool-host: ensureLoaded of the release authors', () => {
       await app.generations.unload({ key: { layer: authority.layer, asset: authority.asset } }),
     ).toHaveProperty('ok')
     expect(names(app)).toEqual([])
-    expect(releaseDefinitionOf(app.root, 'Files')).toEqual(known)
-    expect(releaseDefinitionOf(app.root, 'Files')).not.toBe(known)
+    expect(releaseDefinitionOf(app.root, 'Files')).toBe(known)
+    expect(Object.isFrozen(known)).toBe(true)
   })
 
   it('loads nothing from a tampered tool-definitions copy', async () => {

@@ -20,6 +20,7 @@ import {
   type UploadAppend,
   type UploadBegin,
   type UploadCommit,
+  type CategoryEffect,
 } from '@omne-harness/assets'
 import type { AssetsProtocol, CreationDetail } from '@omne-harness/assets-protocol'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -70,6 +71,7 @@ function rowView(row: AssetRow) {
     enabled: row.enabled,
     holding: row.holding,
     origin: row.origin,
+    ...(row.from === undefined ? {} : { from: row.from }),
     summary:
       summary === null
         ? null
@@ -211,7 +213,9 @@ function changed(outcome: HoldingOutcome): Answer<'set-asset-enabled'> {
     case 'no-change':
       return { outcome: 'no-change', body: {} }
     case 'absent':
-      return NOT_FOUND
+      return outcome.broughtBy === undefined
+        ? NOT_FOUND
+        : { outcome: 'not-found', body: { broughtBy: outcome.broughtBy } }
     case 'denied':
       return DENIED
     case 'unavailable':
@@ -307,6 +311,70 @@ async function write<T>(call: () => Promise<T>): Promise<T | typeof UNKNOWN> {
   }
 }
 
+const titlesOf = (title: string | undefined, pointTitle: string | undefined) => ({
+  ...(title !== undefined && { title }),
+  ...(pointTitle !== undefined && { pointTitle }),
+})
+
+const linesOf = (read: Awaited<ReturnType<CategoryEffect['impact']['of']>>) =>
+  read.kind === 'changes'
+    ? read.lines.map(({ mark, of, point, key, id, says, title, pointTitle }) => ({
+        mark,
+        of,
+        point,
+        key,
+        id: id ?? null,
+        says,
+        ...titlesOf(title, pointTitle),
+      }))
+    : null
+
+/** What a category that answers its effect tells of one held asset; nothing when it answers none. */
+async function effectOf(
+  categories: CategoriesPort | undefined,
+  tenant: string,
+  capability: CapabilityId,
+) {
+  const effect = categories?.effectOf(capability.category)
+  if (categories === undefined || effect === undefined) return undefined
+  try {
+    const placed = await effect.placement.of({ tenant, capability })
+    if (placed.kind !== 'placed') return undefined
+    const [disable, remove] = await Promise.all(
+      (['disable', 'remove'] as const).map(change =>
+        effect.impact.of({ tenant, capability, change }),
+      ),
+    )
+    const listingAt = (point: string) => {
+      const listing = categories.atPoint(point)
+      return listing === undefined || 'unusable' in listing ? undefined : listing
+    }
+    return {
+      places: placed.places.map(({ point, key, id, side, standing, says, title, pointTitle }) => {
+        const listing = side === 'server' ? listingAt(point) : undefined
+        return {
+          point,
+          key,
+          id: id ?? null,
+          side: side ?? null,
+          category: listing?.category ?? null,
+          categoryTitle: listing?.display.title ?? null,
+          standing,
+          says,
+          ...titlesOf(title, pointTitle),
+        }
+      }),
+      clients:
+        placed.clients === null ? null : placed.clients.map(({ label, says }) => ({ label, says })),
+      advice: placed.advice,
+      disable: disable === undefined ? null : linesOf(disable),
+      remove: remove === undefined ? null : linesOf(remove),
+    }
+  } catch {
+    return undefined
+  }
+}
+
 export function createAssetOperations(input: AssetOperationsInput): AssetHandlers {
   async function acting(
     login: LoginIdentity,
@@ -340,6 +408,7 @@ export function createAssetOperations(input: AssetOperationsInput): AssetHandler
       if (categories === undefined) return UNAVAILABLE
       const listing = categories.describe(body.category)
       const contract = categories.lookup(body.category)
+      if (listing !== undefined && 'unusable' in listing) return UNAVAILABLE
       if (listing === undefined || contract === undefined) return NOT_FOUND
       return {
         outcome: 'succeeded',
@@ -364,7 +433,11 @@ export function createAssetOperations(input: AssetOperationsInput): AssetHandler
       if ('outcome' in a) return a
       return withCapability(body.category, body.name, NOT_FOUND, async capability => {
         const asset = await read(() => a.face.describe({ ...a, capability }))
-        return 'outcome' in asset ? asset : described(asset)
+        if ('outcome' in asset) return asset
+        const answer = described(asset)
+        if (answer.outcome !== 'succeeded') return answer
+        const effect = await effectOf(input.categories(), a.tenant, capability)
+        return effect === undefined ? answer : { ...answer, body: { ...answer.body, effect } }
       })
     },
     async 'create-asset'(call, body) {

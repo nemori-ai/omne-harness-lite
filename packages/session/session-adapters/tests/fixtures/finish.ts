@@ -35,6 +35,56 @@ export const noReplyWithFault = (): FailureCandidate => ({
   fault: { cause: 'upstream-unavailable', upstreamStatus: '504', diagnostic: 'gateway timeout' },
 })
 
+export const noReplyThrottled = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/no-reply'),
+  kind: 'no-reply',
+  call: MODEL_CALL,
+  result: {
+    producer: { kind: 'model', call: MODEL_CALL },
+    version: 'v1',
+    delivery: null,
+    source: evidence('result/no-reply'),
+  },
+  fault: {
+    cause: 'upstream-unavailable',
+    upstreamStatus: '429',
+    diagnostic: 'http-429',
+    throttled: true,
+  },
+})
+
+export const nodeFailed = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/node'),
+  kind: 'node-failed',
+  node: 'E4',
+  category: 'invariant',
+  failureKind: 'unavailable',
+})
+
+export const nodeFailedDisclosed = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/node'),
+  kind: 'node-failed',
+  node: 'E4',
+  category: 'invariant',
+  failureKind: 'invalid',
+  diagnostic: 'command_limit: maxCommandBytes 5 > 4',
+})
+
+export const cannotFit = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/cannot-fit'),
+  kind: 'cannot-fit',
+  reason: 'protected-floor',
+  context: evidence('context/cannot-fit'),
+})
+
 export async function endWithFailure(
   s: SqlScene,
   journal: AgentJournal<string>,

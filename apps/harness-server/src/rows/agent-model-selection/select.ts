@@ -1,6 +1,14 @@
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
-import type { ModalityRequirement } from '@omne-harness/model-contract'
-import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
+import {
+  chatNeedOf,
+  supportedReasoningEfforts,
+  type ModalityRequirement,
+  type ModelFailure,
+  type Parameter,
+  type ProfileResolution,
+  type ProfileResolveInput,
+  type ReasoningEffort,
+} from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -14,10 +22,7 @@ type Selected = Extract<
   Awaited<ReturnType<ModelSelection<unknown>['select']>>,
   { ok: unknown }
 >['ok']
-type ProfilesFailure = Extract<
-  Awaited<ReturnType<ModelProfilesService<unknown>['resolve']>>,
-  { failure: unknown }
->['failure']
+type ProfilesFailure = ModelFailure
 
 export type SelectionBindings = Readonly<{
   sessionOf(input: SelectInput): Promise<Outcome<SessionId, Failure>>
@@ -29,8 +34,8 @@ export type SelectionPorts = Readonly<{
     access: SessionAccess<unknown>,
   ): Promise<Outcome<SessionModelSelection, SessionFailure>> | undefined
   resolveProfile(
-    input: Parameters<ModelProfilesService<unknown>['resolve']>[0],
-  ): ReturnType<ModelProfilesService<unknown>['resolve']> | undefined
+    input: ProfileResolveInput<unknown, 'llm'>,
+  ): Promise<Outcome<ProfileResolution<'llm'>, ModelFailure>> | undefined
   bindings: SelectionBindings
 }>
 
@@ -64,6 +69,22 @@ function fromProfiles(failure: ProfilesFailure): Failure {
   }
 }
 
+// The session's choice first, then the tenant's default for the model; with neither the profile's own stays.
+function effortOf(
+  chosen: ReasoningEffort | undefined,
+  preferred: ReasoningEffort | undefined,
+): Parameter | undefined {
+  if (chosen !== undefined) return { kind: 'reasoning-effort', value: chosen, scale: 'unified' }
+  if (preferred === undefined) return undefined
+  return { kind: 'reasoning-effort', value: preferred, scale: 'unified', basis: 'preference' }
+}
+
+// A model turned off, withdrawn or unknown does not come back on its own: the Run ends, not waits.
+function absentFailure(reason: Extract<ProfileResolution, { kind: 'absent' }>['reason']): Failure {
+  const said = reason === 'excluded' ? 'not-enabled' : reason
+  return { kind: 'invalid', field: 'model', reason: said, disclosed: `model ${said}` }
+}
+
 export async function selectModel(
   ports: SelectionPorts,
   input: SelectInput,
@@ -88,7 +109,7 @@ export async function selectModel(
     principal: input.principal,
     tenant: input.tenant,
     route,
-    required: ports.bindings.requirementOf(input),
+    required: chatNeedOf(ports.bindings.requirementOf(input)),
   })
   if (resolving === undefined)
     return fail(unavailable('modelProfiles', 'the model profiles service is not available'))
@@ -96,10 +117,7 @@ export async function selectModel(
   if ('failure' in resolved) return fail(fromProfiles(resolved.failure))
 
   const resolution = resolved.ok
-  if (resolution.kind === 'absent')
-    return fail(
-      unavailable('modelProfiles', `route "${route}" has no profile (${resolution.reason})`),
-    )
+  if (resolution.kind === 'absent') return fail(absentFailure(resolution.reason))
   if (resolution.profile.identity.route !== route)
     return fail(
       unavailable('modelProfiles', `the answer for route "${route}" is for another route`),
@@ -112,10 +130,25 @@ export async function selectModel(
       ),
     )
 
+  const { definition } = resolution.profile
+  const { reasoningEffort } = saved.ok.selection
+  if (
+    reasoningEffort !== undefined &&
+    !supportedReasoningEfforts(definition).includes(reasoningEffort)
+  )
+    return fail({ kind: 'invalid', field: 'reasoningEffort', reason: 'unsupported-effort' })
+
+  const effort = effortOf(reasoningEffort, resolution.defaultReasoningEffort)
   return succeed({
     recipient: { route, profile: resolution.profile.adoption },
     resolution: { ...resolution, selectable: true },
-    parameters: resolution.profile.definition.parameters,
+    parameters:
+      effort === undefined
+        ? definition.parameters
+        : [
+            ...definition.parameters.filter(parameter => parameter.kind !== 'reasoning-effort'),
+            effort,
+          ],
     tools: input.scope,
     evidence: saved.ok.source,
   })

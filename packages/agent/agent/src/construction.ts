@@ -21,6 +21,7 @@ import type {
   AgentRegistrationHandle,
   AgentRuntime,
   AgentRuntimeControl,
+  NestedActionAdmission,
   CallerCommit,
   ContextCompaction,
   CompactionInputReader,
@@ -29,7 +30,9 @@ import type {
   CurrentConditions,
   DecisionCards,
   DurableEvidence,
+  EnabledExtensions,
   ExtensionImplementations,
+  SystemExtensions,
   JournalCapabilities,
   MessageHandoff,
   ModelSelection,
@@ -72,7 +75,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   toolRequests?: Readonly<{
     describe(input: ToolRequestInput<P>): Reply<ToolCallDescription>
     prepare(
-      input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
+      input: ToolRequestInput<P> & Readonly<{ definition: Adoption }>,
     ): Reply<T.ToolInvokeRequest>
   }>
   adoptions: AgentAdoptions<P>
@@ -83,6 +86,10 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   received: AgentReceivedCommits<P, B>
   selection: ModelSelection<P>
   extensions: ExtensionImplementations<P>
+  /** The extensions the tenant has enabled; an assembly without this port has no tenant source. */
+  enabledExtensions?: EnabledExtensions<P>
+  /** The trusted system extensions of the assembly; an assembly without this port has no system source. */
+  systemExtensions?: SystemExtensions<P>
   cards: DecisionCards<P>
   admission: ActionAdmission<P>
   handoff: MessageHandoff<P>
@@ -93,7 +100,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
 }>
 
 export type ToolCallDescription =
-  | Readonly<{ kind: 'tool'; definition: Adoption }>
+  | Readonly<{ kind: 'tool'; definition: T.ToolDefinition; concurrent?: boolean }>
   | Readonly<{ kind: 'answered'; text: string }>
 export type ToolCallAnswer = Extract<ToolCallDescription, { kind: 'answered' }>
 
@@ -111,4 +118,6 @@ export interface AgentProvider<P> {
   readonly observation: AgentHandle<P>
   readonly recovery: AgentExecutionRecovery<P>
   readonly control: AgentRuntimeControl<P>
+  /** Asks the running execution whether an action a program makes under a waiting tool call may run. */
+  readonly nested: NestedActionAdmission<P>
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { mediaProtocol } from '@omne-harness/media-protocol'
 import { createWorld, fixtureLogin, loginIdentity, type World } from './fixtures/world.ts'
 
 const ALICE = fixtureLogin('a')
@@ -322,6 +323,68 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     expect(world.calls.map(each => each.method)).toEqual(['describe', 'read'])
     world.answer('read', { failure: { kind: 'invalid-reference' } })
     expect(await call(world, 'describe-media')).toEqual({ outcome: 'not-found', body: {} })
+  })
+
+  it('hands on why a medium cannot be converted; a peer at revision 1 gets the same bytes as before', async () => {
+    const source = {
+      definition: { name: 'pdf-text', revision: '1' },
+      engine: { name: 'e', revision: '2' },
+    }
+    const bare = { kind: 'done', representation: { outcome: 'inconvertible', ...source } }
+    const kept = { kind: 'done', representation: { ...bare.representation, reason: 'encrypted' } }
+    const described = answering('describe-media', { ok: { state: 'held', facts } })
+    described.answer('read', { ok: kept })
+    const prepared = answering('prepare-media', { ok: kept })
+    const limits = {
+      maxBytes: 65_536,
+      maxDepth: 16,
+      maxItems: 1_000,
+      maxMembers: 100,
+      maxStringLength: 1_024,
+      maxNumberLength: 32,
+    }
+    for (const [world, name, body, before] of [
+      [
+        described,
+        'describe-media',
+        { state: 'held', facts, preprocess: kept },
+        { state: 'held', facts, preprocess: bare },
+      ],
+      [prepared, 'prepare-media', { preprocess: kept }, { preprocess: bare }],
+    ] as const) {
+      expect(await call(world, name)).toEqual({ outcome: 'succeeded', body })
+      const codec = mediaProtocol.operations[name].outcomes.succeeded
+      const now = codec.write(body as never, limits, 2)
+      const asBefore = codec.write(before as never, limits, 1)
+      expect(now.ok).toBe(true)
+      expect(JSON.stringify(now)).toContain('encrypted')
+      expect(asBefore.ok).toBe(true)
+      expect(codec.write(body as never, limits, 1)).toEqual(asBefore)
+    }
+    const prepare = mediaProtocol.operations['prepare-media'].outcomes.succeeded
+    const unknown = {
+      preprocess: { ...kept, representation: { ...kept.representation, reason: 'other' } },
+    }
+    expect(prepare.write(unknown as never, limits).ok).toBe(false)
+  })
+
+  it('hands the name of an upload to the media on begin, and the name of a medium back on describe', async () => {
+    const begun = answering('begin-upload', {
+      ok: { kind: 'uploading', nextSequence: 0, partBytes: 4 },
+    })
+    await call(begun, 'begin-upload', { ...OPERATIONS['begin-upload'].body, name: '季度报告.pdf' })
+    expect(begun.calls[0]?.input).toEqual({
+      ...OPERATIONS['begin-upload'].input,
+      name: '季度报告.pdf',
+    })
+    const described = answering('describe-media', {
+      ok: { state: 'held', facts, name: '季度报告.pdf' },
+    })
+    described.answer('read', { ok: { kind: 'not-needed' } })
+    expect(await call(described, 'describe-media')).toEqual({
+      outcome: 'succeeded',
+      body: { state: 'held', facts, preprocess: { kind: 'not-needed' }, name: '季度报告.pdf' },
+    })
   })
 
   it('read-media-page hands the target for display on when the body has one', async () => {

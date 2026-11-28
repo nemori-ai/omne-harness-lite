@@ -57,12 +57,14 @@
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/slash-command-contract": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "zod": "catalog:",
     "immutable": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness/agent-context": "workspace:*",

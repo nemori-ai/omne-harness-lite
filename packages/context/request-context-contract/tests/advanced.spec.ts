@@ -86,7 +86,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
     direct: [
       {
         name: 'lookup',
-        description: 'lookup\n\nReturns fixture-value@1. Model body: text. Program data: none.',
+        description: 'lookup\n\nReturns fixture-value@1. Model body: text.',
         argumentsSchema: definition.parameters.schema,
       },
     ],
@@ -111,7 +111,7 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
   expect(declared.direct.map(item => item.name)).toEqual(['Files'])
   expect(declared.programmatic).toEqual(declared.direct)
   expect(declared.direct[0]?.description).toBe(
-    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file. Returns fixture-value@1. Model body: text. Program data: none.\nwrite {} - write a file. Returns fixture-value@1. Model body: text. Program data: none.',
+    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file. Returns fixture-value@1. Model body: text.\nwrite {} - write a file. Returns fixture-value@1. Model body: text.',
   )
   expect(JSON.stringify(declared.direct[0]?.argumentsSchema)).toContain(
     '{"key":"enum","value":{"kind":"array","items":[{"kind":"string","value":"read"},{"kind":"string","value":"write"}]}}',
@@ -124,6 +124,64 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
       selection: { kind: 'argument', encoding: 'wrapped', commands: ['read', 'write'] },
     },
   ])
+})
+
+it('TL-75 no declaration says what a program can call: a program executor declares itself alone, whatever tools are resident', () => {
+  const base = {
+    kind: 'function' as const,
+    description: 'reads one thing',
+    adoption,
+    requiredCapabilities: [] as string[],
+    backgroundAllowed: false,
+    programmable: true,
+    program: { kind: 'open' as const, unless: [] },
+    declarations: {
+      adoption,
+      environment: null,
+      attachments: [],
+      inputModalities: [],
+      outputModalities: [],
+      settings: null,
+    },
+    parameters: {
+      schema: { kind: 'object' as const, entries: [] },
+      vocabulary: adoption,
+      descriptions: [],
+    },
+    returns: ordinaryReturnFixture(adoption),
+  }
+  const adopted = (name: string, more: object = {}, resident = true): ToolAdoption => ({
+    resident,
+    availability: {
+      kind: 'available',
+      definition: { ...base, name, ...more } as never,
+      executor: adoption,
+      layer: { kind: 'official' },
+    },
+    binding: adoption,
+  })
+  const runner = adopted('Runner', {
+    description: 'runs programs',
+    programmable: false,
+    program: undefined,
+    requiredCapabilities: ['program.run'],
+  })
+  const described = (tools: readonly ToolAdoption[], name: string) =>
+    declareTools(tools).direct.find(tool => tool.name === name)?.description ?? ''
+  const all = [
+    runner,
+    adopted('Lookup'),
+    adopted('Away', {}, false),
+    adopted('Plain', { programmable: false }),
+  ]
+  const alone = described([runner], 'Runner')
+  expect(alone.startsWith('runs programs\n\nReturns ')).toBe(true)
+  expect(described(all, 'Runner')).toBe(alone)
+  expect(described([...all, adopted('More')], 'Runner')).toBe(alone)
+  for (const tool of declareTools(all).direct) {
+    expect(tool.description).not.toContain('declare ')
+    expect(tool.description).not.toContain('Program')
+  }
 })
 it('projection preserves reasoning payload, rewrites at indices and removes dangling pairs', () => {
   const stateIdentity = judgeBlockIdentity({

@@ -6,7 +6,7 @@ import {
   ANTHROPIC_RECORDS,
   type AnthropicRecord,
 } from '@omne-harness/pi-ai-anthropic'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import { assembledOf, FAMILY, fixedRequest, officialProfile, RETRY } from './support/anthropic.ts'
 
 const RECORDS: readonly AnthropicRecord[] = ANTHROPIC_RECORDS
@@ -24,13 +24,14 @@ describe('officialAnthropicProfiles', () => {
     (_name, record, index) => {
       const supplier = recordAdoption(ANTHROPIC_OWNER, record)
       const unknown = [{ supplier, limit: { kind: 'unknown' } }]
-      const evidence = componentAdoption(record, 'evidence')
+      const evidence = componentAdoption(ANTHROPIC_OWNER, record, 'evidence')
       const upstream = (data: AnthropicRecord['profile']['context']['window']['upstream']) =>
         data.kind === 'finite'
           ? [{ supplier, limit: { kind: 'finite', amount: data.amount, source: evidence } }]
           : unknown
       const { context } = record.profile
       expect(PROFILES[index]).toEqual({
+        kind: 'llm',
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],
@@ -48,10 +49,20 @@ describe('officialAnthropicProfiles', () => {
             provided: '4194304',
             upstream: [{ supplier, limit: { kind: 'unknown' } }],
           },
+          ...(record.name === 'anthropic/claude-haiku-5.5'
+            ? [
+                {
+                  metric: 'file-bytes',
+                  provided: '33554432',
+                  upstream: [{ supplier, limit: { kind: 'unknown' } }],
+                },
+              ]
+            : []),
         ],
         parameters: [],
-        representation: componentAdoption(record, 'representation'),
-        meter: componentAdoption(record, 'meter'),
+        reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },
+        representation: componentAdoption(ANTHROPIC_OWNER, record, 'representation'),
+        meter: componentAdoption(ANTHROPIC_OWNER, record, 'meter'),
         retryPolicy: RETRY,
       })
     },

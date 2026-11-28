@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { type Components, Streamdown } from 'streamdown'
+import { type Components, Streamdown, type StreamdownTranslations } from 'streamdown'
 
 import { MARKDOWN_PLUGINS } from './code-highlight.ts'
 import { useDiagramOptions } from './markdown-diagrams.ts'
@@ -37,6 +37,7 @@ export interface ProseProps {
   readonly isAnimating?: boolean
   readonly ownWords?: boolean
   readonly unlinked?: boolean
+  readonly translations?: StreamdownTranslations
 }
 
 export function Prose({
@@ -44,6 +45,7 @@ export function Prose({
   isAnimating = false,
   ownWords = false,
   unlinked = false,
+  translations = PROSE_TRANSLATIONS,
 }: ProseProps): React.JSX.Element {
   const hasDiagrams = DIAGRAM_FENCE.test(text)
   const diagrams = useDiagramOptions(hasDiagrams)
@@ -56,8 +58,9 @@ export function Prose({
       className="omne-prose"
       plugins={MARKDOWN_PLUGINS}
       mermaid={diagrams}
-      translations={PROSE_TRANSLATIONS}
+      translations={translations}
       lineNumbers={false}
+      tableMaxHeight={0}
       mode={isAnimating ? 'streaming' : 'static'}
       animated={isAnimating}
       isAnimating={isAnimating}

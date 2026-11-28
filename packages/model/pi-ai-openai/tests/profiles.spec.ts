@@ -6,7 +6,7 @@ import {
   OPENAI_RECORDS,
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
-import { componentAdoption } from '../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 import {
   assembledOf,
   bindingOf,
@@ -34,12 +34,20 @@ describe('officialOpenAiProfiles', () => {
     '%s takes its supplier, limits and adoptions from the record',
     (_name, record, index) => {
       const supplier = recordAdoption(OPENAI_OWNER, record)
-      const evidence = componentAdoption(record, 'evidence')
+      const evidence = componentAdoption(OPENAI_OWNER, record, 'evidence')
       const finite = (amount: string) => [
         { supplier, limit: { kind: 'finite', amount, source: evidence } },
       ]
       expect(PROFILES[index]).toEqual({
-        suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
+        kind: 'llm',
+        suppliers: [
+          {
+            adoption: supplier,
+            provider: record.route.provider,
+            model: record.route.model,
+            replay: {},
+          },
+        ],
         fallback: false,
         input: ['text', 'image'],
         ...(record.name === 'openai/gpt-5.6-luna' ? { fileTypes: ['application/pdf'] } : {}),
@@ -56,10 +64,25 @@ describe('officialOpenAiProfiles', () => {
             provided: '4194304',
             upstream: [{ supplier, limit: { kind: 'unknown' } }],
           },
+          ...(record.name === 'openai/gpt-5.6-luna'
+            ? [
+                {
+                  metric: 'file-bytes',
+                  provided: '33554432',
+                  upstream: [{ supplier, limit: { kind: 'unknown' } }],
+                },
+              ]
+            : []),
         ],
         parameters: [],
-        representation: componentAdoption(record, 'representation'),
-        meter: componentAdoption(record, 'meter'),
+        reasoningEfforts: {
+          low: 'low',
+          medium: 'medium',
+          high: 'high',
+          ...('engine' in record && record.engine === 'responses' ? { xhigh: 'xhigh' } : {}),
+        },
+        representation: componentAdoption(OPENAI_OWNER, record, 'representation'),
+        meter: componentAdoption(OPENAI_OWNER, record, 'meter'),
         retryPolicy: RETRY,
       })
     },

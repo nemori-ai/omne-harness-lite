@@ -1,0 +1,104 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
+.goal-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-block);
+  padding: var(--omne-space-block);
+  color: var(--omne-ink-primary);
+}
+.goal-head,
+.goal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.goal-head .goal-actions {
+  margin-inline-start: auto;
+}
+.goal-heading {
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-strong);
+  color: var(--omne-ink-muted);
+}
+.goal-quiet {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.goal-gap td {
+  white-space: normal;
+  vertical-align: top;
+}
+.goal-how {
+  display: block;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.goal-heading-row,
+.goal-judge {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.goal-heading-row {
+  justify-content: space-between;
+}
+.goal-gap tr[data-open='no'] {
+  color: var(--omne-ink-muted);
+}
+.goal-gap td.goal-gap-id {
+  white-space: nowrap;
+}
+.goal-gap td.goal-gap-reading {
+  width: 36%;
+}
+.goal-gap-id {
+  font-variant-numeric: tabular-nums;
+  color: var(--omne-ink-muted);
+  margin-inline-end: var(--omne-space-inline);
+  white-space: nowrap;
+}
+.goal-body {
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-reading);
+}
+.goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  font-size: var(--omne-text-ui);
+}
+.goal-words {
+  margin-block-start: var(--omne-space-inline);
+  padding-inline-start: var(--omne-space-inline);
+  border-inline-start: 1px solid var(--omne-line-subtle);
+  color: var(--omne-ink-muted);
+}
+.goal-form,
+.goal-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+}
+.goal-fieldset legend {
+  font-size: var(--omne-text-ui);
+  color: var(--omne-ink-muted);
+}
+.goal-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.goal-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  white-space: nowrap;
+}
+.goal-amount-field {
+  inline-size: 6em;
+}
+}

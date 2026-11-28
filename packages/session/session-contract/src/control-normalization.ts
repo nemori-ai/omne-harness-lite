@@ -1,5 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Message } from '@omne-harness/message'
+import { recordsOf } from './call-settlement.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionFailure } from './faces.ts'
 import type { SessionAttemptRecord } from './history-values.ts'
@@ -7,9 +8,10 @@ import type { AttemptId, DurableEvidence, InputId, RunId, SessionOperationId } f
 import { deriveDriveOperation } from './operations.ts'
 import type { SessionLogConsequence } from './projection.ts'
 import {
-  SessionValidationFailure,
   equalValue,
   inconsistent,
+  missingAt,
+  SessionValidationFailure,
   unavailableAt,
 } from './session-validation.ts'
 import type { CallBinding, ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
@@ -130,12 +132,12 @@ function selectedOf(rule: Rule, current: ControlProgress): readonly Selected[] {
   const references = rule.snapshot.workEntryIndex?.controls.find(
     item => item.operation === current.operation,
   )
-  if (references === undefined) unavailableAt('control.references')
+  if (references === undefined) missingAt('control.references')
   return references.selected.map(item => {
     const live = rule.snapshot.callRegistrations?.find(
       record => record.consumption === item.consumption,
     )?.registration
-    if (live === undefined) unavailableAt('control.registration')
+    if (live === undefined) missingAt('control.registration')
     return {
       item,
       live,
@@ -159,6 +161,22 @@ function waitEnded(rule: Rule, producer: ProducerRef): boolean {
   const through = BigInt(rule.evidence.through)
   return rule.evidence.settled.some(
     item => BigInt(item.revision) <= through && equalValue(item.binding.producer, producer),
+  )
+}
+
+// A cancel stops each foreground call with a control of that call's own; the producer answers on that one.
+const STOPS: readonly SessionControlRecordEvidence['command'][] = [
+  'withdraw-tool',
+  'interrupt-tool',
+  'interrupt-model',
+]
+
+function cancelsHere(rule: Rule, current: ControlProgress, origin: SessionControlOrigin): boolean {
+  if (origin.execution !== rule.execution) return false
+  if (current.intent.kind === 'auto-archive') return true
+  return (
+    current.intent.kind === 'control' &&
+    (current.intent.value.kind === 'cancel-run' || current.intent.value.kind === 'archive')
   )
 }
 
@@ -189,7 +207,9 @@ function confirms(
       reached(record, 'intent-established') &&
       settled(['background'], null)
     )
-  if (record.command === 'background-tool' || !direct) return false
+  if (record.command === 'background-tool') return false
+  if (!direct && !(cancelsHere(rule, current, origin) && STOPS.includes(record.command)))
+    return false
   return (
     reached(record, 'producer-confirmed') ||
     reached(record, 'physically-stopped') ||
@@ -205,15 +225,8 @@ function pendingOf(
 ): ProducerRef[] {
   return current.pending.filter(producer => {
     if (current.intent.kind === 'interrupt' && waitEnded(rule, producer)) return false
-    const registrations =
-      rule.snapshot.callRegistrations
-        ?.filter(
-          item =>
-            item.registration.kind === 'associated' &&
-            equalValue(item.registration.binding.producer, producer),
-        )
-        .map(item => item.registration) ?? []
-    if (registrations.length === 0) unavailableAt('control.pending.registration')
+    const registrations = recordsOf(rule.snapshot, producer).map(item => item.registration)
+    if (registrations.length === 0) missingAt('control.pending.registration')
     const confirmed = registrations.every(registration =>
       rule.evidence.records.some(record => confirms(rule, current, origin, record, registration)),
     )

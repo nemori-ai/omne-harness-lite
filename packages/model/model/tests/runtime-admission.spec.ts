@@ -143,7 +143,18 @@ it('preserves every obligation with actual runtime observation and controlled up
   expect(required).toHaveLength(11)
   expect(required.filter(row => row.status !== 'pass')).toEqual([])
   expect(report.results.slice(0, 9).every(row => row.status === 'pass')).toBe(true)
-  expect(report.results.slice(-6).every(row => row.status === 'pass')).toBe(true)
+  const transport = report.results.filter(row =>
+    [
+      'transport-sends-only-at-start',
+      'repeated-transport-step-sends-nothing',
+      'materialization-receipt-matches-request',
+      'fact-stream-ends-once',
+      'interruption-is-confirmed',
+      'transport-close-is-idempotent',
+    ].includes(row.obligation),
+  )
+  expect(transport).toHaveLength(6)
+  expect(transport.filter(row => row.status !== 'pass')).toEqual([])
 })
 it('prepares one dispatch with a stable claim, without sending; repeats keep the same generation', async () => {
   const f = assembled()

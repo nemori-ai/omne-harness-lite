@@ -2,9 +2,10 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { scheduleProtocol, type ScheduleProtocol } from '@omne-harness/schedule-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { partsOn } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { createScheduleUiModule } from '../src/cordis.ts'
 
 const scheduleUiModule = createScheduleUiModule()
@@ -12,7 +13,6 @@ import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
-const SERVICE = protocolServiceName({ name: scheduleProtocol.name, major: scheduleProtocol.major })
 const OPERATIONS = Object.keys(scheduleProtocol.operations)
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -21,33 +21,65 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 beforeAll(stubAnimation)
 afterEach(cleanup)
 
+it('M0 declares its thirteen parts, whether or not the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(scheduleUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['schedule.activation', 'human-intervention.paper.card.detail'],
+    ['schedule.filter', 'schedule.list'],
+    ['schedule.happened', 'schedule.reading'],
+    ['schedule.job', 'schedule.reading'],
+    ['schedule.job.cancel', 'schedule.reading'],
+    ['schedule.list', 'schedule.page'],
+    ['schedule.list.row', 'schedule.list'],
+    ['schedule.page', 'shell.workspace.page'],
+    ['schedule.reading', 'schedule.page'],
+    ['schedule.refresh', 'schedule.page'],
+    ['schedule.run', 'schedule.reading'],
+    ['schedule.title', 'schedule.reading'],
+    ['schedule.upcoming', 'schedule.reading'],
+  ])
+})
+
 it('M1 the schedule client present: one schedule page, before the calendar and assets pages', async () => {
   const { root, shell } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS).client)
+  await serveProtocol(
+    root,
+    scheduleProtocol,
+    createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS).client,
+  )
   await root.plugin(scheduleUiModule)
   expect(shell.items('pages')).toMatchObject([
     { id: 'schedules', title: '日程', order: 12, icon: 'time' },
   ])
   expect(shell.items('sidebar')).toEqual([])
+  expect(shell.adoption('schedule-ui')).toMatchObject({
+    kind: 'adopted',
+    bindings: { schedule: { key: 'schedule/v3' } },
+  })
 })
 
-it('M2 the client withdrawn: the page goes with the module; back again: placed again', async () => {
+it('M2 the client withdrawn: the page stays; back again: it is pinned again', async () => {
   const { root, shell } = await startShell()
   const client = createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS).client
-  const unprovide = root.reflect.provide(SERVICE, client)
+  const served = await serveProtocol(root, scheduleProtocol, client)
   await root.plugin(scheduleUiModule)
-  unprovide()
+  await served.dispose()
   await tick()
-  expect(shell.items('pages')).toEqual([])
-  root.reflect.provide(SERVICE, client)
+  expect(shell.adoption('schedule-ui')).toMatchObject({ kind: 'unavailable' })
+  expect(shell.items('pages').map(page => page.id)).toEqual(['schedules'])
+  await serveProtocol(root, scheduleProtocol, client)
   await tick()
+  expect(shell.adoption('schedule-ui')).toMatchObject({ kind: 'adopted' })
   expect(shell.items('pages').map(page => page.id)).toEqual(['schedules'])
 })
 
 it('M3 no tenant yet: nothing is drawn and nothing is read', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS)
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, scheduleProtocol, fake.client)
   await root.plugin(scheduleUiModule)
   const view = render(<>{shell.items('pages')[0]!.render({ scope: undefined })}</>)
   expect(view.container.textContent).toBe('')
@@ -57,7 +89,7 @@ it('M3 no tenant yet: nothing is drawn and nothing is read', async () => {
 it('M4 a tenant: the page lists the current schedules of that tenant, one page at a time', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS)
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, scheduleProtocol, fake.client)
   await root.plugin(scheduleUiModule)
   render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
   const list = await fake.next('list-schedules')

@@ -25,7 +25,12 @@ import {
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
 import { needClosed, needUnder, peekClosed, type ClosedTable } from './closed-items.ts'
-import { journalEvidence, revisionOf } from './journal-values.ts'
+import {
+  journalEvidence,
+  PRESERVED_MATERIAL,
+  RECEIVED_MATERIAL,
+  revisionOf,
+} from './journal-values.ts'
 import type { Stored } from './material-table.ts'
 
 // What a core keeps of a received delivery, and how it reads that back from a closed result.
@@ -81,8 +86,6 @@ function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>): T {
   return structuredClone(value) as T
 }
 
-const RECEIVED_MATERIAL = 'received-material'
-
 // A material source names the execution that keeps it; a received one names its consumption too.
 export const receivedMaterialSource = (
   namespace: string,
@@ -101,8 +104,6 @@ export const receivedMaterialSource = (
     ]),
     1,
   )
-
-const PRESERVED_MATERIAL = 'material'
 
 export const preservedSource = (
   namespace: string,
@@ -191,6 +192,12 @@ export function closedReceived(
   return receivedRecord(scope, body.received)
 }
 
+export type ReleasedMaterial = Readonly<{
+  tenant: string
+  execution: AgentExecutionId
+  released: MaterialView['value']
+}>
+
 // A material the core no longer holds open: a preserved one by its source, else with its result.
 export function closedMaterial(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
@@ -198,7 +205,7 @@ export function closedMaterial(
   tenant: TenantId,
   source: DurableEvidence,
   need: boolean,
-): Stored | undefined {
+): Stored | ReleasedMaterial | undefined {
   const named = sourceNames(mint.session, source)
   const encoded = tenantCodec.encode(tenant)
   if (named === null || !encoded.ok || named.tenant !== encoded.value) return undefined
@@ -206,10 +213,13 @@ export function closedMaterial(
     const ref = { execution: named.execution, family: 'material', item: canonical(source) }
     const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as MaterialView | null
     if (body === null) return undefined
+    if (body.readers === 'until-release')
+      return { tenant: named.tenant, execution: named.execution, released: body.value }
     return {
       tenant: named.tenant,
       execution: named.execution,
       value: block(table.blobs, body.value),
+      readers: body.readers,
     }
   }
   const input = { tenant, execution: named.execution }

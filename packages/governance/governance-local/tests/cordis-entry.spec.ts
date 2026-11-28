@@ -76,8 +76,8 @@ it('binds contributions to actual caller fibers and preserves sibling and borrow
   await provider.dispose()
   expect(world.observed).toContainEqual({ kind: 'closed' })
   expect(world.ctx.get(governanceContributionsKey)).toBeUndefined()
-  expect(await world.w.services().sql.observe(world.w.binding('first'))).toMatchObject({
-    record: { state: 'committed' },
+  expect(await world.w.services().sql.observe(world.w.binding('first'))).toEqual({
+    kind: 'absent',
   })
 })
 
@@ -176,7 +176,7 @@ it('retains provider shutdown after dependency loss and retries without another 
   await vi.waitFor(() => expect(world.observed).toContainEqual({ kind: 'closed' }))
   expect(
     await world.w.services().sql.contribution(registered.contribution, world.w.principalRef),
-  ).toMatchObject({ state: 'released' })
+  ).toEqual({ kind: 'denied' })
 })
 
 it('returns unavailable for a disposed caller reference while the provider stays active', async () => {

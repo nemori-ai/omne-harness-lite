@@ -97,12 +97,13 @@ export function runtimeConformanceSubject(
           close: () => prepared.ok.close(),
           async materialize(signal) {
             const materialized = await prepared.ok.materialize(signal)
-            if ('failure' in materialized) return materialized
+            if ('failure' in materialized || !('start' in materialized.ok)) return materialized
+            const request = materialized.ok
             return {
               ok: {
-                ...materialized.ok,
+                ...request,
                 start(signal) {
-                  const stream = materialized.ok.start(signal)
+                  const stream = request.start(signal)
                   sends++
                   return stream
                 },

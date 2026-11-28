@@ -82,10 +82,10 @@ describe('schedule and schedule-access rows', () => {
             label: '交月报',
             control: 'active',
             author: { kind: 'human' },
-            basis: { kind: 'owner' },
             revision: 1,
             next: { calendar: 'cn-legal-holidays' },
           })
+          expect(created).not.toHaveProperty('basis')
           const recalled = succeeded(
             await tree.cli([
               'schedule',

@@ -13,9 +13,9 @@ import { compareCodeUnits } from './order.ts'
 import type { ActionDefinition } from './values.ts'
 
 export type UnavailableReason =
-  | 'no-longer-offered'
   | 'connection-unavailable'
   | 'authorization-required'
+  | 'credential-rejected'
   | 'credential-unavailable'
 
 export type Availability =
@@ -79,36 +79,24 @@ export function mergeListing(
     definitionDigest: digest,
     availability: { kind: 'available' },
   }))
-  const kept: KnownAction[] = (previous?.actions ?? [])
-    .filter(known => !offered.some(action => action.name === known.name))
-    .map(known => ({
-      ...known,
-      availability: { kind: 'unavailable', reason: 'no-longer-offered' },
-    }))
   return succeed({
     revision: nextRevision(previous?.revision),
     basis: listing.basis,
     freshness: listing.freshness,
-    actions: [...offered, ...kept].sort(byName),
+    actions: offered.sort(byName),
   })
 }
 
 export function markUnavailable(
   record: ActionCatalogRecord,
-  reason: Exclude<UnavailableReason, 'no-longer-offered'>,
+  reason: UnavailableReason,
 ): ActionCatalogRecord {
   return {
     ...record,
     revision: nextRevision(record.revision),
-    actions: record.actions.map(known =>
-      known.availability.kind === 'unavailable' && known.availability.reason === 'no-longer-offered'
-        ? known
-        : { ...known, availability: { kind: 'unavailable', reason } },
-    ),
+    actions: record.actions.map(known => ({
+      ...known,
+      availability: { kind: 'unavailable', reason },
+    })),
   }
-}
-
-export function actionPermissionItems(state: CatalogState): readonly string[] | 'not-acquired' {
-  if (state.kind === 'not-acquired') return 'not-acquired'
-  return state.record.actions.map(known => `execute:${known.name}`)
 }

@@ -38,7 +38,7 @@ import {
   fakeAuthority,
   fakeChannel,
   fakeClock,
-  fakeConsent,
+  fakeCreators,
 } from '@omne-harness/notification/testing'
 
 const limits: JsonLimits = {
@@ -143,7 +143,7 @@ export function world() {
   const store = createMemoryStore()
   const authority = fakeAuthority()
   const clock = fakeClock()
-  const consent = fakeConsent()
+  const creators = fakeCreators()
   const sources = createSourceRegistry()
   sources.register({
     name: sourceNameSchema.parse('demo.things'),
@@ -176,7 +176,7 @@ export function world() {
       authority,
       store,
       sources,
-      consent,
+      creators,
       clock,
       defaults,
       beatRange: { min: 5, max: 1440 },
@@ -252,7 +252,7 @@ export function world() {
     store,
     authority,
     clock,
-    consent,
+    creators,
     channels,
     real,
     feed,

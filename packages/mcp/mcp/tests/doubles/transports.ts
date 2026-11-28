@@ -1,7 +1,22 @@
 import type { McpTransport, McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 
 export function delegating(transport: McpTransport): McpTransport {
+  const optional = {
+    ...(transport.listen === undefined
+      ? {}
+      : { listen: transport.listen.bind(transport) as NonNullable<McpTransport['listen']> }),
+    ...(transport.listEventTypes === undefined
+      ? {}
+      : { listEventTypes: transport.listEventTypes.bind(transport) }),
+    ...(transport.pollEvents === undefined
+      ? {}
+      : { pollEvents: transport.pollEvents.bind(transport) }),
+    ...(transport.streamEvents === undefined
+      ? {}
+      : { streamEvents: transport.streamEvents.bind(transport) }),
+  }
   return {
+    ...optional,
     generation: transport.generation,
     discover: () => transport.discover(),
     listActions: cursor => transport.listActions(cursor),

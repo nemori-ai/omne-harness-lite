@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import type { FixedModelRequest } from '@omne-harness/model-contract'
+import type { LlmModelRequest } from '@omne-harness/model-contract'
 import {
   checkToolsReplyBudget,
   compileToolResultDisclosure,
@@ -13,7 +13,7 @@ import {
 import type { RowId } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
 
-type Message = FixedModelRequest['messages'][number]
+type Message = LlmModelRequest['messages'][number]
 type MessageId = Message['id']
 type BlockId = Message['blocks'][number]['id']
 

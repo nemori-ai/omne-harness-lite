@@ -32,7 +32,7 @@ import {
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, testLiveHosting } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -40,7 +40,7 @@ import {
   decodeProviderName,
   encodeModelInvocationRef,
   type ConsumerRef,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelCallId,
   type ModelResultReceiver,
 } from '@omne-harness/model-contract'
@@ -50,6 +50,7 @@ import {
   type ModelDriveInput,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
+import { requestRepresentation } from '@omne-harness/model-contract/provider'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import {
   ModelClockService,
@@ -126,7 +127,8 @@ const CONFIGURATION: ModelConfiguration = {
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
 }
-const request: FixedModelRequest = {
+const request: LlmModelRequest = {
+  kind: 'llm',
   profile: ADOPTION,
   suppliers: [
     {
@@ -175,7 +177,7 @@ function checkpoint(): AgentCheckpoint {
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -210,27 +212,29 @@ function openInputOf(
     ...access,
     execution,
     operation: entry,
-    original: {
-      entry: invoke,
-      handoff,
-      outcome: {
-        request: {
-          kind: 'input',
-          reference: handoff,
-          entry: invoke,
-          source: { kind: 'external-input', input: initial.id },
-        },
-        origin: { kind: 'invoke', ...runtime },
-        provider: PROVIDER,
-        qualification: evidence(`qualification/${entry}`),
-        record: evidence(`record/${entry}`),
-        decision: {
-          kind: 'prepared',
-          message: initial.content,
-          admission: evidence(`admission/${entry}`),
+    originals: [
+      {
+        entry: invoke,
+        handoff,
+        outcome: {
+          request: {
+            kind: 'input',
+            reference: handoff,
+            entry: invoke,
+            source: { kind: 'external-input', input: initial.id },
+          },
+          origin: { kind: 'invoke', ...runtime },
+          provider: PROVIDER,
+          qualification: evidence(`qualification/${entry}`),
+          record: evidence(`record/${entry}`),
+          decision: {
+            kind: 'prepared',
+            message: initial.content,
+            admission: evidence(`admission/${entry}`),
+          },
         },
       },
-    },
+    ],
     runtime,
     checkpoint: checkpoint(),
   }
@@ -263,7 +267,6 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         providerConfig(base.storageRoot, {
           maxCommandsPerCommit: 256,
           maxJsonDepth: 256,
-          maxJsonMembers: 1048576,
         }),
       ),
       declared(policy.plugin),
@@ -337,7 +340,7 @@ async function openRun(t: JournalTree, access: SessionAccess<string>) {
   const snapshot = ok(await port.readWork(access))
   if (snapshot.run.kind !== 'active') throw new Error('not active')
   const execution = must(decodeAgentExecutionId(snapshot.run.execution.execution))
-  const admitted = ok(await port.readInput({ ...access, input: snapshot.run.first }))
+  const admitted = ok(await port.readInput({ ...access, input: snapshot.run.initial[0] }))
   const initial: AcceptedInput = {
     id: must(decodeInputId(admitted.input)),
     content: admitted.message,
@@ -530,7 +533,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       const script = createScriptedTransport({
         receipt: {
           supplier: demand.supplier.adoption,
-          representation: demand.request.representation,
+          representation: requestRepresentation(demand.request),
           payloadDigest: 'a'.repeat(64),
         },
         facts: ANSWER,
@@ -540,6 +543,9 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       return {
         ok: {
           transport: script.transport,
+          openWithCredential() {
+            throw new Error('this fixture has no live binding')
+          },
           startWithCredential: (materialized, _value, signal) => materialized.start(signal),
           release: async () => {},
         },
@@ -578,6 +584,8 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadControl: ModelCommands<unknown>['loadControl']
+    declare readonly loadOrigin: ModelCommands<unknown>['loadOrigin']
     declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
@@ -613,6 +621,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
           retry: records.memory.dependencies.retry,
           instances: given.host,
           clock: given.clock,
+          live: testLiveHosting({ events: given.liveEvents }),
         },
         CONFIGURATION,
       ),

@@ -1,5 +1,4 @@
 import {
-  consentBasis,
   decideSubscription,
   findEventType,
   parseWith,
@@ -9,7 +8,7 @@ import {
   subscriptionKeySchema,
   type Beat,
   type CallContext,
-  type ConsentOutcome,
+  type Creator,
   type EventTypeDeclaration,
   type NotificationSubscriptions,
   type ParseRefusal,
@@ -20,7 +19,7 @@ import {
   type SubscriptionKey,
   type BeatRefusal,
 } from '@omne-harness/notification-contract'
-import { ask, type Clock, type NotificationAuthority, type SubscriptionConsents } from './ports.ts'
+import { ask, type Clock, type NotificationAuthority, type SubscriptionCreators } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
 import type { NotificationStore } from './store.ts'
 import type { RecipientDefaults } from './transactions/destinations.ts'
@@ -29,7 +28,7 @@ export type SubscriptionsDependencies = Readonly<{
   authority: NotificationAuthority
   store: NotificationStore
   sources: NotificationSources
-  consent: SubscriptionConsents
+  creators: SubscriptionCreators
   clock: Clock
   defaults: RecipientDefaults
   /** The interval a beat may take, in minutes. */
@@ -37,7 +36,6 @@ export type SubscriptionsDependencies = Readonly<{
 }>
 
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
-const UNREAD: ConsentOutcome = { kind: 'unavailable' }
 const refuse = <R extends string>(reason: R) => ({ kind: 'refused', reason }) as const
 type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-permitted'>>
 
@@ -79,14 +77,17 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     ctx: CallContext,
     change: SubscriptionChange,
     current: Subscription | null,
+    creator: Creator,
   ): SubscriptionDecision | null {
     const declared = declaredType(deps.sources, change)
-    if (declared === null) return null
+    const { actor } = ctx
+    if (declared === null || actor.kind === 'system') return null
     try {
       return decideSubscription({
         change,
         current,
-        actor: ctx.actor,
+        actor,
+        creator,
         declared,
         now: deps.clock.now(),
       })
@@ -95,27 +96,13 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     }
   }
 
-  /** What the agent's call was released on; an answer that cannot be had is unavailable. */
-  async function consentOf(ctx: CallContext): Promise<ConsentOutcome> {
+  /** Who acts in the context; one that cannot be named, or a port that throws, is null. */
+  async function creatorOf(ctx: CallContext): Promise<Creator | null> {
     try {
-      return consentBasis(await deps.consent.consent(ctx))
+      return await deps.creators.creatorOf(ctx)
     } catch {
-      return UNREAD
+      return null
     }
-  }
-
-  /** The decision, with the consent of the call read in when it needs one. */
-  async function settle(
-    ctx: CallContext,
-    change: SubscriptionChange,
-    current: Subscription | null,
-  ): Promise<Exclude<SubscriptionDecision, { kind: 'needs-consent' }> | typeof UNAVAILABLE> {
-    const decision = decide(ctx, change, current)
-    if (decision === null) return UNAVAILABLE
-    if (decision.kind !== 'needs-consent') return decision
-    const consent = await consentOf(ctx)
-    if (consent.kind === 'unavailable') return UNAVAILABLE
-    return consent.kind === 'basis' ? { kind: 'set', basis: consent.basis } : consent
   }
 
   async function write(
@@ -140,11 +127,14 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       if (blocked !== null) return blocked
       const current = await deps.store.subscription(ctx.tenant, key)
       if (current.kind === 'unavailable') return UNAVAILABLE
-      const settled = await settle(ctx, change, current.value)
-      if (settled.kind === 'recalled')
-        return { kind: 'done', recalled: true, value: settled.current }
-      if (settled.kind !== 'set') return settled
-      const next = { ...key, level, note, term, basis: settled.basis, expired: false }
+      const creator = await creatorOf(ctx)
+      if (creator === null) return UNAVAILABLE
+      const decided = decide(ctx, change, current.value, creator)
+      if (decided === null) return UNAVAILABLE
+      if (decided.kind === 'recalled')
+        return { kind: 'done', recalled: true, value: decided.current }
+      if (decided.kind !== 'set') return decided
+      const next = { ...key, level, note, term, creator: decided.creator, expired: false }
       const failed = await write(ctx, key, current.value, next)
       return failed ?? { kind: 'done', recalled: false, value: next }
     },
@@ -209,9 +199,10 @@ function validBeat(beat: Beat): boolean {
 const keyRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' ? refusal : 'invalid-request'
 
-/** The owner acts for any recipient of the tenant; an agent only for itself. */
+/** The owner acts for any recipient of the tenant; an agent only for itself; a source of the system for none. */
 const isOwn = (ctx: CallContext, recipient: RecipientRef) =>
-  ctx.actor.kind === 'owner' || sameRecipient(ctx.actor.recipient, recipient)
+  ctx.actor.kind === 'owner' ||
+  (ctx.actor.kind === 'agent' && sameRecipient(ctx.actor.recipient, recipient))
 
 const parseRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' || refusal === 'invalid-term' ? refusal : 'invalid-request'

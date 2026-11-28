@@ -33,19 +33,23 @@ import {
   createResumedCoordinator,
   type ExecutionCoordinator,
   type ExecutionDrive,
+  type ExecutionEntry,
   type Halted,
   type ResumeEntry,
 } from './loop/coordinator.ts'
+import { nestedInbox } from './nested-inbox.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { reconciliationPacer } from './loop/reconciliation.ts'
 import { createControlWriter, releaseForeground } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
   AgentRunEndedFailedReceiver,
+  AgentRunFailed,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
 } from './run-failure.ts'
 import { submitInput } from './submit.ts'
+import { askPlanned, handOverAsked, settlePlanned, type Held } from './planned-handover.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -69,6 +73,13 @@ function endedReason(failure: Failure): Extract<AgentObservation, { kind: 'ended
   }
 }
 
+type Halt = Pick<AgentRunFailed, 'step' | 'node' | 'failure'>
+
+function threw(error: unknown): Halt {
+  const diagnostic = `the drive threw: ${thrownText(error)}`
+  return { step: null, node: null, failure: { kind: 'unavailable', owner: OWNER, diagnostic } }
+}
+
 function thrownText(error: unknown): string {
   try {
     return error instanceof Error ? error.message : String(error)
@@ -76,6 +87,8 @@ function thrownText(error: unknown): string {
     return 'a thrown value that has no text'
   }
 }
+
+const UNENDING = new AbortController().signal
 
 function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
   if (signal.aborted) return Promise.resolve()
@@ -106,13 +119,6 @@ type Slot =
       execution: AgentExecutionId
       attachment: ExecutionAttachmentId
     }>
-  | Readonly<{
-      kind: 'failed'
-      execution: AgentExecutionId
-      attachment: ExecutionAttachmentId
-      node: string | null
-      failure: Failure
-    }>
 
 type Accepted = Readonly<{
   operation: AgentOperationId
@@ -130,13 +136,33 @@ type Quiescing = {
   step: Promise<Outcome<QuiesceResult, Failure>> | null
 }
 
-type Driving = {
-  wait: AbortController | null
-  asked: Readonly<{
-    operation: AgentOperationId
-    reason: DurableEvidence
-    settle(handed: boolean): void
-  }> | null
+/** `poked`: something the run must look at arrived in memory, so the next wake runs a pass. */
+type Driving = Held
+
+/** A stop an extension asked for is a control request: the same qualification check, the same write. */
+function cancelCommand<P>(input: Parameters<NonNullable<ExecutionEntry<P>['requestCancel']>>[0]) {
+  const { reason, ...target } = input
+  return { ...target, command: { kind: 'cancel' as const, reason } }
+}
+
+function stateOf(instance: AgentInstanceId, held: Slot): AgentState {
+  switch (held.kind) {
+    case 'free':
+      return { kind: 'idle', instance }
+    case 'reserved':
+      return { kind: 'reserved', instance }
+    case 'running':
+      return {
+        kind: 'occupied',
+        instance,
+        execution: held.execution,
+        executionAttachment: held.attachment,
+      }
+    default: {
+      const _exhaustive: never = held
+      return _exhaustive
+    }
+  }
 }
 
 function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
@@ -144,6 +170,14 @@ function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
     kind: 'unavailable',
     owner: OWNER,
     diagnostic: `the runtime is draining after quiesce; a new ${operation} is not accepted`,
+  }
+}
+
+function rejectedOpen(operation: AgentOperationId): Failure {
+  return {
+    kind: 'unavailable',
+    owner: 'agentJournal',
+    diagnostic: `query answered rejected for the open operation ${operation}`,
   }
 }
 
@@ -173,13 +207,52 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   waiting: AgentRunWaitingReceiver | undefined
 }>
 
+/** Tells the receiver of this provider that a run waits; a receiver that throws is not the run's fault. */
+function waitingReport<P, B extends ContentBlock>(
+  entry: ProviderEntry<P, B>,
+  execution: AgentExecutionId,
+): NonNullable<ResumeEntry<P>['waiting']> {
+  const { tenant, instance } = entry.binding
+  return (step, node, { owner, diagnostic }) => {
+    try {
+      entry.waiting?.({
+        kind: 'run-waiting',
+        tenant,
+        instance,
+        execution,
+        step,
+        node,
+        owner,
+        diagnostic,
+      })
+    } catch {}
+  }
+}
+
 /** The parts of a coordinator that every execution of this provider shares. */
-function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+function coordinatorBase<P, B extends ContentBlock>(
+  entry: ProviderEntry<P, B>,
+  handoverAsked: () => boolean,
+) {
   return {
+    handoverAsked,
     ports: entry.dependencies,
     binding: entry.binding,
     jointCommits: entry.configuration.jointCommits,
     compactionProvider: entry.configuration.compactionProvider,
+  }
+}
+
+function notYet<P>(guard: AccessGuard<P>) {
+  return async (
+    input: Access<P>,
+    operation: AgentAccessOperation,
+    target: AgentAccessTarget,
+    stage: Stage,
+  ): Promise<Outcome<never, Failure>> => {
+    const passed = await guard(input, operation, target)
+    if ('failure' in passed) return passed
+    return fail(notImplemented(operation, stage))
   }
 }
 
@@ -194,9 +267,15 @@ export function createProvider<P, B extends ContentBlock>(
     execution,
   })
 
+  const guarded = notYet(guard)
   const writeControl = createControlWriter(dependencies)
+  const requestCancel: NonNullable<ExecutionEntry<P>['requestCancel']> = async input => {
+    const passed = await guard(input, 'control', onExecution(input.execution))
+    return 'failure' in passed ? passed : writeControl(cancelCommand(input))
+  }
   let slot: Slot = { kind: 'free' }
   let driving: Driving | null = null
+  const handoverAsked = () => driving !== null && driving.planned !== null
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
 
@@ -207,47 +286,15 @@ export function createProvider<P, B extends ContentBlock>(
   let retired = false
   const draining = () => quiescing !== null || checking > 0
 
-  function stateOf(held: Slot): AgentState {
-    switch (held.kind) {
-      case 'free':
-        return { kind: 'idle', instance }
-      case 'reserved':
-        return { kind: 'reserved', instance }
-      case 'running':
-      case 'failed':
-        return {
-          kind: 'occupied',
-          instance,
-          execution: held.execution,
-          executionAttachment: held.attachment,
-        }
-      default: {
-        const _exhaustive: never = held
-        return _exhaustive
-      }
-    }
-  }
-
   function occupy(next: Slot): void {
     slot = next
-    const state = stateOf(next)
+    for (const wake of listeners) wake()
+    const state = stateOf(instance, next)
     if (JSON.stringify(state) === JSON.stringify(current)) return
     current = state
-    for (const wake of listeners) wake()
     try {
       dependencies.registration?.report({ state })
     } catch {}
-  }
-
-  async function guarded(
-    input: Access<P>,
-    operation: AgentAccessOperation,
-    target: AgentAccessTarget,
-    stage: Stage,
-  ): Promise<Outcome<never, Failure>> {
-    const passed = await guard(input, operation, target)
-    if ('failure' in passed) return passed
-    return fail(notImplemented(operation, stage))
   }
 
   async function* observe(
@@ -328,22 +375,23 @@ export function createProvider<P, B extends ContentBlock>(
     if (slot.kind === 'running' && slot.execution === execution) driving?.wait?.abort()
   }
 
-  function failRun(
-    execution: AgentExecutionId,
-    attachment: ExecutionAttachmentId,
-    node: string | null,
-    failure: Failure,
-  ): void {
+  const nested = nestedInbox(
+    execution => slot.kind === 'running' && slot.execution === execution,
+    execution => (driving === null ? undefined : ((driving.poked = true), hint(execution))),
+  )
+
+  function failRun(execution: AgentExecutionId, halted: Halt): void {
     if (slot.kind !== 'running' || slot.execution !== execution) return
-    occupy({ kind: 'failed', execution, attachment, node, failure })
+    // The drive cannot go on and holds nothing more: the slot is given back, so the next execution
+    // is taken and a later attachment may resume this one. The execution stays open in the Journal.
+    occupy({ kind: 'free' })
     try {
       entry.failed?.({
         kind: 'run-failed',
         tenant: binding.tenant,
         instance,
         execution,
-        node,
-        failure,
+        ...halted,
       })
     } catch {}
   }
@@ -405,30 +453,18 @@ export function createProvider<P, B extends ContentBlock>(
       adoption: binding.definition,
     })
     if ('failure' in resolved) return resolved
-    if (resolved.ok.extensions.length > 0)
-      return fail(notImplemented('an adopted loop extension', 'stage 3'))
     return succeed({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
+      extensions: resolved.ok.extensions,
+      requestCancel,
       access,
       execution,
       idle,
       ended: (state, candidate) => endedRun(execution, state, candidate),
-      waiting: (step, node, failure) => {
-        try {
-          entry.waiting?.({
-            kind: 'run-waiting',
-            tenant: binding.tenant,
-            instance,
-            execution,
-            step,
-            node,
-            owner: failure.owner,
-            diagnostic: failure.diagnostic,
-          })
-        } catch {}
-      },
+      waiting: waitingReport(entry, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
+      nested: { pending: () => nested.pending(execution) },
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
   }
@@ -438,19 +474,15 @@ export function createProvider<P, B extends ContentBlock>(
     attachment: ExecutionAttachmentId,
     coordinator: ExecutionDrive,
   ): void {
-    const own: Driving = { wait: null, asked: null }
+    const own: Driving = { wait: null, poked: false, asked: null, planned: null }
     driving = own
+    let ended: Failure = { kind: 'terminal' }
     const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
-    const handOver = async (): Promise<boolean> => {
-      const asked = own.asked
-      if (asked === null) return false
-      own.asked = null
-      const handed = await coordinator.handOver(asked)
-      const done = 'ok' in handed && handed.ok !== null
-      if (done && slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
-      asked.settle(done)
-      return done
-    }
+    const handOver = () =>
+      handOverAsked(own, coordinator, () => {
+        if (slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
+        ended = { kind: 'stale-advance' }
+      })
     const drive = async (): Promise<Halted | null> => {
       try {
         for (;;) {
@@ -462,6 +494,7 @@ export function createProvider<P, B extends ContentBlock>(
           )
           for (;;) {
             if (await handOver()) return null
+            if (own.poked) break
             const controller = new AbortController()
             own.wait = controller
             const wake = await coordinator
@@ -474,23 +507,20 @@ export function createProvider<P, B extends ContentBlock>(
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
             if (wake.ok === 'ready') break
           }
+          own.poked = false
         }
       } finally {
         own.asked?.settle(false)
         own.asked = null
+        settlePlanned(own, fail(ended))
         if (driving === own) driving = null
+        nested.stopped(execution)
       }
     }
     const stopped = (halted: Halted | null) => {
-      if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
+      if (halted !== null) failRun(execution, { ...halted, step: coordinator.step() })
     }
-    void drive().then(stopped, (error: unknown) =>
-      failRun(execution, attachment, null, {
-        kind: 'unavailable',
-        owner: OWNER,
-        diagnostic: `the drive threw: ${thrownText(error)}`,
-      }),
-    )
+    void drive().then(stopped, (error: unknown) => failRun(execution, threw(error)))
   }
 
   async function acceptOriginal(
@@ -531,14 +561,6 @@ export function createProvider<P, B extends ContentBlock>(
     occupy({ kind: 'running', execution, attachment })
     startDrive(execution, attachment, coordinator)
     return succeed(handleOf(execution))
-  }
-
-  function rejectedOpen(operation: InvokeInput<P>['operation']): Failure {
-    return {
-      kind: 'unavailable',
-      owner: 'agentJournal',
-      diagnostic: `query answered rejected for the open operation ${operation}`,
-    }
   }
 
   async function retryUnresolved(
@@ -601,8 +623,10 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ...coordinatorBase(entry),
+      ...coordinatorBase(entry, handoverAsked),
       evaluator: resolved.ok.evaluator,
+      extensions: resolved.ok.extensions,
+      requestCancel,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,
       operation: input.operation,
@@ -737,6 +761,7 @@ export function createProvider<P, B extends ContentBlock>(
     held: Quiescing,
     access: Access<P>,
   ): Promise<Outcome<QuiesceResult, Failure>> {
+    while (slot.kind === 'reserved' && slot.acceptance === null) await woken(UNENDING, listeners)
     if (slot.kind === 'running') await askHandover(held)
     if (slot.kind !== 'free') return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
     const withdrawn = await withdrawRegistration(held, access)
@@ -762,6 +787,13 @@ export function createProvider<P, B extends ContentBlock>(
       void step.then(clear, clear)
     }
     return held.step
+  }
+
+  const handOver: AgentProvider<P>['control']['handOver'] = async input => {
+    const passed = await guard(input, 'detach', onExecution(input.execution))
+    if ('failure' in passed) return passed
+    const here = slot.kind === 'running' && slot.execution === input.execution
+    return askPlanned(here ? driving : null, input)
   }
 
   const quiesce: AgentProvider<P>['control']['quiesce'] = async input => {
@@ -799,10 +831,13 @@ export function createProvider<P, B extends ContentBlock>(
       load: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
       reconcile: input => guarded(input, 'reconcile', onExecution(input.execution), 'stage 5'),
       detach: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
+      handOver: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
       contact: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
     },
     control: {
       quiesce,
+      handOver,
     },
+    nested: nested.guarded(input => guard(input, 'submit', onExecution(input.execution))),
   }
 }

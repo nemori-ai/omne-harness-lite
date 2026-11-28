@@ -7,6 +7,7 @@ import type {
   SqlMaterialCatalog,
   StorageCloseResult,
   StorageControl,
+  StorageReadings,
 } from '@omne-harness/sql-contract'
 import { IDENTITY_PARTICIPANT } from '@omne-harness/identity-sql'
 import { StorageHostService } from '@omne-harness/sql-contract/cordis'
@@ -16,11 +17,9 @@ import {
   storageHost,
   storageHostModule,
 } from '../../../src/entry/storage-host.ts'
-import {
-  LifecycleRefusedError,
-  LifecycleRegistry,
-  S0AssemblyLifecycleService,
-} from '../../../src/lifecycle.ts'
+import { S0AssemblyLifecycleService } from '../../../src/row.ts'
+import { SupervisionRefused } from '@omne-harness/assembly-cordis/cordis'
+import { rowSupervision } from '../../support/row-supervision.ts'
 import {
   DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES,
   storageCatalog,
@@ -36,7 +35,12 @@ type FakeControl = StorageControl & {
   settled: number
 }
 
-function fakeControl(answer: () => Promise<StorageCloseResult>): FakeControl {
+const NOTHING: StorageReadings = { reads: [], commits: [], participants: [], queries: [] }
+
+function fakeControl(
+  answer: () => Promise<StorageCloseResult>,
+  counted: StorageReadings = NOTHING,
+): FakeControl {
   const control: FakeControl = {
     closes: [],
     settled: 0,
@@ -47,15 +51,16 @@ function fakeControl(answer: () => Promise<StorageCloseResult>): FakeControl {
     assemblyReportSettled() {
       control.settled += 1
     },
+    readings: () => counted,
   }
   return control
 }
 
 const closed = (): Promise<StorageCloseResult> => Promise.resolve({ kind: 'closed' })
 
-async function hostOn(expected: ReadonlyMap<RowId, LifecyclePhase>) {
+async function hostOn(_expected: ReadonlyMap<RowId, LifecyclePhase>) {
   const root = new Context()
-  const registry = new LifecycleRegistry({ expected, clock: monotonicClock, requestStop: () => {} })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const host = new StorageHostAdapter(root, storageCatalog())
   return { root, registry, host }
@@ -98,6 +103,7 @@ describe('materials (acceptance 4)', () => {
       ['001-identity', []],
       ['002-governance', ['001-identity']],
       ['003-standing', ['002-governance']],
+      ['004-preference', ['003-standing']],
     ])
     const governance = catalog.readHandlers.find(item => item.handler === 'identity.governance')
     expect(governance?.maxOutputBytes).toBe(1048576)
@@ -205,6 +211,57 @@ describe('the registration lands on the storage row fiber', () => {
   })
 })
 
+describe('the readings of the host', () => {
+  test('are nothing before a provider is attached, and what the provider counted after', async () => {
+    const { host } = await hostOn(expectedStorage)
+    expect(host.readings()).toEqual(NOTHING)
+    const counted: StorageReadings = {
+      reads: [
+        { domain: 'session', handler: 'read-history', read: 3, unavailable: 1, cancelled: 0 },
+      ],
+      commits: [
+        {
+          domain: 'session',
+          committed: 2,
+          recalled: 0,
+          rolledBack: 0,
+          unknown: 0,
+          conflicted: 0,
+          rejected: 0,
+          bytes: 900,
+        },
+      ],
+      participants: [{ domain: 'session', participant: 'session', committed: 2 }],
+      queries: [{ domain: 'session', answered: 1, unknown: 0 }],
+    }
+    host.attachControl(fakeControl(closed, counted))
+    expect(host.readings()).toEqual(counted)
+  })
+
+  test('add up, row by row, when the host kept more than one control', async () => {
+    const { host } = await hostOn(expectedStorage)
+    const one = {
+      domain: 'session',
+      handler: 'read-history',
+      read: 3,
+      unavailable: 0,
+      cancelled: 0,
+    }
+    const other = {
+      domain: 'identity',
+      handler: 'read-standing',
+      read: 5,
+      unavailable: 0,
+      cancelled: 2,
+    }
+    host.attachControl(fakeControl(closed, { ...NOTHING, reads: [one] }))
+    expect(() =>
+      host.attachControl(fakeControl(closed, { ...NOTHING, reads: [{ ...one, read: 4 }, other] })),
+    ).toThrow(SupervisionRefused)
+    expect(host.readings().reads).toEqual([{ ...one, read: 7 }, other])
+  })
+})
+
 describe('the close adapter (acceptance 5)', () => {
   test('every attached generation is closed by the assembly at stop, and report-settled reaches each one', async () => {
     const { registry, host } = await hostOn(expectedStorage)
@@ -225,7 +282,7 @@ describe('the close adapter (acceptance 5)', () => {
     const first = fakeControl(closed)
     host.attachControl(first)
     const second = fakeControl(closed)
-    expect(() => host.attachControl(second)).toThrow(LifecycleRefusedError)
+    expect(() => host.attachControl(second)).toThrow(SupervisionRefused)
     expect(second.closes).toEqual(['assembly'])
     expect(first.closes).toEqual([])
     await runShutdown(registry, expectedStorage, 2000, monotonicClock)
@@ -234,18 +291,18 @@ describe('the close adapter (acceptance 5)', () => {
     expect(second.settled).toBe(1)
   })
 
-  test('a phase mismatch refuses the registration: the control is closed and the storage row is not registered', async () => {
-    const mismatched = new Map<RowId, LifecyclePhase>([[STORAGE, 'business']])
-    const { registry, host } = await hostOn(mismatched)
+  test('a supervision that stops refuses the registration: the control is closed and the storage row is not registered', async () => {
+    const { registry, host } = await hostOn(expectedStorage)
+    registry.enterStopping()
     const control = fakeControl(closed)
-    expect(() => host.attachControl(control)).toThrow(/phase-mismatch/)
+    expect(() => host.attachControl(control)).toThrow(/stopping/)
     expect(control.closes).toEqual(['assembly'])
     expect(registry.liveRows()).toEqual([])
   })
 
   test('a refused registration whose control rejects on close does not leave an unhandled rejection', async () => {
-    const mismatched = new Map<RowId, LifecyclePhase>([[STORAGE, 'business']])
-    const { host } = await hostOn(mismatched)
+    const { registry, host } = await hostOn(expectedStorage)
+    registry.enterStopping()
     const unhandled: unknown[] = []
     const record = (reason: unknown): void => {
       unhandled.push(reason)
@@ -253,7 +310,7 @@ describe('the close adapter (acceptance 5)', () => {
     process.on('unhandledRejection', record)
     try {
       const control = fakeControl(() => Promise.reject(new Error('close blew up')))
-      expect(() => host.attachControl(control)).toThrow(/phase-mismatch/)
+      expect(() => host.attachControl(control)).toThrow(/stopping/)
       expect(control.closes).toEqual(['assembly'])
       await new Promise<void>(resolve => setTimeout(resolve, 50))
     } finally {

@@ -175,6 +175,12 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     { item: item({ ...pending, question: asking }) },
     { item: item({ ...pending, question: release }) },
     { item: item({ ...pending, question: { ...release, detail: given } }) },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, origin: { ...release.origin, program: true } },
+      }),
+    },
     { item: item({ ...pending, question: { ...release, detail: largest } }) },
     { item: item({ ...pending, question: { ...release, detail: { state: 'unavailable' } } }) },
   ],
@@ -208,6 +214,12 @@ const invalidSuccess: Readonly<Record<Name, readonly object[]>> = {
     {
       item: item({
         ...pending,
+        question: { ...release, origin: { ...release.origin, program: false } },
+      }),
+    },
+    {
+      item: item({
+        ...pending,
         question: { ...release, detail: { state: 'given', rows: [{ label: 'l', value: [] }] } },
       }),
     },
@@ -233,7 +245,7 @@ describe('request bodies', () => {
   )
 
   it.each(cases(invalidBodies))('%s: an invalid body is rejected', (name, sample) => {
-    expect(readSample(operations[name].body, sample)).toEqual({ ok: false })
+    expect(readSample(operations[name].body, sample).ok).toBe(false)
   })
 })
 
@@ -246,7 +258,7 @@ describe('outcome bodies', () => {
   )
 
   it.each(cases(invalidSuccess))('%s: an invalid succeeded body is rejected', (name, sample) => {
-    expect(readSample(operations[name].outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readSample(operations[name].outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it.each(names.filter(name => 'limited' in operations[name].outcomes))(
@@ -256,8 +268,8 @@ describe('outcome bodies', () => {
         operations[name].outcomes as { limited: Parameters<typeof expectRoundTrip>[0] }
       ).limited
       expectRoundTrip(codec, { resource: 'pool-items', limit: 7 })
-      expect(readSample(codec, { resource: 'pool-items', limit: 0 })).toEqual({ ok: false })
-      expect(readSample(codec, { resource: 'pool-items' })).toEqual({ ok: false })
+      expect(readSample(codec, { resource: 'pool-items', limit: 0 }).ok).toBe(false)
+      expect(readSample(codec, { resource: 'pool-items' }).ok).toBe(false)
     },
   )
 
@@ -266,7 +278,7 @@ describe('outcome bodies', () => {
       for (const [outcome, codec] of Object.entries(operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
         expect(expectRoundTrip(codec, {})).toEqual({})
-        expect(readSample(codec, { reason: 'x' })).toEqual({ ok: false })
+        expect(readSample(codec, { reason: 'x' }).ok).toBe(false)
       }
   })
 })

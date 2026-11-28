@@ -2,7 +2,6 @@ import type { ActionCalls, McpConfig, McpPorts } from '@omne-harness/mcp-contrac
 import { createCalls } from '../../src/calls.ts'
 import { InFlightCalls, type InFlightKey, type Reservation } from '../../src/internal/in-flight.ts'
 import { createConnectionTable, type ConnectionTable } from '../../src/internal/table.ts'
-import { TaskTable } from '../../src/internal/task-table.ts'
 import type { Principal } from './identities.ts'
 
 class ConcludeCounting extends InFlightCalls {
@@ -37,7 +36,7 @@ export function watchedCalls(
     config: p.config,
     table,
     inFlight,
-    tasks: new TaskTable(),
+    clock: p.ports.clock ?? { now: () => new Date('2026-11-05T12:00:00Z') },
   })
   return { calls, table, concluded: () => inFlight.concluded }
 }

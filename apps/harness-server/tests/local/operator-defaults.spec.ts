@@ -1,3 +1,4 @@
+import { canvasConfig } from '../../src/rows/canvas/index.ts'
 import { notificationConfig } from '../../src/rows/notification/index.ts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -145,6 +146,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  it('gives the Agent a step limit a goal can use its rounds under: 500 steps a run', () => {
+    expect(configOf(layer, 'agent-host')).toMatchObject({ maxRunSteps: 500 })
+  })
+
   it('gives the retry values to the Model host, and none to the Agent', () => {
     expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
     expect(configOf(layer, 'model-host')).toMatchObject({
@@ -233,6 +238,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'media-storage-local')).toEqual({
       root: input('linux').locations.mediaRoot,
     })
+    expect(configOf(layer, 'plugin-server')).toEqual({
+      floorDirectory: input('linux').locations.pluginFloorDir,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -248,9 +256,13 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'secret-custody',
               'notification',
               'dispatch',
+              'goal',
+              'goal-decisions',
+              'canvas',
               'workspace',
               'session-history-index',
               'media-storage-local',
+              'plugin-server',
             ].includes(id),
         ),
     )
@@ -265,6 +277,12 @@ describe('localOperatorLayer over the bundled distribution', () => {
       agent: null,
     })
     expect(parsed.policy.retry.backoffMs.length).toBeLessThan(parsed.policy.retry.maxAttempts)
+  })
+
+  it('gives the canvas row one whole policy that its schema takes', () => {
+    const config = configOf(layer, 'canvas')
+    expect(Object.keys(config ?? {})).toEqual(['policy'])
+    expect(canvasConfig.safeParse(config).success).toBe(true)
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
@@ -296,6 +314,19 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(sessionAccessConfig.safeParse(configOf(layer, 'session-access')).success).toBe(true)
   })
 
+  it('opens governance beside the release values and leaves half the query queue of a tenant domain to other callers', () => {
+    const governance = z
+      .object({ installationConcurrency: z.number().int() })
+      .parse(configOf(layer, 'governance'))
+    const storage = z.object({ queryQueuePerDomain: z.number() }).parse(configOf(layer, 'storage'))
+    expect(configOf(layer, 'governance')).toEqual({
+      ...releaseRow('governance')?.config,
+      ...governance,
+    })
+    expect(governance.installationConcurrency).toBeGreaterThan(1)
+    expect(2 * governance.installationConcurrency).toBeLessThanOrEqual(storage.queryQueuePerDomain)
+  })
+
   it('gives the diagnostics access row the three projection settings together, valid for its configuration', () => {
     expect(configOf(layer, 'session-diagnostics-access')).toEqual({
       diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
@@ -307,7 +338,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     ).toBe(true)
   })
 
-  it('lists the Run frame and the tool messages in the history and uses the settings port', () => {
+  it('lists the Run frame, the tool messages and why a session froze in the history, and uses the settings port', () => {
     expect(configOf(layer, 'server-entry')).toEqual({ listenPort: 8965 })
     expect(LOCAL_HISTORY_KINDS).toEqual(
       expect.arrayContaining([
@@ -315,6 +346,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
         'run.terminal',
         'message.tool',
         'message.system_reminder',
+        'session.frozen',
       ]),
     )
   })
@@ -334,11 +366,18 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
       'Agents',
+      'AppView',
       'Ask',
       'BkgToolCalls',
       'Calendar',
+      'Canvas',
+      'Code',
       'Files',
+      'Goal',
+      'Jobs',
       'Notifications',
+      'OmneExtensionPoints',
+      'OmneExtensions',
       'Schedules',
       'Screen',
       'Sessions',
@@ -358,6 +397,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Skills',
       'Sessions',
       'Agents',
+      'Goal',
+      'OmneExtensionPoints',
+      'OmneExtensions',
+      'Code',
     ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of [
@@ -365,7 +408,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'BkgToolCalls',
       'Calendar',
       'Schedules',
+      'Jobs',
       'Notifications',
+      'Canvas',
       'SwitchWorkspace',
       'Screen',
     ])

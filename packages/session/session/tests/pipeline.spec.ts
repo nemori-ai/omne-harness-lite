@@ -43,7 +43,7 @@ async function startRun(h: Harness, name = 'start'): Promise<StartedRun> {
       instance: { owner: 'agent', id: 'instance-1' },
     }),
     'startRun',
-  )
+  ) as StartedRun
 }
 
 function finishRun(h: Harness, started: StartedRun, expected: string, name = 'finish') {
@@ -54,7 +54,7 @@ function finishRun(h: Harness, started: StartedRun, expected: string, name = 'fi
     expected: expected as never,
     bounded: {
       kind: 'admission-rejected',
-      input: started.first,
+      input: started.initial[0],
       rejection: started.receipt.source,
     },
   })

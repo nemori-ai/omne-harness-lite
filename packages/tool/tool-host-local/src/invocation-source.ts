@@ -6,19 +6,24 @@ import {
   createInvocationForwarding,
   TOOL_FORWARDING_OWNER,
   isPrincipalJson,
-  parseForward,
+  parseIssued,
 } from './invocation-forwarding.ts'
-import { createForwardingReceiver } from './forwarding-receiver.ts'
 import {
-  invocationQualifier,
-  type LocalInvocationQualifier,
-  type ObserveInvocationRecord,
-  type ObserveInvocationOrigin,
-} from './invocation-qualification.ts'
+  createInvocationPrograms,
+  TOOL_PROGRAM_OWNER,
+  type InvocationPrograms,
+} from './program-source.ts'
+import {
+  createProgramArrivals,
+  createProgramReceiver,
+  type ProgramArrivals,
+} from './program-receiver.ts'
+import { createForwardingReceiver } from './forwarding-receiver.ts'
 import { fail } from '@omne-harness/operation-result'
 import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
 import type {
   CallAccess,
+  ToolChildren,
   ToolStartAuthority,
   ToolForwardSource,
 } from '@omne-harness/tool-contract/provider'
@@ -26,6 +31,7 @@ import { randomUUID } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  CALL_RECORD_KEY,
   canonicalDigest,
   hostKey,
   isTenantShape,
@@ -40,7 +46,9 @@ import {
 import {
   decodeToolCallId,
   decodeToolOperationId,
+  type Access,
   type FixedToolRequest,
+  type ToolAvailability,
   type ToolCallId,
   type ToolDefiniteFailure,
   type ToolInvocation,
@@ -49,9 +57,17 @@ import {
 } from '@omne-harness/tool-contract'
 import { invocationSourceIdentities, sourceDomain, sourceKey } from './source-identities.ts'
 import {
+  createDefinitionResolution,
+  type LocalCurrentDefinitions,
+  type ResolveDefinition,
+} from './definition-resolution.ts'
+import {
   decodeToolRevision,
+  fixToolRequest,
+  fixedRequestReference,
   judgeToolInvokeRequest,
   judgeHandoff,
+  toolInvokeRequestOf,
   type ToolInvocationSourceIssuer,
   type ToolInvocationSourceOutcome,
   type ToolOperationIdentities,
@@ -62,6 +78,10 @@ type TenantId = LedgerDomain['tenant']
 export { invocationSourceIdentities } from './source-identities.ts'
 
 const INVOCATION_SOURCE_OWNER = '@omne-harness/tool-host-local'
+const ISSUED_OWNERS: ReadonlyMap<string, 'forwarded' | 'program'> = new Map([
+  [TOOL_FORWARDING_OWNER, 'forwarded'],
+  [TOOL_PROGRAM_OWNER, 'program'],
+])
 
 export type PrincipalJson =
   | null
@@ -80,6 +100,7 @@ export type LocalInvocationSourceInput<P> = Readonly<{
   store: ToolLedgerStore
   authority: ToolInvokeAuthority<P>
   principalCodec: PrincipalCodec<P>
+  definitions: LocalCurrentDefinitions<P>
   commitAttempts: number
   forwarding?: Readonly<{
     authority(): ToolStartAuthority<P> | undefined
@@ -90,6 +111,11 @@ export type LocalInvocationSourceInput<P> = Readonly<{
       pageBytes: number
     }>
   }>
+  programs?: Readonly<{
+    authority(): ToolStartAuthority<P> | undefined
+    isParent(request: FixedToolRequest): boolean
+    children(): ToolChildren<P> | undefined
+  }>
 }>
 
 export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Readonly<{
@@ -97,6 +123,8 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
+  programs: Pick<InvocationPrograms<P>, 'source' | 'prepare'> &
+    Readonly<{ arrivals: ProgramArrivals; receiver: ToolResultReceiver<P, B> }>
   forwardedResult: ToolInvocationQueries<P, ContentBlock>['readResult']
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
@@ -187,6 +215,7 @@ type IssuePlan = Readonly<{
   tenant: TenantId
   consumer: FixedToolRequest['consumer']
   request: ToolInvokeRequest
+  availability: ToolAvailability
   requestDigest: string
   call: ToolCallId
   admission: ToolOperationId
@@ -195,7 +224,7 @@ type IssuePlan = Readonly<{
 
 function digestOf(request: FixedToolRequest): string | null {
   try {
-    return canonicalDigest(request)
+    return canonicalDigest(fixedRequestReference(request))
   } catch {
     return null
   }
@@ -219,24 +248,139 @@ function nextRevision(revision: string) {
   return decoded.ok
 }
 
+async function recoveredCall<P>(
+  store: ToolLedgerStore,
+  resolveDefinition: ResolveDefinition<P>,
+  access: Access<P>,
+  known: Binding,
+  request: ToolInvokeRequest,
+): Promise<ToolInvocationSourceOutcome> {
+  let read: LedgerRecordRead
+  try {
+    const domain = { kind: 'call', tenant: access.tenant, call: known.call } as const
+    read = await store.readRecord(domain, CALL_RECORD_KEY)
+  } catch {
+    return unavailable('invocation-source', `the source store ${THROWN}`)
+  }
+  if (read.kind !== 'complete') return unavailable('invocation-source', read.diagnostic)
+  const bound = (fixed: FixedToolRequest): ToolInvocationSourceOutcome => ({
+    kind: 'bound',
+    call: known.call,
+    admission: known.admission,
+    request: fixed,
+    recovered: true,
+  })
+  if (read.record?.kind === 'call') return bound(read.record.call.request)
+  const availability = await resolveDefinition(access, request.availability)
+  if ('failure' in availability) return rejected(availability.failure)
+  return bound(fixToolRequest(request, availability.ok.definition, known.invocation))
+}
+
+async function bindSource(
+  store: ToolLedgerStore,
+  read: Extract<LedgerRecordRead, { kind: 'complete' }>,
+  plan: IssuePlan,
+): Promise<ToolInvocationSourceOutcome | null> {
+  const { tenant, consumer, request, availability, requestDigest, call, admission, encoded } = plan
+  const invocation: ToolInvocation = Object.freeze({
+    kind: 'direct',
+    source: Object.freeze({
+      owner: INVOCATION_SOURCE_OWNER,
+      record: `invocation-source:${call}`,
+      revision: '1',
+      digest: canonicalDigest({ tenant: tenantText(tenant), call, admission, requestDigest }),
+    }),
+  })
+  const binding: Binding = {
+    kind: 'invocation-source',
+    call,
+    admission,
+    requestDigest,
+    fixedDigest: canonicalDigest({ ...request, invocation }),
+    invocation,
+    principal: encoded,
+  }
+  let committed: Awaited<ReturnType<typeof store.commit>>
+  try {
+    committed = await store.commit({
+      domain: sourceDomain(tenant, consumer),
+      expected: read.revision,
+      revision: nextRevision(read.revision),
+      writes: [
+        {
+          kind: 'put',
+          record: { kind: 'host', host: { key: sourceKey(consumer), value: binding } },
+        },
+      ],
+    })
+  } catch {
+    return { kind: 'issuance-unknown', call, admission }
+  }
+  if (committed.kind === 'committed')
+    return {
+      kind: 'bound',
+      call,
+      admission,
+      request: fixToolRequest(request, availability.definition, invocation),
+      recovered: false,
+    }
+  if (committed.kind === 'unknown') return { kind: 'issuance-unknown', call, admission }
+  if (committed.kind === 'unavailable')
+    return unavailable('invocation-source', committed.diagnostic)
+  if (committed.kind === 'rejected')
+    return rejected({ kind: 'invalid', field: 'storage', reason: committed.reason })
+  return null
+}
+
+function programSide<P, B extends ContentBlock>(
+  input: LocalInvocationSourceInput<P>,
+  programs: InvocationPrograms<P>,
+): LocalInvocationSource<P, B>['programs'] {
+  const arrivals = createProgramArrivals()
+  return { ...programs, arrivals, receiver: createProgramReceiver<P, B>(input, arrivals) }
+}
+
+type Issued = Readonly<{
+  recoverBinding(
+    access: Access<unknown> &
+      Readonly<{ call: ToolCallId; admission: ToolOperationId; request: FixedToolRequest }>,
+  ): Reply<unknown>
+}>
+
+/** A call this host issued itself is verified against its own stored source; any other is direct. */
+function routedGuard<P>(
+  direct: ToolSourceGuard<P>,
+  originOf: (issued: 'forwarded' | 'program') => Issued,
+): ToolSourceGuard<P> {
+  return {
+    async verify(access) {
+      const issued = ISSUED_OWNERS.get(access.request.consumer.owner)
+      if (issued === undefined) return direct.verify(access)
+      const diagnostic = `The ${issued} source cannot be verified.`
+      try {
+        const answer = await originOf(issued).recoverBinding({
+          ...access,
+          admission: access.operation,
+        })
+        if ('ok' in answer) return { kind: 'trusted' }
+        return answer.failure.kind === 'denied'
+          ? { kind: 'forged', reason: `${issued}-binding-mismatch` }
+          : { kind: 'unavailable', diagnostic }
+      } catch {
+        return { kind: 'unavailable', diagnostic }
+      }
+    },
+  }
+}
+
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P>,
 ): LocalInvocationSource<P, B> {
   return buildInvocationSource(input)
 }
 
-export function createLocalInvocationQualifier<P>(
-  input: LocalInvocationSourceInput<P>,
-): LocalInvocationQualifier<P> {
-  return invocationQualifier(
-    (observe, origin) => buildInvocationSource(input, observe, origin).guard,
-  )
-}
-
 function buildInvocationSource<P, B extends ContentBlock>(
   input: LocalInvocationSourceInput<P>,
-  observe?: ObserveInvocationRecord,
-  observeOrigin?: ObserveInvocationOrigin,
 ): LocalInvocationSource<P, B> {
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
@@ -244,6 +388,8 @@ function buildInvocationSource<P, B extends ContentBlock>(
   if (typeof store?.readRecord !== 'function') throw new TypeError('store: missing')
   if (typeof authority?.qualify !== 'function') throw new TypeError('authority: missing')
   if (typeof principalCodec?.encode !== 'function') throw new TypeError('principalCodec: missing')
+  if (typeof input.definitions?.current !== 'function') throw new TypeError('definitions: missing')
+  const resolveDefinition = createDefinitionResolution(store, input.definitions)
 
   const readBinding = async (
     tenant: TenantId,
@@ -260,12 +406,10 @@ function buildInvocationSource<P, B extends ContentBlock>(
 
   const bindingOf = (
     read: Extract<LedgerRecordRead, { kind: 'complete' }>,
-    observed?: LedgerDomain,
   ): Binding | null | 'unreadable' => {
     const record = read.record
     if (record === null) return null
     if (record.kind !== 'host') return 'unreadable'
-    if (observed !== undefined) observe?.(observed, record)
     return parseBinding(record.host.value) ?? 'unreadable'
   }
 
@@ -311,69 +455,14 @@ function buildInvocationSource<P, B extends ContentBlock>(
     known: Binding,
     principal: P,
     requestDigest: string,
-  ): Promise<ToolInvocationSourceOutcome> => {
+  ): Promise<ToolInvocationSourceOutcome | null> => {
     const same = await sameSubject(principal, known)
     if (same === 'undecodable') return { kind: 'association-unknown' }
     if (same.kind === 'denied') return rejected(denied)
     if (same.kind === 'unavailable') return unavailable('invoke-authority', same.diagnostic)
-    if (known.requestDigest !== requestDigest)
-      return rejected({ kind: 'conflict', operation: known.admission })
-    return {
-      kind: 'bound',
-      call: known.call,
-      admission: known.admission,
-      invocation: known.invocation,
-      recovered: true,
-    }
-  }
-
-  const bind = async (
-    read: Extract<LedgerRecordRead, { kind: 'complete' }>,
-    plan: IssuePlan,
-  ): Promise<ToolInvocationSourceOutcome | null> => {
-    const { tenant, consumer, request, requestDigest, call, admission, encoded } = plan
-    const invocation: ToolInvocation = Object.freeze({
-      kind: 'direct',
-      source: Object.freeze({
-        owner: INVOCATION_SOURCE_OWNER,
-        record: `invocation-source:${call}`,
-        revision: '1',
-        digest: canonicalDigest({ tenant: tenantText(tenant), call, admission, requestDigest }),
-      }),
-    })
-    const binding: Binding = {
-      kind: 'invocation-source',
-      call,
-      admission,
-      requestDigest,
-      fixedDigest: canonicalDigest({ ...request, invocation }),
-      invocation,
-      principal: encoded,
-    }
-    let committed: Awaited<ReturnType<typeof store.commit>>
-    try {
-      committed = await store.commit({
-        domain: sourceDomain(tenant, consumer),
-        expected: read.revision,
-        revision: nextRevision(read.revision),
-        writes: [
-          {
-            kind: 'put',
-            record: { kind: 'host', host: { key: sourceKey(consumer), value: binding } },
-          },
-        ],
-      })
-    } catch {
-      return { kind: 'issuance-unknown', call, admission }
-    }
-    if (committed.kind === 'committed')
-      return { kind: 'bound', call, admission, invocation, recovered: false }
-    if (committed.kind === 'unknown') return { kind: 'issuance-unknown', call, admission }
-    if (committed.kind === 'unavailable')
-      return unavailable('invocation-source', committed.diagnostic)
-    if (committed.kind === 'rejected')
-      return rejected({ kind: 'invalid', field: 'storage', reason: committed.reason })
-    return null
+    return known.requestDigest === requestDigest
+      ? null
+      : rejected({ kind: 'conflict', operation: known.admission })
   }
 
   const issuer: ToolInvocationSourceIssuer<P> = {
@@ -381,7 +470,7 @@ function buildInvocationSource<P, B extends ContentBlock>(
       const judged = judgeToolInvokeRequest(input.request)
       if ('failure' in judged) return rejected({ kind: 'invalid', ...judged.failure })
       const request = judged.ok
-      if (request.consumer.owner === TOOL_FORWARDING_OWNER) return rejected(denied)
+      if (ISSUED_OWNERS.has(request.consumer.owner)) return rejected(denied)
       const { principal, tenant } = input
       const refused = await admit(principal, tenant, request.consumer)
       if (refused !== null) return refused
@@ -390,23 +479,35 @@ function buildInvocationSource<P, B extends ContentBlock>(
       const consumer = request.consumer
       const { call, admission } = invocationSourceIdentities(tenant, consumer)
       const requestDigest = canonicalDigest(request)
-      const plan = {
-        tenant,
-        consumer,
-        request,
-        requestDigest,
-        call,
-        admission,
-        encoded: kept.encoded,
-      }
+      let availability: ToolAvailability | null = null
 
       for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
         const read = await readBinding(tenant, consumer)
         if (typeof read === 'string') return unavailable('invocation-source', read)
         const known = bindingOf(read)
         if (known === 'unreadable') return { kind: 'association-unknown' }
-        if (known !== null) return recall(known, principal, requestDigest)
-        const issued = await bind(read, plan)
+        if (known !== null)
+          return (
+            (await recall(known, principal, requestDigest)) ??
+            recoveredCall(store, resolveDefinition, { principal, tenant }, known, request)
+          )
+        if (availability === null) {
+          const resolved = await resolveDefinition({ principal, tenant }, request.availability)
+          if ('failure' in resolved) return rejected(resolved.failure)
+          const refused = input.refusal?.({ ...request, availability: resolved.ok }) ?? null
+          if (refused !== null) return rejected(refused)
+          availability = resolved.ok
+        }
+        const issued = await bindSource(store, read, {
+          tenant,
+          consumer,
+          request,
+          availability,
+          requestDigest,
+          call,
+          admission,
+          encoded: kept.encoded,
+        })
         if (issued !== null) return issued
       }
       return unavailable('invocation-source', `${commitAttempts} revision conflicts in a row`)
@@ -420,41 +521,33 @@ function buildInvocationSource<P, B extends ContentBlock>(
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
       const read = await readBinding(tenant, request.consumer)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
-      const binding = bindingOf(read, sourceDomain(tenant, request.consumer))
+      const binding = bindingOf(read)
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
       if (!bindsTo(binding, call, operation, fixed))
         return { kind: 'forged', reason: 'binding-mismatch' }
       const same = await sameSubject(principal, binding)
-      const verdict = subjectVerdict(same)
-      if (verdict.kind === 'trusted') observeOrigin?.({ call, admission: operation, request })
-      return verdict
+      return subjectVerdict(same)
     },
   }
 
+  const originOf = (issued: 'forwarded' | 'program'): Issued =>
+    issued === 'program' ? programs : forwards
+  const guard: ToolSourceGuard<P> = routedGuard(directGuard, originOf)
   const forwards = createInvocationForwarding(
     input,
-    directGuard,
+    guard,
     invocationSourceIdentities,
-    observe,
+    resolveDefinition,
+  )
+  const programs = createInvocationPrograms(
+    input,
+    guard,
+    invocationSourceIdentities,
+    resolveDefinition,
   )
   const receiver = createForwardingReceiver(input, forwards)
-  const guard: ToolSourceGuard<P> = {
-    async verify(access) {
-      if (access.request.consumer.owner !== TOOL_FORWARDING_OWNER) return directGuard.verify(access)
-      try {
-        const answer = await forwards.recoverBinding({ ...access, admission: access.operation })
-        return 'ok' in answer
-          ? { kind: 'trusted' }
-          : answer.failure.kind === 'denied'
-            ? { kind: 'forged', reason: 'forwarding-binding-mismatch' }
-            : { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
-      } catch {
-        return { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
-      }
-    },
-  }
   const recoverBinding: LocalInvocationSource<P, B>['recoverBinding'] = async access => {
     const unavailable = () =>
       fail({
@@ -475,24 +568,24 @@ function buildInvocationSource<P, B extends ContentBlock>(
         return unavailable()
       const encoded = row.host.value.principal
       if (decodePrincipal(encoded) === null) return unavailable()
-      if (access.request.consumer.owner === TOOL_FORWARDING_OWNER) {
-        const stored = parseForward(row.host.value)
+      const fixed = canonicalDigest(fixedRequestReference(access.request))
+      const issued = ISSUED_OWNERS.get(access.request.consumer.owner)
+      if (issued !== undefined) {
+        const stored = parseIssued(row.host, issued)
         if (
           stored === null ||
           stored.call !== access.call ||
           stored.admission !== access.admission ||
-          canonicalDigest(stored.request) !== canonicalDigest(access.request)
+          canonicalDigest(fixedRequestReference(stored.request)) !== fixed
         )
           return unavailable()
         return succeed({ principal: encoded })
       }
       const stored = parseBinding(row.host.value)
-      if (
-        stored === null ||
-        !bindsTo(stored, access.call, access.admission, canonicalDigest(access.request))
-      )
+      if (stored === null || !bindsTo(stored, access.call, access.admission, fixed))
         return unavailable()
-      const { invocation, ...request } = access.request
+      const { invocation } = access.request
+      const request = toolInvokeRequestOf(access.request)
       const source = {
         owner: INVOCATION_SOURCE_OWNER,
         record: `invocation-source:${access.call}`,
@@ -520,6 +613,7 @@ function buildInvocationSource<P, B extends ContentBlock>(
     guard,
     forwarding: forwards.source,
     receiver,
+    programs: programSide<P, B>(input, programs),
     forwardedResult: createForwardedResultReader(input, forwards),
     recoverBinding,
     releaseReceivedCopies: forwards.releaseReceivedCopies,

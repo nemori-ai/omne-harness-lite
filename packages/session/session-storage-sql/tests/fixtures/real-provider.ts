@@ -91,7 +91,6 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 64,
-    maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,
@@ -148,20 +147,8 @@ function catalogOf(
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-export type QueryKind = 'committed' | 'rolled_back' | 'not_committed' | 'unknown'
-export function queryKindOf(result: QueryResultV2): QueryKind {
-  switch (result.kind) {
-    case 'committed':
-      return 'committed'
-    case 'rolled_back':
-      return 'rolled_back'
-    case 'not_committed':
-      return 'not_committed'
-    case 'unknown':
-    case 'not_recallable':
-      return 'unknown'
-  }
-}
+export type QueryKind = QueryResultV2['kind']
+export const queryKindOf = (result: QueryResultV2): QueryKind => result.kind
 
 export const identityOf = (
   tenant: TenantId,
@@ -175,6 +162,7 @@ export const identityOf = (
   operation,
   protocolVersion: '2',
   operationKey: JSON.stringify([session, operation, attempt]),
+  recall: 'never',
 })
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
@@ -246,7 +234,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: request => {
-      ops += 1
+      if (request.identity.operation !== 'session.lookup') ops += 1
       return real.commit(request)
     },
     query: identity => real.query(identity),
@@ -401,6 +389,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     tenant: TENANT_A,
     session: sessionId('session-1'),
     execution: 'exe_1',
+    settledBy: null,
     expected: null,
     revision: '1',
     published: '0',
@@ -415,6 +404,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
         revision: '1',
         receipt: evidence('agent/exe_1/1'),
         emittedThrough: '0',
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -492,6 +482,7 @@ export function agentPublisher(input: {
     digest: `sha256:fixture-${String(writes)}`,
     blobs: [],
     items: [],
+    settledBy: null,
   })
   return {
     async publish(event: AgentEvent): Promise<void> {
@@ -521,6 +512,7 @@ export function agentPublisher(input: {
             revision: event.revision,
             receipt: event.head,
             emittedThrough: String(emitted),
+            acknowledged: '0',
             ended: ended as never,
           },
         ],
@@ -623,10 +615,7 @@ export async function deliver(a: SceneApp, name: string, inputs: readonly string
           handover: evidence(`deliver-${name}`),
         },
         value: {
-          deliveries: inputs.map(input => ({
-            input: inputId(input),
-            message: ordinaryInput(input).message,
-          })),
+          inputs: inputs.map(inputId),
           source: evidence(`agent/step/${name}`),
           admission: evidence(`agent/step/${name}`),
         },

@@ -170,9 +170,15 @@ describe('assets-access row', () => {
         })
         const page = categories.json as { body: { items: { category: string; title: string }[] } }
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
+          ['AgentDefinition', '智能体'],
           ['converter', '转换件'],
+          ['loop-extension', '拓展件'],
+          ['mcp', 'MCP'],
           ['model-provider', '模型供应商'],
+          ['plugin', 'Plugin'],
+          ['prompt', '提示词命令'],
           ['skill', '技能'],
+          ['skin', '皮肤'],
           ['tool', '工具'],
         ])
 

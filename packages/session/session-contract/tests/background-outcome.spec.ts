@@ -44,6 +44,7 @@ import {
   observation,
   outcome,
   producer,
+  acceptedReminder,
   reminder,
   type Scene,
 } from './background-scene.ts'
@@ -208,7 +209,7 @@ describe('a backgrounded call: the outcome becomes one input', () => {
     expect(after.pending).toContain(input)
     expect(after.uncountedInputs).toEqual([input])
     const stored = succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')
-    expect(stored.message).toEqual(reminder())
+    expect(stored.message).toEqual(acceptedReminder())
   })
 
   it('takes the placeholder and the outcome from one batch', async () => {
@@ -308,6 +309,16 @@ describe('a backgrounded call: the outcome with no Run', () => {
     return c
   }
 
+  it('the call is no longer open work once its outcome came, though the Agent never processed the placeholder', async () => {
+    const c = await cancelled()
+    const snapshot = await c.s.read()
+    expect(snapshot.run.kind).toBe('terminal')
+    expect(snapshot.consumptions.map(item => item.id)).not.toContain(c.consumption)
+    expect((snapshot.callRegistrations ?? []).map(item => item.consumption)).not.toContain(
+      c.consumption,
+    )
+  })
+
   it('routes the reminder to the next Run', async () => {
     const c = await cancelled()
     const snapshot = await c.s.read()
@@ -339,7 +350,7 @@ describe('a backgrounded call: the outcome with no Run', () => {
     })
     succeeded(started, 'start from reminder')
     const run = (await newEntries(c, before)).find(entry => entry.kind === 'run.started')
-    expect(run).toMatchObject({ first: backgroundInputId(producer, 'rv-1') })
+    expect(run).toMatchObject({ initial: [backgroundInputId(producer, 'rv-1')] })
   })
 })
 
@@ -597,7 +608,7 @@ describe('the background outcome: what the accepted input is and what a kept out
     expect(succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')).toEqual({
       kind: 'ordinary',
       input,
-      message: reminder(),
+      message: acceptedReminder(),
       source: TESTING_SOURCES.outcome,
       origin: {
         owner: 'background-tool-execution',

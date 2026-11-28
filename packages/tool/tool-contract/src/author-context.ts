@@ -47,6 +47,8 @@ export type ToolWaitProtocolDefinition<A, K extends 'ask' | 'resource'> = Readon
   request: ToolValueSchema<unknown>
   response: ToolValueSchema<A>
   expiry: K extends 'ask' ? 'forbidden' : 'forbidden' | 'supported'
+  /** Whether a call already in the background may wait on it; absent is `never`. Only an `ask` declares `waits`. */
+  background?: 'waits' | 'never'
 }>
 export type ToolWaitContract<A, K extends 'ask' | 'resource'> = ToolWaitProtocolDefinition<A, K> &
   Readonly<{ [toolWaitContract]: true }>
@@ -102,6 +104,8 @@ export type ToolWaitSchemaSnapshot = Readonly<{
   requestMaxBytes: number
   responseMaxBytes: number
   expiry: 'forbidden' | 'supported'
+  /** The contract's `background` as the wait was opened; absent is `never`. */
+  background?: 'waits' | 'never'
   source: DurableEvidence
 }>
 export type ToolResponseCandidate =

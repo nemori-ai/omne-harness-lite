@@ -1,4 +1,4 @@
-import type { ModelConfiguration, ReplayResend } from '@omne-harness/model'
+import type { LiveDeadlines, ModelConfiguration, ReplayResend } from '@omne-harness/model'
 import type { Adoption } from '@omne-harness/model-contract'
 import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import { fieldOf, isRecord } from '../fields.ts'
@@ -11,6 +11,8 @@ export type ConfiguredModelHostSettings = Readonly<{
   runtime: ModelConfiguration
   results: ResultPushLimits
   retry: Readonly<{ adoption: Adoption; policy: RetryPolicy; replayResend: ReplayResend }>
+  /** How many events a live call holds, and its deadlines. */
+  live: Readonly<{ capacity: number; deadlines: LiveDeadlines }>
 }>
 
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: { message: string }[] }>
@@ -32,6 +34,13 @@ const RESULT_BOUNDS = {
   maxPendingAccounts: { minimum: 1, safe: true },
   maxCostMisses: { minimum: 1, safe: true },
 } satisfies Record<Exclude<keyof ResultPushLimits, 'delaysMs'>, Bound>
+const LIVE_BOUNDS = { capacity: { minimum: 1, safe: true } } satisfies Record<'capacity', Bound>
+const DEADLINE_BOUNDS = {
+  openMs: { minimum: 0, safe: true },
+  closeMs: { minimum: 0, safe: true },
+  drainMs: { minimum: 0, safe: true },
+  redeliverMs: { minimum: 0, safe: true },
+} satisfies Record<keyof LiveDeadlines, Bound>
 const REPLAY_RESEND_BOUNDS = { max: { minimum: 0, safe: true } } satisfies Record<
   keyof ReplayResend,
   Bound
@@ -113,12 +122,21 @@ function parseConfig(value: unknown): Parsed<ConfiguredModelHostSettings> {
   if ('issues' in delays) return delays
   const retry = parseRetry(fieldOf(value, 'retry'))
   if ('issues' in retry) return retry
+  const live = parseNumbers(fieldOf(value, 'live'), 'live', LIVE_BOUNDS)
+  if ('issues' in live) return live
+  const deadlines = parseNumbers(
+    fieldOf(fieldOf(value, 'live'), 'deadlines'),
+    'live.deadlines',
+    DEADLINE_BOUNDS,
+  )
+  if ('issues' in deadlines) return deadlines
   return {
     value: {
       host: host.value,
       runtime: runtime.value,
       results: { ...results.value, delaysMs: delays.value },
       retry: retry.value,
+      live: { capacity: live.value.capacity, deadlines: deadlines.value },
     },
   }
 }

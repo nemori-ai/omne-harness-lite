@@ -1,3 +1,4 @@
+import { issuedFor } from './acting.ts'
 import type { IncomingMessage } from 'node:http'
 import type {
   AccessIdentity,
@@ -25,12 +26,12 @@ export type Established =
 
 const BEARER = /^bearer (\S+)$/i
 
-function proofOf(req: IncomingMessage): string | undefined {
+export function proofOf(req: IncomingMessage): string | undefined {
   if (countHeader(req, 'authorization') !== 1) return undefined
   return BEARER.exec(req.headers.authorization ?? '')?.[1]
 }
 
-function tenantOf(req: IncomingMessage): string | undefined {
+export function tenantOf(req: IncomingMessage): string | undefined {
   if (countHeader(req, 'omne-acting-tenant') !== 1) return undefined
   const value = req.headers['omne-acting-tenant']
   return typeof value === 'string' && value !== '' ? value : undefined
@@ -75,5 +76,6 @@ export async function establish(
   if (tenant === undefined) return { kind: 'refused' }
   const acting = await ask(watch, () => port.actFor(login, tenant), issued)
   if (acting.kind !== 'given') return acting
+  issuedFor(acting.value.principal, tenant)
   return { kind: 'caller', principal: acting.value.principal, login: { identity: login, proof } }
 }

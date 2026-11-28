@@ -6,7 +6,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
-import { readProtocolFrames } from './frames.ts'
+import { readProtocolFrames, readWholeBody } from './frames.ts'
 import {
   ResponseBodyReadError,
   ResponseBodyStalledError,
@@ -15,7 +15,6 @@ import {
   type HttpExchange,
   type ResponseHeaders,
 } from './http.ts'
-import { OPENROUTER_ACCOUNTING } from './chat-completions/openrouter.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
 import { terminationOf, type SendEnd } from './termination.ts'
@@ -23,7 +22,7 @@ import { terminationOf, type SendEnd } from './termination.ts'
 export type SendInput = Readonly<{
   exchange: HttpExchange
   decoder: PiResponseDecoder
-  route: CheckedRoute
+  route: CheckedRoute & Readonly<{ framing: 'events' | 'whole' }>
   limits: PiTransportLimits
   diagnostics: readonly ProviderDiagnostic[]
   /** Whether the request carried reasoning state back. */
@@ -34,7 +33,7 @@ export type SendInput = Readonly<{
 
 /** The response header in which the place keeping the account names the request; null where none is known. */
 function requestHeaderOf(route: Pick<CheckedRoute, 'accounting'>): string | null {
-  return route.accounting.place === OPENROUTER_ACCOUNTING.place ? 'x-generation-id' : null
+  return route.accounting.generation?.requestHeader ?? null
 }
 
 /** The upstream's identity of the request: only from the response header, never from the stream. */
@@ -143,6 +142,7 @@ async function* decodeSend(
     body,
     decoder,
     endMarker: route.endMarker,
+    framing: route.framing,
     limits,
     received: () => result.body.received(),
     progress,
@@ -153,6 +153,7 @@ export type BodyInput = Readonly<{
   body: AsyncIterable<Uint8Array>
   decoder: PiResponseDecoder
   endMarker: string | null
+  framing?: 'events' | 'whole'
   limits: Pick<PiTransportLimits, 'maxEventBytes' | 'json'>
   received(): boolean
   progress: Progress
@@ -180,10 +181,13 @@ async function* readBody(
   held: Held,
 ): AsyncGenerator<TransportFact, SendEnd | null, undefined> {
   const { body, decoder, endMarker, limits, progress } = input
-  const frames = readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
-    endMarker,
-    json: limits.json,
-  })
+  const frames =
+    input.framing === 'whole'
+      ? readWholeBody(body, limits.json)
+      : readProtocolFrames(readSseEvents(body, limits.maxEventBytes), {
+          endMarker,
+          json: limits.json,
+        })
   let bodyComplete = true
   try {
     for await (const frame of frames) {

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { CardsHub, DecisionsPage, PendingBadge, SessionCards } from '../src/index.ts'
-import { extensionItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem, rowedItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -52,7 +52,7 @@ function setup() {
 const region = () => screen.queryByRole('region', { name: LABEL })
 
 const pick = (scope: ReturnType<typeof within>, label: string) =>
-  fireEvent.click(scope.getByText(label).closest('label')!.querySelector('[role="radio"]')!)
+  fireEvent.click(scope.getByRole('radio', { name: label }))
 
 describe('会话里的卡', () => {
   it('C1 只显示来源会话等于这个会话的卡', async () => {
@@ -63,7 +63,17 @@ describe('会话里的卡', () => {
     expect(shown.className).toBe('hitl-session-cards')
     expect(within(shown).getAllByRole('article')).toHaveLength(1)
     expect(within(shown).queryByRole('tablist')).toBeNull()
-    expect(within(shown).getByText('Agent 在问你')).toBeTruthy()
+    expect(within(shown).getByText('Agent 在问你 · Ask')).toBeTruthy()
+    expect(shown.querySelectorAll('.hitl-paper')).toHaveLength(1)
+  })
+
+  it('P0 这一段会话的卡带「会话里的卡」与纸的部位', async () => {
+    const { fake, hub } = setup()
+    render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)
+    await answer(fake, 'list-cards', page([questionItem()]))
+    const shown = region()!
+    expect(shown.getAttribute('data-omne-part')).toBe('human-intervention.session-cards')
+    expect(shown.querySelectorAll('[data-omne-part="human-intervention.paper"]')).toHaveLength(1)
   })
 
   it('C2 这个会话没有卡：什么都不渲染', async () => {
@@ -82,6 +92,33 @@ describe('会话里的卡', () => {
     expect(fake.observations).toEqual([])
   })
 
+  it('C4b 两处各看各的：一处翻题另一处不跟；后挂上的一处从第一张没答的开始', async () => {
+    const { fake, hub } = setup()
+    render(
+      <div data-testid="page">
+        <DecisionsPage hub={hub} tenant={TENANT} />
+      </div>,
+    )
+    await answer(fake, 'list-cards', page(['card-a', 'card-b', 'card-c'].map(id => rowedItem(id))))
+    const inPage = within(screen.getByTestId('page'))
+    const shownIn = (scope: ReturnType<typeof within>) =>
+      scope.getAllByRole('article').filter((article: HTMLElement) => !article.hasAttribute('inert'))
+    pick(within(shownIn(inPage)[0]!), '主干')
+    fireEvent.click(inPage.getByRole('tab', { name: '第 3 题：还没答' }))
+    render(
+      <div data-testid="session">
+        <SessionCards hub={hub} tenant={TENANT} session={SESSION} />
+      </div>,
+    )
+    await settle()
+    const inSession = within(screen.getByTestId('session'))
+    const selected = (scope: ReturnType<typeof within>) =>
+      scope.getAllByRole('tab').map((tab: HTMLElement) => tab.getAttribute('aria-selected'))
+    expect(selected(inSession)).toEqual(['false', 'true', 'false'])
+    expect(shownIn(inSession)).toEqual([inSession.getAllByRole('article')[1]])
+    expect(selected(inPage)).toEqual(['false', 'false', 'true'])
+  })
+
   it('C4 页面与会话里读同一份：会话里填的页面上也看得到；会话里提交，两处都在提交；记下后两处都收起', async () => {
     const { fake, hub } = setup()
     render(
@@ -94,7 +131,7 @@ describe('会话里的卡', () => {
         </div>
       </>,
     )
-    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD]))
+    await answer(fake, 'list-cards', page([rowedItem(), OTHER_CARD]))
     expect(fake.observations).toHaveLength(1)
     const inSessionView = within(screen.getByTestId('session'))
     const inPage = within(screen.getByTestId('page'))
@@ -141,7 +178,7 @@ describe('会话里的卡', () => {
         </div>
       </>,
     )
-    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD]))
+    await answer(fake, 'list-cards', page([rowedItem(), OTHER_CARD]))
     const mine = within(screen.getByTestId('mine'))
     pick(mine, '主干')
     fireEvent.click(mine.getByRole('button', { name: '提交' }))
@@ -155,19 +192,17 @@ describe('会话里的卡', () => {
     ).toBeNull()
   })
 
-  it('C6 卡片区上方的等待提示：数随卡变；没有待答的卡时不写', async () => {
+  it('C6 纸的上方不另写「在等你」一类的话；纸随卡变，没有卡时什么都不渲染', async () => {
     const { fake, hub } = setup()
     render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)
     const second = inSession(questionItem('card-8'), SESSION)
     await answer(fake, 'list-cards', page([questionItem(), second, OTHER_CARD]))
-    expect(
-      within(region()!).getByText('Agent 在等你回答 2 个问题。在这里发的消息会排队，不算回答。'),
-    ).toBeTruthy()
+    expect(region()!.firstElementChild?.className).toBe('hitl-paper')
+    expect(within(region()!).queryByText(/在等你/)).toBeNull()
+    expect(within(region()!).getAllByRole('article')).toHaveLength(2)
     fake.observations[0]!.frame()
     await answer(fake, 'list-cards', page([second]))
-    expect(
-      within(region()!).getByText('Agent 在等你回答 1 个问题。在这里发的消息会排队，不算回答。'),
-    ).toBeTruthy()
+    expect(within(region()!).getAllByRole('article')).toHaveLength(1)
     fake.observations[0]!.frame()
     await answer(fake, 'list-cards', page([]))
     expect(region()).toBeNull()
@@ -193,6 +228,7 @@ describe('导航上的张数', () => {
     const view = render(<PendingBadge hub={hub} tenant={TENANT} />)
     await answer(fake, 'list-cards', page([questionItem(), extensionItem()]))
     expect(view.container.textContent).toBe('2')
+    expect(view.container.querySelector('[data-count-pill]')?.textContent).toBe('2')
     fake.observations[0]!.frame()
     await answer(fake, 'list-cards', page([]))
     expect(view.container.innerHTML).toBe('')
@@ -215,7 +251,7 @@ describe('导航上的张数', () => {
       </>,
     )
     await answer(fake, 'list-cards', page([questionItem()]))
-    expect(view.container.querySelector('.hitl-badge')?.textContent).toBe('1')
+    expect(view.container.querySelector('[data-count-pill]')?.textContent).toBe('1')
     expect(count(fake, 'list-cards')).toBe(1)
     expect(fake.observations).toHaveLength(1)
   })

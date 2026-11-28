@@ -143,6 +143,7 @@ const READS: { readonly [K in Exclude<SessionsArguments['kind'], 'help'>]: Read<
       direction,
       pageBytes,
       ...(args.inherited ? { inherited: true as const } : {}),
+      ...(args.after === null ? {} : { after: args.after }),
     })
     if ('failure' in read) return failureText(read.failure, args.session)
     const { entries, exhausted, next, from } = read.ok
@@ -255,13 +256,17 @@ export function createSessionsAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock>; readOnly: boolean }
   > = {}
   for (const command of sessionsCommands) {
     const operation = operationOf(command.name, maximum)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[command.name] = { summary: command.summary, operation: operation.ok }
+    operations[command.name] = {
+      summary: command.summary,
+      operation: operation.ok,
+      readOnly: true,
+    }
   }
   const author = defineCommandTool({
     implementation: {

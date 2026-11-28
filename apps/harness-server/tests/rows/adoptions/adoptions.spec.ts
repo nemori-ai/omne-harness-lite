@@ -137,7 +137,11 @@ describe('an unknown definition produces no business write', () => {
       const known = await run.create(createCommand('alpha'))
       return { unknown, writesAfterUnknown, known, writesAfterKnown: run.sessionCommits.length }
     })
-    expect(failureOf(value.unknown)).toMatchObject({ kind: 'invalid', field: 'definition' })
+    // This tree keeps no assets of tenants: whether a tenant holds a definition of that name cannot be read.
+    expect(failureOf(value.unknown)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: 'the assets of the tenant cannot be read',
+    })
     expect(value.writesAfterUnknown).toBe(0)
     expect('ok' in value.known).toBe(true)
     expect(value.writesAfterKnown).toBe(1)
@@ -218,19 +222,34 @@ describe('an unknown definition produces no business write', () => {
       expect(failureOf(outcome)).toMatchObject({ kind: 'invalid', field: 'candidate' })
   })
 
-  test('commands without a definition give no material and are not refused', async () => {
+  test('commands without a definition give no material and are not refused; a freeze carries its verdict', async () => {
+    const verdict = {
+      cause: 'tool-shape-lost',
+      capability: 'wordcount',
+      evidence: {
+        owner: 'assets',
+        record: 'tool-holding/t/wordcount',
+        revision: 'r2',
+        digest: 'sha256:d',
+      },
+    }
     const { value } = await withLiveTree(mappingConfig(), async ({ source }) => {
       const outcomes = []
       for (const kind of ['completeInitialization', 'change', 'freeze'] as const)
         outcomes.push(
           await source.prepare({
             kind,
-            input: { ...access },
+            input: { ...access, verdict },
           } as unknown as AdoptionEvidenceCommand),
         )
       return outcomes
     })
-    for (const outcome of value) expect(outcome).toEqual({ ok: [] })
+    const [initialization, change, freeze] = value
+    expect([initialization, change]).toEqual([{ ok: [] }, { ok: [] }])
+    expect(freeze).toMatchObject({
+      ok: [{ owner: 'resident-adoption', participant: 'session-evidence' }],
+    })
+    expect(JSON.stringify(freeze)).toContain('wordcount')
   })
 
   test('the Agent face resolves a known adoption and refuses an unknown one without a reservation', async () => {

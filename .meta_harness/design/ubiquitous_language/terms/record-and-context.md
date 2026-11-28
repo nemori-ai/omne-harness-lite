@@ -257,26 +257,18 @@
 
 ### UL-origin-tag · 来路标记 · Origin Tag
 
-> **中**：**一块文本身上记着的「这段文字是从哪条路来的」**——人敲[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)时附带的参数、
-> 受理时从命令展开出来的那段正文（① 型的提示词正文、② 型逐字装进来的 skill 正文），还是原命令本身的留痕。
-> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：原命令与展开后的全文一起留在同一条消息里，靠它分得出哪块是哪个。
-> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。**本版只有斜杠命令的受理会打上它**；取值怎么划分归规格。
+> **中**：**一块文字身上记着的「这段字不是人打的，它来自哪一份」**：受理时随[斜杠引用](interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference)装进来的 Skill 正文，记着那份 Skill 的全名、来源层、版本与包摘要。
+> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：人的话与装进来的正文在同一条消息里各成一块，靠它分得出哪块是哪个。
+> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。只有受理时解析人的话的那一步能写它，发送方带来的拒收。
 >
-> **EN**: **The mark on a text block recording which path the text came by** — the arguments a person attached
-> when typing a slash command, the text expanded from that command at intake (a type-① prompt body, a type-② skill
-> body copied verbatim), or the record of the command itself as typed. **It is an attribute of a content block, not
-> another kind of block**: the original command and the expanded text sit together in one message, and this mark tells
-> them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it.
-> **In this version only slash-command intake writes it**; how its values are divided belongs to the specification.
+> **EN**: **The mark on a text block recording "this text was not typed by the person; it comes from this item"**: the skill body brought in at intake by a slash reference carries the skill's full name, source layer, version and package digest. **It is an attribute of a content block, not another kind of block**: the person's words and the brought-in body sit in one message as separate blocks, and this mark tells them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it. Only the step of intake that resolves the person's words may write it; a sender that brings one is refused.
 
 - **形态**：属性
-- **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
-  [§5.6「消息落盘之前」那一刻，看得到什么](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 14）
-- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
-- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 5）
+- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文字上，说的是这段字怎么来的
+- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
-- **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
-- **待裁决**：上面出处所引的封存章节标题含已移除的位置名。斜杠命令的受理、展开与脱敏改落在哪里，由 slash-commands 产品负责人裁定，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；本词条只说出处，不替它定位置
+- **注意**：给模型看时，请求上下文按它加一行固定的标头，存着的正文逐字不变
 
 ### UL-content-block · 内容块 · Content Block
 
@@ -296,7 +288,7 @@
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 8）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -319,7 +311,7 @@
 > The readable text of the same reasoning sits in a thinking block, apart from it.
 
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 8）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
 - **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/SPEC.md#消息)
 
@@ -334,7 +326,7 @@
 > states are carried again.
 
 - **形态**：过程
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 8）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
 - **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 规格的推理回放](../../../../packages/model/SPEC.md#推理回放)
 
@@ -350,7 +342,7 @@
 > same model at the same recipient.
 
 - **形态**：属性
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 8）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
 - **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 规格](../../../../packages/model/SPEC.md#推理回放)
 
@@ -376,7 +368,7 @@
 - **形态**：属性
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存；**也不是[请求版本](#ul-request-version--请求版本--request-version)**——请求版本与原件同一种模态，仍算原件这一级
 - **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
 
@@ -402,7 +394,7 @@
 - **形态**：属性
 - **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
   [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8） ·
   [PF-013 §5.11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 17）
 - **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
 - **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
@@ -427,7 +419,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **⚠️ 别混**：**八类块 ≠ 四种模态**——块的类型归 [PF-009](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意 ①**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 - **注意 ②**：**视频是一种模态，不等于有模型能原生读它**——原生支持的目标是文字、图片与语音，视频的文件表示不构成原生视频理解的承诺
@@ -450,7 +442,7 @@
 
 - **形态**：属性
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8） ·
   [媒体：模型读哪一份](../../product/media/design.md#模型读哪一份)（rev 1）
 - **别混**：**不是块的类型**——块的类型是载体（八类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
 - **注意**：一个文件**同时命中「模态」与「具体媒体类型」两份转换件定义时，具体媒体类型那一份生效**——更具体的压过更一般的
@@ -474,7 +466,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 模态投影](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
   [§6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 17） ·
-  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 8）
 - **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
 - **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
 - **注意**：它是[会话要维护的一项状态，却不是 runtime context](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
@@ -711,7 +703,7 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 16）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 23）·
   [PF-015 §5.6 第 13 项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)

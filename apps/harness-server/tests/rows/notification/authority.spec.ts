@@ -14,27 +14,37 @@ const person: RecipientRef = { kind: 'person' }
 const agent = (ref: string): RecipientRef & { kind: 'agent' } => ({ kind: 'agent', ref })
 const owner: Actor = { kind: 'owner' }
 const agentA: Actor = { kind: 'agent', recipient: agent('session-a') }
+const system: Actor = { kind: 'system', source: sourceNameSchema.parse('extensions.changes') }
 const ACTORS = [
   ['the owner', owner],
   ['an agent', agentA],
+  ['a source of the system', system],
 ] as const
 const RECIPIENTS = [
   ['the person', person],
   ['the agent itself', agent('session-a')],
   ['another agent', agent('session-b')],
 ] as const
-const SOURCES = ['owner.posts', 'agent.posts', 'schedule.jobs', 'notification.system'] as const
+const SOURCES = [
+  'owner.posts',
+  'agent.posts',
+  'schedule.jobs',
+  'notification.system',
+  'extensions.changes',
+] as const
 const TOWARDS = ['read-inbox', 'dispose', 'subscribe-for', 'manage-destinations'] as const
 
 const isOwn = (actor: Actor, recipient: RecipientRef) =>
   actor.kind === 'owner'
     ? recipient.kind === 'person'
-    : recipient.kind === 'agent' && recipient.ref === actor.recipient.ref
+    : actor.kind === 'agent' && recipient.kind === 'agent' && recipient.ref === actor.recipient.ref
+const ownSource = (actor: Actor) =>
+  actor.kind === 'owner' ? 'owner.posts' : actor.kind === 'agent' ? 'agent.posts' : actor.source
 
 describe('who may do what with notifications', () => {
   describe.each(ACTORS)('%s', (_name, actor) => {
     it.each(SOURCES)('sends as %s only when that is its own source', source => {
-      const own = actor.kind === 'owner' ? 'owner.posts' : 'agent.posts'
+      const own = ownSource(actor)
       expect(mayDo(actor, { kind: 'send-as', source: sourceNameSchema.parse(source) })).toBe(
         source === own,
       )

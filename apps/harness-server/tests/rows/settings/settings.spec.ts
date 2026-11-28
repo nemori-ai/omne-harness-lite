@@ -22,7 +22,8 @@ import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readSystemInstant } from '../../../src/entry/session-clock.ts'
+import { systemTime } from '@omne-harness/time-source'
+import { readInstant } from '../../../src/entry/time.ts'
 import {
   ReleaseToolContributionAuthority,
   loadProductionRelease,
@@ -59,7 +60,9 @@ const B = fixtureTenant('b')
 const WEB = { category: 'tool', name: 'Web' }
 const ITEM = 'exa.apiKey'
 const OPENROUTER = releaseProvider('openrouter')?.holding?.ref
-if (OPENROUTER === undefined) throw new Error('fixture: the release holds no openrouter provider')
+const OPENAI = releaseProvider('openai')?.holding?.ref
+if (OPENROUTER === undefined || OPENAI === undefined)
+  throw new Error('fixture: the release holds no openrouter or openai provider')
 
 const authority = inProcessPrincipalAuthority()
 const system = okOf(authority.issuer.issueSystem({ component: 'server-entry' }), 'system')
@@ -143,9 +146,9 @@ async function world() {
     resolve: asset => registry.holdings(asset),
   })
   const port: SecretSettings = createSecretSettings({
-    items,
+    items: async () => items,
     qualify: input => guard.qualify(input),
-    now: readSystemInstant,
+    now: () => readInstant(systemTime()),
   })
   const close = () => fixture.root.fiber.dispose()
   return { root: fixture.root, path, vault, flags, registry, port, close }
@@ -184,7 +187,10 @@ describe('the settings row: registry, secret items and governance', () => {
     const w = await world()
     try {
       const access = on(acting(A), A)
-      expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual(['openrouter'])
+      expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual([
+        'openai',
+        'openrouter',
+      ])
       expect(await w.port.list({ ...access, asset: { name: 'Web' } })).toEqual({
         kind: 'listed',
         items: [],
@@ -196,10 +202,11 @@ describe('the settings row: registry, secret items and governance', () => {
       const holding = toolHolding(definition)
       expect(holding).not.toBeNull()
       expect(w.registry.snapshot().definitions.map(d => d.definitionId)).toEqual([
+        'openai',
         'openrouter',
         'Web',
       ])
-      expect(w.registry.holdings()).toEqual([OPENROUTER, { asset: WEB, holding }])
+      expect(w.registry.holdings()).toEqual([OPENROUTER, OPENAI, { asset: WEB, holding }])
       expect(w.registry.holdings({ name: 'Web' })).toHaveLength(1)
       expect(w.registry.holdings({ category: 'agent', name: 'Web' })).toEqual([])
       expect(await w.port.list({ ...access, asset: { name: 'Web' } })).toEqual({
@@ -212,7 +219,11 @@ describe('the settings row: registry, secret items and governance', () => {
       })
       const all = await w.port.list(access)
       const nameOf = (view: { owner: { kind: string; name?: string } }) => view.owner.name
-      expect(all.kind === 'listed' ? all.items.map(nameOf) : all).toEqual(['openrouter', 'Web'])
+      expect(all.kind === 'listed' ? all.items.map(nameOf) : all).toEqual([
+        'openrouter',
+        'openai',
+        'Web',
+      ])
     } finally {
       await w.close()
     }
@@ -391,7 +402,7 @@ describe('the settings row: registry, secret items and governance', () => {
       }
       expect(webItems()).toMatchObject([{ itemId: ITEM, title: 'Exa API key' }])
       const before = registry.snapshot().definitions.map(entry => entry.version)
-      expect(before).toHaveLength(2)
+      expect(before).toHaveLength(3)
 
       const next: ToolDefinition = structuredClone(definition)
       ;(next.adoption as { digest: string }).digest = `${definition.adoption.digest}-next`
@@ -415,9 +426,13 @@ describe('the settings row: registry, secret items and governance', () => {
       expect(rememberReleaseDefinition(root, generation, next)).toBe(true)
       expect(webItems()).toMatchObject([{ itemId: ITEM, title: 'Exa API key (next)' }])
       const after = registry.snapshot().definitions.map(entry => entry.version)
-      expect(after).toHaveLength(2)
+      expect(after).toHaveLength(3)
       expect(after).not.toEqual(before)
-      expect(registry.holdings()).toEqual([OPENROUTER, { asset: WEB, holding: toolHolding(next) }])
+      expect(registry.holdings()).toEqual([
+        OPENROUTER,
+        OPENAI,
+        { asset: WEB, holding: toolHolding(next) },
+      ])
     } finally {
       await root.fiber.dispose()
     }

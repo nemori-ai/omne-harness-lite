@@ -13,6 +13,7 @@ import type {
   AttemptId,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   RunId,
   SessionId,
@@ -21,12 +22,15 @@ import type {
 } from './identity.ts'
 import type {
   BoundedClose,
+  ModelProvenance,
   InitializationResult,
   Participation,
   RecoveryTask,
+  RunEnd,
   RunTerminal,
   SessionCreation,
   ResidentAdoption,
+  ResidentSegment,
   ResidentTool,
   DeclarationChange,
   SessionTree,
@@ -41,6 +45,7 @@ import type {
   Waiting,
   ExecutionRef,
   BackgroundDisposition,
+  AdoptionNote,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { AdmittedSource } from './input-sources.ts'
@@ -54,6 +59,7 @@ import type {
   InitializationRequirement,
   InitializationRegistration,
 } from './values.ts'
+import { equalValue } from './session-validation.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
@@ -68,12 +74,37 @@ export const SESSION_INTERPRETER: Adoption = Object.freeze({
   digest: SESSION_RELEASE_DIGEST,
 })
 
+// Both integrated releases wrote revision 5 selections without a reasoning effort.
+const BEFORE_REASONING_EFFORT: readonly Adoption[] = [
+  'sha256:5f2509c9e01e5e248f8ea47eca236bdeec25981cd6b62e89c4e166175743f196',
+  'sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db',
+].map(digest => ({
+  owner: '@omne-harness/session-contract',
+  name: 'session-log',
+  revision: '5',
+  digest,
+}))
+
+export function readsSessionInterpreter(schema: Adoption): boolean {
+  return (
+    equalValue(schema, SESSION_INTERPRETER) ||
+    BEFORE_REASONING_EFFORT.some(prior => equalValue(schema, prior))
+  )
+}
+
 export type InitializationItem = Omit<
   Extract<RecoveryTask, { kind: 'initialization' }>,
   'kind' | 'originalOperation' | 'state' | 'diagnostic'
 >
 
 export type SessionEntry =
+  | Readonly<{
+      kind: 'session.model-projected'
+      epoch: string
+      restoreOriginals?: true
+      blocks: readonly string[]
+      source: DurableEvidence
+    }>
   | Readonly<{
       kind: 'session.permission-assigned'
       declaration: Extract<DeclarationChange, { kind: 'permission-assignment' }>
@@ -124,6 +155,7 @@ export type SessionEntry =
     }>
   | Readonly<{
       kind: `message.${Message['role']}`
+      provenance?: readonly ModelProvenance[]
       message: Message
       source: DurableEvidence
       admission: DurableEvidence | null
@@ -148,6 +180,8 @@ export type SessionEntry =
       origin: DurableEvidence
       /** The values this admission fixed; every later judgment reads them, never the declaration. */
       source: AdmittedSource
+      /** Held back until `run` ends. */
+      after?: true
     }>
   | Readonly<{
       kind: 'intake.handed-over'
@@ -162,7 +196,7 @@ export type SessionEntry =
       run: RunId
       execution: string
       entry: EntryClass
-      first: InputId
+      initial: InitialBatch
       predecessor: RunId | null
       adoption: Adoption
     }>
@@ -187,8 +221,10 @@ export type SessionEntry =
       cause: DurableEvidence | null
       disposition: DurableEvidence | null
       bounded: BoundedClose | null
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
+  | Readonly<{ kind: 'session.prompt-segment-admitted'; segment: ResidentSegment }>
   | Readonly<{
       kind:
         | 'session.mode-changed'
@@ -213,9 +249,11 @@ export type SessionEntry =
     }>
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
   | Readonly<{ kind: 'session.resident'; resident: boolean }>
+  | Readonly<{ kind: 'session.command-recorded'; name: string; args: string }>
+  | Readonly<{ kind: 'session.adoption-noted'; note: AdoptionNote }>
   | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
-  | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'session.frozen'; capability: string; evidence: DurableEvidence }>
   | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
   | Readonly<{ kind: 'intake.routed'; task: Extract<RecoveryTask, { kind: 'routed-input' }> }>
   | Readonly<{
@@ -242,6 +280,8 @@ export type SessionEntry =
       fact: import('./faces.ts').ProducerFact
       consumption?: ConsumptionId
       result?: ProducedResult | null
+      /** The call whose final delivery this execution fact writes into the log. */
+      delivered?: ConsumptionId
     }>
   | Readonly<{
       kind: 'call.result-preserved'
@@ -347,12 +387,14 @@ export function fromJsonValue(tree: JsonValue): unknown {
 export type EntryReferences = Readonly<{
   created?: InitialAdoption | null
   residents?: readonly ResidentTool[]
+  segments?: readonly ResidentSegment[]
 }>
 
 const FROM_ORIGIN = '=origin.source'
 const FROM_CREATED = '=session.created.initialAdoption'
 const FROM_COMMAND = '=session.created.command'
 const FROM_RESIDENT = '=session.tool-resident-admitted'
+const FROM_SEGMENT = '=session.prompt-segment-admitted'
 
 const FACT_KINDS: ReadonlySet<string> = new Set([
   'call.execution-fact',
@@ -376,12 +418,17 @@ export function encodeEntry(
   if (kind === 'session.created') {
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }
+    const { newSegments } = entry.initialAdoption
     plain['initialAdoption'] = {
       ...entry.initialAdoption,
       newResidents: entry.initialAdoption.newResidents.map(resident => ({
         ...resident,
         shape: FROM_RESIDENT,
+        ...(resident.definition === undefined ? {} : { definition: FROM_RESIDENT }),
       })),
+      ...(newSegments === undefined
+        ? {}
+        : { newSegments: newSegments.map(segment => ({ ...segment, text: FROM_SEGMENT })) }),
     }
     if (sameTree(commandOf(plain), entry.input)) plain['input'] = FROM_COMMAND
   }
@@ -518,7 +565,8 @@ export type DecodedEntry =
   | Readonly<{ unknown: string }>
   | Readonly<{ malformed: string }>
 
-const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
+export const SESSION_ENTRY_KINDS: readonly SessionEntryKind[] = Object.freeze([
+  'session.model-projected',
   'session.todo-added',
   'session.todo-completed',
   'session.todo-removed',
@@ -539,6 +587,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'run.attempt-released',
   'run.terminal',
   'session.tool-resident-admitted',
+  'session.prompt-segment-admitted',
   'session.mode-changed',
   'session.model-selected',
   'session.declaration-adopted',
@@ -548,6 +597,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.recovery-input-adopted',
   'session.workspace-changed',
   'session.resident',
+  'session.command-recorded',
+  'session.adoption-noted',
   'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',
@@ -570,6 +621,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'history.annotated',
   'entries.interpreted',
 ])
+
+const KNOWN_KINDS: ReadonlySet<string> = new Set<string>(SESSION_ENTRY_KINDS)
 
 export type StoredEntry = Pick<HistoryEntry, 'kind' | 'payload'> &
   Partial<Pick<HistoryEntry, 'schema' | 'origin'>>
@@ -624,18 +677,25 @@ export function decodeEntries(
 ): DecodedEntry[] {
   const out: (DecodedEntry | undefined)[] = rows.map(() => undefined)
   const residents: ResidentTool[] = []
+  const segments: ResidentSegment[] = []
   rows.forEach((row, index) => {
-    if (row.kind !== 'session.tool-resident-admitted') return
+    if (
+      row.kind !== 'session.tool-resident-admitted' &&
+      row.kind !== 'session.prompt-segment-admitted'
+    )
+      return
     const decoded = decodeEntry(row)
     out[index] = decoded
     if ('ok' in decoded && decoded.ok.kind === 'session.tool-resident-admitted')
       residents.push(decoded.ok.resident)
+    if ('ok' in decoded && decoded.ok.kind === 'session.prompt-segment-admitted')
+      segments.push(decoded.ok.segment)
   })
   let current = created
   return rows.map((row, index) => {
     const known = out[index]
     if (known !== undefined) return known
-    const decoded = decodeEntry(row, { created: current, residents })
+    const decoded = decodeEntry(row, { created: current, residents, segments })
     if ('ok' in decoded && decoded.ok.kind === 'session.created')
       current = decoded.ok.initialAdoption
     return decoded
@@ -658,6 +718,7 @@ export function expandHistoryEntries(
     const resolved = resolveStored(row.kind, payload, row.origin, {
       created,
       residents: created?.newResidents ?? [],
+      segments: created?.newSegments ?? [],
     })
     if (resolved !== null) return { malformed: resolved }
     out ??= [...rows]
@@ -668,8 +729,11 @@ export function expandHistoryEntries(
 
 function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
   if (row.kind === 'session.created') {
-    const residents = member(member(row.payload, 'initialAdoption'), 'newResidents')
-    return residents?.kind === 'array' && residents.items.length > 0 ? 'created' : 'origin'
+    const adoption = member(row.payload, 'initialAdoption')
+    const named = [member(adoption, 'newResidents'), member(adoption, 'newSegments')]
+    return named.some(list => list?.kind === 'array' && list.items.length > 0)
+      ? 'created'
+      : 'origin'
   }
   if (row.kind === 'session.adoption')
     return member(member(row.payload, 'initialization'), 'adoption')?.kind === 'string'
@@ -682,6 +746,29 @@ function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// The segments a creation adopted name their text by the segment entry of their batch that holds it.
+function segmentsOf(
+  value: unknown,
+  holders: readonly ResidentSegment[],
+): readonly unknown[] | string | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) return 'session.created: the new segments are not a list'
+  const named: unknown[] = []
+  for (const item of value as unknown[]) {
+    if (!isObject(item) || item['text'] !== FROM_SEGMENT)
+      return 'session.created: a new segment does not name its holder'
+    const holder = holders.find(
+      segment =>
+        segment.key === item['key'] &&
+        canonicalText(segment.sources) === canonicalText(item['sources']),
+    )
+    if (holder === undefined)
+      return `session.created: no segment entry of the batch holds ${String(item['key'])}`
+    named.push({ ...item, text: holder.text })
+  }
+  return named
+}
 
 function resolveStored(
   kind: string,
@@ -709,9 +796,19 @@ function resolveStored(
         !sameEvidence(holder.admitted, item['admitted'] as DurableEvidence)
       )
         return `session.created: no SE36 of the batch admits ${String(item['capability'])} with the same version and asset digest`
-      named.push({ ...item, shape: holder.shape })
+      named.push({
+        ...item,
+        shape: holder.shape,
+        ...(holder.definition === undefined ? {} : { definition: holder.definition }),
+      })
     }
-    payload['initialAdoption'] = { ...adoption, newResidents: named }
+    const segments = segmentsOf(adoption['newSegments'], references.segments ?? [])
+    if (typeof segments === 'string') return segments
+    payload['initialAdoption'] = {
+      ...adoption,
+      newResidents: named,
+      ...(segments === undefined ? {} : { newSegments: segments }),
+    }
     return null
   }
   if (kind === 'session.adoption') {

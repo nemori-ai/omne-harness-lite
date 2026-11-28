@@ -25,7 +25,8 @@ export {
   type ToolDecisionRoutesInput,
 } from './decision-routes.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
-export { backgroundAllowed } from './ledger-background.ts'
+export { backgroundAllowed, closedToPrograms } from './ledger-background.ts'
+export { createToolPositions, type ToolPositionsInput } from './ledger-positions.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export { createToolSweep, type CallRemoval, type ToolLedgerSweep } from './ledger-sweep.ts'
 export type { TimerFiring, ToolLedgerTimers } from './ledger-timer-fire.ts'
@@ -48,6 +49,7 @@ export type {
   LedgerCommit,
   LedgerAssertion,
   LedgerCommitInput,
+  LedgerDefinitionRead,
   LedgerDomain,
   LedgerPendingScan,
   LedgerPendingScanInput,
@@ -97,7 +99,7 @@ export type {
   ToolStartGuard,
 } from './ledger-guards.ts'
 export { isTenantShape } from './boundary.ts'
-export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
+export { digestOf as canonicalDigest, canonicalJson, INITIAL_REVISION } from './evidence.ts'
 export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export {
@@ -116,7 +118,7 @@ export {
   type ToolsOptions,
   type ToolsReadRuntime,
 } from './tools.ts'
-export { createToolForwardRuntime } from './runtime-forwarding.ts'
+export { createToolForwardRuntime, createToolProgramRuntime } from './runtime-forwarding.ts'
 export { outputCodec as createToolMessageResultCodec } from './tools-results.ts'
 export { checkToolResultBody } from './result-body-validation.ts'
 

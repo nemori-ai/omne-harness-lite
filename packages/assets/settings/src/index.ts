@@ -29,6 +29,12 @@ export {
   type SettingsChangeDecision,
 } from './commands.ts'
 export * from './ports.ts'
+export {
+  createChangeSignal,
+  type ChangeEmitter,
+  type ChangeSignal,
+  type DomainChange,
+} from './changes.ts'
 export * from './preparation.ts'
 export * from './current-basis.ts'
 export * from './sources.ts'
@@ -95,6 +101,7 @@ export {
   type SettingsSecretItemsDeps,
 } from './secret-items.ts'
 export {
+  CUSTODIAN_SECRET_MAX_LENGTH,
   SECRET_TEXT_MAX_LENGTH,
   parseSecretText,
   type SecretBindingKey,

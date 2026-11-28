@@ -64,12 +64,18 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
   const categories = await assets['list-categories']({ after: null, limit: 100 })
   if (categories.outcome !== 'succeeded') throw new Error(categories.outcome)
   expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
+    ['AgentDefinition', 'directory'],
     ['converter', 'data'],
     [FIXTURE, 'data'],
     [FIXTURE_BUNDLE, 'directory'],
+    ['loop-extension', 'directory'],
+    ['mcp', 'data'],
     ['model-provider', 'none'],
+    ['plugin', 'directory'],
+    ['prompt', 'directory'],
     ['skill', 'directory'],
-    ['tool', 'none'],
+    ['skin', 'directory'],
+    ['tool', 'directory'],
   ])
   expect(await assets['describe-category']({ category: FIXTURE })).toMatchObject({
     outcome: 'succeeded',

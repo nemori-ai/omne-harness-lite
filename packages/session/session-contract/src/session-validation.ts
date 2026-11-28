@@ -18,6 +18,12 @@ export function unavailableAt(field: string): never {
     diagnostic: `${field}: required original material is missing`,
   })
 }
+export function missingAt(field: string): never {
+  throw new SessionValidationFailure({
+    kind: 'quarantined',
+    diagnostic: `${field}: required original material is missing`,
+  })
+}
 export function inconsistent(field: string): never {
   throw new SessionValidationFailure({ kind: 'quarantined', diagnostic: field })
 }

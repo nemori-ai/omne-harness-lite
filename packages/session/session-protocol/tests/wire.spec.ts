@@ -49,6 +49,7 @@ const validBodies: Samples = {
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
   'archive-session': [{ ...target, controlId: 'control' }],
   'unarchive-session': [{ ...target, controlId: 'control' }],
+  'reload-session': [{ ...target, controlId: 'control' }],
   'stop-call': [
     { ...target, controlId: 'control', producer },
     { ...target, controlId: 'control', producer, reason: 'not needed' },
@@ -82,6 +83,7 @@ const invalidBodies: Samples = {
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
   'archive-session': [{ ...target }, { ...target, controlId: 'control', run: 'run-1' }],
   'unarchive-session': [{ ...target, controlId: '' }],
+  'reload-session': [{ ...target, controlId: '' }],
   'stop-call': [
     { ...target, controlId: 'control', producer: { kind: 'agent', call: 'c' } },
     { ...target, controlId: 'control', producer, reason: 7 },
@@ -123,6 +125,7 @@ const successBodies: Samples = {
     { kind: 'unarchived', controlId: 'control' },
     { kind: 'not-archived', controlId: 'control' },
   ],
+  'reload-session': [{ kind: 'handed-over' }, { kind: 'adopted' }, { kind: 'no-change' }],
   'cancel-run': [
     { kind: 'requested', controlId: 'control', run: 'run-1' },
     {
@@ -173,7 +176,7 @@ describe('request bodies', () => {
   )
 
   it.each(cases(invalidBodies))('%s: a body the old family rejects is rejected', (name, sample) => {
-    expect(readNew(sessionProtocol.operations[name].body, sample)).toEqual({ ok: false })
+    expect(readNew(sessionProtocol.operations[name].body, sample).ok).toBe(false)
   })
 
   it('create-session may leave definition out, which the old family refused', () => {
@@ -200,8 +203,8 @@ describe('outcome bodies', () => {
         ...(expectedSuccess(oldPage) as object),
         upper,
       })
-      expect(readNew(codec, oldPage)).toEqual({ ok: false })
-      expect(readNew(codec, { ...oldPage, upper: 7 })).toEqual({ ok: false })
+      expect(readNew(codec, oldPage).ok).toBe(false)
+      expect(readNew(codec, { ...oldPage, upper: 7 }).ok).toBe(false)
     },
   )
 
@@ -213,19 +216,54 @@ describe('outcome bodies', () => {
         sample,
       )
       const wrong = { resource: 'sessions', limit: 1 }
-      expect(readNew(sessionProtocol.operations[name].outcomes.limited, wrong)).toEqual({
+      expect(readNew(sessionProtocol.operations[name].outcomes.limited, wrong)).toMatchObject({
         ok: false,
       })
     },
   )
 
+  it('a refused input may say which field and why, from revision 3', () => {
+    for (const name of ['send-input', 'interrupt-input'] as const) {
+      const codec = sessionProtocol.operations[name].outcomes.invalid
+      expect(
+        expectRoundTrip(codec, { field: 'value.message', reason: 'no such command: /nope' }),
+      ).toEqual({ field: 'value.message', reason: 'no such command: /nope' })
+      expect(readNew(codec, { reason: 3 }).ok).toBe(false)
+    }
+  })
+
   it('every other outcome with a codec has an empty body, as before', () => {
     for (const name of operations)
       for (const [outcome, codec] of Object.entries(sessionProtocol.operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
+        if (name === 'reload-session' && ['invalid', 'frozen', 'conflict'].includes(outcome))
+          continue
         expect(expectRoundTrip(codec, {})).toEqual({})
-        expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
+        if (outcome === 'invalid' && (name === 'send-input' || name === 'interrupt-input')) continue
+        expect(readNew(codec, { reason: 'x' }).ok).toBe(false)
       }
+  })
+})
+
+describe('reload-session', () => {
+  it('says why it is refused: the reason the candidate is not used, and which tool froze the session', () => {
+    const { outcomes } = sessionProtocol.operations['reload-session']
+    expect(expectRoundTrip(outcomes.invalid, { reason: 'the new version is refused' })).toEqual({
+      reason: 'the new version is refused',
+    })
+    expect(expectRoundTrip(outcomes.frozen, { capability: 'wordcount' })).toEqual({
+      capability: 'wordcount',
+    })
+    expect(expectRoundTrip(outcomes.frozen, { capability: null })).toEqual({ capability: null })
+    expect(readNew(outcomes.invalid, {}).ok).toBe(false)
+  })
+
+  it('says why the run could not be handed over: a cancel came first, another advancer, or the session moved', () => {
+    const { outcomes } = sessionProtocol.operations['reload-session']
+    for (const reason of ['cancelled', 'not-current', 'changed'])
+      expect(expectRoundTrip(outcomes.conflict, { reason })).toEqual({ reason })
+    expect(readNew(outcomes.conflict, { reason: 'other' }).ok).toBe(false)
+    expect(readNew(outcomes.conflict, {}).ok).toBe(false)
   })
 })
 
@@ -280,7 +318,7 @@ describe('list-sessions', () => {
     ['with an attendance it does not know', { tenant, cursor: null, attendance: 'nobody' }],
     ['with a parent that is no session', { tenant, cursor: null, parent: 7 }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readNew(listing.body, sample)).toEqual({ ok: false })
+    expect(readNew(listing.body, sample).ok).toBe(false)
   })
 
   it.each([
@@ -330,12 +368,12 @@ describe('list-sessions', () => {
       { sessions: [{ ...row, depth: -1 }], next: null, completeness: 'complete' },
     ],
   ])('refuses a succeeded body %s', (_label, sample) => {
-    expect(readNew(listing.outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readNew(listing.outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it('answers invalid with an empty body', () => {
     expect(expectRoundTrip(listing.outcomes.invalid, {})).toEqual({})
-    expect(readNew(listing.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
+    expect(readNew(listing.outcomes.invalid, { reason: 'x' }).ok).toBe(false)
   })
 })
 
@@ -374,7 +412,7 @@ describe('list-archived-sessions', () => {
     ['with another way of archiving', { tenant, cursor: null, by: 'robot' }],
     ['with a numeric title part', { tenant, cursor: null, titleContains: 3 }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readNew(listing.body, sample)).toEqual({ ok: false })
+    expect(readNew(listing.body, sample).ok).toBe(false)
   })
 
   it.each([
@@ -398,6 +436,6 @@ describe('list-archived-sessions', () => {
         next: null,
         completeness: 'complete',
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })

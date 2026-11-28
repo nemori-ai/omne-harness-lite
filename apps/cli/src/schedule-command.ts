@@ -10,6 +10,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
 import type { CallResult, Link } from './link.ts'
@@ -30,7 +31,7 @@ type Spec = Readonly<{
   options: readonly string[]
   required: readonly string[]
   switches?: readonly string[]
-  send: (read: Read, context: Context) => ((link: Link) => Promise<CallResult | undefined>) | string
+  send: (read: Read, context: Context) => ((link: Link) => Promise<CallResult>) | string
 }>
 type Context = Readonly<{ tenant: TenantId; newId: () => string; messageId: string }>
 
@@ -183,14 +184,64 @@ const SPECS: Readonly<Record<string, Spec>> = {
       return call(queried ? 'query-create-schedule' : 'create-schedule', body, messageId)
     },
   },
+  jobs: {
+    options: ['--schedule'],
+    required: [],
+    send: (read, { tenant, messageId }) =>
+      call(
+        'list-jobs',
+        { tenant, schedule: read.values.get('--schedule') ?? null, cursor: null, limit: 100 },
+        messageId,
+      ),
+  },
+  job: {
+    options: ['--job'],
+    required: ['--job'],
+    send: (read, { tenant, messageId }) =>
+      call('read-job', { tenant, job: text(read.values, '--job') }, messageId),
+  },
+  'session-jobs': {
+    options: ['--session'],
+    required: ['--session'],
+    send: (read, { tenant, messageId }) =>
+      call('read-session-jobs', { tenant, session: text(read.values, '--session') }, messageId),
+  },
+  'cancel-job': {
+    options: ['--job', '--action-id'],
+    required: ['--job'],
+    switches: [QUERY],
+    send(read, { tenant, newId, messageId }) {
+      const queried = read.values.has(QUERY)
+      if (queried && !read.values.has('--action-id')) return 'action-id'
+      const body = {
+        tenant,
+        actionId: read.values.get('--action-id') ?? newId(),
+        job: text(read.values, '--job'),
+      }
+      return call(queried ? 'query-cancel-job' : 'cancel-job', body, messageId)
+    },
+  },
+  'start-job': {
+    options: ['--work-file', '--start-id'],
+    required: ['--work-file'],
+    switches: [QUERY],
+    send(read, { tenant, newId, messageId }) {
+      const work = read.file('--work-file')
+      if (typeof work === 'string') return work
+      const queried = read.values.has(QUERY)
+      if (queried && !read.values.has('--start-id')) return 'start-id'
+      const body = { tenant, startId: read.values.get('--start-id') ?? newId(), work }
+      return call(queried ? 'query-start-job' : 'start-job', body, messageId)
+    },
+  },
   rename: manage(['--label'], ['--label'], read => ({
     kind: 'rename',
     label: text(read.values, '--label'),
   })),
-  edit: manage(['--instruction'], ['--instruction'], read => ({
-    kind: 'edit',
-    instruction: text(read.values, '--instruction'),
-  })),
+  edit: manage(['--instruction-file'], ['--instruction-file'], read => {
+    const instruction = read.file('--instruction-file')
+    return typeof instruction === 'string' ? instruction : { kind: 'edit', instruction }
+  }),
   revise: rework('revise'),
   replace: rework('replace'),
   promote: control('promote'),
@@ -237,14 +288,15 @@ async function runSchedule(
   )
   if (typeof send === 'string') return usageError(output, `omne ${name}: ${send}\n`)
   const result = await send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, { messageId, tenant: encodeTenantText(loaded.tenant) }, output)
 }
 
 export const scheduleCommand: CommandSpec = {
   name: 'schedule',
-  usage: 'list|show|history|agenda|preview|create|<action>',
+  usage:
+    'list|show|history|agenda|preview|create|jobs|job|session-jobs|cancel-job|start-job|<action>',
   summary:
-    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.',
+    'Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard. List the Jobs of a schedule or of the tenant, show one, list the Jobs a session carries out (session-jobs), cancel one, or start one directly.',
   run: runSchedule,
 }

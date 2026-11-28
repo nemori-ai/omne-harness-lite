@@ -510,11 +510,18 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'busy'
       | 'changed'
       | 'unsupported'
+      | 'reclaimed'
       | 'commit-unknown'
       | 'conflict'
     >()
     expectTypeOf<Extract<Failure, { kind: 'invalid' }>>().toEqualTypeOf<
-      Readonly<{ kind: 'invalid'; field: string; reason: string }>
+      Readonly<{
+        kind: 'invalid'
+        field: string
+        reason: string
+        rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+        disclosed?: string
+      }>
     >()
     expectTypeOf<
       Extract<Failure, { kind: 'commit-unknown' }>['operation']
@@ -741,7 +748,7 @@ describe('the discriminants of the request chapter', () => {
     >()
     expectTypeOf<
       Extract<Preparation, { kind: 'ready' }>['request']
-    >().toEqualTypeOf<M.FixedModelRequest>()
+    >().toEqualTypeOf<M.LlmModelRequest>()
     expectTypeOf<
       Extract<Preparation, { kind: 'assembled' }>['input']
     >().toEqualTypeOf<M.AssembledModelInput>()
@@ -851,7 +858,7 @@ describe('the subject of each position', () => {
     type CallFailure = Readonly<{
       purpose: 'main'
       call: M.ModelCallId
-      request: M.FixedModelRequest
+      request: M.LlmModelRequest
       fault: M.ModelFault
       dispatches: readonly M.DispatchRecord[]
       retry: M.RetryResolution | null
@@ -1313,7 +1320,7 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<Parameters<AgentJournalAttachment<string>['open']>[0]>().toEqualTypeOf<
       ExecutionMutation<string> &
         Readonly<{
-          original: OriginalInputAcceptance
+          originals: readonly [OriginalInputAcceptance, ...OriginalInputAcceptance[]]
           runtime: InvokeRuntimeContext
           checkpoint: AgentCheckpoint
         }>
@@ -1405,12 +1412,15 @@ describe('Tool association and control references', () => {
       purpose: 'action'
       association: 'associated'
       reference: T.ToolInvocationRef
+      acceptance: 'accepted' | 'unknown'
     }>
 
   it('allows intent before identity and requires the Tool reference after association', () => {
     expectTypeOf<Intent>().toExtend<PendingCall>()
     expectTypeOf<Associated>().toExtend<PendingCall>()
     expectTypeOf<Omit<Associated, 'reference'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Omit<Associated, 'acceptance'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { acceptance: 'accepted' }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { call: T.ToolCallId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { admission: T.ToolOperationId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { reference: T.ToolInvocationRef }>().not.toExtend<PendingCall>()

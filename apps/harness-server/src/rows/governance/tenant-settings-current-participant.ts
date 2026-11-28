@@ -30,7 +30,7 @@ export default {
     const snapshot = targetSnapshotSchema.parse(port.requireFact(targetSnapshotFact))
     const material =
       canonicalText(snapshot.binding) === canonicalText(request.snapshot)
-        ? tenantSettingsCurrentMaterial(snapshot, configuration)
+        ? tenantSettingsCurrentMaterial(snapshot, configuration, request.binding.commandKind)
         : undefined
     if (phase === 'ready') {
       if (material === undefined)

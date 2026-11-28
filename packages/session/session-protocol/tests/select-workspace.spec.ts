@@ -35,14 +35,16 @@ describe('select-workspace', () => {
       { tenant, session, controlId: 'control', workspace: { ...workspace, directory: '/a' } },
       { tenant, session, controlId: 'control', workspace, extra: 1 },
     ])
-      expect(readSample(select.body, sample)).toEqual({ ok: false })
+      expect(readSample(select.body, sample).ok).toBe(false)
   })
 
   it('answers the directory the session works in from its next step, or none', () => {
     expectRoundTrip(select.outcomes.succeeded, { controlId: 'control', directory: '/srv/blog' })
     expectRoundTrip(select.outcomes.succeeded, { controlId: 'control', directory: null })
-    expect(readSample(select.outcomes.succeeded, { controlId: 'control' })).toEqual({ ok: false })
-    expect(readSample(select.outcomes.succeeded, { controlId: 'control', directory: '' })).toEqual({
+    expect(readSample(select.outcomes.succeeded, { controlId: 'control' }).ok).toBe(false)
+    expect(
+      readSample(select.outcomes.succeeded, { controlId: 'control', directory: '' }),
+    ).toMatchObject({
       ok: false,
     })
   })
@@ -50,7 +52,7 @@ describe('select-workspace', () => {
   it('refuses a target Workspace did not verify with one of the two reasons', () => {
     for (const reason of ['not-permitted', 'instance-unavailable'])
       expectRoundTrip(select.outcomes.invalid, { reason })
-    expect(readSample(select.outcomes.invalid, { reason: 'other' })).toEqual({ ok: false })
+    expect(readSample(select.outcomes.invalid, { reason: 'other' }).ok).toBe(false)
   })
 })
 
@@ -67,6 +69,6 @@ describe('create-session with a workspace', () => {
       { ...base, workspace: { ...workspace, workspace: '' } },
       { ...base, workspace: 'wsp_00000000000000000000000001' },
     ])
-      expect(readSample(create.body, sample)).toEqual({ ok: false })
+      expect(readSample(create.body, sample).ok).toBe(false)
   })
 })

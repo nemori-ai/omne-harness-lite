@@ -13,5 +13,9 @@ it('the cordis entry exports the plugins and the credential service function, no
     'createModelStreamLocalPlugin',
     'modelProviderCategoryPlugin',
     'serveModelCredential',
+    'serveModelDecisionPreparation',
+    'serveModelLiveCalls',
+    'serveModelLivePreparation',
+    'serveModelPreferences',
   ])
 })

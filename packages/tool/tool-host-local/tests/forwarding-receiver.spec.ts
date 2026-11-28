@@ -174,7 +174,7 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     })
     expect(await f.push()).toEqual({ failure: { kind: 'conflict' } })
   })
-  it('keeps one record per received copy in the slot domain and releases them with the parent delivery', async () => {
+  it('keeps one record per received copy in the slot domain and releases them with the parent delivery once the parent brought the result back; until then they stay for a later read', async () => {
     const f = await receiverFixture()
     const domain = sourceDomain(f.parent.tenant, forwardingConsumer(f.parent.call))
     const keys = async () => {
@@ -203,14 +203,20 @@ describe('forwarding receiver custody protocol over an explicit store double', (
     expect(f.memory.reads).toBe(reads)
     expect(await keys()).toHaveLength(3)
     expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
+    expect(await keys()).toHaveLength(3)
+    f.source.forwarding.presented?.(f.parent)
+    expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
     expect(await keys()).toEqual(slotOnly)
     expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
     ok(await f.push())
+    expect(await keys()).toHaveLength(2)
+    expect(await f.source.releaseReceivedCopies(f.parent)).toBe('released')
     expect(await keys()).toHaveLength(2)
   })
   it('a release whose commit does not land answers unavailable and keeps the copies', async () => {
     const f = await receiverFixture()
     ok(await f.push())
+    f.source.forwarding.presented?.(f.parent)
     f.arm('unavailable')
     expect(await f.source.releaseReceivedCopies(f.parent)).toBe('unavailable')
     const read = await f.memory.read(

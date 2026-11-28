@@ -36,6 +36,7 @@ export type CommitRequestV2 = Readonly<{
   combinationVersion: string
   manifestDigest: string
   commands: readonly FactCommandV2[]
+  releases?: readonly SqlIdentity[]
 }>
 
 export type CommitOptions = Readonly<{ signal?: AbortSignal }>
@@ -109,6 +110,7 @@ export type CommitRejectReason =
   | 'cancelled'
   | 'field_missing'
   | 'unsupported_protocol'
+  | 'release_outside_domain'
   | 'participant_repeated'
   | 'facts_not_json'
   | 'command_limit'
@@ -145,26 +147,27 @@ export type CommitReceiptV2 = ReceiptV2 & Readonly<{ recalled: boolean }>
 
 export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2
 
+export type SettlementProofsV2 = Readonly<{
+  writerGenerationExcluded: true
+  oldTransactionTerminated: true
+  databaseRecoveryFinished: true
+  authoritativeReadSucceeded: true
+  operationNotQueued: true
+}>
+
 export type NotCommittedV2 = Readonly<{
   kind: 'not_committed'
   identity: SqlIdentity
-  proofs: Readonly<{
-    writerGenerationExcluded: true
-    oldTransactionTerminated: true
-    databaseRecoveryFinished: true
-    authoritativeReadSucceeded: true
-    operationNotQueued: true
-  }>
+  proofs: SettlementProofsV2
 }>
 
-export type NotRecallableV2 = Readonly<{ kind: 'not_recallable'; identity: SqlIdentity }>
+export type SettledV2 = Readonly<{
+  kind: 'settled'
+  identity: SqlIdentity
+  proofs: SettlementProofsV2
+}>
 
-export type QueryResultV2 =
-  | CommittedV2
-  | RolledBackV2
-  | UnknownV2
-  | NotCommittedV2
-  | NotRecallableV2
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | SettledV2
 
 export type RegistrationKey = Readonly<{
   scope: StorageScope
@@ -354,9 +357,45 @@ export type StorageCloseResult =
   | Readonly<{ kind: 'closed' }>
   | Readonly<{ kind: 'incomplete'; residuals: readonly StorageResidual[] }>
 
+export type StorageReadCount = Readonly<{
+  domain: string
+  handler: string
+  read: number
+  unavailable: number
+  cancelled: number
+}>
+
+export type StorageCommitCount = Readonly<{
+  domain: string
+  committed: number
+  recalled: number
+  rolledBack: number
+  unknown: number
+  conflicted: number
+  rejected: number
+  bytes: number
+}>
+
+export type StorageParticipantCount = Readonly<{
+  domain: string
+  participant: string
+  committed: number
+}>
+
+export type StorageQueryCount = Readonly<{ domain: string; answered: number; unknown: number }>
+
+/** What a provider counted at its port since it was created. The counts only grow; a reader takes two and subtracts. */
+export type StorageReadings = Readonly<{
+  reads: readonly StorageReadCount[]
+  commits: readonly StorageCommitCount[]
+  participants: readonly StorageParticipantCount[]
+  queries: readonly StorageQueryCount[]
+}>
+
 export interface StorageControl {
   close(input: Readonly<{ initiator: CloseInitiator }>): Promise<StorageCloseResult>
   assemblyReportSettled(): void
+  readings(): StorageReadings
 }
 
 export interface StorageHost {

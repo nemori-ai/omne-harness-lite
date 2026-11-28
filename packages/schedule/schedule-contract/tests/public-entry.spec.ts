@@ -15,6 +15,24 @@ it('validates a strict trusted owner without accepting model-supplied additions'
   ).toBe(false)
 })
 
+it('names an agent author with its session and its call; who the author is leaves the call out', () => {
+  const agent = {
+    kind: 'agent',
+    actorRef: 'principal/p',
+    originatingSessionRef: 'session-1',
+    originatingCallRef: 'call-1',
+  } as const
+  expect(contract.ScheduleAuthorSchema.parse(agent)).toEqual(agent)
+  const { originatingCallRef: _call, ...withoutCall } = agent
+  expect(contract.ScheduleAuthorSchema.safeParse(withoutCall).success).toBe(false)
+  expect(contract.scheduleAuthorIdentity(agent)).toEqual(withoutCall)
+  expect(contract.scheduleAuthorIdentity({ ...agent, originatingCallRef: 'call-2' })).toEqual(
+    withoutCall,
+  )
+  const human = { kind: 'human', actorRef: 'acc' } as const
+  expect(contract.scheduleAuthorIdentity(human)).toEqual(human)
+})
+
 it('constructs an operation locator before a server receipt exists', () => {
   const address = {
     protocol: 'omne.calendar-schedule/1',

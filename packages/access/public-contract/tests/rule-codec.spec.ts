@@ -67,7 +67,7 @@ describe('strict reading', () => {
       ['size', { kind: 'null' }],
       ['admin', { kind: 'boolean', value: true }],
     )
-    expect(note.read(extra, limits)).toEqual({ ok: false })
+    expect(note.read(extra, limits).ok).toBe(false)
   })
 
   it('rejects a duplicate key instead of keeping the last value', () => {
@@ -77,32 +77,38 @@ describe('strict reading', () => {
       ['size', { kind: 'null' }],
       ['title', text('Other')],
     )
-    expect(note.read(duplicate, limits)).toEqual({ ok: false })
+    expect(note.read(duplicate, limits).ok).toBe(false)
   })
 
   it('rejects a duplicate key nested inside a field', () => {
     const codec = ruleCodec({ kind: 'json' })
-    expect(codec.read(object(['a', object(['b', text('1')], ['b', text('2')])]), limits)).toEqual({
+    expect(
+      codec.read(object(['a', object(['b', text('1')], ['b', text('2')])]), limits),
+    ).toMatchObject({
       ok: false,
+      rejection: {
+        at: [],
+        allows: 'a well-formed JSON value: plain objects and lists, no repeated key, no cycle',
+      },
     })
   })
 
   it('rejects a missing field, a wrong literal and a malformed tree', () => {
-    expect(note.read(object(['title', text('Plan')]), limits)).toEqual({ ok: false })
+    expect(note.read(object(['title', text('Plan')]), limits).ok).toBe(false)
     const wrong = object(
       ['title', text('Plan')],
       ['tags', array(text('x'))],
       ['size', { kind: 'null' }],
     )
-    expect(note.read(wrong, limits)).toEqual({ ok: false })
-    expect(note.read({ kind: 'object' } as unknown as JsonValue, limits)).toEqual({ ok: false })
-    expect(note.read(null as unknown as JsonValue, limits)).toEqual({ ok: false })
+    expect(note.read(wrong, limits).ok).toBe(false)
+    expect(note.read({ kind: 'object' } as unknown as JsonValue, limits).ok).toBe(false)
+    expect(note.read(null as unknown as JsonValue, limits).ok).toBe(false)
   })
 
   it('rejects a tree larger than the item limit', () => {
     const list = ruleCodec({ kind: 'array', item: { kind: 'text' } })
     const items = Array.from({ length: 40 }, () => text('a'))
-    expect(list.read(array(...items), limits)).toEqual({ ok: false })
+    expect(list.read(array(...items), limits).ok).toBe(false)
     expect(list.read(array(...items), { ...limits, maxItems: 64 }).ok).toBe(true)
   })
 })
@@ -110,10 +116,10 @@ describe('strict reading', () => {
 describe('writing', () => {
   it('gives ok false for a value the rule does not accept', () => {
     if (owner === undefined) throw new Error('fixture account did not parse')
-    expect(note.write({ title: '', tags: [], size: null }, limits)).toEqual({ ok: false })
-    expect(note.write({ title: 'Plan', tags: [], size: 0 }, limits)).toEqual({ ok: false })
+    expect(note.write({ title: '', tags: [], size: null }, limits).ok).toBe(false)
+    expect(note.write({ title: 'Plan', tags: [], size: 0 }, limits).ok).toBe(false)
     const forged = { title: 'Plan', owner: { ...owner }, tags: [], size: null }
-    expect(note.write(forged, limits)).toEqual({ ok: false })
+    expect(note.write(forged, limits).ok).toBe(false)
   })
 
   it('gives ok false for a list longer than the item limit', () => {
@@ -123,6 +129,6 @@ describe('writing', () => {
         Array.from({ length: 40 }, () => 'a'),
         limits,
       ),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })

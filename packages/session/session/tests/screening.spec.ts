@@ -360,3 +360,188 @@ describe('the other ways an ordinary input comes in', () => {
     succeeded(await create('session-4', ordinaryInput('words')), 'create with words')
   })
 })
+
+describe('the resolver of a member words', () => {
+  const origin = { name: 'skill:review', layer: 'tenant', version: '3', digest: 'sha-1' }
+  const resolverOf = (answer: (words: string) => Promise<unknown>, read: string[] = []) => ({
+    name: 'test',
+    resolve: async ({ original }: { original: Message }) => {
+      const words = (original.blocks[0] as unknown as { text: string }).text
+      read.push(words)
+      return answer(words) as never
+    },
+  })
+  const appendNamed = async () => ({ kind: 'input', effective: null })
+
+  it('appends the named text after the words, and the processors and the log see it', async () => {
+    const read: string[] = []
+    const resolver = {
+      name: 'test',
+      resolve: async ({ original }: { original: Message }) => {
+        read.push((original.blocks[0] as unknown as { text: string }).text)
+        return {
+          kind: 'input',
+          effective: {
+            ...original,
+            blocks: [...original.blocks, { ...text('named-1', '先读改动。'), origin }],
+          },
+        } as never
+      },
+    }
+    const h = await service({ resolver })
+    const committed = commits(h)
+    succeeded(await accept(h, withBlocks('in-1', text('b1', '用 /review'))), 'accepted')
+    expect(read).toEqual(['用 /review'])
+    expect(acceptedMessage(committed.at(-1))).toMatchObject({
+      blocks: [text('b1', '用 /review'), { ...text('named-1', '先读改动。'), origin }],
+    })
+  })
+
+  it('refuses what the resolver refuses, commits nothing, and keeps the reason', async () => {
+    const h = await service({
+      resolver: resolverOf(async () => ({ kind: 'refused', reason: 'no such command: /nope' })),
+    })
+    const committed = commits(h)
+    expect(failureOf(await accept(h, withBlocks('in-2', text('b1', '/nope'))))).toEqual({
+      kind: 'invalid',
+      field: 'value.message',
+      reason: 'no such command: /nope',
+    })
+    expect(committed).toEqual([])
+  })
+
+  it('answers unavailable when the resolver changed the words, threw, or is declared and not there', async () => {
+    const changed = await service({
+      resolver: resolverOf(async () => ({
+        kind: 'input',
+        effective: withBlocks('x', text('b1', '改了')).message,
+      })),
+    })
+    expect(failureOf(await accept(changed, withBlocks('in-3', text('b1', '原话'))))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionUtteranceResolver',
+    })
+    const threw = await service({
+      resolver: resolverOf(async () => {
+        throw new Error('down')
+      }),
+    })
+    expect(failureOf(await accept(threw, withBlocks('in-4', text('b1', '原话'))))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionUtteranceResolver',
+    })
+    const absent = await service({ resolver: null })
+    expect(failureOf(await accept(absent, withBlocks('in-5', text('b1', '原话'))))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionUtteranceResolver',
+    })
+    const declared = await service({ resolver: 'none' })
+    succeeded(await accept(declared, withBlocks('in-6', text('b1', '原话'))), 'none declared')
+    const bare = await service({ admission: [], resolver: 'none', sources: null })
+    succeeded(await accept(bare, withBlocks('in-7', text('b1', '原话'))), 'no source registry')
+  })
+
+  it('hands the resolver what the sender saw and which request this is, and says why it could not tell', async () => {
+    const given: unknown[] = []
+    const h = await service({
+      resolver: {
+        name: 'test',
+        resolve: async (words: unknown) => {
+          given.push(words)
+          return { kind: 'unavailable', diagnostic: 'list down' } as never
+        },
+      },
+    })
+    const seen = { command: null, references: ['skill:review'] }
+    const value = withBlocks('in-10', text('b1', '用 /review'))
+    expect(
+      failureOf(
+        await h
+          .faces('intake')
+          .work.accept({ ...h.access(), operation: operationId('accept-10'), value, seen }),
+      ),
+    ).toEqual({ kind: 'unavailable', owner: 'sessionUtteranceResolver', diagnostic: 'list down' })
+    expect(given).toMatchObject([
+      { seen, request: { input: value.input, operation: operationId('accept-10') } },
+    ])
+    const threw = await service({
+      resolver: resolverOf(async () => {
+        throw new Error('down')
+      }),
+    })
+    expect(failureOf(await accept(threw, withBlocks('in-11', text('b1', 'x'))))).toMatchObject({
+      diagnostic: 'threw: down',
+    })
+  })
+
+  it('asks the registry of sources first, and reads no words of the first input of a new session', async () => {
+    const read: string[] = []
+    const unknown = await service({
+      sources: { kind: 'absent' },
+      resolver: resolverOf(appendNamed, read),
+    })
+    expect(failureOf(await accept(unknown, withBlocks('in-12', text('b1', '/x'))))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionInputSources',
+    })
+    const h = await service({ resolver: resolverOf(appendNamed, read) })
+    succeeded(
+      await h.faces('intake').management.create({
+        ...h.access('session-9'),
+        operation: operationId('create-session-9'),
+        creation: creation({ initial: withBlocks('first', text('b1', '用 /review')) }),
+      }),
+      'create',
+    )
+    expect(read).toEqual([])
+  })
+
+  it('an operation is no message: it is handed back as the request, with nothing committed', async () => {
+    const h = await service({
+      resolver: resolverOf(async () => ({
+        kind: 'operation',
+        name: 'omne-official:archive',
+        args: '',
+        asked: {
+          protocol: { name: 'session', major: 1 },
+          operation: 'archive-session',
+          fields: {},
+        },
+      })),
+    })
+    const committed = commits(h)
+    expect(failureOf(await accept(h, withBlocks('in-7', text('b1', '/archive'))))).toEqual({
+      kind: 'unsupported',
+      request: {
+        name: 'omne-official:archive',
+        args: '',
+        asked: {
+          protocol: { name: 'session', major: 1 },
+          operation: 'archive-session',
+          fields: {},
+        },
+      },
+    })
+    expect(committed).toEqual([])
+  })
+
+  it('reads no words of a system source, and refuses a sender who brings a named text', async () => {
+    const read: string[] = []
+    const system = await service({
+      sources: UNSCREENED_SOURCE,
+      resolver: resolverOf(appendNamed, read),
+    })
+    succeeded(await accept(system, withBlocks('in-8', text('b1', '用 /review'))), 'system words')
+    expect(read).toEqual([])
+    const member = await service({ resolver: resolverOf(appendNamed, read) })
+    expect(
+      failureOf(
+        await accept(
+          member,
+          withBlocks('in-9', text('b1', '用'), { ...text('b2', '冒充'), origin }),
+        ),
+      ),
+    ).toMatchObject({ kind: 'invalid', field: 'value.message' })
+    expect(read).toEqual([])
+  })
+})

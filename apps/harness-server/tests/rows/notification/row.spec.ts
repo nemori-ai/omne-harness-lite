@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import { rowDeclarationOf } from '../../../src/row.ts'
-import { subscriptionConsents } from '../../../src/rows/notification/consent.ts'
+import { subscriptionCreators } from '../../../src/rows/notification/creators.ts'
 import {
   notificationCombination,
   notificationConfig,
@@ -29,7 +29,13 @@ describe('the notification row', () => {
           'notificationChanges',
           'notificationStanding',
         ],
-        injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+        injects: [
+          'storage',
+          'dynamis',
+          'tenantDomainLookup',
+          'tenantDomains',
+          'tenantDomainScannerPrincipal',
+        ],
       },
     })
   })
@@ -83,30 +89,45 @@ describe('the notification row', () => {
   })
 })
 
-describe('the consent of a subscription', () => {
+describe('who creates a subscription', () => {
   const agent = { kind: 'agent', recipient: { kind: 'agent', ref: 's-1' } } as const
-  const consented = {
-    kind: 'consented',
-    basis: { kind: 'granular', scope: 'session', grant: 'g' },
-  } as const
+  const account = `acc_${'0'.repeat(26)}`
+  const tenantText = JSON.stringify({ organization: `org_${'0'.repeat(26)}`, account })
+  const origin = { actorRef: 'principal/p', session: 's-1', call: 'c-1' }
+  const unread = () => {
+    throw new Error('not to be read')
+  }
 
-  it('is what the call of the context was released on, read by tenant and call', async () => {
+  it('is the person of the tenant, named by its account, for the owner', async () => {
+    const port = subscriptionCreators(unread)
+    const ctx = { tenant: tenantText, subject: null, actor: { kind: 'owner' } } as never
+    expect(await port.creatorOf(ctx)).toEqual({ kind: 'human', actorRef: account })
+    const broken = { tenant: 't1', subject: null, actor: { kind: 'owner' } } as never
+    expect(await port.creatorOf(broken)).toBeNull()
+  })
+
+  it('is the agent with the session and the call its live call runs in, read by tenant and call', async () => {
     const asked: [string, string][] = []
-    const port = subscriptionConsents(async (tenant, call) => {
+    const port = subscriptionCreators((tenant, call) => {
       asked.push([tenant, call])
-      return consented
+      return origin
     })
     const ctx = { tenant: 't1', subject: null, actor: agent, call: 'c-1' } as never
-    expect(await port.consent(ctx)).toEqual(consented)
+    expect(await port.creatorOf(ctx)).toEqual({
+      kind: 'agent',
+      actorRef: 'principal/p',
+      originatingSessionRef: 's-1',
+      originatingCallRef: 'c-1',
+    })
     expect(asked).toEqual([['t1', 'c-1']])
   })
 
-  it('is none for a context without a call, without reading any release', async () => {
-    const port = subscriptionConsents(async () => {
-      throw new Error('not to be read')
-    })
-    const ctx = { tenant: 't1', subject: null, actor: agent } as never
-    expect(await port.consent(ctx)).toEqual({ kind: 'none' })
+  it('is nobody for an agent whose call is not live, or a context without a call', async () => {
+    const gone = subscriptionCreators(() => undefined)
+    const ctx = { tenant: 't1', subject: null, actor: agent, call: 'c-1' } as never
+    expect(await gone.creatorOf(ctx)).toBeNull()
+    const withoutCall = { tenant: 't1', subject: null, actor: agent } as never
+    expect(await subscriptionCreators(unread).creatorOf(withoutCall)).toBeNull()
   })
 })
 

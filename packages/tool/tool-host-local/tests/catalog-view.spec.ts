@@ -279,6 +279,21 @@ describe('legal catalog view and BM25', () => {
       failure: { kind: 'invalid-cursor' },
     })
   })
+  it('a search for what a program can call keeps resident tools, and a search for what to call directly leaves them out', async () => {
+    const w = setup()
+    w.view = {
+      ...w.view,
+      entries: w.rows.map(r => ({ key: r.entry.key, resident: r.definition.name === 'bravo' })),
+    }
+    expect(await names(w.catalog)).toEqual(['charlie', 'alpha'])
+    const callable = await page(w.catalog, { invocation: 'programmatic' })
+    if ('failure' in callable) throw new Error('page')
+    expect(callable.ok.entries.map(e => [e.definition.name, e.resident]).sort()).toEqual([
+      ['alpha', false],
+      ['bravo', true],
+      ['charlie', false],
+    ])
+  })
   it('metadata replacement removes resident search entries while inspect and usage keep fresh metadata', async () => {
     const w = setup()
     const first = await page(w.catalog, { limit: 1 })
@@ -521,7 +536,7 @@ describe('currently disclosed known definitions after contribution retirement', 
     expect(await names(w.catalog)).toEqual(expected)
     expect(await names(w.catalog, { invocation: 'programmatic' })).toEqual([])
     const residents = Array.from({ length: 100 }, (_, index) =>
-      row(`known-resident${index}`, 'pear'),
+      row(`knownResident${index}`, 'pear'),
     )
     w.view = {
       ...w.view,
@@ -545,7 +560,7 @@ describe('currently disclosed known definitions after contribution retirement', 
     })
   })
 
-  it('keeps live selection and invalidates cursors on retirement or retained metadata changes', async () => {
+  it('keeps live selection and cursors over same-adoption metadata, and invalidates cursors on retirement or a retained adoption change', async () => {
     const w = knownWorld()
     const first = await page(w.catalog, { limit: 1 })
     if ('failure' in first || first.ok.next === null) throw new Error('missing cursor')
@@ -555,27 +570,38 @@ describe('currently disclosed known definitions after contribution retirement', 
     })
     const retired = await page(w.catalog, { limit: 1 })
     if ('failure' in retired || retired.ok.next === null) throw new Error('missing retired cursor')
+    const original = w.view
     w.view = {
-      ...w.view,
-      entries: w.view.entries.map(entry => ({
-        ...entry,
-        ...(entry.key.asset.name !== 'bravo' || entry.knownDefinition === undefined
-          ? {}
+      ...original,
+      entries: original.entries.map(entry =>
+        entry.key.asset.name !== 'bravo' || entry.knownDefinition === undefined
+          ? entry
           : {
-              knownDefinition: {
-                ...entry.knownDefinition,
-                description: 'changed retained metadata',
-              },
-            }),
-      })),
+              ...entry,
+              knownDefinition: { ...entry.knownDefinition, description: 'changed metadata' },
+            },
+      ),
     }
-    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toMatchObject({
-      failure: { kind: 'invalid-cursor' },
-    })
+    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toHaveProperty('ok')
     expect(
       await w.catalog.inspect({ ...access, consumer, name: 'bravo', command: null }),
     ).toMatchObject({
       ok: { kind: 'available', definition: { description: 'pear pear pear' } },
+    })
+    w.view = {
+      ...original,
+      entries: original.entries.map(entry => {
+        if (entry.key.asset.name !== 'alpha' || entry.knownDefinition === undefined) return entry
+        const adoption = { ...entry.knownDefinition.adoption, revision: '2' }
+        return {
+          ...entry,
+          key: { ...entry.key, asset: { ...entry.key.asset, adoption } },
+          knownDefinition: { ...entry.knownDefinition, adoption, description: 'changed metadata' },
+        }
+      }),
+    }
+    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toMatchObject({
+      failure: { kind: 'invalid-cursor' },
     })
   })
 
@@ -591,7 +617,7 @@ describe('currently disclosed known definitions after contribution retirement', 
             : {
                 knownDefinition:
                   mismatch === 'name'
-                    ? { ...entry.knownDefinition, name: 'different-name' }
+                    ? { ...entry.knownDefinition, name: 'different' }
                     : mismatch === 'adoption'
                       ? {
                           ...entry.knownDefinition,

@@ -192,7 +192,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
 it('an unassociated Tool intent retains its original identity when a later event supplies the actual invocation', async () => {
   const s = await scene('intent-association'),
     tool = toolCall(s.access.tenant),
-    { reference: _reference, ...rest } = tool.pending,
+    { reference: _reference, acceptance: _acceptance, ...rest } = tool.pending,
     intent: PendingCall = { ...rest, association: 'intent' }
   let receipt = ok(
     await s.view.journal.commit({

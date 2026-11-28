@@ -5,12 +5,18 @@ import type {
   ContextWindow,
   DispatchId,
   ModelCallId,
+  Parameter,
   Supplier,
 } from './root.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ModelFault, Reply } from './result.ts'
-import type { DispatchInstants } from './call-surface.ts'
+import type { DispatchInstants, DispatchRecord } from './call-surface.ts'
 import type { CostLookupState } from './cost-lookup.ts'
+
+export type DispatchEffort = Readonly<{
+  value: Extract<Parameter, { kind: 'reasoning-effort' }>['value'] | null
+  basis: 'selection' | 'preference' | 'provider'
+}>
 
 /** One real dispatch as Model shows it outside: numbers and identities only, never a body. */
 export type ModelDispatchFact = Readonly<{
@@ -30,7 +36,23 @@ export type ModelDispatchFact = Readonly<{
   connectRetries: number
   account: CallAccount | null
   costLookup: CostLookupState
+  effort?: DispatchEffort
 }>
+/** A materialized request may already be out: until its start is recorded, its send is unknown, never not-sent. */
+export function dispatchSend(
+  record: Pick<DispatchRecord, 'send' | 'materialization'>,
+): ModelDispatchFact['send'] {
+  switch (record.send) {
+    case 'started':
+      return 'sent'
+    case 'unknown':
+      return 'unknown'
+    case 'not-sent':
+      return 'not-sent'
+    case 'prepared':
+      return record.materialization === null ? 'not-sent' : 'unknown'
+  }
+}
 export type ModelDispatchFactsQuery = Readonly<{
   /** By the prepared moment, both ends included; null takes every dated dispatch. */
   range: Readonly<{ from: string; to: string }> | null
@@ -49,4 +71,7 @@ export type ModelDispatchFactsPage = Readonly<{
 }>
 export interface ModelDispatchFacts<P> {
   list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>
+  readonly ofCall?: (
+    input: Access<P> & Readonly<{ call: ModelCallId }>,
+  ) => Reply<readonly ModelDispatchFact[]>
 }

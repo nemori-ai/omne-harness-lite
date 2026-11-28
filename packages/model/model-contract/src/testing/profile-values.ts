@@ -8,11 +8,12 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import type { ModelFailure } from '../result.ts'
-import { profileCovers } from '../profile.ts'
+import { chatNeedOf, isProfileOf, meetsNeed } from '../profile.ts'
 import type {
   ModalityRequirement,
   ModelChoices,
   ModelProfile,
+  ProfileKind,
   ProfileResolution,
   ProfileScope,
 } from '../profile.ts'
@@ -37,7 +38,7 @@ export function profileScopeFailure(
 }
 
 export function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
-  return profileCovers(profile.definition, required)
+  return meetsNeed(profile.definition, chatNeedOf(required))
 }
 
 function copyScope(scope: ProfileScope): ProfileScope {
@@ -51,11 +52,15 @@ function copyScope(scope: ProfileScope): ProfileScope {
   }
 }
 
-export function copyProfile(profile: ModelProfile): ModelProfile {
+export function copyProfile<K extends ProfileKind>(profile: ModelProfile<K>): ModelProfile<K> {
   const { identity, ...rest } = profile
   return Object.freeze({
     ...frozenCopy(rest),
-    identity: Object.freeze({ scope: copyScope(identity.scope), route: identity.route }),
+    identity: Object.freeze({
+      scope: copyScope(identity.scope),
+      kind: identity.kind,
+      route: identity.route,
+    }),
   })
 }
 
@@ -63,6 +68,16 @@ export function copyResolution(resolution: ProfileResolution): ProfileResolution
   if (resolution.kind === 'absent') return frozenCopy(resolution)
   const { profile, ...rest } = resolution
   return Object.freeze({ ...frozenCopy(rest), profile: copyProfile(profile) })
+}
+
+/** The resolution as one of a kind; null when it resolved a profile of another kind. */
+export function resolutionOf<K extends ProfileKind>(
+  resolution: ProfileResolution,
+  kind: K,
+): ProfileResolution<K> | null {
+  if (resolution.kind === 'absent') return resolution
+  const { profile } = resolution
+  return isProfileOf(profile, kind) ? Object.freeze({ ...resolution, profile }) : null
 }
 
 export function copyChoices(choices: ModelChoices): ModelChoices {

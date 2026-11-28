@@ -89,6 +89,8 @@ export abstract class IdentityGovernanceService extends Service implements Ident
   abstract readonly changeMemberRole: IdentityGovernance['changeMemberRole']
   abstract readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant']
   abstract readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant']
+  abstract readonly readAccountPreference: IdentityGovernance['readAccountPreference']
+  abstract readonly writeAccountPreference: IdentityGovernance['writeAccountPreference']
   abstract readonly revokeLogin: IdentityGovernance['revokeLogin']
   abstract readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins']
   abstract readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess']
@@ -104,6 +106,7 @@ export abstract class StandingReservationsService extends Service implements Sta
   abstract readonly observe: StandingReservations['observe']
   abstract readonly reserve: StandingReservations['reserve']
   abstract readonly settle: StandingReservations['settle']
+  abstract readonly release: StandingReservations['release']
   abstract readonly recover: StandingReservations['recover']
 }
 export const standingReservationsKey = StandingReservationsService.provide

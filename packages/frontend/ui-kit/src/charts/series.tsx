@@ -13,11 +13,13 @@ import {
 } from 'recharts'
 import { formatNumber } from './format.ts'
 import {
+  CHART_COPY,
   ChartFrame,
   markClass,
   SeriesTable,
   seriesState,
   Unknown,
+  type ChartCopy,
   type ChartFormat,
   type ChartRow,
   type ChartSeries,
@@ -29,6 +31,7 @@ export type SeriesChartProps = Readonly<{
   rows: readonly ChartRow[]
   format?: ChartFormat
   height?: number
+  copy?: ChartCopy
 }>
 
 type Kind = 'bar' | 'line' | 'area'
@@ -58,12 +61,14 @@ function TooltipBody({
   payload,
   series,
   format,
+  copy,
 }: {
   readonly active: boolean | undefined
   readonly label: unknown
   readonly payload: readonly TooltipItem[] | undefined
   readonly series: readonly ChartSeries[]
   readonly format: ChartFormat
+  readonly copy: ChartCopy
 }): React.JSX.Element | null {
   const datum = payload?.[0]?.payload as Datum | undefined
   if (active !== true || datum === undefined) return null
@@ -76,7 +81,7 @@ function TooltipBody({
           return (
             <li key={item.key}>
               <span className={`omne-chart-swatch ${markClass(index)}`} aria-hidden="true" />
-              {item.label}：{typeof value === 'number' ? format(value) : <Unknown />}
+              {item.label}：{typeof value === 'number' ? format(value) : <Unknown copy={copy} />}
             </li>
           )
         })}
@@ -156,6 +161,7 @@ function SeriesChart({
   rows,
   format = formatNumber,
   height = 200,
+  copy = CHART_COPY,
 }: SeriesChartProps & { readonly kind: Kind }): React.JSX.Element {
   const Frame = kind === 'bar' ? BarFrame : kind === 'line' ? LineFrame : AreaFrame
   const data = dataOf(series, rows)
@@ -163,7 +169,8 @@ function SeriesChart({
     <ChartFrame
       label={label}
       state={seriesState(series, rows)}
-      table={<SeriesTable series={series} rows={rows} format={format} />}
+      table={<SeriesTable series={series} rows={rows} format={format} copy={copy} />}
+      copy={copy}
     >
       <ResponsiveContainer width="100%" height={height} initialDimension={{ width: 480, height }}>
         <Frame data={data} accessibilityLayer className="omne-chart-plot" margin={MARGIN}>
@@ -186,6 +193,7 @@ function SeriesChart({
                 payload={props.payload as readonly TooltipItem[] | undefined}
                 series={series}
                 format={format}
+                copy={copy}
               />
             )}
           />

@@ -1,0 +1,83 @@
+{
+  "scope": "finite safety and liveness models of process-layer assembly: one row swapping generations behind a stable entry (Swap), supervision of official rows and the process after a row breaks (Supervise), version directories with a current pointer and rollback (Versions); each is a small world with the bounds written in its MC module and configs; no proof of the implementation",
+  "cases": [
+    {
+      "name": "supervise-all-rerun",
+      "model": "models/MCSupervise.tla",
+      "config": "models/supervise-all-rerun.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "supervise-bad-hang",
+      "model": "models/MCSupervise.tla",
+      "config": "models/supervise-bad-hang.cfg",
+      "expected": "temporal:NoHang"
+    },
+    {
+      "name": "supervise-bad-rerun-any",
+      "model": "models/MCSupervise.tla",
+      "config": "models/supervise-bad-rerun-any.cfg",
+      "expected": "OnlyDeclaredRerun"
+    },
+    {
+      "name": "supervise-broken-version-held",
+      "model": "models/MCSupervise.tla",
+      "config": "models/supervise-broken-version-held.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "supervise-heals-or-restarts",
+      "model": "models/MCSupervise.tla",
+      "config": "models/supervise-heals-or-restarts.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "swap-bad-admit-retiring",
+      "model": "models/MCSwap.tla",
+      "config": "models/swap-bad-admit-retiring.cfg",
+      "expected": "NoLateAdmit"
+    },
+    {
+      "name": "swap-bad-break-first",
+      "model": "models/MCSwap.tla",
+      "config": "models/swap-bad-break-first.cfg",
+      "expected": "NoGap"
+    },
+    {
+      "name": "swap-bad-drop",
+      "model": "models/MCSwap.tla",
+      "config": "models/swap-bad-drop.cfg",
+      "expected": "NoOrphan"
+    },
+    {
+      "name": "swap-bad-fail-drops-old",
+      "model": "models/MCSwap.tla",
+      "config": "models/swap-bad-fail-drops-old.cfg",
+      "expected": "NoGap"
+    },
+    {
+      "name": "swap-holds",
+      "model": "models/MCSwap.tla",
+      "config": "models/swap-holds.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "versions-bad-no-rollback",
+      "model": "models/MCVersions.tla",
+      "config": "models/versions-bad-no-rollback.cfg",
+      "expected": "temporal:Recovers"
+    },
+    {
+      "name": "versions-bad-switch-partial",
+      "model": "models/MCVersions.tla",
+      "config": "models/versions-bad-switch-partial.cfg",
+      "expected": "PointerComplete"
+    },
+    {
+      "name": "versions-recover",
+      "model": "models/MCVersions.tla",
+      "config": "models/versions-recover.cfg",
+      "expected": "complete"
+    }
+  ]
+}

@@ -10,6 +10,11 @@ import type {
 import {
   BODY_READ_CHUNKS,
   BODY_READ_HANDLER,
+  DEFINITION_HELD_DIGESTS,
+  DEFINITION_MIGRATION,
+  DEFINITION_READ_HANDLER,
+  DEFINITION_READ_ROWS,
+  DEFINITION_TABLES,
   DUE_READ_ENTRIES,
   DUE_READ_HANDLER,
   LEDGER_READ_HANDLER,
@@ -27,6 +32,7 @@ import {
   USAGE_TABLES,
 } from './worker/schema.ts'
 import { PENDING_READ_LIMIT, USAGE_READ_LIMIT } from './worker/facts.ts'
+import { TOOL_WAIT_OPEN_FACT, TOOL_WAIT_OPEN_GUARD } from './wait-open.ts'
 
 export const TOOL_PARTICIPANT = PARTICIPANT
 
@@ -45,6 +51,10 @@ const pendingMigrationRef = Object.freeze({
   owner: PENDING_MIGRATION.owner,
   id: PENDING_MIGRATION.id,
 })
+const definitionMigrationRef = Object.freeze({
+  owner: DEFINITION_MIGRATION.owner,
+  id: DEFINITION_MIGRATION.id,
+})
 
 const usageMigrationRef = Object.freeze({ owner: USAGE_MIGRATION.owner, id: USAGE_MIGRATION.id })
 
@@ -62,9 +72,17 @@ const HANDLERS: readonly Handler[] = [
     handler: LEDGER_READ_HANDLER,
     file: 'read-ledger',
     ordering: 'domain-serial',
-    tables: ['tl_domain', 'tl_record'],
-    rows: LEDGER_READ_ROWS + 2,
-    requires: [migrationRef],
+    tables: ['tl_domain', 'tl_record', 'tl_definition_use', 'tl_definition'],
+    rows: 3 * LEDGER_READ_ROWS + 3,
+    requires: [migrationRef, definitionMigrationRef],
+  },
+  {
+    handler: DEFINITION_READ_HANDLER,
+    file: 'read-definition',
+    ordering: 'snapshot',
+    tables: ['tl_definition'],
+    rows: Math.max(DEFINITION_READ_ROWS, DEFINITION_HELD_DIGESTS) + 1,
+    requires: [definitionMigrationRef],
   },
   {
     handler: PENDING_READ_HANDLER,
@@ -110,7 +128,9 @@ export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
   const pendingMigration = module('migration-pending')
+  const definitionMigration = module('migration-definitions')
   const usageMigration = module('migration-usage')
+  const waitOpen = module('wait-open-guard')
   return {
     participants: [
       {
@@ -118,10 +138,22 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TOOL_TABLES, ...PENDING_TABLES, ...USAGE_TABLES],
+        ownedTables: [...TOOL_TABLES, ...PENDING_TABLES, ...DEFINITION_TABLES, ...USAGE_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
+      {
+        participant: TOOL_WAIT_OPEN_GUARD,
+        protocol: '1',
+        moduleUrl: waitOpen.moduleUrl,
+        codeDigest: waitOpen.digest,
+        ownedTables: [],
+        readTables: ['tl_record'],
+        requiresFacts: [],
+        providesFacts: [TOOL_WAIT_OPEN_FACT],
         allowedFunctions: [],
         grouping: 'singleton',
       },
@@ -132,6 +164,12 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         ...pendingMigrationRef,
         moduleUrl: pendingMigration.moduleUrl,
         checksum: pendingMigration.digest,
+        requires: [migrationRef],
+      },
+      {
+        ...definitionMigrationRef,
+        moduleUrl: definitionMigration.moduleUrl,
+        checksum: definitionMigration.digest,
         requires: [migrationRef],
       },
       {

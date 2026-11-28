@@ -221,6 +221,17 @@ export function terminalOf(entry: HistoryEntry): Terminal | null {
   return { run: textOf(terminal['run']) ?? null, outcome: textOf(terminal['outcome']) ?? null }
 }
 
+/** The entry a run started at, among the entries read; null when it is not among them. */
+export function runStartOf(entries: readonly HistoryEntry[], run: string): string | null {
+  const started = entries.find(
+    entry =>
+      entry.kind === 'run.started' &&
+      isRecord(entry.payload) &&
+      textOf(entry.payload['run']) === run,
+  )
+  return started?.entryId ?? null
+}
+
 export function lastTerminalFailed(content: Content): boolean {
   const last = content.entries.findLast(entry => entry.kind === 'run.terminal')
   return last !== undefined && terminalOf(last)?.outcome === 'failed'

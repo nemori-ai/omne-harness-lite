@@ -1,9 +1,15 @@
 import type { JsonLimits } from '@omne-harness/json-text'
-import type {
-  Codec,
-  ObservationContract,
-  OperationContract,
-  ProtocolContract,
+import {
+  livesAt,
+  REJECTION_BODY,
+  rejectionText,
+  revisionOf,
+  withheld,
+  type Codec,
+  type Rejection,
+  type ObservationContract,
+  type OperationContract,
+  type ProtocolContract,
 } from '@omne-harness/public-contract'
 import { defaultLimits } from '../limits.ts'
 import type { CallReport, CallRequest, ObserveEnd, ProtocolKey, Transport } from './transport.ts'
@@ -15,7 +21,9 @@ export type BodyOf<O extends OperationContract> = ValueOf<O['body']>
 export type AnswerOf<O extends OperationContract> = {
   [K in keyof O['outcomes'] & string]: O['outcomes'][K] extends Codec<infer T>
     ? { readonly outcome: K; readonly body: T }
-    : { readonly outcome: K }
+    : K extends 'protocol-rejected'
+      ? { readonly outcome: K; readonly rejection?: Rejection }
+      : { readonly outcome: K }
 }[keyof O['outcomes'] & string]
 
 export type LocalOutcome = { readonly outcome: 'unavailable' } | { readonly outcome: 'uncertain' }
@@ -52,12 +60,15 @@ export type ClientOf<P extends ProtocolContract> = {
   }
 }
 
+/** A request this end could not write: nothing was sent. It says where the value is wrong and what is allowed. */
 export class ClientRequestError extends Error {
   override readonly name = 'ClientRequestError'
   readonly target: string
-  constructor(target: string) {
-    super(`${target}: the value does not fit the contract or the limits`)
+  readonly rejection: Rejection
+  constructor(target: string, rejection: Rejection) {
+    super(`${target}: ${rejectionText(rejection)}; not sent`)
     this.target = target
+    this.rejection = rejection
   }
 }
 
@@ -66,7 +77,12 @@ export type ReadRetry = {
   readonly wait: (ms: number, signal: AbortSignal | undefined) => Promise<void>
 }
 
-export type ClientSettings = { readonly limits?: JsonLimits; readonly readRetry?: ReadRetry }
+export type ClientSettings = {
+  readonly limits?: JsonLimits
+  readonly readRetry?: ReadRetry
+  /** The revision the other end has this protocol at, when it is known; asked for at every call. */
+  readonly peerRevision?: () => number | undefined
+}
 
 const now = (): number =>
   /* wall-clock: operation-timing -- The elapsed time of a read is a monotonic duration from its first ask. */ performance.now()
@@ -92,9 +108,16 @@ function answerOf(
   outcomes: Outcomes,
   report: CallReport & { kind: 'answered' },
   limits: JsonLimits,
-): { readonly outcome: string; readonly body?: unknown } {
+): { readonly outcome: string; readonly body?: unknown; readonly rejection?: unknown } {
   if (!Object.hasOwn(outcomes, report.outcome)) return UNCERTAIN
   const codec = outcomes[report.outcome]
+  if (codec === true && report.outcome === 'protocol-rejected') {
+    const said = REJECTION_BODY.read(report.body, limits)
+    if (!said.ok) return UNCERTAIN
+    return said.value.rejection === undefined
+      ? { outcome: report.outcome }
+      : { outcome: report.outcome, rejection: said.value.rejection }
+  }
   if (codec === true) return isEmptyObject(report) ? { outcome: report.outcome } : UNCERTAIN
   const read = codec!.read(report.body, limits)
   return read.ok ? { outcome: report.outcome, body: read.value } : UNCERTAIN
@@ -125,11 +148,21 @@ export function createClient<P extends ProtocolContract>(
 ): ClientOf<P> {
   const limits = settings.limits ?? defaultLimits
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
+  const revision = revisionOf(protocol)
   const target = (name: string): string => `${key.name}/v${key.major}/${name}`
   if (Object.hasOwn(protocol.operations, 'observe'))
     throw new TypeError(
       `${target('observe')}: an operation cannot take the name of the observations`,
     )
+
+  /** Whether the other end knows all of this request: its name, and every field it carries. */
+  function known(codec: Codec<unknown>, since: number | undefined, value: unknown, sent: unknown) {
+    const peer = settings.peerRevision?.()
+    if (peer === undefined || peer >= revision) return true
+    if (!livesAt(since, peer)) return false
+    const lesser = codec.write(value as never, limits, peer)
+    return lesser.ok && JSON.stringify(lesser.value) === JSON.stringify(sent)
+  }
 
   async function ask(operation: OperationContract, request: CallRequest) {
     let report = await transport.call(request)
@@ -146,11 +179,17 @@ export function createClient<P extends ProtocolContract>(
     options: CallOptions = {},
   ) {
     const written = operation.body.write(body as never, limits)
-    if (!written.ok) throw new ClientRequestError(target(name))
+    if (!written.ok)
+      throw new ClientRequestError(
+        target(name),
+        operation.carriesCredential === true ? withheld(written.rejection) : written.rejection,
+      )
+    if (!known(operation.body, operation.since, body, written.value)) return UNAVAILABLE
     const request: CallRequest = {
       protocol: key,
       operation: name,
       messageId: options.messageId ?? crypto.randomUUID(),
+      revision,
       body: written.value,
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }
@@ -177,11 +216,13 @@ export function createClient<P extends ProtocolContract>(
     options: ObserveOptions,
   ): AsyncGenerator<unknown, ObservationEnd<ObservationContract>> {
     const written = contract.open.write(open as never, limits)
-    if (!written.ok) throw new ClientRequestError(target(name))
+    if (!written.ok) throw new ClientRequestError(target(name), written.rejection)
+    if (!known(contract.open, contract.since, open, written.value)) return { kind: 'unavailable' }
     const stream = transport.observe({
       protocol: key,
       observation: name,
       messageId: options.messageId ?? crypto.randomUUID(),
+      revision,
       open: written.value,
       signal: options.signal,
     })

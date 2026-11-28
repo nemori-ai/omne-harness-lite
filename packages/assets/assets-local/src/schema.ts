@@ -279,6 +279,49 @@ export const listResultSchema = z.union([
   }),
   failureSchema,
 ])
+export const versionsLookupSchema = z.strictObject({
+  assetRef: SettingsReferenceSchema,
+  after: SettingsIdSchema.nullable(),
+  limit: z.number().int().min(1).max(MAX_ASSET_PAGE),
+})
+export const heldLookupSchema = z.strictObject({
+  after: z.string().min(1).max(1024).nullable(),
+  limit: z.number().int().min(1).max(MAX_ASSET_PAGE),
+})
+export const heldRequestSchema = z.strictObject({
+  kind: z.literal('held'),
+  domain: domainSchema,
+  lookup: heldLookupSchema,
+})
+export const heldResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('held'),
+    items: z.array(
+      z.strictObject({
+        category: SettingsIdSchema,
+        name: SettingsIdSchema,
+        assetRef: SettingsReferenceSchema,
+        version: SettingsIdSchema,
+        enabled: z.boolean(),
+      }),
+    ),
+    next: z.string().nullable(),
+  }),
+  failureSchema,
+])
+export const versionsRequestSchema = z.strictObject({
+  kind: z.literal('versions'),
+  domain: domainSchema,
+  lookup: versionsLookupSchema,
+})
+export const versionsResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('page'),
+    versions: z.array(SettingsIdSchema),
+    next: SettingsIdSchema.nullable(),
+  }),
+  failureSchema,
+])
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),

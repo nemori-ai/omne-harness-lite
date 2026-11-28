@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -10,7 +11,13 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import {
+  deriveDefinition,
+  judgeToolDefinition,
+  programFunctions,
+  programSignature,
+  type ToolAuthority,
+} from '@omne-harness/tool-contract/provider'
 import {
   ReleaseToolContributionAuthority,
   createToolReleaseEntries,
@@ -18,17 +25,35 @@ import {
   TOOL_RELEASE_TENANT,
   loadProductionRelease,
   productionReleaseInput,
+  releaseCurrentDefinitions,
+  releaseDefinitionOf,
+  releaseOf,
+  rememberReleaseDefinition,
 } from '../../src/entry/tool-release.ts'
-import { RELEASE_ENTRY_FILE, loadToolRelease } from '../../src/entry/tool-release-manifest.ts'
-import { shellToolModule } from '@omne-harness/tool-definitions'
+import {
+  RELEASE_ENTRY_FILE,
+  governanceOf,
+  loadToolRelease,
+} from '../../src/entry/tool-release-manifest.ts'
+import {
+  filesToolModule,
+  shellToolModule,
+  skillsToolModule,
+  webToolModule,
+} from '@omne-harness/tool-definitions'
 import { TOOL_RESIDENCY_PRINCIPAL_KEY } from '../../src/entry/tool-residency-principal.ts'
 import {
+  TEST_CONSTRUCTION,
   authorityOf,
+  entryOf,
   formalManifest,
   packageCopy,
   releaseFixture,
   releaseFrom,
+  tree,
 } from '../rows/tool-host/support.ts'
+import { heldToolAuthority } from '../../src/rows/tool-host/held-tools.ts'
+import { rememberWorkspaceTool } from '../../src/rows/tool-host/workspace-tools.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
 const unavailableSnapshot = async () =>
@@ -87,11 +112,15 @@ describe('toolContributionAuthority.verify', () => {
     ).toMatchObject({ failure: { kind: 'invalid' } })
   })
 
-  it('denies a layer that is not official and an asset that the release does not hold', async () => {
+  it('verifies the tenant layer against what the tenant holds, and denies an asset that the release does not hold', async () => {
     const { authority, manifest } = await releaseFixture()
     const shell = authorityOf(manifest, 'Shell')
+    // Nothing here tells what a tenant holds: the answer is that it cannot be read, never that it is held.
     expect(
       authority.verify({ ...shell, layer: { kind: 'tenant', tenant: fixtureTenant('a') } }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(
+      authority.verify({ ...shell, layer: { kind: 'workspace', workspace: 'w' } as never }),
     ).toEqual(fail({ kind: 'denied' }))
     expect(authority.verify({ ...shell, layer: { kind: 'official', extra: 1 } as never })).toEqual(
       fail({ kind: 'denied' }),
@@ -101,6 +130,32 @@ describe('toolContributionAuthority.verify', () => {
     )
   })
 
+  it('verifies a version of a workspace tool only for the tenant a turn of which adopted that very version', async () => {
+    const { authority, root } = await releaseFixture()
+    const [a, b] = [fixtureTenant('a'), fixtureTenant('b')]
+    const taken = {
+      asset: 'workspace/shared/tool/wordcount',
+      version: 'sha256:taken',
+      disabled: false,
+      immutable: false,
+      replaceLocked: false,
+    }
+    const given = heldToolAuthority(a, 'wordcount', taken)
+    expect(authority.verify(given)).toEqual(fail({ kind: 'denied' }))
+    rememberWorkspaceTool(root, a, taken, { kind: 'null' })
+    expect(okOf(authority.verify(given), 'verify the adopted version')).toEqual(given)
+    expect(authority.verify(heldToolAuthority(b, 'wordcount', taken))).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    const other = { ...taken, version: 'sha256:other' }
+    expect(authority.verify(heldToolAuthority(a, 'wordcount', other))).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    // What the caller wrote beside the asset is not taken: the verified value is built again.
+    const forged = { ...given, holding: { ...given.holding, record: 'forged' } }
+    expect(okOf(authority.verify(forged), 'verify the forged one')).toEqual(given)
+  })
+
   it('answers unavailable for every call while the snapshot is unavailable', async () => {
     const { authority, registrant } = await releaseFixture(unavailableSnapshot)
     const shell = authorityOf(formalManifest(), 'Shell')
@@ -108,6 +163,102 @@ describe('toolContributionAuthority.verify', () => {
     expect(authority.admits(registrant, { kind: 'official' })).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('the current definitions Tool reads by name', () => {
+  it('answers unavailable without a trusted release, not that the tool is unknown', async () => {
+    const definitions = releaseCurrentDefinitions<'agent'>(new Context())
+    expect(
+      await definitions.current({ principal: 'agent', tenant: fixtureTenant('a'), name: 'Shell' }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('what a program may call in the release', () => {
+  it('marks Files, Web, Skills and Shell programmable, and no other tool', async () => {
+    const fixture = await releaseFixture()
+    const programmable = fixture.manifest.entries.filter(entry => entry.programmable)
+    expect(programmable.map(entry => entry.asset.name).sort()).toEqual([
+      'Files',
+      'Shell',
+      'Skills',
+      'Web',
+    ])
+    for (const entry of fixture.manifest.entries)
+      expect(governanceOf(entry).programmable).toBe(entry.programmable ? true : undefined)
+  })
+
+  it('gives a program exactly these functions, word for word, and TypeScript reads them', async () => {
+    const fixture = await releaseFixture()
+    const made = TEST_CONSTRUCTION
+    const facts = {
+      Shell: okOf(shellToolModule.createAuthor(tree(made.Shell)), 'Shell').facts,
+      Files: okOf(filesToolModule.createAuthor(tree(made.Files)), 'Files').facts,
+      Web: okOf(webToolModule.createAuthor(tree(made.Web)), 'Web').facts,
+      Skills: okOf(skillsToolModule.createAuthor(tree(made.Skills)), 'Skills').facts,
+    } as const
+    const declared = fixture.manifest.entries.flatMap(entry => {
+      const name = entry.asset.name as keyof typeof facts
+      if (!entry.programmable) return []
+      const definition = judgeToolDefinition(deriveDefinition(governanceOf(entry), facts[name]))
+      return [programSignature(okOf(definition, name))]
+    })
+    const text = `${declared.join('\n\n')}\n`
+    const expected = readFileSync(
+      new URL('fixtures/program-signatures.txt', import.meta.url),
+      'utf8',
+    )
+    expect(text).toBe(expected)
+    expect(
+      stripTypeScriptTypes(text)
+        .replaceAll(/\/\*\*.*?\*\//gs, '')
+        .trim(),
+    ).toBe('')
+    expect(Buffer.byteLength(text)).toBeLessThan(6 * 1024)
+  })
+
+  it('opens only the one-shot execute of Shell, closed when the call names a terminal', async () => {
+    const fixture = await releaseFixture()
+    const author = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), author.facts),
+      ),
+      'definition',
+    )
+    expect(programFunctions(definition).map(one => [one.entry, one.unless])).toEqual([
+      ['Shell.execute', ['terminal']],
+    ])
+  })
+})
+
+describe('the release definitions one generation remembers', () => {
+  const deeplyFrozen = (value: unknown): boolean =>
+    value === null ||
+    typeof value !== 'object' ||
+    (Object.isFrozen(value) && Object.values(value).every(deeplyFrozen))
+
+  it('hands out one deeply frozen copy per name for the whole generation', async () => {
+    const fixture = await releaseFixture()
+    const release = releaseOf(fixture.root)
+    if (release.kind !== 'trusted') throw new Error('fixture release')
+    const author = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    const given = structuredClone(
+      okOf(
+        judgeToolDefinition(
+          deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), author.facts),
+        ),
+        'definition',
+      ),
+    )
+    expect(rememberReleaseDefinition(fixture.root, release.generation, given)).toBe(true)
+    const first = releaseDefinitionOf(fixture.root, 'Shell')
+    expect(first).toEqual(given)
+    expect(first).not.toBe(given)
+    expect(releaseDefinitionOf(fixture.root, 'Shell')).toBe(first)
+    expect(deeplyFrozen(first)).toBe(true)
+    expect(Object.isFrozen(given)).toBe(false)
   })
 })
 
@@ -152,7 +303,7 @@ describe('toolContributionAuthority.admits', () => {
     ).toEqual(fail({ kind: 'denied' }))
   })
 
-  it('denies the registrant under another tenant and at a non-official layer', async () => {
+  it('denies the registrant under another tenant at the official layer', async () => {
     const { authority, registrant } = await releaseFixture()
     expect(
       authority.admits(
@@ -160,7 +311,20 @@ describe('toolContributionAuthority.admits', () => {
         { kind: 'official' },
       ),
     ).toEqual(fail({ kind: 'denied' }))
-    expect(authority.admits(registrant, { kind: 'tenant', tenant: registrant.tenant })).toEqual(
+  })
+
+  it('admits at the tenant layer only an access of the tenant that holds the tool', async () => {
+    const { authority, registrant } = await releaseFixture()
+    const alpha = fixtureTenant('a')
+    const mine = { principal: registrant.principal, tenant: alpha }
+    expect(authority.admits(mine, { kind: 'tenant', tenant: alpha })).toEqual(succeed(undefined))
+    expect(authority.admits(mine, { kind: 'tenant', tenant: fixtureTenant('b') })).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    expect(authority.admits(registrant, { kind: 'tenant', tenant: alpha })).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    expect(authority.admits(mine, { kind: 'workspace', workspace: 'w' } as never)).toEqual(
       fail({ kind: 'denied' }),
     )
   })
@@ -224,9 +388,14 @@ describe('the startup snapshot', () => {
       '@omne-harness/calendar-tools',
       '@omne-harness/schedule-tools',
       '@omne-harness/notification-tools',
+      '@omne-harness/canvas-tools',
+      '@omne-harness/interface-tools',
       '@omne-harness/session-tools',
       '@omne-harness/dispatch-tools',
+      '@omne-harness/goal-tools',
       '@omne-harness/workspace-tools',
+      '@omne-harness/plugin-tools',
+      '@omne-harness/assets-tools',
     ])
   })
 

@@ -1,0 +1,166 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import type { IncomingHttpHeaders, ServerResponse } from 'node:http'
+import { createServer } from 'node:https'
+import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { getCACertificates, setDefaultCACertificates } from 'node:tls'
+import { chatRequestOf, interfacePath, renderReply } from './wire.ts'
+
+export const GATEWAY_PATH = '/api/v1/chat/completions'
+export const GATEWAY_REFUSAL = JSON.stringify({
+  error: { message: 'local test gateway: every request is refused', code: 400 },
+})
+
+export type GatewayAnswer = Readonly<{
+  status: number
+  contentType: string
+  body: string
+  rest?: Readonly<{ after: Promise<void>; body: string }>
+}>
+
+// A script answers in chat-completions terms whatever interface the request was sent on.
+// `body` is the chat request equal to the one sent, `rawBody` the bytes as sent, `path` the path of the request line.
+export type GatewayScript = (
+  request: Readonly<{ index: number; body: string; rawBody: string; path: string }>,
+) => GatewayAnswer | Promise<GatewayAnswer>
+/** Where a request goes instead of to the script, as it came: null when the script answers it. */
+export type GatewayRoute = (request: Parameters<GatewayScript>[0]) => string | null
+
+const NOT_PASSED = new Set(['host', 'content-length', 'connection', 'accept-encoding'])
+
+async function passOn(
+  to: string,
+  headers: IncomingHttpHeaders,
+  body: string,
+  response: ServerResponse,
+): Promise<void> {
+  const kept = Object.entries(headers).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string' && !NOT_PASSED.has(entry[0]),
+  )
+  const answered = await fetch(to, { method: 'POST', headers: kept, body })
+  const contentType = answered.headers.get('content-type') ?? 'application/json'
+  response.writeHead(answered.status, { 'content-type': contentType })
+  if (answered.body !== null) for await (const chunk of answered.body) response.write(chunk)
+  response.end()
+}
+
+const refusal: GatewayScript = () => ({
+  status: 400,
+  contentType: 'application/json',
+  body: GATEWAY_REFUSAL,
+})
+
+export type ModelGateway = Readonly<{
+  url: string
+  certPath: string
+  requests(): number
+  authorizations(): readonly (string | null)[]
+  trustInProcess(): void
+  close(): Promise<void>
+}>
+
+function certificate(directory: string): { keyPath: string; certPath: string } {
+  const keyPath = join(directory, 'key.pem')
+  const certPath = join(directory, 'cert.pem')
+  const { BASELINE: _inherited, ...env } = process.env
+  execFileSync(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'ec',
+      '-pkeyopt',
+      'ec_paramgen_curve:P-256',
+      '-nodes',
+      '-keyout',
+      keyPath,
+      '-out',
+      certPath,
+      '-days',
+      '1',
+      '-subj',
+      '/CN=127.0.0.1',
+      '-addext',
+      'subjectAltName=IP:127.0.0.1',
+    ],
+    { env, stdio: 'ignore' },
+  )
+  return { keyPath, certPath }
+}
+
+export async function startModelGateway(
+  answer: GatewayScript = refusal,
+  route: GatewayRoute = () => null,
+): Promise<ModelGateway> {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'harness-model-gateway-')))
+  const { keyPath, certPath } = certificate(directory)
+  const cert = readFileSync(certPath, 'utf8')
+  let count = 0
+  const authorizations: (string | null)[] = []
+  const server = createServer({ key: readFileSync(keyPath), cert }, (request, response) => {
+    const index = count
+    count += 1
+    authorizations.push(request.headers.authorization ?? null)
+    const path = new URL(request.url ?? '/', 'https://127.0.0.1').pathname
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => chunks.push(chunk))
+    request.on('end', () => {
+      void Promise.resolve()
+        .then(async () => {
+          const rawBody = Buffer.concat(chunks).toString('utf8')
+          const spoken = interfacePath(path, rawBody)
+          const body = chatRequestOf(spoken, rawBody)
+          const asked = { index, body, rawBody, path }
+          const to = route(asked)
+          if (to === null) return renderReply(spoken, await answer(asked))
+          await passOn(to, request.headers, rawBody, response)
+          return null
+        })
+        .then(reply => {
+          if (reply === null) return
+          response.writeHead(reply.status, { 'content-type': reply.contentType })
+          if (reply.rest === undefined) {
+            response.end(reply.body)
+            return
+          }
+          const rest = reply.rest
+          response.write(reply.body)
+          void rest.after.then(
+            () => response.end(rest.body),
+            () => response.end(rest.body),
+          )
+        })
+        .catch(() => {
+          if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'test gateway script failed' } }))
+        })
+    })
+  })
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => resolve())
+  })
+  const { port } = server.address() as AddressInfo
+  let restore: string[] | undefined
+  return {
+    url: `https://127.0.0.1:${String(port)}${GATEWAY_PATH}`,
+    certPath,
+    requests: () => count,
+    authorizations: () => [...authorizations],
+    trustInProcess: () => {
+      if (restore !== undefined) return
+      restore = getCACertificates('default')
+      setDefaultCACertificates([...restore, cert])
+    },
+    close: async () => {
+      server.closeAllConnections()
+      await new Promise<void>(resolve => server.close(() => resolve()))
+      if (restore !== undefined) setDefaultCACertificates(restore)
+      restore = undefined
+      rmSync(directory, { recursive: true, force: true })
+    },
+  }
+}

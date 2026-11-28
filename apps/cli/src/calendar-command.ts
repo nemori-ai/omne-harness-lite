@@ -9,6 +9,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { readOptions } from './options.ts'
 import { report } from './report.ts'
@@ -135,7 +136,7 @@ async function runCalendar(
           { tenant, question: request.question, ...basisOf(request.values) },
           messageId,
         )
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }
 

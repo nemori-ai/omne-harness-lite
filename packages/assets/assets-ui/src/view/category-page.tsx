@@ -1,30 +1,39 @@
-import type { AssetStandingView } from '@omne-harness/assets-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import {
   Button,
   EmptyState,
-  FactList,
-  FactRow,
-  InlineConfirm,
-  InlineNotice,
+  GlideMenu,
+  ListReadingRow,
   LoadingState,
+  StatusPill,
 } from '@omne-harness/ui-kit'
-import { useEffect, useState, useSyncExternalStore, type JSX, type ReactNode } from 'react'
-import type { Action, Described } from '../model/assets-machine.ts'
+import { useEffect, useRef, useState, useSyncExternalStore, type JSX, type ReactNode } from 'react'
 import type {
   AssetEntry,
   CategoryAssets,
   CategoryGovernance,
   GovernanceModel,
 } from '../model/governance.ts'
+import type { HoldingClaims } from '../model/holding-claims.ts'
+import { lacksKey } from '../model/missing-key.ts'
+import {
+  assetsCategory,
+  assetsCategoryCreate,
+  assetsCategoryHead,
+  assetsItem,
+  assetsList,
+} from '../parts.ts'
+import { AssetPage } from './asset-page.tsx'
+import { BroughtPage, bringerOf } from './brought-page.tsx'
 import { CreateForm } from './create-form.tsx'
 import { NoticeLine } from './notice.tsx'
-import { RowView } from './setting-row.tsx'
 
 export type Extras = Readonly<{
   label: (category: string) => string
   categorySlot: (category: string) => ReactNode
   holdingSlot: (category: string, name: string) => ReactNode
+  claims: HoldingClaims
+  open: (category: string, name: string) => void
 }>
 
 type CategoryPageProps = Readonly<{
@@ -59,49 +68,108 @@ const LIST_PARTIAL = {
 
 function CategoryBody({ view, category, extras }: Shown): JSX.Element {
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
+  const claimLines = useSyncExternalStore(extras.claims.subscribe, () => extras.claims.of(category))
+  const claimed = claimLines === '' ? [] : claimLines.split('\n')
   const [creating, setCreating] = useState(false)
+  const [shown, setShown] = useState<string | null>(null)
+  const list = useRef<HTMLDivElement>(null)
+  const returnTo = useRef<string | null>(null)
   const retry = { label: '重试', onClick: view.read }
   const creation =
     snapshot.kind === 'read' && snapshot.creation?.kind !== 'none' ? snapshot.creation : null
-  const listed = (name: string) =>
-    snapshot.kind === 'read' &&
-    snapshot.assets.kind === 'read' &&
-    snapshot.assets.entries.some(entry => entry.row.name === name)
+  const entries =
+    snapshot.kind === 'read' && snapshot.assets.kind === 'read' ? snapshot.assets.entries : null
+  const entry = shown === null ? undefined : entries?.find(each => each.row.name === shown)
+  const listed = (name: string) => entries?.some(each => each.row.name === name) ?? false
+  // An asset that left the list (removed here or elsewhere) takes its page with it.
+  useEffect(() => {
+    if (shown === null || entries === null || entry !== undefined) return
+    view.closeAsset(shown)
+    setShown(null)
+  }, [view, shown, entries, entry])
+  useEffect(() => {
+    const name = returnTo.current
+    if (shown !== null || name === null) return
+    returnTo.current = null
+    const rows = list.current?.querySelectorAll<HTMLElement>('[data-asset-row]') ?? []
+    for (const row of rows) if (row.dataset['assetRow'] === name) row.focus()
+  }, [shown])
+  const enter = (name: string): void => {
+    const brought = entries?.find(each => each.row.name === name)?.row.from !== undefined
+    if (!brought) view.openAsset(name)
+    setShown(name)
+  }
+  const leave = (): void => {
+    if (shown === null) return
+    if (entry?.row.from === undefined) view.closeAsset(shown)
+    returnTo.current = shown
+    setShown(null)
+  }
   return (
-    <div className="assets-category">
-      <header className="assets-category-head">
-        <h2 className="assets-category-title">{extras.label(category)}</h2>
-        {creation !== null && (
-          <Button
-            variant={creating ? 'ghost' : 'outline'}
-            aria-expanded={creating}
-            onClick={() => setCreating(open => !open)}
-          >
-            {creating ? '收起' : '新建'}
-          </Button>
+    <div className="assets-category" {...assetsCategory.props}>
+      <div ref={list} className="assets-category-list" hidden={entry !== undefined}>
+        <header className="assets-category-head" {...assetsCategoryHead.props}>
+          <h2 className="assets-category-title">{extras.label(category)}</h2>
+          {creation !== null && (
+            <Button
+              variant={creating ? 'ghost' : 'outline'}
+              aria-expanded={creating}
+              {...assetsCategoryCreate.props}
+              onClick={() => setCreating(open => !open)}
+            >
+              {creating ? '收起' : '新建'}
+            </Button>
+          )}
+        </header>
+        {creating && creation !== null && snapshot.kind === 'read' && (
+          <CreateForm
+            view={view}
+            creation={creation}
+            hint={snapshot.hint}
+            creating={snapshot.creating}
+            listed={listed}
+          />
         )}
-      </header>
-      {creating && creation !== null && snapshot.kind === 'read' && (
-        <CreateForm
-          view={view}
-          creation={creation}
-          hint={snapshot.hint}
-          creating={snapshot.creating}
-          listed={listed}
+        <div className="assets-category-slot">{extras.categorySlot(category)}</div>
+        {snapshot.kind === 'reading' && <LoadingState label="正在读取这一类的资产……" />}
+        {snapshot.kind === 'unreadable' && <NoticeLine notice={snapshot.notice} action={retry} />}
+        {snapshot.kind === 'read' && snapshot.partial && <NoticeLine notice={LIST_PARTIAL} />}
+        {snapshot.kind === 'read' && (
+          <AssetList
+            assets={snapshot.assets}
+            view={view}
+            category={category}
+            extras={extras}
+            enter={enter}
+          />
+        )}
+      </div>
+      {entry !== undefined && entry.row.from !== undefined && (
+        <BroughtPage
+          entry={entry}
+          from={bringerOf(entry.row.from, extras.label)}
+          label={extras.label(category)}
+          open={extras.open}
+          onBack={leave}
         />
       )}
-      <div className="assets-category-slot">{extras.categorySlot(category)}</div>
-      {snapshot.kind === 'reading' && <LoadingState label="正在读取这一类的资产……" />}
-      {snapshot.kind === 'unreadable' && <NoticeLine notice={snapshot.notice} action={retry} />}
-      {snapshot.kind === 'read' && snapshot.partial && <NoticeLine notice={LIST_PARTIAL} />}
-      {snapshot.kind === 'read' && (
-        <AssetList assets={snapshot.assets} view={view} category={category} extras={extras} />
+      {entry !== undefined && entry.row.from === undefined && (
+        <AssetPage
+          entry={entry}
+          view={view}
+          label={extras.label(category)}
+          holding={extras.holdingSlot(category, entry.row.name)}
+          claimed={claimed}
+          onBack={leave}
+        />
       )}
     </div>
   )
 }
 
-function AssetList({ assets, ...shown }: Shown & { readonly assets: CategoryAssets }) {
+type Listing = Shown & { readonly enter: (name: string) => void }
+
+function AssetList({ assets, ...shown }: Listing & { readonly assets: CategoryAssets }) {
   if (assets.kind === 'reading') return <LoadingState label="正在读取这一类的资产……" />
   if (assets.kind === 'unreadable')
     return (
@@ -113,188 +181,66 @@ function AssetList({ assets, ...shown }: Shown & { readonly assets: CategoryAsse
       {assets.entries.length === 0 ? (
         <EmptyState title="这一类还没有资产。" />
       ) : (
-        <ul className="assets-list" aria-label={`${shown.extras.label(shown.category)}的资产`}>
-          {assets.entries.map(entry => (
-            <AssetItem key={entry.row.name} entry={entry} {...shown} />
-          ))}
-        </ul>
+        <GlideMenu>
+          <ul
+            className="assets-list"
+            aria-label={`${shown.extras.label(shown.category)}的资产`}
+            {...assetsList.props}
+          >
+            {assets.entries.map(entry => (
+              <AssetItem
+                key={entry.row.name}
+                entry={entry}
+                enter={shown.enter}
+                label={shown.extras.label}
+              />
+            ))}
+          </ul>
+        </GlideMenu>
       )}
     </>
   )
 }
 
-const shortVersion = (version: string): string => version.slice(0, 19)
-
-function AssetItem({ entry, view, category, extras }: Shown & { readonly entry: AssetEntry }) {
-  const { row } = entry
-  const opened = entry.detail !== null
-  const toggle = () => (opened ? view.closeAsset(row.name) : view.openAsset(row.name))
-  return (
-    <li className="assets-item" aria-label={row.name}>
-      <h3 className="assets-item-title">
-        <Button variant="ghost" aria-expanded={opened} onClick={toggle}>
-          {row.summary?.title ?? row.name}
-        </Button>
-      </h3>
-      {row.summary !== null && <p className="assets-item-description">{row.summary.description}</p>}
-      <p className="assets-item-facts">
-        <span>{row.name}</span>
-        <span>{shortVersion(row.version)}</span>
-        <span>{row.enabled ? '已启用' : '已禁用'}</span>
-        {row.origin === 'official' && <span>官方</span>}
-      </p>
-      {opened && <AssetDetail entry={entry} view={view} category={category} extras={extras} />}
-    </li>
-  )
-}
-
-function AssetDetail({ entry, view, category, extras }: Shown & { readonly entry: AssetEntry }) {
-  const detail = entry.detail
-  const name = entry.row.name
-  const asset =
-    detail?.kind === 'read' ? detail.asset : detail?.kind === 'reading' ? detail.shown : undefined
-  return (
-    <div className="assets-detail">
-      {detail?.kind === 'reading' && asset === undefined && (
-        <LoadingState label="正在读取这一份……" />
-      )}
-      {detail?.kind === 'absent' && (
-        <NoticeLine notice={{ kind: 'refused', text: '这一份已经不在了。' }} />
-      )}
-      {detail?.kind === 'failed' && (
-        <NoticeLine
-          notice={detail.notice}
-          action={{ label: '重试', onClick: () => view.openAsset(name) }}
-        />
-      )}
-      {asset !== undefined && <AssetFacts asset={asset} />}
-      <AssetActions entry={entry} view={view} />
-      {entry.settings.length > 0 && (
-        <ul className="assets-settings-list">
-          {entry.settings.map(row => (
-            <RowView key={row.key} row={row} driver={view} />
-          ))}
-        </ul>
-      )}
-      <div className="assets-holding-slot">{extras.holdingSlot(category, name)}</div>
-    </div>
-  )
-}
-
-const FILTERED: Readonly<Record<'disabled' | 'ineligible' | 'blocked', string>> = {
-  disabled: '不在用：已禁用',
-  ineligible: '不在用：不合这一层的使用条件',
-  blocked: '不在用：被上层挡住',
-}
-
-function standingText(standing: AssetStandingView): string {
-  switch (standing.kind) {
-    case 'selected':
-      return '在用'
-    case 'filtered':
-      return standing.by === null
-        ? FILTERED[standing.reason]
-        : `${FILTERED[standing.reason]}（${standing.by}）`
-    case 'unavailable':
-      return `不在用：${standing.layer} 这一层读不出`
-  }
-}
-
-function AssetFacts({ asset }: { readonly asset: Described }) {
-  const { item, content, standing } = asset
-  return (
-    <>
-      <FactList className="assets-detail-facts">
-        <FactRow term="版本">{item.version}</FactRow>
-        <FactRow term="来源">{item.origin === 'official' ? '官方' : '本租户'}</FactRow>
-        <FactRow term="现在能不能用">{standingText(standing)}</FactRow>
-        {item.summary?.facts.map(fact => (
-          <FactRow key={fact.name} term={fact.name}>
-            {fact.text}
-          </FactRow>
-        ))}
-      </FactList>
-      {content.kind === 'data' ? (
-        <pre className="assets-detail-data">{JSON.stringify(content.body, null, 2)}</pre>
-      ) : (
-        <ul className="assets-detail-files" aria-label="文件">
-          {content.entries.map(file => (
-            <li key={file.path}>
-              <span>{file.path}</span>
-              <span>{`${file.bytes} 字节`}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  )
-}
-
-const busy = (action: Action): boolean => action.kind === 'submitting' || action.kind === 'unknown'
-
-function AssetActions({
+/** One row: the title and its line, the facts worth seeing before going in; the whole row goes in. */
+function AssetItem({
   entry,
-  view,
+  enter,
+  label,
 }: {
   readonly entry: AssetEntry
-  readonly view: CategoryGovernance
+  readonly enter: (name: string) => void
+  readonly label: (category: string) => string
 }) {
-  const { row, action } = entry
-  return (
-    <div className="assets-detail-actions">
-      {row.origin === 'official' ? (
-        <p>这一份是部署装的官方资产，不能停用或移除。</p>
-      ) : (
-        <>
-          <Button
-            variant="outline"
-            disabled={busy(action)}
-            onClick={() => view.setEnabled(row.name, !row.enabled)}
-          >
-            {row.enabled ? '禁用' : '启用'}
-          </Button>
-          <InlineConfirm
-            tone="danger"
-            confirmLabel="确认移除"
-            consequence="移除不能撤销，这一份的设置也随之退出。"
-            disabled={busy(action)}
-            onConfirm={() => view.remove(row.name)}
-          >
-            移除
-          </InlineConfirm>
-        </>
-      )}
-      <ActionLine action={action} confirm={() => view.confirmAsset(row.name)} />
-    </div>
+  const { row } = entry
+  const from = row.from === undefined ? undefined : bringerOf(row.from, label)
+  const marks = [!row.enabled && '已禁用', row.origin === 'official' && '官方'].filter(
+    mark => mark !== false,
   )
-}
-
-function ActionLine({
-  action,
-  confirm,
-}: {
-  readonly action: Action
-  readonly confirm: () => void
-}) {
-  switch (action.kind) {
-    case 'none':
-      return null
-    case 'submitting':
-      return <LoadingState label="正在提交……" />
-    case 'done':
-      return (
-        <InlineNotice tone="good">
-          <p>{action.text}</p>
-        </InlineNotice>
-      )
-    case 'refused':
-      return <NoticeLine notice={action.notice} />
-    case 'unknown':
-      return (
-        <NoticeLine
-          notice={action.notice}
-          action={action.confirming ? undefined : { label: '认回', onClick: confirm }}
-        />
-      )
-  }
+  const missing = lacksKey(entry.settings)
+  return (
+    <li className="assets-item" aria-label={row.name} {...assetsItem.props}>
+      <ListReadingRow
+        data-asset-row={row.name}
+        title={row.summary?.title ?? row.name}
+        {...(from !== undefined && { facts: `来自 ${from.title}「${from.name}」` })}
+        {...(row.from === undefined &&
+          row.summary !== null &&
+          row.summary.description !== '' && { facts: row.summary.description })}
+        {...((marks.length > 0 || missing) && {
+          time: (
+            <span className="assets-item-marks">
+              {marks.map(mark => (
+                <StatusPill key={mark} tone="neutral">
+                  {mark}
+                </StatusPill>
+              ))}
+              {missing && <StatusPill tone="caution">还没填密钥</StatusPill>}
+            </span>
+          ),
+        })}
+        onSelect={() => enter(row.name)}
+      />
+    </li>
+  )
 }

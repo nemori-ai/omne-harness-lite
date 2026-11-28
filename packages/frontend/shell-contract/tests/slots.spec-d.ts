@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   defineKeyedPoint,
   definePoint,
+  needPoint,
   type KeyedPointSink,
   type PointCodec,
   type PointContributor,
@@ -11,15 +12,30 @@ import {
   type PointSink,
 } from '@omne-harness/shell-contract'
 import type {
+  ActionItem,
   AttachedEntry,
   AttachedItem,
   AttachedLayout,
   AttachedProps,
+  BackItem,
+  BackProps,
+  FigureReport,
+  FloatCorner,
+  FloatItem,
+  FloatNote,
+  FloatProps,
   GateItem,
   GateProps,
   ItemOf,
   PageItem,
   PageProps,
+  SayItem,
+  SayOutcome,
+  SayPicture,
+  SayReply,
+  SayReplyState,
+  SayTarget,
+  SayTo,
   ScopedProps,
   Toast,
   ShellLogin,
@@ -27,15 +43,45 @@ import type {
   ShellSlots,
   SidebarItem,
   SlotName,
+  KeymapItem,
 } from '@omne-harness/shell-contract'
 import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 test('each slot takes its own item', () => {
-  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'attached'>()
+  expectTypeOf<SlotName>().toEqualTypeOf<
+    'gate' | 'pages' | 'sidebar' | 'float' | 'back' | 'say' | 'attached' | 'actions' | 'keymap'
+  >()
+  expectTypeOf<ItemOf<'say'>>().toEqualTypeOf<SayItem>()
+  expectTypeOf<ItemOf<'actions'>>().toEqualTypeOf<ActionItem>()
+  expectTypeOf<ItemOf<'keymap'>>().toEqualTypeOf<KeymapItem>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()
+  expectTypeOf<ItemOf<'float'>>().toEqualTypeOf<FloatItem>()
+  expectTypeOf<ItemOf<'back'>>().toEqualTypeOf<BackItem>()
   expectTypeOf<ItemOf<'attached'>>().toEqualTypeOf<AttachedItem>()
+  expectTypeOf<FloatItem>().toEqualTypeOf<
+    Readonly<{ id: string; order: number; render: (props: FloatProps) => ReactNode }>
+  >()
+  expectTypeOf<FloatProps>().toEqualTypeOf<
+    Readonly<{
+      scope: string | undefined
+      grip: Readonly<{ 'data-omne-float-grip': '' }>
+      corner: FloatCorner
+      dragging: boolean
+      note: FloatNote
+    }>
+  >()
+  expectTypeOf<FloatNote>().toEqualTypeOf<
+    Readonly<{ there: boolean; open: boolean; toggle(element: Element): void; close(): void }>
+  >()
+  expectTypeOf<FloatCorner>().toEqualTypeOf<Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>>()
+  expectTypeOf<BackItem>().toEqualTypeOf<
+    Readonly<{ id: string; render: (props: BackProps) => ReactNode }>
+  >()
+  expectTypeOf<BackProps>().toEqualTypeOf<
+    Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
+  >()
   expectTypeOf<AttachedItem>().toEqualTypeOf<
     Readonly<{
       id: string
@@ -58,14 +104,156 @@ test('each slot takes its own item', () => {
       id: string
       title: string
       order: number
-      icon?: string
+      icon: string
+      group?: 'primary' | 'utility'
       badge?: (props: ScopedProps) => ReactNode
       render: (props: PageProps) => ReactNode
     }>
   >()
   expectTypeOf<SidebarItem>().toEqualTypeOf<
-    Readonly<{ id: string; order: number; render: (props: ScopedProps) => ReactNode }>
+    Readonly<{
+      id: string
+      order: number
+      group?: 'primary' | 'utility'
+      rail?: (props: ScopedProps) => ReactNode
+      render: (props: ScopedProps) => ReactNode
+    }>
   >()
+})
+
+test('the item of the place words said to the figure go draws nothing, from revision 2 may know pictures, and from revision 3 may follow what is said back', () => {
+  expectTypeOf<SayItem>().toEqualTypeOf<
+    Readonly<{
+      id: string
+      targets: (scope: string | undefined) => readonly SayTarget[] | undefined
+      current: (scope: string | undefined) => string | undefined
+      pictures?: (scope: string | undefined) => boolean
+      subscribe: (listener: () => void) => () => void
+      say: (
+        scope: string | undefined,
+        to: SayTo,
+        words: string,
+        pictures?: readonly SayPicture[],
+      ) => Promise<SayOutcome>
+      show: (scope: string | undefined, key: string) => void
+      reply?: (
+        scope: string | undefined,
+        said: string,
+        listener: (reply: SayReply) => void,
+      ) => () => void
+    }>
+  >()
+  expectTypeOf<SayReply>().toEqualTypeOf<Readonly<{ text: string; state: SayReplyState }>>()
+  expectTypeOf<SayReplyState>().toEqualTypeOf<'coming' | 'ended' | 'unknown'>()
+  expectTypeOf<SayPicture>().toEqualTypeOf<Readonly<{ name: string; bytes: Uint8Array }>>()
+  expectTypeOf<SayTarget>().toEqualTypeOf<Readonly<{ key: string; label: string }>>()
+  expectTypeOf<SayTo>().toEqualTypeOf<
+    Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
+  >()
+  expectTypeOf<SayOutcome>().toEqualTypeOf<
+    | Readonly<{ kind: 'sent'; key: string; said?: string }>
+    | Readonly<{ kind: 'failed'; reason: string }>
+    | Readonly<{ kind: 'unknown' }>
+  >()
+  const shell = null as unknown as ShellService
+  const item: SayItem = {
+    id: 'session',
+    targets: () => undefined,
+    current: () => undefined,
+    subscribe: () => () => undefined,
+    say: async (_scope: string | undefined, _to: SayTo, _words: string) => ({ kind: 'unknown' }),
+    show: () => undefined,
+  }
+  shell.contribute('say', item)
+  shell.contribute('say', { ...item, pictures: () => true })
+  shell.contribute('say', {
+    ...item,
+    say: async (_scope, _to, _words, pictures) => {
+      expectTypeOf(pictures).toEqualTypeOf<readonly SayPicture[] | undefined>()
+      return { kind: 'unknown' as const }
+    },
+  })
+  // @ts-expect-error whether the item knows pictures is yes or no
+  shell.contribute('say', { ...item, pictures: () => 'yes' })
+  shell.contribute('say', {
+    ...item,
+    // @ts-expect-error pictures are handed as their bytes, not as a text
+    say: async (_scope: string, _to: SayTo, _words: string, _pictures: readonly string[]) => ({
+      kind: 'unknown' as const,
+    }),
+  })
+  // @ts-expect-error an outcome is one of three
+  shell.contribute('say', { ...item, say: async () => ({ kind: 'sending' as const }) })
+  shell.contribute('say', {
+    ...item,
+    say: async () => ({ kind: 'sent' as const, key: 'c1', said: 'm1' }),
+    reply: (_scope, said, listener) => {
+      expectTypeOf(said).toEqualTypeOf<string>()
+      listener({ text: '好的', state: 'coming' })
+      listener({ text: '好的，记下了', state: 'ended' })
+      listener({ text: '', state: 'unknown' })
+      return () => undefined
+    },
+  })
+  shell.contribute('say', {
+    ...item,
+    // @ts-expect-error the mark of what was said is text
+    say: async () => ({ kind: 'sent' as const, key: 'c1', said: 1 }),
+  })
+  shell.contribute('say', {
+    ...item,
+    reply: (_scope, _said, listener) => {
+      // @ts-expect-error a reply is coming, ended or unknown
+      listener({ text: '好的', state: 'done' })
+      return () => undefined
+    },
+  })
+  shell.contribute('say', {
+    ...item,
+    reply: (_scope, _said, listener) => {
+      // @ts-expect-error the listener is given the whole text, not a piece
+      listener({ delta: '好', state: 'coming' })
+      return () => undefined
+    },
+  })
+  // @ts-expect-error reply gives back the function that stops it
+  shell.contribute('say', { ...item, reply: () => undefined })
+  // @ts-expect-error the item draws nothing
+  shell.contribute('say', { id: 'session', render: () => null })
+})
+
+test('a page always names its icon; a page and a sidebar item may name their group, and a sidebar item its rail', () => {
+  const shell = null as unknown as ShellService
+  const render = (): null => null
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'settings', render })
+  shell.contribute('pages', {
+    id: 'u',
+    title: 'U',
+    order: 0,
+    icon: 'settings',
+    group: 'utility',
+    render,
+  })
+  shell.contribute('sidebar', { id: 's', order: 0, group: 'primary', render })
+  shell.contribute('sidebar', { id: 'a', order: 0, group: 'utility', rail: render, render })
+  // @ts-expect-error a page item needs an icon
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, render })
+  shell.contribute('pages', {
+    id: 'p',
+    title: 'P',
+    order: 0,
+    icon: 'settings',
+    // @ts-expect-error there is no third group
+    group: 'footer',
+    render,
+  })
+  shell.contribute('sidebar', {
+    id: 's',
+    order: 0,
+    // @ts-expect-error a rail gets the tenant text like the item it folds
+    rail: (props: { subject: string }) => props.subject,
+    render,
+  })
 })
 
 test('the render properties: the gate gets no tenant, the others get the tenant text', () => {
@@ -83,16 +271,23 @@ test('contribute refuses an item that belongs to another slot', () => {
   const shell = null as unknown as ShellService
   const render = (): null => null
   shell.contribute('gate', { id: 'g', render })
-  shell.contribute('pages', { id: 'p', title: 'P', order: 0, render })
+  shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
   shell.contribute('sidebar', { id: 's', order: 0, render })
-  shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+  shell.contribute('back', { id: 'b', render })
+  shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
   // @ts-expect-error an attached item needs an anchor
   shell.contribute('attached', { id: 'a', order: 0, render })
   // @ts-expect-error a gate item has no title and order
   shell.contribute('pages', { id: 'g', render })
   // @ts-expect-error a page item does not belong in the gate
-  shell.contribute('gate', { id: 'p', title: 'P', order: 0, render })
-  // @ts-expect-error there is no fifth slot
+  shell.contribute('gate', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
+  // @ts-expect-error a floating item does not belong on the back
+  shell.contribute('back', { id: 'f', order: 0, render })
+  // @ts-expect-error the back hands its item a way to turn that gives nothing back
+  shell.contribute('back', { id: 'b', render: (props: { turn: () => boolean }) => props.turn() })
+  // @ts-expect-error the back hands its item a way home that gives nothing back
+  shell.contribute('back', { id: 'b', render: (props: { home: () => boolean }) => props.home() })
+  // @ts-expect-error there is no seventh slot
   shell.contribute('footer', { id: 'f', render })
 })
 
@@ -102,6 +297,16 @@ test('the slots reader and the service members', () => {
     (pageId: string, subject?: string) => void
   >()
   expectTypeOf<ShellService['toast']>().toEqualTypeOf<(toast: Toast) => void>()
+  expectTypeOf<ShellService['figure']>().toEqualTypeOf<(report: FigureReport) => void>()
+  expectTypeOf<FigureReport>().toEqualTypeOf<
+    Readonly<{
+      doing: 'idle' | 'thinking' | 'looking' | 'writing' | 'background'
+      moment?: Readonly<{ kind: 'received' | 'landed' | 'could-not'; serial: number }>
+      subject?: string
+      waiting?: number
+      waitingPage?: string
+    }>
+  >()
   expectTypeOf<Toast>().toEqualTypeOf<
     Readonly<{
       id: string
@@ -129,20 +334,18 @@ test('the login port is self-contained and states the client assembly login stat
     (listener: (state: ShellLoginState) => void) => () => void
   >()
   expectTypeOf<ShellLogin['login']>().returns.resolves.toEqualTypeOf<
-    'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+    'signed-in' | 'auth-failed' | 'rejected' | 'unknown' | 'unavailable'
   >()
 })
 
-test('defineUiModule hands the listed services with their types', () => {
-  defineUiModule<{ clock: { now: number } }>({
+test('defineUiModule hands the declared point needs with their types', () => {
+  defineUiModule({
     name: 'clock-ui',
-    inject: ['clock'],
-    apply(_shell, services) {
-      expectTypeOf(services.clock.now).toBeNumber()
+    needs: { clock: needPoint<{ now: number }>('host.clock') },
+    apply(_shell, bound) {
+      expectTypeOf(bound.clock.get()).toEqualTypeOf<{ now: number } | undefined>()
     },
   })
-  // @ts-expect-error a name outside the declared services cannot be listed
-  defineUiModule<{ clock: { now: number } }>({ name: 'x', inject: ['other'], apply() {} })
 })
 
 type Session = Readonly<{ session: string }>
@@ -153,8 +356,8 @@ test('a point takes no key and a keyed point requires one, on both sides', () =>
     encode: value => value.session,
     decode: text => ({ session: text }),
   }
-  const plain = definePoint({ name: 'session.side', subject: codec })
-  const keyed = defineKeyedPoint({ name: 'assets.holding', subject: codec })
+  const plain = definePoint({ title: 'test', name: 'session.side', subject: codec })
+  const keyed = defineKeyedPoint({ title: 'test', name: 'assets.holding', subject: codec })
   expectTypeOf(plain.contribute).parameters.toEqualTypeOf<[PointContributor, PointItem<Session>]>()
   expectTypeOf(plain.slot).parameters.toEqualTypeOf<[PointHost, Session, AttachedLayout]>()
   expectTypeOf(keyed.contribute).parameters.toEqualTypeOf<

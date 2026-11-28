@@ -2,7 +2,7 @@
 id: PD-slash-commands
 title: Slash Command
 status: draft
-revision: 3
+revision: 5
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # Slash Command
 
-本 topic 维护Slash Command的产品规则、能力定义及未决。领域分解经过审阅，整体产品及技术接受尚无依据；正式维护位置不代表已采用。
+本 topic 维护 Slash Command 的产品规则、能力定义及未决：一个会话此刻能点名什么，斜杠怎样被认出来，引用与命令发出去之后各是什么，以及同一条命令的几种触发。
 
 ## 阅读入口
 
@@ -21,4 +21,4 @@ relations:
 
 ## 维护
 
-产品负责人维护产品规则。技术拥有者决定成员归属、公开形状与采用；本轮不创建运行包。原候选、问答及审阅证据保持任务 tmp，当前正文不维护形成史。
+产品负责人维护产品规则。技术拥有者决定成员归属、公开形状与采用。过程材料留在任务 tmp，正文不维护形成史。

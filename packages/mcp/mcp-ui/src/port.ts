@@ -1,4 +1,13 @@
+import type { McpProtocol } from '@omne-harness/mcp-protocol'
+import type { ClientOf } from '@omne-harness/sdk/core'
 import type { ComponentType } from 'react'
+
+type Client = ClientOf<McpProtocol>
+
+/** Without `observe` the page reads only when it opens and after a refresh; without connecting an OAuth endpoint shows no button. */
+export type McpStatus = Pick<Client, 'read-endpoint' | 'refresh-endpoint'> &
+  Partial<Pick<Client, 'begin-connect' | 'disconnect'>> &
+  Readonly<{ observe?: Pick<Client['observe'], 'observe-endpoints'> }>
 
 export type McpNotice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 

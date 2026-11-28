@@ -12,6 +12,7 @@ import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { ToolOperatorSettingsImpl, toolOperatorSettingsKey } from './operator-settings.ts'
+import { setScriptSetting } from './script-host.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -35,10 +36,24 @@ export const toolHostConfig = z
         Skills: z.strictObject({ resultMaxBytes: positive }).optional(),
         Calendar: z.strictObject({ resultMaxBytes: positive }).optional(),
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Jobs: z.strictObject({ resultMaxBytes: positive }).optional(),
         Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Canvas: z.strictObject({ resultMaxBytes: positive }).optional(),
+        AppView: z
+          .strictObject({
+            resultMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
         Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Goal: z.strictObject({ resultMaxBytes: positive }).optional(),
         SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
+        OmneExtensions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        OmneExtensionPoints: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,
@@ -63,6 +78,17 @@ export const toolHostConfig = z
             imageMaxHeight: positive,
             imageMaxDecodedBytes: positive,
             imageConcurrency: positive,
+          })
+          .optional(),
+        Code: z
+          .strictObject({
+            resultMaxBytes: positive,
+            computeMs: positive,
+            memoryBytes: positive,
+            outputBytes: positive,
+            calls: positive,
+            callsInFlight: positive,
+            sourceBytes: positive,
           })
           .optional(),
       })
@@ -137,6 +163,9 @@ export function createToolHostPlugin(
     apply(ctx: Context, config: unknown) {
       const { construction, settings } = toolHostConfig.parse(config)
       new ToolOperatorSettingsImpl(ctx, settings ?? {})
+      const shell = construction?.Shell
+      if (shell !== undefined)
+        setScriptSetting(ctx, { env: shell.env, resultMaxBytes: shell.resultMaxBytes })
       const Host = createLocalToolHostPlugin<unknown, unknown, ToolMessageContentBlock>(
         releaseAuthorInput(ctx, construction ?? {}, options),
       )

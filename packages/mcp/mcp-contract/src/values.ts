@@ -38,6 +38,8 @@ export type EndpointSettings = Readonly<{
   target: SettingValue<ConnectionTarget>
   credential: SettingValue<CredentialBinding>
   connectTimeout: SettingValue<Millis>
+  /** OAuth only: the client identifier the person registered at the authorization server. */
+  clientId?: SettingValue<string>
 }>
 
 export type PeerAccount =

@@ -108,30 +108,65 @@ export const ScheduleMisfireSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('lapse') }),
   z.strictObject({ kind: z.literal('awaitRecovery') }),
 ])
+const execution = {
+  kind: z.literal('execution'),
+  scope: ScheduleScopeSchema,
+  catchUp: ScheduleCatchUpSchema,
+  overlap: ScheduleOverlapSchema,
+  misfire: ScheduleMisfireSchema.nullable(),
+  notifications: z
+    .array(ScheduleExecutionNotificationSchema)
+    .max(4)
+    .refine(
+      items => new Set(items.map(item => item.event)).size === items.length,
+      'Each notification event occurs at most once',
+    ),
+}
+const reminder = z.strictObject({
+  kind: z.literal('reminder'),
+  content: ScheduleReminderContentSchema,
+  admissionPolicy: z.literal('reminder-window-v1'),
+  overlap: ScheduleOverlapSchema,
+})
 export const SchedulePurposeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...execution, work: ScheduleWorkSchema }),
+  reminder,
+])
+
+const program = z.strictObject({
+  kind: z.literal('program'),
+  programRef: ref,
+  input: ScheduleJsonValueSchema,
+})
+/** Work as its caller writes it: a session of a new one may leave out its definition, modes and workspace, and agent work its materials, return target and result policy. `completeAgentWork` fills them in before the work is read as `ScheduleWork`. */
+export const ScheduleWorkAsWrittenSchema = z.discriminatedUnion('kind', [
+  program,
   z.strictObject({
-    kind: z.literal('execution'),
-    work: ScheduleWorkSchema,
-    scope: ScheduleScopeSchema,
-    catchUp: ScheduleCatchUpSchema,
-    overlap: ScheduleOverlapSchema,
-    misfire: ScheduleMisfireSchema.nullable(),
-    notifications: z
-      .array(ScheduleExecutionNotificationSchema)
-      .max(4)
-      .refine(
-        items => new Set(items.map(item => item.event)).size === items.length,
-        'Each notification event occurs at most once',
-      ),
-  }),
-  z.strictObject({
-    kind: z.literal('reminder'),
-    content: ScheduleReminderContentSchema,
-    admissionPolicy: z.literal('reminder-window-v1'),
-    overlap: ScheduleOverlapSchema,
+    kind: z.literal('agent'),
+    instruction: ScheduleInstructionSchema,
+    session: z.discriminatedUnion('mode', [
+      z.strictObject({
+        mode: z.literal('new'),
+        agentDefinitionRef: ref.optional(),
+        modes: ScheduleAgentModesSchema.optional(),
+        workspace: ScheduleWorkspaceInputSchema.nullable().optional(),
+      }),
+      z.strictObject({ mode: z.literal('existing'), sessionRef: ref }),
+    ]),
+    materials: z.array(ScheduleMaterialInputSchema).optional(),
+    returnTo: z
+      .strictObject({ kind: z.literal('external'), targetRef: ref })
+      .nullable()
+      .optional(),
+    resultPolicy: ScheduleResultPolicySchema.optional(),
   }),
 ])
+export const SchedulePurposeAsWrittenSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...execution, work: ScheduleWorkAsWrittenSchema }),
+  reminder,
+])
 export type SchedulePurpose = z.infer<typeof SchedulePurposeSchema>
+export type ScheduleOverlap = z.infer<typeof ScheduleOverlapSchema>
 export type ScheduleWork = z.infer<typeof ScheduleWorkSchema>
 export type ScheduleResultPolicy = z.infer<typeof ScheduleResultPolicySchema>
 export type ScheduleAgentSessionPlan = z.infer<typeof ScheduleAgentSessionPlanSchema>

@@ -38,7 +38,10 @@ export function triggerLine(context: ContextLimits): bigint {
   return (BigInt(context.window.provided) * BigInt(context.compactionTriggerPercent)) / 100n
 }
 
-export function meterInput(profile: ModelProfile, assembled: AssembledModelInput): MeterInput {
+export function meterInput(
+  profile: ModelProfile<'llm'>,
+  assembled: AssembledModelInput,
+): MeterInput {
   const blocks = blocksOf(assembled)
   const [first, ...rest] = referencesOf(blocks)
   const base = {

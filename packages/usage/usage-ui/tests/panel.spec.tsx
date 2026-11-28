@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import type { Context } from '@deepseek-ai/cordis'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { ShellAssemblyError } from '@omne-harness/shell-contract'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 import {
   createUsageUiModule,
   memoryLayoutStore,
@@ -11,7 +13,7 @@ import {
   type UsageUiOptions,
 } from '../src/cordis.tsx'
 import type { Layouts } from '../src/index.ts'
-import { Present } from '../src/index.ts'
+import { Present, storedLayouts, USAGE_LAYOUTS_KEY } from '../src/index.ts'
 import { stubDom, TENANT } from './fixtures/dom.ts'
 import { fakeUsage, type Answer, type Call } from './fixtures/fake-usage.ts'
 import { startShell } from './fixtures/reference-shell.tsx'
@@ -19,7 +21,6 @@ import { startShell } from './fixtures/reference-shell.tsx'
 beforeAll(stubDom)
 afterEach(cleanup)
 
-const SERVICE = 'protocol:usage/v1'
 const settle = () =>
   act(async () => {
     for (let round = 0; round < 5; round += 1) await Promise.resolve()
@@ -34,7 +35,7 @@ async function page(
   const { root, shell } = await startShell()
   shell.tenant = TENANT
   const fake = fakeUsage(answer)
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, usageProtocol, fake.client)
   const store = options.store ?? memoryLayoutStore()
   await root.plugin(createUsageUiModule({ ...options, store }))
   if (extra !== undefined) await root.plugin({ name: 'extra', inject: ['shell'], apply: extra })
@@ -51,6 +52,29 @@ const click = async (name: string, within?: HTMLElement | null) => {
   const button = [...scope.querySelectorAll('button')].find(node => node.textContent === name)
   if (button === undefined) throw new Error(`no button ${name}`)
   fireEvent.click(button)
+  await settle()
+}
+const bar = () => {
+  const header = document.querySelector<HTMLElement>('.usage-panel-bar')
+  if (header === null) throw new Error('no panel bar')
+  return header
+}
+/** Opens the panel's `⋯` and gives its menu. */
+const openMenu = async () => {
+  fireEvent.pointerDown(within(bar()).getByRole('button', { name: '更多操作' }), {
+    button: 0,
+    ctrlKey: false,
+  })
+  await settle()
+  return screen.getByRole('menu')
+}
+const menuItems = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole('menuitem')
+    .map(item => item.textContent)
+/** Chooses an item of the panel's `⋯`. */
+const fromMenu = async (name: string) => {
+  fireEvent.click(within(await openMenu()).getByRole('menuitem', { name }))
   await settle()
 }
 const choose = async (label: string, value: string, within?: HTMLElement | null) => {
@@ -94,7 +118,7 @@ describe('the panel is the charts-first set of widgets in the order of its layou
 
   it('edits: moves, removes, adds, resizes and changes the presentation, each saved; resets to the default', async () => {
     const { store } = await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     await click('下移', card('usage.summary'))
     expect(widgets().slice(0, 2)).toEqual(['usage.tokens', 'usage.summary'])
     await click('上移', card('usage.summary'))
@@ -121,7 +145,7 @@ describe('the panel is the charts-first set of widgets in the order of its layou
 
   it('keeps the first and last widget where they are when moved past the end', async () => {
     await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const first = [...(card('usage.summary')?.querySelectorAll('button') ?? [])].find(
       node => node.textContent === '上移',
     )
@@ -146,6 +170,29 @@ describe('each item of a layout by the rows of T8 (C28)', () => {
     await click('去掉', card('gone.widget'))
     expect(widgets()).toEqual(['usage.summary'])
     expect(store.read().tenant?.map(item => item.widget)).toEqual(['usage.summary'])
+  })
+
+  it('keeps a change of the layout in the preference store, and a page opened later reads it back', async () => {
+    const kept = new Map<string, string>()
+    const preferences = {
+      getItem: (key: string) => kept.get(key) ?? null,
+      setItem: (key: string, value: string) => void kept.set(key, value),
+    }
+    const store = storedLayouts(() => preferences)
+    store.write({
+      tenant: [
+        { widget: 'gone.widget', width: 1, presentation: null },
+        { widget: 'usage.summary', width: 3, presentation: null },
+      ],
+    })
+    await page({ store })
+    await click('去掉', card('gone.widget'))
+    cleanup()
+    await page({ store: storedLayouts(() => preferences) })
+    expect(widgets()).toEqual(['usage.summary'])
+    expect(JSON.parse(kept.get(USAGE_LAYOUTS_KEY) ?? 'null')).toEqual({
+      tenant: [{ widget: 'usage.summary', width: 3, presentation: null }],
+    })
   })
 
   it('a chosen presentation no longer registered gives the default with a note', async () => {
@@ -200,15 +247,44 @@ describe('each item of a layout by the rows of T8 (C28)', () => {
     expect(card('usage.summary')?.textContent).toContain('0.0123 USD')
   })
 
-  it('two widgets of one id on one position are an assembly error', async () => {
-    const { shell } = await page()
-    expect(() =>
-      usageWidget.contribute(shell, 'tenant', {
+  it('a widget another module puts under an id the panel holds is a conflict: neither is drawn, the others stay', async () => {
+    const { shell } = await page({}, undefined, ctx =>
+      usageWidget.contribute(ctx.shell, 'tenant', {
         id: 'usage.summary',
         order: 0,
         render: () => null,
       }),
-    ).toThrow(ShellAssemblyError)
+    )
+    expect(shell.conflicts('attached')).toEqual([
+      {
+        slot: 'attached',
+        anchor: 'usage.widget:tenant',
+        id: 'usage.summary',
+        by: ['extra', 'usage-ui'],
+      },
+    ])
+    expect(card('usage.summary')?.textContent ?? '').not.toContain('0.0123 USD')
+    expect(card('usage.tokens')?.querySelector('svg')).not.toBeNull()
+  })
+
+  it('a second widget of one id from the same module is an assembly error', async () => {
+    let thrown: unknown
+    await page({}, undefined, ctx => {
+      const put = () =>
+        usageWidget.contribute(ctx.shell, 'tenant', {
+          id: 'test.twice',
+          order: 0,
+          render: () => null,
+        })
+      put()
+      try {
+        put()
+      } catch (error) {
+        thrown = error
+      }
+    })
+    expect(thrown).toBeInstanceOf(ShellAssemblyError)
+    expect(thrown).toMatchObject({ slot: 'attached', id: 'test.twice', reason: 'duplicate' })
   })
 })
 
@@ -222,8 +298,30 @@ describe('a read that is refused', () => {
   it('reads again on refresh', async () => {
     const { fake } = await page()
     const before = fake.calls.length
-    await click('刷新')
+    await fromMenu('刷新')
     expect(fake.calls.length).toBeGreaterThan(before)
+  })
+
+  it('the top of the panel is the range and one ⋯ (A2): 编辑面板, 完成 while editing, and 刷新', async () => {
+    await page()
+    const more = within(bar()).getByRole('button', { name: '更多操作' })
+    expect(more.textContent?.trim()).toBe('')
+    expect(more.querySelector('svg[data-icon="more"][aria-hidden="true"]')).not.toBeNull()
+    expect(
+      within(bar())
+        .getAllByRole('button')
+        .filter(button => !button.hasAttribute('data-segment'))
+        .map(button => button.getAttribute('aria-label')),
+    ).toEqual(['更多操作'])
+    expect(bar().textContent).not.toMatch(/刷新|编辑面板|完成/u)
+    expect(menuItems(await openMenu())).toEqual(['编辑面板', '刷新'])
+    fireEvent.click(screen.getByRole('menuitem', { name: '编辑面板' }))
+    await settle()
+    expect(document.querySelector('.usage-panel')?.getAttribute('data-editing')).toBe('true')
+    expect(menuItems(await openMenu())).toEqual(['完成', '刷新'])
+    fireEvent.click(screen.getByRole('menuitem', { name: '完成' }))
+    await settle()
+    expect(document.querySelector('.usage-panel')?.getAttribute('data-editing')).toBe('false')
   })
 })
 
@@ -245,8 +343,11 @@ describe('the details of editing (C28)', () => {
     expect(card('gone.widget')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
       '编辑「gone.widget」',
     )
-    await click('编辑面板')
-    expect(document.body.textContent).toContain('完成')
+    await fromMenu('编辑面板')
+    const menu = await openMenu()
+    expect(menuItems(menu)).toEqual(['完成', '刷新'])
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await settle()
     expect(card('usage.summary')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
       '编辑「概览」',
     )
@@ -257,7 +358,7 @@ describe('the details of editing (C28)', () => {
 
   it('offers no presentation for a widget that draws itself, and the default first for one that does not', async () => {
     const { store } = await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     expect(fieldOf('画法', card('usage.summary'))).toBeNull()
     const drawing = fieldOf('画法', card('usage.tokens'))
     expect(drawing?.value).toBe('')
@@ -285,7 +386,7 @@ describe('the details of editing (C28)', () => {
         render: () => null,
       }),
     )
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const adding = fieldOf('加一张卡片')
     expect([...(adding?.options ?? [])].map(option => option.text)).toEqual([
       '选一张',
@@ -306,7 +407,7 @@ describe('the details of editing (C28)', () => {
       session: [{ widget: 'usage.tokens', width: 3, presentation: null }],
     })
     await page({ store })
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     await click('恢复缺省')
     expect(Object.keys(store.read())).toEqual(['session'])
   })
@@ -405,7 +506,7 @@ describe('what the panel leaves alone', () => {
     await page({ store })
     expect(card('usage.tokens')?.textContent).not.toContain('所选的画法不在了')
     expect(card('usage.tokens')?.querySelector('.recharts-line')).not.toBeNull()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const adding = [...document.querySelectorAll('label')].find(node =>
       node.textContent?.startsWith('加一张卡片'),
     )

@@ -13,10 +13,12 @@ import {
 } from '@omne-harness/tool-contract'
 import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
 import {
+  HELD_UNREAD,
   releaseToolConsumer,
   resolveForwardTarget,
   type ForwardRequestPorts,
 } from './tool-forward-requests.ts'
+import { TOOL_CATEGORY } from './permission-declarations.ts'
 import { namedUngated } from './tool-release-manifest.ts'
 import { callOf } from './tool-requests.ts'
 
@@ -136,8 +138,16 @@ export function createToolActionResolution(
           reason: 'unknown-command',
         })
       const own = gateOf(definition, called.command)
-      if (input.name !== 'Tools' || called.command !== 'execute')
-        return succeed({ kind: 'own', gate: own })
+      if (input.name !== 'Tools' || called.command !== 'execute') {
+        const capability = released
+          ? undefined
+          : ports.sourced?.().entry(input, input.name)?.capability
+        return succeed({
+          kind: 'own',
+          gate: own,
+          ...(capability === undefined ? {} : { capability }),
+        })
+      }
       if (!released) return unavailable('Tools is not available as released')
       return carriedAction(ports, input, definition, own, gateOf)
     },
@@ -166,8 +176,11 @@ async function carriedAction(
     // A target the forward refuses (resident, not included, not available) is no target either.
     if (failure.kind === 'denied') return refused('name', 'target-refused')
     if (failure.kind === 'invalid') return refused(failure.field, failure.reason)
+    if (failure.kind === 'unavailable' && failure.dependency === HELD_UNREAD)
+      return refused('name', 'target-unread')
     return resolved
   }
+  const { capability } = resolved.ok
   const target = resolved.ok.availability.definition
   // A call its target would answer with usage carries no action either.
   const targetCall = callOf(target, resolved.ok.effective)
@@ -177,6 +190,7 @@ async function carriedAction(
     carrier: { name: input.name, definition: definition.adoption, gate: own },
     target: {
       name: intent.name,
+      ...(capability.category === TOOL_CATEGORY ? {} : { capability }),
       definition: target.adoption,
       command: intent.command,
       effectiveArguments: resolved.ok.effective,

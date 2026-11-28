@@ -9,6 +9,7 @@ import type {
   Adoption,
   DurableEvidence,
   Modes,
+  RunId,
   SavedModelSelection,
   SessionAccess,
   SessionFailure,
@@ -101,7 +102,10 @@ export interface SessionPermissionModes {
 }
 
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt' | 'change'>
+  management: Pick<
+    SessionManagement<Principal>,
+    'create' | 'interrupt' | 'change' | 'recordCommand'
+  >
   work: Pick<
     SessionWork<Principal>,
     | 'accept'
@@ -109,6 +113,7 @@ export type SessionAccessFaces = Readonly<{
     | 'cancelRun'
     | 'stopCall'
     | 'retryRun'
+    | 'reloadSession'
     | 'readWaiting'
     | 'readPending'
     | 'readWaitingCalls'
@@ -138,7 +143,17 @@ export type WorkspaceSelections = Readonly<{
   read(access: SessionAccess<Principal>): Promise<WorkspaceSelectionReading>
 }>
 
-export type RunFailureCause = Readonly<{ kind: string; detail: string | null }>
+export type RunFailureFault = Readonly<{
+  cause: string
+  upstreamStatus: string | null
+  throttled: boolean
+}>
+
+export type RunFailureCause = Readonly<{
+  kind: string
+  detail: string | null
+  fault: RunFailureFault | null
+}>
 
 export type RunFailureReading =
   | Readonly<{ kind: 'cause'; cause: RunFailureCause }>
@@ -147,7 +162,7 @@ export type RunFailureReading =
 
 export interface RunFailureCauses {
   read(
-    input: Readonly<{ principal: Principal; tenant: TenantId; execution: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; session: SessionId; run: RunId }>,
   ): Promise<RunFailureReading>
 }
 
@@ -160,7 +175,10 @@ export type ResolvedDefinition = Readonly<{
   initialModelSelection?: SavedModelSelection
 }>
 
-export type DefinitionResolver = (definition: string) => ResolvedDefinition | undefined
+export type DefinitionResolver = (
+  definition: string,
+  tenant: TenantId,
+) => ResolvedDefinition | undefined | Promise<ResolvedDefinition | undefined | 'unavailable'>
 
 export type SessionAccessSettings = Readonly<{
   defaultDefinition?: string | undefined
@@ -177,6 +195,7 @@ export type ModelTargetCheck =
   | Readonly<{
       kind: 'selectable'
       credential: 'available' | 'missing' | 'unknown'
+      reasoningEfforts?: readonly NonNullable<SavedModelSelection['reasoningEffort']>[]
       basis: DurableEvidence
     }>
   | Readonly<{
@@ -197,6 +216,7 @@ export type WorkspaceTargetCheck =
   | Readonly<{
       kind: 'attachable'
       directory: string
+      rootIdentity?: string
       attachment: WorkspaceAttachment
       basis: DurableEvidence
     }>

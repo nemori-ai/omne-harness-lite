@@ -8,8 +8,10 @@ import type {
   AdvanceRef,
   ConsumptionId,
   DurableEvidence,
+  InitialBatch,
   InputId,
   ResidentKey,
+  RunId,
   SessionAccess,
   SessionId,
   SessionOperationId,
@@ -61,7 +63,7 @@ export type DriveFailure =
         | 'unsupported'
         | 'conflict'
     }>
-  | Readonly<{ kind: 'invalid'; reason: string; rejection: DurableEvidence }>
+  | Readonly<{ kind: 'invalid'; input: InputId; reason: string; rejection: DurableEvidence }>
   | Readonly<{
       kind: 'refused'
       failure: 'invalid' | 'unsupported'
@@ -93,7 +95,7 @@ export type ExecutionStatus = Readonly<{
 export interface AgentDrivePort {
   invoke(
     input: DriveTarget &
-      Readonly<{ first: InputId; source: DurableEvidence; grant: DurableEvidence }>,
+      Readonly<{ initial: InitialBatch; source: DurableEvidence; grant: DurableEvidence }>,
   ): DriveReply<DriveReceipt>
   submit(
     input: DriveTarget & Readonly<{ input: InputId; source: DurableEvidence }>,
@@ -105,6 +107,7 @@ export interface AgentDrivePort {
     input: DriveTarget & Readonly<{ control: SessionOperationId; intent: Control }>,
   ): DriveReply<DriveReceipt>
   detach(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
+  handOver(input: DriveTarget & Readonly<{ advance: AdvanceRef }>): DriveReply<DurableEvidence>
   recordResult(
     input: DriveTarget &
       Readonly<{
@@ -197,6 +200,7 @@ export type MutationName =
   | 'completeInitialization'
   | 'change'
   | 'setResident'
+  | 'recordCommand'
   | 'configureAutoArchive'
   | 'considerAutoArchive'
   | 'recordIdle'
@@ -220,9 +224,11 @@ export type SessionCommand = {
             judgment?: DurableEvidence
             expected?: SessionRevision
           }>
-        : K extends 'stopCall'
-          ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
-          : unknown)
+        : K extends 'change'
+          ? Readonly<{ expected?: SessionRevision }>
+          : K extends 'stopCall'
+            ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
+            : unknown)
   }>
 }[MutationName]
 export type GuardCommand = Readonly<{
@@ -234,8 +240,24 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
   prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>
 }
+/** What a run that starts now adopts: this set; the one it stands at, the new one not to be used and why; or none, and why. */
+export type RunAdoption =
+  | Readonly<{
+      kind: 'adopt'
+      candidate: Adoption
+      residentAdoption?: ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+    }>
+  | Readonly<{ kind: 'keep'; reason: string }>
+  | Readonly<{ kind: 'none'; reason: string }>
+/** `point` names a reload: the sources read afresh for it, not as the run going on started. */
+export type RunAdoptionInput = Readonly<{
+  work: WorkSnapshot
+  run: RunId | null
+  point?: SessionOperationId
+}>
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
+  runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>
 }
 export interface SessionClock {
   sample(): Reply<ClockSample>
@@ -288,6 +310,7 @@ export interface SessionAdoptionSource<P = unknown> {
     access: SessionAccess<P>,
     input: SessionAdoptionPlanInput,
   ) => Promise<Outcome<SessionAdoptionPlanAnswer, Readonly<{ kind: 'unavailable' }>>>
+  forRun?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>
 }
 export interface SessionProductionSource {
   prepare(command: ProductionEvidenceCommand): Reply<readonly GuardCommand[]>

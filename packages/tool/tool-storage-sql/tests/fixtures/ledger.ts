@@ -16,10 +16,9 @@ import {
   decodeToolCallId,
   type Adoption,
   type FixedToolRequest,
-  type ToolInvokeRequest,
   type ToolBodyDeclaration,
 } from '@omne-harness/tool-contract'
-import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
+import { defaultResultPolicy, toolInvokeRequestOf } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolClock,
   createMemoryToolEnvironment,
@@ -54,7 +53,10 @@ const adoption = (name: string): Adoption => ({
   digest: `sha256:${name}`,
 })
 
-function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolInvokeRequest {
+function fixtureCall(
+  body?: ToolBodyDeclaration,
+  argumentsText = '{}',
+): Omit<FixedToolRequest, 'invocation'> {
   return {
     availability: {
       kind: 'available',
@@ -95,7 +97,6 @@ function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolIn
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: scope(),
     resources: [],
     scope: {
@@ -117,7 +118,7 @@ function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolIn
 
 export function fixedRequest(): FixedToolRequest {
   return {
-    ...invokeRequest(),
+    ...fixtureCall(),
     invocation: {
       kind: 'direct',
       source: { owner: 'ledger-fixture', record: 'entry', revision: '1', digest: 'sha256:entry' },
@@ -139,8 +140,10 @@ export async function ledgerWorld(
     input.tenant.account.text === tenant.account.text
       ? { kind: 'allowed' }
       : { kind: 'denied', reason: 'not-qualified' }
+  const call = fixtureCall(body, argumentsText)
   const source = createTestInvocationSource<Principal>({
     snapshotPrincipal: value => ({ ...value }),
+    definition: () => call.availability.definition,
     authority: {
       qualify: input => qualify({ ...input, call: SOURCE_CALL, action: 'admit' }),
       samePrincipal: async ({ current, original }) =>
@@ -149,15 +152,11 @@ export async function ledgerWorld(
           : { kind: 'denied', reason: 'different-subject' },
     },
   })
-  const request = invokeRequest(body, argumentsText)
+  const request = toolInvokeRequestOf(call)
   const issued = await source.issuer.resolve({ principal, tenant, request })
   if (issued.kind !== 'bound') throw new Error('the fixture source must bind the invocation')
   const access = { principal, tenant, call: issued.call }
-  const input = {
-    ...access,
-    operation: issued.admission,
-    request: { ...request, invocation: issued.invocation },
-  }
+  const input = { ...access, operation: issued.admission, request: issued.request }
   const guards: ToolLedgerGuards<Principal, ContentBlock> = {
     access: { qualify },
     sources: source.guard,

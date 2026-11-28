@@ -15,6 +15,6 @@ it('exports the trusted owner and both public Settings integration commands', ()
     'newHoldingRef',
     'originOf',
     'publishedAssetRef',
-    'tenantLayerSource',
+    'tenantListing',
   ])
 })

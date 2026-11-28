@@ -73,8 +73,13 @@ async function handle(item: Queued): Promise<unknown> {
       return reply
     }
     case 'register': {
-      const reply = await registerInDomain(env, state, request.registration)
-      runner.invalidate()
+      const { reply, migrated } = await registerInDomain(
+        env,
+        state,
+        request.registration,
+        request.readersPaused,
+      )
+      if (migrated) runner.invalidate()
       return reply
     }
     case 'query':

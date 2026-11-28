@@ -71,21 +71,31 @@ describe('the new address answers', () => {
 })
 
 describe('the message id', () => {
-  const rejected = '{"outcome":"protocol-rejected","body":{}}'
+  const rejected = (given: string): string =>
+    JSON.stringify({
+      outcome: 'protocol-rejected',
+      body: {
+        rejection: {
+          at: [],
+          given: `the header omne-message-id ${given}`,
+          allows: 'one omne-message-id header: 1 to 128 visible ASCII characters, no space',
+        },
+      },
+    })
 
   it.each([
-    ['missing', undefined],
-    ['empty', ''],
-    ['longer than 128', 'm'.repeat(129)],
-    ['with a space', 'msg 1'],
-    ['with a character outside ASCII', 'msg-é'],
-  ])('%s is protocol-rejected without the id', async (_case, id) => {
+    ['missing', undefined, 'missing'],
+    ['empty', '', '""'],
+    ['longer than 128', 'm'.repeat(129), `"${'m'.repeat(119)}… (129 characters)`],
+    ['with a space', 'msg 1', '"msg 1"'],
+    ['with a character outside ASCII', 'msg-é', '"msg-é"'],
+  ])('%s is protocol-rejected without the id, saying why', async (_case, id, given) => {
     const entry = await access()
     const reply = await call(entry.port, 'read-note', {
       headers: { 'omne-message-id': id },
       body: '{"noteId":"n-1"}',
     })
-    expectAnswer(reply, 400, rejected)
+    expectAnswer(reply, 400, rejected(given))
     expect(reply.headers['omne-message-id']).toBeUndefined()
     expect(reply.headers.connection).toBe('close')
     expect(entry.accessIdentity.calls).toEqual([])
@@ -102,8 +112,9 @@ describe('the message id', () => {
       body,
     )
     expect(reply).toMatch(/^HTTP\/1\.1 400 /)
-    expect(reply).not.toMatch(/omne-message-id/i)
-    expect(reply.endsWith(rejected)).toBe(true)
+    const [head] = reply.split('\r\n\r\n')
+    expect(head).not.toMatch(/omne-message-id/i)
+    expect(reply.slice(reply.indexOf('\r\n\r\n') + 4)).toBe(rejected('"msg-0001, msg-0002"'))
   })
 
   it('128 visible ASCII characters are accepted and echoed', async () => {
@@ -127,7 +138,11 @@ describe('the message id', () => {
     entry.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'basis-unavailable' } }
     const unavailable = await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
     expectAnswer(denied, 403, '{"outcome":"denied","body":{}}')
-    expectAnswer(malformed, 400, '{"outcome":"protocol-rejected","body":{}}')
+    expectAnswer(
+      malformed,
+      400,
+      '{"outcome":"protocol-rejected","body":{"rejection":{"at":[],"given":"a body that does not read as JSON (syntax)","allows":"one JSON text within the limits of this operation"}}}',
+    )
     expectAnswer(unavailable, 503, '{"outcome":"basis-unavailable","body":{}}')
     for (const reply of [denied, malformed, unavailable])
       expect(reply.headers['omne-message-id']).toBe(MESSAGE_ID)

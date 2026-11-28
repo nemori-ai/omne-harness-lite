@@ -12,7 +12,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { productionCatalog, renderHelp } from '@omne-harness/cli'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandMissing, commandUnrecognized, notLoggedIn } from './support/expected.ts'
+import {
+  commandMissing,
+  commandUnrecognized,
+  notLoggedIn,
+  commandRefused,
+} from './support/expected.ts'
 import {
   accountId,
   closedPort,
@@ -316,7 +321,10 @@ describe('governance usage errors', () => {
     expect(result).toMatchObject({
       code: 2,
       stdout: '',
-      stderr: commandUnrecognized('accept-member-invitation'),
+      stderr: commandRefused(
+        'accept-member-invitation',
+        'invitationId is ""; allows a text that is not empty',
+      ),
     })
     const sent = service.seen.filter(seen => seen.operation === 'accept-member-invitation')
     expect(sent).toHaveLength(0)

@@ -2,24 +2,42 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { contextPort } from './context-port.ts'
 
+/** The tools a Skill needs that the session does not have now; unknown when they cannot be read. */
+export type SkillsMissingTools = readonly string[] | 'unknown'
+
 export type SkillsEntry =
-  | Readonly<{ kind: 'available'; name: string; description?: string }>
+  | Readonly<{
+      kind: 'available'
+      name: string
+      description?: string
+      needs?: SkillsMissingTools
+      origin?: string
+    }>
   | Readonly<{ kind: 'disabled'; name: string; description?: string; reason: string }>
 
 export type SkillsPage = Readonly<{ entries: readonly SkillsEntry[]; next: string | null }>
 
+/** The layer a Skill is read from and the version read; or, for a Skill from outside the assets, where it comes from. */
+export type SkillsSource =
+  | Readonly<{ layer: string; version: string }>
+  | Readonly<{ external: string }>
+
+type Provenance = Readonly<{ source?: SkillsSource; missingTools?: SkillsMissingTools }>
+
 /** Bytes `start` to `end` of `total`; the read is complete when `end` reaches `total`. */
-export type SkillsText = Readonly<{
-  text: string
-  start: number
-  end: number
-  total: number
-  directory?: string
-}>
+export type SkillsText = Provenance &
+  Readonly<{
+    text: string
+    start: number
+    end: number
+    total: number
+    directory?: string
+  }>
 
 export type SkillsFile = Readonly<{ path: string; size: number; mediaType?: string }>
 
-export type SkillsListing = Readonly<{ files: readonly SkillsFile[]; directory?: string }>
+export type SkillsListing = Provenance &
+  Readonly<{ files: readonly SkillsFile[]; directory?: string }>
 
 export type SkillsFailure =
   | Readonly<{ kind: 'not-found' }>

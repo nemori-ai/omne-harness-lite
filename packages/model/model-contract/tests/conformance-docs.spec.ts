@@ -109,7 +109,22 @@ const SKIPPED_WITHOUT = {
     'interruption-is-confirmed',
     'transport-close-is-idempotent',
   ],
-} as const satisfies Record<(typeof HOOKS)[number] | 'transport', readonly ConformanceObligation[]>
+  live: [
+    'live-command-before-open-refused',
+    'live-command-taken-once',
+    'live-command-outside-profile-refused',
+    'live-command-after-settle-refused',
+    'live-end-before-open-refused',
+    'live-end-durable-and-idempotent',
+    'live-end-after-settle-idempotent',
+    'live-media-by-phase-and-modality',
+    'live-call-of-another-tenant-unknown',
+    'live-lost-body-unavailable',
+  ],
+} as const satisfies Record<
+  (typeof HOOKS)[number] | 'transport' | 'live',
+  readonly ConformanceObligation[]
+>
 
 const HOOKS = [
   'startRun',
@@ -128,25 +143,24 @@ const HOOKS = [
 
 function without(
   subject: ConformanceSubject<ScriptedPrincipal>,
-  hook: (typeof HOOKS)[number] | 'transport',
+  hook: (typeof HOOKS)[number] | 'transport' | 'live',
 ): ConformanceSubject<ScriptedPrincipal> {
   if (hook === 'transport') {
-    return {
-      provider: subject.provider,
-      principal: subject.principal,
-      tenant: subject.tenant,
-      otherTenant: subject.otherTenant,
-      hooks: { ...subject.hooks },
-    }
+    const { transport: _, ...rest } = subject
+    return rest
+  }
+  if (hook === 'live') {
+    const { live: _, ...rest } = subject
+    return rest
   }
   const hooks = { ...subject.hooks }
   delete hooks[hook]
   return { ...subject, hooks }
 }
 
-describe('the obligation table of docs/public-api.md', () => {
-  it('names, for each hook and for the transport, the obligations that the suite cannot check without it', async () => {
-    for (const missing of [...HOOKS, 'transport'] as const) {
+describe('the obligations each part of the subject carries', () => {
+  it('names, for each hook, the transport and the live calls, the obligations that the suite cannot check without it', async () => {
+    for (const missing of [...HOOKS, 'transport', 'live'] as const) {
       const report = await checkModelProviderConformance({
         subject: () => without(createScriptedConformanceSubject(), missing),
         waitMs: 300,

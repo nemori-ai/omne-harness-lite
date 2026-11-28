@@ -1,4 +1,4 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
+import { testToolDefinition } from '@omne-harness/agent/testing'
 import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-block'
 import type { ActionToolCall, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
 import {
@@ -53,28 +53,8 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
         kind: 'available',
         executor: adoption('executor'),
         layer: { kind: 'official' },
-        definition: {
-          adoption: adoption('read_file'),
-          name: 'read_file',
-          description: 'Read a file.',
-          requiredCapabilities: [],
-          backgroundAllowed: false,
-          declarations: {
-            adoption: adoption('tool-declarations'),
-            environment: null,
-            attachments: [],
-            inputModalities: [],
-            outputModalities: [],
-            settings: null,
-          },
-          kind: 'function',
-          parameters: {
-            schema: { kind: 'object', entries: [] },
-            vocabulary: adoption('json-schema'),
-            descriptions: [],
-          },
-          returns: ordinaryReturnFixture(adoption('codec')),
-        },
+        definition: adoption('read_file'),
+        name: 'read_file',
       },
       command: null,
       arguments: { original: '{}', effective: '{}', complete: true },
@@ -82,7 +62,6 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
       settings: adoption('settings'),
       context: adoption('context'),
       workspace: null,
-      environment: null,
       requesterScope: { ref: 'tool-scope' },
       resources: [],
       scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },
@@ -102,11 +81,13 @@ export async function toolAssembly(
   configuration: Parameters<typeof controlAssembly>[2] = {},
   journal: Parameters<typeof controlAssembly>[0] = {},
   requests: Partial<ToolRequests> | null = {},
-  wrap: Parameters<typeof controlAssembly>[1] = dependencies => dependencies,
+  wrap: NonNullable<Parameters<typeof controlAssembly>[1]> = dependencies => dependencies,
 ) {
   const source: ToolRequests = {
+    // read_file changes nothing: its calls may run beside each other (AG-33), so a batch of them is out together.
     async describe() {
-      return { ok: { kind: 'tool', definition: adoption('read_file') } }
+      const definition = testToolDefinition(adoption('read_file'))
+      return { ok: { kind: 'tool', definition, concurrent: true } }
     },
     async prepare(input) {
       return { ok: fixedToolRequest(input.consumer) }

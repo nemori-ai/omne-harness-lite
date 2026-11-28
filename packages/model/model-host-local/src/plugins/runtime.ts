@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -7,6 +6,7 @@ import {
   encodeModelInvocationRef,
   type Access,
   type ConsumerRef,
+  type CustodyState,
   type DispatchId,
   type ModelCallId,
   type ModelDelivery,
@@ -27,6 +27,7 @@ import type {
   ModelHostAuthority,
   ModelSendBoundary,
 } from '@omne-harness/model-contract/provider'
+import type { LiveEventPort } from '@omne-harness/model'
 import {
   ModelRuntimeService,
   createModelResultReceiverTable,
@@ -38,15 +39,18 @@ import { createCustodyEnd, savedResultOf } from './push-custody.ts'
 import { createCostLookups } from './cost-lookups.ts'
 import { createLateAccounts } from './late-accounts.ts'
 import {
+  answerOf,
   awaitsReceiver,
   custodyEnded,
   definite,
   due,
+  frozen,
   isDelayTable,
   laterRevision,
   unfinished,
 } from './push-values.ts'
 import { whenEmpty } from './idle.ts'
+import { createLiveEvents } from './live-events.ts'
 import { createStartScan } from './start-scan.ts'
 
 const DEPENDENCY = 'model-result-push'
@@ -195,18 +199,38 @@ function pendingOf(reservations: ReadonlyMap<string, string>, tenant: string): n
 }
 
 async function originOf(
-  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  stage: Pick<StageInput, 'commands' | 'report'>,
   target: Target,
   principal: unknown,
 ): Promise<ResultPushRecord['origin']> {
-  const recovery = await commands.loadRecovery({ ...target, principal })
-  if ('failure' in recovery) {
+  return (await originRead(stage, target, principal))?.origin ?? null
+}
+
+function materialReleased(reply: Readonly<{ failure: ModelFailure }> | object): boolean {
+  if (!('failure' in reply)) return false
+  const { failure } = reply
+  return failure.kind === 'invalid' && failure.reason === 'recovery-material-released'
+}
+
+async function originRead(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  target: Target,
+  principal: unknown,
+): Promise<Readonly<{
+  origin: NonNullable<ResultPushRecord['origin']>
+  custody: CustodyState['kind']
+}> | null> {
+  const read = await commands.loadOrigin({ ...target, principal })
+  if ('failure' in read) {
     report({ kind: 'freeze-failed', step: 'late-account-origin' })
     return null
   }
-  const reference = encodeModelInvocationRef({ ...target, admission: recovery.ok.admission })
+  const reference = encodeModelInvocationRef({ ...target, admission: read.ok.admission })
   if ('failure' in reference) return null
-  return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
+  return {
+    origin: frozen({ reference: reference.ok, consumer: read.ok.consumer }),
+    custody: read.ok.custody.kind,
+  }
 }
 
 function newOperation(): ModelOperationId {
@@ -215,37 +239,10 @@ function newOperation(): ModelOperationId {
   throw new Error('invalid generated Model operation')
 }
 
-function frozen<T>(value: T): T {
-  const copy = structuredClone(value)
-  const freeze = (item: unknown): void => {
-    if (typeof item !== 'object' || item === null || Object.isFrozen(item)) return
-    Object.freeze(item)
-    for (const child of Object.values(item)) freeze(child)
-  }
-  freeze(copy)
-  return copy
-}
-
 function replaces(standing: DeliveryStanding, next: DeliveryStanding): boolean {
   if (standing.status === 'saved') return false
   if (standing.status === 'unknown') return next.status === 'saved'
   return true
-}
-
-type PushAnswer =
-  | Readonly<{ saved: ModelSavedReceipt }>
-  | Readonly<{ failure: ModelDeliveryFailure; foreign: boolean }>
-
-/** A receipt for another key or owner proves neither a save nor a refusal: its outcome is unknown. */
-function answerOf(
-  delivery: ModelDelivery,
-  outcome: Awaited<ReturnType<ModelResultReceiver<unknown>['push']>>,
-): PushAnswer {
-  if (!('ok' in outcome)) return { failure: outcome.failure, foreign: false }
-  return isDeepStrictEqual(outcome.ok.key, delivery.key) &&
-    outcome.ok.evidence.owner === delivery.consumer.owner
-    ? { saved: frozen(outcome.ok) }
-    : { failure: { kind: 'outcome-unknown' }, foreign: true }
 }
 
 function dropBody(record: ResultPushRecord): ResultPushRecord {
@@ -276,6 +273,8 @@ type StageInput = Readonly<{
   released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
   /** Wakes the drive of a call the start scan found not settled. */
   schedule?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
+  /** Whether this process still holds the live body of the call; its result waits until it is gone. */
+  holdsLiveBody?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): boolean
 }>
 
 export type RuntimeStage = Readonly<{
@@ -286,6 +285,8 @@ export type RuntimeStage = Readonly<{
   delivering(target: Target): boolean
   /** Whether the start scan has looked at this call, or has looked at every call. */
   scanned(call: ModelCallId): boolean
+  /** Where the events of a live call go: the receiver of its consumer. */
+  liveEvents: LiveEventPort
 }>
 
 class RuntimeContribution extends ModelRuntimeService<unknown> {
@@ -336,8 +337,62 @@ export function createRuntimeStage(
       stop: async () => {},
       delivering: () => false,
       scanned: () => true,
+      liveEvents: { deliver: async () => 'waiting', exited: () => {} },
     }
   return createResultPush(input, { ...options, limits: checkedLimits(options.limits) })
+}
+
+async function cleanupExecution(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  record: ResultPushRecord,
+  access: Readonly<{ principal: unknown; tenant: TenantId }>,
+): Promise<ExecutionRef | 'released' | null> {
+  const recovery = await commands.loadRecovery({ ...access, call: record.call })
+  if (materialReleased(recovery)) return 'released'
+  if ('failure' in recovery) {
+    report({ kind: 'cleanup-pending', reason: recovery.failure.kind })
+    return null
+  }
+  const { execution, state } = recovery.ok
+  if (state.custody.kind !== 'producer' && state.custody.cleanup === 'released') return 'released'
+  if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
+  return execution
+}
+
+async function advanceCleanup(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  limits: Readonly<{ maxCleanupSteps: number }>,
+  execution: ExecutionRef,
+): Promise<boolean> {
+  for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
+    const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
+    if ('failure' in advanced) {
+      report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
+      return false
+    }
+    if (advanced.ok.kind === 'producer') continue
+    if (advanced.ok.cleanup === 'released') return true
+    if (advanced.ok.cleanup === 'blocked') {
+      report({ kind: 'cleanup-pending', reason: 'blocked' })
+      return false
+    }
+  }
+  report({ kind: 'cleanup-pending', reason: 'steps' })
+  return false
+}
+
+function blankRecord(target: Target): ResultPushRecord {
+  return {
+    tenant: target.tenant,
+    call: target.call,
+    operations: { read: newOperation(), ack: newOperation(), abandon: newOperation() },
+    origin: null,
+    result: null,
+    acknowledgement: 'none',
+    cleanup: 'pending',
+    delivered: {},
+    accounts: [],
+  }
 }
 
 function createResultPush(input: StageInput, options: ResultPushOptions): RuntimeStage {
@@ -395,19 +450,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     return record
   }
 
-  function fresh(target: Target): ResultPushRecord {
-    return save({
-      tenant: target.tenant,
-      call: target.call,
-      operations: { read: newOperation(), ack: newOperation(), abandon: newOperation() },
-      origin: null,
-      result: null,
-      acknowledgement: 'none',
-      cleanup: 'pending',
-      delivered: {},
-      accounts: [],
-    })
-  }
+  const fresh = (target: Target) => save(blankRecord(target))
 
   async function work(target: Target): Promise<void> {
     try {
@@ -457,9 +500,22 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     return save(next)
   }
 
+  async function released(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
+    const target = { tenant: record.tenant, call: record.call }
+    const read = await originRead(input, target, access.principal)
+    if (read === null || read.custody === 'producer') return owing.mark(record)
+    return save({
+      ...record,
+      origin: read.origin,
+      acknowledgement: read.custody,
+      cleanup: 'released',
+    })
+  }
+
   async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
+    if (materialReleased(recovery)) return released(record, access)
     if ('failure' in recovery) {
       report({ kind: 'freeze-failed', step: 'recovery' })
       return owing.mark(record, recovery.failure)
@@ -614,55 +670,20 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
   async function pushResult(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const held = record.result
     if (held === null || custodyEnded(record.acknowledgement) || !due(held)) return record
+    if (input.holdsLiveBody?.(record) === true) return record
     return save({ ...record, result: await push(held, access) })
   }
 
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (!custodyEnded(record.acknowledgement) || record.cleanup === 'released') return record
-    const execution = await cleanupExecution(record, access)
+    const execution = await cleanupExecution(input, record, access)
     if (execution === null) return record
-    if (execution === 'released' || (await advanceCleanup(execution))) {
+    if (execution === 'released' || (await advanceCleanup(input, limits, execution))) {
       const released = save(dropBody({ ...record, cleanup: 'released' }))
       input.released?.({ tenant: record.tenant, call: record.call })
       return released
     }
     return record
-  }
-
-  async function cleanupExecution(
-    record: ResultPushRecord,
-    access: Access,
-  ): Promise<ExecutionRef | 'released' | null> {
-    const recovery = await commands.loadRecovery({ ...access, call: record.call })
-    if ('failure' in recovery) {
-      const { failure } = recovery
-      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
-        return 'released'
-      report({ kind: 'cleanup-pending', reason: failure.kind })
-      return null
-    }
-    const { execution, state } = recovery.ok
-    if (state.custody.kind !== 'producer' && state.custody.cleanup === 'released') return 'released'
-    if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
-    return execution
-  }
-
-  async function advanceCleanup(execution: ExecutionRef): Promise<boolean> {
-    for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
-      const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
-      if ('failure' in advanced) {
-        report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
-        return false
-      }
-      if (advanced.ok.kind === 'producer') continue
-      if (advanced.ok.cleanup === 'released') return true
-      if (advanced.ok.cleanup === 'blocked') {
-        report({ kind: 'cleanup-pending', reason: 'blocked' })
-        return false
-      }
-    }
-    report({ kind: 'cleanup-pending', reason: 'steps' })
-    return false
   }
 
   async function pushAccounts(record: ResultPushRecord, access: Access): Promise<void> {
@@ -845,6 +866,13 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     },
     idle: signal => whenEmpty(running, signal),
     scanned: call => scan.scanned(call),
+    liveEvents: createLiveEvents({
+      authority,
+      reference: async (target, principal) =>
+        (await originRead(input, target, principal))?.origin.reference ?? null,
+      receiver: owner => resolveReceiver(owner),
+      exited: wake,
+    }),
     delivering(target) {
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false

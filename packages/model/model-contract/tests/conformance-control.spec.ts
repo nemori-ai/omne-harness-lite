@@ -261,6 +261,7 @@ describe('the conformance suite on the other ways that control can go wrong', ()
               return outcome
             const control = {
               kind: 'requested',
+              intent: 'cancel',
               operation: named('kept'),
               propagation: 'pending',
               upstream: 'unknown',

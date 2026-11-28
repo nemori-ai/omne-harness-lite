@@ -4,6 +4,7 @@ export type StopFace = 'none' | 'stop' | 'stopping' | 'confirm-stop'
 
 export function stopFace(run: Run): StopFace {
   switch (run.kind) {
+    case 'unseen':
     case 'idle':
       return 'none'
     case 'running':

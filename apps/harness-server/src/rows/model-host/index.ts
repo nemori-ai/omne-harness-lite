@@ -1,5 +1,11 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { createDefaultRetryPolicy, createModelRuntime } from '@omne-harness/model'
+import {
+  NO_RESEND_RETRY_POLICY,
+  createDefaultRetryPolicy,
+  createModelRuntime,
+  createNoResendRetryPolicy,
+  routeRetryPolicies,
+} from '@omne-harness/model'
 import type { DurableEvidence } from '@omne-harness/model-contract'
 import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
@@ -8,6 +14,7 @@ import {
   modelCommandsKey,
   modelHostAuthorityKey,
   modelInstanceHostKey,
+  modelLiveCallsKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
   modelStreamObservationKey,
@@ -133,7 +140,7 @@ function hostPlugin(
           lookup: lateBoundCostLookup(ctx),
         },
         ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
-        provider: ({ host, commands, clock, liveness }) =>
+        provider: ({ host, commands, clock, liveness, liveEvents }) =>
           createModelRuntime(
             {
               commands: qualifyingCommands(
@@ -144,8 +151,17 @@ function hostPlugin(
               clock,
               instances: host,
               send,
-              retry: createDefaultRetryPolicy({ ...config.retry, clock, random: Math.random }),
+              // A call is retried by the policy its request names: a chat call by the configured
+              // one, a call that is sent once (a decision) by the policy that never sends again.
+              retry: routeRetryPolicies([
+                {
+                  adoption: config.retry.adoption,
+                  policy: createDefaultRetryPolicy({ ...config.retry, clock, random: Math.random }),
+                },
+                { adoption: NO_RESEND_RETRY_POLICY, policy: createNoResendRetryPolicy() },
+              ]),
               liveness,
+              live: { events: liveEvents, ...config.live },
             },
             config.runtime,
           ),
@@ -211,6 +227,7 @@ export function createModelHostRow(input: ModelHostRowInput = {}) {
     manifest: {
       provides: [
         modelRuntimeKey,
+        modelLiveCallsKey,
         modelInstanceHostKey,
         modelStreamReferencesKey,
         modelStreamObservationKey,

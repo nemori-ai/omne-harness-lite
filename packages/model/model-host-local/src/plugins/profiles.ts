@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { parseInstant } from '@omne-harness/utc-instant'
+import { modelCredentialKey, modelPreferencesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelProfiles } from '@omne-harness/model'
 import { fieldOf, isRecord } from '../fields.ts'
@@ -69,13 +70,17 @@ export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
 
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
-    const source = createOfficialProfileSource({
-      definitions: officialProfiles({
-        retryPolicy: config.retryPolicy,
-        compactionTriggerPercent: config.compactionTriggerPercent,
-      }),
-      updatedAt: config.updatedAt,
-    })
+    const source = createOfficialProfileSource(
+      {
+        definitions: officialProfiles({
+          retryPolicy: config.retryPolicy,
+          compactionTriggerPercent: config.compactionTriggerPercent,
+        }),
+        updatedAt: config.updatedAt,
+      },
+      () => ctx.get(modelCredentialKey, false),
+      () => ctx.get(modelPreferencesKey, false),
+    )
     const profiles = createModelProfiles(source)
     let removed = false
     this.list = async input => (removed ? { failure: removedFailure() } : profiles.list(input))

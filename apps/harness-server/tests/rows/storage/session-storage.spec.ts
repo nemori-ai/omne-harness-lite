@@ -368,7 +368,18 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/19')
+    expect(COMBINATION_VERSION).toBe('session-composite/27')
+  })
+
+  test('the version and the manifest digest move together: a new digest needs a new version', () => {
+    const { combinationVersion, manifestDigest } = agentJournalCombination()
+    expect(
+      { combinationVersion, manifestDigest },
+      'the participants changed: bump COMBINATION_VERSION and serve.distribution.json, then pin the new digest here',
+    ).toEqual({
+      combinationVersion: 'session-composite/27',
+      manifestDigest: '86a7e5753a4bd3d8a0815455619294891ca214b6a52e7f33c0b24bbae0c75405',
+    })
   })
 
   test('segment B: the tool participant and its migration are in the same combination', () => {

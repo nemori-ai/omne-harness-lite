@@ -80,49 +80,29 @@ it('keeps a cancelled producer callback away from the next Run', async () => {
     expect(w.modelCalls).toHaveLength(1)
     expect(w.tools.invoke.calls).toHaveLength(0)
     firstRelease.resolve()
-    await expect
-      .poll(
-        async () => {
-          const snapshot = ok(await w.fresh().load(firstAccess))
-          return {
-            state: snapshot.state,
-            pending: snapshot.finishObligations?.items
-              .filter(
-                item => item.disposition.kind === 'pending' || item.disposition.kind === 'unknown',
-              )
-              .map(item => ({ kind: item.kind, disposition: item.disposition })),
-          }
-        },
-        { timeout: 10_000 },
-      )
-      .toMatchObject({ state: { kind: 'ended' }, pending: [] })
+    await w.until(() => w.replies.some(reply => reply.index === 0), 10_000)
+    const [replay] = replays
+    if (replay === undefined) throw new Error('the cancelled Run did not keep its original result')
+    await w.until(() => w.settled(firstExecution), 10_000)
     expect(await w.lastOutcome()).toBe('cancelled')
-    const first = ok(await w.fresh().load(firstAccess))
-    const firstEntries = ok(
-      await w.freshEntries().read({ ...firstAccess, after: null, limit: 100 }),
-    )
-    expect(firstEntries.caughtUp).toBe(true)
-    expect(firstEntries.items.some(item => item.entry.kind === 'received')).toBe(true)
+    expect(await w.runEnd(String(run.run))).toEqual({ conclusion: 'cancelled', failure: null })
 
     await w.accept('second', 'second question')
     await w.until(() => w.modelCalls.length === 2, 10_000)
     const secondExecution = await w.execution()
     expect(secondExecution).not.toBe(firstExecution)
     const secondAccess = { ...w.agentAccess, execution: secondExecution }
-    await w.until(() => w.replies.some(reply => reply.index === 0), 10_000)
-    const [replay] = replays
-    if (replay === undefined)
-      throw new Error('the cancelled Run did not retain its original result')
-    expect(await replay()).toHaveProperty('ok')
+    expect(await replay()).toEqual({
+      ok: { key: expect.any(Object), evidence: expect.any(Object) },
+    })
     expect(w.tools.invoke.calls).toHaveLength(0)
-    expect(ok(await w.fresh().load(firstAccess)).state).toEqual(first.state)
+    expect(await w.settled(firstExecution)).toBe(true)
     const secondEntries = ok(
-      await w.freshEntries().read({ ...secondAccess, after: null, limit: 100 }),
+      await w.probeEntries.read({ ...secondAccess, after: null, limit: 100 }),
     )
     expect(secondEntries.caughtUp).toBe(true)
     expect(secondEntries.items.filter(item => item.entry.kind === 'received')).toHaveLength(0)
     secondRelease.resolve()
-    await w.until(async () => ok(await w.fresh().load(secondAccess)).state.kind === 'ended', 10_000)
     await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
     expect(w.modelCalls).toHaveLength(2)
     expect(w.tools.invoke.calls).toHaveLength(0)
@@ -180,49 +160,42 @@ it('retains a failed execution and hands its untaken input to the Run a new inpu
   expect(events.events.filter(event => event.body.kind === 'input-taken')).toHaveLength(0)
   expect(events.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
 
+  const [failedEnd] = w.endedRuns()
+  expect(await w.runEnd(failedEnd!.run)).toMatchObject({
+    conclusion: 'fail',
+    failure: { kind: 'node-failed', node: 'E2', category: 'exception' },
+  })
+
   await w.runRound(2, 'the person answers the failure', 10_000)
   expect(await w.lastOutcome()).toBe('completed')
-  const secondExecution = await w.execution()
-  expect(secondExecution).not.toBe(execution)
-  const second = ok(await w.fresh().load({ ...w.agentAccess, execution: secondExecution }))
-  expect(second.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-  const secondEvents = ok(
-    await w.fresh().output.read({
-      ...w.agentAccess,
-      execution: secondExecution,
-      after: null,
-      limit: 100,
-    }),
-  )
-  if (secondEvents.kind !== 'page') throw new Error('the successor events are unavailable')
-  expect(
-    secondEvents.events.flatMap(event =>
-      event.body.kind === 'input-taken' ? event.body.batch.ordered : [],
-    ),
-  ).toEqual([...inputs.batch.ordered, 'in-2'])
+  const second = w.endedRuns().at(-1)!
+  expect(second.execution).not.toBe(execution)
+  expect(await w.runEnd(second.run)).toEqual({ conclusion: 'complete', failure: null })
+  expect((await w.batchesTaken(second.run)).flat()).toEqual([...inputs.batch.ordered, 'in-2'])
   const secondCalls = w.modelCalls.length
   expect(ok(await w.probe.readWork(intakeAccess))).toMatchObject({
     run: { kind: 'terminal', terminal: { outcome: 'completed' } },
     pending: [],
   })
-  const retained = ok(await w.fresh().load(access))
+  const retained = ok(await w.probeLog.load(access))
   expect(retained.state).toEqual(first.state)
   expect(retained.settlement.candidate).toEqual(first.settlement.candidate)
-  expect(ok(await w.fresh().inputs({ ...access, watermark: first.inputWatermark }))).toEqual(inputs)
+  expect(ok(await w.probeLog.inputs({ ...access, watermark: first.inputWatermark }))).toEqual(
+    inputs,
+  )
 
   await w.runRound(3, 'a fresh question after recovery', 10_000)
   expect(await w.lastOutcome()).toBe('completed')
   expect(w.modelCalls).toHaveLength(secondCalls + 1)
-  const thirdExecution = await w.execution()
-  expect(thirdExecution).not.toBe(secondExecution)
-  expect(thirdExecution).not.toBe(execution)
-  const third = ok(await w.fresh().load({ ...w.agentAccess, execution: thirdExecution }))
-  expect(third.checkpoint.inputBatch?.ordered).toEqual(['in-3'])
-  expect(ok(await w.fresh().load(access)).state).toEqual(first.state)
+  const third = w.endedRuns().at(-1)!
+  expect(third.execution).not.toBe(second.execution)
+  expect(third.execution).not.toBe(execution)
+  expect((await w.batchesTaken(third.run)).flat()).toEqual(['in-3'])
+  expect(ok(await w.probeLog.load(access)).state).toEqual(first.state)
 })
 
 it.each([false, true])(
-  'keeps a duplicate Model result with Run A after Run B starts, failed A = %s',
+  'answers saved to a duplicate Model result of settled Run A and keeps it out of Run B, failed A = %s',
   async failFirst => {
     const release = Promise.withResolvers<void>()
     const replays: Array<() => Promise<unknown>> = []
@@ -262,7 +235,7 @@ it.each([false, true])(
     worlds.push(w)
     try {
       await w.createSession(`duplicate-${failFirst}`)
-      await w.runRound(1, 'first question', 10_000)
+      await w.runRound(1, 'first question', 10_000, 'settled')
       expect(await w.lastOutcome()).toBe(failFirst ? 'failed' : 'completed')
       const firstRun = await w.lastTerminal()
       expect(failed).toBe(failFirst)
@@ -270,31 +243,22 @@ it.each([false, true])(
       const [replay] = replays
       if (firstExecution === undefined || replay === undefined)
         throw new Error('the first result was not saved')
-      const firstAccess = { ...w.agentAccess, execution: firstExecution }
-      const first = ok(await w.fresh().load(firstAccess))
-      const firstEntries = ok(
-        await w.freshEntries().read({ ...firstAccess, after: null, limit: 100 }),
-      )
-      expect(firstEntries.caughtUp).toBe(true)
-      const received = firstEntries.items.filter(item => item.entry.kind === 'received')
-      expect(received.length).toBeGreaterThan(0)
 
       await w.accept('second', 'second question')
       await w.until(() => w.modelCalls.length === 2, 10_000)
       const secondExecution = await w.execution()
       expect(secondExecution).not.toBe(firstExecution)
-      expect(await replay()).toHaveProperty('ok')
+      expect(await replay()).toEqual({
+        ok: { key: expect.any(Object), evidence: expect.any(Object) },
+      })
+      expect(await w.settled(firstExecution)).toBe(true)
       const secondAccess = { ...w.agentAccess, execution: secondExecution }
       const beforeSecondResult = ok(
-        await w.freshEntries().read({ ...secondAccess, after: null, limit: 100 }),
+        await w.probeEntries.read({ ...secondAccess, after: null, limit: 100 }),
       )
       expect(beforeSecondResult.caughtUp).toBe(true)
       expect(beforeSecondResult.items.filter(item => item.entry.kind === 'received')).toHaveLength(
         0,
-      )
-      expect(ok(await w.fresh().load(firstAccess)).state).toEqual(first.state)
-      expect(ok(await w.freshEntries().read({ ...firstAccess, after: null, limit: 100 }))).toEqual(
-        firstEntries,
       )
 
       release.resolve()
@@ -303,21 +267,9 @@ it.each([false, true])(
         return ended !== null && ended !== firstRun
       }, 10_000)
       expect(await w.lastOutcome()).toBe('completed')
-      const second = ok(await w.fresh().load(secondAccess))
-      expect(second.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-      const secondEntries = ok(
-        await w.freshEntries().read({ ...secondAccess, after: null, limit: 100 }),
-      )
-      expect(secondEntries.caughtUp).toBe(true)
-      const originalConsumptions = received.flatMap(item =>
-        item.entry.kind === 'received' ? [item.entry.consumption] : [],
-      )
-      const secondReceived = secondEntries.items.flatMap(item =>
-        item.entry.kind === 'received' ? [item.entry] : [],
-      )
-      expect(secondReceived.length).toBeGreaterThan(0)
-      for (const entry of secondReceived)
-        expect(originalConsumptions).not.toContain(entry.consumption)
+      const second = w.endedRuns().at(-1)!
+      expect(second.execution).toBe(secondExecution)
+      expect(await w.runEnd(second.run)).toEqual({ conclusion: 'complete', failure: null })
     } finally {
       release.resolve()
     }

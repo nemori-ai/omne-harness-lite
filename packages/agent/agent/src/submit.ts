@@ -8,6 +8,7 @@ import type {
   MessageHandoff,
 } from '@omne-harness/agent-contract'
 import { fail, type Outcome } from '@omne-harness/operation-result'
+import { rejectedInput } from './loop/initial-admission.ts'
 
 export type SubmitInput<P> = Parameters<AgentExecutionInput<P>['submit']>[0]
 
@@ -54,8 +55,7 @@ export async function submitInput<P>(
   const fixed = await ports.handoff.prepare({ ...access, kind: 'submit', request })
   if ('failure' in fixed) return fixed
   const { decision } = fixed.ok
-  if (decision.kind === 'rejected')
-    return fail({ kind: 'invalid', field: 'value', reason: decision.reason })
+  if (decision.kind === 'rejected') return fail(rejectedInput(request, decision))
   return accept({
     kind: 'new-input',
     original: { entry: request.entry, handoff: request.reference, outcome: fixed.ok },

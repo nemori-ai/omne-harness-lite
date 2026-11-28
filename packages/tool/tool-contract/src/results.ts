@@ -26,8 +26,15 @@ import type { ControlRecord, PhysicalExecution, QueuePosition, ToolTiming } from
 
 export type Attachment = ContentReference
 export type ToolMessageContentBlock = TextContentBlock | ReferenceContentBlock
+export type ToolDirectoryVisit = Readonly<{
+  workspace: string
+  instance: string
+  generation: string
+  directories: readonly string[]
+}>
 export type ToolRenderedResult<B extends ContentBlock> = Readonly<{
   content: readonly B[]
+  directoryVisit?: ToolDirectoryVisit
   data: ToolResultData
   original:
     | Readonly<{ kind: 'none' }>
@@ -166,9 +173,10 @@ export type ToolState = Readonly<{
         ))
   )
 export type ToolRelation = Readonly<{ relation: 'foreground' | 'background' }>
+/** A call in the background waits on nothing, or on an ask whose contract declares it may wait in the background. */
 export type ActiveRelation =
   | Readonly<{ relation: 'foreground'; wait: WaitState }>
-  | Readonly<{ relation: 'background'; wait: Readonly<{ kind: 'none' }> }>
+  | Readonly<{ relation: 'background'; wait: Extract<WaitState, { kind: 'none' | 'ask' }> }>
 export type ResultPage<B extends ContentBlock> = Readonly<{
   result: ToolResultVersion
   terminal: ToolTerminal

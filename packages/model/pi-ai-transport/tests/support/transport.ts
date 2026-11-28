@@ -8,6 +8,7 @@ import type {
   PiRouteAuth,
   PiTransportConfig,
   PiTransportLimits,
+  PiRoute,
 } from '../../src/index.ts'
 import type { NetworkInternals } from '../../src/network.ts'
 import { createPiTransport, type PiTransport } from '../../src/transport.ts'
@@ -19,6 +20,12 @@ import {
   SUPPLIER,
   type FamilyProbe,
 } from './test-family.ts'
+
+const GATEWAY_ACCOUNTING: PiRoute['accounting'] = {
+  place: 'openrouter',
+  costUnit: 'openrouter-credit',
+  generation: { requestHeader: 'x-generation-id', path: '/api/v1/generation' },
+}
 
 export function countSends(network: NetworkInternals): () => number {
   const registry = network.inFlight
@@ -45,7 +52,7 @@ export function transportOver(
     url: string
     credential?: PiCredentialSlot
     auth?: PiRouteAuth
-    accounting?: Readonly<{ place: string; costUnit: string }>
+    accounting?: PiRoute['accounting']
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
     onResponseBody?: PiTransportConfig['onResponseBody']
@@ -59,7 +66,7 @@ export function transportOver(
     routes: {
       [SUPPLIER.provider]: {
         endpoints: { 'chat-completions': { url: options.url, endMarker: END_MARKER } },
-        accounting: options.accounting ?? { place: 'openrouter', costUnit: 'openrouter-credit' },
+        accounting: options.accounting ?? GATEWAY_ACCOUNTING,
         auth: options.auth === undefined ? { kind: 'bearer', item: 'apiKey' } : options.auth,
       },
     },
@@ -82,6 +89,7 @@ export function transportOver(
       const materialized = await (await prepare()).materialize(signal)
       if (!('ok' in materialized))
         throw new Error(`materialize failed: ${JSON.stringify(materialized)}`)
+      if (!('start' in materialized.ok)) throw new Error('materialize: a live binding')
       return materialized.ok
     },
   }

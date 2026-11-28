@@ -53,6 +53,7 @@ const SHAPES: Readonly<Record<GovernanceQuery, Shape>> = {
     choices: { wanted: ['active', 'removed', 'invalid'] },
   },
   'current-tenant': { text: CALLER },
+  preference: { text: [...CALLER, 'name'] },
   'own-logins': { text: CALLER },
   'account-of': { text: ['loginIdentifier'] },
   'login-terms': { text: CALLER },
@@ -221,6 +222,20 @@ function currentTenant(input: Input<'current-tenant'>, port: ReadPort): Governan
   return who.kind !== 'caller' ? { outcome: who.outcome } : read({ tenantText: who.selection })
 }
 
+function preference(input: Input<'preference'>, port: ReadPort): GovernanceReadOutput {
+  const who = liveCaller(port, input.login, input.nowKey)
+  if (who.kind !== 'caller') return { outcome: who.outcome }
+  const row = oneRow(
+    port,
+    'SELECT value, revision FROM id_account_preference WHERE account = ? AND name = ? LIMIT 1',
+    [who.account, input.name],
+  )
+  return read({
+    value: row === undefined ? null : (row['value'] as string | null),
+    revision: String(row === undefined ? 0 : Number(row['revision'])),
+  })
+}
+
 function ownLogins(input: Input<'own-logins'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
   if (who.kind !== 'caller') return { outcome: who.outcome }
@@ -292,6 +307,8 @@ function answer(input: GovernanceReadInput, port: ReadPort): GovernanceReadOutpu
       return members(input, port)
     case 'current-tenant':
       return currentTenant(input, port)
+    case 'preference':
+      return preference(input, port)
     case 'own-logins':
       return ownLogins(input, port)
     case 'account-of':

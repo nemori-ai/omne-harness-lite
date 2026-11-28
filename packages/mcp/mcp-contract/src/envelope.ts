@@ -7,11 +7,13 @@ export const CLIENT_INFO_KEY = 'io.modelcontextprotocol/clientInfo'
 export const SERVER_INFO_KEY = 'io.modelcontextprotocol/serverInfo'
 export const LOG_LEVEL_KEY = 'io.modelcontextprotocol/logLevel'
 export const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
+export const EVENTS_EXTENSION = 'io.modelcontextprotocol/events'
+export const SKILLS_EXTENSION = 'io.modelcontextprotocol/skills'
 
 export type ClientInfo = Readonly<{ name: string; version: string }>
 
 const MODERN_CAPABILITIES: PlainJson = {
-  extensions: { [TASKS_EXTENSION]: {} },
+  extensions: { [TASKS_EXTENSION]: {}, [EVENTS_EXTENSION]: {}, [SKILLS_EXTENSION]: {} },
   elicitation: { form: {} },
 }
 const LEGACY_CAPABILITIES: PlainJson = {}
@@ -28,6 +30,9 @@ export function clientEnvelopeOf(version: string, clientInfo: ClientInfo): Plain
 
 const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
   'tools/call': 'name',
+  'events/poll': 'name',
+  'events/stream': 'name',
+  'resources/read': 'uri',
   'tasks/get': 'taskId',
   'tasks/update': 'taskId',
   'tasks/cancel': 'taskId',

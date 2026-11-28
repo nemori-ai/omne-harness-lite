@@ -4,7 +4,12 @@ export const slots = {
   gate: { kind: 'one' },
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
+  float: { kind: 'list' },
+  back: { kind: 'one' },
+  say: { kind: 'one' },
   attached: { kind: 'list' },
+  actions: { kind: 'list' },
+  keymap: { kind: 'one' },
 } as const
 
 export type SlotName = keyof typeof slots
@@ -23,11 +28,16 @@ export type GateItem = Readonly<{
   render: (props: GateProps) => ReactNode
 }>
 
+/** The part of the sidebar an item sits in: `primary` at the top, `utility` at the foot. */
+type SidebarGroup = 'primary' | 'utility'
+
 export type PageItem = Readonly<{
   id: string
   title: string
   order: number
-  icon?: string
+  /** A name in the icon set: all a page keeps when the sidebar folds to a rail. */
+  icon: string
+  group?: SidebarGroup
   badge?: (props: ScopedProps) => ReactNode
   render: (props: PageProps) => ReactNode
 }>
@@ -35,7 +45,77 @@ export type PageItem = Readonly<{
 export type SidebarItem = Readonly<{
   id: string
   order: number
+  group?: SidebarGroup
+  /** What the item draws when the sidebar folds to a rail; without it the rail leaves it out. */
+  rail?: (props: ScopedProps) => ReactNode
   render: (props: ScopedProps) => ReactNode
+}>
+
+export const FLOAT_GRIP_ATTRIBUTE = 'data-omne-float-grip'
+
+export type FloatCorner = Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>
+
+export type FloatNote = Readonly<{
+  there: boolean
+  open: boolean
+  toggle(element: Element): void
+  close(): void
+}>
+
+export type FloatProps = Readonly<{
+  scope: string | undefined
+  grip: Readonly<{ [FLOAT_GRIP_ATTRIBUTE]: '' }>
+  corner: FloatCorner
+  dragging: boolean
+  note: FloatNote
+}>
+
+export type FloatItem = Readonly<{
+  id: string
+  order: number
+  render: (props: FloatProps) => ReactNode
+}>
+
+export type BackProps = Readonly<{ scope: string | undefined; turn: () => void; home: () => void }>
+
+export type BackItem = Readonly<{
+  id: string
+  render: (props: BackProps) => ReactNode
+}>
+
+export type SayTo = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'target'; key: string }>
+
+export type SayTarget = Readonly<{ key: string; label: string }>
+
+export type SayOutcome =
+  | Readonly<{ kind: 'sent'; key: string; said?: string }>
+  | Readonly<{ kind: 'failed'; reason: string }>
+  | Readonly<{ kind: 'unknown' }>
+
+export type SayPicture = Readonly<{ name: string; bytes: Uint8Array }>
+
+export type SayReplyState = 'coming' | 'ended' | 'unknown'
+
+export type SayReply = Readonly<{ text: string; state: SayReplyState }>
+
+export type SayItem = Readonly<{
+  id: string
+  targets: (scope: string | undefined) => readonly SayTarget[] | undefined
+  current: (scope: string | undefined) => string | undefined
+  pictures?: (scope: string | undefined) => boolean
+  subscribe: (listener: () => void) => () => void
+  say: (
+    scope: string | undefined,
+    to: SayTo,
+    words: string,
+    pictures?: readonly SayPicture[],
+  ) => Promise<SayOutcome>
+  show: (scope: string | undefined, key: string) => void
+  reply?: (
+    scope: string | undefined,
+    said: string,
+    listener: (reply: SayReply) => void,
+  ) => () => void
 }>
 
 export type AttachedItem = Readonly<{
@@ -48,34 +128,72 @@ export type AttachedItem = Readonly<{
 
 export type AttachedEntry = Readonly<{ id: string; label: string | undefined; node: ReactNode }>
 
+export type ActionLayer = 'overlay' | 'composer' | 'page' | 'global'
+export type ActionKey = Readonly<{ chord: string; layer: ActionLayer }>
+
+/** One shell action: a key, the palette and a button all name it; the shell knows nothing of what it does. */
+export type ActionItem = Readonly<{
+  id: string
+  title: string
+  group: string
+  kind: 'control' | 'ui' | 'command'
+  order: number
+  keys?: readonly ActionKey[]
+  slash?: string
+  repeat?: true
+  available: () => true | string
+  run: () => void | Promise<void>
+}>
+
+export type KeymapItem = Readonly<{
+  id: string
+  changes: () => Readonly<Record<string, string | null>>
+  subscribe: (listener: () => void) => () => void
+}>
+
 export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
 
 export type SlotItems = {
   gate: GateItem
   pages: PageItem
   sidebar: SidebarItem
+  float: FloatItem
+  back: BackItem
+  say: SayItem
   attached: AttachedItem
+  actions: ActionItem
+  keymap: KeymapItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]
 
+/** One spot where two modules put different things: neither is drawn until one of them leaves. */
+export type SlotConflict = Readonly<{
+  slot: SlotName
+  anchor: string | undefined
+  id: string
+  by: readonly string[]
+}>
+
 export interface ShellSlots {
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[]
+  conflicts(slot: SlotName): readonly SlotConflict[]
   subscribe(slot: SlotName, listener: () => void): () => void
 }
 
-export type ShellAssemblyReason = 'occupied' | 'duplicate'
+export type ShellAssemblyReason = 'duplicate' | 'invalid'
+
+const SAID: Readonly<Record<ShellAssemblyReason, string>> = {
+  duplicate: 'this module already put an item there',
+  invalid: 'the item cannot be put there',
+}
 
 export class ShellAssemblyError extends Error {
   readonly slot: SlotName
   readonly id: string
   readonly reason: ShellAssemblyReason
-  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason) {
-    super(
-      reason === 'occupied'
-        ? `slot ${slot} already holds an item; cannot place ${id}`
-        : `slot ${slot} already holds an item with id ${id}`,
-    )
+  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason, detail: string) {
+    super(`slot ${slot}, item ${id}: ${SAID[reason]} (${detail})`)
     this.name = 'ShellAssemblyError'
     this.slot = slot
     this.id = id

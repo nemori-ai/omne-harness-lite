@@ -89,6 +89,7 @@ export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
   basis: ModelCountingBasis
   margin: MeterMargin
   outputGroup: string
+  coldRequestTokens?: string
   uncountable: string
   tokens: Readonly<{ tokenizer: ModelTextTokenizer; form: 'as-written' | 'nfkc' }>
   contentOf(tokenInput: JsonValue): readonly U[] | null
@@ -157,6 +158,7 @@ function measuredOf(
 ): Record<MeterFacts['limits'][number]['metric'], Measured> {
   const images = representation.media.filter(fact => fact.kind === 'image')
   const voices = representation.media.filter(fact => fact.kind === 'voice')
+  const files = representation.media.filter(fact => fact.kind === 'file')
   const read = representation.kind === 'materialized' ? representation : null
   return {
     'image-bytes': read === null ? [] : images.map(fact => [fact.reference.key, fact.bytes]),
@@ -164,6 +166,7 @@ function measuredOf(
     'request-bytes': read === null ? [] : [['request', read.requestBytes]],
     'voice-bytes': read === null ? [] : voices.map(fact => [fact.reference.key, fact.bytes]),
     'voice-duration-ms': voices.map(fact => [fact.reference.key, fact.durationMs]),
+    'file-bytes': read === null ? [] : files.map(fact => [fact.reference.key, fact.bytes]),
   }
 }
 
@@ -227,6 +230,9 @@ async function measureCalibrated<U extends MeteredUnit>(
     uncountable: rules.uncountable,
     dependency: rules.owner,
     marginPercent: rules.margin.percent,
+    ...(rules.coldRequestTokens === undefined
+      ? {}
+      : { coldRequestTokens: rules.coldRequestTokens }),
   })
   if (!('ok' in amount)) return amount
   const pending:

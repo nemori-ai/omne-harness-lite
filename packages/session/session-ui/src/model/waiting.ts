@@ -7,7 +7,9 @@ type Client = ClientOf<SessionProtocol>
 export type WaitingAnswer = Awaited<ReturnType<Client['read-waiting']>>
 export type RetryAnswer = Awaited<ReturnType<Client['retry-run']>>
 
-export type Cause = Readonly<{ kind: string; detail: string | null }>
+export type Fault = Readonly<{ cause: string; upstreamStatus: string | null; throttled: boolean }>
+
+export type Cause = Readonly<{ kind: string; detail: string | null; fault: Fault | null }>
 
 export type WaitingFact =
   | Readonly<{ kind: 'unread' }>
@@ -55,12 +57,17 @@ export function readWaiting(waiting: Waiting, session: string): WaitingStep {
   }
 }
 
+type Found = NonNullable<Extract<WaitingAnswer, { outcome: 'succeeded' }>['body']['waiting']>
+
+const causeOf = (cause: Found['cause']): Cause | null =>
+  cause === null ? null : { kind: cause.kind, detail: cause.detail, fault: cause.fault ?? null }
+
 function factOf(answer: WaitingAnswer): WaitingFact {
   if (answer.outcome !== 'succeeded') return { kind: 'unread' }
   const found = answer.body.waiting
   return found === null
     ? { kind: 'not-waiting' }
-    : { kind: 'waiting', run: found.run, pending: found.pending, cause: found.cause }
+    : { kind: 'waiting', run: found.run, pending: found.pending, cause: causeOf(found.cause) }
 }
 
 const retryInFlight = (retry: Retry): boolean =>
@@ -138,9 +145,11 @@ const CAUSES: Readonly<Record<string, string>> = {
   guard: '守卫停下了这一轮。',
 }
 
+const CALL_FAILED = '模型调用没有成功，这一轮没有得到回复。'
+
+/** The reason in words a person reads; the diagnosis is not in it, it goes under 详情. */
 export function causeSentence(cause: Cause | null): string {
   if (cause === null) return '这一轮失败了。'
-  const known = CAUSES[cause.kind]
-  const sentence = known ?? `这一轮失败了，原因是「${cause.kind}」。`
-  return cause.detail === null ? sentence : `${sentence}诊断：${cause.detail}`
+  if (cause.kind === 'no-reply' && cause.fault !== null) return CALL_FAILED
+  return CAUSES[cause.kind] ?? `这一轮失败了，原因是「${cause.kind}」。`
 }

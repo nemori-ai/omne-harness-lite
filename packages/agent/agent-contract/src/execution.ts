@@ -84,6 +84,8 @@ export type AcceptedInput = Readonly<{
   source: DurableEvidence | null
   priority: 'ordinary' | 'urgent'
 }>
+/** The inputs an execution starts from, in the order they were accepted: at least one. */
+export type InitialInputs = readonly [AcceptedInput, ...AcceptedInput[]]
 export type TerminalObservation = Readonly<{
   terminal: DurableEvidence
   passage: PassageId
@@ -237,7 +239,7 @@ export interface AgentRuntime<P> {
   readonly instance: AgentInstanceId
   invoke(
     input: ExecutionMutation<P> &
-      Readonly<{ initial: AcceptedInput; grant: DurableEvidence | null }>,
+      Readonly<{ initial: InitialInputs; grant: DurableEvidence | null }>,
   ): Reply<AgentExecutionHandle<P>>
   resume(
     input: ExecutionMutation<P> &
@@ -274,6 +276,10 @@ export interface AgentExecutionRecovery<P> {
     input: ExecutionMutation<P>,
   ): Reply<Readonly<{ remaining: readonly ConsumptionId[]; evidence: DurableEvidence }>>
   detach(
+    input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
+  ): Reply<DurableEvidence>
+  /** Asks the runtime that holds the attachment to hand the execution over at its next safe point. */
+  handOver(
     input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
   ): Reply<DurableEvidence>
   contact(
@@ -352,6 +358,10 @@ export interface AgentRuntimeControl<P> {
   quiesce(
     input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Reply<QuiesceResult>
+  /** Hands the execution over at its next safe point: `terminal` while it ends, `stale-advance` when not driven here. */
+  handOver(
+    input: ExecutionMutation<P> & Readonly<{ reason: DurableEvidence }>,
+  ): Reply<DurableEvidence>
 }
 export type AgentAccessOperation =
   | 'invoke'

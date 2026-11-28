@@ -109,6 +109,7 @@ export class PreparationSql {
             operation: `settings.${phase}`,
             protocolVersion: '2' as const,
             operationKey: randomUUID(),
+            recall: 'never' as const,
           }
     const result = await this.options.storage.commit({
       identity,

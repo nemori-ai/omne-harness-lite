@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { readJsonText } from '@omne-harness/json-text'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { AccessRegistryProvider } from '@omne-harness/server-entry/cordis'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionAccessPlugin } from '../src/cordis.ts'
@@ -59,6 +60,13 @@ type Assembly = Readonly<{
   resumed?: () => Promise<void>
 }>
 
+/** An enter that must be taken: the protocol is served and has this name. */
+function taken(registry: AccessRegistryProvider, name: string) {
+  const entered = registry.enter(SESSION, name)
+  if ('refused' in entered) throw new Error(`${name}: ${entered.refused}`)
+  return entered
+}
+
 async function assemble({
   directory = true,
   store = createJournalDouble(),
@@ -67,6 +75,7 @@ async function assemble({
   const { double, reads, FakeSession } = harness(directory)
   const world = createWorld()
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(AccessRegistryProvider)
   const session = await root.plugin(FakeSession)
   const prepared: string[] = []
@@ -116,8 +125,7 @@ async function assemble({
   )
   const registry = root.accessRegistry as unknown as AccessRegistryProvider
   const call = async (name: string, principal: unknown, body: unknown) => {
-    const entered = registry.enter(SESSION, name)
-    if (entered === undefined) throw new Error(`${name} is not mounted`)
+    const entered = taken(registry, name)
     if (entered.member.kind !== 'operation') throw new Error(`${name} is not an operation`)
     try {
       return await entered.member.handler(
@@ -165,14 +173,14 @@ describe('the session access plugin on real Cordis', () => {
       'cancel-run',
       'stop-call',
     ])
-      expect(registry.enter(SESSION, name)?.member.kind).toBe('operation')
-    expect(registry.enter(SESSION, 'observe-session')?.member.kind).toBe('observation')
+      expect(taken(registry, name).member.kind).toBe('operation')
+    expect(taken(registry, 'observe-session').member.kind).toBe('observation')
   })
 
   it('mounts list-sessions as a login read of the small limit', async () => {
     const { registry } = await assemble()
-    const member = registry.enter(SESSION, 'list-sessions')?.member
-    if (member?.kind !== 'operation') throw new Error('list-sessions is not an operation')
+    const { member } = taken(registry, 'list-sessions')
+    if (member.kind !== 'operation') throw new Error('list-sessions is not an operation')
     expect([member.contract.identity, member.contract.effect, member.contract.limit]).toEqual([
       'login',
       'read',
@@ -260,8 +268,8 @@ describe('the session access plugin on real Cordis', () => {
     })
     const session = (created as { body: { session: string } }).body.session
     const send = (acceptId: string) => {
-      const entered = registry.enter(SESSION, 'send-input')
-      if (entered?.member.kind !== 'operation') throw new Error('send-input is not mounted')
+      const entered = taken(registry, 'send-input')
+      if (entered.member.kind !== 'operation') throw new Error('send-input is not an operation')
       entered.signal.addEventListener('abort', () => entered.leave())
       return entered.member.handler(
         { principal: loginIdentity(ALICE) as never, messageId: 'm-1', signal: entered.signal },
@@ -272,7 +280,7 @@ describe('the session access plugin on real Cordis', () => {
     const second = send('accept-b')
     await vi.waitFor(() => expect(resumes).toHaveLength(1))
     await plugin.dispose()
-    expect(registry.enter(SESSION, 'send-input')).toBeUndefined()
+    expect(registry.enter(SESSION, 'send-input')).toEqual({ refused: 'not-mounted' })
     release()
     expect(await first).toEqual({ outcome: 'succeeded', body: { recovered: false } })
     const waited = new Promise(resolve => setTimeout(() => resolve('still waiting'), 30))
@@ -291,13 +299,14 @@ describe('the session access plugin on real Cordis', () => {
       purpose: 'hello',
     })
     expect(answer).toEqual({ outcome: 'basis-unavailable' })
-    expect(registry.enter(SESSION, 'create-session')).toBeDefined()
+    expect('refused' in registry.enter(SESSION, 'create-session')).toBe(false)
   })
 
   it('closes the journal it was still opening when it is unloaded first: admits nothing, mounts nothing', async () => {
     const { FakeSession } = harness(true)
     const world = createWorld()
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(AccessRegistryProvider)
     await root.plugin(FakeSession)
     let opened: (journal: RequestJournal) => void = () => {}
@@ -367,6 +376,6 @@ describe('the session access plugin on real Cordis', () => {
     expect(resumes).toBe(0)
     expect(root.logger.buffer.filter(logged => logged.type === 'error')).toEqual([])
     const registry = root.accessRegistry as unknown as AccessRegistryProvider
-    expect(registry.enter(SESSION, 'send-input')).toBeUndefined()
+    expect(registry.enter(SESSION, 'send-input')).toEqual({ refused: 'not-mounted' })
   })
 })

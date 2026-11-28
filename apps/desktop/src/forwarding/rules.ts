@@ -1,5 +1,5 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import type { ProtocolContract } from '@omne-harness/public-contract'
+import { readTenantText, type ProtocolContract } from '@omne-harness/public-contract'
 import {
   ClientRequestError,
   createClient,
@@ -16,7 +16,9 @@ import {
 import type { JsonValue } from '@omne-harness/json-text'
 import type { LoginCredentials, LoginResult, LogoutResult } from '../shared/channel.ts'
 import { tenantText } from '../shared/tenant.ts'
+import { openPluginFile, type PluginFileAnswer, type PluginFileAt } from './plugin-files.ts'
 import type { CookieLogin } from './login-cookie.ts'
+import { tenantProtocols } from './tenant-protocols.ts'
 
 export type ServerConnector = (credentials: Credentials) => Transport
 
@@ -48,9 +50,13 @@ export interface ForwardingRules {
   login(credentials: LoginCredentials): Promise<LoginAnswer>
   logout(login: CookieLogin): Promise<LogoutResult>
   standing(login: CookieLogin): Promise<LoginStanding>
+  /** One file of a plugin, read with the login the request carried. */
+  pluginFile(at: PluginFileAt, login: CookieLogin): Promise<PluginFileAnswer>
 }
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
+
+const AVAILABILITY = JSON.stringify(['access', 1, 'availability'])
 
 type IssueLoginOutcome = Awaited<
   ReturnType<ClientOf<typeof identityProtocol>['issue-login']>
@@ -65,7 +71,7 @@ const LOGIN_RESULTS: Readonly<
   unavailable: 'unavailable',
   'basis-unavailable': 'unavailable',
   'stage-not-provided': 'unavailable',
-  'protocol-rejected': 'unavailable',
+  'protocol-rejected': 'rejected',
 }
 
 type Identity = ProtocolContract['operations'][string]['identity']
@@ -73,6 +79,26 @@ type Demand = Identity | 'carries-credential'
 
 const targetOf = (key: ProtocolKey, name: string): string =>
   JSON.stringify([key.name, key.major, name])
+
+const keyOf = (key: ProtocolKey): string => JSON.stringify([key.name, key.major])
+
+async function* tapped(
+  frames: AsyncGenerator<JsonValue, ObserveEnd, undefined>,
+  see: (frame: JsonValue, first: boolean) => void,
+): AsyncGenerator<JsonValue, ObserveEnd, undefined> {
+  let first = true
+  try {
+    for (;;) {
+      const next = await frames.next()
+      if (next.done === true) return next.value
+      see(next.value, first)
+      first = false
+      yield next.value
+    }
+  } finally {
+    await frames.return({ kind: 'aborted' })
+  }
+}
 
 function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, Demand> {
   const demands = new Map<string, Demand>()
@@ -97,6 +123,8 @@ function credentialsFor(login: CookieLogin, identity: Exclude<Identity, 'none'>)
 export function createForwardingRules(options: RulesOptions): ForwardingRules {
   const { connect } = options
   const demands = demandsOf(options.contracts)
+  const listed = new Set(options.contracts.map(keyOf))
+  const tenant = tenantProtocols(login => connect(credentialsFor(login, 'acting-tenant')), targetOf)
   const identityFor = (login: CookieLogin | undefined) =>
     createClient(
       identityProtocol,
@@ -111,6 +139,16 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
     return login === undefined || demand === 'none' ? {} : credentialsFor(login, demand)
   }
 
+  async function callCredentials(
+    request: CallRequest,
+    login: CookieLogin | undefined,
+  ): Promise<Credentials | undefined> {
+    const target = targetOf(request.protocol, request.operation)
+    if (demands.has(target)) return credentialsOf(target, login)
+    if (login === undefined || listed.has(keyOf(request.protocol))) return undefined
+    return (await tenant.has(login, target)) ? credentialsFor(login, 'acting-tenant') : undefined
+  }
+
   return {
     protocols: options.contracts.map(contract => ({ name: contract.name, major: contract.major })),
 
@@ -119,15 +157,24 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
       return demand !== undefined && demand !== 'none' && demand !== 'carries-credential'
     },
 
+    async pluginFile(at, login) {
+      const tenant = readTenantText(login.tenant)
+      if (tenant === undefined) return { kind: 'unavailable' }
+      const transport = connect(credentialsFor(login, 'login'))
+      return openPluginFile(transport, tenant, at).catch(() => ({ kind: 'unavailable' as const }))
+    },
+
     async call(request, login) {
-      const credentials = credentialsOf(targetOf(request.protocol, request.operation), login)
+      const credentials = await callCredentials(request, login)
       return credentials === undefined ? NOT_SENT : connect(credentials).call(request)
     },
 
     async *observe(request, login) {
       const credentials = credentialsOf(targetOf(request.protocol, request.observation), login)
       if (credentials === undefined) return { kind: 'not-sent' }
-      return yield* connect(credentials).observe(request)
+      const frames = connect(credentials).observe(request)
+      if (targetOf(request.protocol, request.observation) !== AVAILABILITY) return yield* frames
+      return yield* tapped(frames, (frame, first) => tenant.frame(frame, first))
     },
 
     async login(credentials) {
@@ -138,7 +185,7 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
           credential: credentials.credential,
         })
       } catch (error) {
-        return { result: error instanceof ClientRequestError ? 'unavailable' : 'unknown' }
+        return { result: error instanceof ClientRequestError ? 'rejected' : 'unknown' }
       }
       if (answer.outcome !== 'succeeded') return { result: LOGIN_RESULTS[answer.outcome] }
       return {
@@ -153,6 +200,7 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
 
     async logout(login) {
       try {
+        tenant.forget(login)
         const answer = await identityFor(login)['revoke-login']({ targetLoginId: login.loginId })
         return answer.outcome === 'succeeded' || answer.outcome === 'no-change'
           ? 'signed-out'

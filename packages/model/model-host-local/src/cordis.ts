@@ -1,6 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { CredentialPort } from '@omne-harness/model-contract/provider'
-import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
+import type { CredentialPort, ModelPreferencesPort } from '@omne-harness/model-contract/provider'
+import type {
+  ModelDecisionPreparation,
+  ModelLivePreparation,
+} from '@omne-harness/model-contract/provider'
+import {
+  ModelCredentialService,
+  ModelDecisionPreparationService,
+  ModelLivePreparationService,
+  ModelPreferencesService,
+} from '@omne-harness/model-cordis-contract/cordis'
 
 export function serveModelCredential<P>(
   ctx: Context,
@@ -18,6 +27,55 @@ export function serveModelCredential<P>(
   }
   return new PortCredentialService()
 }
+
+export function serveModelPreferences<P>(
+  ctx: Context,
+  port: ModelPreferencesPort<P>,
+): ModelPreferencesService<P> {
+  class PortPreferencesService extends ModelPreferencesService<P> {
+    readonly read: ModelPreferencesPort<P>['read']
+
+    constructor() {
+      super(ctx)
+      this.read = input => port.read(input)
+    }
+  }
+  return new PortPreferencesService()
+}
+
+/** Serves the decision preparation on this context: it leaves with the scope that asked for it. */
+export function serveModelDecisionPreparation<P>(
+  ctx: Context,
+  port: ModelDecisionPreparation<P>,
+): ModelDecisionPreparationService<P> {
+  class PortDecisionPreparation extends ModelDecisionPreparationService<P> {
+    readonly prepare: ModelDecisionPreparation<P>['prepare']
+
+    constructor() {
+      super(ctx)
+      this.prepare = input => port.prepare(input)
+    }
+  }
+  return new PortDecisionPreparation()
+}
+
+/** Serves the live preparation on this context: it leaves with the scope that asked for it. */
+export function serveModelLivePreparation<P>(
+  ctx: Context,
+  port: ModelLivePreparation<P>,
+): ModelLivePreparationService<P> {
+  class PortLivePreparation extends ModelLivePreparationService<P> {
+    readonly prepare: ModelLivePreparation<P>['prepare']
+
+    constructor() {
+      super(ctx)
+      this.prepare = input => port.prepare(input)
+    }
+  }
+  return new PortLivePreparation()
+}
+
+export { serveModelLiveCalls } from './plugins/live-calls.ts'
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
 export { createModelRequestPreparationPlugin } from './plugins/preparation.ts'

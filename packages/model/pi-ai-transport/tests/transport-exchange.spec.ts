@@ -72,10 +72,15 @@ function answerSse(res: ServerResponse, text: string): void {
   res.end(text)
 }
 
-function failedWith(cause: string, diagnostic: string, upstreamStatus: string | null) {
+function failedWith(
+  cause: string,
+  diagnostic: string,
+  upstreamStatus: string | null,
+  marks: Readonly<{ throttled?: true }> = {},
+) {
   return {
     kind: 'ended',
-    termination: { kind: 'failed', fault: { cause, diagnostic, upstreamStatus } },
+    termination: { kind: 'failed', fault: { cause, diagnostic, upstreamStatus, ...marks } },
   }
 }
 
@@ -373,7 +378,7 @@ describe('the failures after the send', () => {
     [400, 'input-rejected'],
     [422, 'input-rejected'],
   ])(
-    'HTTP %i ends failed as %s with the status, without the error body or a header',
+    'HTTP %i ends failed as %s with the status (429 marked throttled), without the error body or a header',
     async (status, cause) => {
       await withTransport(
         res => {
@@ -384,7 +389,11 @@ describe('the failures after the send', () => {
           const facts = await collect(
             (await transport.materialize()).start(new AbortController().signal),
           )
-          expect(facts).toEqual([RESPONSE, failedWith(cause, `http-${status}`, String(status))])
+          const marks = status === 429 ? ({ throttled: true } as const) : {}
+          expect(facts).toEqual([
+            RESPONSE,
+            failedWith(cause, `http-${status}`, String(status), marks),
+          ])
           expect(JSON.stringify(facts)).not.toMatch(/secret/)
           expect(await slotFree(resources)).toBe(true)
         },
@@ -742,7 +751,8 @@ describe('capacity across real sends', () => {
       expect(await collect(first)).toEqual([RESPONSE, COMPLETED])
       await expect.poll(() => waiting.done).toBe(true)
       const second = waiting.value
-      if (second === undefined || !('ok' in second)) throw new Error('expected a materialization')
+      if (second === undefined || !('ok' in second) || !('start' in second.ok))
+        throw new Error('expected a chat materialization')
       const stream = second.ok.start(new AbortController().signal)
       expect(transport.sends()).toBe(2)
       expect(await collect(stream)).toEqual([RESPONSE, COMPLETED])
@@ -779,7 +789,8 @@ describe('capacity across real sends', () => {
         const waiting = (await transport.prepare()).materialize(new AbortController().signal)
         await held.close()
         const next = await waiting
-        if (!('ok' in next)) throw new Error('expected a materialization')
+        if (!('ok' in next) || !('start' in next.ok))
+          throw new Error('expected a chat materialization')
         expect(await collect(next.ok.start(new AbortController().signal))).toEqual([
           RESPONSE,
           COMPLETED,

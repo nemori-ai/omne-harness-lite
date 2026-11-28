@@ -15,6 +15,7 @@ import type {
   HandoffReference,
   InputBatch,
   InputId,
+  MaterialReaders,
   ModelReplyAdmission,
   PassageId,
   PendingCall,
@@ -77,6 +78,7 @@ export type MaterialView = Readonly<{
   source: DurableEvidence
   value: Ref
   consumer: ConsumerRef
+  readers: MaterialReaders
   pub: number
 }>
 
@@ -253,6 +255,7 @@ export type EventView = Readonly<{
   ord: number
   attachment: Authority | null
   fact: FactBody
+  taken?: InputBatch
 }> &
   Stamp
 
@@ -303,7 +306,6 @@ export type ExecutionView = Readonly<{
     schema: Adoption
     instance: string
     scope: DurableEvidence
-    original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
     coordination: 'standalone' | 'coordinated'
     pub: number
     revision: number

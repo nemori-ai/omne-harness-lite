@@ -53,9 +53,17 @@ export function releasedGatesOf(
 
 function gatePolicy(name: string, gate: ReleasedGate) {
   const commands = gate.commands.length === 0 ? '' : `（${gate.commands.join('、')}）`
-  return {
+  return gateRules({
     title: `${name}：${gate.title}`,
     description: `控制 ${name} 工具里归「${gate.title}」的命令${commands}。允许调用不代表执行环境可用或操作一定成功。`,
+    default: gate.default,
+  })
+}
+
+export function gateRules(gate: Pick<ReleasedGate, 'title' | 'default'> & { description: string }) {
+  return {
+    title: gate.title,
+    description: gate.description,
     approvalEffect: '在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。',
     supportedScopes: [
       { kind: 'one-time-call', description: '仅允许原调用及其原参数。' },
@@ -99,6 +107,64 @@ function gatePolicy(name: string, gate: ReleasedGate) {
   }
 }
 
+/** A tool a tenant holds: its gates are declared, and no settings item configures them. */
+export type HeldControlledTool = Readonly<{
+  name: string
+  adoption: Adoption
+  definition: string
+  gates: readonly ReleasedGate[]
+}>
+
+/** The gates of a held tool as permissions: the declared default, the rule of the session, nothing stored for a tenant. */
+export function heldToolPermission(input: HeldControlledTool): ToolPermissionRelease {
+  const version = canonicalDigest(input).slice(7)
+  const origin = {
+    kind: 'asset' as const,
+    assetId: `harness.held-tool.${input.name}`,
+    releaseRef: `harness.held-tool.${input.name}/${version}`,
+  }
+  const gates = input.gates.map(gate => {
+    const { effects, interpretationRef, ...rules } = gatePolicy(input.name, gate)
+    const permission: PermissionDefinition = {
+      ...rules,
+      supportedScopes: rules.supportedScopes.filter(scope => scope.kind !== 'tenant'),
+      assignmentLayers: ['session'],
+      reference: { origin, itemId: gate.id, revision: version },
+      capabilityId: `held-tool.${input.name}`,
+      enforcementKey: toolEnforcementKey(gate),
+      settings: null,
+    }
+    const binding = {
+      capabilityId: permission.capabilityId,
+      enforcementKey: permission.enforcementKey,
+      implementationRef: `held-tool/${version}`,
+      action: 'invoke',
+      interpretationRef,
+    }
+    return { permission, binding, effects }
+  })
+  const reference = {
+    ownerId: TOOL_GOVERNANCE_OWNER,
+    definitionId: `held-tool.${input.name}`,
+    version,
+  }
+  const body = {
+    reference,
+    origin,
+    settings: [],
+    permissions: gates.map(gate => gate.permission),
+    enforcementBindings: gates.map(gate => gate.binding),
+  }
+  return toolPermissionReleaseSchema.parse({
+    declaration: { ...body, reference: { ...reference, digest: canonicalDigest(body).slice(7) } },
+    interpretations: gates.map(({ binding, permission, effects }) => ({
+      binding,
+      definition: permission,
+      effects,
+    })),
+  })
+}
+
 type ControlledTool = {
   name: ReleaseToolName
   adoption: Adoption
@@ -108,11 +174,17 @@ type ControlledTool = {
 }
 
 export function toolPermissionRelease(input: ControlledTool): ToolPermissionRelease {
-  const draft = releaseAtVersion(input, 'unversioned')
-  return releaseAtVersion(input, canonicalDigest(draft).slice(7))
+  const unversioned = releaseAtVersion(input, 'unversioned', 'unversioned')
+  const settingsVersion = canonicalDigest(unversioned.declaration.settings).slice(7)
+  const draft = releaseAtVersion(input, 'unversioned', settingsVersion)
+  return releaseAtVersion(input, canonicalDigest({ tool: input, draft }).slice(7), settingsVersion)
 }
 
-function releaseAtVersion(input: ControlledTool, version: string): ToolPermissionRelease {
+function releaseAtVersion(
+  input: ControlledTool,
+  version: string,
+  settingsVersion: string,
+): ToolPermissionRelease {
   const origin = {
     kind: 'asset' as const,
     assetId: `harness.tool.${input.name}`,
@@ -129,7 +201,7 @@ function releaseAtVersion(input: ControlledTool, version: string): ToolPermissio
       settings: {
         providerId: TOOL_GOVERNANCE_OWNER,
         definitionId: `tool.${input.name}.permissions`,
-        version,
+        version: settingsVersion,
         itemId: gate.id,
         groupId: `tool.${input.name}`,
         groupTitle: `${input.name} 工具`,

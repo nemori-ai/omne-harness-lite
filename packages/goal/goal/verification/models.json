@@ -1,0 +1,112 @@
+{
+  "member": "goal",
+  "model": "models/Goal.tla",
+  "scope": "finite model Goal: one session, at most two goals one after another, two revisions each and a budget of two rounds. Case attended: a person can confirm a drafted goal, edit, pause, resume, cancel and settle by an exit. Case unattended: the creator of the session sets, cancels and aborts; nobody can pause. Cases examined-attended and examined-unattended: one goal with one revision, whose body has one criterion an examiner reads besides the ones read on the spot; the worker's writes are counted up to two, the budget holds two examinations; a batch goes to the examiner, whose reading is taken from the truth at the moment it hands it in, or it hands in that it cannot tell. Each action is one conditional write of the goal store, one commit of the session, or one step of the run. The judge's verdict is taken from the truth at the moment the observation starts: the model is about races between commands and late observations and about replays after a crash, not about how well a judge judges. Not modelled: how well an examiner examines, several examined criteria in one batch, the session of the examiner and what it costs, the examination by a program, the content of a goal and its validation, metrics and readings, the kinds of exits and what counts as success, the progress list, the decision call and its failures, stagnation, the creation of the card, several sessions. Each control switches on one fault through the constant Faults and must violate exactly its invariant. No liveness is checked and there is no refinement proof to the implementation.",
+  "workers": 4,
+  "timeoutSeconds": 900,
+  "cases": [
+    {
+      "name": "attended",
+      "config": "models/attended.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "unattended",
+      "config": "models/unattended.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "examined-attended",
+      "config": "models/examined-attended.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "examined-unattended",
+      "config": "models/examined-unattended.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "stale-revision",
+      "config": "models/stale-revision.cfg",
+      "expected": "AchievedIsFresh"
+    },
+    {
+      "name": "replayed-round",
+      "config": "models/replayed-round.cfg",
+      "expected": "CountedOnce"
+    },
+    {
+      "name": "duplicate-reminder",
+      "config": "models/duplicate-reminder.cfg",
+      "expected": "CountedOnce"
+    },
+    {
+      "name": "stale-pass",
+      "config": "models/stale-pass.cfg",
+      "expected": "NoSilentPass"
+    },
+    {
+      "name": "stale-card",
+      "config": "models/stale-card.cfg",
+      "expected": "CardIsCurrent"
+    },
+    {
+      "name": "agent-pause",
+      "config": "models/agent-pause.cfg",
+      "expected": "NeverByAgent"
+    },
+    {
+      "name": "settle-twice",
+      "config": "models/settle-twice.cfg",
+      "expected": "SettledOnce"
+    },
+    {
+      "name": "no-budget",
+      "config": "models/no-budget.cfg",
+      "expected": "RoundsBounded"
+    },
+    {
+      "name": "pause-unattended",
+      "config": "models/pause-unattended.cfg",
+      "expected": "NoPauseUnattended"
+    },
+    {
+      "name": "skip-exam",
+      "config": "models/skip-exam.cfg",
+      "expected": "ExamBeforeAchieve"
+    },
+    {
+      "name": "stale-exam",
+      "config": "models/stale-exam.cfg",
+      "expected": "ExamBeforeAchieve"
+    },
+    {
+      "name": "stale-submit",
+      "config": "models/stale-submit.cfg",
+      "expected": "ExamBeforeAchieve"
+    },
+    {
+      "name": "no-epoch-check",
+      "config": "models/no-epoch-check.cfg",
+      "expected": "ExamBeforeAchieve"
+    },
+    {
+      "name": "resend",
+      "config": "models/resend.cfg",
+      "expected": "BatchOnce"
+    },
+    {
+      "name": "no-exam-budget",
+      "config": "models/no-exam-budget.cfg",
+      "expected": "ExamsBounded"
+    },
+    {
+      "name": "worker-submit",
+      "config": "models/worker-submit.cfg",
+      "expected": "OnlyExaminerReads"
+    }
+  ],
+  "mutations": []
+}

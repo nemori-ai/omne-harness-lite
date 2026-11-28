@@ -190,7 +190,8 @@ export function createMediaContribution(
             const described = await media.custody.describe(body)
             if ('failure' in described) return described
             const state = await media.representations.read(body)
-            return 'failure' in state ? state : { ok: { ...described.ok, preprocess: state.ok } }
+            if ('failure' in state) return state
+            return { ok: { ...described.ok, preprocess: state.ok } }
           },
           (ok): Answer<'describe-media'> => ({ outcome: 'succeeded', body: ok }),
           { 'invalid-reference': () => NOT_FOUND },
@@ -202,7 +203,10 @@ export function createMediaContribution(
         const access = { tenant: body.tenant, principal: acted.principal }
         return write(
           () => acted.media.representations.ensure({ access, ref: body.ref, signal: call.signal }),
-          (preprocess): Answer<'prepare-media'> => ({ outcome: 'succeeded', body: { preprocess } }),
+          (preprocess): Answer<'prepare-media'> => ({
+            outcome: 'succeeded',
+            body: { preprocess },
+          }),
           { 'invalid-reference': () => NOT_FOUND },
         )
       },

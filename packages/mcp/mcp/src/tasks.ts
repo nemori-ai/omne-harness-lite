@@ -15,6 +15,8 @@ import {
 import type {
   McpTransport,
   TaskAnswer,
+  TaskRow,
+  TaskRowKey,
   TransportFailure,
 } from '@omne-harness/mcp-contract/provider'
 import { classificationOf } from './internal/classification.ts'
@@ -25,24 +27,23 @@ import { judgedTree } from './internal/caller-values.ts'
 import { ask, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
-import type { TaskKey, TaskRecord, TaskTable } from './internal/task-table.ts'
 import { accountTextOf } from './internal/text.ts'
 
 export type TasksDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   config: McpConfig<P>
   table: ConnectionTable<P>
-  tasks: TaskTable
 }>
 
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const NO_CONNECTION: OperationFailure = { kind: 'effect-unknown', cause: 'no-connection' }
+const INPUT_UNKEPT: OperationFailure = { kind: 'effect-unknown', cause: 'abandoned' }
 const ABANDONED = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
 const SHUT = 'shut'
 type Shut = typeof SHUT
 
-type OnConnection = Readonly<{ ensured: Ensured; record: TaskRecord }>
+type OnConnection = Readonly<{ ensured: Ensured; record: TaskRow }>
 
 type Unsent = Readonly<{ unsent: OperationFailure }>
 
@@ -62,12 +63,41 @@ function failureOfEnsure(failure: EnsureFailure): OperationFailure {
   }
 }
 
+async function recordOf<P, S>(
+  ports: McpPorts<P, S>,
+  key: TaskRowKey,
+  task: TaskRef,
+): Promise<TaskRow | undefined> {
+  const read = await ask(() => ports.tasks.read(key), fail('unavailable' as const))
+  if ('failure' in read || typeof read.ok === 'string') return undefined
+  return read.ok.issuedAt === task.issuedAt ? read.ok : undefined
+}
+
+/** After the peer took the input, the row follows the task again in the next round; a row that cannot be moved leaves the call not known. */
+async function followAgain<P, S>(
+  ports: McpPorts<P, S>,
+  key: TaskRowKey,
+  task: TaskRef,
+  accepted: Outcome<'accepted', OperationFailure>,
+): Promise<Outcome<'accepted', OperationFailure>> {
+  if ('failure' in accepted) return accepted
+  const record = await recordOf(ports, key, task)
+  if (record === undefined) return fail(INPUT_UNKEPT)
+  const { round } = record
+  const moved = await ask(
+    () =>
+      ports.tasks.move(key, { state: 'awaiting', round }, { state: 'following', round: round + 1 }),
+    fail('unavailable' as const),
+  )
+  return 'ok' in moved && moved.ok === 'moved' ? accepted : fail(INPUT_UNKEPT)
+}
+
 export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P> {
-  const { ports, config, table, tasks } = deps
+  const { ports, config, table } = deps
   const { scope, startBound } = table.runtime
   const gate: UseGate<P, S> = { ports, table }
 
-  const keyOf = (access: Access<P>, task: TaskRef): TaskKey => ({
+  const keyOf = (access: Access<P>, task: TaskRef): TaskRowKey => ({
     tenant: access.tenant,
     principalKey: config.principalKey(access.principal),
     holding: task.ref.holding,
@@ -77,7 +107,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   async function built(
     access: Access<P>,
     task: TaskRef,
-    record: TaskRecord,
+    record: TaskRow,
   ): Promise<Outcome<Ensured, OperationFailure>> {
     const decision = await decideForUse(gate, access, task.ref)
     if (decision.kind !== 'admitted')
@@ -94,7 +124,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     return 'failure' in ensured ? fail(failureOfEnsure(ensured.failure)) : ensured
   }
 
-  function reusedOf(access: Access<P>, task: TaskRef, record: TaskRecord): Ensured | undefined {
+  function reusedOf(access: Access<P>, task: TaskRef, record: TaskRow): Ensured | undefined {
     const account = accountTextOf(record.account)
     return table
       .currentOf(access.tenant, task.ref.holding)
@@ -132,7 +162,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   async function exchange<T>(
     access: Access<P>,
     task: TaskRef,
-    record: TaskRecord,
+    record: TaskRow,
     send: (transport: McpTransport) => Promise<Outcome<T, TransportFailure>>,
   ): Promise<Answered<T> | Unsent | Shut> {
     if (table.isShut()) return SHUT
@@ -163,8 +193,8 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     send: (transport: McpTransport) => Promise<Outcome<T, TransportFailure>>,
     read: (answer: T, on: OnConnection) => R,
   ): Promise<Outcome<R, OperationFailure>> {
-    const record = tasks.get(keyOf(access, task))
-    if (record === undefined || record.issuedAt !== task.issuedAt) return fail(UNKNOWN)
+    const record = await recordOf(ports, keyOf(access, task), task)
+    if (record === undefined) return fail(UNKNOWN)
     return outcomeOf(await exchange(access, task, record, send), read)
   }
 
@@ -186,7 +216,13 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
       request(access, task, transport => transport.getTaskResult(task.taskId), resultOf),
     provideTaskInput: async (access, task, inputResponses: JsonValue) => {
       const responses = judgedTree(inputResponses, 'the input responses of an MCP task')
-      return request(access, task, transport => transport.updateTask(task.taskId, responses), asIs)
+      const sent = await request(
+        access,
+        task,
+        transport => transport.updateTask(task.taskId, responses),
+        asIs,
+      )
+      return followAgain(ports, keyOf(access, task), task, sent)
     },
     cancelTask: (access, task) =>
       request(access, task, transport => transport.cancelTask(task.taskId), asIs),

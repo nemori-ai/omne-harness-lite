@@ -112,11 +112,15 @@ test('owners, authored ID intersections, author and calendar filters remain sepa
     },
   }
   expect(await w.persistence.commit(authored)).toMatchObject({ kind: 'recorded' })
+  const fromLaterCall = {
+    ...access(agent).authority.authorOnCreate,
+    originatingCallRef: 'call:later',
+  } as const
   const visible = {
     ...readAccess(),
     visibility: {
       kind: 'authoredIds',
-      author: access(agent).authority.authorOnCreate,
+      author: fromLaterCall,
       scheduleIds: [alice.input.allocatedId, command.input.allocatedId],
     },
   } as const

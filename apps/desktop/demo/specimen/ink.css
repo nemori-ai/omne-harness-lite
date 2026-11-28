@@ -1,0 +1,123 @@
+@import '@omne-harness/ui-kit/styles.css';
+@source '.';
+
+@layer omne-builtin {
+html,
+body {
+  overflow: hidden;
+}
+
+.ink-sidebar {
+  position: fixed;
+  inset-block: 0;
+  left: 0;
+  width: calc(272px * var(--omne-size));
+  background: var(--omne-surface-panel-soft);
+  border-right: 1px solid var(--omne-line-subtle);
+}
+
+.ink-seat {
+  position: fixed;
+  width: calc(56px * var(--omne-size));
+  height: calc(56px * var(--omne-size));
+}
+
+.ink-seat[data-figure-seat='home'] {
+  left: calc(5px * var(--omne-size));
+  top: calc(52px * var(--omne-size));
+}
+
+.ink-seat[data-figure-seat='header'] {
+  left: calc((272px * var(--omne-size) + 100vw) / 2 - 44px * var(--omne-size));
+  top: calc(40px * var(--omne-size));
+}
+
+.ink-seat[data-figure-seat='gate'] {
+  left: calc(50vw - 28px * var(--omne-size));
+  top: calc(280px - 28px * var(--omne-size));
+}
+
+.ink-controls {
+  position: fixed;
+  left: calc(272px * var(--omne-size) + var(--omne-space-section));
+  right: var(--omne-space-section);
+  top: calc(380px * var(--omne-size));
+  display: grid;
+  align-content: start;
+  gap: var(--omne-space-block);
+}
+
+.ink-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+
+.ink-controls-title {
+  min-width: 6em;
+  color: var(--omne-ink-muted);
+}
+
+.ink-page .omne-told-note {
+  max-width: calc(211px * var(--omne-size) - 26px);
+}
+
+.ink-note {
+  position: fixed;
+  max-width: 20em;
+  padding: var(--omne-space-block);
+}
+
+.ink-note-words {
+  margin: 0;
+}
+
+.ink-panel {
+  position: fixed;
+  width: min(calc(600px * var(--omne-size)), calc(100vw - var(--omne-space-section)));
+  overflow: hidden;
+  padding: var(--omne-space-block) var(--omne-space-section);
+}
+
+.ink-panel-title {
+  margin: 0 0 var(--omne-space-inline);
+  font-size: var(--omne-text-lead);
+  font-weight: var(--omne-weight-strong);
+}
+
+.ink-panel-count {
+  color: var(--omne-ink-muted);
+  font-weight: normal;
+}
+
+.ink-panel-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ink-panel-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--omne-space-block);
+  padding-block: var(--omne-space-block);
+  border-top: 1px solid var(--omne-line-subtle);
+}
+
+.ink-panel-icon {
+  color: var(--omne-ink-muted);
+}
+
+.ink-panel-text {
+  display: grid;
+  gap: calc(var(--omne-space-inline) / 2);
+}
+
+.ink-panel-more {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-lead);
+}
+}

@@ -1,5 +1,6 @@
+export { reasoningTextCodec } from './reasoning-text.ts'
+export { usageWithCacheWrites } from './cache-usage.ts'
 export { bindChatCompletions, type ChatCompletionsBindingInput } from './bind.ts'
-export { OPENROUTER_ACCOUNTING, OPENROUTER_PROVIDER_BODY_TEXT } from './openrouter.ts'
 export {
   calibratedAmount,
   type CalibratedAmount,

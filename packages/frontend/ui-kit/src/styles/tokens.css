@@ -34,6 +34,12 @@
   --omne-glyph-drift: 1.5px;
   --omne-glyph-stub: 0.85;
 
+  --omne-window-inset: 0px;
+
+  --omne-layer-figure: 45;
+  --omne-layer-figure-raised: 55;
+  --omne-layer-menu: 56;
+
   --kami-page: light-dark(#f5f4ed, #1c1c19);
   --kami-canvas: light-dark(#e8e6dc, #141413);
   --kami-surface: light-dark(#faf9f5, #252521);
@@ -130,9 +136,34 @@
   --omne-space-page: 32px;
   --omne-measure-decision: 600px;
 
-  --omne-measure-reading: 70ch;
+  --omne-measure-reading: 37.3em;
 
   --omne-bubble-padding: 12px 16px;
+
+  --omne-icon-micro: 12px;
+  --omne-rule-width: 2px;
+  --omne-radius-mark: 2px;
+  --omne-underline-offset-text: 3px;
+  --omne-underline-offset-control: 4px;
+  --omne-motion-travel: 4px;
+  --omne-scrollbar-size: 10px;
+  --omne-scrollbar-gap: 3px;
+  --omne-scrollbar-gap-hover: 2px;
+  --omne-share-bar-height: 8px;
+  --omne-page-column-width: 1200px;
+  --omne-page-column-padding: 32px 40px 48px;
+  --omne-dialog-width: 480px;
+  --omne-code-height: 288px;
+  --omne-code-header-height: 40px;
+  --omne-code-actions-width: 88px;
+  --omne-code-fade: 40px;
+  --omne-ink-bubble-paper-soft: 72px;
+  --omne-ink-shadow-y: 12px;
+  --omne-ink-shadow-blur: 32px;
+  --omne-ink-breath-near: 0.6px;
+  --omne-ink-breath-far: 5px;
+  --omne-told-note-room: 120px;
+  --omne-told-note-padding: 8px 14px 9px;
 }
 
 :root[data-size='small'] {
@@ -171,6 +202,31 @@
   --omne-space-page: 24px;
   --omne-measure-decision: 450px;
   --omne-bubble-padding: 9px 12px;
+
+  --omne-icon-micro: 9px;
+  --omne-rule-width: 2px;
+  --omne-radius-mark: 2px;
+  --omne-underline-offset-text: 2px;
+  --omne-underline-offset-control: 3px;
+  --omne-motion-travel: 3px;
+  --omne-scrollbar-size: 8px;
+  --omne-scrollbar-gap: 2px;
+  --omne-scrollbar-gap-hover: 2px;
+  --omne-share-bar-height: 6px;
+  --omne-page-column-width: 900px;
+  --omne-page-column-padding: 24px 30px 36px;
+  --omne-dialog-width: 360px;
+  --omne-code-height: 216px;
+  --omne-code-header-height: 30px;
+  --omne-code-actions-width: 66px;
+  --omne-code-fade: 30px;
+  --omne-ink-bubble-paper-soft: 54px;
+  --omne-ink-shadow-y: 9px;
+  --omne-ink-shadow-blur: 24px;
+  --omne-ink-breath-near: 0.45px;
+  --omne-ink-breath-far: 3.75px;
+  --omne-told-note-room: 90px;
+  --omne-told-note-padding: 6px 10.5px 6.75px;
 }
 
 :root[data-size='large'] {
@@ -205,6 +261,31 @@
   --omne-space-page: 40px;
   --omne-measure-decision: 750px;
   --omne-bubble-padding: 15px 20px;
+
+  --omne-icon-micro: 15px;
+  --omne-rule-width: 2px;
+  --omne-radius-mark: 2px;
+  --omne-underline-offset-text: 4px;
+  --omne-underline-offset-control: 5px;
+  --omne-motion-travel: 5px;
+  --omne-scrollbar-size: 12px;
+  --omne-scrollbar-gap: 4px;
+  --omne-scrollbar-gap-hover: 2px;
+  --omne-share-bar-height: 10px;
+  --omne-page-column-width: 1500px;
+  --omne-page-column-padding: 40px 50px 60px;
+  --omne-dialog-width: 600px;
+  --omne-code-height: 360px;
+  --omne-code-header-height: 50px;
+  --omne-code-actions-width: 110px;
+  --omne-code-fade: 50px;
+  --omne-ink-bubble-paper-soft: 90px;
+  --omne-ink-shadow-y: 15px;
+  --omne-ink-shadow-blur: 40px;
+  --omne-ink-breath-near: 0.75px;
+  --omne-ink-breath-far: 6.25px;
+  --omne-told-note-room: 150px;
+  --omne-told-note-padding: 10px 17.5px 11.25px;
 }
 
 :root[data-size='reading'] {
@@ -240,6 +321,31 @@
   --omne-space-page: 48px;
   --omne-measure-decision: 900px;
   --omne-bubble-padding: 18px 24px;
+
+  --omne-icon-micro: 18px;
+  --omne-rule-width: 3px;
+  --omne-radius-mark: 3px;
+  --omne-underline-offset-text: 4px;
+  --omne-underline-offset-control: 6px;
+  --omne-motion-travel: 6px;
+  --omne-scrollbar-size: 15px;
+  --omne-scrollbar-gap: 4px;
+  --omne-scrollbar-gap-hover: 3px;
+  --omne-share-bar-height: 12px;
+  --omne-page-column-width: 1800px;
+  --omne-page-column-padding: 48px 60px 72px;
+  --omne-dialog-width: 720px;
+  --omne-code-height: 432px;
+  --omne-code-header-height: 60px;
+  --omne-code-actions-width: 132px;
+  --omne-code-fade: 60px;
+  --omne-ink-bubble-paper-soft: 108px;
+  --omne-ink-shadow-y: 18px;
+  --omne-ink-shadow-blur: 48px;
+  --omne-ink-breath-near: 0.9px;
+  --omne-ink-breath-far: 7.5px;
+  --omne-told-note-room: 180px;
+  --omne-told-note-padding: 12px 21px 13.5px;
 }
 
 :root {
@@ -256,6 +362,7 @@
   --omne-accent: var(--kami-accent);
   --omne-accent-hover: var(--kami-accent-hover);
   --omne-accent-press: var(--kami-accent-press);
+  --omne-accent-tint: var(--kami-accent-tint);
   --omne-accent-ink: var(--kami-on-accent);
   --omne-accent-disabled: var(--kami-hover-2);
   --omne-accent-ink-disabled: var(--kami-ink-3);
@@ -304,8 +411,30 @@
   --omne-elevation-overlay:
     0 0 0 1px var(--kami-line), 0 12px 32px color-mix(in srgb, var(--kami-shadow) 18%, transparent);
   --omne-overlay: color-mix(in srgb, var(--kami-shadow) 40%, transparent);
+  --omne-ink-mask: #000;
+  --omne-ink-shadow: color-mix(in srgb, var(--kami-shadow) 18%, transparent);
+  --omne-ink-wash-core: rgb(0 0 0 / 13%);
+  --omne-ink-wash-rim: rgb(0 0 0 / 11%);
+  --omne-ink-wash-out: rgb(0 0 0 / 0%);
+  --omne-ink-bubble-edge-full: light-dark(
+    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent),
+    color-mix(in oklab, var(--omne-ink-primary) 70%, transparent)
+  );
+  --omne-ink-bubble-edge-light: light-dark(
+    color-mix(in oklab, var(--omne-ink-primary) 26%, transparent),
+    color-mix(in oklab, var(--omne-ink-primary) 46%, transparent)
+  );
 
   --omne-tooltip: var(--kami-tooltip-bg);
+  --omne-scrollbar-thumb-rest: color-mix(in srgb, var(--omne-ink-faint) 27%, transparent);
+  --omne-scrollbar-thumb-active: color-mix(in srgb, var(--omne-ink-faint) 48%, transparent);
+  --omne-selection: var(--omne-accent);
+  --omne-selection-ink: var(--omne-accent-ink);
+  --omne-code-surface: var(--omne-surface-panel-soft);
+  --omne-code-ink: var(--omne-ink-primary);
+  --omne-code-keyword: var(--omne-info-ink);
+  --omne-code-literal: var(--omne-caution-ink);
+  --omne-code-comment: var(--omne-ink-faint);
   --omne-tooltip-ink: var(--kami-tooltip-fg);
 
   --omne-chart-1: var(--kami-chart-1);
@@ -439,4 +568,8 @@
   --leading-wrapped: var(--omne-leading-wrapped);
   --leading-reading: var(--omne-leading-reading);
   --leading-title: var(--omne-leading-title);
+}
+
+:root[data-window-chrome='mac-inset'] {
+  --omne-window-inset: 28px;
 }

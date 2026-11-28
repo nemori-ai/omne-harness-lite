@@ -16,29 +16,49 @@ import {
   createLocalToolBindingsPlugin,
   type LocalToolBindingsPluginInput,
 } from '@omne-harness/tool-host-local/cordis'
+import { createToolMessageResultCodec } from '@omne-harness/tool'
+import { DEFAULT_ENTRY_SOURCE_POLICY } from '@omne-harness/tool-host-local'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { defineRow } from '../../row.ts'
+import { webPortEntry } from './web-port.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createReleaseAvailability } from './availability.ts'
 import { releaseCatalogViewOf } from './catalog-view.ts'
 import { z } from 'zod'
 import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { entrySourceScope } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { createReleaseProgramCalls } from './program-capability.ts'
 import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
-import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
+import { attachReleaseScheduleReads, bindReleaseJobs, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
+import { bindReleaseAppView } from './app-view.ts'
+import { bindReleaseCanvas } from './canvas.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
+import { bindReleaseGoal } from './goal.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
+import { bindReleaseExtensionPoints } from './extension-points.ts'
+import { bindReleaseExtensions } from './extensions.ts'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
+import { attachScriptHost } from '@omne-harness/tool-definitions'
+import { heldScriptHost } from '../tool-host/script-host.ts'
 
+const positive = z.number().int().positive().max(2_147_483_647)
 export const toolBindingsConfig = z
-  .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
+  .strictObject({
+    tools: toolsCapabilityConfig.optional(),
+    web: webBindingConfig.optional(),
+    sources: z.strictObject({ resultMaxBytes: positive, listTimeoutMs: positive }).optional(),
+  })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
@@ -47,15 +67,30 @@ type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBl
 const DOMAIN_TOOLS = [
   ['Calendar', bindReleaseCalendar],
   ['Schedules', bindReleaseSchedules],
+  ['Jobs', bindReleaseJobs],
   ['Notifications', bindReleaseNotifications],
+  ['Canvas', bindReleaseCanvas],
+  ['AppView', bindReleaseAppView],
   ['Sessions', bindReleaseSessions],
   ['Agents', bindReleaseAgents],
+  ['Goal', bindReleaseGoal],
   ['SwitchWorkspace', bindReleaseSwitchWorkspace],
+  ['OmneExtensionPoints', bindReleaseExtensionPoints],
+  ['OmneExtensions', bindReleaseExtensions],
 ] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
+  programs?: ReturnType<typeof createReleaseProgramCalls>
 }>
+
+/** The key of the tool a request calls, when a tenant holds that tool; a tool of the release has none here. */
+function heldKeyOfRequest(request: FixedToolRequest): ToolBindingKey | undefined {
+  const { availability } = request
+  if (availability.kind !== 'available' || availability.layer.kind !== 'tenant') return undefined
+  const { name, adoption } = availability.definition
+  return { layer: availability.layer, asset: { name, adoption } }
+}
 
 export function releaseCapability(
   ctx: Context,
@@ -72,6 +107,13 @@ export function releaseCapability(
       isReleaseToolsRequest(release, input.request)
         ? attachments.tools.bind({ ...input, start }, scope)
         : scope
+    // A program is run by the first segment of a Code call, and only that call gets the calls.
+    if (
+      attachments.programs !== undefined &&
+      start.kind === 'start' &&
+      isReleaseToolRequest(release, input.request, 'Code')
+    )
+      return attachments.programs.bind({ ...input, start }, withTools)
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
@@ -86,7 +128,14 @@ export function releaseCapability(
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)
         : withSkills
     const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
-    return domain === undefined ? withWeb : domain[1](ctx, input, withWeb)
+    if (domain !== undefined) return domain[1](ctx, input, withWeb)
+    const held = heldKeyOfRequest(input.request)
+    return held === undefined
+      ? withWeb
+      : attachScriptHost(
+          withWeb,
+          heldScriptHost(ctx, { principal: input.principal, tenant: input.tenant }, held),
+        )
   }
 }
 
@@ -167,10 +216,31 @@ const bindingsPlugin: Plugin.Object = {
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
-      capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      capability: releaseCapability(ctx, {
+        tools,
+        web: config.web ?? null,
+        programs: createReleaseProgramCalls(ctx),
+      }),
       releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
+      ...(config.sources === undefined
+        ? {}
+        : {
+            entrySources: {
+              scope: entrySourceScope,
+              codec: createToolMessageResultCodec(config.sources.resultMaxBytes),
+              policy: {
+                ...DEFAULT_ENTRY_SOURCE_POLICY,
+                listTimeoutMs: config.sources.listTimeoutMs,
+              },
+            },
+          }),
     })
     new Bindings(ctx)
+    const { web } = config
+    if (web !== undefined)
+      ctx.inject([dynamisKey], child => {
+        ;(child.get(dynamisKey) as DynamisService).put([webPortEntry(web.fetch)])
+      })
   },
 }
 

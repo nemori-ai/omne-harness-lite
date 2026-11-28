@@ -5,7 +5,7 @@ import {
   ActionTooltip,
   Ago,
   CodeSurface,
-  CopyButton,
+  CountPill,
   Disclosure,
   DoneIcon,
   EmptyState,
@@ -22,9 +22,9 @@ import {
   PageColumn,
   PageHeader,
   ReceiptPill,
+  RetryIcon,
   SaveReceipt,
   STATE_LABELS,
-  Shimmer,
   StateWord,
   StatusMark,
   StatusPill,
@@ -36,6 +36,8 @@ import {
   formatInstant,
   formatRelative,
 } from '../src/index.ts'
+import { CopyButton } from '../src/patterns/ai/copy-button.tsx'
+import { Shimmer } from '../src/patterns/ai/shimmer.tsx'
 
 beforeAll(() => {
   Object.assign(Element.prototype, {
@@ -133,6 +135,7 @@ it('InlineNotice carries its tone, title and body, and an alert role for a failu
   expect(notice.getAttribute('data-tone')).toBe('danger')
   expect(notice.textContent).toContain('保存失败')
   expect(notice.textContent).toContain('磁盘已满')
+  expect(screen.getByText('保存失败').className).toBe('')
 })
 
 it('InlineNotice runs its action, dismisses, and shows its detail behind a disclosure', () => {
@@ -155,6 +158,19 @@ it('InlineNotice runs its action, dismisses, and shows its detail behind a discl
   expect(onDismiss).toHaveBeenCalledTimes(1)
   fireEvent.click(screen.getByRole('button', { name: '详情' }))
   expect(screen.getByText('code 7')).toBeTruthy()
+})
+
+it('InlineNotice leads its action with the glyph it is given, and with none otherwise', () => {
+  render(
+    <InlineNotice action={{ label: '重试', onClick: vi.fn(), icon: RetryIcon }}>
+      没读到
+    </InlineNotice>,
+  )
+  const retry = screen.getByRole('button', { name: '重试' })
+  expect(retry.querySelector('svg[data-icon="retry"]')?.getAttribute('aria-hidden')).toBe('true')
+  cleanup()
+  render(<InlineNotice action={{ label: '知道了', onClick: vi.fn() }}>已读</InlineNotice>)
+  expect(screen.getByRole('button', { name: '知道了' }).querySelector('svg')).toBeNull()
 })
 
 it('LoadingIndicator is decorative and LoadingState names itself', () => {
@@ -225,6 +241,64 @@ it('Ago shows an age in words and keeps the instant on the element', () => {
   expect(time.getAttribute('title')).toBe(formatInstant(at))
 })
 
+it('a moment written again and again builds its formats once for each set of options', () => {
+  const Real = Intl.DateTimeFormat
+  let built = 0
+  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function (
+    ...args: ConstructorParameters<typeof Intl.DateTimeFormat>
+  ) {
+    built += 1
+    return new Real(...args)
+  } as typeof Intl.DateTimeFormat)
+  try {
+    const at = '2026-01-01T15:04:00.000Z'
+    const base = Date.parse('2026-06-01T00:00:00.000Z')
+    const write = () => [
+      formatInstant(at),
+      formatInstant(at, 'h12'),
+      formatInstant(at, 'h23'),
+      formatRelative('2026-02-01T00:00:00.000Z', base),
+      formatRelative('2024-02-01T00:00:00.000Z', base),
+    ]
+    const first = write()
+    const once = built
+    for (let round = 0; round < 10; round += 1) {
+      expect(write()).toEqual(first)
+      render(<Ago at={at} now={base} />)
+    }
+    expect(built).toBe(once)
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('a moment is written as a format built for it would write it, for each hour cycle and year', () => {
+  const at = '2026-01-01T15:04:00.000Z'
+  const instant = Date.parse(at)
+  const clock = (hourCycle: 'h12' | 'h23') =>
+    new Intl.DateTimeFormat('zh-CN', { hour: 'numeric', minute: '2-digit', hourCycle }).format(
+      instant,
+    )
+  const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(instant)
+  formatInstant(at, 'h23')
+  expect(formatInstant(at, 'h12')).toBe(`${date} ${clock('h12')}`)
+  expect(formatInstant(at, 'h23')).toBe(`${date} ${clock('h23')}`)
+  const base = Date.parse('2026-06-01T00:00:00.000Z')
+  const month = (iso: string, year: boolean) =>
+    new Intl.DateTimeFormat('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+      ...(year ? { year: 'numeric' } : {}),
+    }).format(Date.parse(iso))
+  formatRelative('2026-02-01T00:00:00.000Z', base)
+  expect(formatRelative('2024-02-01T00:00:00.000Z', base)).toBe(
+    month('2024-02-01T00:00:00.000Z', true),
+  )
+  expect(formatRelative('2026-02-01T00:00:00.000Z', base)).toBe(
+    month('2026-02-01T00:00:00.000Z', false),
+  )
+})
+
 it('Ago shows an unreadable instant exactly as given', () => {
   render(<Ago at="不是时间" now={0} />)
   expect(screen.getByText('不是时间').tagName).toBe('SPAN')
@@ -238,6 +312,23 @@ it.each([
 ])('formatRelative words %i seconds as %s', (seconds, words) => {
   const base = Date.parse('2026-06-01T00:00:00.000Z')
   expect(formatRelative(new Date(base - seconds * 1000).toISOString(), base)).toBe(words)
+})
+
+it('formatRelative and Ago take the words from the caller when given', () => {
+  const words = {
+    justNow: 'just now',
+    minutes: (count: number) => `${count} min ago`,
+    hours: (count: number) => `${count} h ago`,
+    days: (count: number) => `${count} d ago`,
+  }
+  const base = Date.parse('2026-06-01T00:00:00.000Z')
+  const before = (seconds: number) => new Date(base - seconds * 1000).toISOString()
+  expect(formatRelative(before(10), base, words)).toBe('just now')
+  expect(formatRelative(before(120), base, words)).toBe('2 min ago')
+  expect(formatRelative(before(3 * 3600), base, words)).toBe('3 h ago')
+  expect(formatRelative(before(4 * 86400), base, words)).toBe('4 d ago')
+  render(<Ago at={before(300)} now={base} words={words} />)
+  expect(screen.getByText('5 min ago').tagName).toBe('TIME')
 })
 
 it('formatRelative gives a dash for no instant or an unreadable one', () => {
@@ -258,6 +349,24 @@ it('StateWord says the shared word, or the caller words for a named fact', () =>
   expect(screen.getByText('出错了').getAttribute('data-tone')).toBe('danger')
 })
 
+it('the table says a session being set up, a frozen one, output still being written, a call in the background and a refused one, each neutral', () => {
+  const added = ['initializing', 'frozen', 'outputOpen', 'background', 'refused'] as const
+  const said = added.map(state => {
+    const { container } = render(<StateWord state={state} />)
+    const word = container.querySelector('[data-state-word]')
+    const seen = [word?.textContent, word?.getAttribute('data-tone')]
+    cleanup()
+    return seen
+  })
+  expect(said).toEqual([
+    ['正在初始化', 'neutral'],
+    ['已冻结', 'neutral'],
+    ['输出还在写', 'neutral'],
+    ['在后台', 'neutral'],
+    ['被拒', 'neutral'],
+  ])
+})
+
 it('StatusPill carries its fact and tone and the word', () => {
   const { container } = render(
     <StatusPill fact="waiting" token="待批">
@@ -268,6 +377,30 @@ it('StatusPill carries its fact and tone and the word', () => {
   expect(pill?.getAttribute('data-fact')).toBe('waiting')
   expect(pill?.textContent).toContain('等待中')
   expect(pill?.textContent).toContain('待批')
+})
+
+it('CountPill writes a count in one look, capped at 99+, named when asked', () => {
+  const { container } = render(
+    <>
+      <CountPill count={3} />
+      <CountPill count={100} label="100 张等你回答" />
+    </>,
+  )
+  const pills = [...container.querySelectorAll('[data-count-pill]')]
+  expect(pills.map(pill => pill.textContent)).toEqual(['3', '99+'])
+  expect(pills[0]?.hasAttribute('aria-label')).toBe(false)
+  expect(pills[1]?.getAttribute('aria-label')).toBe('100 张等你回答')
+})
+
+it('CountPill is amber for what waits on an answer and neutral for a count that waits on no one', () => {
+  const { container } = render(
+    <>
+      <CountPill count={2} />
+      <CountPill count={5} tone="neutral" />
+    </>,
+  )
+  const pills = [...container.querySelectorAll('[data-count-pill]')]
+  expect(pills.map(pill => pill.getAttribute('data-tone'))).toEqual(['waiting', 'neutral'])
 })
 
 it('StatusMark draws a different mark for each phase', () => {
@@ -299,6 +432,22 @@ it('ValuePill and ReceiptPill show their words and tones', () => {
   expect(receipt?.getAttribute('data-outcome')).toBe('unknown')
   expect(receipt?.textContent).toContain('结果未知')
   expect(receipt?.textContent).toContain('#7')
+})
+
+it('ReceiptPill says a refusal with the refusing mark in the ending tone, never as accepted', () => {
+  const { container } = render(
+    <>
+      <ReceiptPill tone="declined">已拒绝</ReceiptPill>
+      <ReceiptPill tone="cancelled">已取消</ReceiptPill>
+      <ReceiptPill tone="accepted">已接受</ReceiptPill>
+    </>,
+  )
+  const [declined, cancelled, accepted] = [...container.querySelectorAll('[data-receipt-pill]')]
+  expect(declined?.getAttribute('data-outcome')).toBe('declined')
+  expect(declined?.getAttribute('data-tone')).toBe(cancelled?.getAttribute('data-tone'))
+  expect(declined?.getAttribute('data-tone')).not.toBe(accepted?.getAttribute('data-tone'))
+  expect(declined?.querySelector('svg')?.getAttribute('data-icon')).toBe('close')
+  expect(accepted?.querySelector('svg')?.getAttribute('data-icon')).toBe('done')
 })
 
 it('EntityChip is a link, a button or plain by what it is given, and removes on request', () => {

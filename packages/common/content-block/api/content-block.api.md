@@ -17,14 +17,18 @@
 - `ContentBlockRejection` · `index.d.ts`
 - `ContentReference` · `index.d.ts`
 - `FileContentBlock` · `index.d.ts`
+- `INCONVERTIBLE_REASONS` · `index.d.ts`
+- `InconvertibleReason` · `index.d.ts`
 - `MediaContentBlock` · `index.d.ts`
 - `MediaFacts` · `index.d.ts`
 - `Provenance` · `index.d.ts`
 - `ReferenceContentBlock` · `index.d.ts`
 - `RepresentationSnapshot` · `index.d.ts`
 - `TextContentBlock` · `index.d.ts`
+- `TextOrigin` · `index.d.ts`
 - `ThinkingContentBlock` · `index.d.ts`
 - `Visibility` · `index.d.ts`
+- `isInconvertibleReason` · `index.d.ts`
 - `judgeBlockIdentity` · `index.d.ts`
 - `judgeContentBlock` · `index.d.ts`
 
@@ -47,11 +51,18 @@ export interface Visibility {
     readonly toHuman: boolean;
     readonly toModel: boolean;
 }
+export type TextOrigin = Readonly<{
+    name: string;
+    layer: string;
+    version: string;
+    digest: string;
+}>;
 export interface TextContentBlock {
     readonly kind: 'text';
     readonly id: BlockId;
     readonly visibility: Visibility;
     readonly text: string;
+    readonly origin?: TextOrigin;
 }
 export interface ThinkingContentBlock {
     readonly kind: 'thinking';
@@ -97,6 +108,13 @@ export type Provenance = Readonly<{
     name: string;
     revision: string;
 }>;
+export declare const INCONVERTIBLE_REASONS: readonly [
+    'encrypted',
+    'damaged',
+    'no-text'
+];
+export type InconvertibleReason = (typeof INCONVERTIBLE_REASONS)[number];
+export declare const isInconvertibleReason: (value: unknown) => value is InconvertibleReason;
 export type RepresentationSnapshot = Readonly<{
     definition: Provenance;
     engine: Provenance;
@@ -106,6 +124,7 @@ export type RepresentationSnapshot = Readonly<{
     others: readonly ContentReference[];
 }> | Readonly<{
     outcome: 'inconvertible';
+    reason?: InconvertibleReason;
 }>);
 export type ReferenceContentBlock = Readonly<{
     kind: 'voice' | 'image' | 'file';
@@ -117,7 +136,7 @@ export type ReferenceContentBlock = Readonly<{
     snapshot?: RepresentationSnapshot;
 }>;
 export type ContentBlock = TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock | ReferenceContentBlock;
-export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts' | 'snapshot';
+export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts' | 'snapshot' | 'origin';
 export type ContentBlockJudgment = {
     readonly ok: ContentBlock;
 } | {

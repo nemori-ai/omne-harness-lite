@@ -1,0 +1,158 @@
+assets.asset | 一份资产的页 | 点进一份之后的整页 | assets.category | tokens style | 点进一份之后 | assets-ui
+assets.asset.actions | 资产的动作 | 禁用、启用、移除 | assets.asset.toolbar | tokens style | 点进一份本租户的资产之后 | assets-ui
+assets.asset.detail | 资产的详情 | 版本、来源、原始定义 | assets.asset | tokens style | 点进一份之后 | assets-ui
+assets.asset.settings | 资产的设置 | 这一份能改的设置 | assets.asset | tokens style | 点进一份之后 | assets-ui
+assets.asset.toolbar | 资产页头 | 回到列表、它在哪一类、它的动作 | assets.asset | tokens style | 点进一份之后 | assets-ui
+assets.category | 类别页 | 一类资产的通用页面 | assets.panel | tokens style | 这一类没有自己的页面时 | assets-ui
+assets.category.create | 新建按钮 | 展开或收起新建的表单 | assets.category.head | tokens style | 这一类可以新建时 | assets-ui
+assets.category.head | 类别页头 | 这一类的名字与新建 | assets.category | tokens style | 这一类没有自己的页面时 | assets-ui
+assets.create | 新建表单 | 填名字与内容，建一份 | assets.category | tokens style | 点开新建之后 | assets-ui
+assets.create.submit | 提交新建 | 把填好的这一份建出来 | assets.create | tokens style | 点开新建之后 | assets-ui
+assets.item | 一份资产 | 列表里的一行 | assets.list | tokens style | 这一类有资产时 | assets-ui
+assets.list | 资产列表 | 这一类下的每一份 | assets.category | tokens style | 这一类有资产时 | assets-ui
+assets.page | 资产页 | 看这个租户有哪些能力 | shell.workspace.page | tokens style | 一直在 | assets-ui
+assets.panel | 类别内容 | 选中那一类的内容 | assets.page | tokens style | 有类别时 | assets-ui
+assets.setting | 一条设置 | 一项设置的说明、值与控件 | – | tokens style | 有设置时 | assets-ui
+assets.setting.control | 设置的控件 | 改这一项的地方 | assets.setting | tokens style | 这一项可以改时 | assets-ui
+assets.settings-page | 设置页 | 这个租户的全部设置 | shell.workspace.page | tokens style | 一直在 | assets-ui
+assets.settings-page.group | 设置的分组 | 带标题的一组设置 | assets.settings-page | tokens style | 有设置时 | assets-ui
+assets.tabs | 类别页签 | 一排资产的类别 | assets.page | tokens style | 有类别时 | assets-ui
+assets.tabs.tab | 一个页签 | 一类资产的页签 | assets.tabs | tokens style | 有类别时 | assets-ui
+calendar.environment | 生效的日历 | 现在用哪份日历与时区 | calendar.page | tokens style | 一直在 | calendar-ui
+calendar.lookup | 查一天 | 问某一天算不算工作日 | calendar.page | tokens style | 一直在 | calendar-ui
+calendar.lookup.ask | 查的按钮 | 按填的日期去查 | calendar.lookup | tokens style | 一直在 | calendar-ui
+calendar.page | 日历页 | 用哪份日历，查某一天 | shell.workspace.page | tokens style | 一直在 | calendar-ui
+calendar.shipped | 供应的日历 | 部署给出的日历清单 | calendar.page | tokens style | 一直在 | calendar-ui
+calendar.shipped.item | 一份日历 | 清单里的一份日历 | calendar.shipped | tokens style | 清单里有日历时 | calendar-ui
+canvas.finder | 查找 | 在纸上打开的查找：一行字，下面按类列出能摆上来的，与拿走了的 | canvas.paper | tokens style | 查找打开时 | canvas-ui
+canvas.home | 回正面的钮 | 纸正中的钮，里面坐着 Agent 形；按它回到正面 | canvas.paper | tokens style | 读到画布之后 | canvas-ui
+canvas.item | 纸上的一页 | 纸上摆着的一样东西：能挪、改大小、选中、锁上；里面画的归那一类东西的领域 | canvas.paper | tokens style | 纸上摆着东西时 | canvas-ui
+canvas.mark | 落点与找到的记号 | 纸上暂时的记号：拖文件进来时的落点，与圈出被找到的、已经摆着的那一样 | canvas.paper | tokens style | 拖文件进来之后，或找到一样已经摆着的东西之后 | canvas-ui
+canvas.paper | 纸 | 画布上有边的一张纸，大小与网格由服务端给；能平移、缩放，纸上摆着东西 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.pile | 一摞 | 叠成一叠的几页：能挪、打开、改名、散开 | canvas.paper | tokens style | 纸上有一叠时 | canvas-ui
+canvas.status | 状态栏 | 纸下沿的一条窄栏：查找、磁吸开关、远近的读数，与看着的那一样是什么、谁摆的、什么时候 | canvas.view | tokens style | 读到画布之后 | canvas-ui
+canvas.turn | 「翻到正面」的记号 | 反面一角的记号，按它翻到正面 | canvas.view | tokens style | 登录之后 | canvas-ui
+canvas.view | 画布 | 反面上的画布：纸面、它上面的提示，与下沿的状态栏 | shell.app | tokens style | 登录之后 | canvas-ui
+goal.panel | 目标面板 | 这段会话的目标：差多少、正文、进展与来历 | session.side | tokens style | 打开一段会话时 | goal-ui
+human-intervention.page | 待你决定页 | 等你回答或放行的卡 | shell.workspace.page | tokens style | 一直在 | human-intervention-ui
+human-intervention.page.group | 一段会话的卡 | 同一段会话的卡放在一组 | human-intervention.page | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper | 一张纸 | 一组卡的一张纸，一次摆一张 | – | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper.card | 一张卡 | 一个问题，或一次要放行的动作 | human-intervention.paper | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper.card.answer | 作答的地方 | 选一项，或自己写 | human-intervention.paper.card | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper.card.detail | 动作的详情 | 要放行的动作具体是什么 | human-intervention.paper.card | tokens style | 放行卡且工具给了详情时 | human-intervention-ui
+human-intervention.paper.card.title | 卡的标题 | 这张卡问的是什么 | human-intervention.paper.card | tokens style | 有卡时 | human-intervention-ui
+human-intervention.paper.foot | 纸的底栏 | 一张纸一个，放提交 | human-intervention.paper | tokens style | 纸上有没答的卡时 | human-intervention-ui
+human-intervention.paper.foot.actions | 底栏的按钮 | 提交与取消，或画成按钮的选项 | human-intervention.paper.foot | tokens style | 纸上有没答的卡时 | human-intervention-ui
+human-intervention.paper.foot.submit | 提交 | 把这张纸上的回答交上去 | human-intervention.paper.foot | tokens style | 选项不是画成按钮时 | human-intervention-ui
+human-intervention.paper.pager | 翻题的圆点 | 纸顶一排圆点，每张卡一个，与上一题、下一题 | human-intervention.paper | tokens style | 纸上不止一张卡时 | human-intervention-ui
+human-intervention.session-cards | 会话里的卡 | 对话页里这段会话等你决定的卡 | session.transcript | tokens style | 这段会话有卡时 | human-intervention-ui
+identity.account | 账号 | 侧栏底下的账号 | shell.sidebar.footer | tokens style | 侧栏展开时 | identity-ui
+identity.account.control | 账号钮 | 点开退出的菜单 | identity.account | tokens style | 侧栏展开时 | identity-ui
+identity.account.rail | 窄条里的账号钮 | 侧栏收成窄条时的账号 | shell.sidebar.footer | tokens style | 侧栏收成窄条时 | identity-ui
+identity.login | 登录的卡 | 登录门里的那张卡 | shell.gate | tokens style | 没登录时 | identity-ui
+identity.login.form | 登录的表单 | 填登录名与密码 | identity.login | tokens style | 没登录时 | identity-ui
+identity.login.submit | 登录按钮 | 提交登录或注册 | identity.login.form | tokens style | 没登录时 | identity-ui
+mcp.endpoint | 接入点 | 一个 MCP 接入点 | mcp.page | tokens style | 有接入点时 | mcp-ui
+mcp.endpoint.actions | 动作清单 | 这个接入点的动作，或清单为什么还没取得 | mcp.endpoint | tokens style | 这个接入点的状态读到时 | mcp-ui
+mcp.endpoint.connect | 连接 | OAuth 接入点在浏览器里连上、等你同意或断开 | mcp.endpoint | tokens style | 这个接入点用 OAuth 且状态读到时 | mcp-ui
+mcp.endpoint.permission | 调用权限 | 这个接入点的动作要不要先问你 | mcp.endpoint | tokens style | 这个接入点有权限的设置时 | mcp-ui
+mcp.endpoint.status | 状态 | 这个接入点连上没有，不能用时为什么 | mcp.endpoint | tokens style | 有接入点时 | mcp-ui
+mcp.page | MCP 页 | 资产页里 MCP 这一类的页面 | assets.panel | tokens style | 选中 MCP 页签且读到时 | mcp-ui
+media.file | 消息里的文件 | 消息里的语音、PDF 等的一行 | session.transcript | tokens style | 消息里有图以外的附件时 | media-ui
+media.intake | 拖到纸上的文件 | 拖到纸上的文件各传到了哪一步 | canvas.view | tokens style | 有文件拖到纸上时 | media-ui
+media.object | 纸上的媒体 | 纸上的一张图、一个文件或一段语音 | canvas.view | tokens style | 纸上摆着媒体时 | media-ui
+media.picture | 消息里的图 | 消息里的一张缩略图 | session.transcript | tokens style | 消息里有图时 | media-ui
+media.read | 模型读的 | 模型读的是原件还是转写 | session.transcript | tokens style | 知道模型读的是哪一份时 | media-ui
+media.tray | 附件区 | 输入区里放附件的地方 | session.composer | tokens style | 打开一段会话时 | media-ui
+media.tray.attach | 加附件 | 选图片、语音或 PDF | media.tray | tokens style | 打开一段会话时 | media-ui
+media.tray.chip | 一个附件 | 选好要发的一个附件 | media.tray | tokens style | 有附件时 | media-ui
+media.tray.record | 录音 | 按住说话 | media.tray | tokens style | 打开一段会话时 | media-ui
+media.tray.screenshot | 截图 | 截一张屏幕，作为图片附件 | media.tray | tokens style | 宿主截得了这台机器的屏幕时 | media-ui
+model.provider.models | 模型 | 这家供应商适配的模型：开哪些，平时用哪一档推理强度 | assets.asset | tokens style | 点进一份模型供应商之后 | model-ui
+model.provider.models.row | 一个模型 | 一个型号的事实、开关与缺省推理强度 | model.provider.models | tokens style | 点进一份模型供应商之后 | model-ui
+notification.page | 通知页 | 各处发来的通知 | shell.workspace.page | tokens style | 一直在 | notification-ui
+notification.page.filter | 通知的筛选 | 只看没了结的，或看全部 | notification.page | tokens style | 一直在 | notification-ui
+notification.page.group | 通知的分组 | 没了结的一组，或已了结的一组 | notification.page | tokens style | 这一组有通知时 | notification-ui
+notification.row | 一条通知 | 列表里的一条 | notification.page.group | tokens style | 有通知时 | notification-ui
+notification.row.actions | 通知的动作 | 办完、划掉、恢复 | notification.row | tokens style | 有通知时 | notification-ui
+notification.row.detail | 通知的正文 | 点开之后的内容 | notification.row | tokens style | 点开一条之后 | notification-ui
+notification.row.title | 通知的标题 | 点一下展开正文 | notification.row | tokens style | 有通知时 | notification-ui
+schedule.activation | 要启用的日程 | 放行卡里写明将启用什么 | human-intervention.paper.card.detail | tokens style | 放行卡是启用日程的调用时 | schedule-ui
+schedule.filter | 日程的筛选 | 只看当前的，或看全部 | schedule.list | tokens style | 一直在 | schedule-ui
+schedule.happened | 已发生 | 一份安排已发生的几次，新的在前 | schedule.reading | tokens style | 打开一条日程且读到已发生的时 | schedule-ui
+schedule.job | 作业详情 | 一份作业的状态、成因、要求与经过 | schedule.reading | tokens style | 打开一份作业且读到时 | schedule-ui
+schedule.job.cancel | 取消这一次 | 还没收场的作业可以取消 | schedule.reading | tokens style | 打开的作业还没收场时 | schedule-ui
+schedule.list | 日程列表 | 左边的一列日程 | schedule.page | tokens style | 一直在 | schedule-ui
+schedule.list.row | 日程的一行 | 列表里的一条日程 | schedule.list | tokens style | 有日程时 | schedule-ui
+schedule.page | 日程页 | 定好的时间与它们的下一次 | shell.workspace.page | tokens style | 一直在 | schedule-ui
+schedule.reading | 日程的阅读面 | 右边看一条日程的地方 | schedule.page | tokens style | 一直在 | schedule-ui
+schedule.refresh | 刷新日程 | 重读列表与打开的日程 | schedule.page | tokens style | 一直在 | schedule-ui
+schedule.run | 执行的一行 | 一份安排已发生的一次，或漏过的一段 | schedule.reading | tokens style | 打开一条日程且读到已发生的时 | schedule-ui
+schedule.title | 日程的名字 | 打开的这条日程叫什么 | schedule.reading | tokens style | 打开一条日程且读到时 | schedule-ui
+schedule.upcoming | 接下来几次 | 这条日程之后几次的时间 | schedule.reading | tokens style | 打开一条日程且读到预览时 | schedule-ui
+session.archived | 已归档 | 收起来的归档会话 | shell.sidebar | tokens style | 一直在 | session-ui
+session.archived.item | 归档的一行 | 一段已归档的会话 | session.archived | tokens style | 展开已归档且有归档时 | session-ui
+session.backdrop | 对话页的背景 | 垫在对话页一切之下的一层，自带的什么都不画 | – | render | 有画法放在它上面时 | session-ui
+session.companion | 随身入口 | 浮在整个应用之上、能拖到任何地方的一处，在哪一页都能对 Agent 说一句话 | – | tokens style render | 登录之后 | session-ui
+session.companion.figure | 随身入口的形象 | 随身入口长什么样，按它开说话笺，按住它拖；自带的是几粒墨点 | session.companion | tokens style render | 登录之后 | session-ui
+session.composer | 输入区 | 底部写消息的地方 | – | tokens style render | 打开一段会话时 | session-ui
+session.composer.input | 输入框 | 写消息的框 | session.composer | tokens style | 打开一段会话时 | session-ui
+session.composer.send | 发送按钮 | 发出这条消息；一轮在跑时是停止 | session.composer | tokens style | 打开一段会话时 | session-ui
+session.header | 对话头 | 对话页顶上的一栏 | – | tokens style render | 打开一段会话时 | session-ui
+session.header.model | 模型选择 | 选择会话的模型与推理强度 | session.header | tokens style | 对话头够宽且有模型可选时 | session-ui
+session.header.more | 更多 | 对话头上的「⋯」菜单 | session.header | tokens style | 打开一段会话时 | session-ui
+session.header.permission | 权限处理 | 选动作要不要先问你 | session.header | tokens style | 对话头够宽时 | session-ui
+session.header.title | 会话标题 | 这段会话的名字 | session.header | tokens style | 打开一段会话时 | session-ui
+session.header.workspace | 工作区选择 | 换这段会话的工作区 | session.header | tokens style | 对话头够宽且有工作区可选时 | session-ui
+session.list | 会话列表 | 侧栏里的会话 | shell.sidebar | tokens style | 一直在 | session-ui
+session.list.item | 会话的一行 | 列表里的一段会话 | session.list | tokens style render | 有会话时 | session-ui
+session.list.new | 新建会话 | 开一段新的会话 | session.list | tokens style | 一直在 | session-ui
+session.paper.item | 纸上的会话 | 摆在画布上的一段会话 | canvas.paper | tokens style | 会话摆在纸上时 | session-ui
+session.paper.pick | 挑一段会话 | 画布的查找里能挑的会话 | canvas.view | tokens style | 在画布上查找时 | session-ui
+session.queue | 排队的话 | 说了还没被处理的话 | – | tokens style | 有排队的输入时 | session-ui
+session.search | 搜索页 | 在以前的会话里找 | shell.workspace.page | tokens style | 一直在 | session-ui
+session.search.hit | 搜到的一条 | 搜到的一段记录 | session.search | tokens style | 搜到东西时 | session-ui
+session.side | 侧边区 | 对话旁边的面板 | – | tokens style | 打开一段会话且有内容时 | session-ui
+session.side.background-call | 后台调用 | 一项在后台跑的调用 | session.side | tokens style | 后台有调用时 | session-ui
+session.transcript | 转写区 | 对话往下滚的地方 | – | tokens style | 打开一段会话时 | session-ui
+session.transcript.agent-message | Agent 的回复 | Agent 说的一条话 | session.transcript | tokens style render | 有回复时 | session-ui
+session.transcript.bubble | 气泡 | 一条消息里连着的一段话 | session.transcript | tokens style render | 有消息时 | session-ui
+session.transcript.failure | 失败的通知 | 一轮失败了，可以重试 | session.transcript | tokens style | 一轮失败时 | session-ui
+session.transcript.reasoning | 推理行 | Agent 想的过程 | session.transcript | tokens style | 有推理内容时 | session-ui
+session.transcript.tool-call | 工具调用行 | 一次工具调用的过程行 | session.transcript | tokens style | 有工具调用时 | session-ui
+session.transcript.user-message | 你的消息 | 你说的一条话 | session.transcript | tokens style render | 有消息时 | session-ui
+shell.app | 整个应用 | 窗口里的一切。换主题、换品牌色，就是给它放令牌。 | – | tokens style | 一直在 | DesktopShell
+shell.back | 反面 | 应用翻过来的一面的外框，里面是放在反面的那一样 | shell.app | tokens style | 有反面时 | DesktopShell
+shell.figure | 形 | Agent 的形：在窗口里，也在拿出窗口之后的桌面上 | shell.app | tokens style | 一直在 | DesktopShell
+shell.figure.frame | 观测框 | 按着 ⌘ 拿着形时，圈住手下那个窗口的框 | shell.app | tokens style | 按着 ⌘ 拿着形经过一个窗口时 | DesktopShell
+shell.figure.label | 签 | 拿着形时写在旁边的一两行：松手会去哪，按着 ⌘ 看的是哪个窗口 | shell.app | tokens style | 形在桌面上被拿着时 | DesktopShell
+shell.figure.note | 说话笺 | 对 Agent 说一句话的笺，只有一块：桌面上单击形、窗口里按随身入口，开的都是它 | shell.app | tokens style | 说话笺开着时 | DesktopShell
+shell.figure.told | 告知笺 | 形在家里说给人听的一句：一个模块的提示 | shell.sidebar | tokens style | 有提示时 | DesktopShell
+shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
+shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell
+shell.sidebar.appearance | 外观钮 | 换主题与字号 | shell.sidebar.footer | tokens style | 登录之后 | DesktopShell
+shell.sidebar.fold | 侧栏折叠钮 | 把侧栏收成窄条或展开 | shell.sidebar | tokens style | 宽窗口时 | DesktopShell
+shell.sidebar.footer | 侧栏底栏 | 账号与外观所在的一行 | shell.sidebar | tokens style | 登录之后 | DesktopShell
+shell.sidebar.home | 家 | Agent 的形平时在的地方，点了回对话 | shell.sidebar | tokens style | 登录之后 | DesktopShell
+shell.sidebar.menu | 导航开关 | 窄窗口里打开导航 | shell.sidebar | tokens style | 窄窗口时 | DesktopShell
+shell.sidebar.nav | 导航 | 各个页面的入口 | shell.sidebar | tokens style | 登录之后 | DesktopShell
+shell.sidebar.nav.row | 导航的一行 | 一个页面的入口 | shell.sidebar.nav | tokens style | 登录之后 | DesktopShell
+shell.sidebar.turn | 翻面的记号 | 侧栏底栏里「翻到反面」的钮 | shell.sidebar.footer | tokens style | 有反面时 | DesktopShell
+shell.sidebar.utility | 靠下的导航 | 不常去的页面的入口 | shell.sidebar | tokens style | 有这样的页面时 | DesktopShell
+shell.workspace | 主区 | 右边放页面的地方 | shell.app | tokens style | 登录之后 | DesktopShell
+shell.workspace.page | 一页 | 主区里一个页面的容器 | shell.workspace | tokens style | 登录之后 | DesktopShell
+tool.call-children | 子调用 | 一次调用之下每个子调用的一行 | session.side.background-call | tokens style | 调用发起过子调用时 | tool-ui
+tool.call-output | 调用的输出 | 一项后台调用写出的文字 | session.side.background-call | tokens style | 调用有文字输出时 | tool-ui
+tool.code-card | Code 的调用 | 对话里一次 Code 调用：过程行、程序与子调用 | session.transcript | tokens style | 对话里有 Code 的调用时 | tool-ui
+usage.card | 用量的卡 | 面板里的一张图或一组数 | usage.panel | tokens style | 面板里有卡时 | usage-ui
+usage.occupancy | 上下文占用 | 这段会话的上下文用了百分之几 | – | tokens style | 读到占用时 | usage-ui
+usage.page | 用量页 | 这个租户用了多少 | shell.workspace.page | tokens style | 一直在 | usage-ui
+usage.panel | 用量面板 | 一块用量，页里与会话旁是同一种 | – | tokens style | 一直在 | usage-ui
+usage.panel.bar | 面板的顶栏 | 时间段与更多 | usage.panel | tokens style | 面板不在对话头上时 | usage-ui
+usage.panel.menu | 面板的更多 | 编辑面板、刷新 | usage.panel.bar | tokens style | 面板不在对话头上时 | usage-ui
+workspace.detail | 工作区的详情 | 一个工作区的实例与授权 | workspace.page | tokens style | 点开一个工作区之后 | workspace-ui
+workspace.instance | 一个实例 | 工作区的一个实例与它能不能用 | workspace.detail | tokens style | 点开一个工作区之后 | workspace-ui
+workspace.item | 一个工作区 | 列表里的一行 | workspace.list | tokens style | 有工作区时 | workspace-ui
+workspace.list | 工作区列表 | 这个租户的工作区 | workspace.page | tokens style | 一直在 | workspace-ui
+workspace.page | 工作区页 | 登记与管理工作区 | shell.workspace.page | tokens style | 一直在 | workspace-ui
+workspace.register | 登记工作区 | 填一个目录，登记成工作区 | workspace.page | tokens style | 一直在 | workspace-ui

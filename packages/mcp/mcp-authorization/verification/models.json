@@ -1,0 +1,53 @@
+{
+  "member": "mcp-authorization",
+  "model": "models/Authorization.tla",
+  "scope": "finite model: Authorization (one OAuth grant: two connections begun, two requests at once, two refreshes answered). Safety only. No refinement proof to the implementation; no real authorization server, transport or storage.",
+  "workers": 2,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "authz-valid",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-valid.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "authz-bad-stale-state",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-stale-state.cfg",
+      "expected": "I9_ExchangeChecked"
+    },
+    {
+      "name": "authz-bad-skip-iss",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-skip-iss.cfg",
+      "expected": "I9_ExchangeChecked"
+    },
+    {
+      "name": "authz-bad-exchange-twice",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-exchange-twice.cfg",
+      "expected": "I9_ExchangeOnce"
+    },
+    {
+      "name": "authz-bad-parallel-refresh",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-parallel-refresh.cfg",
+      "expected": "I10_OneRefresh"
+    },
+    {
+      "name": "authz-bad-wipe-on-unknown",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-wipe-on-unknown.cfg",
+      "expected": "P_UnknownKeeps"
+    },
+    {
+      "name": "authz-bad-reconnect-on-unknown",
+      "model": "models/Authorization.tla",
+      "config": "models/authz-bad-reconnect-on-unknown.cfg",
+      "expected": "P_ReconnectAfterRefusal"
+    }
+  ]
+}

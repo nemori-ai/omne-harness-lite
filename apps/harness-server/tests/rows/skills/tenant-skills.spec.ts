@@ -4,6 +4,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   directoryOf,
   routedSkills,
+  sessionSkillsOf,
   TenantSkillsHost,
   type TenantSkills,
 } from '../../../src/rows/skills/tenant-skills.ts'
@@ -18,21 +19,31 @@ function keyOf(tenant: TenantId): string {
   return encoded.value
 }
 
-function setOf(label: string): TenantSkills {
+function setOf(label: string, warmed: string[] = []): TenantSkills {
   return {
     catalog: {
       summaries: async () => ({ ok: [] }),
       search: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
+      order: () => [],
     },
     access: {
       read: async () => ({ failure: { kind: 'resource-missing' } }),
       list: async () => ({ failure: { kind: 'source-unavailable' } }),
+    },
+    sessionCatalog: {
+      summaries: async () => ({ ok: [{ kind: 'adopted', name: label } as never] }),
+      search: async () => ({ ok: [] }),
+      order: () => [],
+    },
+    async warm() {
+      warmed.push(label)
     },
   }
 }
 
 function world() {
   const opened: string[] = []
+  const warmed: string[] = []
   let answer: 'set' | 'none' | 'throw' = 'set'
   const gates: (() => void)[] = []
   let gated = false
@@ -42,13 +53,14 @@ function world() {
       opened.push(tenantRef)
       if (answer === 'throw') throw new Error('store down')
       if (answer === 'none') return undefined
-      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta')
+      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta', warmed)
     },
   })
   return {
     host,
-    routed: routedSkills(host),
+    routed: routedSkills(host, { k1: 1.2, b: 0.75 }),
     opened,
+    warmed,
     answer: (value: typeof answer) => {
       answer = value
     },
@@ -75,6 +87,15 @@ describe('one Skill service set per tenant, over the local assets of the tenant'
     expect(w.opened).toEqual([keyOf(alpha)])
   })
 
+  it('reads ahead in a set as it opens, and in every open set when the registry changed', async () => {
+    const w = world()
+    await w.host.get(alpha)
+    await w.host.get(beta)
+    expect(w.warmed).toEqual(['alpha', 'beta'])
+    await w.host.warm()
+    expect([...w.warmed].sort()).toEqual(['alpha', 'alpha', 'beta', 'beta'])
+  })
+
   it('routes each call to the set of the tenant in its access', async () => {
     const w = world()
     expect(await w.routed.catalog.search(access('p', alpha), null, { text: '' })).toMatchObject({
@@ -96,6 +117,17 @@ describe('one Skill service set per tenant, over the local assets of the tenant'
         name: 'x',
       } as never),
     ).toStrictEqual({ failure: { kind: 'source-unavailable' } })
+  })
+
+  it('asks the session catalog of the tenant it is given, and answers unknown when that tenant has no set', async () => {
+    const w = world()
+    const sessionSkills = sessionSkillsOf(w.host)
+    expect(await sessionSkills(alpha, [])).toMatchObject({ ok: [{ name: 'alpha' }] })
+    expect(await sessionSkills(beta, [])).toMatchObject({ ok: [{ name: 'beta' }] })
+    w.answer('none')
+    const fresh = world()
+    fresh.answer('none')
+    expect(await sessionSkillsOf(fresh.host)(alpha, [])).toStrictEqual({ failure: 'unknown' })
   })
 
   it('answers no set, and keeps no failure, when the local assets are not there or the set cannot be built', async () => {

@@ -1,16 +1,33 @@
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import type {
+  AgentExecutionId,
+  AgentJournal,
+  AgentJournalEntries,
+  ReceivedEntry,
+} from '@omne-harness/agent-contract'
+import { agentJournalEntriesKey, agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  committedBindings,
+  deriveSessionOperation,
+  expectedRevision,
+  withoutCommitted,
+} from '@omne-harness/session-contract'
 import type {
+  SessionFaces,
+  ConsumptionId,
+  ProducerRef,
   Reply,
   RunId,
   SessionAccess,
+  SessionCallBinding,
   SessionFailure,
   SessionId,
   SessionLogCommitObservation,
+  SessionLogConsequence,
   SessionLogReceipt,
   SessionOperationId,
   SessionTransactionPort,
@@ -20,11 +37,18 @@ import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
-import { readExecutionInterpretation, type InterpretationRead } from './agent-journal.ts'
-import { subscribePublished } from './published-queue.ts'
+import { entriesAfter, savedProgress } from './entries-window.ts'
+import {
+  readExecutionInterpretation,
+  type InterpretableEvent,
+  type InterpretationRead,
+} from './journal-state.ts'
+import { announce, subscribePublished } from './published-queue.ts'
+import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/journal-interpretation'
 const ROUNDS = 2
+const RECEIVED = { tool: 'tool-received', model: 'model-received' } as const
 const SENDS = 3
 
 export type JournalInterpretationRetry = Readonly<{
@@ -47,6 +71,34 @@ function transient(failure: SessionFailure): boolean {
   )
 }
 
+type Uninterpretable = Extract<SessionFailure, { kind: 'quarantined' | 'invalid' }>
+
+const uninterpretable = (failure: SessionFailure): failure is Uninterpretable =>
+  failure.kind === 'quarantined' || failure.kind === 'invalid'
+
+const causeOf = (failure: Uninterpretable): string =>
+  failure.kind === 'invalid'
+    ? `invalid ${failure.field} ${failure.reason}`
+    : `quarantined ${failure.diagnostic}`
+
+type Retry = Readonly<{ wait: number; calls: number }>
+
+const SAID_EXECUTIONS = 4096
+
+export function remember(said: Set<string>, key: string, limit = SAID_EXECUTIONS): void {
+  said.add(key)
+  if (said.size <= limit) return
+  for (const oldest of said) {
+    said.delete(oldest)
+    return
+  }
+}
+
+export function nextRetry(policy: JournalInterpretationRetry, retry: Retry | null): Retry {
+  if (retry === null) return { wait: policy.initialMs, calls: 1 }
+  return { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls: retry.calls + 1 }
+}
+
 export type JournalInterpretationTarget = Readonly<{
   tenant: TenantId
   session: SessionId
@@ -66,14 +118,18 @@ export type SessionJournalInterpretationInput<P> = Readonly<{
   retry?: JournalInterpretationRetry
 }>
 
-type Ports<P> = Readonly<{
-  readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
-  read(
-    target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
-  ): Promise<InterpretationRead>
-  commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
-  stopped(): boolean
-}>
+type Ports<P> = ReceivedAllPorts<P> &
+  Readonly<{
+    read(
+      target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+    ): Promise<InterpretationRead>
+    entries: AgentJournalEntries<P>['read']
+    readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
+    commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
+    finishRun: SessionFaces<P>['work']['finishRun']
+    interpreted(target: JournalInterpretationTarget): void
+    stopped(): boolean
+  }>
 
 type Answer<T> = Outcome<T, SessionFailure>
 
@@ -98,14 +154,81 @@ function progressOf(
   return held === undefined ? null : { run: held.run, readThrough: held.execution.readThrough }
 }
 
+const WHOLE_EVENT = 'ad02/1'
+const EVENT_BINDINGS = 'ad02/bindings/1'
+
 function operationOf(
+  part: typeof WHOLE_EVENT | typeof EVENT_BINDINGS,
   tenantText: string,
   observation: Omit<SessionLogCommitObservation, 'operation' | 'tenant'>,
 ): SessionOperationId {
   const digest = createHash('sha256')
-    .update(canonical(['ad02/1', tenantText, observation]))
+    .update(canonical([part, tenantText, observation]))
     .digest('hex')
   return `ad02_${digest}` as SessionOperationId
+}
+
+const isBinding = (
+  item: SessionLogConsequence,
+): item is Extract<SessionLogConsequence, { kind: 'call-registration' | 'call-association' }> =>
+  item.kind === 'call-registration' || item.kind === 'call-association'
+
+function unbound(work: WorkSnapshot, item: SessionLogConsequence): boolean {
+  if (!isBinding(item)) return false
+  const held = work.callRegistrations?.find(record => record.consumption === item.consumption)
+  return item.kind === 'call-registration'
+    ? held === undefined
+    : held?.registration.kind !== 'associated'
+}
+
+// A placeholder comes before every result of its call; a result is matched by its version.
+const processes = (key: ReceivedEntry['delivery']['key'], version: string | undefined) =>
+  version !== undefined &&
+  (key.kind === 'placeholder' || (key.kind === 'result' && String(key.result) === version))
+
+function settled<P>(
+  ports: Pick<Ports<P>, 'readWork' | 'finishRun' | 'warn'>,
+  access: SessionAccess<P>,
+  target: JournalInterpretationTarget,
+  answer: Answer<JournalInterpreted>,
+): Answer<JournalInterpreted> | Promise<Answer<JournalInterpreted>> {
+  return 'failure' in answer && uninterpretable(answer.failure)
+    ? closeUninterpretable(ports, access, target, answer.failure)
+    : answer
+}
+
+async function closeUninterpretable<P>(
+  ports: Pick<Ports<P>, 'readWork' | 'finishRun' | 'warn'>,
+  access: SessionAccess<P>,
+  target: JournalInterpretationTarget,
+  failure: Uninterpretable,
+): Promise<Answer<JournalInterpreted>> {
+  const work = await ports.readWork(access)
+  if ('failure' in work) return work
+  const { run } = work.ok
+  if (run.kind !== 'active' || run.execution.execution !== target.execution) return fail(failure)
+  const cause = causeOf(failure)
+  const bounded = {
+    kind: 'uninterpretable',
+    evidence: {
+      owner: OWNER,
+      record: `uninterpretable: ${cause}`,
+      revision: '1',
+      digest: `sha256:${createHash('sha256')
+        .update(canonical([target.execution, cause]))
+        .digest('hex')}`,
+    },
+  } as const
+  const answer = await ports.finishRun({
+    ...access,
+    operation: deriveSessionOperation({ kind: 'bounded-close', run: run.run, basis: bounded }),
+    run: run.run,
+    expected: expectedRevision(work.ok, 'finishRun'),
+    bounded,
+  })
+  if ('failure' in answer && transient(answer.failure)) return answer
+  if ('ok' in answer) ports.warn(`the Run of ${target.execution} is closed as ${cause}`)
+  return fail(failure)
 }
 
 function createJournalInterpretation<P>(
@@ -131,10 +254,61 @@ function createJournalInterpretation<P>(
     return answer
   }
 
+  // An event that processes a delivery waits until the entries consumption wrote that delivery,
+  // not for a later delivery of the call (verification/binding-order).
+  async function awaitsDelivery(
+    access: SessionAccess<P>,
+    work: WorkSnapshot,
+    run: RunId,
+    execution: AgentExecutionId,
+    event: InterpretableEvent,
+  ): Promise<Answer<boolean>> {
+    const calls = new Map<keyof typeof RECEIVED, Map<string, string>>()
+    for (const item of event.consequences ?? [])
+      if (item.kind === 'producer' && item.result !== null) {
+        const producer = item.binding.producer.kind
+        calls.set(
+          producer,
+          (calls.get(producer) ?? new Map()).set(item.consumption, item.result.version),
+        )
+      }
+    const reading = { principal: access.principal, tenant: access.tenant, execution }
+    for (const [producer, processed] of calls) {
+      const saved = savedProgress(work, run, execution, RECEIVED[producer])
+      const unread = await entriesAfter(ports.entries, reading, saved?.position ?? null)
+      if ('failure' in unread)
+        return unavailable(`the entries answered ${unread.failure.kind}`, 'session-log-journal')
+      const waits = unread.ok.some(
+        ({ entry }) =>
+          entry.kind === 'received' &&
+          entry.delivery.producer === producer &&
+          processes(entry.delivery.key, processed.get(entry.consumption)),
+      )
+      if (waits) return succeed(true)
+    }
+    return succeed(false)
+  }
+
+  async function boundIn(
+    access: SessionAccess<P>,
+    consequences: readonly SessionLogConsequence[],
+  ): Promise<Answer<ConsumptionId[]>> {
+    if (!consequences.some(isBinding)) return succeed([])
+    const bound: ConsumptionId[] = []
+    for (const item of consequences) {
+      if (item.kind !== 'producer') continue
+      const call = await ports.readCall(access, item.binding.producer)
+      if ('failure' in call) return call
+      if (call.ok?.consumption === item.consumption) bound.push(item.consumption)
+    }
+    return succeed(bound)
+  }
+
   async function round(
     access: SessionAccess<P>,
     tenantText: string,
     target: JournalInterpretationTarget,
+    sent: { count: number },
   ): Promise<Answer<JournalInterpreted>> {
     const work = await ports.readWork(access)
     if ('failure' in work) return work
@@ -146,33 +320,43 @@ function createJournalInterpretation<P>(
     const view = read.execution
     if (view === null) return unavailable('the session holds no Agent records of this execution')
     let readThrough = progress.readThrough
-    let committed = 0
     for (const [at, event] of view.events.entries()) {
       const waiting = view.events.length - at
       if (event.consequences === null && event.control === null)
-        return succeed({ readThrough, committed, waiting })
+        return succeed({ readThrough, committed: sent.count, waiting })
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
+      const awaits = await awaitsDelivery(access, work.ok, progress.run, target.execution, event)
+      if ('failure' in awaits) return awaits
+      const all = event.consequences ?? []
+      const bound = awaits.ok ? succeed([]) : await boundIn(access, all)
+      if ('failure' in bound) return bound
+      const consequences = awaits.ok
+        ? all.filter(item => unbound(work.ok, item))
+        : withoutCommitted(all, committedBindings(bound.ok), item => item.kind)
+      if (awaits.ok && consequences.length === 0)
+        return succeed({ readThrough, committed: sent.count, waiting: 0 })
       const value = {
         session: target.session,
         run: progress.run,
         execution: target.execution,
-        sequence: event.sequence,
+        sequence: awaits.ok ? null : event.sequence,
         revision: view.revision,
         executionEvidence: view.head,
         source: event.source,
-        consequences: event.consequences ?? [],
+        consequences,
         ...(event.control === null ? {} : { control: event.control }),
       } satisfies Omit<SessionLogCommitObservation, 'operation' | 'tenant'>
       const answer = await send({
         ...value,
         tenant: target.tenant,
-        operation: operationOf(tenantText, value),
+        operation: operationOf(awaits.ok ? EVENT_BINDINGS : WHOLE_EVENT, tenantText, value),
       })
       if ('failure' in answer) return answer
+      sent.count += 1
+      if (awaits.ok) return succeed({ readThrough, committed: sent.count, waiting: 0 })
       readThrough = answer.ok.readThrough
-      committed += 1
     }
-    return succeed({ readThrough, committed, waiting: 0 })
+    return succeed({ readThrough, committed: sent.count, waiting: 0 })
   }
 
   return async target => {
@@ -182,19 +366,27 @@ function createJournalInterpretation<P>(
     if ('failure' in principal) return principal
     const access = { principal: principal.ok, tenant: target.tenant, session: target.session }
     for (let left = ROUNDS; ; left -= 1) {
-      const answer = await round(access, tenantText.value, target)
-      if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1) return answer
+      const sent = { count: 0 }
+      const answer = await round(access, tenantText.value, target, sent)
+      if (sent.count > 0) ports.interpreted(target)
+      if ('ok' in answer)
+        await acknowledgeReceived(ports, access, {
+          tenantText: tenantText.value,
+          execution: target.execution,
+        })
+      if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1)
+        return settled(ports, access, target, answer)
     }
   }
 }
-
-type Retry = Readonly<{ wait: number; calls: number }>
 
 // An unavailable answer names who could not answer and why: without it a stuck execution reads the same as a busy one.
 const told = (failure: SessionFailure): string =>
   failure.kind === 'unavailable'
     ? `unavailable (${failure.owner}: ${failure.diagnostic})`
-    : failure.kind
+    : uninterpretable(failure)
+      ? causeOf(failure)
+      : failure.kind
 
 function reportEnd(
   logger: ReturnType<Context['logger']>,
@@ -228,6 +420,8 @@ export function createSessionJournalInterpretationPlugin<P>(
         [sessionTransactionsKey]: null,
         [storageKey]: null,
         [tenantDomainLookupKey]: null,
+        [agentJournalKey]: null,
+        [agentJournalEntriesKey]: null,
         [sessionKey]: { caller: 'coordinator' as const },
       },
       apply(ctx: Context) {
@@ -237,14 +431,24 @@ export function createSessionJournalInterpretationPlugin<P>(
         const transactions = ctx[sessionTransactionsKey]
         const storage = ctx[storageKey]
         const tenantDomainLookup = ctx[tenantDomainLookupKey]
+        const journal = ctx[agentJournalKey] as unknown as AgentJournal<P>
+        const entries = ctx[agentJournalEntriesKey] as unknown as AgentJournalEntries<P>
         const logger = ctx.logger(OWNER)
+        const warn = (line: string) => logger.warn(line)
         const interpret = createJournalInterpretation<P>(input, {
           readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
           read: target => readExecutionInterpretation({ storage, tenantDomainLookup }, target),
+          entries: value => entries.read(value),
           commitLog: value =>
             transactions.commitLog === undefined
               ? Promise.resolve(unavailable('the Session transactions offer no commitLog'))
               : transactions.commitLog(value),
+          finishRun: value => session.work.finishRun(value),
+          interpreted: target => announce(ctx, warn, 'interpreted', target),
+          load: value => journal.load(value),
+          acknowledge: value => journal.acknowledge(value),
+          warn,
           stopped: () => stopped,
         })
         const guarded = async (target: JournalInterpretationTarget): Reply<JournalInterpreted> => {
@@ -255,34 +459,25 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // Requeue the first retry at once: a moved head is readable right after its write.
         const retrying = new Set<string>()
+        const said = new Set<string>()
         const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
+          if (said.has(key)) return
           const answer = await guarded(target)
           if ('ok' in answer || stopped || !transient(answer.failure)) {
             if (retry !== null) retrying.delete(key)
             reportEnd(logger, target.execution, answer)
+            if ('failure' in answer && uninterpretable(answer.failure)) remember(said, key)
             return
           }
           if (retry === null && retrying.has(key)) return
           retrying.add(key)
-          retryLater(target, retry ?? { wait: 0, calls: 0 }, told(answer.failure))
-        }
-        const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
-          const calls = retry.calls + 1
+          const next = nextRetry(policy, retry)
           logger.warn(
-            `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
+            `call ${next.calls} of the interpretation of ${target.execution} answered ${told(answer.failure)}; again in ${next.wait} ms`,
           )
-          const next = {
-            wait:
-              retry.wait === 0
-                ? policy.initialMs
-                : Math.min(retry.wait * policy.multiplier, policy.maxMs),
-            calls,
-          }
-          if (retry.wait === 0) return enqueue(target, () => attempt(target, next))
-          void delay(retry.wait, undefined, { signal: stopping.signal }).then(
+          void delay(next.wait, undefined, { signal: stopping.signal }).then(
             () => enqueue(target, () => attempt(target, next)),
             () => undefined,
           )
@@ -291,6 +486,7 @@ export function createSessionJournalInterpretationPlugin<P>(
           ctx,
           () => stopped,
           target => attempt(target, null),
+          ['consumed'],
         )
         ctx.effect(() => {
           current = guarded

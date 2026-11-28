@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { BodyOf, LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
-import { readJsonText } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText } from '@omne-harness/json-text'
+import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
-import type { ScheduleCallContext, ScheduleInstant } from '@omne-harness/schedule-contract'
+import {
+  DEFAULT_AGENT_RESULT_POLICY,
+  type ScheduleCallContext,
+  type ScheduleInstant,
+} from '@omne-harness/schedule-contract'
 import { createScheduleContribution, type ScheduleFaces } from '@omne-harness/schedule-access'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 
@@ -26,7 +31,12 @@ const ID = '7d1c2c0e-3b1f-4a52-9c1b-8f3e2a6d5b40'
 const view = (control: string) => ({
   scheduleId: ID,
   owner: { kind: 'tenant', tenantId: 't', ownerId: 'a' },
-  author: { kind: 'agent', actorRef: 'agent', originatingSessionRef: 'session-1' },
+  author: {
+    kind: 'agent',
+    actorRef: 'agent',
+    originatingSessionRef: 'session-1',
+    originatingCallRef: 'call-1',
+  },
   createdBy: 'p',
   createdAt: at,
   definition: { label: control },
@@ -34,10 +44,6 @@ const view = (control: string) => ({
   control,
   standing: { kind: 'ready' },
   nextOccurrence: null,
-  consentAdoption:
-    control === 'active'
-      ? { grantRef: 'g', adoptionKind: 'blanket', scope: 'standing', adoptedAt: at }
-      : null,
 })
 const error = (code: string) => ({
   code,
@@ -59,11 +65,21 @@ const tree = (value: unknown) => {
   return read.value
 }
 
+const FOR_NEW = {
+  agentDefinitionRef: 'coding',
+  modes: { permission: 'never', environmentAdoptionRef: 'env@1', collaboration: 'co-work' },
+  workspace: null,
+} as const
+type NewSessionDefaults = Parameters<typeof createScheduleContribution>[0]['newSessionDefaults']
+
 function world(
   faces: Partial<Record<string, unknown>> | null,
   refused?: 'denied' | 'basis-unavailable',
+  newSessionDefaults: NewSessionDefaults = async () => FOR_NEW,
 ) {
   const asked: [string, unknown][] = []
+  const watchers: { tenantText: string; listener: { changed(): void; closed(): void } }[] = []
+  const unwatched = { count: 0 }
   const reply = (name: string) => async (_context: unknown, input: unknown) => {
     asked.push([name, input])
     const value = faces?.[name]
@@ -81,6 +97,20 @@ function world(
             execute: reply('execute'),
             queryOperation: reply('queryOperation'),
           },
+          jobs: {
+            get: reply('job.get'),
+            ofExecution: reply('job.ofExecution'),
+            cancel: reply('job.cancel'),
+            queryCancel: reply('job.queryCancel'),
+            start: reply('job.start'),
+            queryStart: reply('job.queryStart'),
+            watch: (tenantText: string, listener: { changed(): void; closed(): void }) => {
+              watchers.push({ tenantText, listener })
+              return () => {
+                unwatched.count += 1
+              }
+            },
+          },
         } as unknown as ScheduleFaces)
   const contribution = createScheduleContribution({
     principals: {
@@ -92,8 +122,15 @@ function world(
     faces: () => built,
     requestId: () => 'r-1',
     clock: { now: () => at as ScheduleInstant },
+    newSessionDefaults,
   })
-  return { ops: contribution.operations, asked }
+  return {
+    ops: contribution.operations,
+    observe: contribution.observations['observe-jobs'],
+    asked,
+    watchers,
+    unwatched,
+  }
 }
 const list = { tenant: tenantId, control: null, terminal: false, cursor: null, limit: 50 }
 type ManageAction = BodyOf<ScheduleProtocol['operations']['manage-schedule']>['action']
@@ -132,14 +169,26 @@ describe('reads', () => {
     expect(all).toMatchObject({ body: { items: [{}, {}, {}] } })
   })
 
-  it('names the consent a schedule took effect on, and the agent session that wrote it', async () => {
+  it('answers a schedule with who created it, and with no consent it took effect on', async () => {
     const { ops } = world({ get: { kind: 'ok', value: view('active') } })
+    const answer = await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })
+    expect(answer).toMatchObject({
+      outcome: 'succeeded',
+      body: { author: { kind: 'agent', session: 'session-1' } },
+    })
+    expect((answer as { body: object }).body).not.toHaveProperty('basis')
+    expect((answer as { body: object }).body).not.toHaveProperty('reasons')
+  })
+
+  it('says why a blocked schedule cannot run', async () => {
+    const blocked = {
+      ...view('active'),
+      standing: { kind: 'blocked', reasons: ['carrier-missing:notification'] },
+    }
+    const { ops } = world({ get: { kind: 'ok', value: blocked } })
     expect(await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })).toMatchObject({
       outcome: 'succeeded',
-      body: {
-        basis: { kind: 'blanket', scope: 'standing' },
-        author: { kind: 'agent', session: 'session-1' },
-      },
+      body: { standing: 'blocked', reasons: ['carrier-missing:notification'] },
     })
   })
 
@@ -188,10 +237,12 @@ describe('writes', () => {
   })
 
   it.each([
-    ['consent_required', { outcome: 'unsupported', body: { code: 'consent_required' } }],
     ['revision_conflict', { outcome: 'conflict', body: { code: 'revision_conflict' } }],
     ['capacity_exceeded', { outcome: 'limited', body: {} }],
-    ['invalid_transition', { outcome: 'invalid', body: { code: 'invalid_transition' } }],
+    [
+      'invalid_transition',
+      { outcome: 'invalid', body: { code: 'invalid_transition', reason: 'invalid_transition' } },
+    ],
     ['forbidden', { outcome: 'not-visible', body: {} }],
     ['provider_failure', { outcome: 'basis-unavailable' }],
   ])('maps the refusal %s', async (code, outcome) => {
@@ -199,6 +250,17 @@ describe('writes', () => {
     expect(await ops['manage-schedule'](call, manage({ kind: 'stop', reason: null }))).toEqual(
       outcome,
     )
+  })
+
+  it('hands on why the domain found the input invalid: the reason an executor gave for refusing work reaches the person', async () => {
+    const why = { ...error('invalid_input'), message: 'A1.evidence: 无人值守的目标要有证据' }
+    const { ops } = world({ execute: { kind: 'rejected', error: why } })
+    expect(
+      await ops['manage-schedule'](
+        call,
+        manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+      ),
+    ).toEqual({ outcome: 'invalid', body: { code: 'invalid_input', reason: why.message } })
   })
 
   it('derives the same operation key from the same client id, and refuses an invalid definition before the domain', async () => {
@@ -441,7 +503,10 @@ describe('the remaining human actions', () => {
 
   it('sends an edit, a revision of a draft and a replacement as their domain commands', async () => {
     const { ops, asked } = world({ execute: committed })
-    await ops['manage-schedule'](call, manage({ kind: 'edit', instruction: '写周报' }))
+    await ops['manage-schedule'](
+      call,
+      manage({ kind: 'edit', instruction: tree({ purpose: '写周报' }) }),
+    )
     await ops['manage-schedule'](
       call,
       manage({ kind: 'revise', definition: DEFINITION, reason: '改时间' }),
@@ -451,7 +516,10 @@ describe('the remaining human actions', () => {
       manage({ kind: 'replace', definition: DEFINITION, reason: '换' }),
     )
     expect(asked.map(([, input]) => input)).toMatchObject([
-      { action: 'update', patch: { kind: 'executionText', instruction: '写周报', label: null } },
+      {
+        action: 'update',
+        patch: { kind: 'executionText', instruction: { purpose: '写周报' }, label: null },
+      },
       { action: 'reviseDraft', reason: '改时间', definition: { label: '交月报' } },
       { action: 'replace', reason: '换', successor: { label: '交月报' } },
     ])
@@ -477,5 +545,497 @@ describe('the remaining human actions', () => {
       body: { code: 'invalid_input' },
     })
     expect(asked).toEqual([])
+  })
+})
+
+/** An answer as the client receives it: the succeeded body written through the operation's codec. */
+function wire(op: keyof ScheduleProtocol['operations'], answer: unknown): unknown {
+  const value = answer as { outcome: string; body?: unknown }
+  if (value.outcome !== 'succeeded') return value
+  const written = scheduleProtocol.operations[op].outcomes.succeeded.write(value.body as never, {
+    maxBytes: 100_000,
+    maxDepth: 50,
+    maxItems: 10_000,
+    maxMembers: 100,
+    maxStringLength: 10_000,
+    maxNumberLength: 100,
+  })
+  if (!written.ok) throw new Error('not writable')
+  return { outcome: 'succeeded', body: JSON.parse(writeJsonText(written.value)) }
+}
+
+const JOB = '0d6c1f8e-2a4b-4c3d-8e5f-6a7b8c9d0e1f'
+const summary = {
+  jobId: JOB,
+  revision: 3,
+  acceptedAt: at,
+  body: {
+    kind: 'execution',
+    executionRef: 'program:g:j',
+    executionState: 'running',
+    terminalReceiptRef: null,
+    outcome: null,
+  },
+  stopState: 'none',
+  stopOperationRef: null,
+  stopReceiptRef: null,
+}
+const run = { origin: 'due', startedAt: at, endedAt: null }
+const detail = {
+  job: summary,
+  run,
+  scheduleId: ID,
+  slot: null,
+  purpose: {
+    kind: 'execution',
+    work: { kind: 'program', programRef: 'probe', input: {} },
+    scope: { kind: 'fleet' },
+    catchUp: { kind: 'none' },
+    overlap: 'parallel',
+    misfire: null,
+    notifications: [],
+  },
+  definitionRevision: 1,
+  reason: null,
+  executionWhere: { kind: 'program', programRef: 'probe', executionRef: 'program:g:j' },
+  events: [{ seq: 1, kind: 'accepted', at }],
+}
+const shownJob = {
+  job: JOB,
+  state: 'running',
+  outcome: null,
+  stop: 'none',
+  origin: 'due',
+  acceptedAt: at,
+  startedAt: at,
+  endedAt: null,
+  schedule: ID,
+  slot: null,
+  local: null,
+  calendar: null,
+  version: null,
+  revision: 1,
+  work: { kind: 'program', programRef: 'probe', input: {} },
+  reason: null,
+  where: { kind: 'program', program: 'probe', execution: 'program:g:j' },
+  events: [{ seq: 1, kind: 'accepted', at }],
+}
+const ok = (value: unknown) => ({ kind: 'ok', value })
+const failed = (code: string) => ({ kind: 'error', error: error(code) })
+const work = tree({ kind: 'program', programRef: 'probe', input: {} })
+
+describe('Jobs: list, read, cancel, start', () => {
+  it('lists the history of a schedule or the tenant, row by row; a malformed id is not visible without asking', async () => {
+    const rows = [
+      {
+        kind: 'lapse',
+        rowRef: 'lapse:1',
+        scheduleId: ID,
+        originalScheduledAt: at,
+        through: at,
+        cause: 'stopped',
+        reason: 'catch-up-none',
+        count: 2,
+        selected: 0,
+      },
+      {
+        kind: 'direct',
+        rowRef: 'direct:1',
+        originalScheduledAt: at,
+        job: summary,
+        run: { ...run, reason: 'interrupted' },
+      },
+    ]
+    const w = world({ executions: ok({ items: rows, nextCursor: 'c-2' }) })
+    const body = { tenant: tenantId, schedule: null, cursor: null, limit: 500 }
+    expect(wire('list-jobs', await w.ops['list-jobs'](call, body))).toMatchObject({
+      outcome: 'succeeded',
+      body: {
+        items: [
+          { kind: 'lapse', row: 'lapse:1', count: 2, through: at },
+          {
+            kind: 'direct',
+            row: 'direct:1',
+            job: { job: JOB, state: 'running', reason: 'interrupted' },
+          },
+        ],
+        next: 'c-2',
+      },
+    })
+    expect(w.asked).toEqual([
+      ['executions', { scheduleId: null, from: null, to: null, cursor: null, limit: 200 }],
+    ])
+    const malformed = world({})
+    expect(
+      wire('list-jobs', await malformed.ops['list-jobs'](call, { ...body, schedule: 'not-an-id' })),
+    ).toEqual({
+      outcome: 'not-visible',
+      body: {},
+    })
+    expect(malformed.asked).toEqual([])
+    expect(
+      wire(
+        'list-jobs',
+        await world({ executions: failed('not_found') }).ops['list-jobs'](call, {
+          ...body,
+          schedule: ID,
+        }),
+      ),
+    ).toEqual({ outcome: 'not-visible', body: {} })
+    expect(
+      wire(
+        'list-jobs',
+        await world({ executions: new Error('down') }).ops['list-jobs'](call, body),
+      ),
+    ).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+
+  it('reads a Job that runs in a session with what its execution left, or with the session alone when that could not be read; the answer goes over the wire', async () => {
+    const read = async (account: unknown) => {
+      const where = { kind: 'session', sessionRef: 's-9', account }
+      const { ops } = world({ 'job.get': ok({ ...detail, executionWhere: where }) })
+      const answer = wire('read-job', await ops['read-job'](call, { tenant: tenantId, job: JOB }))
+      return (answer as { body: { where: unknown } }).body.where
+    }
+    expect(await read(null)).toEqual({ kind: 'session', session: 's-9', account: null })
+    expect(
+      await read({
+        adopted: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
+      }),
+    ).toEqual({
+      kind: 'session',
+      session: 's-9',
+      account: {
+        definition: { name: 'coding', version: 'v7' },
+        outcome: 'achieved',
+        deliverables: ['report.md'],
+        since: 'entry-3',
+        run: 'run-1',
+      },
+    })
+  })
+
+  it('reads the Jobs a session carries out or carried out, as Job details; a refusal or a throw is an unavailable basis', async () => {
+    const body = { tenant: tenantId, session: 's-9' }
+    const { ops, asked } = world({ 'job.ofExecution': ok([detail, detail]) })
+    expect(wire('read-session-jobs', await ops['read-session-jobs'](call, body))).toEqual({
+      outcome: 'succeeded',
+      body: { items: [shownJob, shownJob] },
+    })
+    expect(asked).toEqual([['job.ofExecution', { executionRef: 's-9', limit: 20 }]])
+    for (const answer of [failed('not_found'), new Error('x')])
+      expect(
+        await world({ 'job.ofExecution': answer }).ops['read-session-jobs'](call, body),
+      ).toEqual({ outcome: 'basis-unavailable' })
+    expect(await world({ 'job.ofExecution': ok([]) }).ops['read-session-jobs'](call, body)).toEqual(
+      { outcome: 'succeeded', body: { items: [] } },
+    )
+  })
+
+  it('reads one Job in full; another tenant and a missing one answer the same; a throw is an unavailable basis', async () => {
+    const body = { tenant: tenantId, job: JOB }
+    expect(
+      wire('read-job', await world({ 'job.get': ok(detail) }).ops['read-job'](call, body)),
+    ).toEqual({
+      outcome: 'succeeded',
+      body: shownJob,
+    })
+    expect(
+      wire('read-job', await world({ 'job.get': failed('not_found') }).ops['read-job'](call, body)),
+    ).toEqual({
+      outcome: 'not-visible',
+      body: {},
+    })
+    expect(
+      wire('read-job', await world({ 'job.get': new Error('x') }).ops['read-job'](call, body)),
+    ).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+
+  it('cancels with a key from the tenant, the client id and the Job; unknown and a throw are unknown', async () => {
+    const body = { tenant: tenantId, actionId: 'c-1', job: JOB }
+    const committed = world({ 'job.cancel': ok({ outcome: 'committed', detail }) })
+    expect(wire('cancel-job', await committed.ops['cancel-job'](call, body))).toEqual({
+      outcome: 'succeeded',
+      body: { changed: true, job: shownJob },
+    })
+    const again = world({ 'job.cancel': ok({ outcome: 'noChange', detail }) })
+    expect(wire('cancel-job', await again.ops['cancel-job'](call, body))).toEqual({
+      outcome: 'succeeded',
+      body: { changed: false, job: shownJob },
+    })
+    expect(committed.asked[0]?.[1]).toEqual(again.asked[0]?.[1])
+    const unknown = { outcome: 'unknown', detail: null }
+    expect(
+      wire('cancel-job', await world({ 'job.cancel': ok(unknown) }).ops['cancel-job'](call, body)),
+    ).toEqual({
+      outcome: 'unknown',
+    })
+    expect(
+      wire(
+        'cancel-job',
+        await world({ 'job.cancel': new Error('x') }).ops['cancel-job'](call, body),
+      ),
+    ).toEqual({
+      outcome: 'unknown',
+    })
+    expect(
+      wire(
+        'cancel-job',
+        await world({ 'job.cancel': failed('not_found') }).ops['cancel-job'](call, body),
+      ),
+    ).toEqual({ outcome: 'not-visible', body: {} })
+  })
+
+  it('recalls a cancel: committed is the Job, otherwise not committed', async () => {
+    const body = { tenant: tenantId, actionId: 'c-1', job: JOB }
+    expect(
+      wire(
+        'query-cancel-job',
+        await world({ 'job.queryCancel': ok({ committed: true, detail }) }).ops['query-cancel-job'](
+          call,
+          body,
+        ),
+      ),
+    ).toEqual({ outcome: 'succeeded', body: shownJob })
+    expect(
+      wire(
+        'query-cancel-job',
+        await world({ 'job.queryCancel': ok({ committed: false, detail }) }).ops[
+          'query-cancel-job'
+        ](call, body),
+      ),
+    ).toEqual({ outcome: 'not-committed', body: {} })
+    expect(
+      wire(
+        'query-cancel-job',
+        await world({ 'job.queryCancel': new Error('x') }).ops['query-cancel-job'](call, body),
+      ),
+    ).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('starts a Job directly: work that is not work is refused before asking; other work under the id is a conflict; unknown stays unknown', async () => {
+    const body = { tenant: tenantId, startId: 's-1', work }
+    expect(
+      wire(
+        'start-job',
+        await world({ 'job.start': ok({ outcome: 'committed', detail }) }).ops['start-job'](
+          call,
+          body,
+        ),
+      ),
+    ).toEqual({ outcome: 'succeeded', body: shownJob })
+    const refusedWork = world({})
+    expect(
+      await refusedWork.ops['start-job'](call, { ...body, work: tree({ kind: 'script' }) }),
+    ).toEqual({ outcome: 'invalid', body: { code: 'invalid_input' } })
+    expect(refusedWork.asked).toEqual([])
+    expect(
+      wire(
+        'start-job',
+        await world({ 'job.start': failed('operation_key_conflict') }).ops['start-job'](call, body),
+      ),
+    ).toEqual({ outcome: 'conflict', body: { code: 'operation_key_conflict' } })
+    expect(
+      wire(
+        'start-job',
+        await world({ 'job.start': ok({ outcome: 'unknown', detail: null }) }).ops['start-job'](
+          call,
+          body,
+        ),
+      ),
+    ).toEqual({ outcome: 'unknown' })
+    expect(
+      wire('start-job', await world({ 'job.start': new Error('x') }).ops['start-job'](call, body)),
+    ).toEqual({
+      outcome: 'unknown',
+    })
+  })
+
+  it('recalls a direct start: committed, not committed, or a conflict', async () => {
+    const body = { tenant: tenantId, startId: 's-1', work }
+    expect(
+      wire(
+        'query-start-job',
+        await world({ 'job.queryStart': ok({ committed: true, detail }) }).ops['query-start-job'](
+          call,
+          body,
+        ),
+      ),
+    ).toEqual({ outcome: 'succeeded', body: shownJob })
+    expect(
+      wire(
+        'query-start-job',
+        await world({ 'job.queryStart': ok({ committed: false, detail: null }) }).ops[
+          'query-start-job'
+        ](call, body),
+      ),
+    ).toEqual({ outcome: 'not-committed', body: {} })
+    expect(
+      wire(
+        'query-start-job',
+        await world({ 'job.queryStart': failed('operation_key_conflict') }).ops['query-start-job'](
+          call,
+          body,
+        ),
+      ),
+    ).toEqual({ outcome: 'conflict', body: { code: 'operation_key_conflict' } })
+  })
+})
+
+describe('observe-jobs', () => {
+  it('opens with a frame, sends one more each time the tenant changes, and ends when the schedule row goes', async () => {
+    const w = world({})
+    const controller = new AbortController()
+    const opened = await w.observe?.({ principal: {}, signal: controller.signal } as never, {
+      tenant: tenantId,
+    })
+    if (opened === undefined || !('frames' in opened)) throw new Error('not opened')
+    const frames = opened.frames
+    expect(await frames.next()).toEqual({ done: false, value: { kind: 'changed' } })
+    const encoded = tenantCodec.encode(tenantId)
+    expect(w.watchers.map(item => item.tenantText)).toEqual([encoded.ok ? encoded.value : null])
+    w.watchers[0]?.listener.changed()
+    expect(await frames.next()).toEqual({ done: false, value: { kind: 'changed' } })
+    w.watchers[0]?.listener.closed()
+    expect(await frames.next()).toEqual({ done: true, value: 'unavailable' })
+    expect(w.unwatched.count).toBe(1)
+  })
+
+  it('answers a refused login and a missing row before watching', async () => {
+    const signal = new AbortController().signal
+    const denied = world({}, 'denied')
+    expect(
+      await denied.observe?.({ principal: {}, signal } as never, { tenant: tenantId }),
+    ).toEqual({
+      outcome: 'denied',
+    })
+    const gone = world(null)
+    expect(await gone.observe?.({ principal: {}, signal } as never, { tenant: tenantId })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+    expect([...denied.watchers, ...gone.watchers]).toEqual([])
+  })
+})
+
+describe('agent work a person writes is completed before it is read', () => {
+  const instruction = { purpose: '写周报' }
+  const REST = { materials: [], returnTo: null, resultPolicy: DEFAULT_AGENT_RESULT_POLICY }
+  const agent = (session: unknown) => ({ kind: 'agent', instruction, session })
+  const definitionOf = (session: unknown) =>
+    tree({
+      ...(JSON.parse(writeJsonText(DEFINITION)) as object),
+      purpose: {
+        kind: 'execution',
+        work: agent(session),
+        scope: { kind: 'fleet' },
+        catchUp: { kind: 'none' },
+        overlap: 'skip',
+        misfire: null,
+        notifications: [],
+      },
+    })
+  const committed = { kind: 'committed', operationRef: 'o', value: view('active'), replayed: false }
+  const started = { kind: 'ok', value: { outcome: 'committed', detail } }
+  const current = { mode: 'existing', sessionRef: 'current' }
+  const refusal = {
+    outcome: 'invalid',
+    body: {
+      code: 'invalid_input',
+      reason:
+        'session.sessionRef: current names the session of the caller, and this caller is in none',
+    },
+  }
+
+  it('a new session takes the definition and modes the release defaults to, and no workspace; what is saved is whole', async () => {
+    const { ops, asked } = world({ create: committed, 'job.start': started })
+    const made = await ops['create-schedule'](call, {
+      ...create,
+      definition: definitionOf({ mode: 'new' }),
+    })
+    expect(made).toMatchObject({ outcome: 'succeeded' })
+    const [, created] = asked[0] as [string, { definition: { purpose: { work: unknown } } }]
+    expect(created.definition.purpose.work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+    const body = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+    await ops['start-job'](call, body)
+    expect(((asked[1] ?? [])[1] as { work: unknown }).work).toEqual({
+      ...agent({ mode: 'new', ...FOR_NEW }),
+      ...REST,
+    })
+  })
+
+  it('refuses `current` from a person in every operation that reads work, saying why, and asks the domain nothing', async () => {
+    const { ops, asked } = world({ create: committed, execute: committed, 'job.start': started })
+    const definition = definitionOf(current)
+    expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(refusal)
+    expect(
+      await ops['manage-schedule'](call, manage({ kind: 'replace', definition, reason: '换' })),
+    ).toEqual(refusal)
+    expect(
+      await ops['preview'](call, {
+        tenant: tenantId,
+        source: { kind: 'definition', definition },
+        count: 3,
+      }),
+    ).toEqual(refusal)
+    expect(
+      await ops['start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual(refusal)
+    expect(asked).toEqual([])
+  })
+
+  it.each([
+    ['cannot be read', async () => undefined],
+    [
+      'fails to read',
+      async () => {
+        throw new Error('down')
+      },
+    ],
+  ])(
+    'has no basis when the defaults of the release %s and the work leaves something out; a recall of it has none either',
+    async (_, defaults) => {
+      const { ops, asked } = world({ create: committed, 'job.start': started }, undefined, defaults)
+      const definition = definitionOf({ mode: 'new' })
+      const basis = { outcome: 'basis-unavailable' }
+      expect(await ops['create-schedule'](call, { ...create, definition })).toEqual(basis)
+      expect(await ops['query-create-schedule'](call, { ...create, definition })).toEqual(basis)
+      const start = { tenant: tenantId, startId: 's-1', work: tree(agent({ mode: 'new' })) }
+      expect(await ops['start-job'](call, start)).toEqual(basis)
+      expect(await ops['query-start-job'](call, start)).toEqual(basis)
+      expect(asked).toEqual([])
+      const whole = tree({ ...agent({ mode: 'new', ...FOR_NEW }), ...REST })
+      expect(await ops['start-job'](call, { ...start, work: whole })).toMatchObject({
+        outcome: 'succeeded',
+      })
+    },
+  )
+
+  it('a recall of what a person could never have written answers that nothing was committed', async () => {
+    const { ops } = world({})
+    expect(
+      await ops['query-create-schedule'](call, { ...create, definition: definitionOf(current) }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
+    expect(
+      await ops['query-start-job'](call, {
+        tenant: tenantId,
+        startId: 's-1',
+        work: tree(agent(current)),
+      }),
+    ).toEqual({ outcome: 'not-committed', body: {} })
   })
 })

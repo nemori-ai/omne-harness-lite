@@ -8,6 +8,7 @@ import type {
   AgentJournalEntry,
   AgentOperationId,
   Authority,
+  ChainMember,
   ConsumerRef,
   CompactionTaskIdentity,
   ConsumptionId,
@@ -15,19 +16,23 @@ import type {
   DurableEvidence,
   ExecutionAttachmentId,
   ExecutionControl,
+  ExtensionChain,
   FinishCandidateContent,
   FinishRoute,
   HandoffReference,
   InputBatch,
   InputId,
+  LoopExtensionDeclaration,
+  MaterialReaders,
   ModelReplyAdmission,
+  Passage,
   PassageId,
   PendingCall,
   StepId,
   Waiting,
 } from '@omne-harness/agent-contract'
 import type { Message } from '@omne-harness/message'
-import type { FixedModelRequest, ModelInvocationRef } from '@omne-harness/model-contract'
+import type { LlmModelRequest, ModelInvocationRef } from '@omne-harness/model-contract'
 import type { ProducedResult } from '@omne-harness/agent-contract'
 import type {
   ToolInvocationRef,
@@ -56,7 +61,7 @@ export type ContentType =
   | Message
   | ProducedResult
   | ToolInvokeRequest
-  | FixedModelRequest
+  | LlmModelRequest
   | AgentJournalEntry
 
 type IsRef<T> = T extends Readonly<{ digest: string; size: number }> ? true : false
@@ -93,6 +98,15 @@ export type ProducerCall = (
     source: DurableEvidence
   }>
 
+export type PassageBlock = Omit<Passage, 'declaration'> &
+  Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>
+export type ChainBlock = Omit<ExtensionChain, 'members'> &
+  Readonly<{
+    members: readonly (Omit<ChainMember, 'declaration'> &
+      Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>)[]
+  }>
+export type PassageIndex = readonly Ref<PassageBlock>[]
+
 export type CursorMembers = Readonly<{
   position: string
   step: StepId
@@ -104,8 +118,8 @@ export type CursorMembers = Readonly<{
   compaction: Ref | null
   requestPreparation: Ref | null
   adoptedContext: DurableEvidence | null
-  passages: Ref
-  completedPassages: readonly PassageId[]
+  passages: Ref<PassageIndex>
+  chain: Ref<ChainBlock> | null
   batch: Ref | null
   calls: Ref
   schema: Adoption
@@ -140,7 +154,6 @@ export type FactBody =
       schema: Adoption
       instance: AgentInstanceId
       scope: DurableEvidence
-      original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
       coordination: 'standalone' | 'coordinated'
     }>
   | Readonly<{
@@ -163,7 +176,7 @@ export type FactBody =
       priority: 'ordinary' | 'urgent'
       watermark: DurableEvidence
     }>
-  | Readonly<{ kind: 'step.begun'; step: StepId; batch: InputBatch }>
+  | Readonly<{ kind: 'step.begun'; step: StepId; batch: Pick<InputBatch, 'id' | 'watermark'> }>
   | Readonly<{
       kind: 'request.adopted'
       step: StepId
@@ -348,6 +361,7 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
+      readers: MaterialReaders
     }>
   | Readonly<{
       kind: 'op.excluded'

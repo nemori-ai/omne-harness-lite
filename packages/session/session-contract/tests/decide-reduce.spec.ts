@@ -1,3 +1,4 @@
+import fc from 'fast-check'
 import {
   createMemorySessionHistorySource,
   TESTING_SOURCES,
@@ -410,6 +411,33 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     })
   })
 
+  it('rejects a non-uniform effort before it can enter the session journal', () => {
+    const selection = { name: 'route', basis: evidence('model'), reasoningEffort: 'max' as never }
+    expect(decisionOf(createCommand({ initialModelSelection: selection }), null, [])).toMatchObject(
+      {
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'creation.initialModelSelection.reasoningEffort' },
+      },
+    )
+    const created = commit(null, createCommand())
+    expect(
+      decisionOf(
+        {
+          kind: 'change',
+          input: {
+            ...base,
+            operation: operationId('select-effort'),
+            declaration: { kind: 'model', ...selection },
+          },
+        },
+        created,
+      ),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'declaration.reasoningEffort' },
+    })
+  })
+
   it('workspace changes use the same validation and valid declarations commit', () => {
     const created = commit(null, createCommand())
     expect(decisionOf(changeWorkspace(WORKSPACE_TEXT, workspaceAttachment), created)).toMatchObject(
@@ -634,7 +662,12 @@ describe('the pure judgments at their edges', () => {
     })
     const frozen = {
       ...dormant(),
-      frozen: { cause: 'tool-shape-lost' as const, evidence: evidence('f'), commit: evidence('c') },
+      frozen: {
+        cause: 'tool-shape-lost' as const,
+        capability: 'probe',
+        evidence: evidence('f'),
+        commit: evidence('c'),
+      },
     }
     expect(routeInput(frozen, ordinaryInput('d'))).toEqual({ kind: 'rejected', reason: 'frozen' })
     expect(
@@ -727,6 +760,58 @@ describe('the pure judgments at their edges', () => {
       unreadEvents: [{ execution, after: '0' }],
     })
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
+  })
+
+  // A Run that ends in failure cannot take the inputs still waiting for it: holding the end back
+  // for them leaves the Run open for ever (the step limit met with a queued input).
+  it('judgeCompletion lets a failed end through while inputs wait, and still holds a completion', () => {
+    const active = started()
+    if (active.run.kind !== 'active') throw new Error('no run')
+    const execution = active.run.execution.execution
+    expect(judgeCompletion(active, execution, 'failed')).toEqual({ kind: 'allowed' })
+    expect(judgeCompletion(active, execution, 'complete')).toEqual({
+      kind: 'blocked',
+      pendingInputs: ['input-1'],
+    })
+    expect(judgeCompletion(active, execution, 'cancelled')).toEqual({
+      kind: 'blocked',
+      pendingInputs: ['input-1'],
+    })
+  })
+
+  // The whole table at once: conclusion x pending x handed x deferred. A failed end is never held;
+  // any other end is held by exactly the pending inputs that are neither handed nor deferred.
+  it('judgeCompletion is total over conclusion, pending, handed and deferred inputs', () => {
+    const active = started()
+    if (active.run.kind !== 'active') throw new Error('no run')
+    const { run } = active
+    const execution = run.execution.execution
+    const ids = ['a', 'b', 'c', 'd'] as const
+    const subset = fc.subarray([...ids])
+    fc.assert(
+      fc.property(
+        subset,
+        subset,
+        subset,
+        fc.constantFrom('complete', 'failed', 'cancelled'),
+        (pending, handed, deferred, conclusion) => {
+          const snapshot = {
+            ...active,
+            pending: pending as never,
+            handed: handed as never,
+            deferredInputs: deferred.map(input => ({ input: input as never, run: run.run })),
+          }
+          const judged = judgeCompletion(snapshot, execution, conclusion)
+          const waiting = pending.filter(
+            input => !handed.includes(input) && !deferred.includes(input),
+          )
+          if (conclusion === 'failed' || waiting.length === 0)
+            expect(judged).toEqual({ kind: 'allowed' })
+          else expect(judged).toEqual({ kind: 'blocked', pendingInputs: waiting })
+        },
+      ),
+      { numRuns: 500 },
+    )
   })
 
   it('an input is accepted on the terms of the commit only: none, unavailable, refused and of another source', () => {

@@ -33,11 +33,11 @@ describe('human-intervention/v1', () => {
     expect(observation.ends).toEqual([])
     expect('countsAsAccess' in observation).toBe(false)
     expectRoundTrip(observation.open, { tenant })
-    expect(readSample(observation.open, {})).toEqual({ ok: false })
-    expect(readSample(observation.open, { tenant, session: 's' })).toEqual({ ok: false })
+    expect(readSample(observation.open, {}).ok).toBe(false)
+    expect(readSample(observation.open, { tenant, session: 's' }).ok).toBe(false)
     expectRoundTrip(observation.frame, { kind: 'changed' })
-    expect(readSample(observation.frame, { kind: 'changed', cardId: 'c' })).toEqual({ ok: false })
-    expect(readSample(observation.frame, { kind: 'decided' })).toEqual({ ok: false })
+    expect(readSample(observation.frame, { kind: 'changed', cardId: 'c' }).ok).toBe(false)
+    expect(readSample(observation.frame, { kind: 'decided' }).ok).toBe(false)
   })
 
   it.each(Object.entries(table))(

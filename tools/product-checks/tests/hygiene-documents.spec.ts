@@ -31,9 +31,12 @@ describe('hygiene-document-allowlist', () => {
     'tools/repo-toolchain/README.md',
     'apps/desktop/SPEC.md',
     'tools/dev-flow/SPEC.md',
+    'benchmarks/SPEC.md',
     'packages/session/session-contract/verification/formal-mapping.md',
     'packages/model/model-contract/verification/models/formal-mapping.md',
     'packages/model/tokenizer-tiktoken/verification/proofs/executor.md',
+    'packages/plugin/plugin-host-local/skills/skin-authoring/SKILL.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/references/format.md',
   ])('accepts %s', path => {
     expect(isAllowedDocument(path, open)).toBe(true)
   })
@@ -47,6 +50,8 @@ describe('hygiene-document-allowlist', () => {
     'packages/session/session/docs/design.md',
     'packages/session/session/SPEC.md',
     'tools/repo-toolchain/src/arch/SPEC.md',
+    'benchmarks/src/SPEC.md',
+    'benchmarks/notes.md',
     'tools/repo-toolchain/README_ZH.md',
     'packages/session/session/README_ZH.md',
     'packages/session/session-contract/verification/README.md',
@@ -54,6 +59,11 @@ describe('hygiene-document-allowlist', () => {
     'packages/session/session-contract/verification/proofs/index.md',
     'packages/session/session-contract/verification/proofs/README.md',
     'tmp/card/plan.md',
+    'packages/plugin/plugin-host-local/skills/skin-authoring/notes.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/references/deep/format.md',
+    'packages/skills/skill-host-local/skills/skill-authoring/scripts/notes.md',
+    'packages/plugin/plugin-host-local/skills/SKILL.md',
+    'packages/plugin/skills/skin-authoring/SKILL.md',
   ])('rejects %s', path => {
     expect(isAllowedDocument(path, open)).toBe(false)
   })

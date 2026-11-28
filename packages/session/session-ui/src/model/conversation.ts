@@ -5,6 +5,7 @@ export type ToolResultView = Readonly<{ parts: readonly Part[] }>
 
 export type Part =
   | Readonly<{ kind: 'text'; key: string; text: string }>
+  | Readonly<{ kind: 'named'; key: string; name: string; text: string }>
   | Readonly<{ kind: 'thinking'; key: string; text: string }>
   | Readonly<{
       kind: 'tool-call'
@@ -36,7 +37,13 @@ export type Item =
       live: boolean
     }>
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
-  | Readonly<{ kind: 'marker'; key: string; label: string; failedRun: string | null }>
+  | Readonly<{
+      kind: 'marker'
+      key: string
+      label: string
+      failedRun: string | null
+      run?: string
+    }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
 
 type Block = { readonly [key: string]: Plain }
@@ -62,7 +69,16 @@ const media: PartFrom = (block, key, kind, message) => {
 }
 
 const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
-  ['text', (block, key) => ({ kind: 'text', key, text: textOf(block['text']) ?? '' })],
+  [
+    'text',
+    (block, key) => {
+      const text = textOf(block['text']) ?? ''
+      const named = isRecord(block['origin']) ? textOf(block['origin']['name']) : undefined
+      return named === undefined
+        ? { kind: 'text', key, text }
+        : { kind: 'named', key, name: named, text }
+    },
+  ],
   ['thinking', (block, key) => ({ kind: 'thinking', key, text: textOf(block['text']) ?? '' })],
   ['image', media],
   ['file', media],
@@ -184,6 +200,7 @@ function terminalMarker(entry: HistoryEntry): Item {
     key: entry.entryId,
     label: TERMINAL[outcome] ?? '这一轮已结束',
     failedRun: outcome === 'failed' ? (terminal?.run ?? null) : null,
+    ...(terminal?.run == null ? {} : { run: terminal.run }),
   }
 }
 
@@ -273,6 +290,40 @@ const markerItem =
   (label: string): ItemFrom =>
   (_walk, entry) => ({ kind: 'marker', key: entry.entryId, label, failedRun: null })
 
+/** A system command a member gave: written as the person typed it, its result in what follows. */
+const commandItem: ItemFrom = (walk, entry) => {
+  const { payload } = entry
+  const name = isRecord(payload) ? textOf(payload['name']) : undefined
+  const args = isRecord(payload) ? (textOf(payload['args']) ?? '') : ''
+  if (name === undefined) return unknownItem(walk, entry)
+  const short = name.slice(name.lastIndexOf(':') + 1)
+  const label = `执行了 /${short}${args === '' ? '' : ` ${args}`}`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
+/** The session froze: which resident tool lost the shape it was adopted with; the session takes no new turn after it. */
+const frozenItem: ItemFrom = (walk, entry) => {
+  const { payload } = entry
+  const tool = isRecord(payload) ? textOf(payload['capability']) : undefined
+  if (tool === undefined) return unknownItem(walk, entry)
+  const label = `会话已冻结：常驻工具 ${tool} 的新版与原来的参数不同，原来那一版已用不了。之后不再开始新的一轮`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
+/** Why the run went on with the definition the session stood at, or why it waits: for the person, not the model. */
+const adoptionNoteItem: ItemFrom = (walk, entry) => {
+  const note = isRecord(entry.payload) ? entry.payload['note'] : undefined
+  const kind = isRecord(note) ? textOf(note['kind']) : undefined
+  const reason = isRecord(note) ? textOf(note['reason']) : undefined
+  if (reason === undefined || (kind !== 'kept' && kind !== 'waiting'))
+    return unknownItem(walk, entry)
+  const label =
+    kind === 'kept'
+      ? `这一轮照原来的定义开始，新版没用上：${reason}`
+      : `还没开始这一轮，在等能用的定义：${reason}`
+  return { kind: 'marker', key: entry.entryId, label, failedRun: null }
+}
+
 const terminalItem: ItemFrom = (walk, entry) => {
   for (const callId of walk.openCalls.splice(0)) walk.endedCalls.add(callId)
   return terminalMarker(entry)
@@ -287,6 +338,9 @@ const ENTRY_ITEM: ReadonlyMap<string, ItemFrom> = new Map([
   ['message.compaction', markerItem('前面的对话已压缩')],
   ['run.started', markerItem('新的一轮开始')],
   ['run.terminal', terminalItem],
+  ['session.command-recorded', commandItem],
+  ['session.frozen', frozenItem],
+  ['session.adoption-noted', adoptionNoteItem],
 ])
 
 export function conversationItems(content: Content, runActive: boolean): readonly Item[] {
@@ -319,4 +373,18 @@ function endCalls(item: Item, ended: ReadonlySet<string>, runActive: boolean): I
     return part
   })
   return changed ? { ...item, parts } : item
+}
+
+type ToolCallView = Extract<Part, { kind: 'tool-call' }>
+
+/** Where a call stands: it has a result, its run ended without one, or it is still going. */
+export function toolCallState(part: ToolCallView): 'working' | 'completed' | 'no-result' {
+  if (part.result !== null) return 'completed'
+  return part.ended ? 'no-result' : 'working'
+}
+
+/** The words of the result of a call; null while there is none. */
+export function toolResultText(part: ToolCallView): string | null {
+  if (part.result === null) return null
+  return part.result.parts.flatMap(each => (each.kind === 'text' ? [each.text] : [])).join('\n')
 }

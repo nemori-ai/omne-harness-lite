@@ -30,7 +30,9 @@ import {
 import type { SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { cursorSigning } from '../../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../../src/entry/storage-host.ts'
-import { LifecycleRegistry, S0AssemblyLifecycleService } from '../../../../src/lifecycle.ts'
+import { declaredParts, S0AssemblyLifecycleService } from '../../../../src/row.ts'
+import type { RowSupervision } from '../../../../src/shutdown.ts'
+import { rowSupervision } from '../../../support/row-supervision.ts'
 import {
   disposeTree,
   startTree,
@@ -38,13 +40,21 @@ import {
   type RowSpec,
   type StartResult,
 } from '../../../../src/loader.ts'
-import { LOCAL_READ_WAIT_MS } from '../../../../src/local/operator-defaults.ts'
+import {
+  LOCAL_MAX_RESPONSE_BYTES,
+  LOCAL_READ_WAIT_MS,
+} from '../../../../src/local/operator-defaults.ts'
 import { serveProfile } from '../../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../../src/row.ts'
 import { sessionStorageRow } from '../../../../src/rows/session-storage/index.ts'
 import { prepareTenantDirectory } from '../../../../src/rows/session-storage/initialize.ts'
 import { storageRow } from '../../../../src/rows/storage/index.ts'
-import { monotonicClock, runShutdown, type ShutdownReport } from '../../../../src/shutdown.ts'
+import {
+  monotonicClock,
+  runShutdown,
+  stopPredecessors,
+  type ShutdownReport,
+} from '../../../../src/shutdown.ts'
 import { createTrust } from '../../../../src/trust.ts'
 import type {
   EntryEnv,
@@ -55,6 +65,7 @@ import type {
   ServiceName,
   TreeRow,
 } from '../../../../src/types.ts'
+import { holdRunTime, hostTime } from '../../../../src/entry/time.ts'
 
 export const TENANT_A: TenantId = testingTenant(
   'org_app1st0rage000000000000000',
@@ -86,8 +97,7 @@ export function providerConfig(
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
     maxJsonDepth: 64,
-    maxJsonMembers: 65536,
-    maxResponseBytes: 65536,
+    maxResponseBytes: LOCAL_MAX_RESPONSE_BYTES,
     maxOperationResponseBytes: 1048576,
     globalWriteResponseBytes: 33554432,
     maxDiagnosticBytes: 4096,
@@ -189,13 +199,10 @@ export function treeRow(id: string, plugin: string, config: unknown = {}): TreeR
 export function declared(plugin: Plugin, config: unknown = {}): RowSpec {
   const declaration = rowDeclarationOf(plugin)
   if (declaration === undefined) throw new Error('not a declared row')
-  const via = declaration.lifecycle.kind === 'entry-object' ? declaration.lifecycle.via : null
   return {
     row: treeRow(declaration.row, 'declared', config),
-    manifest: declaration.manifest,
+    ...declaredParts(declaration),
     plugin,
-    implementation: declaration.implementation,
-    declared: { row: declaration.row, via },
   }
 }
 
@@ -223,7 +230,7 @@ export type TreeOptions = Readonly<{
 export type LoadedTree = Readonly<{
   root: Context
   result: StartResult
-  registry: LifecycleRegistry
+  registry: RowSupervision
   expected: ReadonlyMap<RowId, LifecyclePhase>
   check: ScriptedSessionAccessCheck<string>
   service<T>(name: ServiceName): T
@@ -257,6 +264,7 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
     ...(options.extraRows ?? []),
   ]
   const root = new Context()
+  holdRunTime(root, hostTime())
   const trust = createTrust(
     [...new Set([...profile.visibility.values()].flat())].map(name => ({
       id: name,
@@ -269,11 +277,7 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
     if (spec.manifest.phase !== null) expected.set(spec.row.id, spec.manifest.phase)
   }
   const effective = options.expected ?? expected
-  const registry = new LifecycleRegistry({
-    expected: effective,
-    clock: monotonicClock,
-    requestStop: () => {},
-  })
+  const registry = rowSupervision()
   await root.plugin(S0AssemblyLifecycleService, registry)
   const made = new Map<symbol, unknown>()
   const env: EntryEnv = {
@@ -321,7 +325,10 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
       return found
     },
     shutdown: (deadlineMs = 5000) =>
-      runShutdown(registry, effective, deadlineMs, monotonicClock, { disposeRoot: dispose }),
+      runShutdown(registry, effective, deadlineMs, monotonicClock, {
+        stopsFirst: stopPredecessors(specs),
+        disposeRoot: dispose,
+      }),
     dispose,
   }
 }

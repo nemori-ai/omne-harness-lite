@@ -1,7 +1,7 @@
 import { dispatchReportWait } from '@omne-harness/dispatch-tool'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
+import type { CommandTable, ToolCommandBackground, ToolGate } from '@omne-harness/tool-contract'
 import { z } from 'zod'
 import {
   commandGuide,
@@ -49,13 +49,16 @@ const AGENTS_GATE_OF: Readonly<Record<AgentsCommandName, string>> = {
 const ENCODING = 'wrapped' as const
 /** Only a session that work was dispatched to has a report to hand back. */
 const REPORT_CONDITIONS = ['dispatched'] as const
+/** A dispatch never holds the caller's turn: every call of it starts in the background. */
+const DISPATCH_IN_BACKGROUND = { unless: [], start: 'launch' } as const
 const encoder = new TextEncoder()
 const utf8 = (text: string) => encoder.encode(text)
 
 const guide = [
   'dispatch hands one piece of work to another agent, which works in a session of its own. Write the instruction so that it stands alone: the other agent sees only what you write, except with spawn. See targets for the agent definitions and the modes each takes.',
-  'delegate: the agent starts from your instruction alone. spawn: it starts from a copy of this conversation as it is now, plus your instruction. With both, this call waits for the one report and returns it; the session it works in is unattended, so it cannot ask a person. handoff: the work moves to a new main session that a person attends; this call returns as soon as that session exists, and there is no report.',
-  'If this call stops waiting before the report comes, the work goes on: the report then comes to this session as a reminder. Do not dispatch the same work again. Use show to read a dispatch and withdraw to take it back before its report.',
+  'delegate: the agent starts from your instruction alone. spawn: it starts from a copy of this conversation up to the message that makes this call, plus your instruction. The session it works in is unattended, so it cannot ask a person. handoff: the work moves to a new main session that a person attends, and there is no report.',
+  'dispatch runs in the background from the start: your turn goes on at once, so you can do other work or dispatch more. Give each dispatch an intent that says what that agent is doing; BkgToolCalls list shows it. When the report comes, it wakes you as a reminder that carries it. Do not poll and do not dispatch the same work again.',
+  'BkgToolCalls terminate only stops waiting for the report: the work goes on and the report still comes, as a reminder. To take the work back, use withdraw before its report. Use show to read a dispatch.',
   'message sends a note to the agent of another session. It is not a report and ends nothing. list gives the session identities, the same ones the tool Sessions uses.',
   'A failure starts with its reason, then says what to do. After a failure that says unknown, send the same command again: what took effect is recalled, not done twice.',
 ].join('\n\n')
@@ -194,6 +197,8 @@ export function createAgentsAuthor(
       operation: Operation
       release: Readonly<{ gate: string }>
       conditions?: readonly string[]
+      background?: ToolCommandBackground
+      readOnly: boolean
     }
   > = {}
   for (const name of agentsCommandNames) {
@@ -204,7 +209,9 @@ export function createAgentsAuthor(
       summary: agentsSummaries[name],
       operation: operation.ok,
       release: { gate: AGENTS_GATE_OF[name] },
+      readOnly: AGENTS_GATE_OF[name] === 'read',
       ...(name === 'report' ? { conditions: REPORT_CONDITIONS } : {}),
+      ...(name === 'dispatch' ? { background: DISPATCH_IN_BACKGROUND } : {}),
     }
   }
   const author = defineCommandTool({
@@ -212,7 +219,7 @@ export function createAgentsAuthor(
     implementation: {
       description:
         'Hand work to another agent and get its report, hand work over for good, message the agent of another session, and see how your dispatches stand.',
-      backgroundAllowed: false,
+      backgroundAllowed: true,
       declarations: {
         adoption: agentsAdoption,
         environment: null,

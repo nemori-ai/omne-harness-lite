@@ -131,7 +131,6 @@ function configuration(storageRoot) {
     maxRequestBytes: 160 << 20,
     globalInFlightWriteBytes: 320 << 20,
     maxJsonDepth: 50,
-    maxJsonMembers: 1000000,
     maxResponseBytes: 128 << 20,
     maxOperationResponseBytes: 160 << 20,
     globalWriteResponseBytes: 320 << 20,

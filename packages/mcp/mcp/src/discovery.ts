@@ -14,6 +14,7 @@ import {
   type ConnectionFailure,
   type EndpointRef,
   type Generation,
+  type ListingDefect,
   type McpClock,
   type McpConfig,
   type McpPorts,
@@ -24,7 +25,11 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type { EventTypes } from './event-types.ts'
+import type { PeerSkillsCore } from './peer-skills.ts'
+import type { ChangeFeed } from './internal/changes.ts'
 import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
+import type { Following } from './internal/follow.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { connectionFailureOf, loseOn, lostOf, type Lost } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
@@ -43,10 +48,28 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   config: McpConfig<P>
   table: ConnectionTable<P>
   clock: McpClock
+  changes: ChangeFeed
+  following: Following
+  eventTypes: EventTypes<P>
+  skills: PeerSkillsCore<P>
 }>
+
+/** What a peer offers beside its actions, taken with each published catalog of them. */
+async function publishBeside<P, S>(
+  deps: DiscoveryDependencies<P, S>,
+  ensured: Ensured,
+  access: Access<P>,
+): Promise<void> {
+  await deps.eventTypes.publish(ensured, access)
+  await deps.skills.publish(ensured, access)
+}
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
 const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
+const incomplete = (defect: ListingDefect): RefreshResult => ({
+  kind: 'kept',
+  reason: { kind: 'listing-incomplete', defect },
+})
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
@@ -91,6 +114,23 @@ function lostPageOf(page: Outcome<ListingPage, TransportFailure>): readonly Lost
   if (lost === undefined) return []
   const reason = failure.kind === 'not-sent' ? connectionFailureOf(failure) : CONNECTION_UNAVAILABLE
   return [{ lost, reason }]
+}
+
+/** A change is taken as the refresh it follows was asked for, within its bound; the caller's signal stays with the caller. */
+const repeatOf = (request: RefreshRequest): RefreshRequest => ({
+  ref: request.ref,
+  ...(request.connectBound === undefined ? {} : { connectBound: request.connectBound }),
+})
+
+function basisCurrent(
+  record: ActionCatalogRecord,
+  connected: Ensured | undefined,
+): Extract<CatalogView, { kind: 'acquired' }>['basisCurrent'] {
+  if (connected === undefined) return 'no-connection'
+  const fits =
+    record.basis.protocolVersion === connected.peer.protocolVersion &&
+    sameJson(record.basis.capabilities, connected.peer.capabilities)
+  return fits ? 'matches' : 'differs'
 }
 
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): ActionDiscovery<P> {
@@ -154,6 +194,9 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     )
     if ('failure' in write)
       return write.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
+    deps.changes.changed(access.tenant)
+    await publishBeside(deps, ensured, access)
+    deps.following.follow(ensured, () => refresh(access, repeatOf(request)))
     return succeed({ kind: 'published', revision: merged.revision })
   }
 
@@ -177,11 +220,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     })
     const pageFailed = 'failure' in listing && listing.failure === 'page-failed'
     table.settle(connection, generation, pageFailed ? 'page-failed' : 'listed')
-    if ('failure' in listing)
-      return succeed({
-        kind: 'kept',
-        reason: { kind: 'listing-incomplete', defect: listing.failure },
-      })
+    if ('failure' in listing) return succeed(incomplete(listing.failure))
     const merged = mergeListing(stateOf(stored), listing.ok)
     if ('failure' in merged) return succeed(SUPERSEDED)
     if (table.isShut()) return SHUT
@@ -235,17 +274,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return publish(access, request, ensured.ok)
   }
 
-  function basisCurrent(
-    record: ActionCatalogRecord,
-    connected: Ensured | undefined,
-  ): Extract<CatalogView, { kind: 'acquired' }>['basisCurrent'] {
-    if (connected === undefined) return 'no-connection'
-    const fits =
-      record.basis.protocolVersion === connected.peer.protocolVersion &&
-      sameJson(record.basis.capabilities, connected.peer.capabilities)
-    return fits ? 'matches' : 'differs'
-  }
-
   async function current(
     access: Access<P>,
     ref: EndpointRef,
@@ -288,5 +316,5 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return succeed({ peer: connected.peer, generation: connected.generation })
   }
 
-  return { refresh, current, peer }
+  return { refresh, current, peer, eventTypes: deps.eventTypes.view, skills: deps.skills.view }
 }

@@ -23,7 +23,7 @@ import type {
   StepId,
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HandoffReference, MessageSource, Passage } from './passages.ts'
+import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts'
 import type { CompactionState, Preparation, SavedPreparation } from './request.ts'
 
 export type ProducedResult = Readonly<{
@@ -61,6 +61,7 @@ export type FailureCandidate = Readonly<{
         node: string
         category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected'
         failureKind: Failure['kind']
+        diagnostic?: string
       }>
     | Readonly<{
         kind: 'cannot-fit'
@@ -107,15 +108,29 @@ export type FailureCandidate = Readonly<{
   )
 export type Failure =
   | Readonly<{ kind: 'denied'; action: string }>
-  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
-  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{
-      kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported'
+      kind: 'invalid'
+      field: string
+      reason: string
+      rejected?: Readonly<{ input: InputId; evidence: DurableEvidence }>
+      disclosed?: string
+    }>
+  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string; disclosed?: string }>
+  | Readonly<{
+      kind:
+        | 'stale-advance'
+        | 'not-ready'
+        | 'terminal'
+        | 'busy'
+        | 'changed'
+        | 'unsupported'
+        | 'reclaimed'
     }>
   | Readonly<{ kind: 'commit-unknown'; operation: AgentOperationId }>
   | Readonly<{ kind: 'conflict'; operation: AgentOperationId }>
 export type Reply<A> = Promise<Outcome<A, Failure>>
 export type ModelPurpose = 'main' | 'extension'
+export type ToolAcceptance = 'accepted' | 'unknown'
 type PendingCommon = Readonly<{
   action: ActionId
   consumption: ConsumptionId
@@ -136,8 +151,12 @@ export type PendingCall = PendingCommon &
         admission?: never
       }> &
         (
-          | Readonly<{ association: 'intent'; reference?: never }>
-          | Readonly<{ association: 'associated'; reference: T.ToolInvocationRef }>
+          | Readonly<{ association: 'intent'; reference?: never; acceptance?: never }>
+          | Readonly<{
+              association: 'associated'
+              reference: T.ToolInvocationRef
+              acceptance: ToolAcceptance
+            }>
         ))
   )
 export type ActionJudgment =
@@ -154,6 +173,8 @@ export type ActionJudgment =
       evidence: DurableEvidence
       request: DurableEvidence
       notice?: string
+      /** The action may run beside the other actions of its batch that carry this mark too. */
+      concurrent?: true
     }>
 export type ActionToolCall = ToolCallPart
 export type Action = Readonly<{
@@ -199,6 +220,8 @@ export type ActionBatch = Readonly<{
   actions: readonly Action[]
   barrier: ActionBarrier
   slots: readonly ActionSlot[]
+  /** The calls of the pass before the actions; null until that pass is adopted. A batch is judged by it once. */
+  beforePass: readonly PassageId[] | null
   batchPass: readonly PassageId[] | null
 }>
 export type ModelReplyAdmission = Readonly<{
@@ -296,7 +319,8 @@ export type AgentCheckpoint = Readonly<{
   adoptedContext: DurableEvidence | null
   adoptedRequest?: AdoptedRequest | null
   guard: GuardFact | null
-  completedPassages: readonly PassageId[]
+  /** The extension chain of the pass that is open, or null. */
+  chain: ExtensionChain | null
   priorConditions: DurableEvidence | null
   /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
   currentHandoff: HandoffReference | null
@@ -310,7 +334,11 @@ export type RuntimeConditions = Readonly<{
   model: Adoption
   context: DurableEvidence
   bindings: readonly Adoption[]
+  /** The resident segments of the system prompt; absent when the session keeps none. */
+  segments?: readonly ResidentSegmentText[]
 }>
+/** A segment of the system prompt the session keeps: placed as written after the sections of the definition. */
+export type ResidentSegmentText = Readonly<{ key: string; text: string }>
 export type ProducerDecisionView =
   | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: DurableEvidence }>
   | Readonly<{

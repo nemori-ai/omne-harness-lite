@@ -49,12 +49,15 @@ import type { SessionProtectedBasisSource, SessionProtectedCommit } from './prot
 export type Expected = Readonly<{ operation: SessionOperationId; digest: string }>
 type Found = Readonly<{
   kind: 'operation'
+  digest: string
   form: string
   receipt: JsonValue
   result: JsonValue
   evidence: JsonValue
 }>
-type Rest = Awaited<ReturnType<typeof exclusion>>
+type Rest =
+  | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
 
 const identityOf = (domain: TenantDomainRef, operation: string, key: string): SqlIdentity => ({
   scope: domain.domain.scope,
@@ -62,6 +65,16 @@ const identityOf = (domain: TenantDomainRef, operation: string, key: string): Sq
   operation,
   protocolVersion: '2',
   operationKey: key,
+})
+
+const attemptOf = (
+  domain: TenantDomainRef,
+  session: string,
+  operation: string,
+  attempt: number,
+): SqlIdentity => ({
+  ...identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
+  recall: 'never',
 })
 
 type Submission = Omit<CommitRequestV2, 'identity'>
@@ -139,6 +152,16 @@ function fromCommitted(
   return succeed(answer.result)
 }
 
+function fromFound(
+  found: Found,
+  expected: Expected,
+  mark: Recall,
+): Outcome<unknown, SessionFailure> {
+  if (found.digest !== expected.digest)
+    return failure({ kind: 'conflict', operation: expected.operation })
+  return succeed(mark(decodeValue(found.result)))
+}
+
 function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
   const stop = receipt.responses[receipt.responses.length - 1]?.reply
   if (stop === undefined || stop.kind === 'participated')
@@ -201,28 +224,49 @@ function saw(
     generations.set(key, attempt)
 }
 
+type Settled = Extract<QueryResultV2, { kind: 'settled' }>
+
+async function settledThrough<P>(
+  context: Context<P>,
+  domain: TenantDomainRef,
+  session: string,
+  operation: string,
+  last: number,
+): Promise<Settled | null> {
+  let settled: Settled | null = null
+  for (let attempt = 1; attempt <= last; attempt += 1) {
+    const asked = await context.options.storage.query(
+      attemptOf(domain, session, operation, attempt),
+    )
+    if (asked.kind !== 'settled') return null
+    settled = asked
+  }
+  return settled
+}
+
 type Generation =
-  | Readonly<{ kind: 'committed'; receipt: ReceiptV2 }>
-  | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'answered'; answer: Outcome<unknown, SessionFailure> }>
   | Readonly<{ kind: 'open'; attempt: number; identity: SqlIdentity }>
 
 async function generationFrom<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   session: string,
-  operation: string,
+  expected: Expected,
   from: number,
+  mark: Recall,
 ): Promise<Generation> {
-  const key = generationKey(domain, session, operation)
-  for (let attempt = from; ; attempt += 1) {
-    const identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
-    const found = await context.options.storage.query(identity)
-    saw(context.generations, key, attempt, found.kind)
-    if (found.kind === 'rolled_back') continue
-    if (found.kind === 'committed') return { kind: 'committed', receipt: found }
-    if (found.kind === 'unknown') return { kind: 'unknown' }
-    return { kind: 'open', attempt, identity }
-  }
+  const { operation } = expected
+  const unknown = {
+    kind: 'answered',
+    answer: failure({ kind: 'commit-unknown', operation }),
+  } as const
+  if ((await settledThrough(context, domain, session, operation, from)) === null) return unknown
+  const found = await lookup(context, domain, session, operation, 'change')
+  if ('failure' in found)
+    return found.failure.kind === 'denied' ? { kind: 'answered', answer: found } : unknown
+  if (found.ok !== null) return { kind: 'answered', answer: fromFound(found.ok, expected, mark) }
+  return { kind: 'open', attempt: from, identity: attemptOf(domain, session, operation, from) }
 }
 
 export async function withCommitTime<P>(
@@ -255,22 +299,19 @@ export async function commitFacts<P>(
   const { storage } = context.options
   const { generations } = context
   const key = generationKey(domain, session, operation)
-  const unknown = failure({ kind: 'commit-unknown', operation })
   for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
     let identity: SqlIdentity
     let submission: Submission
     if (submit === undefined) {
-      identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
+      identity = attemptOf(domain, session, operation, attempt)
       submission = ordinaryOf(context, command)
     } else {
-      const slot = await generationFrom(context, domain, session, operation, attempt)
-      if (slot.kind === 'committed') return fromCommitted(slot.receipt, expected, true, mark)
-      if (slot.kind === 'unknown') return unknown
+      const slot = await generationFrom(context, domain, session, expected, attempt, mark)
+      if (slot.kind === 'answered') return slot.answer
       const asked = await submit()
       if ('failure' in asked) {
-        const again = await generationFrom(context, domain, session, operation, slot.attempt)
-        if (again.kind === 'committed') return fromCommitted(again.receipt, expected, true, mark)
-        return again.kind === 'unknown' ? unknown : asked
+        const again = await generationFrom(context, domain, session, expected, slot.attempt, mark)
+        return again.kind === 'answered' ? again.answer : asked
       }
       attempt = slot.attempt
       identity = slot.identity
@@ -398,56 +439,6 @@ async function lookup<P>(
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }
 
-function leftNoRecord(receipt: ReceiptV2): boolean {
-  const reply = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)?.reply
-  const said =
-    reply?.kind === 'participated'
-      ? reply.response
-      : reply?.kind === 'conflict'
-        ? reply.basis
-        : null
-  return (
-    typeof said === 'object' &&
-    said !== null &&
-    !Array.isArray(said) &&
-    (said as Readonly<Record<string, JsonValue>>)['recorded'] === false
-  )
-}
-
-async function exclusion<P>(
-  context: Context<P>,
-  domain: TenantDomainRef,
-  operation: SessionOperationId,
-  session: string,
-): Promise<
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'attempt-rejected' }>
-  | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
-  | Readonly<{ kind: 'committed-unseen' }>
-> {
-  let rolledBack = false
-  for (let attempt = 1; ; attempt += 1) {
-    const found = await context.options.storage.query(
-      identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
-    )
-    if (found.kind === 'rolled_back') rolledBack ||= !leftNoRecord(found)
-    else if (found.kind === 'unknown') return { kind: 'unknown' }
-    else if (found.kind === 'committed')
-      return leftNoRecord(found) ? { kind: 'unknown' } : { kind: 'committed-unseen' }
-    else if (rolledBack) return { kind: 'attempt-rejected' }
-    else
-      return {
-        kind: 'not-committed',
-        exclusion: {
-          owner: OWNER,
-          record: `${domain.domain.transactionDomain}/${operation}`,
-          revision: '1',
-          digest: `sha256:${createHash('sha256').update(canonicalText(found)).digest('hex')}`,
-        },
-      }
-  }
-}
-
 type Looked = Readonly<{ found: Found | null; rest: Rest | null }>
 
 async function resolve<P>(
@@ -460,29 +451,34 @@ async function resolve<P>(
   if ('failure' in decided) return decided
   const domain = await domainOf(context, access.tenant)
   if ('failure' in domain) return domain
-  const found = await lookup(context, domain.ok, access.session, operation, name)
+  const { session } = access
+  const found = await lookup(context, domain.ok, session, operation, name)
   if ('failure' in found) return found
   if (found.ok !== null) return succeed({ found: found.ok, rest: null })
+  const last = (context.generations.get(generationKey(domain.ok, session, operation)) ?? 0) + 1
+  const settled = await settledThrough(context, domain.ok, session, operation, last)
+  if (settled === null) return succeed({ found: null, rest: { kind: 'unknown' } })
+  const again = await lookup(context, domain.ok, session, operation, name)
+  if ('failure' in again) return again
+  if (again.ok !== null) return succeed({ found: again.ok, rest: null })
   return succeed({
     found: null,
-    rest: await exclusion(context, domain.ok, operation, access.session),
+    rest: {
+      kind: 'not-committed',
+      exclusion: {
+        owner: OWNER,
+        record: `${domain.ok.domain.transactionDomain}/${operation}`,
+        revision: '1',
+        digest: `sha256:${createHash('sha256').update(canonicalText(settled)).digest('hex')}`,
+      },
+    },
   })
 }
 
 type Unfound = ControlOperationResolution & OperationResolution
 
-function unfound(rest: Rest, control: boolean): Outcome<Unfound, SessionFailure> {
+function unfound(rest: Rest): Outcome<Unfound, SessionFailure> {
   switch (rest.kind) {
-    case 'committed-unseen':
-      return failure(unavailable('a committed attempt has no original receipt'))
-    case 'attempt-rejected':
-      return control
-        ? succeed({ kind: 'unknown' })
-        : succeed({
-            kind: 'attempt-rejected',
-            original: 'unknown',
-            reason: 'an attempt was rolled back',
-          })
     case 'not-committed':
     case 'unknown':
       return succeed({ kind: 'unknown' })
@@ -496,7 +492,7 @@ export async function queryOperation<P>(
   const looked = await resolve(context, input, input.operation, 'queryOperation')
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
-  if (found === null) return unfound(rest as Rest, false)
+  if (found === null) return unfound(rest as Rest)
   if (found.form === 'control' || found.form === 'answer' || found.form === 'log')
     return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.receipt) as CommitReceipt })
@@ -509,7 +505,7 @@ export async function queryControlOperation<P>(
   const looked = await resolve(context, input, input.operation, 'queryControlOperation')
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
-  if (found === null) return unfound(rest as Rest, true)
+  if (found === null) return unfound(rest as Rest)
   if (found.form === 'batch' || found.form === 'entries' || found.form === 'log')
     return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.result) as never })

@@ -230,9 +230,14 @@ describe('NoSilentGiveUp: a step that stops on a failure leaves a named diagnost
   it('C2 finishRun: the bounded close of a refused first input fails', async () => {
     const h = await service()
     await h.create()
-    recordInvokes(h, () =>
+    recordInvokes(h, input =>
       Promise.resolve(
-        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+        fail({
+          kind: 'invalid' as const,
+          input: input.initial[0],
+          reason: 'refused',
+          rejection: evidence('agent/refused'),
+        }),
       ),
     )
     h.view.onCommit((input, next) =>
@@ -273,10 +278,11 @@ describe('the bounded close is not starved by unrelated commits (contract I-R2)'
     const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
     await h.create()
     recordInvokes(h, (input, original) =>
-      input.first === 'input-1'
+      input.initial[0] === 'input-1'
         ? Promise.resolve(
             fail({
               kind: 'invalid' as const,
+              input: input.initial[0],
               reason: 'refused',
               rejection: evidence('agent/refused'),
             }),

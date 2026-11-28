@@ -186,8 +186,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('bounded close waits after changed, then retries the original operation with a fresh read', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [100] } } })
     await h.create()
-    h.drive.invoke = async () =>
-      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    h.drive.invoke = async input =>
+      fail({
+        kind: 'invalid',
+        input: input.initial[0],
+        reason: 'refused',
+        rejection: evidence('agent/refused'),
+      })
     const operations: string[] = []
     h.view.onCommit(async (input, next) => {
       if (input.command.kind === 'finishRun') {
@@ -215,8 +220,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
       policy: { command: { retriesOnChanged: 2 }, advance: { retryDelaysMs: [100] } },
     })
     await h.create()
-    h.drive.invoke = async () =>
-      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    h.drive.invoke = async input =>
+      fail({
+        kind: 'invalid',
+        input: input.initial[0],
+        reason: 'refused',
+        rejection: evidence('agent/refused'),
+      })
     let attempts = 0
     h.view.onCommit(async (input, next) => {
       if (input.command.kind !== 'finishRun') return next()
@@ -251,8 +261,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     await h.create()
     const original = h.drive.invoke.bind(h.drive)
     h.drive.invoke = async input =>
-      input.first === 'input-1'
-        ? fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+      input.initial[0] === 'input-1'
+        ? fail({
+            kind: 'invalid',
+            input: input.initial[0],
+            reason: 'refused',
+            rejection: evidence('agent/refused'),
+          })
         : original(input)
     const requests: unknown[] = []
     h.view.onCommit(async (input, next) => {
@@ -443,13 +458,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     })
     expect(invoked).toHaveLength(1)
     const call = invoked[0]
-    expect(call?.first).toBe('input-1')
+    expect(call?.initial).toEqual(['input-1'])
     expect(call?.execution).toBe(snapshot.run.execution.execution)
     expect(call?.operation).toBe(
       deriveDriveOperation({
         kind: 'invoke',
         execution: snapshot.run.execution.execution,
-        first: snapshot.run.first,
+        initial: snapshot.run.initial,
         started: call?.source ?? evidence('none'),
       }),
     )
@@ -535,6 +550,100 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     })
   })
 
+  it('a run adopts what the adoption source names when it starts, and the session records that adoption once', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    const newer = { ...pinned, digest: 'sha256:newer' }
+    const asked: string[] = []
+    h.dependencies.evidence.runAdoption = async (access, input) => {
+      asked.push(`${access.session}/${input.run}/${input.work.definition.adopted.digest}`)
+      return { ok: { kind: 'adopt' as const, candidate: newer } }
+    }
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      const work = await read(h)
+      expect(work.run.kind).toBe('active')
+      expect(work.definition.adopted).toEqual(newer)
+      expect(work.run.kind === 'active' && work.run.adoption).toEqual(newer)
+    })
+    expect(asked).toHaveLength(1)
+    expect(asked[0]).toContain(`/${pinned.digest}`)
+  })
+
+  it('a run starts on the definition the session stands at when the new one cannot be used, and notes why once', async () => {
+    const h = await service()
+    await h.create()
+    const pinned = (await read(h)).definition.adopted
+    h.dependencies.evidence.runAdoption = async () => ({
+      ok: { kind: 'keep' as const, reason: 'the new version is refused' },
+    })
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      const work = await read(h)
+      expect(work.run.kind).toBe('active')
+      expect(work.run.kind === 'active' && work.run.adoption).toEqual(pinned)
+    })
+    expect(await historyOf(h, ['session.adoption-noted'])).toEqual([
+      {
+        kind: 'session.adoption-noted',
+        value: { note: { kind: 'kept', reason: 'the new version is refused' } },
+      },
+    ])
+  })
+
+  it('a run with no usable adoption does not start, keeps its input, and notes what it waits for once however often it is asked', async () => {
+    const h = await service()
+    await h.create()
+    let asked = 0
+    h.dependencies.evidence.runAdoption = async () => {
+      asked += 1
+      return { ok: { kind: 'none' as const, reason: 'no definition is named reviewer' } }
+    }
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      expect(await historyOf(h, ['session.adoption-noted'])).toHaveLength(1)
+    })
+    await h.accept('input-2')
+    await vi.waitFor(() => expect(asked).toBe(2))
+    await vi.waitFor(async () => expect((await read(h)).pending).toEqual(['input-1', 'input-2']))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const work = await read(h)
+    expect(work.run.kind).not.toBe('active')
+    expect(await historyOf(h, ['session.adoption-noted'])).toEqual([
+      {
+        kind: 'session.adoption-noted',
+        value: { note: { kind: 'waiting', reason: 'no definition is named reviewer' } },
+      },
+    ])
+  })
+
+  it('a run does not start while the adoption source cannot say what it adopts; the input stays pending', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let asked = 0
+    h.dependencies.evidence.runAdoption = async () => {
+      asked += 1
+      return fail({ kind: 'unavailable' as const, owner: 'adoption', diagnostic: 'not held' })
+    }
+    await h.accept('input-1')
+    await vi.waitFor(() => {
+      expect(asked).toBe(1)
+    })
+    h.clock.controls.advance(1000)
+    await vi.waitFor(() => {
+      expect(
+        h
+          .diagnostics()
+          .some(item => item.step === 'startRun' && item.reason === 'retries-exhausted'),
+      ).toBe(true)
+    })
+    expect(asked).toBe(2)
+    const work = await read(h)
+    expect(work.pending).toEqual(['input-1'])
+    expect(work.run.kind).not.toBe('active')
+  })
+
   it('a startRun that keeps answering unavailable stops after the configured delays and reports it', async () => {
     const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
     await h.create()
@@ -567,9 +676,14 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('a first input that the message admission refuses closes the Run as failed (PM-02)', async () => {
     const h = await service()
     await h.create()
-    h.drive.invoke = () =>
+    h.drive.invoke = input =>
       Promise.resolve(
-        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+        fail({
+          kind: 'invalid' as const,
+          input: input.initial[0],
+          reason: 'refused',
+          rejection: evidence('agent/refused'),
+        }),
       )
     await h.accept('input-1')
     await vi.waitFor(async () => {
@@ -653,9 +767,14 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
   it('a bounded close whose read revision went stale reads again and still closes the Run (PM-02)', async () => {
     const h = await service()
     await h.create()
-    h.drive.invoke = () =>
+    h.drive.invoke = input =>
       Promise.resolve(
-        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+        fail({
+          kind: 'invalid' as const,
+          input: input.initial[0],
+          reason: 'refused',
+          rejection: evidence('agent/refused'),
+        }),
       )
     let moved = false
     h.view.onCommit(async (input, next) => {

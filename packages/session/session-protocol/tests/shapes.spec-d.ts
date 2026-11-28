@@ -41,6 +41,8 @@ type SessionRequestBodies = {
     readonly acceptId: string
     readonly inputId: string
     readonly message: JsonObject
+    readonly seen?: { readonly command: string | null; readonly references: readonly string[] }
+    readonly afterRun?: 'yes'
   }
   'query-send-input': Target & { readonly acceptId: string }
   'read-history':
@@ -66,7 +68,14 @@ type SessionRequestBodies = {
 type SessionSuccessBodies = {
   'create-session': { readonly session: string; readonly recovered: boolean }
   'query-create-session': { readonly session: string }
-  'send-input': { readonly recovered: boolean }
+  'send-input': {
+    readonly recovered: boolean
+    readonly operation?: {
+      readonly name: string
+      readonly outcome: string
+      readonly detail: string | null
+    }
+  }
   'query-send-input': Empty
   'read-history': {
     readonly entries: readonly {
@@ -146,7 +155,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the twenty-six of session/v1', () => {
+test('the operations are exactly the twenty-seven of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -163,6 +172,7 @@ test('the operations are exactly the twenty-six of session/v1', () => {
     | 'list-archived-sessions'
     | 'archive-session'
     | 'unarchive-session'
+    | 'reload-session'
     | 'cancel-run'
     | 'stop-call'
     | 'retry-run'
@@ -318,7 +328,15 @@ test('read-waiting names a session and answers the waiting Run, the pending coun
     readonly waiting: {
       readonly run: string
       readonly pending: number
-      readonly cause: { readonly kind: string; readonly detail: string | null } | null
+      readonly cause: {
+        readonly kind: string
+        readonly detail: string | null
+        readonly fault?: {
+          readonly cause: string
+          readonly upstreamStatus: string | null
+          readonly throttled: boolean
+        } | null
+      } | null
     } | null
   }>()
   expectTypeOf<ResultBody<'read-waiting', 'invalid'>>().toExtend<Empty>()

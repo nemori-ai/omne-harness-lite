@@ -1,4 +1,3 @@
-export { AccessAssemblyError } from './contribution.ts'
 export {
   createChangeObservation,
   type ChangeAdmission,
@@ -21,4 +20,5 @@ export type {
   PrincipalFor,
   ProtocolKey,
 } from './contribution.ts'
+export type { InProcessAnswer, InProcessCall, NotExecuted } from './calls.ts'
 export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts'

@@ -4,12 +4,12 @@ import {
   decodeRevision,
   type Adoption,
   type AssembledModelInput,
-  type FixedModelRequest,
+  type LlmModelRequest,
   type ModelProfile,
   type Supplier,
 } from '@omne-harness/model-contract'
 import {
-  judgeFixedModelRequest,
+  judgeModelRequest,
   judgeReplayDeclaration,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
@@ -17,7 +17,7 @@ import {
   composeFamilies,
   recordAdoption,
   recordProvider,
-  type PiFamilyBinding,
+  type PiChatBinding,
   type PiMaterializedMedia,
 } from '@omne-harness/pi-ai-transport'
 import { openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
@@ -29,7 +29,7 @@ import {
   type QwenFamilyConfig,
   type QwenRecord,
 } from '@omne-harness/pi-ai-qwen'
-import { componentAdoption } from '../../src/adoptions.ts'
+import { componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 
 export function adoption(name: string): Adoption {
   return { owner: 'pi-ai-qwen-tests', name, revision: '1', digest: 'a'.repeat(64) }
@@ -83,7 +83,7 @@ export function supplierOf(record: QwenRecord = RECORD): Supplier {
   }
 }
 
-export async function bindingOf(record: QwenRecord = RECORD): Promise<PiFamilyBinding> {
+export async function bindingOf(record: QwenRecord = RECORD): Promise<PiChatBinding> {
   const acquired = await composeFamilies([FAMILY]).acquire(
     supplierOf(record),
     new AbortController().signal,
@@ -176,6 +176,7 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
   )
   if (!('ok' in declared)) throw new Error(`declaration of ${record.name}`)
   return {
+    kind: 'llm',
     profile: PROFILE,
     suppliers: [supplier],
     fallback: false,
@@ -186,7 +187,7 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
     tools: parts.tools ?? [],
     toolChoice: parts.toolChoice ?? 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(QWEN_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(requested => ({
       supplier: supplier.adoption,
       applied: requested,
@@ -196,21 +197,21 @@ export function requestJson(record: QwenRecord, parts: RequestParts = {}): unkno
   }
 }
 
-export function fixedRequest(parts: RequestParts = {}, record = RECORD): FixedModelRequest {
-  const judged = judgeFixedModelRequest(requestJson(record, parts))
+export function fixedRequest(parts: RequestParts = {}, record = RECORD): LlmModelRequest {
+  const judged = judgeModelRequest('llm', requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
 }
 
 export function encodeInput(
-  request: FixedModelRequest,
+  request: LlmModelRequest,
   media: readonly PiMaterializedMedia[] = [],
   resent: TransportDispatch['resent'] = [],
-): Parameters<PiFamilyBinding['encode']>[0] {
+): Parameters<PiChatBinding['encode']>[0] {
   return { request, media, declaration: request.declarations[0], resent }
 }
 
-export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+export function assembledOf(request: LlmModelRequest): AssembledModelInput {
   return {
     system: request.system,
     messages: request.messages,
@@ -222,7 +223,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-export function officialProfile(record: QwenRecord = RECORD): ModelProfile {
+export function officialProfile(record: QwenRecord = RECORD): ModelProfile<'llm'> {
   const revision = decodeRevision('1')
   if (!('ok' in revision)) throw new Error('revision')
   const definition = officialQwenProfiles({
@@ -231,7 +232,7 @@ export function officialProfile(record: QwenRecord = RECORD): ModelProfile {
   }).find(item => item.suppliers[0].model === record.route.model)
   if (definition === undefined) throw new Error(`no official profile of ${record.name}`)
   return {
-    identity: { scope: { kind: 'factory' }, route: record.name },
+    identity: { kind: 'llm', scope: { kind: 'factory' }, route: record.name },
     adoption: PROFILE,
     revision: revision.ok,
     updatedAt: '2026-11-21T00:00:00Z',

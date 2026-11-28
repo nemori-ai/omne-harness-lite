@@ -4,21 +4,34 @@ import {
   Button,
   EmptyState,
   Field,
+  InlineNotice,
   Input,
+  LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Section,
+  StateWord,
   Table,
   TableBody,
   TableCell,
   TableRow,
 } from '@omne-harness/ui-kit'
 import type {
+  WorkspaceInstanceBody,
   WorkspaceProtocol,
   WorkspaceSummaryBody,
   WorkspaceViewBody,
 } from '@omne-harness/workspace-protocol'
 import { useEffect, useState, type JSX } from 'react'
+import {
+  workspaceDetail,
+  workspaceInstance,
+  workspaceItem,
+  workspaceList,
+  workspacePage,
+  workspaceRegister,
+} from '../parts.ts'
 import { commit, recheck, type Pending, type Told } from '../model/commits.ts'
 import { availabilityText, readRefusal, standingText } from '../model/words.ts'
 
@@ -78,7 +91,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): JSX.Element {
   const owner = readTenantText(tenant)
   return (
-    <PageColumn className="workspace-page">
+    <PageColumn {...workspacePage.props}>
       <PageHeader
         title="工作区"
         description="登记服务端机器上的目录，看你能在哪些工作区里工作，把别人加进来或移走。"
@@ -131,7 +144,7 @@ function Workspaces({ client, tenant, newId, onChange }: Props): JSX.Element {
     )
   return (
     <>
-      <Section id="workspace-register" title="登记">
+      <Section id="workspace-register" title="登记" {...workspaceRegister.props}>
         <Field id="workspace-register-address" label="要登记的目录" hint={REGISTER_HINT}>
           <Input
             id="workspace-register-address"
@@ -144,7 +157,7 @@ function Workspaces({ client, tenant, newId, onChange }: Props): JSX.Element {
         </Button>
       </Section>
       {told === null ? null : <ToldLine told={told} onAgain={pending => again(pending, changed)} />}
-      <Section id="workspace-list" title="你的工作区">
+      <Section id="workspace-list" title="你的工作区" {...workspaceList.props}>
         <WorkspaceList list={list} onShow={select} />
       </Section>
       {selected === null ? null : (
@@ -167,14 +180,14 @@ function ToldLine({
 }: Readonly<{ told: Told; onAgain: (pending: Pending) => Promise<void> }>): JSX.Element {
   const { pending } = told
   return (
-    <p role="status" className="workspace-told">
+    <InlineNotice
+      tone="neutral"
+      {...(pending === null
+        ? {}
+        : { action: { label: '再查一次', onClick: () => void onAgain(pending), icon: RetryIcon } })}
+    >
       {told.text}
-      {pending === null ? null : (
-        <Button variant="outline" onClick={() => void onAgain(pending)}>
-          再查一次
-        </Button>
-      )}
-    </p>
+    </InlineNotice>
   )
 }
 
@@ -185,30 +198,41 @@ function WorkspaceList({
   list: Read<readonly WorkspaceSummaryBody[]>
   onShow: (workspace: string) => void
 }>): JSX.Element {
-  if (list.kind === 'unread') return <p>正在读……</p>
-  if (list.kind === 'unreadable') return <p role="alert">列不出：{list.reason}</p>
+  if (list.kind === 'unread') return <LoadingState label="正在读……" />
+  if (list.kind === 'unreadable') return <InlineNotice>列不出：{list.reason}</InlineNotice>
   if (list.value.length === 0) return <EmptyState title="还没有工作区。登记一个目录开始。" />
   return (
     <Table>
       <TableBody>
         {list.value.map(item => (
-          <TableRow key={item.workspace}>
-            <TableCell>{item.workspace}</TableCell>
-            <TableCell>{item.type}</TableCell>
-            <TableCell>{standingText(item.standing)}</TableCell>
+          <TableRow key={item.workspace} {...workspaceItem.props}>
             <TableCell>
               <Button
-                variant="outline"
+                variant="link"
                 aria-label={`查看 ${item.workspace}`}
                 onClick={() => onShow(item.workspace)}
               >
-                查看
+                {item.workspace}
               </Button>
             </TableCell>
+            <TableCell>{item.type}</TableCell>
+            <TableCell>{standingText(item.standing)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+/** Whether an instance can be worked in: 可用 is the state table's word, the others a sentence. */
+function Availability({
+  availability,
+}: Readonly<{ availability: WorkspaceInstanceBody['availability'] }>): JSX.Element {
+  if (availability.kind !== 'available') return <>{availabilityText(availability)}</>
+  return (
+    <>
+      <StateWord state="available" />：{availability.directory}
+    </>
   )
 }
 
@@ -239,16 +263,18 @@ function WorkspaceDetail({
     void onCommit({ name, body: { tenant, operation: newId(), workspace, target: other } })
   }
   return (
-    <Section id="workspace-detail" title={`工作区 ${workspace}`}>
-      {view.kind === 'unread' ? <p>正在读……</p> : null}
-      {view.kind === 'unreadable' ? <p role="alert">看不了：{view.reason}</p> : null}
+    <Section id="workspace-detail" title={`工作区 ${workspace}`} {...workspaceDetail.props}>
+      {view.kind === 'unread' ? <LoadingState label="正在读……" /> : null}
+      {view.kind === 'unreadable' ? <InlineNotice>看不了：{view.reason}</InlineNotice> : null}
       {view.kind === 'read' ? (
         <Table>
           <TableBody>
             {view.value.instances.map(instance => (
-              <TableRow key={instance.instance}>
+              <TableRow key={instance.instance} {...workspaceInstance.props}>
                 <TableCell>{instance.address}</TableCell>
-                <TableCell>{availabilityText(instance.availability)}</TableCell>
+                <TableCell>
+                  <Availability availability={instance.availability} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -261,7 +287,7 @@ function WorkspaceDetail({
           onChange={event => setTarget(event.target.value)}
         />
       </Field>
-      {wrong ? <p role="alert">对方的租户读不懂</p> : null}
+      {wrong ? <InlineNotice>对方的租户读不懂</InlineNotice> : null}
       <Button onClick={() => change('grant-participation')}>授予参与</Button>
       <Button variant="outline" onClick={() => change('remove')}>
         移除

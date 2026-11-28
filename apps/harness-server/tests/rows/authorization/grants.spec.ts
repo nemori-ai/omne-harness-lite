@@ -61,6 +61,8 @@ describe('the release grant table', () => {
     expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([
       'agent-host',
       'dispatch',
+      'goal',
+      'schedule',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
       'toolResidencyPrincipal',
@@ -72,6 +74,14 @@ describe('the release grant table', () => {
     expect([...record.purposes].sort()).toEqual(AGENT_INSTANCE_PURPOSES)
     expect(Object.isFrozen(record)).toBe(true)
     expect(Object.isFrozen(record.purposes)).toBe(true)
+  })
+
+  it('gives goals two purposes and nothing else: creating the session that examines for a goal, and sending a session an input', () => {
+    expect(MAINTENANCE_GRANTS.goal.purposes).toEqual(['session-create', 'session-input'])
+  })
+
+  it('gives schedule the one purpose of creating the session of a Job, and nothing else', () => {
+    expect(MAINTENANCE_GRANTS.schedule.purposes).toEqual(['session-create'])
   })
 
   it('gives dispatch the three purposes of a part of another domain, and nothing else', () => {

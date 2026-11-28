@@ -1,5 +1,6 @@
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import type { Tone } from '@omne-harness/ui-kit'
 
 type Client = ClientOf<ScheduleProtocol>
 type Operations = ScheduleProtocol['operations']
@@ -38,29 +39,52 @@ export function authorText(author: ScheduleCard['author']): string {
   }
 }
 
-export function basisText(basis: ScheduleDetail['basis']): string {
-  switch (basis.kind) {
-    case 'owner':
-      return '你本人的操作'
-    case 'blanket':
-      return basis.scope === 'standing'
-        ? '你的全权同意（始终放行）'
-        : '你的全权同意（只在那个会话里）'
-    case 'granular':
-      return '你对这一次的放行'
-    case 'none':
-      return '无：还没有生效'
-  }
-}
-
 /** A local date-time of the tenant's zone, as a person reads it: `2026-11-30 17:00`. */
 export function localText(local: string): string {
   return local.replace('T', ' ').replace(/:00$/, '')
 }
 
-/** One upcoming time in the tenant's zone, and the calendar and version its working days came from. */
-export function upcomingText(item: Upcoming): string {
-  return item.calendar === null
-    ? localText(item.local)
-    : `${localText(item.local)}（${item.calendar}，版本 ${item.version ?? '未知'}）`
+/** The next time as a person reads it; a schedule not in effect has none, whatever the answer carries. */
+export function nextText(schedule: Pick<ScheduleCard, 'control' | 'next'>): string {
+  if (schedule.control === 'paused') return '暂停中'
+  if (schedule.control !== 'active' || schedule.next === null) return '没有下一次'
+  return localText(schedule.next.local)
+}
+
+export function runnableText(schedule: Pick<ScheduleCard, 'control' | 'standing'>): string {
+  if (schedule.control === 'active') return STANDING_WORDS[schedule.standing]
+  if (schedule.control === 'draft') return '还没生效'
+  if (schedule.control === 'paused') return '恢复之前不会运行'
+  return '不会再运行'
+}
+
+/** Why a schedule has no planned times; one in effect has them, so nothing to say. */
+export function unplannedText(control: ScheduleCard['control']): string | undefined {
+  if (control === 'active') return undefined
+  if (control === 'draft') return '草稿还没生效，不会到点。'
+  if (control === 'paused') return '暂停中，恢复之前不会到点。'
+  return `${CONTROL_WORDS[control]}，不会再到点。`
+}
+
+/** The calendar and version an upcoming time's working days came from; none when its days need no calendar. */
+export function calendarText(item: Upcoming): string | undefined {
+  return item.calendar === null ? undefined : `（${item.calendar}，版本 ${item.version ?? '未知'}）`
+}
+
+/** What a schedule says of itself when it is not the normal one, in effect and able to run on time: the word its
+ * row and its record both write, and the tone the record gives it. */
+export type StateNote = Readonly<{
+  word: string
+  tone: Extract<Tone, 'neutral' | 'caution' | 'danger'>
+}>
+
+export function stateNote(
+  schedule: Pick<ScheduleCard, 'control' | 'standing'>,
+): StateNote | undefined {
+  if (schedule.control !== 'active')
+    return { word: CONTROL_WORDS[schedule.control], tone: 'neutral' }
+  if (schedule.standing === 'blocked') return { word: STANDING_WORDS.blocked, tone: 'caution' }
+  if (schedule.standing === 'terminallyInvalidated')
+    return { word: STANDING_WORDS.terminallyInvalidated, tone: 'danger' }
+  return undefined
 }

@@ -1,6 +1,7 @@
 import { settingsSourceIdentities, type SettingDefinitions } from '@omne-harness/settings'
 import type {
   createStandaloneSettingsOwner,
+  SettingsTargetProjection,
   StandaloneTargetReadResult,
 } from '@omne-harness/settings-local'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -15,13 +16,19 @@ type Installation = Readonly<{
   owner: ReturnType<typeof createStandaloneSettingsOwner>
   organizationId: string
   definition: SettingDefinitions
+  ownerRef: string
 }>
 
-function sourceLayout(organizationId: string) {
+type Observed =
+  | ToolSourceInstallation
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'outdated'; projection: SettingsTargetProjection }>
+
+function sourceLayout({ organizationId, ownerRef }: Installation) {
   return [
     {
       sourceId: 'organization',
-      ownerRef: TOOL_GOVERNANCE_OWNER,
+      ownerRef,
       scope: { kind: 'organization' as const, subjectRef: organizationId },
     },
   ]
@@ -31,52 +38,63 @@ function observe(
   current: StandaloneTargetReadResult,
   input: Installation,
   source: ReturnType<typeof organizationSettingsSource>,
-): ToolSourceInstallation | undefined {
+): Observed {
   if (current.kind === 'rejected') return { kind: 'unavailable' }
-  if (current.kind === 'not_found') return undefined
+  if (current.kind === 'not_found') return { kind: 'absent' }
   if (current.retired || !current.projection.enabled) return { kind: 'inactive', source }
+  const { projection } = current
   if (
-    canonicalDigest(settingsSourceIdentities(current.projection.sources)) !==
-    canonicalDigest(sourceLayout(input.organizationId))
+    canonicalDigest(settingsSourceIdentities(projection.sources)) !==
+      canonicalDigest(sourceLayout(input)) ||
+    projection.definition.providerId !== input.definition.providerId ||
+    projection.definition.definitionId !== input.definition.definitionId
   )
     return { kind: 'unavailable' }
-  return canonicalDigest(current.projection.definition) === canonicalDigest(input.definition)
+  return canonicalDigest(projection.definition) === canonicalDigest(input.definition)
     ? { kind: 'ready', source }
-    : { kind: 'unavailable' }
+    : { kind: 'outdated', projection }
 }
 
-/** Reuses the organization target; remount never changes assignments or restores retired targets. */
-export async function installToolOrganizationSource(
+export function installToolOrganizationSource(
+  input: Omit<Installation, 'ownerRef'>,
+): Promise<ToolSourceInstallation> {
+  return installOrganizationSource({ ...input, ownerRef: TOOL_GOVERNANCE_OWNER })
+}
+
+export async function installOrganizationSource(
   input: Installation,
 ): Promise<ToolSourceInstallation> {
   const source = organizationSettingsSource(input)
-  const current = await input.owner.readTarget(source.target)
-  const observed = observe(current, input, source)
-  if (observed !== undefined) return observed
+  const observed = observe(await input.owner.readTarget(source.target), input, source)
+  if (observed.kind !== 'absent' && observed.kind !== 'outdated') return observed
   const record = {
     publicationRef: null,
     target: source.target,
     definition: input.definition,
-    sources: sourceLayout(input.organizationId),
-    grants: [
-      {
-        sourceId: 'organization',
-        actions: ['set' as const, 'clear' as const, 'lock' as const, 'unlock' as const],
-      },
-    ],
+    sources: sourceLayout(input),
+    grants:
+      observed.kind === 'outdated'
+        ? observed.projection.grants
+        : [
+            {
+              sourceId: 'organization',
+              actions: ['set' as const, 'clear' as const, 'lock' as const, 'unlock' as const],
+            },
+          ],
   }
   const command = {
     kind: 'provision' as const,
     record,
-    expectedRevision: null,
+    expectedRevision: observed.kind === 'outdated' ? observed.projection.ownerRevision : null,
   }
   const result = await input.owner.mutate({
     ...command,
-    operationId: canonicalDigest({ owner: TOOL_GOVERNANCE_OWNER, command }),
+    operationId: canonicalDigest({ owner: input.ownerRef, command }),
   })
   if (result.kind === 'rejected' && result.reason !== 'revision_conflict')
     return { kind: 'unavailable' }
-  return (
-    observe(await input.owner.readTarget(source.target), input, source) ?? { kind: 'unavailable' }
-  )
+  const settled = observe(await input.owner.readTarget(source.target), input, source)
+  return settled.kind === 'absent' || settled.kind === 'outdated'
+    ? { kind: 'unavailable' }
+    : settled
 }

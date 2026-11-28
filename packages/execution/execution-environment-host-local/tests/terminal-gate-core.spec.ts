@@ -393,7 +393,7 @@ describe('readObservations', () => {
 
   it('reports a segment started and hands over its standard input', () => {
     const step = readObservations(begun(), started, config)
-    expect(json(step)).toBe('[{"t":"started","leg":"leg-1"}]')
+    expect(json(step)).toBe('[{"t":"started","leg":"leg-1","cwd":"/home/u"}]')
     expect(step.stdin).toEqual(Buffer.from('input'))
   })
 
@@ -411,7 +411,7 @@ describe('readObservations', () => {
   it('waits for a whole record across reads, and applies several records in order', () => {
     const bytes = Buffer.concat([started, finished('3')])
     const first = readObservations(begun(), bytes.subarray(0, started.length + 4), config)
-    expect(first.frames).toEqual([{ t: 'started', leg: 'leg-1' }])
+    expect(first.frames).toEqual([{ t: 'started', leg: 'leg-1', cwd: '/home/u' }])
     expect(first.state.observed).toEqual(bytes.subarray(started.length, started.length + 4))
     const second = readObservations(first.state, bytes.subarray(started.length + 4), config)
     expect(second.state.completion).toEqual({ code: 3, cwd: '/home/u' })
@@ -422,7 +422,7 @@ describe('readObservations', () => {
   it('keeps the frames before a bad record and applies nothing after it', () => {
     const bytes = Buffer.concat([started, record('gen-2', '', 'opened', '0', '/'), finished('0')])
     const step = readObservations(begun(), bytes, { ...config, maxControlBytes: 1024 })
-    expect(step.frames).toEqual([{ t: 'started', leg: 'leg-1' }])
+    expect(step.frames).toEqual([{ t: 'started', leg: 'leg-1', cwd: '/home/u' }])
     expect(step.fault).toBe(true)
     expect(step.state.completion).toBeUndefined()
   })

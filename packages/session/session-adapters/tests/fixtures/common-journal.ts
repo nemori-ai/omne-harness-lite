@@ -63,7 +63,7 @@ export function checkpoint(): AgentCheckpoint {
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -172,7 +172,7 @@ export async function scene(
   const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
   const view = backend.forSession(access)
   const admitted = ok(
-    await backend.transactions.readInput({ ...access, input: snapshot.run.first }),
+    await backend.transactions.readInput({ ...access, input: snapshot.run.initial[0] }),
   )
   const opening = checkpoint()
   const initial: AcceptedInput = {
@@ -219,49 +219,53 @@ export function openInput(
     operation: AgentOperationId
     instance: AgentInstanceId
     grant: DurableEvidence | null
-    initial: AcceptedInput
+    initial: AcceptedInput | readonly AcceptedInput[]
     checkpoint: AgentCheckpoint
   }>,
 ): Parameters<AgentJournal<string>['open']>[0] {
-  const { access, execution, operation: entry, initial, checkpoint: initialCheckpoint } = fields
+  const { access, execution, operation: entry, checkpoint: initialCheckpoint } = fields
   const runtime = {
     instance: fields.instance,
     scope: evidence(`scope/${execution}`),
     definition: DEFINITION,
     grant: fields.grant,
   }
-  const invoke = {
-    kind: 'invoke' as const,
-    operation: entry,
-    execution,
-    initial,
-  }
-  const handoff = { kind: 'input' as const, execution, entry, input: initial.id }
-  return {
-    ...access,
-    execution,
-    operation: entry,
-    original: {
+  const acceptanceOf = (initial: AcceptedInput, at: number) => {
+    const invoke = { kind: 'invoke' as const, operation: entry, execution, initial }
+    const handoff = { kind: 'input' as const, execution, entry, input: initial.id }
+    const named = at === 0 ? entry : `${entry}/${initial.id}`
+    return {
       entry: invoke,
       handoff,
       outcome: {
         request: {
-          kind: 'input',
+          kind: 'input' as const,
           reference: handoff,
           entry: invoke,
-          source: { kind: 'external-input', input: initial.id },
+          source: { kind: 'external-input' as const, input: initial.id },
         },
-        origin: { kind: 'invoke', ...runtime },
+        origin: { kind: 'invoke' as const, ...runtime },
         provider: HANDOFF_PROVIDER,
-        qualification: evidence(`qualification/${entry}`),
-        record: evidence(`record/${entry}`),
+        qualification: evidence(`qualification/${named}`),
+        record: evidence(`record/${named}`),
         decision: {
-          kind: 'prepared',
+          kind: 'prepared' as const,
           message: initial.content,
-          admission: evidence(`admission/${entry}`),
+          admission: evidence(`admission/${named}`),
         },
       },
-    },
+    }
+  }
+  const given: readonly AcceptedInput[] = Array.isArray(fields.initial)
+    ? fields.initial
+    : [fields.initial as AcceptedInput]
+  const [first, ...rest] = given.map(acceptanceOf)
+  if (first === undefined) throw new Error('an open needs an initial input')
+  return {
+    ...access,
+    execution,
+    operation: entry,
+    originals: [first, ...rest],
     runtime,
     checkpoint: initialCheckpoint,
   }

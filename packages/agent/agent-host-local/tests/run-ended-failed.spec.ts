@@ -49,6 +49,7 @@ const conditions: RuntimeConditions = {
   model: adoption('model'),
   context: evidence('context'),
   bindings: [],
+  segments: [],
 }
 
 const selected = {
@@ -126,7 +127,7 @@ async function ending(
       ...caller('a'),
       execution: EXECUTION,
       operation: ok(decodeAgentOperationId('ending-invoke')),
-      initial: input(),
+      initial: [input()],
       grant: null,
     }),
   )

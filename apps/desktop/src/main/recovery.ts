@@ -1,8 +1,9 @@
 export type LoadFailureChoice = 'reload' | 'close'
 export type UnresponsiveChoice = 'wait' | 'reload' | 'close'
+export type UtilityHeldChoice = 'retry' | 'close'
 
-/** The utility process as recovery sees it: `failed` is a start that did not reach ready. */
-export type UtilityState = 'starting' | 'ready' | 'failed'
+/** The utility process as recovery sees it: `failed` is a start that did not reach ready, `held` is no more restarts. */
+export type UtilityState = 'starting' | 'ready' | 'failed' | 'held'
 
 export type RecoveryActions = Readonly<{
   reload(): void
@@ -10,6 +11,8 @@ export type RecoveryActions = Readonly<{
   /** The question closes itself when the signal aborts; its answer is then ignored. */
   askLoadFailed(signal: AbortSignal): Promise<LoadFailureChoice>
   askUnresponsive(signal: AbortSignal): Promise<UnresponsiveChoice>
+  askUtilityHeld(signal: AbortSignal): Promise<UtilityHeldChoice>
+  retryUtility(): void
 }>
 
 export type Recovery = Readonly<{
@@ -21,7 +24,7 @@ export type Recovery = Readonly<{
 
 export const RELOAD_CYCLE_MS = 30_000
 
-type Question = Readonly<{ kind: 'load' | 'hung'; controller: AbortController }>
+type Question = Readonly<{ kind: 'load' | 'hung' | 'held'; controller: AbortController }>
 
 /** One automatic reload per run of failures, then ask; every reload waits for a ready utility. */
 export function createRecovery(
@@ -80,6 +83,7 @@ export function createRecovery(
 
   return {
     failed() {
+      if (utility === 'held') return
       dismiss('hung')
       if (question !== undefined || queued !== undefined) return
       const at = now()
@@ -87,7 +91,7 @@ export function createRecovery(
       askLoadFailed()
     },
     unresponsive() {
-      if (question !== undefined) return
+      if (question !== undefined || utility === 'held') return
       ask('hung', actions.askUnresponsive, choice => {
         if (choice === 'reload') reload('manual')
         else if (choice === 'close') close()
@@ -97,7 +101,21 @@ export function createRecovery(
       dismiss('hung')
     },
     utility(state) {
+      const was = utility
       utility = state
+      if (state !== 'held') dismiss('held')
+      if (state === 'held') {
+        if (was === 'held') return
+        queued = undefined
+        dismiss('hung')
+        dismiss('load')
+        ask('held', actions.askUtilityHeld, choice => {
+          if (choice === 'close') return close()
+          queued = 'manual'
+          actions.retryUtility()
+        })
+        return
+      }
       if (queued === undefined) return
       if (state === 'ready') return reload(queued)
       if (state !== 'failed') return

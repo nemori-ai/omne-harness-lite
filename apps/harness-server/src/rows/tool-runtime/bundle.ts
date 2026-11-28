@@ -3,37 +3,33 @@ import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   toolBindingsKey,
   toolCatalogKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import {
-  createLocalInvocationSource,
-  createLocalInvocationQualifier,
-  type LocalInvocationSourceInput,
-} from '@omne-harness/tool-host-local'
+import { createLocalInvocationSource } from '@omne-harness/tool-host-local'
 import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
+import { sourcedEntriesOf, sourceListsName } from '../../entry/tool-entry-sources.ts'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
-import { releaseOf } from '../../entry/tool-release.ts'
-import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
-import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
+import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
+import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import {
-  admittedTargetAccess,
-  currentTargetPolicy,
-  withTargetAdmissionPolicy,
+  admittedTargetResidency,
+  currentTargetResidency,
+  withTargetResidency,
 } from './target-policy.ts'
 import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
   lateBodyStore,
-  lateConditional,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -59,7 +55,20 @@ function releasePermitRequirements(
         availability.kind === 'available' &&
         availability.layer.kind === 'official' &&
         release.manifest.entries.some(entry => entry.asset.name === name)
-      if (!inRelease) return { kind: 'unavailable', diagnostic: 'not a release built-in tool' }
+      // A tool a tenant holds starts only for that tenant, and only while it still holds that version.
+      const heldNow =
+        availability.kind === 'available' &&
+        isHeldNow(root, input.tenant, {
+          layer: availability.layer,
+          asset: { name, adoption: availability.definition.adoption },
+        })
+      const listed = sourceListsName(sourcedEntriesOf(root), input, availability)
+      if (!inRelease && !heldNow && !listed)
+        return {
+          kind: 'unavailable',
+          diagnostic:
+            'not a release built-in tool, a tool the tenant holds now, or an entry of a source now in service',
+        }
       const work = await identity.sessionWork(input.principal, input.tenant)
       if (work.kind === 'unavailable')
         return {
@@ -91,14 +100,15 @@ function inputFor(
 ) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
-  const requestAccess = currentTargetPolicy({
-    authorization: () => toolTargetPolicyOf(root),
-    view: () => releaseCatalogViewOf(root),
-  })
-  const sourceInput: LocalInvocationSourceInput<unknown> = {
+  const residency = currentTargetResidency(
+    () => releaseCatalogViewOf(root),
+    () => sourcedEntriesOf(root),
+  )
+  const sources = createLocalInvocationSource({
     store,
     authority: identity.sourceAuthority,
     principalCodec: releasePrincipalCodec,
+    definitions: releaseCurrentDefinitions(root),
     commitAttempts: config.configuration.ledgerCommitAttempts,
     forwarding: {
       authority: () => root.get(toolStartAuthorityKey, false),
@@ -109,8 +119,12 @@ function inputFor(
         pageBytes: config.configuration.resultPageBytes,
       },
     },
-  }
-  const sources = createLocalInvocationSource(sourceInput)
+    programs: {
+      authority: () => root.get(toolStartAuthorityKey, false),
+      isParent: request => isReleaseToolRequest(releaseOf(root), request, 'Code'),
+      children: () => holder.bundle?.value.children(),
+    },
+  })
   const recoveryAccess = createRecoveryAccess()
   admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
@@ -138,10 +152,9 @@ function inputFor(
       permitKey: holder.bodyPermitKey,
       clock: holder.bodyClock,
     },
-    conditionalCommit: lateConditional(holder),
     content: null,
-    sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
-    access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
+    sources: { ...sources, guard: withTargetResidency(sources.guard, store, residency) },
+    access: { ...identity.access, target: admittedTargetResidency(store, residency) },
     subjects: identity.subjects,
     grants: runScopeGrants(),
     guardsOf: () => [],
@@ -159,7 +172,7 @@ function inputFor(
     recoveryAccess,
     ...(lostContact === undefined ? {} : { lostContact }),
   }
-  return { input, qualification: createLocalInvocationQualifier(sourceInput) }
+  return input
 }
 
 export function ensureToolRuntimeBundle(
@@ -174,8 +187,11 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const { input, qualification } = inputFor(ctx.root, holder, config, lostContact)
-  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
+  const input = inputFor(ctx.root, holder, config, lostContact)
+  const value = Object.freeze({
+    ...createLocalToolRuntimePlugins(input),
+    programSources: () => input.sources.programs,
+  })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)
   return value

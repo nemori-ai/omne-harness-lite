@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { revisionOf } from '@omne-harness/public-contract'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
 
@@ -16,13 +17,12 @@ const card = {
 }
 const detail = {
   ...card,
-  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: at,
   definition: { any: 'json' },
 }
 
-describe('schedule/v1', () => {
-  it('has the read and commit operations of the design and no observation', () => {
+describe('schedule/v3', () => {
+  it('has the read and commit operations of the design, the Job operations and one observation, all from the first revision of this major', () => {
     expect(Object.keys(operations)).toEqual([
       'list-schedules',
       'read-schedule',
@@ -33,14 +33,105 @@ describe('schedule/v1', () => {
       'query-create-schedule',
       'manage-schedule',
       'query-manage-schedule',
+      'list-jobs',
+      'read-job',
+      'read-session-jobs',
+      'cancel-job',
+      'query-cancel-job',
+      'start-job',
+      'query-start-job',
     ])
     expect(operations['create-schedule'].effect).toBe('commit')
     expect(operations['manage-schedule'].effect).toBe('commit')
     expect(operations['read-schedule'].effect).toBe('read')
-    expect(Object.keys(scheduleProtocol.observations)).toEqual([])
+    expect(operations['cancel-job'].effect).toBe('commit')
+    expect(operations['start-job'].effect).toBe('commit')
+    expect(Object.values(operations).filter(operation => 'since' in operation)).toEqual([])
+    expect(Object.keys(scheduleProtocol.observations)).toEqual(['observe-jobs'])
+    expect(revisionOf(scheduleProtocol)).toBe(1)
   })
 
-  it('round-trips a page of cards and a detail with its consent basis', () => {
+  it('carries the reason a Job ended in its history row, and a row without it still reads', () => {
+    const page = operations['list-jobs'].outcomes.succeeded
+    const moment = '2026-11-30T09:00:00.000Z'
+    const job = {
+      job: 'job_1',
+      state: 'concluded',
+      outcome: 'failed',
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: moment,
+      startedAt: moment,
+      endedAt: moment,
+    }
+    const row = { kind: 'direct', row: 'direct:1', at: moment }
+    expectRoundTrip(page, {
+      items: [{ ...row, job: { ...job, reason: 'interrupted' } }],
+      next: null,
+    })
+    expectRoundTrip(page, { items: [{ ...row, job }], next: null })
+  })
+
+  it('round-trips a history page of the three row kinds and a Job in full; a row of a fourth kind is refused', () => {
+    const job = {
+      job: 'job-1',
+      state: 'running',
+      outcome: null,
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: '2027-01-01T00:01:00.000Z',
+      startedAt: '2027-01-01T00:01:02.000Z',
+      endedAt: null,
+    }
+    expectRoundTrip(operations['list-jobs'].outcomes.succeeded, {
+      items: [
+        {
+          kind: 'lapse',
+          row: 'lapse:s:1',
+          schedule: 's',
+          at: '2027-01-01T00:02:00.000Z',
+          through: '2027-01-01T00:05:00.000Z',
+          cause: 'stopped',
+          reason: 'catch-up-none',
+          count: 3,
+          selected: 0,
+        },
+        {
+          kind: 'slot',
+          row: 'slot:s:1',
+          schedule: 's',
+          at: '2027-01-01T00:01:00.000Z',
+          local: '2027-01-01T08:01:00',
+          disposition: 'acceptedExecution',
+          reason: 'accepted',
+          job,
+        },
+        { kind: 'direct', row: 'direct:job-2', at: '2027-01-01T00:00:00.000Z', job },
+      ],
+      next: null,
+    })
+    expectRoundTrip(operations['read-job'].outcomes.succeeded, {
+      ...job,
+      schedule: 's',
+      slot: '2027-01-01T00:01:00.000Z',
+      local: '2027-01-01T08:01:00',
+      calendar: null,
+      version: null,
+      revision: 1,
+      work: { kind: 'program', programRef: 'probe', input: {} },
+      reason: null,
+      where: { kind: 'program', program: 'probe', execution: 'program:g:job-1' },
+      events: [{ seq: 1, kind: 'accepted', at: '2027-01-01T00:01:00.000Z' }],
+    })
+    expect(
+      readSample(operations['list-jobs'].outcomes.succeeded, {
+        items: [{ kind: 'notice', row: 'x', at: '2027-01-01T00:00:00.000Z' }],
+        next: null,
+      }).ok,
+    ).toBe(false)
+  })
+
+  it('round-trips a page of cards and a detail with its author, and no consent', () => {
     expectRoundTrip(operations['list-schedules'].body, {
       tenant,
       control: null,
@@ -49,13 +140,10 @@ describe('schedule/v1', () => {
       limit: 50,
     })
     expectRoundTrip(operations['list-schedules'].outcomes.succeeded, { items: [card], next: null })
-    for (const basis of [
-      { kind: 'owner' },
-      { kind: 'blanket', scope: 'session' },
-      { kind: 'granular' },
-      { kind: 'none' },
-    ])
-      expectRoundTrip(operations['read-schedule'].outcomes.succeeded, { ...detail, basis })
+    for (const author of [{ kind: 'human' }, { kind: 'agent', session: 's-2' }, { kind: 'system' }])
+      expectRoundTrip(operations['read-schedule'].outcomes.succeeded, { ...detail, author })
+    const succeeded = operations['read-schedule'].outcomes.succeeded
+    expect(readSample(succeeded, { ...detail, basis: { kind: 'owner' } }).ok).toBe(false)
   })
 
   it('carries a create and every manage action', () => {
@@ -64,7 +152,7 @@ describe('schedule/v1', () => {
     expectRoundTrip(operations['query-create-schedule'].body, create)
     for (const action of [
       { kind: 'rename', label: '新名字' },
-      { kind: 'edit', instruction: '写周报' },
+      { kind: 'edit', instruction: { purpose: '写周报' } },
       { kind: 'revise', definition: { y: 2 }, reason: '改规则' },
       { kind: 'replace', definition: { y: 2 }, reason: '换掉' },
       { kind: 'pause', reason: null },
@@ -93,6 +181,72 @@ describe('schedule/v1', () => {
     expectRoundTrip(operations.preview.outcomes.succeeded, { upcoming: [upcoming], complete: true })
   })
 
+  it('a Job reads where it is carried out: the run of a program, or a session with what its execution left; anything else is refused', () => {
+    const read = operations['read-job'].outcomes.succeeded
+    const moment = '2027-01-01T00:01:00.000Z'
+    const carried = (where: unknown) => ({
+      job: 'job-1',
+      state: 'running',
+      outcome: null,
+      stop: 'none',
+      origin: 'due',
+      acceptedAt: moment,
+      startedAt: moment,
+      endedAt: null,
+      schedule: 's',
+      slot: moment,
+      local: null,
+      calendar: null,
+      version: null,
+      revision: 1,
+      work: { kind: 'agent' },
+      reason: null,
+      where,
+      events: [],
+    })
+    const account = {
+      definition: { name: 'coding', version: 'v7' },
+      outcome: 'exit:X2',
+      deliverables: ['report.md'],
+      since: 'entry-3',
+      run: 'run-1',
+    }
+    for (const where of [
+      null,
+      { kind: 'program', program: 'probe', execution: 'program:g:j' },
+      { kind: 'session', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account },
+      {
+        kind: 'session',
+        session: 's-9',
+        account: { ...account, definition: null, outcome: null, since: null, run: null },
+      },
+    ])
+      expectRoundTrip(read, carried(where))
+    for (const wrong of [
+      { kind: 'session', session: 's-9' },
+      { kind: 'elsewhere', session: 's-9', account: null },
+      { kind: 'session', session: 's-9', account: { ...account, deliverables: 'report.md' } },
+    ])
+      expect(readSample(read, carried(wrong)).ok).toBe(false)
+  })
+
+  it('an invalid answer says which code, and may say why in words; an edit carries the instruction as data, not as text', () => {
+    const invalid = operations['manage-schedule'].outcomes.invalid
+    expectRoundTrip(invalid, { code: 'invalid_input' })
+    expectRoundTrip(invalid, { code: 'invalid_input', reason: 'A1.evidence: 要有证据' })
+    expect(readSample(invalid, { reason: '没有代码' }).ok).toBe(false)
+    const edit = (instruction: unknown) => ({
+      tenant,
+      actionId: 'a',
+      schedule: 's',
+      revision: 1,
+      action: { kind: 'edit', instruction },
+    })
+    expectRoundTrip(operations['manage-schedule'].body, edit({ purpose: '写周报', criteria: [] }))
+    expect(readSample(operations['manage-schedule'].body, edit(undefined)).ok).toBe(false)
+  })
+
   it('refuses an unknown action, a negative revision and a bad agenda date', () => {
     const manage = {
       tenant,
@@ -101,14 +255,14 @@ describe('schedule/v1', () => {
       revision: 1,
       action: { kind: 'reconfirm' },
     }
-    expect(readSample(operations['manage-schedule'].body, manage)).toEqual({ ok: false })
+    expect(readSample(operations['manage-schedule'].body, manage).ok).toBe(false)
     expect(
       readSample(operations['manage-schedule'].body, {
         ...manage,
         revision: -1,
         action: { kind: 'pause', reason: null },
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     expect(
       readSample(operations['read-agenda'].body, {
         tenant,
@@ -117,6 +271,6 @@ describe('schedule/v1', () => {
         timezone: 'Asia/Shanghai',
         cursor: null,
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })

@@ -1,3 +1,4 @@
+import type { SenderSeen } from './composer-assistant.ts'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
@@ -13,7 +14,16 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
-import type { CreateChoice } from './session-machine.ts'
+import type { FateAnswer } from './reply.ts'
+import { BUSY, GONE, NO_WORDS, sayFate, type Said, type SayAnswer, type SayTarget } from './say.ts'
+import {
+  sayBlocked,
+  type CreateChoice,
+  type SayTo,
+  type SendHow,
+  type Urgency,
+  type Words,
+} from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -89,16 +99,22 @@ const CALLS: Calls = {
       createCallId,
       answer,
     })),
-  'send-input': ({ session, acceptId, inputId, text, attachments }, { client, tenant }) =>
-    notSent(async () =>
-      client['send-input']({
+  'send-input': (
+    { session, acceptId, inputId, text, attachments, seen, how },
+    { client, tenant },
+  ) =>
+    notSent(async () => {
+      const body = {
         tenant,
         session,
         acceptId,
         inputId,
         message: await userMessage({ inputId, text, attachments }),
-      }),
-    ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
+        ...(seen === undefined ? {} : { seen }),
+      }
+      if (how === 'first') return client['interrupt-input'](body)
+      return client['send-input'](how === 'after' ? { ...body, afterRun: 'yes' } : body)
+    }).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
   'query-send-input': ({ session, acceptId }, { client, tenant }) =>
     notSent(() => client['query-send-input']({ tenant, session, acceptId })).then(answer => ({
       kind: 'send-confirmed',
@@ -106,10 +122,10 @@ const CALLS: Calls = {
       acceptId,
       answer,
     })),
-  'cancel-run': ({ session, run, controlId }, { client, tenant }) =>
-    notSent(() =>
-      client['cancel-run']({ tenant, session, run, controlId, urgency: 'graceful' }),
-    ).then(answer => ({ kind: 'cancel-answered', session, controlId, answer })),
+  'cancel-run': ({ session, run, controlId, urgency }, { client, tenant }) =>
+    notSent(() => client['cancel-run']({ tenant, session, run, controlId, urgency })).then(
+      answer => ({ kind: 'cancel-answered', session, controlId, answer }),
+    ),
   'read-history': ({ session, token, request }, { client, tenant }) =>
     notSent(() => client['read-history'](historyBody(tenant, session, request))).then(answer => ({
       kind: 'history-read',
@@ -139,6 +155,7 @@ export class SessionDriver {
   readonly #observations = new Map<number, AbortController>()
   readonly #timers = new Set<() => void>()
   readonly #deps: Required<SessionDriverDeps>
+  readonly #saying = new Set<() => void>()
   #disposed = false
 
   constructor(deps: SessionDriverDeps) {
@@ -180,20 +197,79 @@ export class SessionDriver {
     this.dispatch({ kind: 'create-confirm' })
   }
 
-  async send(text: string, attachments: readonly UserAttachment[] = []): Promise<void> {
+  async send(
+    text: string,
+    attachments: readonly UserAttachment[] = [],
+    seen?: SenderSeen,
+    how?: SendHow,
+  ): Promise<void> {
     if (text.trim().length === 0 && attachments.length === 0) return
     const inputId = this.#deps.newId()
     const messageId = await userMessageId(inputId)
     const acceptId = this.#deps.newId()
-    this.dispatch({ kind: 'send', text, attachments, inputId, acceptId, messageId })
+    this.dispatch({
+      kind: 'send',
+      text,
+      attachments,
+      ...(seen === undefined ? {} : { seen }),
+      ...(how === undefined ? {} : { how }),
+      inputId,
+      acceptId,
+      messageId,
+    })
+  }
+
+  /** Hands words, and what is attached to them, to a session in one step, and answers once with how they ended. */
+  async say(
+    target: SayTarget,
+    text: string,
+    attachments: readonly UserAttachment[] = [],
+  ): Promise<SayAnswer> {
+    if (text.trim().length === 0 && attachments.length === 0)
+      return { kind: 'failed', reason: NO_WORDS }
+    const inputId = this.#deps.newId()
+    const messageId = await userMessageId(inputId)
+    if (this.#disposed) return { kind: 'failed', reason: GONE }
+    const to: SayTo =
+      target.kind === 'new' ? { kind: 'new', createCallId: this.#deps.newId() } : target
+    if (sayBlocked(this.#state.session, to)) return { kind: 'failed', reason: BUSY }
+    const said: Said = { to, acceptId: this.#deps.newId(), inputId, messageId }
+    const words: Words = { text, acceptId: said.acceptId, inputId, messageId }
+    this.dispatch({
+      kind: 'say',
+      to,
+      words: attachments.length === 0 ? words : { ...words, attachments },
+    })
+    return this.#fateOf(said)
+  }
+
+  #fateOf(said: Said): Promise<SayAnswer> {
+    return new Promise(resolve => {
+      const look = (): void => {
+        const fate = this.#disposed
+          ? { kind: 'unknown' as const }
+          : sayFate(this.#state.session, said)
+        if (fate === null) return
+        this.#saying.delete(look)
+        resolve(fate)
+      }
+      this.#saying.add(look)
+      look()
+    })
+  }
+
+  /** Where one input of a session went, read once; a call that did not leave answers unavailable. */
+  readInputFate(session: string, inputId: string): Promise<FateAnswer> {
+    const { client, tenant } = this.#deps
+    return notSent(() => client['read-input-fate']({ tenant, session, inputId }))
   }
 
   confirmSend(acceptId: string): void {
     this.dispatch({ kind: 'send-confirm', acceptId })
   }
 
-  cancel(): void {
-    this.dispatch({ kind: 'cancel', controlId: this.#deps.newId() })
+  cancel(urgency: Urgency = 'graceful'): void {
+    this.dispatch({ kind: 'cancel', controlId: this.#deps.newId(), urgency })
   }
 
   retry(): void {
@@ -202,6 +278,7 @@ export class SessionDriver {
 
   dispose(): void {
     this.#disposed = true
+    for (const look of Array.from(this.#saying)) look()
     for (const controller of this.#observations.values()) controller.abort()
     this.#observations.clear()
     for (const cancel of this.#timers) cancel()
@@ -215,7 +292,9 @@ export class SessionDriver {
     const changed = next.workspace !== this.#state
     this.#state = next.workspace
     for (const effect of next.effects) this.#run(effect)
-    if (changed) for (const listener of this.#listeners) listener()
+    if (!changed) return
+    for (const listener of this.#listeners) listener()
+    for (const look of Array.from(this.#saying)) look()
   }
 
   #run(effect: WorkspaceEffect): void {

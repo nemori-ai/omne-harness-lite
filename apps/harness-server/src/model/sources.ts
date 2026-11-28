@@ -14,16 +14,24 @@ export function officialSendSources(
   }>,
 ): readonly ModelSendSource<unknown>[] {
   return officialProfiles(input.profiles).flatMap(definition => {
-    const profile = officialProfileAdoption(definition)
-    return definition.suppliers.map((supplier): ModelSendSource<unknown> =>
-      Object.freeze({
-        profile,
-        supplier: supplier.adoption,
-        provider: supplier.provider,
-        model: supplier.model,
-        official: true,
-        current: input.current,
-      }),
+    // A request fixed before effort selection still names the previous profile content.
+    // Its supplier and credential authority must match exactly as for a new request.
+    const profiles = [officialProfileAdoption(definition)]
+    if (definition.kind === 'llm' && definition.reasoningEfforts !== undefined) {
+      const { reasoningEfforts: _selected, ...beforeEffortSelection } = definition
+      profiles.push(officialProfileAdoption(beforeEffortSelection))
+    }
+    return definition.suppliers.flatMap(supplier =>
+      profiles.map((profile): ModelSendSource<unknown> =>
+        Object.freeze({
+          profile,
+          supplier: supplier.adoption,
+          provider: supplier.provider,
+          model: supplier.model,
+          official: true,
+          current: input.current,
+        }),
+      ),
     )
   })
 }

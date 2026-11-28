@@ -10,19 +10,15 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { Adoption, FixedModelRequest } from '@omne-harness/model-contract'
-import {
-  judgeFixedModelRequest,
-  judgeReplayDeclaration,
-} from '@omne-harness/model-contract/provider'
+import type { Adoption, LlmModelRequest } from '@omne-harness/model-contract'
+import { judgeModelRequest, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
 import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { bindChatCompletions } from '@omne-harness/pi-ai-transport/chat-completions'
 import { fixtureDirectory, replayStream } from '@omne-harness/pi-ai-transport/testing'
-import { componentAdoption } from '../../src/adoptions.ts'
 import { QWEN_OWNER } from '../../src/owner.ts'
 import type { QwenRecord } from '../../src/record.ts'
 import { QWEN_RECORDS } from '../../src/records.ts'
-import { hooksOf } from '../../src/rules.ts'
+import { chatTextHooks, componentAdoption } from '@omne-harness/pi-ai-transport/family-kit'
 
 const ROOT = fileURLToPath(new URL('../fixtures/records/', import.meta.url))
 const TEST_ADOPTION = (name: string): Adoption => ({
@@ -66,7 +62,7 @@ const shown = { toHuman: true, toModel: true }
 
 function requestOf(record: QwenRecord): Readonly<{
   plain: Record<string, unknown>
-  request: FixedModelRequest
+  request: LlmModelRequest
 }> {
   const adoption = recordAdoption(QWEN_OWNER, record)
   const supplier = {
@@ -85,6 +81,7 @@ function requestOf(record: QwenRecord): Readonly<{
     { kind: 'reasoning-effort', value: 'high' },
   ]
   const plain = {
+    kind: 'llm',
     profile: TEST_ADOPTION('profile'),
     suppliers: [supplier],
     fallback: false,
@@ -121,7 +118,7 @@ function requestOf(record: QwenRecord): Readonly<{
     ],
     toolChoice: 'auto',
     declarations: [declared.ok],
-    representation: componentAdoption(record, 'representation'),
+    representation: componentAdoption(QWEN_OWNER, record, 'representation'),
     parameterAdoptions: parameters.map(parameter => ({
       supplier: adoption,
       applied: parameter,
@@ -129,18 +126,18 @@ function requestOf(record: QwenRecord): Readonly<{
     })),
     source: TEST_ADOPTION('source'),
   }
-  const judged = judgeFixedModelRequest(plain)
+  const judged = judgeModelRequest('llm', plain)
   if (!('ok' in judged)) throw new Error(`${record.name}: ${JSON.stringify(judged.failure)}`)
   return { plain, request: judged.ok }
 }
 
-function bindingOf(record: QwenRecord, request: FixedModelRequest) {
+function bindingOf(record: QwenRecord, request: LlmModelRequest) {
   const supplier = request.suppliers[0]
   const unavailable = async () =>
     ({ failure: { kind: 'unavailable', dependency: 'capture', diagnostic: 'no meter' } }) as const
   return bindChatCompletions({
     record,
-    hooks: hooksOf(record),
+    hooks: chatTextHooks(QWEN_OWNER, record),
     supplier,
     meter: {
       instance: {
@@ -149,7 +146,7 @@ function bindingOf(record: QwenRecord, request: FixedModelRequest) {
         measureCalibrated: unavailable,
       },
       represent: () => ({
-        adoption: componentAdoption(record, 'representation'),
+        adoption: componentAdoption(QWEN_OWNER, record, 'representation'),
         tokenInput: { kind: 'null' },
         units: [],
       }),

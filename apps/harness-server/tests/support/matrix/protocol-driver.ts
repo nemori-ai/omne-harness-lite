@@ -1,3 +1,4 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
@@ -27,7 +28,7 @@ export type HistoryEntry = Readonly<{
   entryId: string
   revision: string
   kind: string
-  payload: unknown
+  payload: JsonValue
 }>
 
 export type HistoryRead = Readonly<{
@@ -78,6 +79,8 @@ export type ProtocolDriver = Readonly<{
     session: string,
   ): Promise<Readonly<{ outcome: string; runs: readonly DiagnosticsRun[] }>>
   selectModel(session: string, model: string): Promise<string>
+  /** Turns these models on for the tenant: the release starts some of them off. */
+  enableModels(routes: readonly string[]): Promise<string>
   observe(session: string): Observation
   currentRun(session: string, timeoutMs: number): Promise<string | null>
   rawOutcome(call: 'list-sessions' | 'read-history', session?: string): Promise<string>
@@ -100,7 +103,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
     credential: `pw-${randomUUID()}`,
   }
   const transport = protocolTransport(origin, (): Credentials => credentials)
-  const { identity, session, sessionDiagnostics } = clientsOver(transport)
+  const { assets, identity, session, sessionDiagnostics } = clientsOver(transport)
   let reasks = 0
   const asShipped: SessionClient = clientsOver(transport, {
     session: {
@@ -259,6 +262,27 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
           return { outcome: 'succeeded', runs }
         cursor = answer.body.next
       }
+    },
+    enableModels: async routes => {
+      const owner = { kind: 'asset', category: 'model-provider', name: 'openrouter' } as const
+      const item = 'model-switches'
+      const tenant = tenantValue() as never
+      const current = await assets['describe-setting']({ tenant, owner, item })
+      if (current.outcome !== 'succeeded') return current.outcome
+      const chat = {
+        kind: 'object',
+        entries: routes.map(route => ({ key: route, value: { kind: 'boolean', value: true } })),
+      }
+      const value = { kind: 'object', entries: [{ key: 'llm', value: chat }] }
+      const written = await assets['set-setting']({
+        tenant,
+        owner,
+        item,
+        operation: randomUUID(),
+        expectedRevision: current.body.item.revision,
+        value: { kind: 'ordinary', value } as never,
+      })
+      return written.outcome
     },
     selectModel: async (id, model) => {
       const answer = await session['select-model']({

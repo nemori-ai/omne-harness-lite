@@ -37,7 +37,11 @@ describe('every frozen terminal release gate', () => {
           input: {
             ...s.base,
             operation: operationId('freeze'),
-            verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+            verdict: {
+              cause: 'tool-shape-lost',
+              capability: 'probe',
+              evidence: evidence('freeze'),
+            },
           },
         }),
         'freeze',
@@ -84,7 +88,10 @@ describe('every frozen terminal release gate', () => {
       ).toMatchObject({ kind: 'quarantined' })
       const partial = original.entries.map(row =>
         row.kind === 'intake.released'
-          ? { ...row, ...encodeEntry({ kind: 'intake.released', inputs: [run.first] }, row.origin) }
+          ? {
+              ...row,
+              ...encodeEntry({ kind: 'intake.released', inputs: [run.initial[0]] }, row.origin),
+            }
           : row,
       )
       expect(reduce(snapshot, { ...original, entries: partial })).toMatchObject({
@@ -102,7 +109,7 @@ describe('every frozen terminal release gate', () => {
       input: {
         ...s.base,
         operation: operationId('freeze'),
-        verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        verdict: { cause: 'tool-shape-lost', capability: 'probe', evidence: evidence('freeze') },
       },
     }
     const cancel: SessionCommand = {

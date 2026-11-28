@@ -48,11 +48,14 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'decodeReplyAdmissionPageCursor',
     'decodeReplyAdmissionSequence',
     'decodeStepId',
+    'definitionImpact',
     'definitionListing',
+    'definitionPlaces',
     'encodeCompactionInput',
     'encodeCompactionRequest',
     'encodeCompactionTaskRef',
     'encodeCompactionTaskState',
+    'endsWithUntakenInput',
     'judgeAccess',
     'judgeAdoption',
     'judgeAgentDefinition',
@@ -62,8 +65,12 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'judgeHandoffPrepare',
     'judgeInputOrigin',
     'judgeLoopExtensions',
+    'nestedActionOf',
+    'nestedPositionOf',
     'obligationCategoryOf',
     'openItems',
+    'stepOfToolAction',
+    'toolActionOf',
   ])
 })
 

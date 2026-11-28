@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { filesToolModule, screenToolModule, shellToolModule } from '@omne-harness/tool-definitions'
 import { notificationsToolModule } from '@omne-harness/notification-tools'
+import { canvasToolModule } from '@omne-harness/canvas-tools'
 import { principalIssuer, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { createToolReleaseEntries } from '../../../src/entry/tool-release.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
@@ -146,6 +147,27 @@ describe('tool-bindings: availability from verified sources only', () => {
     expect((await dependencies()).map(dependency => dependency.available)).toEqual([true, true])
     await inbox.dispose()
     expect((await dependencies()).map(dependency => dependency.available)).toEqual([false, true])
+  })
+
+  it('gives the Canvas tool one capability, there only while the canvas is', async () => {
+    const { fixture, judge } = await judged()
+    const created = okOf(canvasToolModule.createAuthor(tree(TEST_CONSTRUCTION.Canvas)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Canvas')), created.facts),
+      ),
+      'definition',
+    )
+    const dependencies = async () => okOf(await judge({ definition }), 'judge').dependencies
+    expect(await dependencies()).toEqual([{ name: 'canvas.arrangement', available: false }])
+    const canvas = fixture.root.plugin({
+      name: 'canvas',
+      apply: (ctx: Context) => void new StubService(ctx, 'canvas' as never, 'canvas', {}),
+    })
+    await canvas
+    expect(await dependencies()).toEqual([{ name: 'canvas.arrangement', available: true }])
+    await canvas.dispose()
+    expect(await dependencies()).toEqual([{ name: 'canvas.arrangement', available: false }])
   })
 
   it('answers unavailable for consumer material the release has not confirmed', async () => {
@@ -379,8 +401,8 @@ describe('what the model of a session takes, read from its saved selection and t
     const asked: unknown[] = []
     const answer = await over(
       async (input: unknown) => (asked.push(input), selection),
-      async (input: { route: string; required: { modalities: unknown } }) => {
-        asked.push({ route: input.route, modalities: input.required.modalities })
+      async (input: { route: string; required: { modalities?: { input?: unknown } } }) => {
+        asked.push({ route: input.route, modalities: input.required.modalities?.input })
         return resolved([])
       },
     )

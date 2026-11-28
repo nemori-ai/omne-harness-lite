@@ -2,7 +2,8 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
-import type { AttachedItem, AttachedLayout } from '@omne-harness/shell-contract'
+import type { KeyRender, RenderDrawer, RenderPutter } from '@omne-harness/shell-contract'
+import { Component, type ReactNode } from 'react'
 import { CardsHub, DecisionsPage } from '../src/index.ts'
 import { releaseDetail } from '../src/cordis.ts'
 import { DetailHost } from '../src/view/release-detail.tsx'
@@ -17,20 +18,42 @@ const KIND = 'test.release@1'
 beforeAll(stubAnimation)
 afterEach(cleanup)
 
-function testShell() {
-  const items: AttachedItem[] = []
+type GuardProps = Readonly<{ fallback: () => ReactNode; children: ReactNode }>
+
+class Guard extends Component<GuardProps, { failed: boolean }> {
+  override state = { failed: false }
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+
+  override render(): ReactNode {
+    return this.state.failed ? this.props.fallback() : this.props.children
+  }
+}
+
+function Put(props: { put: () => ReactNode }): ReactNode {
+  return props.put()
+}
+
+/** A shell that keeps what the contract asks of one: a drawing that throws falls back to the generic one. */
+function testShell(): RenderPutter & RenderDrawer {
+  const drawings = new Map<string, KeyRender<string>>()
   return {
-    contribute: (_slot: 'attached', item: AttachedItem) => void items.push(item),
-    arranged: (anchor: string, subject: string, layout: AttachedLayout) =>
-      layout(
-        items
-          .filter(item => item.anchor === anchor)
-          .map(item => ({
-            id: item.id,
-            label: item.label,
-            node: item.render({ scope: TENANT, subject }),
-          })),
-      ),
+    putDrawing: (point, key, render) => {
+      drawings.set(`${point}:${key}`, render as KeyRender<string>)
+      return () => undefined
+    },
+    drawnAt: (point, key, subject, generic, frame = drawn => drawn) => {
+      const render = drawings.get(`${point}:${key}`)
+      if (render === undefined) return generic()
+      const put = () => frame(render({ scope: TENANT, subject: subject as string, generic }))
+      return (
+        <Guard fallback={generic}>
+          <Put put={put} />
+        </Guard>
+      )
+    },
   }
 }
 
@@ -43,14 +66,10 @@ function shellDrawing(drawing: Drawing) {
     throw new Error('the value does not parse')
   }
   if (drawing !== 'none')
-    releaseDetail.contribute(shell, key, {
-      id: 'test-view',
-      order: 0,
-      render: ({ subject }) => {
-        if (drawing === 'throws-at-once') throw new Error('at once')
-        if (drawing === 'throws') return <Throwing />
-        return <p>{`工具的画法：${(JSON.parse(subject) as { title: string }).title}`}</p>
-      },
+    releaseDetail.put(shell, key, ({ subject }) => {
+      if (drawing === 'throws-at-once') throw new Error('at once')
+      if (drawing === 'throws') return <Throwing />
+      return <p>{`工具的画法：${(JSON.parse(subject) as { title: string }).title}`}</p>
     })
   return shell
 }
@@ -97,7 +116,7 @@ async function shown(detail: Detail | undefined, drawing: Drawing) {
 }
 
 const looksAt = (card: Awaited<ReturnType<typeof shown>>) => ({
-  arguments: card.queryByText('参数') !== null,
+  arguments: card.queryByRole('button', { name: '详情' }) !== null,
   missing: card.queryByText('工具没能给出这次调用的详情') !== null,
   rows: card.queryByText('收件人') !== null,
   drawn: card.queryByText('工具的画法：T') !== null,
@@ -133,13 +152,35 @@ describe('the detail part of a release card, by what the server holds and what t
     },
   )
 
-  it('lets the person switch from the view of the kind to the rows and back', async () => {
+  it('lets the person switch from the view of the kind to the rows and back with a segmented control', async () => {
     const card = await shown(DETAILS.typed, 'draws')
-    fireEvent.click(card.getByRole('button', { name: '看条目' }))
+    const faces = within(card.getByRole('group', { name: '详情的画法' }))
+    expect(faces.getByRole('button', { name: '工具的画法' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    fireEvent.click(faces.getByRole('button', { name: '条目' }))
     expect(looksAt(card)).toMatchObject({ rows: true, drawn: false })
-    fireEvent.click(card.getByRole('button', { name: '看工具的画法' }))
+    expect(faces.getByRole('button', { name: '条目' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(faces.getByRole('button', { name: '工具的画法' }))
     expect(looksAt(card)).toMatchObject({ rows: false, drawn: true })
   })
+
+  it('offers no switch where only the rows can be drawn', async () => {
+    const card = await shown(DETAILS.typed, 'none')
+    expect(card.queryByRole('group', { name: '详情的画法' })).toBeNull()
+  })
+
+  it.each(['draws', 'none'] as const)(
+    'P0 puts the detail part on the detail when the client %s',
+    async drawing => {
+      await shown(DETAILS.typed, drawing)
+      const on = document.querySelectorAll(
+        '[data-omne-part="human-intervention.paper.card.detail"]',
+      )
+      expect(on).toHaveLength(1)
+      expect(on[0]?.classList.contains('hitl-detail')).toBe(true)
+    },
+  )
 
   it('draws the rows of a typed detail where no shell hosts the views of kinds', async () => {
     const fake = createFakeClient()

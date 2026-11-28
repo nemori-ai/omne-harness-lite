@@ -1,0 +1,262 @@
+import {
+  NO_PROGRESS,
+  NO_EXAMINATION,
+  NO_READINGS,
+  validateDraft,
+  type GoalRecord,
+} from '@omne-harness/goal-contract'
+import type { GoalStore, StoreAnswer, StoreRead } from '../store.ts'
+import type { CommitResult } from '../txn.ts'
+
+export type StoreConformanceCase = Readonly<{
+  name: string
+  /** Runs the case against a store of its own; rejects with what did not hold. */
+  run(open: () => Promise<GoalStore>): Promise<void>
+}>
+
+const T1 = 'conformance-tenant-1'
+const T2 = 'conformance-tenant-2'
+const S1 = 'conformance-session-1'
+
+function hold(condition: boolean, what: string): asserts condition {
+  if (!condition) throw new Error(what)
+}
+const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+
+/** A goal as the first write of a session leaves it, in the generation and state asked for. */
+export function conformanceGoal(change: Partial<GoalRecord> = {}, generation = 1): GoalRecord {
+  const checked = validateDraft(
+    { purpose: '把事做完', criteria: [{ statement: '做完了', evidence: { kind: 'person' } }] },
+    { attendance: 'attended' },
+  )
+  if (checked.kind !== 'valid') throw new Error('conformance fixture')
+  return {
+    session: S1,
+    version: 1,
+    state: {
+      status: 'active',
+      attendance: 'attended',
+      generation,
+      revision: 1,
+      rounds: 0,
+      stalled: 0,
+      gap: null,
+    },
+    body: checked.body,
+    history: [
+      {
+        revision: 1,
+        via: 'direct',
+        words: '把事做完',
+        draftedBy: 'person',
+        confirmedBy: 'acc-1',
+        operation: `op-${String(generation)}`,
+        at: '2026-11-25T00:00:00.000Z',
+      },
+    ],
+    readings: NO_READINGS,
+    progress: NO_PROGRESS,
+    since: '0',
+    wake: null,
+    observed: null,
+    examination: NO_EXAMINATION,
+    ...change,
+  }
+}
+
+function committed(answer: StoreAnswer<CommitResult>): CommitResult {
+  hold(answer.kind === 'committed', `the commit answered ${answer.kind}`)
+  return answer.value
+}
+function read<T>(answer: StoreRead<T>): T {
+  hold(answer.kind === 'read', 'the read was unavailable')
+  return answer.value
+}
+const settled = (record: GoalRecord): GoalRecord => {
+  const { attendance, generation, revision, rounds } = record.state as Extract<
+    GoalRecord['state'],
+    { status: 'active' }
+  >
+  const state = { status: 'settled', attendance, generation, revision, rounds } as const
+  return { ...record, state: { ...state, outcome: { kind: 'cancelled' } } }
+}
+
+/** What every goal store holds, whatever keeps the rows. The memory store and the SQL store both run it. */
+export const storeConformance: readonly StoreConformanceCase[] = [
+  {
+    name: 'a session without a goal reads as null, and its first write stands on version zero',
+    async run(open) {
+      const store = await open()
+      hold(read(await store.latest(T1, S1)) === null, 'a goal nobody wrote was read')
+      const goal = conformanceGoal()
+      const result = committed(await store.commit(T1, { session: S1, expected: 0, next: goal }))
+      hold(result.kind === 'written' && result.record.version === 1, 'the first write is version 1')
+      hold(same(read(await store.latest(T1, S1)), goal), 'what was written is not what is read')
+    },
+  },
+  {
+    name: 'a write stands only on the version it was decided on',
+    async run(open) {
+      const store = await open()
+      const goal = conformanceGoal()
+      committed(await store.commit(T1, { session: S1, expected: 0, next: goal }))
+      const again = committed(await store.commit(T1, { session: S1, expected: 0, next: goal }))
+      hold(
+        again.kind === 'stale' && same(again.current, goal),
+        'a write on version zero stood twice',
+      )
+      const ahead = committed(await store.commit(T1, { session: S1, expected: 5, next: goal }))
+      hold(ahead.kind === 'stale', 'a write on a version nobody wrote stood')
+      hold(same(read(await store.latest(T1, S1)), goal), 'a stale write changed the goal')
+    },
+  },
+  {
+    name: 'a write takes the next version, whatever version the record handed in carries',
+    async run(open) {
+      const store = await open()
+      const goal = conformanceGoal()
+      committed(await store.commit(T1, { session: S1, expected: 0, next: goal }))
+      const next = { ...goal, version: 40, wake: { kind: 'start', request: 'start/1/2' } } as const
+      const result = committed(await store.commit(T1, { session: S1, expected: 1, next }))
+      hold(
+        result.kind === 'written' && result.record.version === 2,
+        'the second write is version 2',
+      )
+      hold(
+        read(await store.latest(T1, S1))?.version === 2,
+        'the version read is not the one written',
+      )
+    },
+  },
+  {
+    name: 'the next goal of a session is a row of its own; the latest is the one read',
+    async run(open) {
+      const store = await open()
+      const first = conformanceGoal()
+      committed(await store.commit(T1, { session: S1, expected: 0, next: first }))
+      committed(await store.commit(T1, { session: S1, expected: 1, next: settled(first) }))
+      const second = conformanceGoal({}, 2)
+      const result = committed(await store.commit(T1, { session: S1, expected: 2, next: second }))
+      hold(result.kind === 'written' && result.record.version === 3, 'the version goes on counting')
+      const latest = read(await store.latest(T1, S1))
+      hold(
+        latest?.state.generation === 2 && latest.state.status === 'active',
+        'the latest is the new goal',
+      )
+    },
+  },
+  {
+    name: 'a session has one live goal at most: a second live row is not kept',
+    async run(open) {
+      const store = await open()
+      committed(await store.commit(T1, { session: S1, expected: 0, next: conformanceGoal() }))
+      const second = conformanceGoal({}, 2)
+      const answer = await store.commit(T1, { session: S1, expected: 1, next: second })
+      hold(answer.kind !== 'committed', 'a second live goal of the session was kept')
+      hold(read(await store.latest(T1, S1))?.state.generation === 1, 'the first goal was replaced')
+    },
+  },
+  {
+    name: 'the goals that owe a reminder are listed until the debt is cleared',
+    async run(open) {
+      const store = await open()
+      const owing = conformanceGoal({ wake: { kind: 'start', request: 'start/1/1' } })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: owing }))
+      const other = { ...conformanceGoal(), session: 'conformance-session-2' }
+      committed(await store.commit(T1, { session: other.session, expected: 0, next: other }))
+      hold(
+        same(
+          read(await store.owing(T1)).map(row => row.session),
+          [S1],
+        ),
+        'the owing goal is listed',
+      )
+      committed(
+        await store.commit(T1, { session: S1, expected: 1, next: { ...owing, wake: null } }),
+      )
+      hold(read(await store.owing(T1)).length === 0, 'a cleared debt is still listed')
+    },
+  },
+  {
+    name: 'a goal with a batch out is listed, taken or not, until the batch is back',
+    async run(open) {
+      const store = await open()
+      const key = { revision: 1, written: 'call-1' }
+      const batch = { key, criteria: ['A1' as const], delivery: 'owed' as const, ran: {} }
+      const owed = conformanceGoal({ examination: { ...NO_EXAMINATION, batch, used: 1 } })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: owed }))
+      hold(read(await store.owing(T1)).length === 1, 'the owed batch is not listed')
+      const lost = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'unknown' as const, ran: {} },
+      }
+      committed(
+        await store.commit(T1, { session: S1, expected: 1, next: { ...owed, examination: lost } }),
+      )
+      hold(
+        read(await store.owing(T1)).length === 1,
+        'a batch of unknown handing over is not listed',
+      )
+      const taken = {
+        ...owed.examination,
+        batch: { ...batch, delivery: 'handed' as const, ran: {} },
+      }
+      committed(
+        await store.commit(T1, { session: S1, expected: 2, next: { ...owed, examination: taken } }),
+      )
+      hold(read(await store.owing(T1)).length === 1, 'a batch that was taken is not listed')
+      const back = { ...owed.examination, batch: null }
+      committed(
+        await store.commit(T1, { session: S1, expected: 3, next: { ...owed, examination: back } }),
+      )
+      hold(read(await store.owing(T1)).length === 0, 'a batch that is back is still listed')
+    },
+  },
+  {
+    name: 'a goal is found by the session that examines for it while it is live, and by no other session',
+    async run(open) {
+      const store = await open()
+      const examined = conformanceGoal({
+        examination: { ...NO_EXAMINATION, examiner: 'examiner-1' },
+      })
+      committed(await store.commit(T1, { session: S1, expected: 0, next: examined }))
+      hold(same(read(await store.examinedBy(T1, 'examiner-1')), examined), 'the goal is not found')
+      hold(read(await store.examinedBy(T1, S1)) === null, 'the goal was found by its own session')
+      hold(read(await store.examinedBy(T1, 'examiner-2')) === null, 'another session found it')
+      hold(read(await store.examinedBy(T2, 'examiner-1')) === null, 'another tenant found it')
+      const done = { ...settled(examined), version: 2 }
+      committed(await store.commit(T1, { session: S1, expected: 1, next: done }))
+      hold(read(await store.examinedBy(T1, 'examiner-1')) === null, 'a settled goal was found')
+    },
+  },
+  {
+    name: 'a session has one choice of decision model: the last one written, none after it was taken away, and its own alone',
+    async run(open) {
+      const store = await open()
+      hold(read(await store.chosen(T1, S1)) === null, 'a session that chose none has a choice')
+      const wrote = (answer: { kind: string }) => hold(answer.kind === 'committed', 'not written')
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.14'))
+      wrote(await store.choose(T1, S1, 'typesafe/jev-1.13'))
+      hold(read(await store.chosen(T1, S1)) === 'typesafe/jev-1.13', 'the last choice is not read')
+      hold(read(await store.chosen(T1, 'another-session')) === null, 'another session reads it')
+      hold(read(await store.chosen(T2, S1)) === null, 'another tenant reads it')
+      wrote(await store.choose(T1, S1, null))
+      wrote(await store.choose(T1, S1, null))
+      hold(read(await store.chosen(T1, S1)) === null, 'a choice taken away is still read')
+      hold(read(await store.latest(T1, S1)) === null, 'a choice made a goal')
+    },
+  },
+  {
+    name: 'one tenant does not read or write the goals of another',
+    async run(open) {
+      const store = await open()
+      committed(await store.commit(T1, { session: S1, expected: 0, next: conformanceGoal() }))
+      hold(read(await store.latest(T2, S1)) === null, 'another tenant read the goal')
+      const theirs = committed(
+        await store.commit(T2, { session: S1, expected: 0, next: conformanceGoal() }),
+      )
+      hold(theirs.kind === 'written', 'another tenant could not write its own goal')
+      hold(read(await store.owing(T2)).length === 0, 'another tenant owes nothing')
+    },
+  },
+]

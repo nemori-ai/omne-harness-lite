@@ -29,13 +29,21 @@ export type ContextMoment =
   | Readonly<{ kind: 'none' }>
 
 export interface ContextCopies {
-  /** Fixes the moment of the dispatcher's conversation its session of a spawn is forked at: a text only stored and handed on. */
-  moment(tenant: TenantId, dispatcher: SessionRef, call: string): Promise<PortRead<ContextMoment>>
+  /** Fixes the moment of the dispatcher's conversation its session of a spawn is forked at: before the asking message. A text only stored and handed on. */
+  moment(
+    tenant: TenantId,
+    dispatcher: SessionRef,
+    asking: string | null,
+  ): Promise<PortRead<ContextMoment>>
 }
 
 export interface AgentDefinitions {
-  /** The type of the definition of this name as the tenant sees it now, or null when it sees none. */
-  typeOf(tenant: TenantId, name: string): Promise<PortRead<'master' | 'non-master' | null>>
+  /** The type of the definition of this name as the dispatching session sees it now, or null when it sees none. */
+  typeOf(
+    tenant: TenantId,
+    name: string,
+    dispatcher: SessionRef,
+  ): Promise<PortRead<'master' | 'non-master' | null>>
 }
 
 export interface Clock {

@@ -1,4 +1,38 @@
-import type { ModelFailure, ModelResultReceiver } from '@omne-harness/model-contract'
+import { isDeepStrictEqual } from 'node:util'
+import type {
+  ModelDelivery,
+  ModelDeliveryFailure,
+  ModelFailure,
+  ModelResultReceiver,
+  ModelSavedReceipt,
+} from '@omne-harness/model-contract'
+
+export function frozen<T>(value: T): T {
+  const copy = structuredClone(value)
+  const freeze = (item: unknown): void => {
+    if (typeof item !== 'object' || item === null || Object.isFrozen(item)) return
+    Object.freeze(item)
+    for (const child of Object.values(item)) freeze(child)
+  }
+  freeze(copy)
+  return copy
+}
+
+export type PushAnswer =
+  | Readonly<{ saved: ModelSavedReceipt }>
+  | Readonly<{ failure: ModelDeliveryFailure; foreign: boolean }>
+
+/** A receipt for another key or owner proves neither a save nor a refusal: its outcome is unknown. */
+export function answerOf(
+  delivery: ModelDelivery,
+  outcome: Awaited<ReturnType<ModelResultReceiver<unknown>['push']>>,
+): PushAnswer {
+  if (!('ok' in outcome)) return { failure: outcome.failure, foreign: false }
+  return isDeepStrictEqual(outcome.ok.key, delivery.key) &&
+    outcome.ok.evidence.owner === delivery.consumer.owner
+    ? { saved: frozen(outcome.ok) }
+    : { failure: { kind: 'outcome-unknown' }, foreign: true }
+}
 
 export function laterRevision(next: string, known: string): boolean {
   return BigInt(next) > BigInt(known)

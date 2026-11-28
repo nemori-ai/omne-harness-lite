@@ -17,6 +17,9 @@ export type SchedulePredictionInput = Readonly<{
   definitionRevision: number
   activationExclusive: ScheduleInstant | null
   eligibleConsumed: number
+  /** Where the count stands: the eligible slots from this instant on are not among `eligibleConsumed`.
+   * Null counts on from `after`. Read only when the definition has an eligible limit. */
+  eligibleFrom: ScheduleInstant | null
   acceptedJobCount: number
   after: ScheduleInstant
   count: number

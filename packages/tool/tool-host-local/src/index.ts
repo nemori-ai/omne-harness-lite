@@ -3,6 +3,7 @@ export type {
   StartPermitRequirements,
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
+export { TOOL_PRODUCT_OWNER } from './author-environment.ts'
 export {
   createLocalReleaseDetails,
   type LocalReleaseDetailsInput,
@@ -67,39 +68,34 @@ export {
   type LocalToolCatalogInput,
   type ToolAvailabilityVerdict,
 } from './catalog.ts'
+export {
+  createLocalEntrySources,
+  DEFAULT_ENTRY_SOURCE_POLICY,
+  SOURCE_ENTRY_SETTINGS,
+  type LocalEntrySourcePolicy,
+  type LocalEntrySourcesInput,
+  type LocalToolSourcedEntries,
+  type SourcedCatalogEntries,
+} from './entry-sources.ts'
 export { createAbsentToolPorts, type AbsentToolPorts } from './absent-ports.ts'
 export {
   createLocalToolLedgerGuards,
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
-  type ConditionalLedgerCommit,
-  type RequestAccessVerdict,
-  type StartCondition,
   type ToolHostAccess,
-  type ToolRequestAccess,
+  type ToolTargetAvailability,
 } from './ledger-guards.ts'
 export {
   createLocalInvocationSource,
-  createLocalInvocationQualifier,
   createLocalOperationIdentities,
   type LocalInvocationSource,
   type LocalInvocationSourceInput,
   type PrincipalCodec,
   type PrincipalJson,
 } from './invocation-source.ts'
-export type {
-  LocalInvocationQualifier,
-  InvocationQualification,
-  InvocationOrigin,
-  InvocationQualificationRequest,
-  InvocationRecordObservation,
-} from './invocation-qualification.ts'
+export type { LocalCurrentDefinitions } from './definition-resolution.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
-export {
-  createLocalStartGuard,
-  PROGRAMMATIC_NOT_IN_M2,
-  type LocalStartGuardInput,
-} from './start-guard.ts'
+export { createLocalStartGuard, type LocalStartGuardInput } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
 export { createLocalToolBodySchemas } from './body-schemas.ts'
 export {
@@ -133,3 +129,20 @@ export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 
 export { TOOL_FORWARDING_OWNER, forwardIntentOfCall } from './invocation-forwarding.ts'
+export {
+  createLocalArgumentsCheck,
+  createLocalProgramCalls,
+  type LocalProgramCalls,
+  type LocalProgramCallsInput,
+} from './program-calls.ts'
+export { TOOL_PROGRAM_OWNER } from './program-source.ts'
+export {
+  GUEST_TOOL_CATEGORY,
+  GUEST_TOOL_GATE,
+  GUEST_TOOL_GATES,
+  guestEntrySource,
+  guestToolExecutor,
+  type GuestEntryContext,
+  type GuestEntryShape,
+  type GuestTool,
+} from './guest-entry-source.ts'

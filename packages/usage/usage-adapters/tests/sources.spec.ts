@@ -229,6 +229,35 @@ describe('the two sources over the producer reads', () => {
     expect(toolAsked).toEqual([{ ...request, order: 'ascending' }])
   })
 
+  it('reads the seconds of a live call as its own usage item, not added to the tokens of a chat call', async () => {
+    const seconds = { name: 'session', state: 'known', lexeme: '39', unit: 'second' } as const
+    const live = dispatch({
+      dispatch: 'md-live' as ModelDispatchFact['dispatch'],
+      supplier: {
+        adoption: {},
+        provider: 'openai',
+        model: 'gpt-live-1.1',
+        credential: {},
+      } as never,
+      account: account({
+        usage: [seconds],
+        cost: [{ source: 'billable', state: 'unknown', unit: 'usd' }],
+      }),
+    })
+    const model = modelUsageSource(
+      () =>
+        ({
+          list: async () => ({ ok: { entries: [dispatch(), live], undated: 0, next: null } }),
+        }) as never,
+      { page: 200, works: 100 },
+    )
+    const page = await model.list(request)
+    if (!('ok' in page)) throw new Error(JSON.stringify(page))
+    const [chat, call] = page.ok.entries
+    expect(call).toMatchObject({ unit: 'md-live', usage: [seconds], cost: { state: 'unknown' } })
+    expect(chat?.usage).toEqual([{ name: 'input', state: 'known', lexeme: '400', unit: 'token' }])
+  })
+
   it('answers denied as the read does, and unavailable when it fails otherwise, throws or is not here', async () => {
     const over = (read: unknown) =>
       modelUsageSource(() => read as never, { page: 1, works: 1 }).list(request)

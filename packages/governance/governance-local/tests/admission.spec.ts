@@ -373,3 +373,69 @@ it('uses actual Identity SQL membership and observes completed revocation', asyn
     await w.close()
   }
 })
+
+it('reads grants the assembly gives as current facts once for each check, before the first wait', async () => {
+  const w = setup()
+  const pending = Promise.withResolvers<void>()
+  const verify = w.options.verifier.verify
+  let current: AdmissionGrant[] = []
+  const read = vi.fn(() => current)
+  const admission = new GovernanceAdmission({
+    ...w.options,
+    verifier: {
+      verify: async value => {
+        await pending.promise
+        return verify(value)
+      },
+    },
+    grants: read,
+  })
+  const before = admission.check(w.access, w.request)
+  current = [w.grant]
+  const during = admission.check(w.access, w.request)
+  current = []
+  pending.resolve()
+  expect(await before).toEqual({ kind: 'denied' })
+  expect(await during).toMatchObject({ kind: 'admitted' })
+  expect(await admission.check(w.access, w.request)).toEqual({ kind: 'denied' })
+  expect(read).toHaveBeenCalledTimes(3)
+})
+
+it('isolates the grants of one check from later changes to the objects the assembly gave', async () => {
+  const w = setup()
+  const admission = new GovernanceAdmission({ ...w.options, grants: () => [w.grant] })
+  const pending = Promise.withResolvers<void>()
+  const read = w.options.standing.read
+  w.options.standing.read = async input => {
+    await pending.promise
+    return read(input)
+  }
+  const result = admission.check(w.access, w.request)
+  if (w.grant.action !== 'contribute') throw new Error('fixture grant')
+  w.grant.owners[0]!.ownerId = 'ungranted'
+  w.grant.required.push('organization-settings-manage')
+  pending.resolve()
+  expect(await result).toMatchObject({ kind: 'admitted', required: [] })
+})
+
+it('answers unavailable when the current grants are not one exact set, and admits nothing from them', async () => {
+  const w = setup()
+  const duplicated = new GovernanceAdmission({
+    ...w.options,
+    grants: () => [w.grant, structuredClone(w.grant)],
+  })
+  expect(await duplicated.check(w.access, w.request)).toEqual({
+    kind: 'unavailable',
+    owner: 'governance-grants',
+  })
+  const thrown = new GovernanceAdmission({
+    ...w.options,
+    grants: () => {
+      throw new Error('the assembly cannot read its facts')
+    },
+  })
+  expect(await thrown.check(w.access, w.request)).toEqual({
+    kind: 'unavailable',
+    owner: 'governance-grants',
+  })
+})

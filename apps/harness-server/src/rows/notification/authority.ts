@@ -4,11 +4,20 @@ import { AGENT_POSTS, IN_APP } from '@omne-harness/notification-local'
 import { OWNER_POSTS } from './owner-source.ts'
 
 const PERSON: RecipientRef = { kind: 'person' }
-const selfOf = (actor: Actor): RecipientRef => (actor.kind === 'owner' ? PERSON : actor.recipient)
-const sourceOf = (actor: Actor) => (actor.kind === 'owner' ? OWNER_POSTS.name : AGENT_POSTS.name)
+const selfOf = (actor: Actor): RecipientRef | undefined =>
+  actor.kind === 'owner' ? PERSON : actor.kind === 'agent' ? actor.recipient : undefined
+const sourceOf = (actor: Actor) =>
+  actor.kind === 'owner'
+    ? OWNER_POSTS.name
+    : actor.kind === 'agent'
+      ? AGENT_POSTS.name
+      : actor.source
 
 type Towards = Readonly<{ recipient: RecipientRef }>
-const own = (actor: Actor, { recipient }: Towards) => sameRecipient(recipient, selfOf(actor))
+const own = (actor: Actor, { recipient }: Towards) => {
+  const self = selfOf(actor)
+  return self !== undefined && sameRecipient(recipient, self)
+}
 
 type Rules = {
   [K in AuthorityAction['kind']]: (
@@ -17,7 +26,7 @@ type Rules = {
   ) => boolean
 }
 
-/** An actor handles only what is its own: the owner the person's inbox, an agent its session's. Each sends as its one source. */
+/** An actor handles only what is its own: the owner the person's inbox, an agent its session's, a source of the system nothing. Each sends as its one source. */
 const RULES: Rules = {
   'send-as': (actor, { source }) => source === sourceOf(actor),
   'read-inbox': own,

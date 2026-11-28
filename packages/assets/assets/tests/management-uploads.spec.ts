@@ -58,12 +58,16 @@ type Options = {
   publish?: TenantPublishOutcome | 'throws'
   uploads?: Partial<StoreUploads>
   recall?: Awaited<ReturnType<TenantLayerStore['recall']>>
+  /** A second contribution of the directory category: it is a conflict and gives no contract. */
+  rival?: true
+  /** The tenant has no store yet: only a write may open one. */
+  unregistered?: true
 }
 
 function setup(options: Options = {}) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: directory, display })
-  categories.contribute({ contract: { ...base, category: 'note' }, display })
+  categories.contribute({ contract: directory, display, point: 'test.site1' })
+  categories.contribute({ contract: { ...base, category: 'note' }, display, point: 'note.items' })
   categories.contribute({
     contract: {
       ...directory,
@@ -72,7 +76,10 @@ function setup(options: Options = {}) {
     },
     display,
     generalCreation: 'closed',
+    point: 'tool.items',
   })
+  if (options.rival === true)
+    categories.contribute({ contract: directory, display, point: 'bundle.rival' })
   const published: TenantPublishRequest<Principal>[] = []
   const discarded: string[] = []
   const calls: string[] = []
@@ -98,6 +105,7 @@ function setup(options: Options = {}) {
   const store: TenantLayerStore = {
     list: async () => ({ kind: 'invalid' }),
     held: async () => ({ kind: 'absent' }),
+    files: async () => ({ kind: 'absent' }),
     holding: async () => ({ kind: 'absent' }),
     change: async () => ({ kind: 'unknown' }),
     recall: async () => options.recall ?? { kind: 'not-found' },
@@ -106,12 +114,15 @@ function setup(options: Options = {}) {
       if (options.publication === 'throws') throw new Error('the receipts cannot be read')
       return options.publication ?? { kind: 'not-found' }
     },
+    recallById: async () => ({ kind: 'not-found' }),
     uploads,
-    layer: {
-      layer: 'tenant',
-      list: async () => ({ state: 'invalid' }),
-      candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
-    },
+    layers: [
+      {
+        layer: 'tenant',
+        list: async () => ({ state: 'invalid' }),
+        candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
+      },
+    ],
   }
   const management = createTenantManagement<Principal>({
     acting: {
@@ -125,7 +136,16 @@ function setup(options: Options = {}) {
         return options.publish ?? PUBLISHED
       },
     },
-    storeOf: async () => store,
+    official: () => [],
+    storeOf: async () => (options.unregistered === true ? undefined : store),
+    ...(options.unregistered === true
+      ? {
+          writableStoreOf: async () => {
+            calls.push('open for writing')
+            return store
+          },
+        }
+      : {}),
   })
   return { management, published, discarded, calls }
 }
@@ -219,6 +239,12 @@ describe('beginning an upload', () => {
     expect(s.calls).toEqual([])
   })
 
+  it('a category that is a conflict is unavailable, and nothing is begun', async () => {
+    const s = setup({ rival: true })
+    expect(await s.management.beginUpload(begin())).toEqual({ kind: 'unavailable' })
+    expect(s.calls).toEqual([])
+  })
+
   it('a directory category is begun in the store, and its answer passes through', async () => {
     const s = setup()
     expect(await s.management.beginUpload(begin())).toEqual({
@@ -238,6 +264,19 @@ describe('beginning an upload', () => {
       },
     })
     expect(await s.management.beginUpload(begin())).toEqual({ kind: 'unavailable' })
+  })
+
+  it('a tenant without a store yet: beginning an upload opens one for writing, and a read still finds none', async () => {
+    const s = setup({ unregistered: true })
+    expect(await s.management.beginUpload(begin())).toMatchObject({ kind: 'accepted' })
+    expect(
+      await s.management.recall({
+        ...scope,
+        operationId: 'op-1',
+        request: { kind: 'create', capability: id('note', 'a') },
+      }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(s.calls).toEqual(['open for writing', 'begin up-1'])
   })
 })
 

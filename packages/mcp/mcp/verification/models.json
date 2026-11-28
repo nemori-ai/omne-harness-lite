@@ -1,7 +1,7 @@
 {
   "member": "mcp",
   "model": "models/ConnectionTable.tla",
-  "scope": "finite models: ConnectionTable (the connection table of Streamable HTTP endpoints with a credential: one or two keys, at most two ensure, one release, one closeAll, one lose, one port deviation; bounds fire in creation order; two keys fire no bound) and Calls (the call port over an abstract table: at most four keys, one correlation key, one task). Safety, and P8 T1 and P14 T1 under weak fairness. No refinement proof between the two models or to the implementation; no real transport, peer or storage.",
+  "scope": "finite models: ConnectionTable (the connection table of Streamable HTTP endpoints with a credential: one or two keys, at most two ensure, one release, one closeAll, one lose, one port deviation; bounds fire in creation order; two keys fire no bound), Calls (the call port over an abstract table: at most four keys, one correlation key, one task), Continuation (one action call as a checkpointed entry source: at most three checkpoints, one task, two process losses) and Events (one event subscription: three events, two subscribers, two process losses). Safety, and P8 T1 and P14 T1 under weak fairness. No refinement proof between the models or to the implementation; no real transport, peer or storage.",
   "workers": 2,
   "timeoutSeconds": 600,
   "cases": [
@@ -69,6 +69,18 @@
       "name": "calls-live",
       "model": "models/Calls.tla",
       "config": "models/calls-live.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "cont-valid",
+      "model": "models/Continuation.tla",
+      "config": "models/cont-valid.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "events-valid",
+      "model": "models/Events.tla",
+      "config": "models/events-valid.cfg",
       "expected": "complete"
     }
   ],
@@ -216,6 +228,54 @@
       "model": "models/Calls.tla",
       "config": "models/calls-bad-wait-answer.cfg",
       "expected": "temporal"
+    },
+    {
+      "name": "cont-bad-no-record",
+      "model": "models/Continuation.tla",
+      "config": "models/cont-bad-no-record.cfg",
+      "expected": "I1_ContinuationOnce"
+    },
+    {
+      "name": "cont-bad-mark-later",
+      "model": "models/Continuation.tla",
+      "config": "models/cont-bad-mark-later.cfg",
+      "expected": "P_RowMatchesWait"
+    },
+    {
+      "name": "cont-bad-complete-on-gone",
+      "model": "models/Continuation.tla",
+      "config": "models/cont-bad-complete-on-gone.cfg",
+      "expected": "I6_CompleteIsTrue"
+    },
+    {
+      "name": "cont-bad-park-before-row",
+      "model": "models/Continuation.tla",
+      "config": "models/cont-bad-park-before-row.cfg",
+      "expected": "P_RowBeforePark"
+    },
+    {
+      "name": "events-bad-cursor-first",
+      "model": "models/Events.tla",
+      "config": "models/events-bad-cursor-first.cfg",
+      "expected": "I12_NothingLostSilently"
+    },
+    {
+      "name": "events-bad-no-dedup",
+      "model": "models/Events.tla",
+      "config": "models/events-bad-no-dedup.cfg",
+      "expected": "I13_StoredOnce"
+    },
+    {
+      "name": "events-bad-silent-gap",
+      "model": "models/Events.tla",
+      "config": "models/events-bad-silent-gap.cfg",
+      "expected": "I12_NothingLostSilently"
+    },
+    {
+      "name": "events-bad-keep-stream",
+      "model": "models/Events.tla",
+      "config": "models/events-bad-keep-stream.cfg",
+      "expected": "I16_NoSubscriberNoStream"
     }
   ]
 }

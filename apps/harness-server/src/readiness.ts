@@ -37,15 +37,21 @@ export type LoadedRow = {
   error?: unknown
 }
 
-export type ReadinessOutcome = 'ready' | 'pending' | 'failed' | 'readiness-timeout'
+export type ReadinessOutcome = 'ready' | 'pending' | 'failed' | 'readiness-timeout' | 'stopped'
 
 export type ReadinessReport = Readonly<{
   outcome: ReadinessOutcome
   exitCode: 0 | 3 | 4
   rows: readonly RowState[]
+  /** The rows still LOADING when the report was made. */
+  stuck: readonly RowId[]
 }>
 
 const stateOf = (row: LoadedRow): FiberStateName => mapFiberState(row.fiber.state)
+
+/** A row caught between two states: it loads or unloads, and has not come out. */
+export const inTransit = (row: LoadedRow): boolean =>
+  row.fiber.state === FIBER_VALUE.LOADING || row.fiber.state === FIBER_VALUE.UNLOADING
 
 function observe(row: LoadedRow): Promise<void> {
   return row.fiber.await().then(
@@ -56,20 +62,46 @@ function observe(row: LoadedRow): Promise<void> {
   )
 }
 
-async function settle(rows: readonly LoadedRow[], timeoutMs: number): Promise<boolean> {
+/** Resolves when the signal asks to stop; `cancel` takes the listener off. */
+export function stopOf(signal: AbortSignal | undefined): {
+  asked: Promise<'stop'>
+  cancel(): void
+} {
+  let onAbort = () => {}
+  const asked = new Promise<'stop'>(resolve => {
+    if (signal === undefined) return
+    if (signal.aborted) return resolve('stop')
+    onAbort = () => resolve('stop')
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  return { asked, cancel: () => signal?.removeEventListener('abort', onAbort) }
+}
+
+type Ending = 'settled' | 'deadline' | 'stop'
+
+/** Waits while a row loads; ends at once when a row has failed, at the deadline, or when a stop is asked. */
+async function settle(
+  rows: readonly LoadedRow[],
+  timeoutMs: number,
+  stop: AbortSignal | undefined,
+): Promise<Ending> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<'deadline'>(resolve => {
     timer = setTimeout(() => resolve('deadline'), timeoutMs)
   })
+  const stopping = stopOf(stop)
   try {
     for (;;) {
+      if (stop?.aborted === true) return 'stop'
+      if (rows.some(row => stateOf(row) === 'FAILED')) return 'settled'
       const loading = rows.filter(row => stateOf(row) === 'LOADING')
-      if (loading.length === 0) return false
-      const won = await Promise.race([Promise.all(loading.map(observe)), deadline])
-      if (won === 'deadline') return true
+      if (loading.length === 0) return 'settled'
+      const won = await Promise.race([Promise.race(loading.map(observe)), deadline, stopping.asked])
+      if (won !== undefined) return won
     }
   } finally {
     clearTimeout(timer)
+    stopping.cancel()
   }
 }
 
@@ -108,10 +140,11 @@ function describeRow(row: LoadedRow, all: readonly LoadedRow[]): RowState {
   return { id: row.id, state, missing, blockedBy, error }
 }
 
-function outcomeOf(rows: readonly RowState[], timedOut: boolean): ReadinessOutcome {
+function outcomeOf(rows: readonly RowState[], ending: Ending, complete: boolean): ReadinessOutcome {
   const states = rows.map(row => row.state)
   if (states.some(s => s === 'FAILED' || s === 'DISPOSED')) return 'failed'
-  if (timedOut && states.includes('LOADING')) return 'readiness-timeout'
+  if (ending === 'stop' && (!complete || states.some(s => s !== 'ACTIVE'))) return 'stopped'
+  if (ending === 'deadline' && states.includes('LOADING')) return 'readiness-timeout'
   if (states.some(s => s !== 'ACTIVE')) return 'pending'
   return 'ready'
 }
@@ -121,20 +154,25 @@ const EXIT_CODE = {
   failed: 3,
   pending: 4,
   'readiness-timeout': 4,
+  stopped: 4,
 } as const satisfies Record<ReadinessOutcome, 0 | 3 | 4>
 
 export async function awaitReadiness(options: {
   rows: readonly LoadedRow[]
   timeoutMs: number
   barrier: () => void | Promise<void>
+  stop?: AbortSignal | undefined
+  /** False when a stop kept some rows of the tree from being loaded at all. */
+  complete?: boolean
 }): Promise<ReadinessReport> {
   const { rows } = options
-  const timedOut = await settle(rows, options.timeoutMs)
+  const ending = await settle(rows, options.timeoutMs, options.stop)
   await Promise.all(
     rows.filter(row => stateOf(row) === 'FAILED' && row.error === undefined).map(observe),
   )
   const states = rows.map(row => describeRow(row, rows))
-  const outcome = outcomeOf(states, timedOut)
+  const outcome = outcomeOf(states, ending, options.complete ?? true)
   if (outcome === 'ready') await options.barrier()
-  return { outcome, exitCode: EXIT_CODE[outcome], rows: states }
+  const stuck = states.filter(row => row.state === 'LOADING').map(row => row.id)
+  return { outcome, exitCode: EXIT_CODE[outcome], rows: states, stuck }
 }

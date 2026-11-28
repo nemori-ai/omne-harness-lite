@@ -1,28 +1,34 @@
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
+  heldBack,
   deriveDriveOperation,
   deriveSessionOperation,
   expectedRevision,
   judgeAdvance,
   judgeRunStart,
+  runIdOf,
   type AgentDrivePort,
+  type AdvanceRef,
   type BoundedClose,
   type DriveFailure,
   type DriveReceipt,
+  type AdoptionNote,
   type DurableEvidence,
   type FreezeVerdict,
   type InputId,
   type ProducerFact,
+  type RunAdoption,
   type RunId,
   type SessionFaces,
   type SessionFailure,
+  type StartAdoption,
   type StartedRun,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
-import { messageOf } from './failures.ts'
-import type { KnownHandovers } from './known-handovers.ts'
+import { messageOf, type DriveRefusal } from './failures.ts'
+import { handedRun, type KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import type { Resolution } from './resolution.ts'
@@ -32,7 +38,21 @@ import { sessionSlotReference } from './slot-reference.ts'
 export type Advance = Readonly<{
   trigger(ref: SessionRef): void
   interrupt(ref: SessionRef): boolean
+  closeRefused(ref: SessionRef, advance: AdvanceRef, refusal: DriveRefusal): Promise<void>
 }>
+
+type Advancing = Pick<StartedRun, 'advance'>
+
+const driveRefused = (
+  { failure, field, reason }: DriveRefusal,
+  inputs: readonly InputId[],
+): Extract<BoundedClose, { kind: 'drive-refused' }> => ({
+  kind: 'drive-refused',
+  failure,
+  field,
+  reason,
+  inputs,
+})
 
 type Faces<P> = Readonly<Record<Actor, SessionFaces<P>>>
 
@@ -44,9 +64,8 @@ type Holding = boolean | Readonly<{ failure: SessionFailure }>
 
 function grantedNotInvoked(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
   const { run } = snapshot
-  if (run.kind !== 'active' || run.advance === null || known.has(run.first)) return null
-  if (!snapshot.pending.includes(run.first) || snapshot.handed.includes(run.first)) return null
-  return run
+  if (run.kind !== 'active' || run.advance === null) return null
+  return handedRun(snapshot, known) === null ? run : null
 }
 
 function waitingInputs(
@@ -55,10 +74,41 @@ function waitingInputs(
 ): Readonly<{ run: ActiveRun; inputs: readonly InputId[] }> | null {
   const { run } = snapshot
   if (run.kind !== 'active' || run.advance === null) return null
-  const handed = new Set([...snapshot.handed, ...known])
-  const inputs = snapshot.pending.filter(input => input !== run.first && !handed.has(input))
+  const handed = new Set([...snapshot.handed, ...known, ...heldBack(snapshot)])
+  const inputs = snapshot.pending.filter(
+    input => !run.initial.includes(input) && !handed.has(input),
+  )
   return inputs.length === 0 ? null : { run, inputs }
 }
+
+export type AdvanceStep =
+  | Readonly<{ kind: 'replay'; run: ActiveRun }>
+  | Readonly<{ kind: 'hand-in'; run: ActiveRun; inputs: readonly InputId[] }>
+  | Readonly<{ kind: 'open'; opener: InputId }>
+  | Readonly<{ kind: 'none' }>
+
+export function advanceStep(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): AdvanceStep {
+  const granted = grantedNotInvoked(snapshot, known)
+  if (granted !== null) return { kind: 'replay', run: granted }
+  const waiting = waitingInputs(snapshot, known)
+  if (waiting !== null) return { kind: 'hand-in', ...waiting }
+  const judgment = judgeRunStart(snapshot, 'interactive')
+  return judgment.kind === 'eligible'
+    ? { kind: 'open', opener: judgment.initial[0] }
+    : { kind: 'none' }
+}
+
+const acceptedHandovers = (
+  execution: string,
+  inputs: readonly InputId[],
+  receipt: DurableEvidence,
+): HandoverFact[] =>
+  inputs.map(input => ({
+    kind: 'input-handover',
+    execution,
+    input,
+    result: { kind: 'accepted', receipt },
+  }))
 
 function routedSource(snapshot: WorkSnapshot, input: InputId): DurableEvidence | null {
   return snapshot.historyIndex?.inputs.find(item => item.input === input)?.source ?? null
@@ -102,6 +152,132 @@ async function submitOnce(
   } catch (error) {
     return fail({ kind: 'unavailable', diagnostic: `submit threw: ${messageOf(error)}` })
   }
+}
+
+type As<P> = <T>(
+  actor: Actor,
+  ref: SessionRef,
+  operation: (principal: P) => Promise<Outcome<T, SessionFailure>>,
+) => Promise<Outcome<T, SessionFailure>>
+
+/** How a run is started, and what it adopts: asked of the adoption source at that moment, the version in force then. */
+function runStarts<P>(
+  dependencies: SessionDependencies<P>,
+  coordinator: SessionFaces<P>['work'],
+  as: As<P>,
+  refused: (ref: SessionRef, failure: Outcome<unknown, SessionFailure>) => void,
+) {
+  const start = async (
+    ref: SessionRef,
+    first: InputId,
+    predecessor: RunId | null,
+    { candidate, residentAdoption, note }: Starting,
+  ): Promise<Outcome<StartedRun, SessionFailure>> => {
+    const answer = await as('coordinator', ref, principal =>
+      coordinator.startRun({
+        principal,
+        ...ref,
+        operation: deriveSessionOperation({
+          kind: 'startRun',
+          session: ref.session,
+          first,
+          predecessor,
+        }),
+        entry: 'interactive',
+        candidate,
+        instance: sessionSlotReference(ref.session, candidate),
+        ...(residentAdoption === undefined ? {} : { residentAdoption }),
+        ...(note === undefined ? {} : { note }),
+      }),
+    )
+    // A start that names no wait begins a run: the answer of one that only noted a wait is not this one.
+    return 'ok' in answer && 'noted' in answer.ok
+      ? fail(NOT_STARTED)
+      : (answer as Outcome<StartedRun, SessionFailure>)
+  }
+  // A run that waits notes why once for its first input: the same reason again is the same note.
+  const wait = (ref: SessionRef, work: WorkSnapshot, first: InputId, reason: string) =>
+    as('coordinator', ref, principal =>
+      coordinator.startRun({
+        principal,
+        ...ref,
+        operation: deriveSessionOperation({
+          kind: 'adoption-note',
+          session: ref.session,
+          first,
+          reason,
+        }),
+        entry: 'interactive',
+        candidate: work.definition.adopted,
+        instance: sessionSlotReference(ref.session, work.definition.adopted),
+        note: { kind: 'waiting', reason },
+      }),
+    )
+  const adoptionFor = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    predecessor: RunId | null,
+  ): Promise<Outcome<RunAdoption, SessionFailure>> => {
+    const pinned = { ok: { kind: 'adopt' as const, candidate: work.definition.adopted } }
+    const { evidence } = dependencies
+    if (evidence.runAdoption === undefined) return pinned
+    const run = runIdOf(work.session, first, predecessor)
+    return as(
+      'coordinator',
+      ref,
+      async principal =>
+        (await evidence.runAdoption?.({ principal, ...ref }, { work, run })) ?? pinned,
+    )
+  }
+  /** Starts on what the adoption source answers; with no usable adoption it notes the wait instead. */
+  const begin = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    predecessor: RunId | null,
+  ) => {
+    const adoption = await adoptionFor(ref, work, first, predecessor)
+    if ('failure' in adoption) return { started: adoption, unanswered: true }
+    const started =
+      adoption.ok.kind === 'none'
+        ? await wait(ref, work, first, adoption.ok.reason)
+        : await start(ref, first, predecessor, startingOf(work, adoption.ok))
+    return { started, unanswered: false }
+  }
+  const noteWait = async (
+    ref: SessionRef,
+    work: WorkSnapshot,
+    first: InputId,
+    failure: SessionFailure,
+  ) => refused(ref, await wait(ref, work, first, waitingFor(failure)))
+  return { start, begin, noteWait }
+}
+
+const NOT_STARTED: SessionFailure = Object.freeze({
+  kind: 'unavailable',
+  owner: 'session',
+  diagnostic: 'the run start only noted a wait',
+})
+
+const waitingFor = (failure: SessionFailure): string =>
+  `the adoption cannot be had now: ${'diagnostic' in failure ? failure.diagnostic : failure.kind}`
+
+type Starting = Readonly<{
+  candidate: StartedRun['adopted']
+  residentAdoption?: StartAdoption
+  note?: AdoptionNote
+}>
+
+/** What a run starts on: the set adopted now, or the one the session stands at with why the new one is not used. */
+function startingOf(
+  work: WorkSnapshot,
+  adoption: Exclude<RunAdoption, { kind: 'none' }>,
+): Starting {
+  if (adoption.kind === 'keep')
+    return { candidate: work.definition.adopted, note: { kind: 'kept', reason: adoption.reason } }
+  const { candidate, residentAdoption } = adoption
+  return { candidate, ...(residentAdoption === undefined ? {} : { residentAdoption }) }
 }
 
 export function createAdvance<P>(
@@ -188,9 +364,13 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => handOver(ref, run, fact))
   }
 
+  const handOverAll = async (ref: SessionRef, run: RunId, facts: readonly HandoverFact[]) => {
+    for (const fact of facts) await handOver(ref, run, fact)
+  }
+
   const closeRefused = async (
     ref: SessionRef,
-    started: StartedRun,
+    started: Advancing,
     bounded: Extract<BoundedClose, { kind: 'admission-rejected' | 'drive-refused' }>,
     changes = 0,
   ): Promise<void> => {
@@ -243,7 +423,7 @@ export function createAdvance<P>(
     return send()
   }
 
-  const stillAdvancing = async (ref: SessionRef, started: StartedRun): Promise<Holding> => {
+  const stillAdvancing = async (ref: SessionRef, started: Advancing): Promise<Holding> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
     )
@@ -327,7 +507,7 @@ export function createAdvance<P>(
     const target = { ...ref, execution, operation }
     const delays = policy.advance.retryDelaysMs
     const recorded = async (result: HandoverFact['result']): Promise<true> => {
-      known.note(ref, run.run, input)
+      known.note(ref, run.run, [input])
       await handOver(ref, run.run, { kind: 'input-handover', execution, input, result })
       return true
     }
@@ -386,13 +566,10 @@ export function createAdvance<P>(
 
   const invoke = async (ref: SessionRef, started: StartedRun, replay = false): Promise<void> => {
     const run = started.advance.run
-    const operation = deriveDriveOperation({
-      kind: 'invoke',
-      execution: started.execution,
-      first: started.first,
-      started: started.receipt.source,
-    })
-    const target = { ...ref, execution: started.execution, operation }
+    const { execution, initial } = started
+    const source = started.receipt.source
+    const operation = deriveDriveOperation({ kind: 'invoke', execution, initial, started: source })
+    const target = { ...ref, execution, operation }
     const delays = policy.advance.retryDelaysMs
     for (let attempt = 0; ; attempt += 1) {
       if (lifecycle.closed) return
@@ -410,20 +587,10 @@ export function createAdvance<P>(
           'advance-withdrawn',
           'the original attempt no longer holds the advance',
         )
-      const answer = await invokeOnce(port, {
-        ...target,
-        first: started.first,
-        source: started.receipt.source,
-        grant: started.receipt.source,
-      })
+      const answer = await invokeOnce(port, { ...target, initial, source, grant: source })
       if ('ok' in answer) {
-        known.note(ref, run, started.first)
-        await handOver(ref, run, {
-          kind: 'input-handover',
-          execution: started.execution,
-          input: started.first,
-          result: { kind: 'accepted', receipt: answer.ok.evidence },
-        })
+        known.note(ref, run, initial)
+        await handOverAll(ref, run, acceptedHandovers(execution, initial, answer.ok.evidence))
         if (replay) recover(ref)
         return handIn(ref)
       }
@@ -431,17 +598,11 @@ export function createAdvance<P>(
       if (failure.kind === 'invalid')
         return closeRefused(ref, started, {
           kind: 'admission-rejected',
-          input: started.first,
+          input: failure.input,
           rejection: failure.rejection,
         })
       if (failure.kind === 'refused')
-        return closeRefused(ref, started, {
-          kind: 'drive-refused',
-          failure: failure.failure,
-          field: failure.field,
-          reason: failure.reason,
-          input: started.first,
-        })
+        return closeRefused(ref, started, driveRefused(failure, initial))
       if (failure.kind === 'denied') {
         const again = await stillAdvancing(ref, started)
         if (typeof again !== 'boolean') return reportFailure(ref, 'invoke', run, again)
@@ -485,47 +646,29 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => freeze(ref, verdict))
   }
 
-  const start = (
-    ref: SessionRef,
-    first: InputId,
-    predecessor: RunId | null,
-    candidate: WorkSnapshot['definition']['adopted'],
-  ) =>
-    as('coordinator', ref, principal =>
-      coordinator.startRun({
-        principal,
-        ...ref,
-        operation: deriveSessionOperation({
-          kind: 'startRun',
-          session: ref.session,
-          first,
-          predecessor,
-        }),
-        entry: 'interactive',
-        candidate,
-        instance: sessionSlotReference(ref.session, candidate),
-      }),
-    )
+  const { start, begin, noteWait } = runStarts(dependencies, coordinator, as, (ref, answer) =>
+    reportFailure(ref, 'startRun', null, answer),
+  )
 
   // A Run that cannot start yet for a passing reason (its predecessor not read through, a moved
   // revision) is tried again after each configured delay, judged again on a fresh read.
-  const openRun = async (ref: SessionRef, opened: WorkSnapshot, input: InputId): Promise<void> => {
+  const openRun = async (ref: SessionRef, opened: WorkSnapshot, opener: InputId): Promise<void> => {
     const delays = policy.advance.retryDelaysMs
     let snapshot = opened
-    let first = input
+    let first = opener
     for (let attempt = 0; ; attempt += 1) {
       const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-      const started = await start(ref, first, predecessor, snapshot.definition.adopted)
-      if ('ok' in started) return invoke(ref, started.ok)
+      const { started, unanswered } = await begin(ref, snapshot, first, predecessor)
+      if ('ok' in started) return 'noted' in started.ok ? undefined : invoke(ref, started.ok)
       const failure = started.failure
-      if (failure.kind === 'frozen') {
-        if (failure.verdict !== null) return freeze(ref, failure.verdict)
-        return
-      }
+      if (failure.kind === 'frozen')
+        return failure.verdict === null ? undefined : freeze(ref, failure.verdict)
       if (failure.kind === 'unavailable' || failure.kind === 'changed') {
         const delay = delays[attempt]
-        if (delay === undefined)
-          return report(ref, 'C2', 'startRun', null, 'retries-exhausted', failure)
+        if (delay === undefined) {
+          report(ref, 'C2', 'startRun', null, 'retries-exhausted', failure)
+          return unanswered ? noteWait(ref, snapshot, first, failure) : undefined
+        }
         if (!(await retryWait(ref, null, delay, 'startRun', () => Promise.resolve(true)))) return
         const fresh = await as('coordinator', ref, principal =>
           coordinator.readWork({ principal, ...ref }),
@@ -534,7 +677,7 @@ export function createAdvance<P>(
         const judgment = judgeRunStart(fresh.ok, 'interactive')
         if (judgment.kind !== 'eligible') return
         snapshot = fresh.ok
-        first = judgment.first
+        first = judgment.initial[0]
         continue
       }
       if (failure.kind !== 'run-active') reportFailure(ref, 'startRun', null, started)
@@ -549,13 +692,15 @@ export function createAdvance<P>(
     if ('failure' in snapshot) return reportFailure(ref, 'replay', null, snapshot)
     const run = grantedNotInvoked(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
-    const started = await start(ref, run.first, predecessorOf(snapshot.ok, run.run), run.adoption)
+    const started = await start(ref, run.initial[0], predecessorOf(snapshot.ok, run.run), {
+      candidate: run.adoption,
+    })
     if ('failure' in started) {
       reportFailure(ref, 'replay', run.run, started)
       return unknownTo(ref, started, () => replay(ref))
     }
     if (run.advance?.attempt !== started.ok.advance.attempt) {
-      known.note(ref, run.run, run.first)
+      known.note(ref, run.run, run.initial)
       recover(ref)
       return report(ref, 'C2', 'replay', run.run, 'attempt-replaced', 'held by a later attempt')
     }
@@ -568,16 +713,12 @@ export function createAdvance<P>(
     )
     if ('failure' in snapshot)
       return report(ref, 'S1', 'read', null, snapshot.failure.kind, snapshot.failure)
-    const seen = known.of(ref, snapshot.ok)
-    if (grantedNotInvoked(snapshot.ok, seen) !== null)
-      return scheduling.serial(sessionKey(ref), () => replay(ref))
-    if (waitingInputs(snapshot.ok, seen) !== null)
-      return scheduling.serial(sessionKey(ref), () => handIn(ref))
-    if (snapshot.ok.frozen !== null && snapshot.ok.run.kind !== 'active') return
-    const judgment = judgeRunStart(snapshot.ok, 'interactive')
-    if (judgment.kind !== 'eligible') return
     const opened = snapshot.ok
-    await scheduling.serial(sessionKey(ref), () => openRun(ref, opened, judgment.first))
+    const step = advanceStep(opened, known.of(ref, opened))
+    if (step.kind === 'replay') return scheduling.serial(sessionKey(ref), () => replay(ref))
+    if (step.kind === 'hand-in') return scheduling.serial(sessionKey(ref), () => handIn(ref))
+    if (step.kind === 'open')
+      return scheduling.serial(sessionKey(ref), () => openRun(ref, opened, step.opener))
   }
 
   const triggers = new Map<string, { again: boolean }>()
@@ -587,6 +728,8 @@ export function createAdvance<P>(
       stop?.abort()
       return stop !== undefined
     },
+    closeRefused: (ref, advance, refusal) =>
+      closeRefused(ref, { advance }, driveRefused(refusal, [])),
     trigger: ref => {
       if (lifecycle.closed) return
       const key = sessionKey(ref)

@@ -37,6 +37,7 @@ it('collects several values after --scope, repeated flags and comma lists, and s
     base: 'abc',
     scopes: ['a/', 'b/', 'c/', 'd/'],
     files: ['x.ts'],
+    tests: [],
     full: false,
     planOnly: true,
     recheck: false,
@@ -66,6 +67,7 @@ it('parses numbers and flags', () => {
     maxLines: 900,
     scopes: [],
     files: [],
+    tests: [],
     full: true,
     planOnly: false,
     recheck: false,
@@ -99,7 +101,14 @@ it('takes a value that is only commas for no value, and a value flag that is the
 it('adds up the values of a repeated multi-value flag and leaves unset single values out', () => {
   const options = parseOptions(['--files', 'a,b', '--files', 'c'], ALL)
   expect(options.files).toEqual(['a', 'b', 'c'])
-  expect(Object.keys(options).sort()).toEqual(['files', 'full', 'planOnly', 'recheck', 'scopes'])
+  expect(Object.keys(options).sort()).toEqual([
+    'files',
+    'full',
+    'planOnly',
+    'recheck',
+    'scopes',
+    'tests',
+  ])
 })
 
 it('accepts 1 as the smallest positive count', () => {

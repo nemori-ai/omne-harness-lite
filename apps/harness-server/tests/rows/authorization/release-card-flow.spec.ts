@@ -14,6 +14,7 @@ import {
 } from '../../support/release-tree.ts'
 import {
   ONCE,
+  admittedReleases,
   answerCard,
   pendingCard,
   perMessageShell,
@@ -26,7 +27,13 @@ const GUIDED =
   'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.'
 
 // In auto_permission a Shell call, asked by default, waits on a release card; the answer ends the Run.
-async function answered(tree: ReleaseTree, label: string, reply: readonly string[], into?: string) {
+async function answered(
+  tree: ReleaseTree,
+  label: string,
+  reply: readonly string[],
+  into?: string,
+  whileRunning?: () => Promise<void>,
+) {
   let session = into
   if (session === undefined) session = await tree.startSession(`start: echo ${label}`)
   else {
@@ -41,6 +48,7 @@ async function answered(tree: ReleaseTree, label: string, reply: readonly string
   }
   const card = await pendingCard(tree, session, label)
   await answerCard(tree, card, reply, `reply-${label}`)
+  await whileRunning?.()
   const ends = into === undefined ? 1 : 2
   const entries = await pollUntil(
     `the Run of ${label} to end`,
@@ -131,6 +139,23 @@ it('cancelling the Run while its release card is open withdraws the card and end
   expect(exit).toBe(0)
 })
 
+// The fallback check is ten minutes away, so only the change of the card can wake the waiting Run.
+it(
+  'the answer to a release card wakes the Run that waits on it, without the fallback check',
+  { timeout: 120_000 },
+  async () => {
+    const exit = await onReleaseTree(
+      { script: perMessageShell, permission: 'auto_permission', reconciliationDelaysMs: [600_000] },
+      async tree => {
+        const woken = await answered(tree, 'woken', ['--option', 'allow-once'])
+        expect(woken.result).not.toContain('did not run')
+        expect(woken.started).toBe(true)
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)
+
 it('a release card the person does not release never starts the call, whatever the answer', async () => {
   const exit = await onReleaseTree(
     { script: shellScript, permission: 'auto_permission' },
@@ -170,17 +195,19 @@ it('a release card the person does not release never starts the call, whatever t
 
 // One action either way: a resident tool called directly, or a nonresident one carried by Tools.
 // The carried TodoItems is automatic by default; its gate is set to ask, so the call has a card.
+// The admission record lives as long as its execution, so it is read while the slow Shell call runs.
 it.each([
-  ['directly', 'Shell', { script: perMessageShell }, false],
+  ['directly', 'Shell', { script: perMessageShell }, false, 'slow-released'],
   [
     'through Tools',
     'TodoItems',
     { script: perMessageTodoThroughTools, nonresident: ['TodoItems'] },
     true,
+    'released',
   ],
 ] as const)(
-  'a call made %s and released once runs once, the start records the consumption, and the next call asks again',
-  async (_how, tool, how, asks) => {
+  'a call made %s and released once runs once, its admission records the consumption, and the next call asks again',
+  async (_how, tool, how, asks, label) => {
     const exit = await onReleaseTree(
       { ...how, permission: 'auto_permission', extraHistoryKinds: [ONCE] },
       async tree => {
@@ -192,22 +219,42 @@ it.each([
             'ask',
             'todo-asks',
           )
-        const released = await answered(tree, 'released', ['--option', 'allow-once'])
+        let recorded: ReturnType<typeof admittedReleases> = []
+        const released = await answered(
+          tree,
+          label,
+          ['--option', 'allow-once'],
+          undefined,
+          async () => {
+            if (label.startsWith('slow-'))
+              recorded = await pollUntil(
+                'the admission to record the release it used',
+                () => admittedReleases(tree.storageRoot),
+                rows => rows.some(row => row.by === 'once'),
+              )
+          },
+        )
         expect(released.question).toMatchObject({ kind: 'release', target: { tool } })
         expect(released.result).not.toContain('did not run')
         const granted = released.entries.filter(entry => entry.kind === ONCE)
         expect(granted).toHaveLength(1)
-        const payload = granted[0]?.payload as { expression: { scope: { consumer: unknown } } }
+        const payload = granted[0]?.payload as {
+          expression: { scope: { consumer: unknown }; source: unknown }
+        }
         const { expression } = payload
         expect(expression).toMatchObject({
           scope: { kind: 'once', consumer: { owner: '@omne-harness/agent' } },
           direction: 'grant',
         })
-        const consumed = startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)
-        expect(consumed).toHaveLength(1)
-        expect(consumed[0]?.['authorizations']).toMatchObject([
-          { consumer: expression.scope.consumer },
-        ])
+        if (label.startsWith('slow-'))
+          expect(recorded).toContainEqual({
+            by: 'once',
+            grant: expect.objectContaining({ via: 'once', source: expression.source }),
+          })
+        expect(startAcceptances(tree.storageRoot)).not.toHaveLength(0)
+        expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual(
+          [],
+        )
 
         const again = await answered(tree, 'again', ['--option', 'deny-once'], released.session)
         expect(again.result).toContain(NOT_RELEASED)

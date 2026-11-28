@@ -2,6 +2,9 @@ import { type Context, type Plugin, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   createBeforeIntakeRegistry,
+  createUtteranceResolverRegistry,
+  type UtteranceResolver,
+  type UtteranceResolverRegistry,
   createInputSourceRegistry,
   type BeforeIntakeRegistry,
   type DerivedAdmission,
@@ -42,6 +45,7 @@ import type {
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
 import type { SessionAdoptedRequests } from './adopted-request.ts'
+import type { SessionExecutionLog } from './execution-log.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
@@ -274,6 +278,7 @@ export abstract class AgentDrivePortService extends Service implements AgentDriv
   abstract readonly resume: AgentDrivePort['resume']
   abstract readonly control: AgentDrivePort['control']
   abstract readonly detach: AgentDrivePort['detach']
+  abstract readonly handOver: AgentDrivePort['handOver']
   abstract readonly recordResult: AgentDrivePort['recordResult']
   abstract readonly query: AgentDrivePort['query']
   abstract readonly inspect: AgentDrivePort['inspect']
@@ -430,8 +435,19 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
     super(ctx, SessionAdoptedRequestsService.provide)
   }
   abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest']
+  abstract readonly readRequestChoices: SessionAdoptedRequests<P>['readRequestChoices']
 }
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
+
+/** @owner packages/session/session-cordis-contract */
+export abstract class SessionExecutionLogService extends Service implements SessionExecutionLog {
+  static readonly provide = 'sessionExecutionLog'
+  constructor(ctx: Context) {
+    super(ctx, SessionExecutionLogService.provide)
+  }
+  abstract readonly openTenant: SessionExecutionLog['openTenant']
+}
+export const sessionExecutionLogKey = SessionExecutionLogService.provide
 
 /**
  * The registration point `session.input-sources`: a deployment's declared input sources, keyed by
@@ -494,10 +510,32 @@ export class SessionBeforeIntakeService
 }
 export const sessionBeforeIntakeKey = SessionBeforeIntakeService.provide
 
+/** The registration point `session.utterance-resolver`: at most one resolver of a member's words, read at each intake. */
+export class SessionUtteranceResolverService
+  extends Service
+  implements Pick<UtteranceResolverRegistry<unknown>, 'current'>
+{
+  static readonly provide = 'sessionUtteranceResolver'
+  private readonly registry = createUtteranceResolverRegistry<unknown>()
+  constructor(ctx: Context) {
+    super(ctx, SessionUtteranceResolverService.provide)
+  }
+
+  register(resolver: UtteranceResolver<unknown>): void {
+    this.ctx.effect(() => this.registry.register(resolver), 'sessionUtteranceResolver.register')
+  }
+
+  current(): UtteranceResolver<unknown> | null {
+    return this.registry.current()
+  }
+}
+export const sessionUtteranceResolverKey = SessionUtteranceResolverService.provide
+
 export const sessionBeforeIntakePlugin: Plugin.Object = {
   name: 'session-before-intake',
   apply(ctx: Context) {
     new SessionBeforeIntakeService(ctx)
+    new SessionUtteranceResolverService(ctx)
   },
 }
 
@@ -522,6 +560,7 @@ declare module '@deepseek-ai/cordis' {
     session: SessionService<unknown>
     sessionInputSources: SessionInputSourcesService
     sessionBeforeIntake: SessionBeforeIntakeService
+    sessionUtteranceResolver: SessionUtteranceResolverService
     sessionDerivedInputs: SessionDerivedInputsService
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
@@ -548,6 +587,7 @@ declare module '@deepseek-ai/cordis' {
     sessionReplayFacts: SessionReplayFactsService
     sessionScopeLookup: SessionScopeLookupService
     sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>
+    sessionExecutionLog: SessionExecutionLogService
   }
   interface Events {
     /**

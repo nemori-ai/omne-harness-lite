@@ -80,7 +80,7 @@ test('concurrent retries with changed request time and allocated IDs recognize t
   expect(w.sql('SELECT count(*) AS count FROM sc_schedules')).toEqual([{ count: 1 }])
 }, 15000)
 
-test.each(['deny', 'consent', 'boolean', 'misbound', 'missing', 'sql'])(
+test.each(['deny', 'boolean', 'misbound', 'missing', 'sql'])(
   'guard mode %s cannot leave business or quota writes',
   async mode => {
     const w = await world()

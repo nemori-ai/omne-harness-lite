@@ -121,6 +121,8 @@ export type ModelReceptionTarget = Readonly<{
   pending: Extract<PendingCall, { kind: 'model' }>
 }>
 
+export type ReceptionSettled = Readonly<{ kind: 'settled'; evidence: DurableEvidence }>
+
 export interface ModelReceptionTargets<P> {
   forExecution(
     input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
@@ -132,7 +134,7 @@ export interface ModelReceptionTargets<P> {
       reference: M.ModelInvocationRef
       execution?: AgentExecutionId
     }>,
-  ): Reply<ModelReceptionTarget>
+  ): Reply<ModelReceptionTarget | ReceptionSettled>
 }
 
 export type ToolReceptionTarget = Readonly<{
@@ -150,7 +152,7 @@ export interface ToolReceptionTargets<P> {
       reference: T.ToolInvocationRef
       execution?: AgentExecutionId
     }>,
-  ): Reply<ToolReceptionTarget | null>
+  ): Reply<ToolReceptionTarget | ReceptionSettled | null>
   forExecution(
     input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
   ): Reply<readonly ToolReceptionTarget[]>

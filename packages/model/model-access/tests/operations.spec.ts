@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { createModelAccessContribution } from '@omne-harness/model-access'
-import { createWorld, fixtureLogin, loginIdentity, REQUIRED, resolved } from './fixtures/world.ts'
+import { createModelAccessContribution, type SessionRequirement } from '@omne-harness/model-access'
+import { chatNeedOf, type ModalityRequirement } from '@omne-harness/model-contract'
+import {
+  createWorld,
+  fixtureLogin,
+  judged,
+  loginIdentity,
+  REQUIRED,
+  resolved,
+} from './fixtures/world.ts'
 
 const ALICE = fixtureLogin('a')
 const signal = new AbortController().signal
@@ -12,10 +20,10 @@ function assembled() {
     principals: world.principals,
     settings: { required: REQUIRED },
   })
-  const list = () =>
+  const list = (kind?: 'llm' | 'decisions' | 'live') =>
     contribution.operations['list-models'](
       { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
-      { tenant: ALICE.tenant },
+      { tenant: ALICE.tenant, ...(kind === undefined ? {} : { kind }) },
     )
   return { world, list }
 }
@@ -53,8 +61,84 @@ describe('list-models takes the profiles of Model at each call', () => {
     const { world, list } = assembled()
     await list()
     expect(world.listed).toEqual([
-      { principal: world.principal, tenant: ALICE.tenant, selected: null, required: REQUIRED },
+      {
+        principal: world.principal,
+        tenant: ALICE.tenant,
+        selected: null,
+        required: chatNeedOf(REQUIRED),
+      },
     ])
+  })
+})
+
+describe('list-models of one kind of model (C8)', () => {
+  it('lists the kind it is asked for, each model named with its kind and no chat facts', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [judged('vendor/judge')]
+    const answer = await list('decisions')
+    expect(world.listed.map(call => call.required)).toEqual([
+      { kind: 'decisions', source: REQUIRED.source },
+    ])
+    expect(answer).toEqual({
+      outcome: 'succeeded',
+      body: {
+        supply: { state: 'ready' },
+        models: [
+          {
+            kind: 'decisions',
+            route: 'vendor/judge',
+            selectable: true,
+            reasons: [],
+            enabled: true,
+            credential: 'available',
+            input: ['text'],
+            output: ['text'],
+          },
+        ],
+      },
+    })
+  })
+
+  it('a kind of model the release has none of is no offering, as Model judges its listing', async () => {
+    const { world, list } = assembled()
+    expect(await list('live')).toEqual({
+      outcome: 'succeeded',
+      body: { models: [], supply: { state: 'blocked', by: 'no-offering' } },
+    })
+    expect(world.listed.map(call => call.required)).toEqual([
+      { kind: 'live', source: REQUIRED.source },
+    ])
+  })
+})
+
+describe('the supply list-models answers with (C4)', () => {
+  it('is what Model judges of the listing: blocked at the credential names the providers', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [judged('vendor/judge', { credential: 'missing' })]
+    const answer = await list('decisions')
+    expect(answer.outcome === 'succeeded' && answer.body.supply).toEqual({
+      state: 'blocked',
+      by: 'credential',
+      providers: ['openrouter'],
+    })
+  })
+
+  it('blocked at the switch names the models with their providers', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [resolved('off', { selectable: false, reasons: ['not-enabled'] })]
+    const answer = await list()
+    expect(answer.outcome === 'succeeded' && answer.body.supply).toEqual({
+      state: 'blocked',
+      by: 'not-enabled',
+      models: [{ provider: 'openrouter', route: 'off' }],
+    })
+  })
+
+  it('a credential that cannot be read leaves it unknown', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [resolved('unread', { credential: 'unreadable' })]
+    const answer = await list()
+    expect(answer.outcome === 'succeeded' && answer.body.supply).toEqual({ state: 'unknown' })
   })
 })
 
@@ -62,16 +146,23 @@ describe('what Model answers becomes an outcome of the protocol', () => {
   it('lists each resolved profile with whether it can be selected, why not, and its credential', async () => {
     const { world, list } = assembled()
     world.state.listing = [
-      resolved('anthropic/claude-sonnet-5'),
+      resolved('anthropic/claude-sonnet-5', {}, { low: 'low', medium: 'medium', high: 'high' }),
       resolved('openai/gpt-6-astra', { credential: 'missing' }),
       resolved('locked', { selectable: false, reasons: ['locked', 'scope'] }),
       resolved('unread', { credential: 'unreadable' }),
       resolved('down', { credential: 'unavailable' }),
     ]
-    const io = { input: ['text', 'image'], output: ['text'] }
+    const io = {
+      kind: 'llm',
+      enabled: true,
+      reasoningEfforts: [],
+      input: ['text', 'image'],
+      output: ['text'],
+    }
     expect(await list()).toEqual({
       outcome: 'succeeded',
       body: {
+        supply: { state: 'ready' },
         models: [
           {
             route: 'anthropic/claude-sonnet-5',
@@ -79,6 +170,7 @@ describe('what Model answers becomes an outcome of the protocol', () => {
             reasons: [],
             credential: 'available',
             ...io,
+            reasoningEfforts: ['low', 'medium', 'high'],
           },
           {
             route: 'openai/gpt-6-astra',
@@ -101,6 +193,22 @@ describe('what Model answers becomes an outcome of the protocol', () => {
     })
   })
 
+  it('marks a model the tenant has turned off as not enabled, with no reason, and carries a default effort', async () => {
+    const { world, list } = assembled()
+    world.state.listing = [
+      resolved('off', { selectable: false, reasons: ['not-enabled'] }),
+      resolved('on', { defaultReasoningEffort: 'high' }, { high: 'high' }),
+    ]
+    const answer = await list()
+    expect(answer.outcome === 'succeeded' && answer.body.models).toMatchObject([
+      { route: 'off', selectable: false, reasons: [], enabled: false },
+      { route: 'on', selectable: true, enabled: true, defaultReasoningEffort: 'high' },
+    ])
+    expect(answer.outcome === 'succeeded' && answer.body.models[0]).not.toHaveProperty(
+      'defaultReasoningEffort',
+    )
+  })
+
   it('leaves out a name that resolves to no profile', async () => {
     const { world, list } = assembled()
     world.state.listing = [{ kind: 'absent', reason: 'withdrawn' }, resolved('kept')]
@@ -110,10 +218,13 @@ describe('what Model answers becomes an outcome of the protocol', () => {
     ])
   })
 
-  it('answers an empty list as an empty list', async () => {
+  it('answers an empty list as an empty list, and no offering', async () => {
     const { world, list } = assembled()
     world.state.listing = []
-    expect(await list()).toEqual({ outcome: 'succeeded', body: { models: [] } })
+    expect(await list()).toEqual({
+      outcome: 'succeeded',
+      body: { models: [], supply: { state: 'blocked', by: 'no-offering' } },
+    })
   })
 
   it('answers denied when Model denies the read', async () => {
@@ -136,4 +247,114 @@ describe('what Model answers becomes an outcome of the protocol', () => {
     world.state.listing = 'throw'
     expect(await list()).toEqual({ outcome: 'basis-unavailable' })
   })
+})
+
+describe('list-models for a session judges as selecting a model in that session does', () => {
+  const SESSION = '0123456789abcdef'.repeat(4)
+  const PICTURES: ModalityRequirement = {
+    modalities: ['text', 'image'],
+    source: { owner: 'test', record: 'select-model', revision: '1', digest: '0'.repeat(64) },
+  }
+  const twenty = Array.from({ length: 20 }, (_, at) => ({ message: 'msg_1', block: `blk_${at}` }))
+
+  function forSession(answer: SessionRequirement | null | 'throw' | 'absent') {
+    const world = createWorld()
+    const seen: unknown[] = []
+    const sessions = {
+      async of(at: unknown) {
+        seen.push(at)
+        if (answer === 'throw') throw new Error('history down')
+        return answer === 'absent' ? null : answer
+      },
+    }
+    const contribution = createModelAccessContribution({
+      profiles: world.profiles,
+      principals: world.principals,
+      settings: { required: REQUIRED },
+      ...(answer === 'absent' ? {} : { sessions: () => sessions }),
+    })
+    const list = (kind?: 'decisions') =>
+      contribution.operations['list-models'](
+        { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
+        {
+          tenant: ALICE.tenant,
+          session: SESSION,
+          ...(kind === undefined ? {} : { kind }),
+        } as never,
+      )
+    return { world, seen, list }
+  }
+
+  it('reads no session for a kind of model other than chat: its need does not follow a history', async () => {
+    const { world, seen, list } = forSession('throw')
+    world.state.listing = [judged('vendor/judge')]
+    expect((await list('decisions')).outcome).toBe('succeeded')
+    expect(seen).toEqual([])
+    expect(world.listed.map(call => call.required)).toEqual([
+      { kind: 'decisions', source: REQUIRED.source },
+    ])
+  })
+
+  it('lists with the requirement of the session; a model stopped by it names at most 16 of the blocks', async () => {
+    const { world, seen, list } = forSession({ required: PICTURES, unmetBy: () => twenty })
+    world.state.listing = [
+      resolved('text-only', { selectable: false, reasons: ['modality'] }),
+      resolved('locked', { selectable: false, reasons: ['locked'] }),
+      resolved('anthropic/claude-sonnet-5'),
+    ]
+    const answer = await list()
+    expect(seen).toEqual([{ tenant: ALICE.tenant, session: SESSION }])
+    expect(world.listed.map(call => call.required)).toEqual([chatNeedOf(PICTURES)])
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    const named = answer.body.models.map(model => [model.route, model.blocks?.length])
+    expect(named).toEqual([
+      ['text-only', 16],
+      ['locked', undefined],
+      ['anthropic/claude-sonnet-5', undefined],
+    ])
+    expect(answer.body.models[0]?.blocks?.[0]).toEqual({ message: 'msg_1', block: 'blk_0' })
+  })
+
+  it('without a session in the body, does not ask for one; a model stopped by modality names no block', async () => {
+    const world = createWorld()
+    world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]
+    const seen: unknown[] = []
+    const contribution = createModelAccessContribution({
+      profiles: world.profiles,
+      principals: world.principals,
+      settings: { required: REQUIRED },
+      sessions: () => ({
+        of: async at => (seen.push(at), { required: PICTURES, unmetBy: () => twenty }),
+      }),
+    })
+    const answer = await contribution.operations['list-models'](
+      { principal: loginIdentity(ALICE), messageId: 'm-1', signal },
+      { tenant: ALICE.tenant },
+    )
+    expect(seen).toEqual([])
+    expect(world.listed.map(call => call.required)).toEqual([chatNeedOf(REQUIRED)])
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect('blocks' in answer.body.models[0]!).toBe(false)
+  })
+
+  it('names no block when the definition takes every block, though it was stopped by modality', async () => {
+    const { world, list } = forSession({ required: PICTURES, unmetBy: () => [] })
+    world.state.listing = [resolved('text-only', { selectable: false, reasons: ['modality'] })]
+    const answer = await list()
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect('blocks' in answer.body.models[0]!).toBe(false)
+  })
+
+  it.each([
+    ['cannot be read', null],
+    ['throws', 'throw'],
+    ['is not wired', 'absent'],
+  ] as const)(
+    'answers basis-unavailable when the history %s, and does not ask Model',
+    async (_name, answer) => {
+      const { world, list } = forSession(answer)
+      expect(await list()).toEqual({ outcome: 'basis-unavailable' })
+      expect(world.listed).toEqual([])
+    },
+  )
 })

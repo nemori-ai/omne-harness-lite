@@ -14,6 +14,7 @@ import {
   type WaitState,
 } from '@omne-harness/tool-contract'
 import type { Checkpoint, SuspensionRecord, ToolTask } from '@omne-harness/tool-contract/provider'
+import { mayWaitInBackground } from './ledger-background.ts'
 import { invalid, judgeEvidenceField } from './boundary.ts'
 import { digestOf, mintEvidence } from './evidence.ts'
 import type { RecordTaskCommand } from './ledger-environment-release.ts'
@@ -27,7 +28,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import { gate, nextState, wrongPhase, type WriteCommand } from './ledger-start.ts'
-import { commonOf, type StateBody } from './ledger-state.ts'
+import { commonOf, keptRelation, type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,
@@ -70,7 +71,11 @@ function runningCall(
   if ('failure' in gated) return gated
   const record = gated.ok
   if (record.state.phase !== 'running') return wrongPhase(record.state.phase)
-  if (record.state.relation !== 'foreground') return invalid('call', 'background-cannot-wait')
+  if (record.state.relation !== 'foreground') {
+    const wait = savedWaitOf(snapshot, start)
+    if (wait === undefined || !mayWaitInBackground(wait.fact.value))
+      return invalid('call', 'background-cannot-wait')
+  }
   if (record.start === null || !same(record.start, start))
     return invalid('start', 'not-the-start-record')
   return succeed(record)
@@ -205,7 +210,7 @@ export function decideSuspend(
     checkpoint: checkpoint.payload,
     execution: { kind: 'suspended', checkpoint: checkpoint.payload },
     timing: command.timing,
-    relation: 'foreground',
+    ...keptRelation(record.state),
     wait: { kind: 'none' },
   }
   const state = nextState(record, body, mint.revision)
@@ -298,7 +303,7 @@ export function decideAttachRegistration(
     ...commonOf(record.state),
     phase: 'suspended',
     checkpoint: record.state.checkpoint,
-    relation: 'foreground',
+    ...keptRelation(record.state),
     wait: value,
   }
   const state = nextState(record, body, mint.revision)

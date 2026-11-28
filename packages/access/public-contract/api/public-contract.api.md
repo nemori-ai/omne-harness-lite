@@ -12,7 +12,12 @@
 - `Codec` · `rule-codec.d.ts`
 - `CodecResult` · `rule-codec.d.ts`
 - `DefinedProtocol` · `protocol.d.ts`
+- `FieldRule` · `rule.d.ts`
 - `FixedOutcome` · `outcome.d.ts`
+- `GuestContractData` · `guest-contract.d.ts`
+- `GuestContractRead` · `guest-contract.d.ts`
+- `GuestOperationData` · `guest-contract.d.ts`
+- `LEAF_ALLOWS` · `leaf-codec.d.ts`
 - `LeafKind` · `rule.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
 - `OUTCOMES` · `outcome.d.ts`
@@ -22,20 +27,45 @@
 - `Outcome` · `outcome.d.ts`
 - `OutcomeBodies` · `protocol.d.ts`
 - `ProtocolContract` · `protocol.d.ts`
+- `REJECTION_BODY` · `rule-codec.d.ts`
+- `REJECTION_RULE` · `rule-codec.d.ts`
+- `Rejection` · `rule-codec.d.ts`
 - `Rule` · `rule.d.ts`
 - `RuleValue` · `rule-codec.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
 - `accessProtocol` · `access-protocol.d.ts`
+- `allowsOf` · `leaf-codec.d.ts`
 - `defineProtocol` · `protocol.d.ts`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeLoginStateIdText` · `identity-text.d.ts`
 - `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeTenantText` · `identity-text.d.ts`
+- `guestContract` · `guest-contract.d.ts`
+- `guestContractData` · `guest-contract.d.ts`
+- `guestContractOfTree` · `guest-contract.d.ts`
+- `livesAt` · `revision.d.ts`
+- `pathText` · `rule-codec.d.ts`
+- `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readTenantText` · `identity-text.d.ts`
+- `rejectionText` · `rule-codec.d.ts`
+- `revisionOf` · `revision.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
+- `withheld` · `rule-codec.d.ts`
+
+## 入口 `./snapshot` · `snapshot.d.ts`
+
+- `ContractRules` · `snapshot.d.ts`
+- `ContractSnapshot` · `snapshot.d.ts`
+- `NextSnapshot` · `snapshot.d.ts`
+- `SnapshotStore` · `snapshot.d.ts`
+- `checkRecorded` · `snapshot.d.ts`
+- `contractDigest` · `snapshot.d.ts`
+- `contractRules` · `snapshot.d.ts`
+- `nextSnapshot` · `snapshot.d.ts`
+- `snapshotProblems` · `snapshot.d.ts`
 
 ## 声明文件 `access-protocol.d.ts`
 
@@ -76,9 +106,93 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
+                };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
+                readonly points: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly keys: {
+                                    readonly rule: {
+                                        readonly kind: 'array';
+                                        readonly item: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly optional: true;
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
+                readonly scoped: {
+                    readonly rule: {
+                        readonly kind: 'count';
+                    };
+                    readonly optional: true;
+                    readonly since: 3;
                 };
             };
         },
@@ -114,6 +228,20 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
@@ -138,13 +266,62 @@ declare const availabilityFrame: {
                         };
                     };
                 };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
+                readonly scoped: {
+                    readonly rule: {
+                        readonly kind: 'count';
+                    };
+                    readonly optional: true;
+                    readonly since: 3;
+                };
             };
         }
     ];
 };
 export type AvailabilityFrame = RuleValue<typeof availabilityFrame>;
 export declare const accessProtocol: {
-    readonly operations: {};
+    readonly operations: {
+        readonly scoped: {
+            readonly outcomes: {
+                readonly succeeded: import("./rule-codec.ts").Codec<{
+                    readonly protocols: readonly {
+                        readonly contract: import("@omne-harness/json-text").JsonValue;
+                        readonly major: number;
+                        readonly name: string;
+                    }[];
+                }>;
+                readonly 'basis-unavailable': true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "acting-tenant";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("./rule-codec.ts").Codec<{}>;
+            readonly since: 3;
+        };
+    };
     readonly name: "access";
     readonly major: 1;
     readonly observations: {
@@ -152,14 +329,34 @@ export declare const accessProtocol: {
             readonly identity: "none";
             readonly open: import("./rule-codec.ts").Codec<{}>;
             readonly frame: import("./rule-codec.ts").Codec<{
-                readonly kind: "snapshot";
-                readonly protocols: readonly {
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
                 }[];
+                readonly kind: "snapshot";
+                readonly points?: readonly {
+                    readonly digest: string;
+                    readonly keys?: readonly string[];
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision: number;
+                }[];
+                readonly protocols: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
+                }[];
                 readonly revision: number;
+                readonly scoped?: number;
             } | {
                 readonly added: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
+                }[];
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
                 }[];
@@ -169,6 +366,7 @@ export declare const accessProtocol: {
                     readonly name: string;
                 }[];
                 readonly revision: number;
+                readonly scoped?: number;
             }>;
             readonly ends: readonly [
             ];
@@ -177,6 +375,36 @@ export declare const accessProtocol: {
 };
 export type AccessProtocol = typeof accessProtocol;
 export {};
+```
+
+## 声明文件 `guest-contract.d.ts`
+
+```ts
+import { type JsonValue } from '@omne-harness/json-text';
+import { type ProtocolContract } from './protocol.ts';
+import type { Rule } from './rule.ts';
+export type GuestOperationData = Readonly<{
+    effect: 'read' | 'commit';
+    limit: 'small' | 'input';
+    body: Rule;
+    result: Rule;
+}>;
+export type GuestContractData = Readonly<{
+    name: string;
+    major: number;
+    operations: Readonly<Record<string, GuestOperationData>>;
+}>;
+export type GuestContractRead = Readonly<{
+    ok: Readonly<{
+        contract: ProtocolContract;
+        data: GuestContractData;
+    }>;
+}> | Readonly<{
+    reason: string;
+}>;
+export declare function guestContract(given: unknown): GuestContractRead;
+export declare function guestContractData(contract: ProtocolContract): GuestContractData;
+export declare const guestContractOfTree: (tree: JsonValue) => GuestContractRead;
 ```
 
 ## 声明文件 `identity-text.d.ts`
@@ -201,11 +429,15 @@ export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganiz
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
-export { ruleCodec } from './rule-codec.ts';
-export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
-export type { LeafKind, Rule } from './rule.ts';
+export { pathText, REJECTION_BODY, REJECTION_RULE, rejectionText, ruleCodec, withheld, } from './rule-codec.ts';
+export type { Codec, CodecResult, Rejection, RuleValue } from './rule-codec.ts';
+export { allowsOf, LEAF_ALLOWS } from './leaf-codec.ts';
+export type { FieldRule, LeafKind, Rule } from './rule.ts';
+export { livesAt, projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
+export { guestContract, guestContractData, guestContractOfTree } from './guest-contract.ts';
+export type { GuestContractData, GuestContractRead, GuestOperationData } from './guest-contract.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
 export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBodies, ProtocolContract, } from './protocol.ts';
 ```
@@ -214,12 +446,20 @@ export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBo
 
 ```ts
 import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
-import type { Rule } from './rule.ts';
+import type { LeafKind, Rule } from './rule.ts';
 export type Fields = Readonly<Record<string, unknown>>;
 export type Converted = {
     readonly local: unknown;
     readonly wire: JsonValue;
 };
+export type Refused = {
+    readonly refused: true;
+    readonly at: readonly (string | number)[];
+    readonly given: unknown;
+    readonly allows: string;
+};
+export type Conversion = Converted | Refused;
+export declare const isRefused: (outcome: Conversion) => outcome is Refused;
 export type Direction = 'encode' | 'decode';
 export declare function fields(value: unknown): Fields | undefined;
 export declare function exact(value: Fields, required: readonly string[], optional?: readonly string[]): boolean;
@@ -228,7 +468,11 @@ export declare function textWire(value: JsonValue | undefined): string | undefin
 export declare function stringWire(value: string): JsonValue;
 export declare function wireObject(value: Readonly<Record<string, JsonValue>>): JsonValue;
 export declare function nodeOf(input: unknown): JsonValue | undefined;
-export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
+export declare const LEAF_ALLOWS: {
+    readonly [K in LeafKind]: string;
+};
+export declare function allowsOf(rule: Rule): string;
+export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits, revision?: number): Conversion;
 ```
 
 ## 声明文件 `outcome.d.ts`
@@ -279,6 +523,7 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
     readonly outcomes: Results;
     readonly carriesCredential?: true;
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
     readonly identity: Identity;
@@ -287,6 +532,7 @@ export type ObservationContract<Open = any, Frame = any, End extends string = st
     readonly frame: Codec<Frame>;
     readonly ends: readonly End[];
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ProtocolContract = {
     readonly name: string;
@@ -333,6 +579,19 @@ export declare function defineProtocol<const P extends ProtocolContract>(protoco
 export {};
 ```
 
+## 声明文件 `revision.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+import type { Rule } from './rule.ts';
+export declare const livesAt: (since: number | undefined, revision: number | undefined) => boolean;
+export declare const MAX_REVISION = 999999999;
+export declare const isRevision: (value: unknown) => value is number;
+export declare function checkRule(rule: Rule): void;
+export declare function projectRule(rule: Rule, revision: number): Rule;
+export declare function revisionOf(protocol: ProtocolContract): number;
+```
+
 ## 声明文件 `rule-codec.d.ts`
 
 ```ts
@@ -340,15 +599,25 @@ import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
 import type { Instant } from '@omne-harness/utc-instant';
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 import type { LeafKind, Rule } from './rule.ts';
+export type Rejection = {
+    readonly at: readonly (string | number)[];
+    readonly given: string;
+    readonly allows: string;
+};
 export type CodecResult<T> = {
     readonly ok: true;
     readonly value: T;
 } | {
     readonly ok: false;
+    readonly rejection: Rejection;
 };
+export declare function pathText(at: readonly (string | number)[]): string;
+export declare function withheld(rejection: Rejection): Rejection;
+export declare function rejectionText(rejection: Rejection): string;
 export type Codec<T> = {
-    readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>;
-    readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>;
+    readonly read: (value: JsonValue, limits: JsonLimits, revision?: number) => CodecResult<T>;
+    readonly write: (value: T, limits: JsonLimits, revision?: number) => CodecResult<JsonValue>;
+    readonly rule?: Rule;
 };
 type JsonObject = Extract<JsonValue, {
     readonly kind: 'object';
@@ -407,6 +676,44 @@ export type RuleValue<R extends Rule> = R extends {
     readonly rules: readonly (infer O extends Rule)[];
 } ? RuleValue<O> : never;
 export declare function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>>;
+export declare const REJECTION_RULE: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly at: {
+            readonly rule: {
+                readonly kind: 'array';
+                readonly item: {
+                    readonly kind: 'one-of';
+                    readonly rules: readonly [
+                        {
+                            readonly kind: 'string';
+                        },
+                        {
+                            readonly kind: 'count';
+                        }
+                    ];
+                };
+            };
+        };
+        readonly given: {
+            readonly rule: {
+                readonly kind: 'string';
+            };
+        };
+        readonly allows: {
+            readonly rule: {
+                readonly kind: 'string';
+            };
+        };
+    };
+};
+export declare const REJECTION_BODY: Codec<{
+    readonly rejection?: {
+        readonly allows: string;
+        readonly at: readonly (string | number)[];
+        readonly given: string;
+    };
+}>;
 export {};
 ```
 
@@ -421,10 +728,7 @@ export type Rule = {
     readonly values: readonly (string | boolean)[];
 } | {
     readonly kind: 'object';
-    readonly fields: Readonly<Record<string, {
-        readonly rule: Rule;
-        readonly optional?: true;
-    }>>;
+    readonly fields: Readonly<Record<string, FieldRule>>;
 } | {
     readonly kind: 'array';
     readonly item: Rule;
@@ -433,6 +737,15 @@ export type Rule = {
 } | {
     readonly kind: 'one-of';
     readonly rules: readonly Rule[];
+};
+export type FieldRule = {
+    readonly rule: Rule;
+    readonly optional?: true;
+    readonly since?: 1;
+} | {
+    readonly rule: Rule;
+    readonly optional: true;
+    readonly since: number;
 };
 export type RequestRule = {
     readonly body: Rule;
@@ -449,4 +762,39 @@ export type Family<V extends string, P extends string, S extends string> = {
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
 export declare const empty: Rule;
+```
+
+## 声明文件 `snapshot.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+type Plain = string | number | boolean | null | readonly Plain[] | {
+    readonly [key: string]: Plain;
+};
+export type ContractSnapshot = Readonly<{
+    name: string;
+    major: number;
+    revision: number;
+    rules: Plain;
+    digests: Readonly<Record<string, string>>;
+}>;
+export type SnapshotStore = Readonly<{
+    read: () => string | undefined;
+    write: (text: string) => void;
+    append: boolean;
+}>;
+export type ContractRules = Plain;
+export declare const contractRules: (protocol: ProtocolContract) => ContractRules;
+export declare function contractDigest(protocol: ProtocolContract, revision: number, sha256: (bytes: Uint8Array) => Uint8Array): string | undefined;
+export declare function snapshotProblems(protocol: ProtocolContract, recorded: unknown): Promise<string[]>;
+export type NextSnapshot = Readonly<{
+    ok: true;
+    snapshot: ContractSnapshot;
+}> | Readonly<{
+    ok: false;
+    problems: string[];
+}>;
+export declare function nextSnapshot(protocol: ProtocolContract, recorded: unknown): Promise<NextSnapshot>;
+export declare function checkRecorded(protocol: ProtocolContract, store: SnapshotStore): Promise<string[]>;
+export {};
 ```

@@ -1,3 +1,4 @@
+import type { PassEffect } from './extension-pass.ts'
 import type {
   AgentCheckpoint,
   AgentEventBody,
@@ -44,6 +45,8 @@ export type Write = Readonly<{
   caller?: CallerCommit
   operation?: AgentOperationId
   recordsFact?: true
+  /** Decided on what the loop read last: a changed revision is answered, not written over. */
+  exactCursor?: true
 }>
 
 export function historyCaller(
@@ -92,6 +95,7 @@ export type Iteration = {
   lost: DurableEvidence | null
   result: ModelResult | null
   admission: 'new' | 'unknown' | 'accepted'
+  before: PassEffect | null
 }
 
 export const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>

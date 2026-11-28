@@ -1,78 +1,31 @@
 #!/usr/bin/env node
-import { chmodSync, statSync } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import {
-  DEFAULT_READINESS_TIMEOUT_MS,
-  DEFAULT_DRAIN_DEADLINE_MS,
-  DEFAULT_SHUTDOWN_DEADLINE_MS,
-} from './local/operator-defaults.ts'
-import { processSecretReader } from './local/secret-input.ts'
-import { localServeInputs } from './local/serve-local.ts'
-import { runSetup } from './local/setup.ts'
-import { lineWriter, recordLineWriter, runS0, runServe, type S0Record } from './run.ts'
+  COMMON_OPTIONS,
+  NotSetUpError,
+  SERVE_OPTIONS,
+  UsageError,
+  positiveInt,
+  readJson,
+  recordWriter,
+  serveInputs,
+  serveUntilStopped,
+  setupCommand,
+  stderrWriter,
+} from './local/serve-command.ts'
+import { SUPERVISE_USAGE, superviseCommand } from './local/supervise-command.ts'
+import { refusedByPointer } from './local/install-root.ts'
+import { SWAP_USAGE, swapCommand } from './local/swap-command.ts'
+import { VERSIONS_USAGE, versionsCommand } from './local/versions-command.ts'
+import { runS0 } from './run.ts'
 import { endProcess } from './process-end.ts'
-
-class UsageError extends Error {}
-
-class NotSetUpError extends Error {}
 
 const S0_USAGE =
   'usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>'
 const SERVE_USAGE =
-  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
-
-const BUNDLED_DISTRIBUTION = fileURLToPath(
-  new URL('../config/serve.distribution.json', import.meta.url),
-)
-
-const COMMON_OPTIONS = {
-  distribution: { type: 'string' },
-  operator: { type: 'string' },
-  'readiness-timeout-ms': { type: 'string' },
-  'shutdown-deadline-ms': { type: 'string' },
-} as const
-
-const SERVE_OPTIONS = {
-  ...COMMON_OPTIONS,
-  'drain-deadline-ms': { type: 'string' },
-  'state-root': { type: 'string' },
-  'stop-on-stdin-close': { type: 'boolean' },
-} as const
-
-function positiveInt(name: string, text: string | undefined): number {
-  if (text === undefined) throw new UsageError(`missing --${name}`)
-  const value = Number(text)
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new UsageError(`--${name} must be a positive integer`)
-  }
-  return value
-}
-
-async function readJson(name: string, path: string | undefined, required: boolean) {
-  if (path === undefined) {
-    if (required) throw new UsageError(`missing --${name}`)
-    return undefined
-  }
-  if (!isAbsolute(path)) throw new UsageError(`--${name} must be an absolute path`)
-  try {
-    return JSON.parse(await readFile(path, 'utf8')) as unknown
-  } catch (error) {
-    throw new UsageError(`--${name} cannot be read as JSON: ${(error as Error).message}`)
-  }
-}
-
-async function stateRoot(path: string | undefined): Promise<string> {
-  if (path === undefined) throw new UsageError('missing --state-root')
-  if (!isAbsolute(path)) throw new UsageError('--state-root must be an absolute path')
-  try {
-    if ((await stat(path)).isDirectory()) return path
-  } catch {}
-  throw new UsageError('--state-root must be an existing directory')
-}
+  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--root-disposal-deadline-ms <n>] [--dependency-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
 
 type Common = Readonly<{
   distribution: unknown
@@ -100,9 +53,6 @@ async function commonOf(
   }
 }
 
-const write = recordLineWriter(process.stdout)
-const stderr = lineWriter(process.stderr)
-
 async function mainS0(argv: readonly string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: [...argv],
@@ -110,71 +60,8 @@ async function mainS0(argv: readonly string[]): Promise<number> {
     options: COMMON_OPTIONS,
   })
   const common = await commonOf('s0', values, positionals)
-  const result = await runS0({ ...common, write, stderr })
+  const result = await runS0({ ...common, write: recordWriter, stderr: stderrWriter })
   return result.exitCode
-}
-
-type ServeInputs = Common &
-  Readonly<{
-    drainDeadlineMs: number
-    stateRoot: string
-    port?: number
-  }>
-
-async function serveInputs(
-  values: Readonly<{
-    [K in keyof typeof COMMON_OPTIONS | 'state-root' | 'drain-deadline-ms']?: string
-  }>,
-  positionals: readonly string[],
-): Promise<ServeInputs> {
-  if (positionals.length !== 1 || positionals[0] !== 'serve')
-    throw new UsageError('expected subcommand serve')
-  const readinessText = values['readiness-timeout-ms']
-  const deadlineText = values['shutdown-deadline-ms']
-  const readinessTimeoutMs =
-    readinessText === undefined
-      ? DEFAULT_READINESS_TIMEOUT_MS
-      : positiveInt('readiness-timeout-ms', readinessText)
-  const shutdownDeadlineMs =
-    deadlineText === undefined
-      ? DEFAULT_SHUTDOWN_DEADLINE_MS
-      : positiveInt('shutdown-deadline-ms', deadlineText)
-  const distribution = await readJson(
-    'distribution',
-    values.distribution ?? BUNDLED_DISTRIBUTION,
-    true,
-  )
-  const operator = await readJson('operator', values.operator, false)
-  const givenRoot = values['state-root']
-  const root = givenRoot === undefined ? undefined : await stateRoot(givenRoot)
-  const local = localServeInputs({
-    platform: process.platform,
-    env: process.env,
-    home: homedir(),
-    needOperator: operator === undefined,
-    needStateRoot: root === undefined,
-    distribution,
-    shutdownDeadlineMs,
-  })
-  if (local.kind === 'not-set-up') throw new NotSetUpError(local.detail)
-  if (local.kind === 'refused') throw new UsageError(local.message)
-  const layer = operator ?? local.operator
-  const resolvedRoot = root ?? local.stateRoot
-  if (resolvedRoot === undefined) throw new UsageError('missing --state-root')
-  return {
-    distribution,
-    ...(layer === undefined ? {} : { operator: layer }),
-    readinessTimeoutMs,
-    shutdownDeadlineMs,
-    drainDeadlineMs:
-      values['drain-deadline-ms'] === undefined
-        ? DEFAULT_DRAIN_DEADLINE_MS
-        : positiveInt('drain-deadline-ms', values['drain-deadline-ms']),
-    stateRoot: resolvedRoot,
-    ...(local.kind === 'ready' && local.settings !== undefined
-      ? { port: local.settings.port }
-      : {}),
-  }
 }
 
 async function mainServe(argv: readonly string[]): Promise<number> {
@@ -183,66 +70,19 @@ async function mainServe(argv: readonly string[]): Promise<number> {
     allowPositionals: true,
     options: SERVE_OPTIONS,
   })
-  const { port, ...inputs } = await serveInputs(values, positionals)
-
-  const controller = new AbortController()
-  const keepAlive = setInterval(() => {}, 1 << 30)
-  const requestStop = (reason: string) => controller.abort(reason)
-  const onSigint = () => requestStop('SIGINT')
-  const onSigterm = () => requestStop('SIGTERM')
-  process.once('SIGINT', onSigint)
-  process.once('SIGTERM', onSigterm)
-  if (values['stop-on-stdin-close'] === true) {
-    process.stdin.once('end', () => requestStop('stdin closed'))
-    process.stdin.once('close', () => requestStop('stdin closed'))
-    process.stdin.resume()
+  if (positionals.length !== 1 || positionals[0] !== 'serve')
+    throw new UsageError('expected subcommand serve')
+  const root = values['install-root']
+  if (root !== undefined) {
+    if (!isAbsolute(root)) throw new UsageError('--install-root must be an absolute path')
+    // The first step of coming up: a build the pointer does not name takes no lock and reads no state.
+    const refused = refusedByPointer(root, process.argv[1] ?? '')
+    if (refused !== null) {
+      process.stderr.write(`serve: ${refused}\n`)
+      return 2
+    }
   }
-  const announce = (record: S0Record) => {
-    write(record)
-    if (port !== undefined && record.kind === 'startup-result' && record['accepting'] === true)
-      stderr(`serve: accepting on http://127.0.0.1:${port}`)
-  }
-  try {
-    const result = await runServe({
-      ...inputs,
-      stop: controller.signal,
-      write: announce,
-      stderr,
-    })
-    return result.exitCode
-  } finally {
-    clearInterval(keepAlive)
-    process.off('SIGINT', onSigint)
-    process.off('SIGTERM', onSigterm)
-    if (values['stop-on-stdin-close'] === true) process.stdin.destroy()
-  }
-}
-
-function isFile(path: string): boolean {
-  try {
-    return statSync(path).isFile()
-  } catch {
-    return false
-  }
-}
-
-function mainSetup(argv: readonly string[]): Promise<number> {
-  return runSetup(
-    argv,
-    {
-      stdout: text => process.stdout.write(text),
-      stderr: text => process.stderr.write(text),
-    },
-    {
-      platform: process.platform,
-      env: process.env,
-      home: homedir(),
-      cwd: process.cwd(),
-      readSecret: processSecretReader(process.stdin, process.stderr),
-      ...(process.platform === 'win32' ? {} : { chmod: chmodSync }),
-      isFile,
-    },
-  )
+  return serveUntilStopped(await serveInputs(values), values['stop-on-stdin-close'] === true)
 }
 
 function isUsageError(error: unknown): boolean {
@@ -268,11 +108,47 @@ function selectedSubcommand(argv: readonly string[]): Subcommand {
   }
 }
 
+async function mainSupervise(argv: readonly string[]): Promise<number> {
+  try {
+    return await superviseCommand(argv, fileURLToPath(import.meta.url))
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error
+    process.stderr.write(`supervise: ${error.message}\n${SUPERVISE_USAGE}\n`)
+    return 2
+  }
+}
+
+async function mainSwap(argv: readonly string[]): Promise<number> {
+  const line = (stream: NodeJS.WriteStream) => (text: string) => void stream.write(`${text}\n`)
+  try {
+    return await swapCommand(argv, line(process.stdout), line(process.stderr))
+  } catch (error) {
+    if (!isUsageError(error)) throw error
+    process.stderr.write(`swap: ${(error as Error).message}\n${SWAP_USAGE}\n`)
+    return 2
+  }
+}
+
+function mainVersions(argv: readonly string[]): number {
+  const line = (stream: NodeJS.WriteStream) => (text: string) => void stream.write(`${text}\n`)
+  try {
+    return versionsCommand(argv, line(process.stdout), line(process.stderr))
+  } catch (error) {
+    if (!isUsageError(error)) throw error
+    process.stderr.write(`versions: ${(error as Error).message}\n${VERSIONS_USAGE}\n`)
+    return 2
+  }
+}
+
 async function main(argv: readonly string[]): Promise<number> {
+  // The supervisor is named first: the rest of the line belongs to the `serve` it starts.
+  if (argv[0] === 'supervise') return mainSupervise(argv.slice(1))
+  if (argv[0] === 'swap') return mainSwap(argv.slice(1))
+  if (argv[0] === 'versions') return mainVersions(argv.slice(1))
   const subcommand = selectedSubcommand(argv)
   if (subcommand === 'setup') {
     try {
-      return await mainSetup(argv)
+      return await setupCommand(argv)
     } catch (error) {
       process.stderr.write(
         `setup: internal error: ${error instanceof Error ? error.name : 'Error'}\n`,

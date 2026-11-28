@@ -1,6 +1,7 @@
 import type { SessionEntry } from './entries.ts'
 import type { RunId } from './identity.ts'
 import { associated, validateBinding, validateRegistration } from './call-state.ts'
+import { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
 import type { HistoryEntry } from './faces.ts'
 import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
 import type { WorkSnapshot } from './values.ts'
@@ -17,6 +18,7 @@ import {
   evidenceFields,
   inconsistent,
   invalidAt,
+  missingAt,
   unavailableAt,
   unique,
 } from './session-validation.ts'
@@ -28,7 +30,7 @@ export function validateFrontierBatch(
 ): void {
   const starts = entries.filter(entry => entry.kind === 'run.started')
   for (const start of starts)
-    requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: [start.first] })
+    requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: start.initial })
   for (const entry of entries)
     if (entry.kind === 'intake.handed-over' && entry.result.kind === 'accepted')
       requirePrepared(historyContext(snapshot, reads), { kind: 'selected', inputs: [entry.input] })
@@ -190,7 +192,7 @@ export function validateInterpretationEntry(
     )
   if (entry.kind === 'call.execution-fact') {
     const consumption = snapshot.consumptions.find(item => item.id === entry.consumption)
-    if (consumption === undefined) unavailableAt('producer.originalConsumption')
+    if (consumption === undefined) missingAt('producer.originalConsumption')
     validateBinding(snapshot, consumption.binding, run)
     if (
       entry.fact.kind !== 'execution' ||
@@ -263,7 +265,18 @@ export function validateReplayHistory(
           inconsistent('interpretation of a deferred control fact writes other consequences')
         continue
       }
-      const required = fact.kinds.filter(kind => kind !== 'observed')
+      const processed = entries.flatMap((candidate, index) =>
+        candidate.kind === 'call.execution-fact' &&
+        candidate.consumption !== undefined &&
+        equalValue(rows[index]?.origin.source, fact.source)
+          ? [candidate.consumption]
+          : [],
+      )
+      const required = withoutCommitted(
+        fact.kinds.filter(kind => kind !== 'observed'),
+        committedBindings(boundConsumptions(snapshot, processed)),
+        kind => kind,
+      )
       const normalize = (kind: string) =>
         kind === 'call' ? 'call-registration' : kind === 'waiting' ? 'registered-waiting' : kind
       if (!equalValue(actual.map(normalize), required.map(normalize)))

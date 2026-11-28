@@ -5,7 +5,7 @@ export {
   type CaptureScope,
 } from './provider.ts'
 export { assetsSqlMaterials } from './materials.ts'
-export { tenantLayerSource } from './layer.ts'
+export { tenantListing } from './layer.ts'
 export type * from './types.ts'
 export type {
   LocalPackages,

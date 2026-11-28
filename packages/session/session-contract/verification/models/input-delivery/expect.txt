@@ -1,0 +1,8 @@
+design.cfg pass
+guard-alone.cfg pass
+before-news.cfg AskHasNews
+before-passive.cfg NoPassiveStart
+before-quiet.cfg QuietStable
+before-shown.cfg ShownTaken
+before-stuck.cfg StartEnabled
+late-rows.cfg TakenShown

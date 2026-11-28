@@ -10,11 +10,15 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 
+import { SCRIPT_TOOL_FILE, scriptToolAuthoring } from './script-tool.ts'
+import { bodySettings, toolSettingDefinitions } from './settings.ts'
+
 export const toolCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '工具',
   summary: '代理可以调用的函数，带它的设置项与调用权限。',
+  creation: `一个目录，根下有 ${SCRIPT_TOOL_FILE}：名字、说明、参数、怎样运行、是读还是写；它运行的脚本放在旁边。`,
+  authoring: scriptToolAuthoring,
 })
-import { bodySettings, toolSettingDefinitions } from './settings.ts'
 
 const schemaRead = readBodyText(
   '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","requiredCapabilities":"string[]","composes":{"skills":"string[]"},"implementation":{"executor":"string","module":"string","construction":"json"},"settings":{"schema":"json","defaults":"json","items":"json"}}}',

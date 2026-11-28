@@ -115,6 +115,16 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     },
   },
   {
+    name: 'the name an upload is begun with is kept on its row; an upload without one has none',
+    async run(create) {
+      const index = await create()
+      ok(await index.insertUploading({ ...uploading('a'), name: '季度报告.pdf' }))
+      ok(await index.insertUploading(uploading('b')))
+      assert.equal(ok(await index.readUpload(T1, 'up-a')).name, '季度报告.pdf')
+      assert.equal('name' in ok(await index.readUpload(T1, 'up-b')), false)
+    },
+  },
+  {
     name: 'a key that is taken is not inserted again, and the refused insert leaves no upload behind',
     async run(create) {
       const index = await create()
@@ -382,10 +392,17 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
         outcome: 'inconvertible',
       }
       assert.deepEqual(ok(await record(cannot)), cannot)
+      const encrypted: Representation = {
+        ...cannot,
+        definition: definition('4'),
+        reason: 'encrypted',
+      }
+      assert.deepEqual(ok(await record(encrypted)), encrypted)
       const read = (revision: string, tenant = T1, letter = 'a') =>
         index.readRepresentation({ tenant, key: key(letter), definition: definition(revision) })
       assert.deepEqual(ok(await read('1')), first)
       assert.deepEqual(ok(await read('2')), cannot)
+      assert.deepEqual(ok(await read('4')), encrypted)
       assert.equal(ok(await read('3')), null)
       assert.equal(ok(await read('1', T2)), null)
       assert.equal(ok(await read('1', T1, 'z')), null)

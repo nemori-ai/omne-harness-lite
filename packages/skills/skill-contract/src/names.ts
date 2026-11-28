@@ -2,6 +2,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AssetVersion, PackagePath, SafeReason, SkillName } from './values.ts'
 
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+export const SKILL_NAME_LIMIT = 64
 const SHORT_TEXT_MAX = 256
 
 function hasControl(text: string): boolean {
@@ -14,7 +15,10 @@ function hasControl(text: string): boolean {
 
 export function isSkillName(value: unknown): value is SkillName {
   return (
-    typeof value === 'string' && value.length >= 1 && value.length <= 64 && SKILL_NAME.test(value)
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= SKILL_NAME_LIMIT &&
+    SKILL_NAME.test(value)
   )
 }
 

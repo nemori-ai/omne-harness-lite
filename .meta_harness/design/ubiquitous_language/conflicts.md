@@ -359,10 +359,10 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-61：斜杠命令受理依赖已移除的位置
 
 - **类型**：定义打架，外域。2026-10-17 用户决定移除消息落盘之前位置后发现。
-- **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包组规格](../../../packages/slash-command/SPEC.md#受理与内容交接)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
+- **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包组规格](../../../packages/slash-command/SPEC.md#解析受理的解析一步)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
 - **处理**：产品负责人于 2026-10-19 裁定：消息持久化归会话，不归 Agent。所以消息落盘之前与之后的处理不是 Loop 拓展点，而是会话的[业务流程拓展点](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)。斜杠命令的展开、脱敏与否决挂在会话的业务流程拓展点上。omne-harness 的拓展点因此分两类：会话的业务流程拓展点与 Agent 的 Loop 拓展点，两类并列。
 - **负责与闭合条件**：会话领域定义消息持久化前后的业务流程拓展点；slash-commands 产品页、领域流程与包架构改挂到这些拓展点；hooks 导入专题的 UserPromptSubmit 同样改挂。会话领域定义这些拓展点时一并写明：展开与脱敏改变的是尚未受理、尚未落定的输入，与业务流程拓展点“不改变已经落定的事实、不对会话日志留下持久化影响”的定义性质怎样相容。各页回改后闭合。
-- **状态**：已裁定，待会话领域定义拓展点与各页回改。
+- **状态**：已闭合（2026-11-24）。展开、核对与拒收在会话受理流水线的解析一步里做（[会话规格](../../../packages/session/SPEC.md)的 `session.utterance-resolver`），排在受理前处理之前，所以脱敏这类处理件看到的是展开之后、尚未受理的输入；产品页、领域流程与包组规格已改写，来路标记的出处已改到现行产品正文。
 
 ### C-62：拓展与扩展
 
@@ -637,3 +637,20 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：按 §6.1，工具内容引用的块可以被标成一种单独的「待加载」；按 §6 与规格，它与别的块一样从快照里选，取原件时字节由 Model 在发出时读取，不另成一种选择。
 - **处置**：[UL-representation-choice](terms/record-and-context.md#ul-representation-choice--表示决定--representation-choice) 按 §6 与规格写三种，并在「待裁决」里写明 §6.1 的第四种。运行感知 §6.1 已删去第四种，写明取原件的块由 Model 在发送时加载字节；两处一致。
 - **状态**：已闭合（运行感知 rev 11）。
+
+### C-97：观感偏好由谁承载
+
+- **类型**：定义打架。
+- **两处原文**：[UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) 写「它是个人 context 的一部分，由账号承载、跟着人走」。[桌面应用「应用拥有什么，不拥有什么」](../product/desktop-application/design.md#应用拥有什么不拥有什么)（rev 5）写「人对观感的选择：明暗主题与字号档。它们是观感偏好，只影响好不好看，存在本机」。
+- **差别**：按词条，人换一台机器登录，主题与字号档跟着账号过去；按桌面应用，每台机器各存一份，换机器回到缺省。
+  这一项现在也管停在哪一面：[桌面应用「两面与翻面」](../product/desktop-application/design.md#两面与翻面)（rev 10）写「记着的那一面是这台设备上的观感偏好，存在本机，不分租户」。[画布](../product/canvas/design.md#远近键盘与字号)（rev 1）把看着哪一块、放多大，以及磁吸开没开，也写成这台设备上的观感偏好。裁定对这几项同样适用。
+- **处置**：待产品负责人裁决。桌面应用的正文暂按存本机写，这是对词条的偏离。裁定存本机时，改词条的承载说法或给桌面应用的选择另立词；裁定跟着账号时，改桌面应用的正文与它的规格。
+- **状态**：待裁决。
+
+### C-98：连接件的事件目录与 MCP 事件类型
+
+- **类型**：范围重叠，两处都是本系统自己的设计。
+- **两处原文**：[UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) 写连接件「声明事件目录、持有上配事件订阅」，外面的事由连接件送进来。[MCP 产品页 J-MC09](../product/mcp/design.md#j-mc09-订阅并接收对端的事件)（rev 8）写对端在连接上声明 [MCP 事件类型](terms/reach-and-availability.md#ul-mcp-event-type--mcp-事件类型--mcp-event-type)，本系统建立 [MCP 事件订阅](terms/reach-and-availability.md#ul-mcp-event-subscription--mcp-事件订阅--mcp-event-subscription)去收。
+- **差别**：两处都让外面的事进到本系统。连接件的目录由连接件的作者写，订阅是持有上的一项设置。MCP 的目录由对端声明，订阅是一条有位置的耐久记录。连接件的产品状态是搁置，MCP 这一面已采用，两处现在不同时生效。
+- **处置**：四个词各带限定，不合并。连接件恢复时由产品负责人裁：外面的事是否只经 MCP 与通知来源进来，连接件的事件目录与事件订阅是否退出。与 [C-87](#c-87连接件的投递方式与投递去处) 一起裁。
+- **状态**：待裁决。连接件恢复之前不影响 MCP 这一面。

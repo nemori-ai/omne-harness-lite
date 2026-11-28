@@ -20,6 +20,10 @@ export function ownsTyping(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(CONTROL) !== null
 }
 
+export function reachable<T extends Element>(element: T | null | undefined): element is T {
+  return element != null && element.isConnected && element.closest('[inert]') === null
+}
+
 export function focusSurface(surface: HTMLElement, preferred?: HTMLElement | null): void {
   const marked = [...surface.querySelectorAll<HTMLElement>('[data-initial-focus]')].find(visible)
   const editor = [
@@ -61,6 +65,7 @@ function neighbourRegion(direction: 'next' | 'previous'): HTMLElement | undefine
   if (!regions.length) return undefined
   const current = document.activeElement?.closest(REGION)
   const index = regions.findIndex(region => region === current)
+  if (index === -1) return direction === 'next' ? regions[0] : regions.at(-1)
   return regions[(index + (direction === 'next' ? 1 : -1) + regions.length) % regions.length]
 }
 
@@ -77,12 +82,8 @@ export function moveRegion(direction: 'next' | 'previous'): boolean {
   target.focus({ preventScroll: true })
   return document.activeElement === target
 }
-export function currentRegion(): HTMLElement | undefined {
-  return (
-    document.activeElement?.closest<HTMLElement>(REGION) ??
-    document.querySelector<HTMLElement>('#shell-content') ??
-    undefined
-  )
+export function currentRegion(fallback?: HTMLElement | null): HTMLElement | undefined {
+  return document.activeElement?.closest<HTMLElement>(REGION) ?? fallback ?? undefined
 }
 type NavigationKey = 'j' | 'k' | 'gg' | 'G' | '/'
 
@@ -121,8 +122,8 @@ function stepItems(list: Element, key: NavigationKey): boolean {
   return true
 }
 
-export function navigateWithin(key: NavigationKey): boolean {
-  const region = currentRegion()
+export function navigateWithin(key: NavigationKey, fallback?: HTMLElement | null): boolean {
+  const region = currentRegion(fallback)
   if (!region) return false
   if (key === '/') return focusSearch(region)
   const reading = region.querySelector<HTMLElement>('[data-keyboard-reading]')

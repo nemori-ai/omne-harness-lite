@@ -19,7 +19,7 @@ import {
   type CallSnapshot,
 } from './resumption-decider-values.ts'
 import {
-  adoption,
+  available,
   callId,
   evidence,
   functionDefinition,
@@ -85,12 +85,7 @@ async function background() {
   const harness = startHarness()
   await admitCall(harness, 'c1', {
     mode: 'background',
-    availability: {
-      kind: 'available',
-      definition: functionDefinition({ backgroundAllowed: true }),
-      executor: adoption('exec'),
-      layer: { kind: 'official' },
-    },
+    availability: available(functionDefinition({ backgroundAllowed: true })),
   })
   await harness.drive('c1')
   return harness

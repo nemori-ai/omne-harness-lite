@@ -78,7 +78,7 @@ export type PromptContributionSet = Readonly<{
 
 export type SelectedModel = Readonly<{
   recipient: Readonly<{ route: string; model: string }>
-  profile: M.ModelProfile
+  profile: M.ModelProfile<'llm'>
   parameters: readonly M.ParameterAdoption[]
   replay: 'on' | 'off'
   toolsEvidence: DurableEvidence

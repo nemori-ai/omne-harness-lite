@@ -2,9 +2,16 @@
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
-import { INBOX_SECTIONS, inboxSections, notificationUiModule } from '../src/cordis.ts'
+import { partsOn } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import {
+  INBOX_SECTIONS,
+  NOTIFICATION_ENTRY,
+  inboxSections,
+  notificationEntry,
+  notificationUiModule,
+} from '../src/cordis.ts'
 import { entry, page } from './fixtures/entries.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -12,10 +19,6 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({
-  name: notificationProtocol.name,
-  major: notificationProtocol.major,
-})
 
 beforeAll(stubAnimation)
 afterEach(cleanup)
@@ -34,9 +37,9 @@ const pageIds = (root: Context) =>
 async function loaded() {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, notificationProtocol, fake.client)
   await root.plugin(notificationUiModule)
-  return { root, shell, fake, unprovide }
+  return { root, shell, fake, served }
 }
 
 it('with the protocol client on the tree it puts one page with a count, and nothing else', async () => {
@@ -50,21 +53,45 @@ it('with the protocol client on the tree it puts one page with a count, and noth
   expect(shell.items('attached')).toEqual([])
 })
 
-it('without the protocol client it does not load', async () => {
-  const { root } = await startShell()
+it('without the protocol client it keeps its page and puts nothing else', async () => {
+  const { root, shell } = await startShell()
   await root.plugin(notificationUiModule)
-  expect(pageIds(root)).toEqual([])
+  expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.items('sidebar')).toEqual([])
+  expect(shell.items('gate')).toEqual([])
+  expect(shell.items('attached')).toEqual([])
 })
 
-it('the page and the count go when the client goes and come back with it', async () => {
-  const { root, fake, unprovide } = await loaded()
-  expect(pageIds(root)).toEqual(['notifications'])
-  unprovide()
+it('declares its seven parts, whether or not the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(notificationUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['notification.page', 'shell.workspace.page'],
+    ['notification.page.filter', 'notification.page'],
+    ['notification.page.group', 'notification.page'],
+    ['notification.row', 'notification.page.group'],
+    ['notification.row.actions', 'notification.row'],
+    ['notification.row.detail', 'notification.row'],
+    ['notification.row.title', 'notification.row'],
+  ])
+})
+
+it('the module is adopted at notification/v2 while it is served, and the page stays when it goes', async () => {
+  const { root, shell, fake, served } = await loaded()
+  expect(shell.adoption('notification-ui')).toMatchObject({
+    kind: 'adopted',
+    bindings: { notification: { key: 'notification/v2' } },
+  })
+  await served.dispose()
   await later()
-  expect(pageIds(root)).toEqual([])
-  root.reflect.provide(SERVICE, fake.client)
+  expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.adoption('notification-ui')).toMatchObject({ kind: 'unavailable' })
+  await serveProtocol(root, notificationProtocol, fake.client)
   await later()
   expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.adoption('notification-ui')).toMatchObject({ kind: 'adopted' })
 })
 
 it('the page uses the tenant of the shell; without one it draws nothing and asks nothing', async () => {
@@ -105,10 +132,10 @@ it('the page and the count read the same inbox: one observation, one list', asyn
 })
 
 it('unloading stops the observation', async () => {
-  const { shell, fake, unprovide } = await loaded()
+  const { shell, fake, served } = await loaded()
   render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
   await settle()
-  unprovide()
+  await served.dispose()
   await later()
   expect(fake.observations[0]!.signal.aborted).toBe(true)
 })
@@ -176,4 +203,75 @@ it('a section put under the anchor with a subject the point does not read is not
   expect(drawn.container.innerHTML).toBe('')
   const right = render(<>{shell.attached(INBOX_SECTIONS, 'person')}</>)
   expect(right.container.textContent).toBe('一栏')
+})
+
+async function inbox(put: (shell: Awaited<ReturnType<typeof loaded>>['shell']) => void) {
+  const { shell, fake } = await loaded()
+  put(shell)
+  shell.tenant = TENANT
+  const [placed] = shell.items('pages')
+  const view = render(<>{placed!.render({ scope: TENANT })}</>)
+  await settle()
+  await act(async () => fake.observations[0]!.frame())
+  ;(await fake.next('list-inbox')).answer(
+    page([entry('a', 1), entry('b', 2, { source: 'calendar.events', title: '明天开会' })]),
+  )
+  await settle()
+  return view
+}
+const rowsOf = (view: Awaited<ReturnType<typeof inbox>>) =>
+  [...view.container.querySelectorAll('li.notification-row')].map(row => row.textContent)
+
+it('the point of a row is notification.entry, one drawing to the name of a source', () => {
+  expect(NOTIFICATION_ENTRY).toBe('notification.entry')
+  expect(notificationEntry.name).toBe(NOTIFICATION_ENTRY)
+  expect(notificationEntry.contract).toMatchObject({ arity: 'keyed-one' })
+})
+
+it('the keys of notification.entry are the sources the server registers now: one more source is one more key, and unread is not none', () => {
+  let registered: readonly string[] | undefined = ['owner.posts']
+  const server = { keys: (point: string) => (point === 'notification.sources' ? registered : []) }
+  expect(notificationEntry.keysFrom).toBe('notification.sources')
+  expect(notificationEntry.keys(server)).toEqual({ kind: 'told', keys: ['owner.posts'] })
+  registered = ['calendar.events', 'owner.posts']
+  expect(notificationEntry.keys(server)).toEqual({
+    kind: 'told',
+    keys: ['calendar.events', 'owner.posts'],
+  })
+  registered = undefined
+  expect(notificationEntry.keys(server)).toEqual({ kind: 'unavailable' })
+})
+
+it('a source that put a drawing draws its own rows, given the notification; the rows of other sources stay as they were', async () => {
+  const seen: unknown[] = []
+  const plain = rowsOf(await inbox(() => {}))
+  cleanup()
+  const view = await inbox(
+    shell =>
+      void notificationEntry.put(shell, 'calendar.events', ({ scope, subject }) => {
+        seen.push([scope, subject.source, subject.event, subject.title])
+        return <p data-testid="meeting">会议：{subject.title}</p>
+      }),
+  )
+  const rows = rowsOf(view)
+  const own = (row: string | null): boolean => row?.includes('明天开会') === true
+  expect(rows.filter(own)).toEqual(['会议：明天开会'])
+  expect(rows.filter(row => !own(row))).toEqual(plain.filter(row => !own(row)))
+  expect(plain.filter(own)).toHaveLength(1)
+  expect(seen.at(-1)).toEqual([TENANT, 'calendar.events', 'b', '明天开会'])
+})
+
+it('a drawing can stand around the row the page draws itself, and one that throws falls back to it', async () => {
+  const plain = rowsOf(await inbox(() => {}))
+  cleanup()
+  const framed = await inbox(shell => {
+    notificationEntry.put(shell, 'calendar.events', ({ generic }) => (
+      <div data-testid="framed">{generic()}</div>
+    ))
+    notificationEntry.put(shell, 'demo.things', () => {
+      throw new Error('this row is broken')
+    })
+  })
+  expect(rowsOf(framed)).toEqual(plain)
+  expect(framed.getByTestId('framed').querySelector('.notification-title')).not.toBeNull()
 })

@@ -25,6 +25,7 @@ import {
   checkpointOf,
   custodiesUnder,
   handoffKey,
+  materialReleased,
   type CustodyView,
   receivedBy,
   receivedViews,
@@ -109,13 +110,16 @@ function producedOf(result: ProducerCall): ResultResponsibility['result'] {
   }
 }
 
+const takenBody = (taken: EventView['taken']): AgentEventBody | null =>
+  taken === undefined ? null : { kind: 'input-taken', batch: taken }
+
 function bodyOf(
-  fact: ExecutionView['events'][number]['fact'],
+  { fact, taken }: Pick<EventView, 'fact' | 'taken'>,
   blobs: BlobStore,
 ): AgentEventBody | null {
   switch (fact.kind) {
     case 'step.begun':
-      return { kind: 'input-taken', batch: fact.batch }
+      return takenBody(taken)
     case 'result.received':
       return { kind: 'entry', entry: blob(blobs, fact.custody) }
     case 'fence.started':
@@ -330,7 +334,7 @@ export function eventRecord(
   event: EventView,
   context: Pick<ProjectionContext, 'blobs' | 'mint' | 'eventSchema'>,
 ): AgentEvent | null {
-  const body = bodyOf(event.fact, context.blobs)
+  const body = bodyOf(event, context.blobs)
   if (body === null) return null
   return {
     execution,
@@ -694,20 +698,22 @@ export function projectReceiving(
         },
       })
     }
-    for (const material of view.materials.values())
+    for (const [key, material] of view.materials) {
+      if (materialReleased(material, view, key)) continue
       items.push({
         pub: material.pub,
         ord: 1,
         apply: () => {
-          const key = canonical(material.source)
           if (state.materials.has(key)) return
           state.materials.set(key, {
             tenant: tenantText,
             execution: execution.id,
             value: blob(context.blobs, material.value),
+            readers: material.readers,
           })
         },
       })
+    }
   }
   items.sort((left, right) => left.pub - right.pub || left.ord - right.ord)
   for (const item of items) item.apply()

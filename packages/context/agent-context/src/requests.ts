@@ -3,6 +3,7 @@ import type {
   Failure,
   Preparation,
   RequestPreparation,
+  RuntimeConditions,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { parseRecordEntryRef, type RecordEntryRef } from '@omne-harness/message'
@@ -38,6 +39,8 @@ import { readMemento, saveMemento, type RequestMemento } from './request-memento
 import {
   absentDefinitions,
   definitionContributions,
+  promptContributions,
+  residentContributions,
   failureOfAssembly,
   failureOfModel,
   failureOfRead,
@@ -77,6 +80,34 @@ const settledAll = (settlements: readonly SourceSettlement[]): SourceSettlement 
     item.kind === 'unavailable' ? item.outstanding : [],
   )
   return outstanding.length === 0 ? { kind: 'settled' } : { kind: 'unavailable', outstanding }
+}
+
+async function promptGroupOf<P>(
+  definitions: DefinitionSource<P>,
+  access: Access<P>,
+  scope: ContextTarget['scope'],
+  definition: Adoption | undefined,
+  segments: NonNullable<RuntimeConditions['segments']>,
+): Promise<StagedGroups<P>['prompt']> {
+  const resident = residentContributions(segments, scope)
+  if (definition === undefined)
+    return {
+      kind: 'value',
+      value: {
+        promptContributions: promptContributions(null, resident),
+        assembleContext: { scope, definition: null, workspace: null, keys: {} },
+      },
+    }
+  const read = await definitions({ access, definition })
+  if (read.kind !== 'value') return read
+  const own = read.value === null ? null : definitionContributions(definition, scope, read.value)
+  return {
+    kind: 'value',
+    value: {
+      promptContributions: promptContributions(own, resident),
+      assembleContext: { scope, definition: canonical(definition), workspace: null, keys: {} },
+    },
+  }
 }
 
 export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentRequests<P> {
@@ -178,10 +209,10 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
 
   async function fix(
     access: Access<P>,
-    profile: M.ModelProfile,
+    profile: M.ModelProfile<'llm'>,
     required: M.ModalityRequirement,
     assembled: M.AssembledModelInput,
-  ): Promise<Answer<M.FixedModelRequest>> {
+  ): Promise<Answer<M.LlmModelRequest>> {
     let prepared
     try {
       prepared = await model.prepare({ ...access, profile, required, assembled })
@@ -271,31 +302,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  async function promptGroupOf(
-    access: Access<P>,
-    scope: ContextTarget['scope'],
-    definition: Adoption | undefined,
-  ): Promise<StagedGroups<P>['prompt']> {
-    if (definition === undefined)
-      return {
-        kind: 'value',
-        value: {
-          promptContributions: null,
-          assembleContext: { scope, definition: null, workspace: null, keys: {} },
-        },
-      }
-    const read = await definitions({ access, definition })
-    if (read.kind !== 'value') return read
-    return {
-      kind: 'value',
-      value: {
-        promptContributions:
-          read.value === null ? null : definitionContributions(definition, scope, read.value),
-        assembleContext: { scope, definition: canonical(definition), workspace: null, keys: {} },
-      },
-    }
-  }
-
   async function groupsOf(
     input: Pick<
       Parameters<RequestPreparation<P>['prepare']>[0],
@@ -350,7 +356,13 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
             transition,
           },
         },
-        prompt: await promptGroupOf(access, target.scope, input.definition),
+        prompt: await promptGroupOf(
+          definitions,
+          access,
+          target.scope,
+          input.definition,
+          input.conditions.segments ?? [],
+        ),
         model: { kind: 'value', value: selectedModel(input.selection) },
         tools: await options.tools({ access, conditions: input.conditions }),
         control: {

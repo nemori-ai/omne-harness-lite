@@ -24,10 +24,10 @@ async function settled(tree: ReleaseTree, session: string, what: string, runs = 
   return toolResults(entries).join('\n')
 }
 
-/** The owner's side: notification/v1 over HTTP with the login the tree saved. */
+/** The owner's side: notification/v2 over HTTP with the login the tree saved. */
 async function asOwner(tree: ReleaseTree, operation: string, body: Record<string, unknown>) {
   const response = await fetch(
-    `http://127.0.0.1:${String(tree.port)}/api/notification/v1/${operation}`,
+    `http://127.0.0.1:${String(tree.port)}/api/notification/v2/${operation}`,
     {
       method: 'POST',
       headers: {

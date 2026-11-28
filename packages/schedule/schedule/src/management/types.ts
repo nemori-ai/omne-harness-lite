@@ -4,13 +4,13 @@ import type {
   ScheduleCallContext,
   ScheduleCandidate,
   ScheduleCommand,
-  ScheduleConsentAdoption,
   ScheduleCreateRequest,
   ScheduleDefinition,
   ScheduleDomainError,
   ScheduleFingerprint,
   ScheduleId,
   ScheduleInstant,
+  ScheduleJobExecutor,
   ScheduleListPage,
   ScheduleListRequest,
   ScheduleOperationAddress,
@@ -23,6 +23,7 @@ import type {
   ScheduleRevisionView,
   ScheduleStanding,
   ScheduleView,
+  ScheduleWork,
 } from '@omne-harness/schedule-contract'
 type Ref = string
 export type ManagementRequest =
@@ -73,17 +74,8 @@ export type ManagementAuthority = Readonly<{
   authorityVersion: Ref
   guardRef: Ref
 }>
-export type ConsentObservation =
-  | Readonly<{ kind: 'notRequired'; guardRef: Ref }>
-  | Readonly<{
-      kind: 'adopt'
-      adoption: ScheduleConsentAdoption
-      guardRef: Ref
-    }>
-  | Readonly<{ kind: 'retain'; adoption: ScheduleConsentAdoption | null; guardRef: Ref }>
 export type ManagementAccess = Readonly<{
   authority: ManagementAuthority
-  consent: ConsentObservation
   currentStanding: ScheduleStanding
 }>
 export interface ManagementAuthorizer {
@@ -277,6 +269,8 @@ export type ScheduleManagementDependencies = Readonly<{
   authorizer: ManagementAuthorizer
   definitions: ManagementDefinitionResolver
   quota: ManagementQuotaReader
+  /** The executor registered now for a work's path; it is asked whether the work stands before the work is saved. */
+  executor?: (work: ScheduleWork) => ScheduleJobExecutor | undefined
   clock: Readonly<{ now(): ScheduleInstant }>
   ids: Readonly<{ schedule(): ScheduleId }>
 }>

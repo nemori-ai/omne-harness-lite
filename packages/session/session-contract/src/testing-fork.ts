@@ -1,5 +1,5 @@
 import {
-  forkPointAfterRows,
+  forkPointBefore,
   ownPositionAfter,
   type ForkFacts,
   type ForkPoint,
@@ -15,8 +15,12 @@ import type {
   SessionFailure,
 } from './faces.ts'
 import type { EntryId, SessionId, SessionRevision } from './identity.ts'
-import type { EncodedEntry } from './judgments.ts'
-import { compactionReads, type MaterializedModelView } from './model-view.ts'
+import type { EncodedEntry, DecideReads } from './judgments.ts'
+import {
+  compactionContextForView,
+  materializeModelView,
+  type MaterializedModelView,
+} from './model-view.ts'
 import type { SessionCommand } from './ports.ts'
 import { encodeCursor, type Cursor } from './testing-history-cursor.ts'
 import { TESTING_OWNER } from './testing-values.ts'
@@ -87,6 +91,22 @@ export type ForkStart = Readonly<{
 }>
 type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>
 
+export function committedModelView(
+  store: Held | undefined,
+  start: ForkStart | undefined,
+  entries: readonly HistoryEntry[],
+) {
+  const view = store?.modelView ?? start?.modelView ?? { epoch: 'epoch:0', rows: [] }
+  return materializeModelView(view, entries, () => {
+    const initial = view.past?.get('epoch:0') ?? view.rows
+    const selected = new Set(store?.fork?.prefix ?? start?.fork.prefix ?? [])
+    return {
+      inherited: initial.filter(row => selected.has(row.entry)),
+      entries: store?.entries ?? [],
+    }
+  })
+}
+
 /** What a create with a source starts its session from; nothing when there is no source to read. */
 export function startOf(
   stores: ReadonlyMap<string, Held>,
@@ -134,7 +154,14 @@ export function numbered(
 }
 
 export const compactionOf = (store: Held, through: string) =>
-  compactionReads(chainOf(store), store.snapshot, through, store.fork?.inherited.length)
+  compactionContextForView(
+    chainOf(store),
+    store.snapshot,
+    store.modelView.rows,
+    null,
+    through,
+    store.fork?.inherited.length,
+  )
 
 export const chained = <S extends Held>(store: S) => ({
   ...store,
@@ -145,15 +172,16 @@ export const chained = <S extends Held>(store: S) => ({
 export function pointRead(
   store: Outcome<Held, SessionFailure>,
   key: Outcome<string, SessionFailure>,
+  asking: string,
 ): Outcome<ForkPointRead, SessionFailure> {
   if ('failure' in store) return fail(store.failure)
   if ('failure' in key) return fail(key.failure)
   const view = store.ok.modelView
   const from = BigInt(store.ok.fork?.fork.point.position ?? '0')
-  const own = view.rows.filter(row => BigInt(row.entry) > from)
-  const newest = own.map(row => ({ seq: row.seq, role: row.message.role }))
+  const own = view.rows.find(row => BigInt(row.entry) > from && row.message.id === asking)
+  const found = own === undefined ? undefined : { seq: own.seq, role: own.message.role }
   const tail = String(tailOf(store.ok))
-  const point = forkPointAfterRows(`${key.ok}/${view.epoch}`, newest, tail)
+  const point = forkPointBefore(`${key.ok}/${view.epoch}`, found, tail)
   return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
 }
 
@@ -200,4 +228,24 @@ export function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): Hi
     exhausted: false,
     annotations: [],
   }
+}
+
+/** The same current view underlies compaction and an eligibility-driven withdrawal. */
+export function contextReads(
+  store: Held | undefined,
+  key: string,
+  command: SessionCommand,
+): Pick<DecideReads, 'compaction' | 'compactionEpoch'> {
+  if (store === undefined) return { compaction: null }
+  const compactionEpoch = `${key}/${store.modelView.epoch}`
+  if (
+    command.kind !== 'commitDerived' ||
+    (command.input.value.kind !== 'compaction' && command.input.value.kind !== 'model-projection')
+  )
+    return { compactionEpoch, compaction: null }
+  const through =
+    command.input.value.kind === 'compaction'
+      ? command.input.value.message.covers.to
+      : String(store.modelView.rows.at(-1)?.entry ?? '0')
+  return { compactionEpoch, compaction: compactionOf(store, through) }
 }

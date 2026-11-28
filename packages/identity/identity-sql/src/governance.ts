@@ -66,6 +66,7 @@ import {
   type GovernanceReply,
   type ModelFacts,
 } from './worker/schema.ts'
+import { withPreferences } from './preference.ts'
 
 export type GovernanceCore = Readonly<{
   stopped(): boolean
@@ -863,7 +864,7 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'refreshed', idleDeadline: refreshed })
   }
 
-  return Object.freeze({
+  return withPreferences({ begin, query, write, malformed: malformedReply })({
     createOrganization,
     queryCreateOrganization,
     issueMemberInvitation,

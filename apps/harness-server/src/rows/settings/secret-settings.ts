@@ -8,7 +8,7 @@ import {
   type SettingsSecretItems,
 } from '@omne-harness/settings'
 import { parseInstant } from '@omne-harness/utc-instant'
-import type { SystemInstant } from '../../entry/session-clock.ts'
+import type { SystemInstant } from '../../entry/time.ts'
 import type { SettingsAction, SettingsVerdict } from '../authorization/settings-access.ts'
 import type {
   SecretClearOutcome,
@@ -19,7 +19,11 @@ import type {
 } from './ports.ts'
 
 export type SecretSettingsInput = Readonly<{
-  items: SettingsSecretItems
+  /** The secret items a tenant can name: of the release, and of the assets it holds when `asset` needs them. */
+  items(
+    tenant: SecretItemInput['tenant'],
+    asset: SettingsAssetQuery | undefined,
+  ): Promise<SettingsSecretItems | 'unavailable'>
   qualify(
     input: Readonly<{
       principal: unknown
@@ -31,7 +35,7 @@ export type SecretSettingsInput = Readonly<{
 }>
 
 type Admitted =
-  | Readonly<{ kind: 'scope'; scope: SecretScope }>
+  | Readonly<{ kind: 'scope'; scope: SecretScope; items: SettingsSecretItems }>
   | Readonly<{ kind: 'denied' | 'unavailable' }>
 
 type Views = readonly SecretView[] | 'denied' | 'unavailable' | 'conflict'
@@ -93,6 +97,7 @@ export function createSecretSettings(input: SecretSettingsInput): SecretSettings
   const admit = async (
     access: Pick<SecretItemInput, 'principal' | 'tenant'>,
     action: SettingsAction,
+    asset: SettingsAssetQuery | undefined,
   ): Promise<Admitted> => {
     const verdict = await input.qualify({
       principal: access.principal,
@@ -100,12 +105,18 @@ export function createSecretSettings(input: SecretSettingsInput): SecretSettings
       action,
     })
     if (verdict.kind !== 'allowed') return verdict
-    return { kind: 'scope', scope: { layer: 'tenant', tenant: access.tenant } }
+    const items = await input.items(access.tenant, asset)
+    if (items === 'unavailable') return { kind: 'unavailable' }
+    return { kind: 'scope', scope: { layer: 'tenant', tenant: access.tenant }, items }
   }
 
-  const viewsIn = (scope: SecretScope, asset: SettingsAssetQuery | undefined): Views => {
+  const viewsIn = (
+    items: SettingsSecretItems,
+    scope: SecretScope,
+    asset: SettingsAssetQuery | undefined,
+  ): Views => {
     const listOf = (layer: SecretScope) =>
-      input.items.items(asset === undefined ? { scope: layer } : { scope: layer, asset })
+      items.items(asset === undefined ? { scope: layer } : { scope: layer, asset })
     const own = listOf(scope)
     if (typeof own === 'string') return own
     const official = listOf(OFFICIAL)
@@ -120,30 +131,30 @@ export function createSecretSettings(input: SecretSettingsInput): SecretSettings
 
   const face: SecretSettings = {
     async list({ principal, tenant, asset }) {
-      const admitted = await admit({ principal, tenant }, 'list')
+      const admitted = await admit({ principal, tenant }, 'list', asset)
       if (admitted.kind !== 'scope') return admitted
-      const views = viewsIn(admitted.scope, asset)
+      const views = viewsIn(admitted.items, admitted.scope, asset)
       if (views === 'conflict') return { kind: 'unavailable' }
       return typeof views === 'string' ? { kind: views } : { kind: 'listed', items: views }
     },
 
     async describe(access) {
-      const admitted = await admit(access, 'describe')
+      const admitted = await admit(access, 'describe', access.asset)
       if (admitted.kind !== 'scope') return admitted
-      const views = viewsIn(admitted.scope, access.asset)
+      const views = viewsIn(admitted.items, admitted.scope, access.asset)
       if (typeof views === 'string') return { kind: views }
       const item = views.find(view => view.item === access.item)
       return item === undefined ? { kind: 'not-visible' } : { kind: 'described', item }
     },
 
     async set(access): Promise<SecretSetOutcome> {
-      const admitted = await admit(access, 'set')
+      const admitted = await admit(access, 'set', access.asset)
       if (admitted.kind !== 'scope') return admitted
       const parsed = parseSecretText(access.secret)
       if (!parsed.ok) return { kind: 'invalid' }
       const at = configuredAt()
       if (at === undefined) return { kind: 'unavailable' }
-      const written = input.items.set({
+      const written = admitted.items.set({
         scope: admitted.scope,
         item: { asset: access.asset, itemId: access.item },
         secret: parsed.value,
@@ -164,9 +175,9 @@ export function createSecretSettings(input: SecretSettingsInput): SecretSettings
     },
 
     async clear(access): Promise<SecretClearOutcome> {
-      const admitted = await admit(access, 'clear')
+      const admitted = await admit(access, 'clear', access.asset)
       if (admitted.kind !== 'scope') return admitted
-      const removed = input.items.clear({
+      const removed = admitted.items.clear({
         scope: admitted.scope,
         item: { asset: access.asset, itemId: access.item },
       })

@@ -56,17 +56,24 @@ export function inputsToDeliver(
   return ordered.filter(input => !shown.has(input))
 }
 
-/** The input a Run starts from: the first waking one, or none. */
+/** The batch a Run starts from: every pending input not held back, when one of them wakes. */
 export function runStartInputs(
-  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined,
+  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs' | 'deferredInputs'> | null | undefined,
 ): readonly InputId[] {
-  return snapshot === null || snapshot === undefined ? [] : wakingInputs(snapshot).slice(0, 1)
+  if (snapshot === null || snapshot === undefined || wakingInputs(snapshot).length === 0) return []
+  const held = heldBack(snapshot)
+  return snapshot.pending.filter(input => !held.has(input))
 }
 
 /** The pending inputs that can start a Run; a quiet one goes in with a batch another input opens. */
 export function wakingInputs(
-  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'>,
+  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs' | 'deferredInputs'>,
 ): readonly InputId[] {
-  const quiet = new Set(snapshot.quietInputs ?? [])
+  const quiet = new Set([...(snapshot.quietInputs ?? []), ...heldBack(snapshot)])
   return snapshot.pending.filter(input => !quiet.has(input))
+}
+
+/** The pending inputs held back until a Run ends: none of them goes into any Run yet. */
+export function heldBack(snapshot: Pick<WorkSnapshot, 'deferredInputs'>): ReadonlySet<InputId> {
+  return new Set((snapshot.deferredInputs ?? []).map(held => held.input))
 }

@@ -37,9 +37,9 @@ export const LISTING_DEFECTS = [
 ] as const satisfies readonly ListingDefect[]
 
 export const UNAVAILABLE_REASONS = [
-  'no-longer-offered',
   'connection-unavailable',
   'authorization-required',
+  'credential-rejected',
   'credential-unavailable',
 ] as const satisfies readonly UnavailableReason[]
 
@@ -110,6 +110,10 @@ export const ANSWER_MALFORMED_WHAT = [
   'error-missing',
   'error-shape',
   'tools-missing',
+  'events-missing',
+  'skills-missing',
+  'skill-missing',
+  'content-missing',
   'cursor-invalid',
   'discover-shape',
 ] as const satisfies readonly AnswerMalformed['what'][]
@@ -136,6 +140,7 @@ export const LOST_REASONS = [
   'preparation-failed',
   'discover-failed',
   'authorization-required',
+  'credential-rejected',
   'stream-broken',
   'negotiation-invalid',
   'session-ended',

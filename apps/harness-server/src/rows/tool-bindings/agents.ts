@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { askingMessageOf } from '@omne-harness/agent'
 import { sessionRefSchema, tenantIdSchema } from '@omne-harness/dispatch-contract'
 import { dispatchingKey } from '@omne-harness/dispatch-cordis-contract/cordis'
 import {
@@ -17,6 +18,7 @@ import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { agentDefinitionCatalogKey } from '../agent-adoptions/definition-catalog.ts'
+import { turnOfSession } from '../tenant-assets/turn.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
 import { holdLiveCall } from './live-calls.ts'
@@ -40,6 +42,7 @@ export function bindReleaseAgents(
 ): ToolExecutionScope {
   const tenant = tenantCodec.encode(parent.tenant)
   const reader = ctx.intercept(sessionKey, { caller: 'reader' })
+  const access = { principal: parent.principal, tenant: parent.tenant }
   const caller = () =>
     domainCallerOf(toolRuntimeHolder(ctx).verifier(), parent.principal, parent.tenant)
 
@@ -91,9 +94,18 @@ export function bindReleaseAgents(
         tenant: tenantIdSchema.parse(who.tenantId),
         subject: parent.principal,
         session: sessionRefSchema.parse(who.session),
+        asking: askingMessageOf(parent.request.consumer),
       }
     },
-    targets: async () => ctx.get(agentDefinitionCatalogKey)?.visibleTo(parent.tenant),
+    async targets() {
+      const who = await caller()
+      const turn =
+        who === undefined
+          ? undefined
+          : await turnOfSession(ctx, { ...access, session: who.session as SessionId })
+      if (turn === undefined) return undefined
+      return ctx.get(agentDefinitionCatalogKey)?.visibleTo(parent.tenant, turn ?? undefined)
+    },
     sessions: filter => sessions(filter).catch(() => ({ failure: 'unavailable' }) as const),
   })
   return holdLiveCall(ctx, parent, attachAgents(scope, agents))

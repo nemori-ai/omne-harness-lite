@@ -4,6 +4,7 @@ import type { ContextScopeBinding } from './values.ts'
 import type { RelationToReference } from './directory-relation.ts'
 import type { SessionCallBinding } from './call-settlement.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
+import type { OperationRequest, SenderView } from './utterance-resolver.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message'
@@ -15,6 +16,7 @@ import type {
   ConsumptionId,
   DurableEvidence,
   EntryId,
+  InitialBatch,
   InputId,
   Mutation,
   ResidentKey,
@@ -39,6 +41,8 @@ import type {
   ControlProgress,
   DeclarationChange,
   DerivedMessage,
+  ModelProvenance,
+  AdoptionNote,
   FreezeVerdict,
   IdleObservation,
   InitializationResult,
@@ -67,7 +71,7 @@ export type SessionFailure =
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
-  | Readonly<{ kind: 'unsupported' }>
+  | Readonly<{ kind: 'unsupported'; request?: OperationRequest }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
   | Readonly<{ kind: 'frozen'; verdict: FreezeVerdict | null }>
@@ -80,6 +84,7 @@ export type SessionFailure =
         | 'login-required'
         | 'not-found'
         | 'nothing-pending'
+        | 'cancelled'
     }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
@@ -96,13 +101,18 @@ export type OperationResolution =
   | Readonly<{ kind: 'not-committed'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown' }>
 export type EntryClass = 'interactive' | 'dispatch'
+export type ReloadOutcome =
+  | Readonly<{ kind: 'adopted'; receipt: CommitReceipt }>
+  | Readonly<{ kind: 'no-change' }>
+  | Readonly<{ kind: 'handed-over'; receipt: CommitReceipt }>
 export type StartedRun = Readonly<{
   receipt: CommitReceipt
   advance: AdvanceRef
   adopted: Adoption
-  first: InputId
+  initial: InitialBatch
   execution: string
 }>
+export type NotedStart = Readonly<{ receipt: CommitReceipt; noted: AdoptionNote }>
 export type Completion = Readonly<{
   consumption: ConsumptionId
   result: ProducedResult
@@ -122,9 +132,9 @@ export type AdmittedMessage = Readonly<{
   consumption: ConsumptionId | null
 }>
 
-/** The inputs a step of the Agent took, with their messages, in the order of the batch. */
+/** The inputs a step of the Agent took, in the order of the batch. */
 export type DeliveredInputs = Readonly<{
-  deliveries: readonly Readonly<{ input: InputId; message: Message }>[]
+  inputs: readonly InputId[]
   source: DurableEvidence
   admission: DurableEvidence
 }>
@@ -138,7 +148,9 @@ export interface SessionWork<P> {
   listTodos(
     input: SessionAccess<P> & Readonly<{ after: TodoPageCursor | null; limit: number }>,
   ): Reply<TodoPage>
-  accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
+  accept(
+    input: Mutation<P> & Readonly<{ value: RoutedInput; seen?: SenderView }>,
+  ): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
@@ -166,8 +178,9 @@ export interface SessionWork<P> {
         candidate: Adoption
         instance: AgentInstanceRef
         residentAdoption?: StartAdoption
+        note?: AdoptionNote
       }>,
-  ): Reply<StartedRun>
+  ): Reply<StartedRun | NotedStart>
   claim(
     input: Mutation<P> &
       Readonly<{
@@ -180,14 +193,15 @@ export interface SessionWork<P> {
   reload(
     input: Mutation<P> &
       Readonly<{
-        run: RunId
+        run: RunId | null
         candidate: Adoption
-        instance: AgentInstanceRef
+        instance?: AgentInstanceRef
         expected: SessionRevision
-        handover: DurableEvidence
+        handover?: DurableEvidence
         residentAdoption?: StartAdoption
       }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
+  ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef | null }>>
+  reloadSession(input: Mutation<P>): Reply<ReloadOutcome>
   recordMessage(
     input: Mutation<P> &
       Readonly<{ participation: Participation; value: AdmittedMessage | DeliveredInputs }>,
@@ -231,7 +245,7 @@ export interface SessionWork<P> {
       | (Mutation<P> &
           Readonly<{
             expected: SessionRevision
-            value: Extract<DerivedMessage, { kind: 'context-reminder' }>
+            value: Extract<DerivedMessage, { kind: 'context-reminder' | 'model-projection' }>
           }>),
   ): Reply<CommitReceipt>
   release(
@@ -279,6 +293,7 @@ export interface SessionManagement<P> {
   ): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
   setResident(input: Mutation<P> & Readonly<{ resident: boolean }>): Reply<CommitReceipt>
+  recordCommand(input: Mutation<P> & Readonly<{ name: string; args: string }>): Reply<CommitReceipt>
   configureAutoArchive(
     input: Mutation<P> & Readonly<{ policy: AutoArchivePolicy }>,
   ): Reply<CommitReceipt>
@@ -295,6 +310,7 @@ export interface SessionManagement<P> {
         run: RunId | null
         urgent: Extract<RoutedInput, { kind: 'ordinary' }>
         decision: DurableEvidence
+        seen?: SenderView
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress | null }>>
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
@@ -310,7 +326,12 @@ export type ProducerFact =
         | Readonly<{ kind: 'rejected'; reason: string; rejection: DurableEvidence }>
     }>
   | Readonly<{ kind: 'agent-exit'; advance: AdvanceRef; source: DurableEvidence }>
-  | Readonly<{ kind: 'execution'; producer: ProducerRef; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'execution'
+      producer: ProducerRef
+      source: DurableEvidence
+      directoryVisit?: import('./values.ts').WorkspaceDirectoryVisit
+    }>
   | Readonly<{ kind: 'account'; producer: ProducerRef; source: DurableEvidence }>
   | Readonly<{
       kind: 'release'
@@ -405,6 +426,7 @@ export type HistoryPage = Readonly<{
 }>
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
 export type ModelViewRow = Readonly<{
+  provenance?: readonly ModelProvenance[]
   seq: string
   entry: EntryId
   bytes: number
@@ -416,6 +438,7 @@ export type ModelViewRead =
       kind: 'page'
       basis: ModelViewBasis
       rows: readonly ModelViewRow[]
+      resume?: string
       next: string | null
     }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
@@ -426,7 +449,7 @@ export type ForkPointRead =
   | Readonly<{ kind: 'point'; point: import('./fork.ts').ForkPoint }>
   | Readonly<{ kind: 'none' }>
 export interface SessionHistory<P> {
-  readForkPoint(input: SessionAccess<P>): Reply<ForkPointRead>
+  readForkPoint(input: SessionAccess<P> & Readonly<{ asking: string }>): Reply<ForkPointRead>
   readCompactionContext(
     input: SessionAccess<P> & Readonly<{ basis: ModelViewBasis; coverTo: RecordEntryRef | null }>,
   ): Reply<CompactionContextRead>
@@ -447,7 +470,12 @@ export interface SessionHistory<P> {
   ): Reply<HistoryPage>
   readModelView(
     input: SessionAccess<P> &
-      Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+      Readonly<{
+        basis: ModelViewBasis | null
+        after: string | null
+        pageBytes: number
+        resumeAtEnd?: true
+      }>,
   ): Reply<ModelViewRead>
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent'

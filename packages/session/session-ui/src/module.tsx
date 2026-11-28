@@ -1,68 +1,134 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
-import { serviceKey } from '@omne-harness/shell-contract'
-import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
+import {
+  attachWhile,
+  needPoint,
+  needProtocol,
+  serviceKey,
+  type ItemOf,
+  type RenderPointSink,
+  type ServiceKey,
+} from '@omne-harness/shell-contract'
+import {
+  defineUiModule,
+  type ShellService,
+  type UiModuleDefinition,
+} from '@omne-harness/shell-contract/cordis'
 import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
-import { BlockReads, type BlockReadsHolder } from './model/block-reads.ts'
-import type { BlockSource } from './model/conversation.ts'
+import { BlockReads, type BlockReadsSource } from './model/block-reads.ts'
+import { writeConversationSubject } from './model/conversation-subject.ts'
+import { toolCallState, toolResultText, type BlockSource } from './model/conversation.ts'
 import { EntryFocus } from './model/entry-focus.ts'
+import { SessionFigure } from './model/figure.ts'
 import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
+import type { ComposerAssistant } from './model/composer-assistant.ts'
 import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
-import { ModelSelectionStore, type ModelChoiceHolder } from './model/model-selection.ts'
+import type { SessionComposer } from './model/composer-handles.ts'
+import {
+  createModelChoiceAsk,
+  ModelChoiceAskContext,
+  type ModelChoiceAsk,
+} from './model/model-choice-ask.ts'
+import { ModelSelectionStore, type ModelChoiceSource } from './model/model-selection.ts'
+import type { PictureIntake } from './model/pictures.ts'
+import {
+  ArchivedDirectory,
+  SESSION_KIND,
+  type PaperElementSubject,
+  type PaperPickerSubject,
+} from './model/paper.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
-import { WorkspaceSelectionStore, type WorkspaceChoiceHolder } from './model/workspace-selection.ts'
+import { WorkspaceSelectionStore, type WorkspaceChoiceSource } from './model/workspace-selection.ts'
 import {
-  sessionBlock,
+  sessionBlockRender,
   sessionCallDetail,
+  sessionRunFailure,
   sessionComposerAttachments,
   sessionDock,
   sessionSide,
   sessionStatus,
+  sessionToolCall,
+  type SessionRunFailureSubject,
 } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
+import { Companion, COMPANION } from './view/companion.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
-import { ReadBlock } from './view/read-block.tsx'
+import { FigureReport } from './view/figure-report.tsx'
+import { ReadBlock, ReplyReceipt } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
+import type { ToolCallPart } from './view/block-slot.ts'
+import { PartDrawContext } from './view/part-draw.ts'
 import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
+import { sessionPaperItem, sessionPaperPick, sessionParts } from './parts.ts'
+import { sessionSayItem } from './say-item.ts'
+import { sessionKeys } from './session-keys.tsx'
+import { PaperPicker, PaperSession } from './view/paper.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
+import { SubjectOpener } from './view/subject-opener.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
-
-export const sessionClientService = protocolServiceName({
-  name: sessionProtocol.name,
-  major: sessionProtocol.major,
-})
 
 export const CONVERSATION_PAGE = 'conversation'
 export const SESSION_LIST = 'session-list'
 export const ARCHIVED_SESSIONS = 'archived-sessions'
 export const HISTORY_SEARCH_PAGE = 'history-search'
+const PAGES = { conversation: CONVERSATION_PAGE, search: HISTORY_SEARCH_PAGE } as const
 
-/** Where a list of models is handed to the session interface; it works without one. */
-export const sessionModelChoicesKey = serviceKey<ModelChoiceHolder>('session.model-choices')
-/** Where a list of workspaces is handed to the session interface; it works without one. */
-export const sessionWorkspaceChoicesKey = serviceKey<WorkspaceChoiceHolder>(
-  'session.workspace-choices',
-)
+/** What other modules provide that the session interface takes when the assembly names it; it works without each. */
+export type SessionUiOptions = Readonly<{
+  modelChoices?: ServiceKey<ModelChoiceSource>
+  workspaceChoices?: ServiceKey<WorkspaceChoiceSource>
+  blockReads?: ServiceKey<BlockReadsSource>
+  canvasElement?: RenderPointSink<PaperElementSubject>
+  canvasPicker?: RenderPointSink<PaperPickerSubject>
+  composerAssistant?: ServiceKey<ComposerAssistant>
+  pictureIntake?: ServiceKey<PictureIntake>
+}>
 
-/** Where the reads of the blocks are handed to the session interface; it works without them. */
-export const sessionBlockReadsKey = serviceKey<BlockReadsHolder>('session.block-reads')
+/** Where a jump to a session goes: the shell's navigate takes these two, and the conversation page opens it. */
+export function conversationTarget(
+  session: string,
+  run?: string,
+): Readonly<{ page: string; subject: string }> {
+  return {
+    page: CONVERSATION_PAGE,
+    subject: writeConversationSubject(run === undefined ? { session } : { session, run }),
+  }
+}
 
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
+export const sessionComposerKey = serviceKey<SessionComposer>('session.composer')
+export const sessionModelChoiceKey =
+  serviceKey<Pick<ModelChoiceAsk, 'open'>>('session.model-choice')
 
-/** A block of a message drawn by whatever is put at its point, told what the model read of it. */
+const SESSION_POINTS = [
+  sessionDock,
+  sessionSide,
+  sessionStatus,
+  sessionCallDetail,
+  sessionComposerAttachments,
+  sessionBlockRender,
+  sessionToolCall,
+  sessionRunFailure,
+]
+
 function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | undefined) {
-  return (session: string, source: BlockSource, fallback: ReactNode, revision: string | null) => (
+  return (
+    session: string,
+    kind: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => (
     <ReadBlock
       reads={reads}
       tenant={scope}
@@ -71,154 +137,340 @@ function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | und
       message={source.message}
       block={source.block}
       draw={read =>
-        sessionBlock.slot(
+        sessionBlockRender.draw(
           shell,
+          kind,
           { session, ...source, ...(read === undefined ? {} : { read }) },
-          entries =>
-            entries.length === 0
-              ? fallback
-              : entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+          () => fallback,
         )
       }
     />
   )
 }
 
-export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
-  name: 'session-ui',
-  inject: [sessionClientService],
-  apply(shell, services, provide) {
-    const client = services[sessionClientService]!
-    const models = new ModelSelectionStore(client)
-    provide(sessionModelChoicesKey, models)
-    const drafts = new ComposerDraftStore()
-    provide(sessionComposerIntakeKey, drafts)
-    const reads = new BlockReads()
-    provide(sessionBlockReadsKey, reads)
-    const places = new WorkspaceSelectionStore(client)
-    provide(sessionWorkspaceChoicesKey, places)
-    const workspaces = new SessionWorkspaces({ client })
-    const background = new BackgroundCallsStore(client)
-    const archive = new ArchiveStore(client)
-    const modes = new PermissionModeStore(client)
-    const held = new SessionWorkStore(client)
-    const search = new HistorySearchStore(client)
-    const focus = new EntryFocus()
-    sessionDock.contribute(shell, {
-      id: 'background-calls',
-      order: 10,
-      render: ({ scope, subject }) =>
-        scope === undefined ? null : (
-          <BackgroundHint store={background} tenant={scope} session={subject.session} />
-        ),
-    })
-    shell.contribute('sidebar', {
-      id: SESSION_LIST,
-      order: 0,
-      render: ({ scope }) => (
-        <SessionListPanel
-          workspaces={workspaces}
-          models={models}
-          places={places}
-          scope={scope}
-          onShow={() => shell.navigate(CONVERSATION_PAGE)}
-        />
-      ),
-    })
-    shell.contribute('sidebar', {
-      id: ARCHIVED_SESSIONS,
-      order: 1,
-      render: ({ scope }) =>
-        scope === undefined ? null : (
-          <ArchivedSessions store={archive} workspaces={workspaces} tenant={scope} />
-        ),
-    })
-    shell.contribute('pages', {
-      id: CONVERSATION_PAGE,
-      title: '对话',
-      order: 0,
-      icon: 'conversation',
-      render: ({ scope }) => (
-        <EntryFocusContext.Provider value={focus}>
-          <ConversationPage
-            workspaces={workspaces}
-            scope={scope}
-            work={(session, revision) =>
-              scope === undefined ? null : (
-                <SessionWork store={held} tenant={scope} session={session} revision={revision} />
-              )
-            }
-            heading={session =>
-              scope === undefined ? null : (
-                <>
-                  <ModelAction store={models} tenant={scope} session={session} />
-                  <WorkspaceAction store={places} tenant={scope} session={session} />
-                  <PermissionModeAction store={modes} tenant={scope} session={session} />
-                  <ArchiveAction
-                    store={archive}
-                    workspaces={workspaces}
-                    tenant={scope}
-                    session={session}
-                  />
-                </>
-              )
-            }
-            dock={session =>
-              sessionDock.slot(shell, { session }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
-            status={session =>
-              sessionStatus.slot(shell, { session }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
-            drafts={drafts}
-            attachments={(session, draft) =>
-              sessionComposerAttachments.slot(shell, { session, draft }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
-            block={blockDrawer(shell, reads, scope)}
-            side={session =>
-              sessionSide.slot(shell, { session }, entries =>
-                scope === undefined ? (
-                  <SidePanel entries={entries} />
-                ) : (
-                  <SideWithBackground
-                    entries={entries}
-                    store={background}
-                    tenant={scope}
-                    session={session}
-                    detail={call =>
-                      sessionCallDetail.slot(shell, { session, call }, details =>
-                        details.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-                      )
-                    }
-                  />
-                ),
-              )
-            }
-          />
-        </EntryFocusContext.Provider>
-      ),
-    })
-    shell.contribute('pages', {
-      id: HISTORY_SEARCH_PAGE,
-      title: '搜索',
-      order: 1,
-      icon: 'search',
-      render: ({ scope }) => (
-        <HistorySearch
-          store={search}
-          workspaces={workspaces}
-          scope={scope}
-          onShow={(session, entry) => {
-            focus.set({ session, entry })
-            shell.navigate(CONVERSATION_PAGE)
-          }}
-        />
-      ),
-    })
-  },
+function replyDrawer(reads: BlockReads, scope: string | undefined) {
+  return (session: string, run: string, revision: string | null) => (
+    <ReplyReceipt reads={reads} tenant={scope} session={session} revision={revision} run={run} />
+  )
+}
+
+// A call whose name is not generated yet has no key to draw by: the transcript draws its own line.
+function toolCallDrawer(shell: ShellService) {
+  return (session: string, part: ToolCallPart, generic: () => ReactNode): ReactNode =>
+    part.name === null
+      ? generic()
+      : sessionToolCall.draw(
+          shell,
+          part.name,
+          {
+            session,
+            call: part.callId,
+            name: part.name,
+            arguments: part.arguments,
+            state: toolCallState(part),
+            result: toolResultText(part),
+          },
+          generic,
+        )
+}
+
+const fragments = (entries: readonly Readonly<{ id: string; node: ReactNode }>[]) =>
+  entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>)
+
+/** The places of the open session whose items stand one after another, as the page draws them. */
+function placesOf(shell: ShellService) {
+  return {
+    dock: (session: string) => sessionDock.slot(shell, { session }, fragments),
+    status: (session: string) => sessionStatus.slot(shell, { session }, fragments),
+    failure: (subject: SessionRunFailureSubject) =>
+      sessionRunFailure.slot(shell, subject, fragments),
+  }
+}
+
+// The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
+function waitingCallsOf(held: SessionWorkStore) {
+  return {
+    subscribe: (tenant: string, session: string, listener: () => void) =>
+      held.subscribe(tenant, session, listener),
+    count: (tenant: string, session: string) => {
+      const calls = held.read(tenant, session).calls
+      return calls.kind === 'read' ? calls.items.length : 0
+    },
+  }
+}
+
+const shownOn = (shell: ShellService) => ({
+  get: () => shell.page.get() === CONVERSATION_PAGE,
+  subscribe: (listener: () => void) => shell.page.subscribe(listener),
 })
+
+function companionItem(
+  shell: ShellService,
+  workspaces: SessionWorkspaces,
+  background: BackgroundCallsStore,
+): ItemOf<'float'> {
+  const show = (): void => shell.navigate(CONVERSATION_PAGE)
+  return {
+    id: COMPANION,
+    order: 0,
+    render: float => (
+      <Companion
+        workspaces={workspaces}
+        background={background}
+        shell={shell}
+        float={float}
+        onShow={show}
+      />
+    ),
+  }
+}
+
+function searchPage(
+  shell: ShellService,
+  search: HistorySearchStore,
+  workspaces: SessionWorkspaces,
+  focus: EntryFocus,
+): void {
+  shell.contribute('pages', {
+    id: HISTORY_SEARCH_PAGE,
+    title: '搜索',
+    order: 1,
+    icon: 'search',
+    group: 'utility',
+    render: ({ scope }) => (
+      <HistorySearch
+        store={search}
+        workspaces={workspaces}
+        scope={scope}
+        onShow={(session, entry) => {
+          focus.set({ session, entry })
+          shell.navigate(CONVERSATION_PAGE)
+        }}
+      />
+    ),
+  })
+}
+
+type ListGiven = Omit<Parameters<typeof SessionListPanel>[0], 'scope' | 'onShow'>
+
+function listItem(shell: ShellService, given: ListGiven): ItemOf<'sidebar'> {
+  const show = (): void => shell.navigate(CONVERSATION_PAGE)
+  return {
+    id: SESSION_LIST,
+    order: 0,
+    render: ({ scope }) => (
+      <PartDrawContext.Provider value={shell}>
+        <SessionListPanel {...given} scope={scope} onShow={show} />
+      </PartDrawContext.Provider>
+    ),
+  }
+}
+
+function putOnCanvas(
+  shell: ShellService,
+  options: SessionUiOptions,
+  workspaces: SessionWorkspaces,
+  archived: ArchivedDirectory,
+): void {
+  const open = (session: string): void => {
+    const target = conversationTarget(session)
+    shell.navigate(target.page, target.subject)
+  }
+  if (options.canvasElement !== undefined) {
+    sessionPaperItem.declare(shell)
+    options.canvasElement.put(shell, SESSION_KIND, ({ scope, subject }) => (
+      <PaperSession
+        workspaces={workspaces}
+        archived={archived}
+        scope={scope}
+        subject={subject}
+        onOpen={open}
+      />
+    ))
+  }
+  if (options.canvasPicker !== undefined) {
+    sessionPaperPick.declare(shell)
+    options.canvasPicker.put(shell, SESSION_KIND, ({ scope, subject }) => (
+      <PaperPicker workspaces={workspaces} scope={scope} subject={subject} />
+    ))
+  }
+}
+
+const needsOf = (options: SessionUiOptions) => ({
+  session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
+  modelChoices: needPoint(options.modelChoices, { optional: true }),
+  workspaceChoices: needPoint(options.workspaceChoices, { optional: true }),
+  blockReads: needPoint(options.blockReads, { optional: true }),
+  assistant: needPoint(options.composerAssistant, { optional: true }),
+  pictureIntake: needPoint(options.pictureIntake, { optional: true }),
+})
+
+type Apply = UiModuleDefinition<ReturnType<typeof needsOf>>['apply']
+type Given = Parameters<Apply>
+
+function providedModelChoiceAsk(provide: Given[2]): ModelChoiceAsk {
+  const ask = createModelChoiceAsk()
+  provide(sessionModelChoiceKey, ask)
+  return ask
+}
+
+const apply = (
+  options: SessionUiOptions,
+  shell: Given[0],
+  {
+    session: client,
+    modelChoices,
+    workspaceChoices,
+    blockReads,
+    assistant,
+    pictureIntake,
+  }: Given[1],
+  provide: Given[2],
+): ReturnType<Apply> => {
+  for (const part of sessionParts) part.declare(shell)
+  for (const point of SESSION_POINTS) point.declare(shell)
+  const models = new ModelSelectionStore(client)
+  const drafts = new ComposerDraftStore()
+  provide(sessionComposerIntakeKey, drafts)
+  const reads = new BlockReads()
+  const places = new WorkspaceSelectionStore(client)
+  const taken = [
+    attachWhile(modelChoices, source => models.attach(source)),
+    attachWhile(workspaceChoices, source => places.attach(source)),
+    attachWhile(blockReads, source => reads.attach(source)),
+  ]
+  const workspaces = new SessionWorkspaces({ client })
+  const background = new BackgroundCallsStore(client)
+  const archive = new ArchiveStore(client)
+  const modes = new PermissionModeStore(client)
+  const held = new SessionWorkStore(client)
+  const waitingCalls = waitingCallsOf(held)
+  const focus = new EntryFocus()
+  const figure = new SessionFigure(report => shell.figure(report))
+  const conversationShown = shownOn(shell)
+  putOnCanvas(shell, options, workspaces, new ArchivedDirectory(client))
+  const keys = sessionKeys(shell, workspaces, client, PAGES)
+  provide(sessionComposerKey, keys.composer)
+  const modelAsk = providedModelChoiceAsk(provide)
+  sessionDock.contribute(shell, {
+    id: 'background-calls',
+    order: 10,
+    render: ({ scope, subject }) =>
+      scope === undefined ? null : (
+        <BackgroundHint store={background} tenant={scope} session={subject.session} />
+      ),
+  })
+  shell.contribute('float', companionItem(shell, workspaces, background))
+  const spoken = sessionSayItem(shell, workspaces, CONVERSATION_PAGE, pictureIntake)
+  shell.contribute('say', spoken.item)
+  shell.contribute('sidebar', listItem(shell, { workspaces, places, conversationShown }))
+  shell.contribute('sidebar', {
+    id: ARCHIVED_SESSIONS,
+    order: 1,
+    render: ({ scope }) =>
+      scope === undefined ? null : (
+        <ArchivedSessions store={archive} workspaces={workspaces} tenant={scope} />
+      ),
+  })
+  shell.contribute('pages', {
+    id: CONVERSATION_PAGE,
+    title: '对话',
+    order: 0,
+    icon: 'conversation',
+    render: ({ scope, subject }) =>
+      keys.around(
+        <EntryFocusContext.Provider value={focus}>
+          <PartDrawContext.Provider value={shell}>
+            <ModelChoiceAskContext.Provider value={modelAsk}>
+              <SubjectOpener
+                workspaces={workspaces}
+                scope={scope}
+                subject={subject}
+                focus={focus}
+              />
+              <FigureReport
+                workspaces={workspaces}
+                scope={scope}
+                background={background}
+                figure={figure}
+              />
+              <ConversationPage
+                workspaces={workspaces}
+                scope={scope}
+                work={(session, revision) =>
+                  scope === undefined ? null : (
+                    <SessionWork
+                      store={held}
+                      tenant={scope}
+                      session={session}
+                      revision={revision}
+                    />
+                  )
+                }
+                heading={session =>
+                  scope === undefined ? null : (
+                    <>
+                      <ModelAction store={models} tenant={scope} session={session} />
+                      <WorkspaceAction store={places} tenant={scope} session={session} />
+                      <PermissionModeAction store={modes} tenant={scope} session={session} />
+                    </>
+                  )
+                }
+                more={(session, say) =>
+                  scope === undefined ? null : (
+                    <ArchiveAction
+                      store={archive}
+                      workspaces={workspaces}
+                      tenant={scope}
+                      session={session}
+                      say={say}
+                    />
+                  )
+                }
+                waitingCalls={waitingCalls}
+                {...placesOf(shell)}
+                drafts={drafts}
+                assistant={assistant}
+                attachments={(session, draft) =>
+                  sessionComposerAttachments.slot(shell, { session, draft }, fragments)
+                }
+                block={blockDrawer(shell, reads, scope)}
+                reply={replyDrawer(reads, scope)}
+                toolCall={toolCallDrawer(shell)}
+                side={session =>
+                  sessionSide.slot(shell, { session }, entries =>
+                    scope === undefined ? (
+                      <SidePanel entries={entries} />
+                    ) : (
+                      <SideWithBackground
+                        entries={entries}
+                        store={background}
+                        tenant={scope}
+                        session={session}
+                        detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                      />
+                    ),
+                  )
+                }
+              />
+            </ModelChoiceAskContext.Provider>
+          </PartDrawContext.Provider>
+        </EntryFocusContext.Provider>,
+      ),
+  })
+  searchPage(shell, new HistorySearchStore(client), workspaces, focus)
+  return () => {
+    for (const stop of taken) stop()
+    spoken.close()
+  }
+}
+
+export function createSessionUiModule(options: SessionUiOptions = {}) {
+  return defineUiModule({
+    name: 'session-ui',
+    needs: needsOf(options),
+    apply: (shell, needs, provide) => apply(options, shell, needs, provide),
+  })
+}
+
+export const sessionUiModule = createSessionUiModule()

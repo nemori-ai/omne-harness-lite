@@ -187,8 +187,20 @@ describe('the workspaces page', () => {
     const fake = await shown()
     await opened(fake)
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByText('可用：/srv/blog')).toBeTruthy()
+    const available = document.querySelector('[data-state-word="available"]')
+    expect(available?.textContent).toBe('可用')
+    expect(available?.closest('td')?.textContent).toBe('可用：/srv/blog')
     expect(screen.getByText('现在不知道能不能用')).toBeTruthy()
+  })
+
+  it('P0 each part of the page is on its own element', async () => {
+    const fake = await shown()
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('workspace.page')).toHaveLength(1)
+    expect(on('workspace.item')[0]?.tagName).toBe('TR')
+    expect(on('workspace.instance')).toHaveLength(0)
+    await opened(fake)
+    expect(on('workspace.instance')[0]?.textContent).toContain('/srv/blog')
   })
 
   it('grants participation and removes, to a tenant it can read, and refuses one it cannot', async () => {
@@ -219,7 +231,8 @@ describe('the workspaces page', () => {
     expect(removed.body).toMatchObject({ operation: 'op-2', workspace: BLOG.workspace })
     removed.answer({ outcome: 'succeeded', body: {} })
     await settle()
-    expect(screen.getByRole('status').textContent).toBe('已移除')
+    // The list and the workspace are read again meanwhile: their loading states are statuses named by their label.
+    expect(screen.getByRole('status', { name: '' }).textContent).toBe('已移除')
     expect(fake.calls.filter(call => call.operation === 'list')).toHaveLength(2)
   })
 
