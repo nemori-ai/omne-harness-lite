@@ -24,6 +24,7 @@ export declare const mcpProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly items: readonly {
+                        readonly callback?: string;
                         readonly catalog: {
                             readonly actions: number;
                             readonly kind: "acquired";
@@ -76,6 +77,7 @@ export declare const mcpProtocol: {
                         readonly summary: string;
                     }[] | null;
                     readonly endpoint: {
+                        readonly callback?: string;
                         readonly catalog: {
                             readonly actions: number;
                             readonly kind: "acquired";

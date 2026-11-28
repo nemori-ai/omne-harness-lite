@@ -4,7 +4,7 @@
     "packages/assets/assets-ui/src/view/assets-page.tsx | {labelOf(category)}": {
       "R9": 1
     },
-    "packages/assets/assets-ui/src/view/category-page.tsx | 收起/新建": {
+    "packages/assets/assets-ui/src/view/category-head.tsx | 收起/新建": {
       "R9": 1
     },
     "packages/assets/assets-ui/src/view/create-form.tsx | 提交": {
@@ -42,6 +42,9 @@
       "choice": 1
     },
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
+      "commit": 1
+    },
+    "packages/mcp/mcp-ui/src/create-form.tsx | 添加": {
       "commit": 1
     },
     "packages/media/media-ui/src/view/attachment-tray.tsx | 打开系统设置": {

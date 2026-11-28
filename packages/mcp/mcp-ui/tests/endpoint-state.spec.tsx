@@ -148,7 +148,9 @@ it('E2b a credential the endpoint rejected: the status line says so and where to
     credentialState: 'rejected',
   })
   shownWith(fakeStatus(answered(rejected, null)).status)
-  expect(await screen.findByText(`连不上：${reason}；凭据被拒，要在设置里改成对的`)).toBeTruthy()
+  expect(
+    await screen.findByText(`连不上：${reason}；凭据被拒：在下面「凭据」一行换一个对的`),
+  ).toBeTruthy()
 })
 
 it('E3 after the setting rows, one line per action: its name and summary, and why it cannot be called', async () => {
@@ -390,6 +392,51 @@ it('E18 an OAuth endpoint not connected offers 连接: it opens the address in t
   vi.restoreAllMocks()
 })
 
+it('E20 an OAuth endpoint not connected shows the address its consent comes back to; a server that wants an application registered first is said in Chinese, with where the identifier goes (C8)', async () => {
+  const callback = 'http://127.0.0.1:7861/callback'
+  const fake = fakeStatus(
+    answered(
+      stood({ credential: 'absent', credentialState: 'absent', connect: 'available', callback }),
+      null,
+    ),
+  )
+  const status: McpStatus = {
+    ...fake.status,
+    'begin-connect': () =>
+      Promise.resolve({
+        outcome: 'not-committed',
+        body: { reason: 'no-registration', text: 'register an application first' },
+      }),
+  }
+  shownWith(status)
+  expect(await screen.findByText(callback)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '连接' }))
+  expect(
+    await screen.findByText(
+      '对方要求先登记一个应用：在对方那里登记，回跳地址填下面这个，得到的客户端标识填进下面「客户端标识」一行，再点「连接」。',
+    ),
+  ).toBeTruthy()
+  expect(screen.queryByText('register an application first', { exact: false })).toBeNull()
+})
+
+it('E21 a connected OAuth endpoint and a static one show no address to come back to (C8)', async () => {
+  shownWith(
+    fakeStatus(
+      answered(
+        stood({
+          credential: 'present',
+          credentialState: 'present',
+          connect: 'available',
+          callback: 'http://127.0.0.1:7861/callback',
+        }),
+        null,
+      ),
+    ).status,
+  )
+  expect(await screen.findByText('已经经 OAuth 连上。')).toBeTruthy()
+  expect(screen.queryByText('http://127.0.0.1:7861/callback')).toBeNull()
+})
+
 it('E19 a grant that wants a new connection offers 重新连接, one that is there offers 断开, a static endpoint shows neither (C204, C206)', async () => {
   const again = fakeStatus(
     answered(
@@ -432,3 +479,55 @@ it('E19 a grant that wants a new connection offers 重新连接, one that is the
   expect(await screen.findByText('已连上')).toBeTruthy()
   expect(section().querySelector('[data-omne-part="mcp.endpoint.connect"]')).toBeNull()
 })
+
+it('E22 an OAuth endpoint from a server that does not say where its consent comes back shows no address line (C8)', async () => {
+  shownWith(
+    fakeStatus(
+      answered(
+        stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+        null,
+      ),
+    ).status,
+  )
+  expect(await screen.findByText('这个接入点要先经 OAuth 连上。')).toBeTruthy()
+  expect(screen.queryByText('回跳地址', { exact: false })).toBeNull()
+})
+
+it.each([
+  ['disabled', '这个接入点停用了。'],
+  ['target-missing', '还没有地址：在下面「连接目标」一行填上。'],
+  ['target-invalid', '地址不对：要 https，或本机回环地址上的 http。'],
+  ['client-id-invalid', '「客户端标识」的配值不对，在下面那一行改。'],
+  ['no-resource-metadata', '对方没有说明它要怎样授权，这个地址接不了 OAuth。'],
+  ['no-authorization-server', '对方没有给出授权服务器，这个地址接不了 OAuth。'],
+  ['issuer-mismatch', '授权服务器说的身份和它的地址对不上，不连。'],
+  ['no-pkce', '授权服务器不支持 PKCE（S256），不连。'],
+  ['insecure-endpoint', '授权服务器给的地址不是 https，不连。'],
+  ['malformed', '授权服务器的说明读不懂。'],
+  [
+    'registration-refused',
+    '对方拒绝了自动登记：在对方那里登记一个应用，回跳地址填下面这个，客户端标识填进下面「客户端标识」一行。',
+  ],
+  ['something-new', '连不上：the server said so'],
+] as const)(
+  'E23 a connection refused as %s says it in Chinese; an unknown reason keeps the server sentence (C8)',
+  async (reason, said) => {
+    const fake = fakeStatus(
+      answered(
+        stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+        null,
+      ),
+    )
+    const status: McpStatus = {
+      ...fake.status,
+      'begin-connect': () =>
+        Promise.resolve({
+          outcome: 'not-committed',
+          body: { reason, text: 'the server said so' },
+        } as never),
+    }
+    shownWith(status)
+    fireEvent.click(await screen.findByRole('button', { name: '连接' }))
+    expect(await screen.findByText(said)).toBeTruthy()
+  },
+)

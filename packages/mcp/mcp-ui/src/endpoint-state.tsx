@@ -115,7 +115,7 @@ export function useEndpointState(
 const CREDENTIAL: Readonly<Partial<Record<NonNullable<Endpoint['credentialState']>, string>>> = {
   absent: '凭据没配',
   invalid: '凭据的配值不对',
-  rejected: '凭据被拒，要在设置里改成对的',
+  rejected: '凭据被拒：在下面「凭据」一行换一个对的',
   'reconnect-required': '要重新连接',
 }
 

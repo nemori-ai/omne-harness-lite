@@ -35,6 +35,7 @@ import type {
 export const MCP_CATEGORY = 'mcp'
 
 const NO_ENDPOINT = '接进来的 MCP 接入点会列在这里。'
+const NO_ENDPOINT_HINT = '点上面的「新建」填它的地址，或者在会话里让 agent 帮你接。'
 const TONE = { refused: 'danger', unavailable: 'caution', unknown: 'caution' } as const
 
 export type McpPageProps = Readonly<{
@@ -98,7 +99,7 @@ function McpBody({ reach }: { readonly reach: Reach }): JSX.Element {
               }}
             />
           ) : snapshot.holdings.length === 0 ? (
-            <EmptyState title={NO_ENDPOINT} />
+            <EmptyState title={NO_ENDPOINT} hint={NO_ENDPOINT_HINT} />
           ) : null}
           {snapshot.holdings.map(endpoint => (
             <Endpoint key={endpoint.name} endpoint={endpoint} reach={reach} />

@@ -62,6 +62,17 @@ export const assetsCategoryPage: Point<AssetsPageSubject> = definePoint({
   subject: pageSubject,
 })
 
+export const ASSETS_CREATE_FORM = 'assets.create-form'
+
+export const assetsCreateForm: KeyedPoint<CategorySubject> = defineKeyedPoint({
+  name: ASSETS_CREATE_FORM,
+  title: '资产一类的新建表单',
+  summary:
+    'The form a category gives for making one of its own, drawn under 新建; without one the generic form is drawn.',
+  key: 'the category whose 新建 opens it',
+  subject: categorySubject,
+})
+
 export const assetsCategory: KeyedPoint<CategorySubject> = defineKeyedPoint({
   name: ASSETS_CATEGORY,
   title: '资产一类列表的上方',

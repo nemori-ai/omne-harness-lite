@@ -95,5 +95,5 @@ export function createConnect<P, S>(deps: ConnectDependencies<P, S>): EndpointCo
     changes.changed(access.tenant)
     return 'failure' in done ? fail(UNAVAILABLE) : succeed('disconnected' as const)
   }
-  return { begin, disconnect }
+  return { callback: () => ports.callbacks?.address?.(), begin, disconnect }
 }

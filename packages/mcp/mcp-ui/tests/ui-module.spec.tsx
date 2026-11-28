@@ -85,13 +85,14 @@ it('UI4 the port absent: the module is not adopted; it comes: the page is placed
   expect(entries(shell)).toEqual([])
 })
 
-it('M4 declares its six parts', async () => {
+it('M4 declares its seven parts', async () => {
   const { root, shell } = await startShell()
   await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
   await root.plugin(mcpUiModule)
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['mcp.create', 'assets.panel'],
     ['mcp.endpoint', 'mcp.page'],
     ['mcp.endpoint.actions', 'mcp.endpoint'],
     ['mcp.endpoint.connect', 'mcp.endpoint'],
@@ -99,4 +100,30 @@ it('M4 declares its six parts', async () => {
     ['mcp.endpoint.status', 'mcp.endpoint'],
     ['mcp.page', 'assets.panel'],
   ])
+})
+
+it('UI-form given the point of the assets page, the module puts its create form under the key mcp, drawn only with a scope', async () => {
+  const contributed: {
+    key: string
+    id: string
+    render: (props: { scope: string | undefined }) => unknown
+  }[] = []
+  const createForm = {
+    contribute: (
+      _shell: unknown,
+      key: string,
+      item: { id: string; render: (props: { scope: string | undefined }) => unknown },
+    ) => void contributed.push({ key, ...item }),
+  } as never
+  const { root } = await startShell()
+  const fake = fakeGovernance(readOf())
+  await provideOn(root, governanceKey, fake.governance)
+  await root.plugin(createMcpUiModule({ page, governance: governanceKey, createForm }))
+  expect(contributed.map(({ key, id }) => ({ key, id }))).toEqual([
+    { key: 'mcp', id: 'mcp-ui.create' },
+  ])
+  expect(contributed[0]!.render({ scope: undefined })).toBeNull()
+  render(<>{contributed[0]!.render({ scope: TENANT }) as never}</>)
+  expect(await screen.findByRole('form', { name: '新建 MCP 接入点' })).toBeTruthy()
+  expect(fake.opened).toContain(`mcp ${TENANT}`)
 })

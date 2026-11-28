@@ -318,6 +318,7 @@ export abstract class CallbackReceiverService extends Service implements Callbac
     super(ctx, CallbackReceiverService.provide)
   }
   abstract readonly open: CallbackReceiver['open']
+  abstract readonly address?: () => string | undefined
 }
 
 export const mcpCallbackReceiverKey = CallbackReceiverService.provide
@@ -328,6 +329,7 @@ export abstract class EndpointConnectService<P> extends Service implements Endpo
   constructor(ctx: Context) {
     super(ctx, EndpointConnectService.provide)
   }
+  abstract readonly callback: EndpointConnect<P>['callback']
   abstract readonly begin: EndpointConnect<P>['begin']
   abstract readonly disconnect: EndpointConnect<P>['disconnect']
 }

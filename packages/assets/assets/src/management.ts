@@ -15,7 +15,6 @@ import {
   tenantCursor,
   type OfficialAssets,
 } from './official.ts'
-import { copyTree } from './read-body.ts'
 import {
   creationRefusal,
   type PublishContent,
@@ -294,7 +293,6 @@ type Publish<P> = (
 ) => Promise<TenantPublishOutcome>
 
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
-const BODY_NOT_READ = Object.freeze({ kind: 'invalid', reason: 'body-not-read' } as const)
 const NOT_COMMITTED = Object.freeze({ kind: 'not-committed' } as const)
 
 type Held = Readonly<{ asset: string; version: string }>
@@ -708,11 +706,7 @@ export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> 
         enabled: input.enabled,
       }),
     remove: input => changeHolding(storeFor, ports.official, input, { kind: 'remove' }),
-    createFromData: input => {
-      const body = copyTree(input.body, true)
-      if (body === undefined) return Promise.resolve(BODY_NOT_READ)
-      return publish(input, { kind: 'data', body })
-    },
+    createFromData: input => publish(input, { kind: 'data', body: input.body }),
     beginUpload: input => beginUpload(writableStoreFor, ports.categories, input),
     appendUpload: input => appendUpload(storeFor, input),
     createFromUpload: input => createFromUpload(storeFor, publish, input),

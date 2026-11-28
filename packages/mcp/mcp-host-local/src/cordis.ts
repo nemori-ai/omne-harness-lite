@@ -408,10 +408,12 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
 }
 
 class HostEndpointConnect extends EndpointConnectService<unknown> {
+  readonly callback: EndpointConnect<unknown>['callback']
   readonly begin: EndpointConnect<unknown>['begin']
   readonly disconnect: EndpointConnect<unknown>['disconnect']
   constructor(ctx: Context, connect: EndpointConnect<unknown>) {
     super(ctx)
+    this.callback = () => connect.callback()
     this.begin = (...args) => connect.begin(...args)
     this.disconnect = (...args) => connect.disconnect(...args)
   }
@@ -445,6 +447,7 @@ function callbacksOf(ctx: Context): CallbackReceiver {
   return {
     open: until =>
       ctx.get(mcpCallbackReceiverKey)?.open(until) ?? Promise.resolve(fail('unavailable' as const)),
+    address: () => ctx.get(mcpCallbackReceiverKey)?.address?.(),
   }
 }
 

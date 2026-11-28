@@ -1,5 +1,7 @@
 export { McpPage, type McpPageProps } from './mcp-page.tsx'
 export type {
+  McpBody,
+  McpCreating,
   McpEndpoint,
   McpGovernance,
   McpNotice,
@@ -7,6 +9,7 @@ export type {
   McpRow,
   McpSnapshot,
   McpStatus,
+  McpText,
   McpView,
   McpWrite,
 } from './port.ts'

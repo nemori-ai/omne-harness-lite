@@ -293,6 +293,24 @@ describe('step 4: list-endpoints', () => {
     })
   })
 
+  it('an OAuth endpoint carries the address its consent comes back to; a static one and a world without connecting carry none (C8)', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', {
+      status: readyStatus(docs, { credential: 'absent', connect: 'available' }),
+    })
+    expect(bodyOf(await world.read(alice, 'docs'))['endpoint']).toMatchObject({
+      connect: 'available',
+      callback: 'http://127.0.0.1:7861/callback',
+    })
+    world.define(alice, 'docs', { status: readyStatus(docs) })
+    expect(bodyOf(await world.read(alice, 'docs'))['endpoint']).not.toHaveProperty('callback')
+    const without = createWorld({ connect: false })
+    without.define(alice, 'docs', {
+      status: readyStatus(docs, { credential: 'absent', connect: 'available' }),
+    })
+    expect(bodyOf(await without.read(alice, 'docs'))['endpoint']).not.toHaveProperty('callback')
+  })
+
   it('writes the reason of a failed catalog read as the bridge does', async () => {
     const world = createWorld()
     world.define(alice, 'docs', {

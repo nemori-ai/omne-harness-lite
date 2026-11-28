@@ -134,4 +134,5 @@ export interface GrantConnector {
 /** Where the person's browser comes back to: it listens while some connection waits for its callback. */
 export interface CallbackReceiver {
   open(until: number): Promise<Outcome<string, 'unavailable'>>
+  readonly address?: () => string | undefined
 }

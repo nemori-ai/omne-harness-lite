@@ -122,6 +122,7 @@ function endpointOf(
   status: EndpointStatusView,
   catalog: Endpoint['catalog'],
   skills: SkillCatalogView | null,
+  callback: string | undefined,
 ): Endpoint {
   return {
     name: adopted.ref.name,
@@ -129,6 +130,7 @@ function endpointOf(
     credential: credentialOf(status),
     credentialState: credentialStateOf(status),
     ...(status.connect === undefined ? {} : { connect: status.connect }),
+    ...(status.connect === undefined || callback === undefined ? {} : { callback }),
     use:
       status.use.kind === 'usable'
         ? { kind: 'usable' }
@@ -240,7 +242,13 @@ export function createMcpContribution(input: McpContributionInput): Handlers {
     const skills = await readCall(() => faces.discovery.skills(access, ref))
     const known = skills === 'basis-unavailable' || 'failure' in skills ? null : skills.ok
     return {
-      endpoint: endpointOf(adopted, status.ok, catalogOf(current, adopted, status.ok), known),
+      endpoint: endpointOf(
+        adopted,
+        status.ok,
+        catalogOf(current, adopted, status.ok),
+        known,
+        faces.connect?.callback(),
+      ),
       catalog: 'failure' in current ? null : current.ok,
     }
   }

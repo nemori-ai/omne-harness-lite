@@ -26,11 +26,13 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import {
   AdoptionViewService,
+  CallbackReceiverService,
   CatalogStoreService,
   CredentialUseService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
   mcpActionInvokerKey,
+  mcpEndpointConnectKey,
   mcpEndpointStatusKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { createMcpPlugin, type McpPluginConfig } from '@omne-harness/mcp-host-local/cordis'
@@ -322,6 +324,24 @@ describe('the MCP plugin on a Cordis context, without a peer', () => {
       ok: [{ ref: FILES, connection: { kind: 'lost', reason: 'preparation-failed' } }],
     })
     expect(requests).toHaveLength(1)
+  })
+
+  it('says the address the consent comes back to as the receiver of the tree says it now, and nothing before there is one (C8)', async () => {
+    const { ctx } = await assembled({ target: TARGET })
+    const connect = ctx.get(mcpEndpointConnectKey)
+    expect(connect?.callback()).toBeUndefined()
+    const RECEIVER = 'http://127.0.0.1:7861/callback'
+    const receiver = await load(
+      ctx,
+      class extends CallbackReceiverService {
+        readonly open = async () => ({ ok: RECEIVER }) as const
+        readonly address = () => RECEIVER
+      },
+      undefined,
+    )
+    expect(ctx.get(mcpEndpointConnectKey)?.callback()).toBe(RECEIVER)
+    await receiver.dispose()
+    expect(ctx.get(mcpEndpointConnectKey)?.callback()).toBeUndefined()
   })
 
   it('answers unknown, and sends no request, while the adoption view is absent, and reads the view once it is provided', async () => {

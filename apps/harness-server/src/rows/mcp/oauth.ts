@@ -102,9 +102,11 @@ class Connector extends GrantConnectorService {
 
 class Receiver extends CallbackReceiverService {
   readonly open: CallbackReceiver['open']
+  readonly address: () => string | undefined
   constructor(ctx: Context, receiver: CallbackReceiver) {
     super(ctx)
     this.open = until => receiver.open(until)
+    this.address = () => receiver.address?.()
   }
 }
 

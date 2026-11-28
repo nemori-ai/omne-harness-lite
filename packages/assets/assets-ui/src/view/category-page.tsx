@@ -1,6 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
-  Button,
   EmptyState,
   GlideMenu,
   ListReadingRow,
@@ -16,16 +15,10 @@ import type {
 } from '../model/governance.ts'
 import type { HoldingClaims } from '../model/holding-claims.ts'
 import { lacksKey } from '../model/missing-key.ts'
-import {
-  assetsCategory,
-  assetsCategoryCreate,
-  assetsCategoryHead,
-  assetsItem,
-  assetsList,
-} from '../parts.ts'
+import { assetsCategory, assetsItem, assetsList } from '../parts.ts'
 import { AssetPage } from './asset-page.tsx'
 import { BroughtPage, bringerOf } from './brought-page.tsx'
-import { CreateForm } from './create-form.tsx'
+import { CategoryHead, type CreateFormSlot } from './category-head.tsx'
 import { NoticeLine } from './notice.tsx'
 
 export type Extras = Readonly<{
@@ -34,6 +27,7 @@ export type Extras = Readonly<{
   holdingSlot: (category: string, name: string) => ReactNode
   claims: HoldingClaims
   open: (category: string, name: string) => void
+  createForm: CreateFormSlot
 }>
 
 type CategoryPageProps = Readonly<{
@@ -59,6 +53,20 @@ export function CategoryPage({ governance, tenant, category, extras }: CategoryP
   return view === null ? null : <CategoryBody view={view} category={category} extras={extras} />
 }
 
+/** The head above a page a category brings itself, named as its tab: the same as on the generic page. */
+export function CategoryPageHead({
+  governance,
+  tenant,
+  category,
+  extras,
+  label,
+}: CategoryPageProps & Readonly<{ label: string }>) {
+  const view = useView(governance, tenant, category)
+  return view === null ? null : (
+    <CategoryHead view={view} category={category} label={label} createForm={extras.createForm} />
+  )
+}
+
 type Shown = Readonly<{ view: CategoryGovernance; category: string; extras: Extras }>
 
 const LIST_PARTIAL = {
@@ -70,17 +78,13 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
   const claimLines = useSyncExternalStore(extras.claims.subscribe, () => extras.claims.of(category))
   const claimed = claimLines === '' ? [] : claimLines.split('\n')
-  const [creating, setCreating] = useState(false)
   const [shown, setShown] = useState<string | null>(null)
   const list = useRef<HTMLDivElement>(null)
   const returnTo = useRef<string | null>(null)
   const retry = { label: '重试', onClick: view.read }
-  const creation =
-    snapshot.kind === 'read' && snapshot.creation?.kind !== 'none' ? snapshot.creation : null
   const entries =
     snapshot.kind === 'read' && snapshot.assets.kind === 'read' ? snapshot.assets.entries : null
   const entry = shown === null ? undefined : entries?.find(each => each.row.name === shown)
-  const listed = (name: string) => entries?.some(each => each.row.name === name) ?? false
   // An asset that left the list (removed here or elsewhere) takes its page with it.
   useEffect(() => {
     if (shown === null || entries === null || entry !== undefined) return
@@ -108,28 +112,12 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
   return (
     <div className="assets-category" {...assetsCategory.props}>
       <div ref={list} className="assets-category-list" hidden={entry !== undefined}>
-        <header className="assets-category-head" {...assetsCategoryHead.props}>
-          <h2 className="assets-category-title">{extras.label(category)}</h2>
-          {creation !== null && (
-            <Button
-              variant={creating ? 'ghost' : 'outline'}
-              aria-expanded={creating}
-              {...assetsCategoryCreate.props}
-              onClick={() => setCreating(open => !open)}
-            >
-              {creating ? '收起' : '新建'}
-            </Button>
-          )}
-        </header>
-        {creating && creation !== null && snapshot.kind === 'read' && (
-          <CreateForm
-            view={view}
-            creation={creation}
-            hint={snapshot.hint}
-            creating={snapshot.creating}
-            listed={listed}
-          />
-        )}
+        <CategoryHead
+          view={view}
+          category={category}
+          label={extras.label(category)}
+          createForm={extras.createForm}
+        />
         <div className="assets-category-slot">{extras.categorySlot(category)}</div>
         {snapshot.kind === 'reading' && <LoadingState label="正在读取这一类的资产……" />}
         {snapshot.kind === 'unreadable' && <NoticeLine notice={snapshot.notice} action={retry} />}

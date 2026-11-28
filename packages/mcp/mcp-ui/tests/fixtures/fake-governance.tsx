@@ -30,11 +30,16 @@ export function permissionRow(
   }
 }
 
-export const otherRow = (key: string, kind: 'ordinary' | 'secret'): McpRow => ({
+export const otherRow = (
+  key: string,
+  kind: 'ordinary' | 'secret',
+  item = key,
+  write: McpRow['write'] = { kind: 'none' },
+): McpRow => ({
   key,
   read: { kind: 'read' },
-  write: { kind: 'none' },
-  view: { kind },
+  write,
+  view: { kind, item },
 })
 
 export const endpoint = (name: string, rows: readonly McpRow[]) => ({ name, rows })
@@ -42,7 +47,7 @@ export const endpoint = (name: string, rows: readonly McpRow[]) => ({ name, rows
 export function readOf(
   ...holdings: ReturnType<typeof endpoint>[]
 ): Extract<McpSnapshot, { kind: 'read' }> {
-  return { kind: 'read', holdings, partial: false }
+  return { kind: 'read', holdings, partial: false, creating: { kind: 'none' } }
 }
 
 export type FakeGovernance = Readonly<{
@@ -65,6 +70,13 @@ export function fakeGovernance(initial: McpSnapshot): FakeGovernance {
     getSnapshot: () => snapshot,
     read: () => void calls.push('read'),
     set: (key, pick) => void calls.push(`set ${key} ${pick}`),
+    setValue: (key, value) => void calls.push(`setValue ${key} ${value.kind}:${value.value}`),
+    setSecret: key => void calls.push(`setSecret ${key}`),
+    createFromData: (name, body) =>
+      void calls.push(
+        `create ${name} ${body.entries.map(entry => `${entry.key}=${entry.value.value}`).join(',')}`,
+      ),
+    confirmCreate: () => void calls.push('confirmCreate'),
     clear: key => void calls.push(`clear ${key}`),
     confirm: key => void calls.push(`confirm ${key}`),
     close: () => void calls.push('close'),

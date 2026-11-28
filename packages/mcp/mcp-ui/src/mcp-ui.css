@@ -84,4 +84,57 @@
   color: var(--omne-ink-muted);
   overflow-wrap: anywhere;
 }
+
+.mcp-create {
+  display: grid;
+  gap: var(--omne-space-block);
+  max-width: var(--omne-measure-reading);
+  padding-block: var(--omne-space-block) var(--omne-space-section);
+  border-bottom: 1px solid var(--omne-line-subtle);
+  font-size: var(--omne-text-ui);
+}
+
+.mcp-create-mono {
+  font-family: var(--omne-font-mono, monospace);
+}
+
+.mcp-create-auth {
+  display: grid;
+  gap: var(--omne-space-inline);
+  justify-items: start;
+}
+
+.mcp-create-label {
+  color: var(--omne-ink-muted);
+}
+
+.mcp-create-hint,
+.mcp-create-progress,
+.mcp-create-receipt {
+  margin: 0;
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+}
+
+.mcp-create-register {
+  display: grid;
+  gap: var(--omne-space-block);
+}
+
+.mcp-create-actions {
+  display: flex;
+  gap: var(--omne-space-inline);
+}
+
+.mcp-endpoint-callback {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.mcp-endpoint-callback code {
+  font-family: var(--omne-font-mono, monospace);
+  user-select: all;
+}
 }

@@ -249,3 +249,11 @@ it('P0 each part of the page is on its own element', () => {
   expect(on('mcp.endpoint')[0]?.classList.contains('mcp-endpoint')).toBe(true)
   expect(on('mcp.endpoint.permission')[0]?.classList.contains('mcp-permission')).toBe(true)
 })
+
+it('P-hint the empty page says where one is added', async () => {
+  const { governance } = fakeGovernance(readOf())
+  render(<McpPage governance={governance} tenant={TENANT} status={null} />)
+  expect(
+    await screen.findByText('点上面的「新建」填它的地址，或者在会话里让 agent 帮你接。'),
+  ).toBeTruthy()
+})
