@@ -5,7 +5,7 @@ import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract
 import type { ReactNode } from 'react'
 import { createCategoryNames } from '../src/model/category-names.ts'
 import { AssetsPage, createGovernance } from '../src/index.ts'
-import { serveAssetReads } from './fixtures/asset-reads.ts'
+import { assetRow, serveAssetReads } from './fixtures/asset-reads.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 
@@ -30,6 +30,7 @@ async function page(
   own: readonly string[],
   creations: Readonly<Record<string, typeof DATA | typeof NONE>>,
   forms: readonly string[],
+  rows: Parameters<typeof serveAssetReads>[1] = [],
 ) {
   const fake = createFakeClient()
   void (async () => {
@@ -39,7 +40,7 @@ async function page(
         body: { items: [], next: null, completeness: 'complete' },
       })
   })()
-  serveAssetReads(fake, [], undefined, category => creations[category])
+  serveAssetReads(fake, rows, undefined, category => creations[category])
   const entries: AttachedEntry[] = own.map(id => ({
     id,
     label: id.toUpperCase(),
@@ -110,4 +111,14 @@ it('H4 the generic pane uses the form a category gives, and the generic one when
   fireEvent.click(panel('tool').getByRole('button', { name: '新建' }))
   await settle()
   expect(panel('tool').getByText('tool 自己的新建表单')).toBeTruthy()
+})
+
+it("H5 the head's generic form says when the name typed is held already: it becomes its new version", async () => {
+  await page([], { note: DATA }, [], [assetRow('note', 'docs')])
+  fireEvent.click(panel('note').getByRole('button', { name: '新建' }))
+  await settle()
+  fireEvent.change(panel('note').getByLabelText('名字（必填）'), { target: { value: 'docs' } })
+  expect(panel('note').getByText('已有同名的 docs：提交后会成为它的新版本。')).toBeTruthy()
+  fireEvent.change(panel('note').getByLabelText('名字（必填）'), { target: { value: 'other' } })
+  expect(panel('note').queryByText('已有同名的', { exact: false })).toBeNull()
 })

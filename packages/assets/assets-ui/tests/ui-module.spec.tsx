@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { Context } from '@deepseek-ai/cordis'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
@@ -12,9 +12,11 @@ import {
   ASSETS_CATEGORY_PAGE,
   assetGovernanceKey,
   assetsCategoryPage,
+  assetsCreateForm,
   assetsUiModule,
   type AssetGovernance,
 } from '../src/cordis.tsx'
+import { serveAssetReads } from './fixtures/asset-reads.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
@@ -175,6 +177,49 @@ it('U8 the tabs of contributed pages follow order and identifier, not the order 
   expect(await orders('skill', 'mcp')).toEqual(['mcp', 'skill'])
   expect(await orders('mcp', 'skill')).toEqual(['mcp', 'skill'])
   expect(await orders('mcp', 'b-cat')).toEqual(['b-cat', 'mcp'])
+})
+
+it('U12 a form put into assets.create-form for a category is what 新建 opens on its pane; another category keeps the generic form', async () => {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient()
+  void (async () => {
+    for (;;)
+      (await fake.next('list-settings')).answer({
+        outcome: 'succeeded',
+        body: { items: [], next: null, completeness: 'complete' },
+      })
+  })()
+  serveAssetReads(fake, [], undefined, () => ({
+    detail: { kind: 'data', schema: { kind: 'null' } },
+    hint: null,
+  }))
+  await serveProtocol(root, assetsProtocol, fake.client)
+  await root.plugin(assetsUiModule)
+  assetsCreateForm.contribute(shell, 'mcp', {
+    id: 'mcp-form',
+    order: 0,
+    render: () => 'mcp 自己的新建表单',
+  })
+  const page = shell.items('pages')[0]!
+  render(<>{page.render({ scope: TENANT })}</>)
+  ;(await fake.next('list-categories')).answer({
+    outcome: 'succeeded',
+    body: {
+      items: ['mcp', 'note'].map(category => ({
+        category,
+        title: category,
+        summary: '',
+        creation: 'data',
+      })),
+      next: null,
+    },
+  })
+  await act(async () => new Promise(resolve => setTimeout(resolve, 0)))
+  fireEvent.click(await screen.findByRole('button', { name: '新建' }))
+  expect(await screen.findByText('mcp 自己的新建表单')).toBeTruthy()
+  fireEvent.click(screen.getByRole('tab', { name: 'note' }))
+  fireEvent.click(await screen.findByRole('button', { name: '新建' }))
+  expect(await screen.findByLabelText('名字（必填）')).toBeTruthy()
 })
 
 it('U5 without the protocol the two pages are placed and the module is not adopted: it lacks assets/v1', async () => {
