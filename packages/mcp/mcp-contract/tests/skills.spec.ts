@@ -92,12 +92,61 @@ describe('reading a listed skill (C403)', () => {
     ],
     ['one address twice', { resources: [file('SKILL.md'), file('a.md'), file('a.md')] }],
     ['a SKILL.md it does not list', { resources: [file('a.md')] }],
+    ['a name with a sign in it', { frontmatter: { name: 'style!', description: 'x' } }],
+    ['a name ending in a hyphen', { frontmatter: { name: 'style-', description: 'x' } }],
+    ['a name of 65 characters', { frontmatter: { name: 'a'.repeat(65), description: 'x' } }],
+    [
+      'a digest with more before it',
+      { resources: [{ uri: `${ROOT}/SKILL.md`, digest: `x${DIGEST}`, size: 1 }] },
+    ],
+    [
+      'a digest with more after it',
+      { resources: [{ uri: `${ROOT}/SKILL.md`, digest: `${DIGEST}0`, size: 1 }] },
+    ],
+    ['a file that is not an object', { resources: [file('SKILL.md'), 'a.md'] }],
+    ['a file without an address', { resources: [file('SKILL.md'), { digest: DIGEST, size: 1 }] }],
+    [
+      'a size that is text',
+      { resources: [file('SKILL.md'), { uri: `${ROOT}/a`, digest: DIGEST, size: '1' }] },
+    ],
+    [
+      'an address not ending in /SKILL.md, though listed',
+      { uri: `${ROOT}/README.md`, resources: [file('README.md')] },
+    ],
   ])('does not take an entry with %s', (_, overrides) => {
     expect(readSkillEntry(entryOf(overrides))).toMatchObject({ refused: { reason: 'malformed' } })
   })
 })
 
+describe('the edges of a listed skill', () => {
+  it('takes a name of 64 characters and an empty file, and names a file at the root by its whole address', () => {
+    const long = 'a'.repeat(64)
+    expect(
+      readSkillEntry(entryOf({ frontmatter: { name: long, description: 'x' } })),
+    ).toHaveProperty('ok')
+    const empty = readSkillEntry(entryOf({ resources: [file('SKILL.md'), file('empty.md', 0)] }))
+    expect('ok' in empty && empty.ok.files[1]?.size).toBe(0)
+    const root = readSkillEntry(
+      entryOf({ resources: [file('SKILL.md'), { uri: `${ROOT}/`, digest: DIGEST, size: 1 }] }),
+    )
+    expect('ok' in root && root.ok.files[1]?.path).toBe(`${ROOT}/`)
+  })
+
+  it('does not take an entry that is not an object, and names it by nothing', () => {
+    expect(readSkillEntry(json('style'))).toEqual({
+      refused: { name: '', uri: '', reason: 'malformed' },
+    })
+  })
+})
+
 describe('judging one listing (C403)', () => {
+  it('two unreadable entries without a name are each refused as unreadable, not as one name', () => {
+    expect(judgeSkills([json('x'), json(7)]).refused.map(one => one.reason)).toEqual([
+      'malformed',
+      'malformed',
+    ])
+  })
+
   it('refuses both skills of one name, and takes the others', () => {
     const judged = judgeSkills([
       entryOf(),
@@ -158,6 +207,13 @@ describe('reading a resource', () => {
       ok: { uri: 'skill://x/b', blob: 'AQI=' },
     })
     expect(readResourceContent(answer, 'skill://x/c')).toEqual({ failure: 'content-missing' })
+    expect(readResourceContent(json({}), 'skill://x/a')).toEqual({ failure: 'content-missing' })
+    expect(readResourceContent(json({ contents: ['skill://x/a'] }), 'skill://x/a')).toEqual({
+      failure: 'content-missing',
+    })
+    expect(
+      readResourceContent(json({ contents: [{ uri: 'skill://x/a', text: 'A' }] }), 'skill://x/a'),
+    ).toStrictEqual({ ok: { uri: 'skill://x/a', text: 'A' } })
     expect(
       readResourceContent(json({ contents: [{ uri: 'skill://x/a' }] }), 'skill://x/a'),
     ).toEqual({

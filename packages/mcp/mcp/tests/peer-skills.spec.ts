@@ -8,7 +8,7 @@ import {
   peerIdentityOf,
 } from '@omne-harness/mcp-contract/testing'
 import { createMcp } from '../src/index.ts'
-import { createSkillFileCache } from '../src/internal/skill-files.ts'
+import { createSkillFileCache, sliceText } from '../src/internal/skill-files.ts'
 import { alice, mallory } from './doubles/identities.ts'
 import type { Step } from './doubles/scripted-transport.ts'
 import { adoptHttp, page, world } from './doubles/world.ts'
@@ -279,5 +279,214 @@ describe('the memory of checked files', () => {
     ])
     cache.put(fileOf('d', 11), new Uint8Array(11))
     expect(cache.get(fileOf('d', 11))).toBeUndefined()
+  })
+})
+
+describe('the catalog of peer skills through changes (C403)', () => {
+  it('records when it was taken, and that the peer no longer offers skills once it stops', async () => {
+    const { mcp } = skillWorld([
+      ...LISTED,
+      { discover: peerIdentityOf() },
+      { listActions: page(['read']) },
+    ])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({
+      ok: { kind: 'acquired', freshness: { acquiredAt: '2026-11-03T12:00:00.000Z' } },
+    })
+    await mcp.connections.release(alice, desk)
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({ ok: { kind: 'not-declared' } })
+  })
+
+  it('a listing longer than the page limit is not taken', async () => {
+    const pages = Array.from({ length: 3 }, (_, at) => ({
+      listSkills: { skills: [named(`s${String(at)}`)], nextCursor: `p${String(at + 1)}` },
+    }))
+    const { mcp } = skillWorld([{ discover: offering }, { listActions: page(['read']) }, ...pages])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.discovery.skills(alice, desk)).toEqual({ ok: { kind: 'not-acquired' } })
+  })
+
+  it('without a store of skills, none is taken and none is found; a store that cannot be read answers unknown', async () => {
+    const w = world({ script: LISTED.slice(0, 2) })
+    const bare = createMcp(w.ports, w.config)
+    adoptHttp(w, desk, { auth: 'none' })
+    await bare.discovery.refresh(alice, { ref: desk })
+    expect(await bare.discovery.skills(alice, desk)).toEqual({ ok: { kind: 'not-acquired' } })
+    expect(await bare.skills.read(alice, desk, read('SKILL.md'))).toEqual({
+      failure: { kind: 'skill-not-found' },
+    })
+    const { mcp, skillStore } = skillWorld(LISTED)
+    await mcp.discovery.refresh(alice, { ref: desk })
+    skillStore.setUnavailable(true)
+    expect(await mcp.discovery.skills(alice, desk)).toEqual({ failure: { kind: 'unknown' } })
+    expect(await mcp.skills.read(alice, desk, read('SKILL.md'))).toEqual({
+      failure: { kind: 'unknown' },
+    })
+  })
+})
+
+describe('the entry a peer gives when asked again (C402)', () => {
+  const twoSkills: Step = { listSkills: { skills: [entryOf(), named('notes')] } }
+  const withTwo: readonly Step[] = [
+    { discover: offering },
+    { listActions: page(['read']) },
+    twoSkills,
+  ]
+  const broken = text('references/tone.md', 'changed!!\n')
+  const readTone = read('references/tone.md')
+
+  it('keeps the other skills, and drops the one when the peer gives another skill under its address', async () => {
+    const { mcp } = skillWorld([...withTwo, broken, { getSkill: named('other') }])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.skills.read(alice, desk, readTone)).toEqual({ failure: { kind: 'changed' } })
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({
+      ok: { revision: 2, skills: [{ name: 'notes' }] },
+    })
+  })
+
+  it('records why when the peer now gives a skill it would not take', async () => {
+    const dynamic = entryOf({ resources: 'dynamic' })
+    const { mcp } = skillWorld([...withTwo, broken, { getSkill: dynamic }])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    await mcp.skills.read(alice, desk, readTone)
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({
+      ok: { skills: [{ name: 'notes' }], refused: [{ name: 'style', reason: 'dynamic' }] },
+    })
+  })
+
+  it('keeps the kept entry when the peer does not answer', async () => {
+    const { mcp } = skillWorld([
+      ...withTwo,
+      broken,
+      { getSkill: { kind: 'no-answer', cause: 'abandoned' } },
+    ])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.skills.read(alice, desk, readTone)).toEqual({ failure: { kind: 'changed' } })
+    expect(await mcp.discovery.skills(alice, desk)).toMatchObject({
+      ok: { revision: 1, skills: [{ name: 'style' }, { name: 'notes' }] },
+    })
+  })
+})
+
+describe('the checks of a fetched file (C402)', () => {
+  const skillMd = (front: string, body = '# Style\n') => `---\n${front}\n---\n${body}`
+  const check = async (fileText: string, front: Record<string, unknown>) => {
+    const { mcp } = skillWorld([
+      { discover: offering },
+      { listActions: page(['read']) },
+      {
+        listSkills: {
+          skills: [entryOf({ frontmatter: front, resources: [listed('SKILL.md', fileText)] })],
+        },
+      },
+      text('SKILL.md', fileText),
+      { getSkill: entryOf() },
+    ])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    const answer = await mcp.skills.read(alice, desk, read('SKILL.md'))
+    return 'ok' in answer ? 'given' : answer.failure.kind
+  }
+  const front = { name: 'style', description: 'House style.' }
+
+  it('takes a frontmatter after a byte order mark and with CRLF lines, with lists and nested values equal to the entry', async () => {
+    const withLists = { ...front, 'allowed-tools': ['Bash', 'Read'], metadata: { version: 2 } }
+    const yaml =
+      'name: style\r\ndescription: House style.\r\nallowed-tools:\r\n  - Bash\r\n  - Read\r\nmetadata:\r\n  version: 2'
+    expect(await check(`﻿---\r\n${yaml}\r\n---\r\n# Style\r\n`, withLists)).toBe('given')
+  })
+
+  it.each([
+    [
+      'a list in another order',
+      'allowed-tools: [Read, Bash]',
+      { 'allowed-tools': ['Bash', 'Read'] },
+    ],
+    ['a shorter list', 'allowed-tools: [Bash]', { 'allowed-tools': ['Bash', 'Read'] }],
+    ['a field the entry lacks', 'license: MIT', {}],
+    ['a field it lacks', '', { license: 'MIT' }],
+    ['a number for a text', 'version: 2', { version: '2' }],
+  ])('answers changed for %s', async (_, extra, entryExtra) => {
+    const fileText = skillMd(
+      `name: style\ndescription: House style.${extra === '' ? '' : `\n${extra}`}`,
+    )
+    expect(await check(fileText, { ...front, ...entryExtra })).toBe('changed')
+  })
+
+  it.each([
+    ['no frontmatter', '# Style\n'],
+    ['no closing line', '---\nname: style\ndescription: House style.\n# Style\n'],
+    [
+      'text right after the closing line',
+      '---\nname: style\ndescription: House style.\n---# Style\n',
+    ],
+    ['a frontmatter that is not YAML', '---\nname: [style\n---\n'],
+  ])('answers changed for a SKILL.md with %s', async (_, fileText) => {
+    expect(await check(fileText, front)).toBe('changed')
+  })
+
+  it('answers changed for a SKILL.md whose bytes are not UTF-8, and gives a listed file read by its whole address', async () => {
+    const bad = Buffer.from([0xff, 0xfe])
+    const binary = {
+      uri: `${ROOT}/SKILL.md`,
+      digest: `sha256:${createHash('sha256').update(bad).digest('hex')}`,
+      size: 2,
+    }
+    const { mcp } = skillWorld([
+      { discover: offering },
+      { listActions: page(['read']) },
+      {
+        listSkills: {
+          skills: [entryOf({ resources: [binary, listed('references/tone.md', TONE)] })],
+        },
+      },
+      { readResource: { uri: `${ROOT}/SKILL.md`, blob: btoa(String.fromCharCode(0xff, 0xfe)) } },
+      { getSkill: entryOf() },
+      text('references/tone.md', TONE),
+    ])
+    await mcp.discovery.refresh(alice, { ref: desk })
+    expect(await mcp.skills.read(alice, desk, read('SKILL.md'))).toEqual({
+      failure: { kind: 'changed' },
+    })
+    expect(await mcp.skills.read(alice, desk, read(`${ROOT}/references/tone.md`))).toEqual({
+      ok: { text: TONE, start: 0, total: size(TONE) },
+    })
+  })
+})
+
+describe('a range of a checked file', () => {
+  const bytes = new TextEncoder().encode('ab短c')
+  const at = (start: number, length: number) => sliceText(bytes, { start, length })
+
+  it.each([
+    [0, 6, 'ab短c', 0],
+    [0, 2, 'ab', 0],
+    [0, 3, 'ab', 0],
+    [2, 1, '短', 2],
+    [3, 2, 'c', 5],
+    [5, 1, 'c', 5],
+    [6, 4, '', 6],
+    [9, 4, '', 6],
+    [1, 0, 'b', 1],
+  ])('from %i for %i bytes gives %j from %i', (start, length, expected, from) => {
+    expect(at(start, length)).toEqual({ ok: { text: expected, start: from, total: 6 } })
+  })
+
+  it('keeps a file of exactly the limit, and two whose bytes make up the limit together', () => {
+    const one = createSkillFileCache(8)
+    const file = (digest: string, bytes: number) => ({
+      uri: digest,
+      path: digest,
+      digest,
+      size: bytes,
+    })
+    one.put(file('x', 8), new Uint8Array(8))
+    expect(one.get(file('x', 8))).toBeDefined()
+    const two = createSkillFileCache(8)
+    two.put(file('a', 4), new Uint8Array(4))
+    two.put(file('b', 4), new Uint8Array(4))
+    expect([two.get(file('a', 4)), two.get(file('b', 4))].every(hit => hit !== undefined)).toBe(
+      true,
+    )
   })
 })
