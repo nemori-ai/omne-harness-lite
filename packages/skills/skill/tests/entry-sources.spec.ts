@@ -143,7 +143,10 @@ describe('one order for asset Skills and source Skills (C401)', () => {
   })
 
   it('keeps two catalog entries of one name together, and ranks an asset Skill without a description by its name', () => {
-    const bare: CatalogEntry = { ...adopted('style-report', 'x'), description: undefined }
+    const { description: _, ...bare } = adopted('style-report', 'x') as Extract<
+      CatalogEntry,
+      { kind: 'adopted' }
+    >
     const retired: CatalogEntry = {
       kind: 'stand-in',
       capability: report.capability,
