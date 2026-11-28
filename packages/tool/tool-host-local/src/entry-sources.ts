@@ -74,7 +74,7 @@ export const DEFAULT_ENTRY_SOURCE_POLICY: LocalEntrySourcePolicy = Object.freeze
 })
 
 export type LocalEntrySourcesInput<P, B extends ContentBlock> = Readonly<{
-  sources(): readonly ToolEntrySource<P, B>[]
+  sources(access: Access<P>): readonly ToolEntrySource<P, B>[]
   /** Marks one call of an entry under this prefix as in flight; the returned function ends the mark. */
   hold(prefix: string): () => void
   codec: OutputCodec<ToolRenderedResult<B>>
@@ -445,7 +445,7 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
     definition: ToolDefinition,
     executor: Adoption,
   ): Outcome<Readonly<{ source: Source; loaded: Loaded }>, string> {
-    const source = sourceOf(input.sources(), definition.name)
+    const source = sourceOf(input.sources(access), definition.name)
     if (source === undefined) return fail('the entry source is not in service')
     let entry: ToolSourceEntry | undefined
     try {
@@ -466,7 +466,8 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
   }
 
   const entries: LocalToolSourcedEntries<P> = {
-    read: (access, names) => readEntries(input.sources(), access, policy.listTimeoutMs, names),
+    read: (access, names) =>
+      readEntries(input.sources(access), access, policy.listTimeoutMs, names),
   }
 
   return {
@@ -477,7 +478,7 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
         ...base,
         peek: (access, availability) => {
           const { definition } = availability
-          if (sourceOf(input.sources(), definition.name) === undefined)
+          if (sourceOf(input.sources(access), definition.name) === undefined)
             return base.peek(access, availability)
           const found = selected(access, definition, availability.executor)
           return 'failure' in found ? unavailable(found.failure) : succeed(found.ok.loaded)
@@ -485,7 +486,7 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
         selectAndPin: (access, request, call) => {
           const { availability } = request
           const { definition } = availability
-          if (sourceOf(input.sources(), definition.name) === undefined)
+          if (sourceOf(input.sources(access), definition.name) === undefined)
             return base.selectAndPin(access, request, call)
           if (availability.kind !== 'available') return unavailable('the fixed tool is unavailable')
           const { executor } = availability

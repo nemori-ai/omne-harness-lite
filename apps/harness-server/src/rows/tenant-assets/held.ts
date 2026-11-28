@@ -38,7 +38,7 @@ type Kept = {
   names: Map<string, HeldNames>
 }
 
-/** A definition a plugin placed for this tenant, within a directory of the plugin's package, as the ledger would list it. */
+/** A definition a plugin placed for this tenant, a directory or a value of the plugin's package, as the ledger would list it. */
 function placedEntry(
   category: string,
   tenant: string,
@@ -46,8 +46,8 @@ function placedEntry(
 ): readonly AssetEntry[] {
   const { scope, item } = entry
   const capability = capabilityId(category, entry.key)
-  if (item.within === undefined || scope[0] !== 'tenant' || scope[1] !== tenant || !capability.ok)
-    return []
+  const inside = item.within !== undefined || item.valueAt !== undefined
+  if (!inside || scope[0] !== 'tenant' || scope[1] !== tenant || !capability.ok) return []
   const { asset, version } = item
   return [
     {

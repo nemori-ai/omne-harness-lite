@@ -20,7 +20,10 @@ const CODING_RESIDENTS = (
       id: string
       config?: {
         mappings?: {
-          definition: { name: string; references: { capability: { name: string } }[] }
+          definition: {
+            name: string
+            references: { capability: { category: string; name: string } }[]
+          }
         }[]
       }
     }[]
@@ -28,7 +31,8 @@ const CODING_RESIDENTS = (
 ).rows
   .find(row => row.id === 'agent-adoptions')
   ?.config?.mappings?.find(mapping => mapping.definition.name === 'coding')
-  ?.definition.references.map(reference => reference.capability.name)
+  ?.definition.references.filter(reference => reference.capability.category === 'tool')
+  .map(reference => reference.capability.name)
   .toSorted()
 
 const toolNamesOf = (body: string): string[] =>

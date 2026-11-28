@@ -176,7 +176,7 @@ describe('the functions of the tools a program names', () => {
         },
       }
       const sourced = {
-        owns: (name: string) => name.startsWith('probe__'),
+        owns: (_access: unknown, name: string) => name.startsWith('probe__'),
         entry: () => undefined,
       }
       const ports = portsOf(world, { catalog: () => catalog, sourced: () => sourced })

@@ -19,6 +19,7 @@ import {
   resolveForwardTarget,
   type ForwardRequestPorts,
 } from './tool-forward-requests.ts'
+import type { SourcedEntries } from './tool-entry-sources.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 
 export type ProgramRequestPorts = ForwardRequestPorts &
@@ -81,10 +82,11 @@ export function createProgramTargetRequests(ports: ProgramRequestPorts) {
 function knownAmong(
   names: readonly string[],
   entries: readonly Readonly<{ key: Readonly<{ asset: Readonly<{ name: string }> }> }>[],
-  sourced: Readonly<{ owns(name: string): boolean }> | undefined,
+  sourced: Pick<SourcedEntries, 'owns'> | undefined,
+  access: Access<unknown>,
 ): readonly string[] {
   const kept = new Set(entries.map(entry => entry.key.asset.name))
-  return [...new Set(names)].filter(name => kept.has(name) || sourced?.owns(name) === true)
+  return [...new Set(names)].filter(name => kept.has(name) || sourced?.owns(access, name) === true)
 }
 
 /** TL-75: the functions of the tools a program names. Names that are no tool cost nothing; no catalogue is read. */
@@ -100,7 +102,7 @@ export function createProgramFunctions(ports: ProgramRequestPorts) {
     const access: Access<unknown> = { principal: parent.principal, tenant: parent.tenant }
     const listed = await view.read(access)
     if ('failure' in listed) return listed
-    const tools = knownAmong(names, listed.ok.entries, ports.sourced?.())
+    const tools = knownAmong(names, listed.ok.entries, ports.sourced?.(), access)
     if (tools.length === 0) return succeed([])
     const consumer = releaseToolConsumer(release)
     const inspected = await catalog.inspectEach({ ...access, names: tools, consumer })

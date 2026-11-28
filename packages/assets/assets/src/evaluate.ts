@@ -5,6 +5,7 @@ export type Candidate = {
   readonly immutable: boolean
   readonly replaceLocked: boolean
   readonly within?: string
+  readonly valueAt?: string
 }
 
 export type LayerInput =

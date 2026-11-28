@@ -3,7 +3,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail } from '@omne-harness/operation-result'
 import { close, createSchemaProvider, type SchemaBudget } from '@omne-harness/schema-provider'
-import type { ReleaseDetailPolicy } from '@omne-harness/tool-contract'
+import type { Scope } from '@omne-harness/dynamis'
+import type { Access, ReleaseDetailPolicy } from '@omne-harness/tool-contract'
 import {
   ToolBindingsService,
   ToolCatalogService,
@@ -35,7 +36,8 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
   Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'> &
   Readonly<{
     /** Given, the entries of the sources on `tool.entry-sources` join the catalog and can be called. */
-    entrySources?: Pick<LocalEntrySourcesInput<P, B>, 'codec' | 'policy'>
+    entrySources?: Pick<LocalEntrySourcesInput<P, B>, 'codec' | 'policy'> &
+      Readonly<{ scope(access: Access<P>): Scope }>
     releaseDetails?: Readonly<{
       policy?: ReleaseDetailPolicy
       schemas?: SchemaBudget
@@ -89,8 +91,12 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
         input.entrySources === undefined
           ? null
           : createLocalEntrySources<P, E, B>({
-              ...input.entrySources,
-              sources: () => (live() ? (point()?.sources() ?? []) : []),
+              codec: input.entrySources.codec,
+              ...(input.entrySources.policy === undefined
+                ? {}
+                : { policy: input.entrySources.policy }),
+              sources: access =>
+                live() ? (point()?.sources(input.entrySources!.scope(access)) ?? []) : [],
               hold: prefix => point()?.hold(prefix) ?? (() => {}),
             })
       const registry = sourced === null ? registered : sourced.registry(registered)
