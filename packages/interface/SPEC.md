@@ -68,14 +68,15 @@ flowchart LR
 
 | 名字 | 种类 | 正文 | 成功时 | 别的答复 |
 | --- | --- | --- | --- | --- |
-| `observe-requests` | 观察 | `{ tenant, client }`：`client` 是客户端实例自己起的标识 | 帧 `asked { request, page, subject, mode, part?, until? }`：一次「这一页会怎样」；从修订号 2 起另有帧 `asked-now { request, want, part?, until? }`：一次「此刻」，`want` 是 `structure` 或 `image` | 以 `denied` 或 `unavailable` 结束 |
+| `observe-requests` | 观察 | `{ tenant, client }`：`client` 是客户端实例自己起的标识 | 帧 `asked { request, page, subject, mode, part?, until? }`：一次「这一页会怎样」 | 以 `denied` 或 `unavailable` 结束 |
+| `observe-now` | 观察；从修订号 2 起 | 同上 | 帧 `{ request, want, part?, until? }`：一次「此刻」，`want` 是 `structure` 或 `image` | 同上 |
 | `deliver` | 提交，重发安全；正文走大的那一档 | `{ tenant, client, request, result }`：`result` 是图的字节（从修订号 2 起可带结构），或做不到的原因 | `{}` | 共同契约的那一组；`not-found`（没有这次请求，或它已经有了结局） |
 | `deliver-seen` | 提交，重发安全；正文走大的那一档；从修订号 2 起 | `{ tenant, client, request, result, met }`：`result` 是结构、图加结构，或做不到的原因；`met` 说等的东西出现了没有 | `{}` | 同上 |
 
 - 做不到的原因是封闭的一组：`no-page`、`no-skin`、`bad-mode`、`not-settled`、`unsupported`。
-- 一个客户端「在」的意思是它开着 `observe-requests`。
+- 一个客户端「在」：问「这一页会怎样」看它开没开着 `observe-requests`，问「此刻」看它开没开着 `observe-now`。
 - 同一个请求交回两次，第二次答 `not-found`，第一次的结果不变。
-- 对方的修订号不到 2：服务端不发新帧、不带新字段，工具对这个客户端答不支持。
+- 对方的修订号不到 2：它不开 `observe-now`，点名部位或要等的「这一页会怎样」也不发给它，工具答不支持。
 
 ### 一次请求的结局
 
@@ -94,9 +95,9 @@ flowchart LR
 
 - 一个工具 `AppView`，三个命令，都只读，各归一项权限，缺省都是自动：
   - `look`：某一页在某种模式下会是什么样，答图与结构；权限「AppView：看界面」。
-  - `see`：人此刻看到的界面的结构；权限「AppView：看此刻」。
+  - `inspect`：人此刻看到的界面的结构；权限「AppView：看此刻」。
   - `shot`：人此刻看到的界面的样子，答一张图，点名部位时只截那一处；权限「AppView：截此刻」。
-  三项对应产品正文里「看、截图」各一项（CAP-DA16）与「看界面」（CAP-DA23）；「标出来」不在本组。工具名由盲测定下（没有被读成截服务端屏幕的 `Screen`）；`see`、`shot` 两个命令名同样先盲测。
+  三项对应产品正文里「看、截图」各一项（CAP-DA16）与「看界面」（CAP-DA23）；「标出来」不在本组。工具名由盲测定下（没有被读成截服务端屏幕的 `Screen`）；两个命令名同样由盲测定下：「此刻的结构」的候选里 `see` 被读成与 `look` 同义，取 `inspect`；「此刻的图」取 `shot`。
 - 结果第一行是说明（哪一页或「此刻」、什么模式、图的宽高、等的东西出现了没有），有图时加图的引用，和 `Files` 打开一张图的结果同形；有结构时接着印至多 120 行，一处一行，按父部位缩进：部位名、字、框、看不见的标出来；多的写还有几处、怎样用 `part` 缩小。
 - 它不许程序调用，不许转后台。
 - 页的标识此刻有哪些，从拓展树上读（客户端回报的 `shell.pages` 上的项），本工具不另给一个列表。

@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

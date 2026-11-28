@@ -4734,6 +4734,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

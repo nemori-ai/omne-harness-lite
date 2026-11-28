@@ -1,6 +1,7 @@
 import {
   DEVICE_VIEW,
   VIEW_MARK,
+  VIEW_STRUCTURE,
   viewAskedOf,
   viewQuery,
   type ViewAsked,
@@ -31,11 +32,22 @@ export type DeviceViewDeps = Readonly<{
 }>
 
 export type Looked =
-  | Readonly<{ kind: 'image' } & Shot>
+  | Readonly<{ kind: 'image'; structure?: unknown } & Shot>
   | Readonly<{ kind: 'cannot'; reason: ViewCannot }>
 
 const POLL_MS = 100
 const MARKED = `document.documentElement.getAttribute(${JSON.stringify(VIEW_MARK)})`
+const STRUCTURED = `document.documentElement.getAttribute(${JSON.stringify(VIEW_STRUCTURE)})`
+
+async function structureOf(contents: WatchedContents): Promise<unknown> {
+  const said: unknown = await contents.executeJavaScript(STRUCTURED)
+  if (typeof said !== 'string') return undefined
+  try {
+    return JSON.parse(said) as unknown
+  } catch {
+    return undefined
+  }
+}
 const SAID: ReadonlySet<unknown> = new Set(['no-page', 'no-skin', 'bad-mode'])
 
 const cannot = (reason: ViewCannot): Looked => ({ kind: 'cannot', reason })
@@ -53,8 +65,11 @@ export async function lookOnce(deps: DeviceViewDeps, asked: ViewAsked): Promise<
     if ((await mounting) !== 'mounted') return cannot('not-settled')
     for (;;) {
       const mark = await window.contents.executeJavaScript(MARKED)
-      if (mark === 'ready')
-        return { kind: 'image', ...(await window.capture(asked.width, asked.height)) }
+      if (mark === 'ready') {
+        const shot = await window.capture(asked.width, asked.height)
+        const structure = await structureOf(window.contents)
+        return { kind: 'image', ...shot, ...(structure === undefined ? {} : { structure }) }
+      }
       if (SAID.has(mark)) return cannot(mark as ViewCannot)
       if (now() - start >= deadlineMs) return cannot('not-settled')
       await sleep(pollMs)
@@ -78,7 +93,18 @@ const reasonOf = (reason: ViewCannot): Response =>
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
   })
 
-const pictureOf = ({ png, width, height }: Shot): Response =>
+const pictureOf = ({ png, width, height, structure }: Shot & { structure?: unknown }): Response =>
+  structure === undefined
+    ? pngOf({ png, width, height })
+    : new Response(
+        JSON.stringify({ png: Buffer.from(png).toString('base64'), width, height, structure }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+        },
+      )
+
+export const pngOf = ({ png, width, height }: Shot): Response =>
   new Response(png, {
     status: 200,
     headers: {

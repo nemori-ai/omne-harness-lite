@@ -24,7 +24,7 @@ function world() {
   const observe = (tenant: string, client: string) => {
     const stop = new AbortController()
     stops.push(stop)
-    const frames = inspections.watch(tenant, client, stop.signal)
+    const frames = inspections.watch(tenant, client, 'look', 1, stop.signal)
     const seen: string[] = []
     void (async () => {
       for await (const frame of frames) seen.push(frame.request)

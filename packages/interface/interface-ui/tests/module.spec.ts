@@ -84,6 +84,14 @@ function fakeClient() {
       return { outcome: 'succeeded', body: {} }
     },
   }
+  Object.assign(client.observe, {
+    'observe-now': (_body: unknown, { signal }: { signal: AbortSignal }) => ({
+      async next() {
+        await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }))
+        return { done: true as const, value: { kind: 'ended', reason: 'cancelled' } }
+      },
+    }),
+  })
   return { client: client as unknown as InterfaceClient, streams, delivered }
 }
 

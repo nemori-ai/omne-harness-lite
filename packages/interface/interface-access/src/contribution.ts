@@ -37,6 +37,14 @@ export function createInterfaceContribution(
         const outcome = inspections.deliver(tenant, body.client, body.request, body.result)
         return { outcome, body: {} }
       },
+      async 'deliver-seen'(call, body) {
+        const tenant = tenantTextOf(body.tenant)
+        const refused = await admitted(principals, call.principal, tenant)
+        if (refused !== undefined) return refused
+        const { client, request, result, met } = body
+        const outcome = inspections.deliverSeen(tenant, client, request, result, met)
+        return { outcome, body: {} }
+      },
     },
     observations: {
       async 'observe-requests'(context, open) {
@@ -45,7 +53,16 @@ export function createInterfaceContribution(
         if (refused !== undefined) return refused
         return {
           outcome: 'succeeded',
-          frames: inspections.watch(tenant, open.client, context.signal),
+          frames: inspections.watch(tenant, open.client, 'look', context.revision, context.signal),
+        }
+      },
+      async 'observe-now'(context, open) {
+        const tenant = tenantTextOf(open.tenant)
+        const refused = await admitted(principals, context.principal, tenant)
+        if (refused !== undefined) return refused
+        return {
+          outcome: 'succeeded',
+          frames: inspections.watch(tenant, open.client, 'now', context.revision, context.signal),
         }
       },
     },

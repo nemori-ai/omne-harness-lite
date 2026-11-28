@@ -1,18 +1,25 @@
-import type { InspectionAsked, InspectionResult } from '@omne-harness/interface-protocol'
+import type {
+  InspectionAsked,
+  InspectionNow,
+  InspectionResult,
+  SeenResult,
+} from '@omne-harness/interface-protocol'
 import type { TimeSource } from '@omne-harness/time-source'
 import {
   EMPTY_LEDGER,
   stepLedger,
   type Answer,
+  type Channel,
+  type InspectionFrame,
   type LedgerEffect,
   type LedgerEvent,
   type LedgerPolicy,
 } from './ledger.ts'
 
-export type Asked = Omit<InspectionAsked, 'request'>
+export type Asked = Omit<InspectionAsked, 'request'> | Omit<InspectionNow, 'request'>
 
 /** One client observing for its tenant: the frames waiting for it, and how to wake its reader. */
-type Watcher = { readonly frames: InspectionAsked[]; wake: (() => void) | undefined }
+type Watcher = { readonly frames: InspectionFrame[]; wake: (() => void) | undefined }
 
 export type Inspections = Readonly<{
   /** Asks a client of the tenant once; answers when it has an outcome, or with cancelled when the signal ends it first. */
@@ -21,20 +28,35 @@ export type Inspections = Readonly<{
     asked: Asked,
     signal?: AbortSignal,
   ): Promise<Answer | { kind: 'cancelled' }>
-  watch(
+  watch<C extends Channel>(
     tenant: string,
     client: string,
+    channel: C,
+    revision: number,
     signal: AbortSignal,
-  ): AsyncGenerator<InspectionAsked, 'unavailable'>
+  ): AsyncGenerator<C extends 'look' ? InspectionAsked : InspectionNow, 'unavailable'>
   deliver(
     tenant: string,
     client: string,
     request: string,
     result: InspectionResult,
   ): 'succeeded' | 'not-found'
+  deliverSeen(
+    tenant: string,
+    client: string,
+    request: string,
+    result: SeenResult,
+    met: boolean,
+  ): 'succeeded' | 'not-found'
 }>
 
-const watcherKey = (tenant: string, client: string) => JSON.stringify([tenant, client])
+const watcherKey = (tenant: string, client: string, channel: Channel) =>
+  JSON.stringify([tenant, client, channel])
+
+const outcomeOf = (effects: readonly LedgerEffect[]): 'succeeded' | 'not-found' => {
+  const told = effects.find(effect => effect.kind === 'delivered')
+  return told?.kind === 'delivered' ? told.outcome : 'not-found'
+}
 
 /** Runs the ledger: each step's effects are done here, and only here. */
 export function createInspections(
@@ -49,7 +71,7 @@ export function createInspections(
 
   function run(effect: LedgerEffect): void {
     if (effect.kind === 'send') {
-      const watcher = watchers.get(watcherKey(effect.tenant, effect.client))
+      const watcher = watchers.get(watcherKey(effect.tenant, effect.client, effect.channel))
       watcher?.frames.push(effect.asked)
       watcher?.wake?.()
       const { request } = effect.asked
@@ -89,21 +111,26 @@ export function createInspections(
           signal?.removeEventListener('abort', cancel)
           resolve(answer)
         })
-        dispatch({ kind: 'ask', tenant, asked: { ...asked, request }, now: time.now() })
+        dispatch({
+          kind: 'ask',
+          tenant,
+          asked: { ...asked, request } as InspectionFrame,
+          now: time.now(),
+        })
       })
     },
-    async *watch(tenant, client, signal) {
-      const key = watcherKey(tenant, client)
+    async *watch(tenant, client, channel, revision, signal) {
+      const key = watcherKey(tenant, client, channel)
       const watcher: Watcher = { frames: [], wake: undefined }
       watchers.set(key, watcher)
-      dispatch({ kind: 'arrive', tenant, client })
+      dispatch({ kind: 'arrive', tenant, client, channel, revision })
       const stop = (): void => watcher.wake?.()
       signal.addEventListener('abort', stop)
       try {
         for (;;) {
           const next = watcher.frames.shift()
           if (next !== undefined) {
-            yield next
+            yield next as never
             continue
           }
           if (signal.aborted) return 'unavailable'
@@ -113,14 +140,15 @@ export function createInspections(
         signal.removeEventListener('abort', stop)
         if (watchers.get(key) === watcher) {
           watchers.delete(key)
-          dispatch({ kind: 'leave', tenant, client })
+          dispatch({ kind: 'leave', tenant, client, channel })
         }
       }
     },
     deliver(tenant, client, request, result) {
-      const done = dispatch({ kind: 'deliver', tenant, client, request, result })
-      const told = done.find(effect => effect.kind === 'delivered')
-      return told?.kind === 'delivered' ? told.outcome : 'not-found'
+      return outcomeOf(dispatch({ kind: 'deliver', tenant, client, request, result }))
+    },
+    deliverSeen(tenant, client, request, result, met) {
+      return outcomeOf(dispatch({ kind: 'deliver-seen', tenant, client, request, result, met }))
     },
   }
 }

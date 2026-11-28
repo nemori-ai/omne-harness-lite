@@ -8,7 +8,7 @@ import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
-import { answerRequests, type DrawPage } from './answer.ts'
+import { answerNow, answerRequests, type DrawPage, type SeeNow } from './answer.ts'
 
 export type InterfaceClient = ClientOf<InterfaceProtocol>
 /** How the host application draws a page for the tenant whose request it is. */
@@ -22,6 +22,7 @@ export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>
 export type InterfaceUiOptions = Readonly<{
   /** How the host application draws a page; without one every request is answered unsupported. */
   draw?: DrawTenantPage
+  see?: SeeNow
   /** The name this client goes by on the server; one of its own making when none is given. */
   clientId?: () => string
   backoff?: Backoff
@@ -41,22 +42,17 @@ const deniedEnd = (end: unknown): boolean => {
   return (kind === 'ended' && reason === 'denied') || (kind === 'refused' && outcome === 'denied')
 }
 
-/** Keeps the observation of one tenant open, opening it again after a pause, until it is stopped or denied. */
-async function serveTenant(
-  client: InterfaceClient,
-  text: string,
-  id: string,
+async function keepOpen<F>(
+  open: () => AsyncGenerator<F, unknown>,
+  answer: (frames: AsyncIterator<F, unknown>) => Promise<void>,
   options: InterfaceUiOptions,
   signal: AbortSignal,
 ): Promise<void> {
-  const tenant = readTenantText(text)
-  if (tenant === undefined) return
-  const { backoff = defaultBackoff, sleep = pause, draw } = options
-  const drawn: DrawPage | undefined = draw && ((asked, signal) => draw(asked, signal, text))
+  const { backoff = defaultBackoff, sleep = pause } = options
   for (let attempt = 0; !signal.aborted; attempt += 1) {
-    const frames = client.observe['observe-requests']({ tenant, client: id }, { signal })
+    const frames = open()
     let end: unknown
-    const observed: AsyncIterator<InspectionAsked, unknown> = {
+    const observed: AsyncIterator<F, unknown> = {
       next: async () => {
         const next = await frames.next()
         if (next.done === true) end = next.value
@@ -64,16 +60,49 @@ async function serveTenant(
       },
     }
     try {
-      await answerRequests(
-        observed,
-        drawn,
-        (request, result) => client.deliver({ tenant, client: id, request, result }),
-        signal,
-      )
+      await answer(observed)
     } catch {}
     if (signal.aborted || deniedEnd(end)) return
     await sleep(backoff.delayMs(attempt), signal)
   }
+}
+
+function serveTenant(
+  client: InterfaceClient,
+  text: string,
+  id: string,
+  options: InterfaceUiOptions,
+  signal: AbortSignal,
+): void {
+  const tenant = readTenantText(text)
+  if (tenant === undefined) return
+  const { draw, see } = options
+  const drawn: DrawPage | undefined = draw && ((asked, signal) => draw(asked, signal, text))
+  const opened = { tenant, client: id }
+  void keepOpen(
+    () => client.observe['observe-requests'](opened, { signal }),
+    frames =>
+      answerRequests(
+        frames,
+        drawn,
+        (request, result) => client.deliver({ ...opened, request, result }),
+        signal,
+      ),
+    options,
+    signal,
+  )
+  void keepOpen(
+    () => client.observe['observe-now'](opened, { signal }),
+    frames =>
+      answerNow(
+        frames,
+        see,
+        (request, result, met) => client['deliver-seen']({ ...opened, request, result, met }),
+        signal,
+      ),
+    options,
+    signal,
+  )
 }
 
 /** Takes the requests of the tenant signed in while `interface/v1` is served, and answers each by asking the host to draw. */
@@ -92,7 +121,7 @@ export function createInterfaceUiModule(options: InterfaceUiOptions = {}) {
         if (tenant === undefined) return
         const stop = new AbortController()
         serving = { tenant, stop }
-        void serveTenant(client, tenant, id, options, stop.signal)
+        serveTenant(client, tenant, id, options, stop.signal)
       }
       const unsubscribe = [shell.scope.subscribe(follow), shell.login.subscribe(follow)]
       follow()

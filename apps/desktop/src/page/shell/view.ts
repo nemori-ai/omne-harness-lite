@@ -1,5 +1,11 @@
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
-import { VIEW_MARK, type ViewAsked, type ViewLook, type ViewMark } from '../../shared/view.ts'
+import {
+  VIEW_MARK,
+  VIEW_STRUCTURE,
+  type ViewAsked,
+  type ViewLook,
+  type ViewMark,
+} from '../../shared/view.ts'
 import type { PageFloor } from './floor.ts'
 import type { ShellState } from './state.ts'
 import type { TenantTexts } from './tenant-text.ts'
@@ -23,6 +29,8 @@ export function judgeView(view: ViewAsked, facts: ViewFacts): ViewMark | undefin
   if (facts.worn !== wanted) return 'no-skin'
   return facts.signedIn && facts.drawn ? 'ready' : undefined
 }
+
+export const VIEWING = 'shell-viewing'
 
 export function memoryStorage(): Storage {
   const kept = new Map<string, string>()
@@ -59,6 +67,24 @@ const clock = (): number =>
   /* wall-clock: operation-timing -- how long the drawing page has been still or busy; compared only with itself */ performance.now()
 const LOADING = '.omne-loading-state, [aria-busy="true"]'
 
+export type ViewReading = Readonly<{
+  waitFor(until: NonNullable<ViewAsked['until']>, signal: AbortSignal): Promise<boolean>
+  drawn(part: string | undefined, page: string): unknown
+}>
+
+async function told(
+  view: ViewAsked,
+  root: HTMLElement,
+  reading: ViewReading | undefined,
+  signal: AbortSignal,
+): Promise<void> {
+  if (reading !== undefined) {
+    if (view.until !== undefined) await reading.waitFor(view.until, signal)
+    root.setAttribute(VIEW_STRUCTURE, JSON.stringify(reading.drawn(view.part, view.page)))
+  }
+  root.setAttribute(VIEW_MARK, 'ready')
+}
+
 /** Tells the window how the drawing went, once, on the root element; it reads the facts until they answer. */
 export function viewWatch(
   input: Readonly<{
@@ -67,6 +93,7 @@ export function viewWatch(
     floor: PageFloor
     fellBack: () => boolean
     root: HTMLElement
+    reading?: ViewReading
   }>,
 ) {
   const { view, state, floor, root } = input
@@ -109,12 +136,15 @@ export function viewWatch(
         if (mark === undefined) return
         clearInterval(timer)
         changes.disconnect()
-        root.setAttribute(VIEW_MARK, mark)
+        if (mark !== 'ready') return root.setAttribute(VIEW_MARK, mark)
+        void told(view, root, input.reading, stop.signal)
       }, POLL_MS)
+      const stop = new AbortController()
       return () => {
         clearInterval(timer)
         changes.disconnect()
         stopOutcomes()
+        stop.abort()
       }
     },
   })

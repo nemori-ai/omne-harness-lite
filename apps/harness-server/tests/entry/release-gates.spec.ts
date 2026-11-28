@@ -79,7 +79,11 @@ const EXPECTED: Readonly<
     ['observe', 'ask', ['screens', 'capture']],
   ],
   Code: [['run', 'auto', ['execute', 'help']]],
-  AppView: [['invoke', 'auto', ['look']]],
+  AppView: [
+    ['invoke', 'auto', ['look']],
+    ['inspect', 'auto', ['inspect']],
+    ['shot', 'auto', ['shot']],
+  ],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 
