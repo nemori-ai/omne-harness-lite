@@ -61,7 +61,7 @@ async function setup(
     /** The tools each Skill declares it needs, by Skill name. */
     needs: Readonly<Record<string, readonly string[]>>
     missingTools: SkillsBindingPorts['missingTools']
-    sources: readonly SkillEntrySource<unknown>[]
+    sources: readonly SkillEntrySource<unknown>[] | 'throws'
   }> = {},
 ) {
   const fixture = fixtureEnv([principalIssuerKey])
@@ -145,7 +145,11 @@ async function setup(
     missingTools:
       overrides.missingTools ??
       (async (asker, names) => (toolAsks.push([asker, names]), new Set<string>())),
-    sources: asker => (calls.push(['sources', asker]), overrides.sources ?? []),
+    sources: asker => {
+      calls.push(['sources', asker])
+      if (overrides.sources === 'throws') throw new Error('the point is gone')
+      return overrides.sources ?? []
+    },
   }
   const bound = createBoundSkills(
     { principal, tenant, request: {} as FixedToolRequest } as never,
@@ -687,7 +691,15 @@ describe('Skills binding: Skills from an entry source (C401, C404, C405)', () =>
   })
 
   it('answers every source failure as the Skills failure of the same name', async () => {
-    for (const failure of ['not-text', 'changed', 'unavailable'] as const) {
+    const cases = [
+      ['not-text', { kind: 'not-text' }],
+      ['changed', { kind: 'changed' }],
+      [
+        'unavailable',
+        { kind: 'unavailable', reason: 'the source of this Skill cannot be read now' },
+      ],
+    ] as const
+    for (const [failure, expected] of cases) {
       const answering: SkillEntrySource<unknown> = {
         ...docs(),
         read: async () => ({ failure }),
@@ -697,8 +709,59 @@ describe('Skills binding: Skills from an entry source (C401, C404, C405)', () =>
         { skill: 'mcp__docs__style', offset: 0, maxBytes: 10 },
         signal,
       )
-      expect(answer).toMatchObject({ failure: { kind: failure } })
+      expect(answer).toStrictEqual({ failure: expected })
     }
+  })
+
+  it('refuses a cursor once the source Skills change, though their number stays the same', async () => {
+    let listed = ['mcp__docs__style']
+    const changing: SkillEntrySource<unknown> = {
+      ...docs(),
+      list: async () => ({
+        ok: listed.map(name => ({ name, description: 'notes', label: 'docs-server' })),
+      }),
+    }
+    const { bound } = await setup({ sources: [changing] })
+    const first = await bound.search({ query: 'notes', after: null, limit: 2 }, signal)
+    if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+    listed = ['mcp__docs__other']
+    expect(
+      await bound.search({ query: 'notes', after: first.ok.next, limit: 2 }, signal),
+    ).toStrictEqual({ failure: { kind: 'invalid-cursor' } })
+  })
+
+  it('refuses a cursor once an asset Skill turns disabled, though the names stay the same', async () => {
+    const disabled = entries('alpha', 'beta', 'gamma').map((entry): CatalogEntry =>
+      entry.name === 'beta'
+        ? {
+            kind: 'stand-in',
+            capability: entry.capability,
+            name: entry.name,
+            description: `${entry.name} notes.`,
+            reason: 'off' as never,
+          }
+        : entry,
+    )
+    const { bound } = await setup({
+      results: [entries('alpha', 'beta', 'gamma'), disabled],
+      sources: [docs()],
+    })
+    const first = await bound.search({ query: 'alpha beta gamma', after: null, limit: 2 }, signal)
+    if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+    expect(
+      await bound.search({ query: 'alpha beta gamma', after: first.ok.next, limit: 2 }, signal),
+    ).toStrictEqual({ failure: { kind: 'invalid-cursor' } })
+  })
+
+  it('a sources port that throws leaves the asset Skills as they are, and a source name is not found', async () => {
+    const { bound } = await setup({ sources: 'throws' })
+    const found = await bound.search({ query: 'notes', after: null, limit: 10 }, signal)
+    expect(found).toMatchObject({
+      ok: { entries: [{ name: 'alpha' }, { name: 'beta' }, { name: 'gamma' }] },
+    })
+    expect(
+      await bound.read({ skill: 'mcp__docs__style', offset: 0, maxBytes: 10 }, signal),
+    ).toStrictEqual({ failure: { kind: 'not-found' } })
   })
 
   it('a caller the verifier refuses asks no source', async () => {
