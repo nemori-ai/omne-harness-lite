@@ -20,8 +20,7 @@ import { createVisualManager, desktopVisualSource } from './shell/visual.ts'
 import { tellPageVersion } from './shell/page-version.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { markWindowChrome } from './shell/window-chrome.ts'
-import { memoryStorage, viewLooks, viewWatch } from './shell/view.ts'
-import { ViewPage } from './shell/view-page.tsx'
+import { VIEWING, memoryStorage, viewLooks, viewWatch } from './shell/view.ts'
 import { startClientTree } from './tree.ts'
 import './styles.css'
 
@@ -32,18 +31,20 @@ const shellLogin = (bridge: ForwardingBridge): ShellLogin => ({
   logout: bridge.logout,
 })
 
-/** A page drawn only to be looked at: the mode it is given, nothing remembered on this device, nothing told of itself. */
+/** The whole shell drawn only to be looked at, on the page asked for: the mode it is given, nothing remembered on this device, nothing told of itself. */
 async function viewMain(element: HTMLElement, view: ViewAsked): Promise<void> {
   const store = memoryStorage()
   const local = () => store
+  document.documentElement.classList.add(VIEWING)
   createThemeController({
     read: () => view.theme,
     write: () => undefined,
     system: colorSchemeQuery(),
     frame: run => void setTimeout(run, 0),
   }).start()
-  createSizeController({ read: () => view.size, write: () => undefined })
+  const size = createSizeController({ read: () => view.size, write: () => undefined })
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
+  const watched = watchConnectivity(bridge.transport)
   const state = createShellState(shellLogin(bridge), {
     notices: () => () => undefined,
     knowsToken: tokenOf(document),
@@ -57,7 +58,7 @@ async function viewMain(element: HTMLElement, view: ViewAsked): Promise<void> {
   })
   const page = pageAssembly({ store: local, looks, viewing: true })
   const tree = await startClientTree({
-    transport: bridge.transport,
+    transport: watched.transport,
     login: bridge.loginState,
     protocols: page.protocols,
   })
@@ -65,10 +66,35 @@ async function viewMain(element: HTMLElement, view: ViewAsked): Promise<void> {
   adoptChanges(document, state.sheet)
   for (const module of page.modules) await tree.install(module)
   const root = document.documentElement
-  await tree.install(viewWatch({ view, state, floor: page.floor, fellBack: () => fellBack, root }))
+  await tree.install(
+    viewWatch({
+      view,
+      state,
+      floor: page.floor,
+      fellBack: () => fellBack,
+      root,
+      reading: page.reading,
+    }),
+  )
+  const choose = (): void => {
+    if (state.page.get() !== view.page) state.page.choose(view.page, view.subject)
+  }
+  state.slots.subscribe('pages', choose)
+  choose()
   createRoot(element).render(
     <StrictMode>
-      <ViewPage state={state} view={view} />
+      <Shell
+        appName="omne"
+        state={state}
+        connectivity={watched}
+        theme={{
+          current: () => view.theme,
+          select: () => view.theme,
+          subscribe: () => () => undefined,
+        }}
+        size={size}
+        floats={storedFloatPlaces(local)}
+      />
     </StrictMode>,
   )
 }

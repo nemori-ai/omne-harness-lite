@@ -1,22 +1,35 @@
-import type { InspectionAsked, InspectionResult } from '@omne-harness/interface-protocol'
+import type {
+  InspectionAsked,
+  InspectionNow,
+  InspectionReason,
+  InspectionResult,
+  SeenResult,
+} from '@omne-harness/interface-protocol'
 
-/** One request on its way: to whom it went, for which tenant, and when it is due. */
-export type Pending = Readonly<{ tenant: string; client: string; due: number }>
+export type Channel = 'look' | 'now'
 
-/** The requests on their way, and the clients of each tenant that observe, the latest to come last. */
+export type InspectionFrame = InspectionAsked | InspectionNow
+
+export type Pending = Readonly<{ tenant: string; client: string; due: number; want: Channel }>
+
+export type Observer = Readonly<{ client: string; channel: Channel; revision: number }>
+
 export type Ledger = Readonly<{
   pending: ReadonlyMap<string, Pending>
-  clients: ReadonlyMap<string, readonly string[]>
+  clients: ReadonlyMap<string, readonly Observer[]>
 }>
+
+export type Seen = Exclude<SeenResult, { kind: 'cannot' }>
 
 export type Answer =
   | Readonly<{ kind: 'image'; image: Extract<InspectionResult, { kind: 'image' }> }>
-  | Readonly<{ kind: 'cannot'; reason: Extract<InspectionResult, { kind: 'cannot' }>['reason'] }>
+  | Readonly<{ kind: 'seen'; seen: Seen; met: boolean }>
+  | Readonly<{ kind: 'cannot'; reason: InspectionReason }>
   | Readonly<{ kind: 'client-absent' }>
   | Readonly<{ kind: 'unavailable'; why: 'expired' | 'client-left' | 'too-many' }>
 
 export type LedgerEvent =
-  | Readonly<{ kind: 'ask'; tenant: string; asked: InspectionAsked; now: number }>
+  | Readonly<{ kind: 'ask'; tenant: string; asked: InspectionFrame; now: number }>
   | Readonly<{
       kind: 'deliver'
       tenant: string
@@ -24,14 +37,34 @@ export type LedgerEvent =
       request: string
       result: InspectionResult
     }>
+  | Readonly<{
+      kind: 'deliver-seen'
+      tenant: string
+      client: string
+      request: string
+      result: SeenResult
+      met: boolean
+    }>
   | Readonly<{ kind: 'expire'; request: string }>
-  | Readonly<{ kind: 'leave'; tenant: string; client: string }>
+  | Readonly<{ kind: 'leave'; tenant: string; client: string; channel: Channel }>
   | Readonly<{ kind: 'cancel'; request: string }>
-  | Readonly<{ kind: 'arrive'; tenant: string; client: string }>
+  | Readonly<{
+      kind: 'arrive'
+      tenant: string
+      client: string
+      channel: Channel
+      revision: number
+    }>
 
 /** What a step asks of the plugin: send a frame, settle a caller, or tell a client how its delivery went. */
 export type LedgerEffect =
-  | Readonly<{ kind: 'send'; tenant: string; client: string; asked: InspectionAsked }>
+  | Readonly<{
+      kind: 'send'
+      tenant: string
+      client: string
+      channel: Channel
+      asked: InspectionFrame
+    }>
   | Readonly<{ kind: 'settle'; request: string; answer: Answer }>
   | Readonly<{ kind: 'delivered'; outcome: 'succeeded' | 'not-found' }>
 
@@ -48,21 +81,34 @@ const without = <V>(map: ReadonlyMap<string, V>, key: string): ReadonlyMap<strin
 const withEntry = <V>(map: ReadonlyMap<string, V>, key: string, value: V): ReadonlyMap<string, V> =>
   new Map(map).set(key, value)
 
+export const channelOf = (asked: InspectionFrame): Channel => ('page' in asked ? 'look' : 'now')
+
+const readers = (asked: InspectionFrame, observers: readonly Observer[]): readonly Observer[] => {
+  const channel = channelOf(asked)
+  const later = 'page' in asked && (asked.part !== undefined || asked.until !== undefined)
+  return observers.filter(each => each.channel === channel && (!later || each.revision >= 2))
+}
+
 function ask(ledger: Ledger, event: Extract<LedgerEvent, { kind: 'ask' }>, policy: LedgerPolicy) {
   const { tenant, asked, now } = event
-  const client = ledger.clients.get(tenant)?.at(-1)
-  if (client === undefined) return settled(ledger, asked.request, { kind: 'client-absent' })
+  const observers = ledger.clients.get(tenant) ?? []
+  if (observers.length === 0) return settled(ledger, asked.request, { kind: 'client-absent' })
+  const client = readers(asked, observers).at(-1)?.client
+  if (client === undefined)
+    return settled(ledger, asked.request, { kind: 'cannot', reason: 'unsupported' })
   const mine = [...ledger.pending.values()].filter(each => each.tenant === tenant).length
   if (mine >= policy.perTenant)
     return settled(ledger, asked.request, { kind: 'unavailable', why: 'too-many' })
+  const want = channelOf(asked)
   const pending = withEntry(ledger.pending, asked.request, {
     tenant,
     client,
     due: now + policy.dueMs,
+    want,
   })
   return {
     ledger: { ...ledger, pending },
-    effects: [{ kind: 'send', tenant, client, asked }] as const,
+    effects: [{ kind: 'send', tenant, client, channel: want, asked }] as const,
   }
 }
 
@@ -74,25 +120,34 @@ const settled = (ledger: Ledger, request: string, answer: Answer) => ({
 const NOT_FOUND = { kind: 'delivered', outcome: 'not-found' } as const
 const SUCCEEDED = { kind: 'delivered', outcome: 'succeeded' } as const
 
-function deliver(ledger: Ledger, event: Extract<LedgerEvent, { kind: 'deliver' }>) {
+function deliver(
+  ledger: Ledger,
+  event: Extract<LedgerEvent, { kind: 'deliver' | 'deliver-seen' }>,
+) {
   const { tenant, client, request, result } = event
   const pending = ledger.pending.get(request)
-  if (pending === undefined || pending.tenant !== tenant || pending.client !== client)
+  const want: Channel = event.kind === 'deliver' ? 'look' : 'now'
+  if (pending?.tenant !== tenant || pending.client !== client || pending.want !== want)
     return { ledger, effects: [NOT_FOUND] }
   const answer: Answer =
-    result.kind === 'image'
-      ? { kind: 'image', image: result }
-      : { kind: 'cannot', reason: result.reason }
+    result.kind === 'cannot'
+      ? { kind: 'cannot', reason: result.reason }
+      : event.kind === 'deliver-seen'
+        ? { kind: 'seen', seen: result, met: event.met }
+        : { kind: 'image', image: result as Extract<InspectionResult, { kind: 'image' }> }
   const done = settled(ledger, request, answer)
   return { ledger: done.ledger, effects: [...done.effects, SUCCEEDED] }
 }
 
-function leave(ledger: Ledger, { tenant, client }: Extract<LedgerEvent, { kind: 'leave' }>) {
-  const left = (ledger.clients.get(tenant) ?? []).filter(each => each !== client)
+function leave(ledger: Ledger, event: Extract<LedgerEvent, { kind: 'leave' }>) {
+  const { tenant, client, channel } = event
+  const left = (ledger.clients.get(tenant) ?? []).filter(
+    each => each.client !== client || each.channel !== channel,
+  )
   const clients =
     left.length === 0 ? without(ledger.clients, tenant) : withEntry(ledger.clients, tenant, left)
   const lost = [...ledger.pending].filter(
-    ([, each]) => each.tenant === tenant && each.client === client,
+    ([, each]) => each.tenant === tenant && each.client === client && each.want === channel,
   )
   const pending = new Map(ledger.pending)
   for (const [request] of lost) pending.delete(request)
@@ -114,6 +169,7 @@ export function stepLedger(
     case 'ask':
       return ask(ledger, event, policy)
     case 'deliver':
+    case 'deliver-seen':
       return deliver(ledger, event)
     case 'expire':
       return ledger.pending.has(event.request)
@@ -124,8 +180,11 @@ export function stepLedger(
     case 'leave':
       return leave(ledger, event)
     case 'arrive': {
-      const known = (ledger.clients.get(event.tenant) ?? []).filter(each => each !== event.client)
-      const clients = withEntry(ledger.clients, event.tenant, [...known, event.client])
+      const { tenant, client, channel, revision } = event
+      const known = (ledger.clients.get(tenant) ?? []).filter(
+        each => each.client !== client || each.channel !== channel,
+      )
+      const clients = withEntry(ledger.clients, tenant, [...known, { client, channel, revision }])
       return { ledger: { ...ledger, clients }, effects: [] }
     }
   }

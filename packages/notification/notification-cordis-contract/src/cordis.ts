@@ -106,6 +106,7 @@ export const NOTIFICATION_SOURCES_POINT = 'notification.sources'
 
 const sourcesContract: Contract = Object.freeze({
   name: NOTIFICATION_SOURCES_POINT,
+  title: '通知来源',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

@@ -13,6 +13,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -32,7 +33,7 @@ interface Context {
 }
 
 type Built = {
-  readonly send: (link: Link) => Promise<CallResult | undefined>
+  readonly send: (link: Link) => Promise<CallResult>
   readonly echo: RequestEcho
 }
 
@@ -105,7 +106,7 @@ async function runHitl(
   })
   if (built === undefined) return usageError(output, unrecognized(name))
   const result = await built.send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   const code = report(name, result, built.echo, output)
   printReleaseCards(command, result, output)
   return code

@@ -290,6 +290,7 @@ describe('the point of a category, and what the deployment brings on it', () => 
     expect(standing()).toBe('declared')
     const declared = standingOf(root.dynamis.registry(), 'gadget.items', [])
     expect(declared.kind === 'declared' && declared.contract).toMatchObject({
+      title: 'G',
       arity: 'keyed-one',
       resolve: 'most-specific',
       keys: 'private',
@@ -528,6 +529,7 @@ describe('the point of a category, and what the deployment brings on it', () => 
       apply(ctx: Context) {
         ctx.dynamis.put([
           declare({
+            title: 'test',
             ...heldPoint({ name: ASSET_CATEGORIES_POINT, key: 'k', summary: 'Another rule.' }),
           }),
         ])

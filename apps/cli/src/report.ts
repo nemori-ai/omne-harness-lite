@@ -12,6 +12,8 @@ export function exitCodeOf(result: CallResult): ExitCode {
       return 4
     case 'response':
       return exitCodeOfOutcome(result.outcome)
+    case 'rejected':
+      return 2
   }
 }
 
@@ -34,6 +36,8 @@ function resultObject(
   request: RequestEcho,
   body: (body: unknown) => unknown,
 ): Record<string, unknown> {
+  if (result.kind === 'rejected')
+    return { result: 'rejected', rejection: result.rejection, request }
   if (result.kind !== 'response') return { result: result.kind, request }
   return { result: 'response', outcome: result.outcome, body: body(result.body), request }
 }

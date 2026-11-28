@@ -1,7 +1,7 @@
 import type { Contract, Effect } from '@omne-harness/dynamis'
 export type LoginCredentials = Readonly<{ loginIdentifier: string; credential: string }>
 
-export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+export type LoginResult = 'signed-in' | 'auth-failed' | 'rejected' | 'unknown' | 'unavailable'
 
 export type LogoutResult = 'signed-out' | 'unknown'
 
@@ -31,7 +31,17 @@ export type Hosted = Readonly<{
 /** What did not come up: a module that threw while it started, or what a module holds back and says so. */
 export type Fallen = Readonly<{ name: string; why: 'threw' | 'held' }>
 
-/** What the tree of the interface has now, for whoever tells it on: its points and its parts, by name. */
+/** Something the host could not read in an item it drew: where in the item, what was there, and what it takes and drew instead. It names the place, not who put it. */
+export type Trouble = Readonly<{
+  point: string
+  key: string
+  id: string
+  at: readonly (string | number)[]
+  given: string
+  allows: string
+}>
+
+/** What the tree of the interface has now, for whoever tells it on: its points, its parts, and what it could not read. */
 export type Described = Readonly<{
   points: readonly Readonly<{
     name: string
@@ -48,4 +58,5 @@ export type Described = Readonly<{
     depths: readonly ('tokens' | 'style' | 'render')[]
     within: string | null
   }>[]
+  troubles: readonly Trouble[]
 }>

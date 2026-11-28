@@ -28,11 +28,14 @@ const POINT = 'skill.skills'
 const NAMES = ['review', 'report', 'ledger']
 const TENANTS = ['tenant-a', 'tenant-b']
 
-const contract: Contract = heldPoint({
-  name: POINT,
-  key: 'the name of a skill',
-  summary: 'the skills each layer holds',
-})
+const contract: Contract = {
+  ...heldPoint({
+    name: POINT,
+    key: 'the name of a skill',
+    summary: 'the skills each layer holds',
+  }),
+  title: 'test',
+}
 
 type Random = () => number
 

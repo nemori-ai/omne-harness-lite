@@ -10,6 +10,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
 import type { CallResult, Link } from './link.ts'
@@ -30,7 +31,7 @@ type Spec = Readonly<{
   options: readonly string[]
   required: readonly string[]
   switches?: readonly string[]
-  send: (read: Read, context: Context) => ((link: Link) => Promise<CallResult | undefined>) | string
+  send: (read: Read, context: Context) => ((link: Link) => Promise<CallResult>) | string
 }>
 type Context = Readonly<{ tenant: TenantId; newId: () => string; messageId: string }>
 
@@ -287,7 +288,7 @@ async function runSchedule(
   )
   if (typeof send === 'string') return usageError(output, `omne ${name}: ${send}\n`)
   const result = await send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, { messageId, tenant: encodeTenantText(loaded.tenant) }, output)
 }
 

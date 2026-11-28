@@ -22,10 +22,12 @@ const json = <S,>() => ({
   decode: (text: string) => JSON.parse(text) as S,
 })
 const attachments = definePoint<MediaDraftSubject>({
+  title: 'test',
   name: 'session.composer-attachments',
   subject: json(),
 })
 const block = defineRenderPoint<MediaBlockSubject>({
+  title: 'test',
   name: 'session.block-render',
   key: 'the kind of the block',
   summary: 'How a block of a message that is not text is drawn, by its kind.',

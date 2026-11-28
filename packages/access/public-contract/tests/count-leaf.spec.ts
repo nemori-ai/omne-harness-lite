@@ -43,7 +43,7 @@ describe('the count leaf', () => {
     ['the text of a number', { kind: 'string', value: '0' }],
     ['null', { kind: 'null' }],
   ] as const)('rejects %s', (_label, value) => {
-    expect(tally.read(holding(value as JsonValue), limits)).toEqual({ ok: false })
+    expect(tally.read(holding(value as JsonValue), limits).ok).toBe(false)
   })
 
   it.each([
@@ -52,6 +52,6 @@ describe('the count leaf', () => {
     ['a number past the largest safe integer', Number.MAX_SAFE_INTEGER + 1],
     ['the text of a number', '0'],
   ])('refuses to write %s', (_label, value) => {
-    expect(tally.write({ pending: value as number }, limits)).toEqual({ ok: false })
+    expect(tally.write({ pending: value as number }, limits).ok).toBe(false)
   })
 })

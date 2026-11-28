@@ -144,6 +144,7 @@ export {
   type CategoryEffect,
   type ChangeImpact,
   type ClientLine,
+  type RefusedLine,
   type HeldEffectPorts,
   type ImpactLine,
   type PlacedLine,

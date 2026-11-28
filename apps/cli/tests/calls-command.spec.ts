@@ -659,7 +659,12 @@ describe('usage', () => {
     ])
       expect(await cli(argv)).toMatchObject({
         code: 2,
-        stderr: commandUnrecognized(`calls ${argv[0]}`),
+        stderr: expect.stringMatching(
+          new RegExp(
+            `^omne calls ${argv[0]}: (unrecognized arguments|.+ is .+; allows .+; not sent)\\n`,
+            'u',
+          ),
+        ),
       })
     expect(service.seen).toHaveLength(before)
   })

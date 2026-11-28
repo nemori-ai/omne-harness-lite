@@ -38,6 +38,7 @@ import {
   storeCookieKeyFirst,
 } from './cookie-key.ts'
 import { deviceFigureDeps, watchMainWindow } from './desk-window.ts'
+import { captureOf, deviceShotRoute } from './device-shot.ts'
 import { deviceViewRoute } from './device-view.ts'
 import { openLookWindow } from './look-window.ts'
 import { developmentHost } from './dev-host.ts'
@@ -180,6 +181,10 @@ async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
       updates.route,
       figure.route,
       deviceViewRoute({ open: openLookWindow, deadlineMs: settings.mountMs }),
+      deviceShotRoute(() => {
+        const shown = window
+        return shown === undefined || shown.isDestroyed() ? undefined : captureOf(shown.webContents)
+      }),
       deviceScreenRoute({
         backend: () =>
           screenBackendFor(process.platform, { load: () => loadScreenLibrary(app.isPackaged) }),

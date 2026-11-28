@@ -60,6 +60,29 @@ describe('what a call of OmneExtensionPoints sees', () => {
     expect(sight.server()).toBe('unavailable')
   })
 
+  it('finds the title a member gave itself among the members of the version that put it', () => {
+    const w = world()
+    const members = [
+      {
+        point: 'shell.pages',
+        key: '',
+        id: 'weather',
+        title: '天气',
+        module: 'p.js',
+        export: 'page',
+      },
+      { point: 'skill.skills', key: 'notes', directory: 'notes' },
+    ]
+    const sight = createExtensionSights({
+      ...w.ports,
+      membersOf: fiber => (fiber === 'weather@v1' ? members : undefined),
+    }).of('tenant-a')
+    expect(sight.memberTitle?.('weather@v1', 'shell.pages', '', 'weather')).toBe('天气')
+    expect(sight.memberTitle?.('weather@v1', 'skill.skills', 'notes', '')).toBeUndefined()
+    expect(sight.memberTitle?.('other@v1', 'shell.pages', '', 'weather')).toBeUndefined()
+    expect(sight.memberTitle?.('weather@v1', 'shell.sidebar', '', 'weather')).toBeUndefined()
+  })
+
   it('says the clients are unavailable when the reports are not there, not that none is connected', () => {
     const w = world()
     w.noReports()

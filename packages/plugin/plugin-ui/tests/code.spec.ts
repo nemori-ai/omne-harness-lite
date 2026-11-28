@@ -20,7 +20,7 @@ import {
   type LoginStateSource,
 } from '@omne-harness/client-assembly/cordis'
 import { accessProtocol } from '@omne-harness/public-contract'
-import type { Transport } from '@omne-harness/sdk/core'
+import type { CallReport, Transport } from '@omne-harness/sdk/core'
 import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testing'
 
 const ALICE =
@@ -63,6 +63,7 @@ const send = definePart<{ label: string }>({
   depths: ['render'],
 })
 const card = defineRenderPoint<{ title: string }>({
+  title: 'test',
   name: 'notes.card',
   key: 'the kind of a note',
   summary: 'How a note of one kind is drawn.',
@@ -107,8 +108,11 @@ async function world(files: Readonly<Record<string, unknown>> = {}, more: Partia
     },
     ...more,
   }
+  const refused: [string, unknown][] = []
   const install = (listed: Listed, given: Code | undefined = code) =>
-    installOn(shell, listed, tenantScope(ALICE), given)
+    installOn(shell, listed, tenantScope(ALICE), given, (target, rejection) =>
+      refused.push([target, rejection]),
+    )
   const sendDrawn = (label = '发送'): string =>
     renderToStaticMarkup(
       shell.drawn(send.name, () => React.createElement('i', null, 'built in'), { label }),
@@ -122,7 +126,7 @@ async function world(files: Readonly<Record<string, unknown>> = {}, more: Partia
       .registry()
       .placed.filter(each => each.instance.fiber.startsWith('plugin:'))
       .map(each => `${each.point} ${each.key}`)
-  return { ...started, shell, loaded, install, sendDrawn, cardDrawn, placed }
+  return { ...started, shell, loaded, install, refused, sendDrawn, cardDrawn, placed }
 }
 
 const sendCode: Member = {
@@ -450,8 +454,14 @@ const WEATHER = {
   },
 }
 
+const SUNNY = (): CallReport => ({
+  kind: 'answered',
+  outcome: 'succeeded',
+  body: { kind: 'string', value: 'sunny' },
+})
+
 /** A connection whose login a test signs in: `scoped` then tells the tenant's protocol, and a call of it answers. */
-async function connected(root: Context) {
+async function connected(root: Context, look: () => CallReport = SUNNY) {
   let state: LoginState = 'signed-out'
   const listeners = new Set<(state: LoginState) => void>()
   const login: LoginStateSource = {
@@ -468,7 +478,7 @@ async function connected(root: Context) {
     call: async request =>
       request.operation === 'scoped'
         ? { kind: 'answered', outcome: 'succeeded', body: written.value }
-        : { kind: 'answered', outcome: 'succeeded', body: { kind: 'string', value: 'sunny' } },
+        : look(),
     async *observe(request) {
       yield* []
       await new Promise(resolve => request.signal.addEventListener('abort', resolve))
@@ -486,6 +496,28 @@ async function connected(root: Context) {
 }
 
 type Port = Readonly<Record<string, (body: unknown) => Promise<unknown>>>
+
+const WHY = { at: ['city'], given: '"Atlantis"', allows: 'a city the service knows' }
+const REJECTED: CallReport = {
+  kind: 'answered',
+  outcome: 'protocol-rejected',
+  body: {
+    kind: 'object',
+    entries: [
+      {
+        key: 'rejection',
+        value: {
+          kind: 'object',
+          entries: [
+            { key: 'at', value: { kind: 'array', items: [{ kind: 'string', value: 'city' }] } },
+            { key: 'given', value: { kind: 'string', value: '"Atlantis"' } },
+            { key: 'allows', value: { kind: 'string', value: 'a city the service knows' } },
+          ],
+        },
+      },
+    ],
+  },
+}
 
 describe('the ports the code of a plugin is handed on the client', () => {
   it('a protocol in needs is a client always there: unavailable before the protocol is, through once the login reads it', async () => {
@@ -507,6 +539,39 @@ describe('the ports the code of a plugin is handed on the client', () => {
     expect(await ports['weather/v1']!['look']!({})).toEqual({ outcome: 'unavailable' })
     await link.signIn()
     expect(await ports['weather/v1']!['look']!({})).toEqual({ outcome: 'succeeded', body: 'sunny' })
+  })
+
+  it('tells the plugin of each call it could not send and of each answer that rejected it, with where, given and allows', async () => {
+    const handed: Readonly<{ ports: Readonly<Record<string, Port>> }>[] = []
+    const t = await world({
+      'send.js': {
+        send: (given: Given & { ports: Readonly<Record<string, Port>> }) => {
+          handed.push(given)
+          return counting(given)
+        },
+      },
+    })
+    let answer = SUNNY
+    const link = await connected(t.root, () => answer())
+    await t.install({ ...brand(sendCode), needs: ['weather/v1'] })
+    await link.signIn()
+    const look = handed[0]!.ports['weather/v1']!['look']!
+    await expect(look({ city: 'Paris' })).rejects.toThrow('weather/v1/look: city is')
+    answer = () => REJECTED
+    expect(await look({})).toEqual({ outcome: 'protocol-rejected', rejection: WHY })
+    answer = SUNNY
+    expect(await look({})).toEqual({ outcome: 'succeeded', body: 'sunny' })
+    expect(t.refused).toEqual([
+      [
+        'weather/v1/look',
+        {
+          at: ['city'],
+          given: '"Paris"',
+          allows: 'no field "city" here: an empty object',
+        },
+      ],
+      ['weather/v1/look', WHY],
+    ])
   })
 
   it('a plugin that names in needs anything but a protocol fails, and nothing of it is loaded', async () => {

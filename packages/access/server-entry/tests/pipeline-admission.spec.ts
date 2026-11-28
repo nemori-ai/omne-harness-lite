@@ -83,7 +83,16 @@ describe('one answer per step', () => {
       body: '{"noteId":"n-1"}',
     })
     expect(reply.status).toBe(400)
-    expect(reply.json).toEqual({ outcome: 'protocol-rejected', body: {} })
+    expect(reply.json).toEqual({
+      outcome: 'protocol-rejected',
+      body: {
+        rejection: {
+          at: [],
+          given: 'the header omne-message-id missing',
+          allows: 'one omne-message-id header: 1 to 128 visible ASCII characters, no space',
+        },
+      },
+    })
     expect(fixture.log.entries).toEqual([{ name: 'watch-note', left: true }])
   })
 

@@ -35,6 +35,7 @@ describe('the shell service attached', () => {
   it('a point on the tree that holds no render function is not a place to attach to: its items are not listed', async () => {
     const { root, shell } = await startShell()
     const data: Contract = {
+      title: 'test',
       name: 'wire.things',
       tree: 'client',
       arity: 'keyed-one',

@@ -30,7 +30,7 @@ const READ_ONLY: Readonly<Record<string, readonly string[]>> = {
   Screen: ['help', 'screens', 'capture'],
   Code: ['help'],
   Canvas: ['help', 'look', 'away', 'kinds'],
-  AppView: ['look'],
+  AppView: ['inspect', 'look', 'shot'],
 }
 
 describe('the read-only commands of the release', () => {

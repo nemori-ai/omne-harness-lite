@@ -57,6 +57,50 @@ export type ClientTree = Readonly<{
 }>
 
 /** The extension trees one call can see. The scope of the asker comes from the binding, for the acting tenant; the model cannot give it. */
+export type RuleData = Readonly<
+  | { kind: 'object'; fields: Readonly<Record<string, FieldData>> }
+  | { kind: 'array'; item: RuleData; max?: number; nonempty?: boolean }
+  | { kind: 'one-of'; rules: readonly RuleData[] }
+  | { kind: 'literal'; values: readonly (string | boolean)[] }
+  | { kind: string }
+>
+export type FieldData = Readonly<{ rule: RuleData; optional?: boolean; since?: number }>
+
+export type ProtocolRules = Readonly<{
+  operations: Readonly<
+    Record<
+      string,
+      Readonly<{
+        identity: string
+        effect: string
+        since?: number
+        body: RuleData
+        outcomes: Readonly<Record<string, RuleData | true>>
+      }>
+    >
+  >
+  observations: Readonly<
+    Record<
+      string,
+      Readonly<{
+        identity: string
+        since?: number
+        open: RuleData
+        frame: RuleData
+        ends: readonly string[]
+      }>
+    >
+  >
+}>
+
+export type ProtocolShown = Readonly<{
+  name: string
+  major: number
+  revision: number
+  held: 'deployment' | 'tenant'
+  rules: ProtocolRules
+}>
+
 export type ExtensionSight = Readonly<{
   scope: Scope
   /** The registry of the server tree now, or unavailable when it cannot be read. */
@@ -65,6 +109,9 @@ export type ExtensionSight = Readonly<{
   clients(): readonly ClientTree[] | 'unavailable'
   revisions: Revisions
   admission?(side: 'server' | 'client', name: string, rules: PointRules, form: boolean): Admission
+  protocol?(name: string, major: number): ProtocolShown | 'not-found' | 'unavailable'
+  protocols?(): readonly string[] | 'unavailable'
+  memberTitle?(fiber: string, point: string, key: string, id: string): string | undefined
 }>
 
 /** Keyed by the call's abort signal: a checkpoint segment gets a narrowed context that keeps it. */

@@ -7,6 +7,7 @@ import {
   commandUnrecognized,
   notLoggedIn,
   resultUncertain,
+  commandRefused,
 } from './support/expected.ts'
 import {
   defaultAnswer,
@@ -108,16 +109,24 @@ describe('list-cards', () => {
   })
 
   it.each([
-    ['--state', 'answered'],
-    ['--limit', '0'],
-    ['--limit', '101'],
-    ['--limit', '07'],
-    ['--tenant', 'not-a-tenant'],
-  ])('%s %s is a usage error that sends nothing', async (option, value) => {
+    [
+      '--state',
+      'answered',
+      'filter.states[0] is "answered"; allows one of "pending", "decided", "invalidated"',
+    ],
+    ['--limit', '0', 'limit is 0; allows a whole number from 1 to 100'],
+    ['--limit', '101', 'limit is 101; allows a whole number from 1 to 100'],
+    ['--limit', '07', undefined],
+    ['--tenant', 'not-a-tenant', undefined],
+  ])('%s %s is a usage error that sends nothing', async (option, value, reason) => {
     const service = await loggedIn()
     const result = await cli(['list-cards', option, value])
     expect(result.code).toBe(2)
-    expect(result.stderr).toBe(commandUnrecognized('list-cards'))
+    expect(result.stderr).toBe(
+      reason === undefined
+        ? commandUnrecognized('list-cards')
+        : commandRefused('list-cards', reason),
+    )
     expect(hitlSeen(service)).toEqual([])
   })
 })

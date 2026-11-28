@@ -8,6 +8,15 @@ import { expect, test } from './desktop.ts'
 import { assetsOf, publish } from './tenant-publish.ts'
 
 // The handbook's example with a page of its own, as a tenant publishes it.
+const FLOAT_CHIP = fileURLToPath(new URL('./fixtures/tenant-plugins/float-chip', import.meta.url))
+
+// The window the person uses, now, as the page asks the application for it.
+const shot = (page: Page, box?: unknown): Promise<Readonly<{ width: string; height: string }>> =>
+  page.evaluate(`(async () => {
+    const response = await fetch('/device/shot', { method: 'POST', body: ${JSON.stringify(JSON.stringify(box === undefined ? {} : { box }))} })
+    return { width: response.headers.get('x-omne-width'), height: response.headers.get('x-omne-height') }
+  })()`)
+
 const NOTES_PAGE = fileURLToPath(
   new URL(
     '../../../packages/plugin/plugin-host-local/skills/extending-the-app/examples/notes-page',
@@ -23,9 +32,14 @@ type Asked = Readonly<{
   width: number
   height: number
 }>
+type Structure = Readonly<{
+  page: string | null
+  parts: readonly Readonly<{ part: string; text: string; visible: boolean }>[]
+  layers: readonly Readonly<{ role: string; label: string; text: string }>[]
+}>
 type Looked =
   | Readonly<{ reason: string }>
-  | Readonly<{ width: string; height: string; png: string }>
+  | Readonly<{ width: string; height: string; png: string; structure?: Structure }>
 
 const SETTINGS_DARK: Asked = {
   page: 'settings',
@@ -50,7 +64,11 @@ async function tenantOf(origin: string, name: string): Promise<string> {
 const look = (page: Page, asked: unknown): Promise<Looked> =>
   page.evaluate(`(async () => {
     const response = await fetch('/device/view', { method: 'POST', body: ${JSON.stringify(JSON.stringify(asked))} })
-    if (response.headers.get('content-type') !== 'image/png') return { reason: (await response.json()).reason }
+    if (response.headers.get('content-type') !== 'image/png') {
+      const told = await response.json()
+      if (typeof told.png !== 'string') return { reason: told.reason }
+      return { width: String(told.width), height: String(told.height), png: told.png, structure: told.structure }
+    }
     let text = ''
     for (const byte of new Uint8Array(await response.arrayBuffer())) text += String.fromCharCode(byte)
     return { width: response.headers.get('x-omne-width'), height: response.headers.get('x-omne-height'), png: btoa(text) }
@@ -187,4 +205,47 @@ test('看界面的窗口看得到这个租户装的 Plugin 带来的页', async 
     tenant: await tenantOf(server, name),
   })
   expect('png' in looked, JSON.stringify(looked)).toBe(true)
+})
+
+test('这一页会怎样画整个外壳：一份 Plugin 的浮层在图与结构里都在，人这边什么都没变', async ({
+  launchApp,
+  server,
+}) => {
+  const { page } = await launchApp()
+  const name = await signUp(page)
+  const { tenant, assets } = await assetsOf(server, name)
+  await publish(assets, tenant, 'plugin', 'float-chip', FLOAT_CHIP)
+  await expect(page.locator('[data-omne-part="float-chip.card"]')).toBeVisible({ timeout: 30_000 })
+  // The person's page has settled what it loads: its record says it is no longer coming up.
+  await expect
+    .poll(async () => JSON.stringify(await seen(page)), { timeout: 30_000 })
+    .toContain('\\"up\\":false')
+  const before = await seen(page)
+  const looked = await look(page, {
+    ...SETTINGS_DARK,
+    width: 1280,
+    height: 800,
+    tenant: await tenantOf(server, name),
+  })
+  if (!('png' in looked) || looked.structure === undefined) throw new Error(JSON.stringify(looked))
+  expect(looked.structure.page).toBe('settings')
+  expect(looked.structure.parts).toContainEqual(
+    expect.objectContaining({ part: 'float-chip.card', text: '晴，二十度', visible: true }),
+  )
+  expect(await seen(page)).toEqual(before)
+})
+
+test('截人用的这扇窗：整扇或一处，人这边的页、焦点、字与本机存储都没变', async ({ launchApp }) => {
+  const { page } = await launchApp()
+  await signUp(page)
+  await page.getByRole('button', { name: '新建会话' }).click()
+  const box = page.getByRole('textbox', { name: '输入消息' })
+  await box.fill('这句话还没写完')
+  const before = await seen(page)
+  const whole = await shot(page)
+  expect(Number(whole.width)).toBeGreaterThan(0)
+  expect(await shot(page, { x: 0, y: 0, w: 200, h: 100 })).toMatchObject({
+    width: expect.any(String),
+  })
+  expect(await seen(page)).toEqual(before)
 })

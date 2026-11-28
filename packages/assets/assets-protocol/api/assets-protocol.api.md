@@ -1905,7 +1905,9 @@ export declare const assetsProtocol: {
                             readonly mark: "!" | "+" | "-" | "~";
                             readonly of: string | null;
                             readonly point: string;
+                            readonly pointTitle?: string;
                             readonly says: string;
+                            readonly title?: string;
                         }[] | null;
                         readonly places: readonly {
                             readonly category: string | null;
@@ -1913,9 +1915,11 @@ export declare const assetsProtocol: {
                             readonly id: string | null;
                             readonly key: string;
                             readonly point: string;
+                            readonly pointTitle?: string;
                             readonly says: string;
                             readonly side: "client" | "server" | null;
                             readonly standing: string;
+                            readonly title?: string;
                         }[];
                         readonly remove: readonly {
                             readonly id: string | null;
@@ -1923,7 +1927,9 @@ export declare const assetsProtocol: {
                             readonly mark: "!" | "+" | "-" | "~";
                             readonly of: string | null;
                             readonly point: string;
+                            readonly pointTitle?: string;
                             readonly says: string;
+                            readonly title?: string;
                         }[] | null;
                     };
                     readonly item: {

@@ -245,7 +245,7 @@ describe('request bodies', () => {
   )
 
   it.each(cases(invalidBodies))('%s: an invalid body is rejected', (name, sample) => {
-    expect(readSample(operations[name].body, sample)).toEqual({ ok: false })
+    expect(readSample(operations[name].body, sample).ok).toBe(false)
   })
 })
 
@@ -258,7 +258,7 @@ describe('outcome bodies', () => {
   )
 
   it.each(cases(invalidSuccess))('%s: an invalid succeeded body is rejected', (name, sample) => {
-    expect(readSample(operations[name].outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readSample(operations[name].outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it.each(names.filter(name => 'limited' in operations[name].outcomes))(
@@ -268,8 +268,8 @@ describe('outcome bodies', () => {
         operations[name].outcomes as { limited: Parameters<typeof expectRoundTrip>[0] }
       ).limited
       expectRoundTrip(codec, { resource: 'pool-items', limit: 7 })
-      expect(readSample(codec, { resource: 'pool-items', limit: 0 })).toEqual({ ok: false })
-      expect(readSample(codec, { resource: 'pool-items' })).toEqual({ ok: false })
+      expect(readSample(codec, { resource: 'pool-items', limit: 0 }).ok).toBe(false)
+      expect(readSample(codec, { resource: 'pool-items' }).ok).toBe(false)
     },
   )
 
@@ -278,7 +278,7 @@ describe('outcome bodies', () => {
       for (const [outcome, codec] of Object.entries(operations[name].outcomes)) {
         if (outcome === 'succeeded' || outcome === 'limited' || codec === true) continue
         expect(expectRoundTrip(codec, {})).toEqual({})
-        expect(readSample(codec, { reason: 'x' })).toEqual({ ok: false })
+        expect(readSample(codec, { reason: 'x' }).ok).toBe(false)
       }
   })
 })

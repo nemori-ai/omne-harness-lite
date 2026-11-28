@@ -228,14 +228,14 @@ describe('schedule/v3', () => {
       { kind: 'elsewhere', session: 's-9', account: null },
       { kind: 'session', session: 's-9', account: { ...account, deliverables: 'report.md' } },
     ])
-      expect(readSample(read, carried(wrong))).toEqual({ ok: false })
+      expect(readSample(read, carried(wrong)).ok).toBe(false)
   })
 
   it('an invalid answer says which code, and may say why in words; an edit carries the instruction as data, not as text', () => {
     const invalid = operations['manage-schedule'].outcomes.invalid
     expectRoundTrip(invalid, { code: 'invalid_input' })
     expectRoundTrip(invalid, { code: 'invalid_input', reason: 'A1.evidence: 要有证据' })
-    expect(readSample(invalid, { reason: '没有代码' })).toEqual({ ok: false })
+    expect(readSample(invalid, { reason: '没有代码' }).ok).toBe(false)
     const edit = (instruction: unknown) => ({
       tenant,
       actionId: 'a',
@@ -244,7 +244,7 @@ describe('schedule/v3', () => {
       action: { kind: 'edit', instruction },
     })
     expectRoundTrip(operations['manage-schedule'].body, edit({ purpose: '写周报', criteria: [] }))
-    expect(readSample(operations['manage-schedule'].body, edit(undefined))).toEqual({ ok: false })
+    expect(readSample(operations['manage-schedule'].body, edit(undefined)).ok).toBe(false)
   })
 
   it('refuses an unknown action, a negative revision and a bad agenda date', () => {
@@ -255,14 +255,14 @@ describe('schedule/v3', () => {
       revision: 1,
       action: { kind: 'reconfirm' },
     }
-    expect(readSample(operations['manage-schedule'].body, manage)).toEqual({ ok: false })
+    expect(readSample(operations['manage-schedule'].body, manage).ok).toBe(false)
     expect(
       readSample(operations['manage-schedule'].body, {
         ...manage,
         revision: -1,
         action: { kind: 'pause', reason: null },
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     expect(
       readSample(operations['read-agenda'].body, {
         tenant,
@@ -271,6 +271,6 @@ describe('schedule/v3', () => {
         timezone: 'Asia/Shanghai',
         cursor: null,
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })

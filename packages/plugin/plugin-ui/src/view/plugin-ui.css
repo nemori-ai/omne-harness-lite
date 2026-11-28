@@ -46,8 +46,7 @@
   }
 
   .plugin-view-standing,
-  .plugin-view-hint,
-  .plugin-view-member-place {
+  .plugin-view-hint {
     color: var(--omne-ink-muted);
     font-size: var(--omne-text-caption);
   }

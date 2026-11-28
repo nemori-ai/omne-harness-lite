@@ -18,7 +18,7 @@ const queryBody = {
 }
 const recordsBody = { tenant, scope: { kind: 'tenant' }, range, after: null, limit: 100 }
 const refused = (codec: Parameters<typeof readSample>[0], sample: unknown) =>
-  expect(readSample(codec, sample)).toEqual({ ok: false })
+  expect(readSample(codec, sample).ok).toBe(false)
 
 describe('query-usage', () => {
   it('reads each scope, bucket and up to two dimensions, and writes them back as they were', () => {

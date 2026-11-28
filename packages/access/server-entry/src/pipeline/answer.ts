@@ -1,9 +1,24 @@
 import type { ServerResponse } from 'node:http'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { Outcome } from '@omne-harness/public-contract'
+import { REJECTION_BODY, type Outcome, type Rejection } from '@omne-harness/public-contract'
 import { STATUS_BY_OUTCOME } from './status.ts'
 
 export const EMPTY_BODY: JsonValue = { kind: 'object', entries: [] }
+
+const REJECTION_LIMITS = {
+  maxBytes: 64 * 1024,
+  maxDepth: 8,
+  maxItems: 256,
+  maxMembers: 16,
+  maxStringLength: 4096,
+  maxNumberLength: 24,
+}
+
+/** The body of protocol-rejected: why the message was refused, in the shape every protocol shares. */
+export function rejectedBody(rejection: Rejection): JsonValue {
+  const written = REJECTION_BODY.write({ rejection }, REJECTION_LIMITS)
+  return written.ok ? written.value : EMPTY_BODY
+}
 
 export function writeBare(
   res: ServerResponse,

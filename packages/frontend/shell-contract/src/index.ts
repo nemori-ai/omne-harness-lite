@@ -141,6 +141,7 @@ export type {
   ScopeSource,
   ShellLogin,
   ShellLoginState,
+  Trouble,
 } from './host.ts'
 export {
   attachWhile,

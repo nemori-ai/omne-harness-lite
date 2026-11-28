@@ -104,7 +104,14 @@ describe('登录门', () => {
 
   it('注册的请求被协议拒绝时说填写的内容不合规则', async () => {
     setup({
-      register: () => Promise.reject(new ClientRequestError('register-and-activate')),
+      register: () =>
+        Promise.reject(
+          new ClientRequestError('register-and-activate', {
+            at: ['loginIdentifier'],
+            given: '""',
+            allows: 'a text that is not empty',
+          }),
+        ),
     })
     fireEvent.click(screen.getByRole('button', { name: '第一次使用' }))
     await fillAndSubmit('bob', 'pw')

@@ -10,7 +10,13 @@ import {
 } from './support/access-kit.ts'
 import { openStream, send } from './support/entry.ts'
 
-const REJECTED = '{"outcome":"protocol-rejected","body":{}}'
+const rejected = (given: string, allows: string, at: readonly (string | number)[] = []): string =>
+  JSON.stringify({ outcome: 'protocol-rejected', body: { rejection: { at, given, allows } } })
+const UNREAD_HEADER = (value: string): string =>
+  rejected(
+    `the header omne-contract-revision ${value}`,
+    'one omne-contract-revision header: a whole number from 1, without a leading zero',
+  )
 
 const ref = ruleCodec({
   kind: 'object',
@@ -157,7 +163,9 @@ describe('the request is read at the lesser of the two revisions (V1)', () => {
   it('refuses a later field from a caller that says it is earlier, and runs nothing', async () => {
     const reply = await call('read', '{"id":"d-1","lang":"zh"}', '1')
     expect(reply.status).toBe(400)
-    expect(reply.text).toBe(REJECTED)
+    expect(reply.text).toBe(
+      rejected('"zh"', 'no field "lang" at revision 1: it is there from revision 2', ['lang']),
+    )
     expect(received).toEqual([])
     expect(fixture.diagnostics.map(event => event.code)).toContain('access.body-rejected')
   })
@@ -165,7 +173,9 @@ describe('the request is read at the lesser of the two revisions (V1)', () => {
   it('refuses an operation that came later than the caller says it is, and runs nothing', async () => {
     const early = await call('pin', '{"id":"d-1"}', '2')
     expect(early.status).toBe(400)
-    expect(early.text).toBe(REJECTED)
+    expect(early.text).toBe(
+      rejected('contract revision 2', 'a contract revision this operation lives at: 3 or later'),
+    )
     expect(early.headers['omne-message-id']).toBe(MESSAGE_ID)
     expect(received).toEqual([])
     expect(fixture.diagnostics.map(event => event.code)).toContain('access.revision-rejected')
@@ -181,7 +191,7 @@ describe('a revision header that cannot be read', () => {
     async revision => {
       const reply = await call('read', '{"id":"d-1"}', revision)
       expect(reply.status).toBe(400)
-      expect(reply.text).toBe(REJECTED)
+      expect(reply.text).toBe(UNREAD_HEADER(JSON.stringify(revision)))
       expect(reply.headers['omne-message-id']).toBe(MESSAGE_ID)
       expect(received).toEqual([])
       expect(fixture.diagnostics.map(event => event.code)).toContain('access.revision-rejected')
@@ -198,7 +208,7 @@ describe('a revision header that cannot be read', () => {
       body,
     )
     expect(reply).toContain('HTTP/1.1 400')
-    expect(reply).toContain(REJECTED)
+    expect(reply).toContain(UNREAD_HEADER('"2, 2"'))
     expect(received).toEqual([])
   })
 

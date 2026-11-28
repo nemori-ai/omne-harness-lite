@@ -178,6 +178,7 @@ describe('the example of each point the shell declares', () => {
 describe('a point whose host draws by key', () => {
   it('says what its subject is in what it gives, and carries its example', () => {
     const point = defineRenderPoint({
+      title: 'test',
       name: 'notes.call',
       key: 'the name of the tool',
       summary: 'How a call is drawn.',

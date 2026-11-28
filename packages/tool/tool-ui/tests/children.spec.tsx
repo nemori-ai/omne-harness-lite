@@ -223,6 +223,7 @@ describe('the call of Code in the conversation', () => {
 
 describe('the tool-ui module places both', () => {
   const detail = definePoint<{ readonly session: string; readonly call: string }>({
+    title: 'test',
     name: 'session.call-detail',
     subject: {
       encode: value => JSON.stringify([value.session, value.call]),
@@ -233,6 +234,7 @@ describe('the tool-ui module places both', () => {
     },
   })
   const toolCall = defineRenderPoint<ToolCallSubject>({
+    title: 'test',
     name: 'session.tool-call',
     key: 'the name of the tool',
     summary: 'How a call of one tool is drawn in the conversation.',

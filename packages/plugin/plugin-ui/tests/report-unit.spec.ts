@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createReporter, describedOf, reportsOf, type Reported } from '../src/report.ts'
+import {
+  beforeRevisionFour,
+  beforeRevisionThree,
+  createReporter,
+  describedOf,
+  reportsOf,
+  type Reported,
+} from '../src/report.ts'
 
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 const tree = { points: [], parts: [] }
@@ -11,6 +18,7 @@ const of = (...names: string[]): Reported => ({
 describe('the tree, as the protocol tells it', () => {
   const contract = {
     name: 'shell.tokens',
+    title: '令牌',
     tree: 'client',
     arity: 'keyed-one',
     keyFrom: null,
@@ -31,6 +39,7 @@ describe('the tree, as the protocol tells it', () => {
     const told = describedOf({
       parts: [],
       points: [{ name: 'shell.tokens', summary: 'Tokens.', contract }],
+      troubles: [],
     })
     expect(told).toEqual({
       parts: [],
@@ -56,6 +65,7 @@ describe('the tree, as the protocol tells it', () => {
             version: 1,
             revision: 3,
             example: null,
+            title: '令牌',
           },
         },
       ],
@@ -74,9 +84,27 @@ describe('the tree, as the protocol tells it', () => {
           dataKeys,
         },
       ],
+      troubles: [],
     }).points
     expect(point?.contract?.example).toBe('{}')
     expect(point?.dataKeys).toEqual(dataKeys)
+  })
+
+  it('says the title of a point to a server at revision 4, and nothing of it to one before', () => {
+    const told: Reported = {
+      ...describedOf({
+        parts: [],
+        points: [{ name: 'shell.tokens', summary: 'Tokens.', contract }],
+        troubles: [],
+      }),
+      plugins: [],
+    }
+    expect(told.points[0]?.contract?.title).toBe('令牌')
+    for (const older of [beforeRevisionFour(told), beforeRevisionThree(told)])
+      expect(older.points[0]?.contract).not.toHaveProperty('title')
+    expect(beforeRevisionFour(told).points[0]?.contract).toEqual(
+      expect.objectContaining({ revision: 3, key: 'a part' }),
+    )
   })
 })
 

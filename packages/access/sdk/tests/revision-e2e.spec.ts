@@ -85,7 +85,14 @@ describe('two ends at different revisions of one major, over real HTTP (V1, V2)'
 
   it('a newer client that sends what the older server does not know gets a certain protocol rejection', async () => {
     const read = await clientAt(3)
-    expect(await read({ id: 'd-1', deep: 'x' })).toEqual({ outcome: 'protocol-rejected' })
+    expect(await read({ id: 'd-1', deep: 'x' })).toEqual({
+      outcome: 'protocol-rejected',
+      rejection: {
+        at: ['deep'],
+        given: '"x"',
+        allows: 'no field "deep" here: an object with the fields id, lang',
+      },
+    })
   })
 
   it('a newer client that keeps to what the older server knows is served', async () => {

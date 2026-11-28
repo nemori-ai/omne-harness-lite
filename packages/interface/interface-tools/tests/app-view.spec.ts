@@ -11,6 +11,8 @@ import {
   type AppViewSource,
   type LookAsked,
   type Looked,
+  type NowAsked,
+  type Nowed,
 } from '@omne-harness/interface-tools'
 
 const ONE_PIXEL = Uint8Array.from(
@@ -52,13 +54,18 @@ function tool(construction: object = { resultMaxBytes: 65_536, ...BUDGET }) {
 }
 
 /** One call of AppView with the given answer of the application; what it asked and kept is recorded. */
-async function call(params: unknown, answer: Looked) {
+async function call(
+  params: unknown,
+  answer: Looked,
+  command: 'look' | 'inspect' | 'shot' = 'look',
+  nowAnswer: Nowed = { kind: 'client-absent' },
+) {
   const { read, definition } = tool()
-  const operation = read.operations.find(([name]) => name === 'look')?.[1]
+  const operation = read.operations.find(([name]) => name === command)?.[1]
   if (operation === undefined || operation.author.kind !== 'structured')
     throw new Error('structured')
-  const text = JSON.stringify({ command: 'look', params })
-  const cut = commandArguments(definition, 'look', {
+  const text = JSON.stringify({ command, params })
+  const cut = commandArguments(definition, command, {
     original: text,
     effective: text,
     complete: true,
@@ -66,12 +73,16 @@ async function call(params: unknown, answer: Looked) {
   if ('failure' in cut) return { failure: cut.failure, asked: [], kept: [] }
   const parsed = operation.author.parameters.parse(cut.ok)
   if ('failure' in parsed) return { failure: parsed.failure, asked: [], kept: [] }
-  const asked: LookAsked[] = []
+  const asked: (LookAsked | NowAsked)[] = []
   const kept: string[] = []
   const source: AppViewSource = {
     async look(given) {
       asked.push(given)
       return answer
+    },
+    async now(given) {
+      asked.push(given)
+      return nowAnswer
     },
     media: {
       async put({ mediaType, bytes }) {
@@ -158,5 +169,108 @@ describe('AppView look', () => {
   it('refuses a field it does not have, rather than dropping it', async () => {
     const answer = await call({ page: 'notes', zoom: 2 }, { kind: 'client-absent' })
     expect(answer).toHaveProperty('failure')
+  })
+})
+
+const STRUCTURE = {
+  page: 'weather',
+  width: 1280,
+  height: 800,
+  parts: [
+    {
+      part: 'weather.page',
+      text: '天气 晴',
+      box: { x: 0, y: 0, w: 1280, h: 800 },
+      visible: true,
+      within: null,
+    },
+    {
+      part: 'weather.card',
+      text: '晴',
+      box: { x: 10, y: 20, w: 300, h: 100 },
+      visible: false,
+      within: 0,
+    },
+  ],
+  layers: [{ role: 'dialog', label: '禁用', text: '禁用整份？' }],
+  more: 0,
+} as const
+
+describe('AppView inspect and shot: what the person sees now', () => {
+  it('inspect asks for the structure, waits as told, and prints parts under their parents after what is open on top', async () => {
+    const { result, asked } = await call(
+      { wait_for: 'weather.card', wait_text: '晴' },
+      { kind: 'client-absent' },
+      'inspect',
+      { kind: 'seen', structure: STRUCTURE, met: false },
+    )
+    expect(asked).toEqual([
+      { want: 'structure', until: { part: 'weather.card', text: '晴', seconds: 5 } },
+    ])
+    expect(textOf(result)).toEqual([
+      [
+        'done AppView inspect wait_for="weather.card"',
+        'waited 5 s for weather.card with "晴": it did not come; this is what was drawn then',
+        'window 1280x800   page weather   2 parts',
+        'open on top:',
+        '  dialog "禁用"   "禁用整份？"',
+        'parts:',
+        '  weather.page   0,0 1280x800   "天气 晴"',
+        '    weather.card   10,20 300x100   hidden   "晴"',
+      ].join('\n'),
+    ])
+  })
+
+  it('inspect prints at most 120 lines and says how many more parts there are', async () => {
+    const parts = Array.from({ length: 300 }, (_, at) => ({
+      part: `p.${String(at)}`,
+      text: '',
+      box: { x: 0, y: 0, w: 1, h: 1 },
+      visible: true,
+      within: null,
+    }))
+    const { result } = await call({}, { kind: 'client-absent' }, 'inspect', {
+      kind: 'seen',
+      structure: { ...STRUCTURE, parts, layers: [], more: 40 },
+      met: true,
+    })
+    const lines = textOf(result)[0]!.split('\n')
+    expect(lines).toHaveLength(121)
+    expect(lines.at(-1)).toBe(
+      '… 223 more parts: give part=<name> to read one part and what is in it',
+    )
+  })
+
+  it('shot asks for a picture of one part and keeps it; a part not drawn is said', async () => {
+    const image = { bytes: ONE_PIXEL, width: 1, height: 1 }
+    const { result, asked, kept } = await call(
+      { part: 'weather.map' },
+      { kind: 'client-absent' },
+      'shot',
+      {
+        kind: 'seen',
+        structure: { ...STRUCTURE, parts: [] },
+        image,
+        met: true,
+      },
+    )
+    expect(asked).toEqual([{ want: 'image', part: 'weather.map' }])
+    expect(kept).toEqual(['image/png'])
+    expect(textOf(result)).toEqual([
+      'done AppView shot part="weather.map" image_pixels=1x1\nthere is no part "weather.map" drawn now: this is the whole window',
+    ])
+  })
+
+  it('says what an app that cannot answer now means, and refuses a wait without what to wait for', async () => {
+    const unsupported = await call({}, { kind: 'client-absent' }, 'inspect', {
+      kind: 'cannot',
+      reason: 'unsupported',
+    })
+    expect(textOf(unsupported.result)[0]).toContain('reason=unsupported')
+    const bad = await call({ wait: 3 }, { kind: 'client-absent' }, 'shot')
+    expect(textOf(bad.result)).toEqual([
+      'rejected reason=bad-wait wait_text and wait need wait_for',
+    ])
+    expect(bad.asked).toEqual([])
   })
 })

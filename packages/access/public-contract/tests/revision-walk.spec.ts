@@ -89,7 +89,7 @@ describe('at every revision, on random rules and values (V1, V2, V4)', () => {
       const latest = stripped(rule, value, 4)
       for (const revision of [1, 2, 3])
         if (JSON.stringify(stripped(rule, value, revision)) !== JSON.stringify(latest))
-          expect(codec.read(whole.value, limits, revision)).toEqual({ ok: false })
+          expect(codec.read(whole.value, limits, revision)).toMatchObject({ ok: false })
     }
   })
 })

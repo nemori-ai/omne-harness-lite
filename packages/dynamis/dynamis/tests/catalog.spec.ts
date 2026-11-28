@@ -69,6 +69,7 @@ describe('standingOf：一个点的四种状态', () => {
   it('内建的规矩：按点名放，每个名字一份，撞了答冲突', () => {
     expect(catalogContract).toEqual({
       name: 'dynamis.points',
+      title: '拓展点的目录',
       tree: 'server',
       arity: 'keyed-one',
       keyFrom: null,
@@ -164,6 +165,8 @@ describe('standingOf：一个点的四种状态', () => {
     ['键取自自己', { ...host(), item: { ...good, keyFrom: POINT } }],
     ['键取自的不是点名', { ...host(), item: { ...good, keyFrom: 'nowhere' } }],
     ['说明不是文字', { ...host(), item: { ...good, summary: 7 } }],
+    ['标题不是文字', { ...host(), item: { ...good, title: 7 } }],
+    ['标题是空的', { ...host(), item: { ...good, title: '  ' } }],
     ['键的说明不是文字', { ...host(), item: { ...good, key: null } }],
     ['宿主给什么不是文字', { ...host(), item: { ...good, gives: undefined } }],
     ['出错时怎样答不是文字', { ...host(), item: { ...good, onError: [] } }],
@@ -201,6 +204,8 @@ describe('standingOf：一个点的四种状态', () => {
     键取自自己: 'keyFrom names no other point',
     键取自的不是点名: 'keyFrom names no other point',
     说明不是文字: 'summary is not text',
+    标题不是文字: 'title is empty or not text',
+    标题是空的: 'title is empty or not text',
     键的说明不是文字: 'key is not text',
     宿主给什么不是文字: 'gives is not text',
     出错时怎样答不是文字: 'onError is not text',

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "name": "float-chip",
+  "summary": "A chip that floats over the app, with a part of its own.",
+  "client": {
+    "members": [
+      { "point": "shell.float", "key": "", "id": "float-chip", "rank": 50, "title": "天气小卡", "module": "chip.js", "export": "chip" },
+      {
+        "point": "shell.parts",
+        "key": "float-chip.card",
+        "data": { "label": "Weather chip", "summary": "The chip this plugin floats over the app", "depths": ["style"] }
+      }
+    ]
+  }
+}

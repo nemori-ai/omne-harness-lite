@@ -6,6 +6,7 @@ it('exports the protocol, the reasons, the themes and size tiers, the default mo
     'DEFAULT_MODE',
     'INSPECTION_REASONS',
     'MODE_BOUNDS',
+    'PART_ROLES',
     'SIZE_TIERS',
     'THEMES',
     'interfaceProtocol',

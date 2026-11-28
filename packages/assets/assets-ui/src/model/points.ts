@@ -56,6 +56,7 @@ export const ASSETS_CATEGORY_PAGE = 'assets.category-page'
 
 export const assetsCategoryPage: Point<AssetsPageSubject> = definePoint({
   name: ASSETS_CATEGORY_PAGE,
+  title: '资产里一类的页',
   summary:
     'The page of its own that a category brings to the assets page; the id of an item is the category.',
   subject: pageSubject,
@@ -63,6 +64,7 @@ export const assetsCategoryPage: Point<AssetsPageSubject> = definePoint({
 
 export const assetsCategory: KeyedPoint<CategorySubject> = defineKeyedPoint({
   name: ASSETS_CATEGORY,
+  title: '资产一类列表的上方',
   summary: 'What is shown above the list of one category.',
   key: 'the category chosen in the bar',
   subject: categorySubject,
@@ -76,6 +78,7 @@ export type HoldingPoint = Omit<KeyedPoint<HoldingSubject>, 'contribute'> &
 
 export const assetsHolding: HoldingPoint = defineKeyedPoint({
   name: ASSETS_HOLDING,
+  title: '一份资产的详情',
   summary: 'What is shown in the detail of one asset.',
   key: 'the category of the asset',
   subject: holdingSubject,
@@ -96,6 +99,7 @@ export const ASSETS_CONTROL = 'assets.control'
 
 export const assetsControl: RenderPoint<AssetsControlSubject> = defineRenderPoint({
   name: ASSETS_CONTROL,
+  title: '设置项的控件',
   key: 'the kind of the value: the format of its schema, else enum when it has one, else its type, such as boolean, string or number',
   summary: 'The control a setting is changed with on the settings page, by the kind of its value.',
   subject:

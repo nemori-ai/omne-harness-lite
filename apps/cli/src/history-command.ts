@@ -1,4 +1,4 @@
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId, rejectionText } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import {
@@ -77,7 +77,7 @@ async function readAll(
       cursor === null ? first : { tenant, session, cursor },
       messageId,
     )
-    if (result === undefined) return { kind: 'refused' }
+    if (result.kind === 'rejected') return { kind: 'refused' }
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { kind: 'stopped', entries, result, page }
     const read = pageOf(result.body)
@@ -98,6 +98,8 @@ function incompleteReason(reading: Exclude<Reading, { kind: 'complete' | 'refuse
   const { result, page } = reading
   if (result.kind === 'uncertain') return `page ${page} had no trusted answer`
   if (result.kind === 'unavailable') return `page ${page} was not sent: the service is unavailable`
+  if (result.kind === 'rejected')
+    return `page ${page} was not sent: ${rejectionText(result.rejection)}`
   return `page ${page} was answered ${result.outcome}`
 }
 

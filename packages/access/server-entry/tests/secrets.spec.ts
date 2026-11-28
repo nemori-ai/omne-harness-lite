@@ -118,7 +118,26 @@ describe('the new address keeps the proof, the tenant text and the body out of e
     const haystack = [...texts, JSON.stringify(entry.diagnostics)].join('\n')
     expect(haystack).not.toContain(PROOF)
     expect(haystack).not.toContain(tenantText)
-    expect(haystack).not.toContain(bodyMarker)
+    // The body comes back only to the caller who sent it, inside the reason of its own rejection.
+    const echoed = replies.filter(reply => reply.text.includes(bodyMarker))
+    expect(echoed.map(reply => JSON.parse(reply.text) as unknown)).toEqual([
+      {
+        outcome: 'protocol-rejected',
+        body: {
+          rejection: {
+            at: ['extra'],
+            given: `"${bodyMarker}"`,
+            allows: 'no field "extra" here: an object with the fields noteId',
+          },
+        },
+      },
+    ])
+    expect(
+      [
+        ...replies.map(reply => JSON.stringify(reply.headers)),
+        JSON.stringify(entry.diagnostics),
+      ].join('\n'),
+    ).not.toContain(bodyMarker)
 
     const pipelineEvents = entry.diagnostics.filter(event => event.code.startsWith('access.'))
     expect(new Set(pipelineEvents.map(event => event.code))).toEqual(

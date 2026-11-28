@@ -2,11 +2,12 @@
   "digests": {
     "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166",
     "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e",
-    "3": "sha256:2822e85a47c5cb1ab293949b38475980b37473627bfe8ea49369a7e10770241f"
+    "3": "sha256:2822e85a47c5cb1ab293949b38475980b37473627bfe8ea49369a7e10770241f",
+    "4": "sha256:ae4e522a9b7224a18fad48a6940fedeea4d4f56f0735223f38b8eac4daa2522b"
   },
   "major": 1,
   "name": "plugin",
-  "revision": 3,
+  "revision": 4,
   "rules": {
     "observations": {
       "observe-wanted": {
@@ -164,6 +165,61 @@
                                     }
                                   ]
                                 }
+                              },
+                              "refused": {
+                                "optional": true,
+                                "rule": {
+                                  "item": {
+                                    "fields": {
+                                      "at": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "rejection": {
+                                        "rule": {
+                                          "fields": {
+                                            "allows": {
+                                              "rule": {
+                                                "kind": "string"
+                                              }
+                                            },
+                                            "at": {
+                                              "rule": {
+                                                "item": {
+                                                  "kind": "one-of",
+                                                  "rules": [
+                                                    {
+                                                      "kind": "string"
+                                                    },
+                                                    {
+                                                      "kind": "count"
+                                                    }
+                                                  ]
+                                                },
+                                                "kind": "array"
+                                              }
+                                            },
+                                            "given": {
+                                              "rule": {
+                                                "kind": "string"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      },
+                                      "target": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  },
+                                  "kind": "array"
+                                },
+                                "since": 4
                               },
                               "state": {
                                 "rule": {
@@ -350,6 +406,13 @@
                                         "kind": "object"
                                       },
                                       "since": 3
+                                    },
+                                    "title": {
+                                      "optional": true,
+                                      "rule": {
+                                        "kind": "text"
+                                      },
+                                      "since": 4
                                     },
                                     "version": {
                                       "rule": {
@@ -705,6 +768,61 @@
                         ]
                       }
                     },
+                    "refused": {
+                      "optional": true,
+                      "rule": {
+                        "item": {
+                          "fields": {
+                            "at": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "rejection": {
+                              "rule": {
+                                "fields": {
+                                  "allows": {
+                                    "rule": {
+                                      "kind": "string"
+                                    }
+                                  },
+                                  "at": {
+                                    "rule": {
+                                      "item": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "string"
+                                          },
+                                          {
+                                            "kind": "count"
+                                          }
+                                        ]
+                                      },
+                                      "kind": "array"
+                                    }
+                                  },
+                                  "given": {
+                                    "rule": {
+                                      "kind": "string"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "target": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        "kind": "array"
+                      },
+                      "since": 4
+                    },
                     "state": {
                       "rule": {
                         "kind": "literal",
@@ -890,6 +1008,13 @@
                               "kind": "object"
                             },
                             "since": 3
+                          },
+                          "title": {
+                            "optional": true,
+                            "rule": {
+                              "kind": "text"
+                            },
+                            "since": 4
                           },
                           "version": {
                             "rule": {

@@ -15,6 +15,7 @@ import { render, startShell } from './reference-shell.ts'
 const PROTOCOLS = 'connection.protocols'
 
 const protocols: Contract = {
+  title: 'test',
   name: PROTOCOLS,
   tree: 'client',
   arity: 'keyed-one',
@@ -265,6 +266,7 @@ describe('a view module that declares its needs', () => {
     const handed: BackProps[] = []
     const offered = serviceKey<{ text: string }>('notes.offer')
     const spot = definePoint({
+      title: 'test',
       name: 'test.a',
       subject: { encode: (value: string) => value, decode: (value: string) => value },
     })
@@ -420,6 +422,7 @@ describe('what the shell gives a view module in each turn', () => {
         needs: { notes: needProtocol<Notes>(NOTES) },
         apply(shell) {
           definePoint({
+            title: 'test',
             name: 'test.late',
             subject: { encode: (value: string) => value, decode: (value: string) => value },
           }).declare(shell)

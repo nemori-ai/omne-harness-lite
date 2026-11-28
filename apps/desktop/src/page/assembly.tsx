@@ -39,6 +39,8 @@ import {
 } from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
+import type { InspectionResult } from '@omne-harness/interface-protocol'
+import { measure, waitFor } from '@omne-harness/interface-ui'
 import { createInterfaceUiModule } from '@omne-harness/interface-ui/cordis'
 import { createPluginUiModule, createPluginViewModule } from '@omne-harness/plugin-ui/cordis'
 import '@omne-harness/plugin-ui/plugin-ui.css'
@@ -77,10 +79,11 @@ import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-
 import { pluginFilePath } from '../shared/plugin-path.ts'
 import { storedCanvasPreferences } from './canvas-preferences.ts'
 import { storedFloor, whenDrawn, type PageFloor } from './shell/floor.ts'
+import type { ViewReading } from './shell/view.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 import { LOOK_KEY, storedTenantTexts, type TenantTexts } from './shell/tenant-text.ts'
 import { hostScreen } from './screen-source.ts'
-import { hostView } from './view-source.ts'
+import { hostShot, hostView } from './view-source.ts'
 
 export const USAGE_REFRESH_MS = 60_000
 
@@ -89,6 +92,7 @@ export type Assembly = Readonly<{
   modules: readonly Plugin.Object[]
   /** The floor of this page: the loader asks it, and the page hears from it when everything has an outcome. */
   floor: PageFloor
+  reading: ViewReading
 }>
 
 export type PageOptions = Readonly<{
@@ -112,6 +116,10 @@ export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
   return {
     protocols: domainProtocols,
     floor,
+    reading: {
+      waitFor: (until, signal) => waitFor(document, until, signal),
+      drawn: (part, page) => measure(document, { ...(part === undefined ? {} : { part }), page }),
+    },
     modules: [
       identityUiModule,
       createSessionUiModule({
@@ -183,11 +191,26 @@ export function pageAssembly({ store, looks, viewing }: PageOptions): Assembly {
         ? []
         : [
             createInterfaceUiModule({
-              draw: async ({ page, subject, mode }, signal, tenant) =>
-                view(
-                  { tenant, page, ...(subject === undefined ? {} : { subject }), ...mode },
+              draw: async ({ page, subject, mode, part, until }, signal, tenant) =>
+                (await view(
+                  {
+                    tenant,
+                    page,
+                    ...(subject === undefined ? {} : { subject }),
+                    ...mode,
+                    ...(part === undefined ? {} : { part }),
+                    ...(until === undefined ? {} : { until }),
+                  },
                   signal,
-                ),
+                )) as InspectionResult,
+              see: {
+                root: () => document,
+                page: () =>
+                  document
+                    .querySelector('section[data-page]:not([hidden])')
+                    ?.getAttribute('data-page') ?? null,
+                capture: hostShot(),
+              },
             }),
           ]),
     ],

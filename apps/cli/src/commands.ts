@@ -21,6 +21,7 @@ import {
   withoutProof,
   instantOption,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
@@ -78,7 +79,7 @@ async function runAccount(
     body,
     messageId,
   )
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
 
   const echo = { messageId }
   if (name === 'register') return report(name, result, echo, output)

@@ -11,6 +11,7 @@ import {
   serverOption,
   unrecognized,
   usageError,
+  refusedRequest,
 } from './command-support.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
 import type { CallResult, Link } from './link.ts'
@@ -62,7 +63,7 @@ type Context = Readonly<{
   environment: CommandEnvironment
   sent: { messageId: string }
 }>
-type Outcome = CallResult | undefined | Readonly<{ kind: 'broken'; reason: string }>
+type Outcome = CallResult | Readonly<{ kind: 'broken'; reason: string }>
 
 function capabilityOf(text: string | undefined): Capability | undefined {
   if (text === undefined) return undefined
@@ -89,7 +90,7 @@ function call<K extends keyof Operations & string>(
   context: Context,
   operation: K,
   body: BodyOf<Operations[K]>,
-): Promise<CallResult | undefined> {
+): Promise<CallResult> {
   const messageId = context.environment.services.newId()
   context.sent.messageId = messageId
   return context.link.call(assetsProtocol, operation, body, messageId)
@@ -97,7 +98,8 @@ function call<K extends keyof Operations & string>(
 
 function answer(context: Context, result: Outcome, operation?: string): ExitCode {
   const { invocation, output, tenant, sent } = context
-  if (result === undefined) return usageError(output, unrecognized(invocation.name))
+  if (result.kind === 'rejected')
+    return usageError(output, refusedRequest(invocation.name, result.rejection))
   if (result.kind === 'broken')
     return localFailure(output, `omne ${invocation.name}: ${result.reason}\n`)
   const echo = {
@@ -114,7 +116,7 @@ function answer(context: Context, result: Outcome, operation?: string): ExitCode
 }
 
 /** A recall that found the original outcome; not committed or not there means send it now. */
-const recalledOutcome = (result: CallResult | undefined): result is CallResult =>
+const recalledOutcome = (result: CallResult): result is CallResult =>
   result !== undefined &&
   !(result.kind === 'response' && ['not-committed', 'not-found'].includes(result.outcome))
 

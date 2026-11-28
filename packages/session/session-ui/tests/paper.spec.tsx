@@ -32,12 +32,14 @@ const KIND = 'session.session'
 
 // The canvas's two points as its interface declares them; the session interface never imports them.
 const element = defineRenderPoint<PaperElementSubject>({
+  title: 'test',
   name: 'canvas.element',
   key: 'the name of the kind',
   summary: 'How a thing of one kind is drawn on the canvas.',
   keysFrom: 'canvas.kinds',
 })
 const picker = defineRenderPoint<PaperPickerSubject>({
+  title: 'test',
   name: 'canvas.picker',
   key: 'the name of the kind',
   summary: 'How a person picks one thing of a kind from the search.',

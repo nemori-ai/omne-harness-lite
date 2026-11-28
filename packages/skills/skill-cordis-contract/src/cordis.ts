@@ -75,6 +75,7 @@ const SOURCE_EXAMPLE = [
 
 const entrySourcesContract: Contract = Object.freeze({
   name: SKILL_ENTRY_SOURCES_POINT,
+  title: '技能的条目来源',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

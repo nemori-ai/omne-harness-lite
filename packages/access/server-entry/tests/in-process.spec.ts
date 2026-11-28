@@ -54,7 +54,7 @@ describe('an operation done in process for a person identified earlier', () => {
     expect(await w.ask({ body: { noteId: 7 } })).toEqual({
       kind: 'answered',
       outcome: 'protocol-rejected',
-      body: undefined,
+      body: { rejection: { at: ['noteId'], given: '7', allows: 'a text that is not empty' } },
     })
     expect(await w.ask({ body: { noteId: 'n-1', extra: true } })).toMatchObject({
       outcome: 'protocol-rejected',

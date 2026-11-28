@@ -19,7 +19,7 @@ export type GuestFormItem = Readonly<{ form: GuestForm; gives: string; example: 
 export const GUEST_FORMS_POINT = 'plugin.guest-forms'
 
 const point = (
-  over: Pick<Contract, 'name' | 'key' | 'gives' | 'onError' | 'summary'>,
+  over: Pick<Contract, 'name' | 'key' | 'gives' | 'onError' | 'summary' | 'title'>,
   field: string,
 ): Contract =>
   Object.freeze({
@@ -45,6 +45,7 @@ const point = (
 export const portsContract: Contract = point(
   {
     name: PORTS_POINT,
+    title: '借给 Plugin 的口',
     key: 'the name of a port, as a plugin writes it in needs',
     gives: 'a port for one caller; each method takes data and answers data',
     onError: 'a port that is not there answers unavailable; the plugin that needs it is not loaded',
@@ -58,6 +59,7 @@ export const portsContract: Contract = point(
 export const guestFormsContract: Contract = point(
   {
     name: GUEST_FORMS_POINT,
+    title: 'Plugin 的专门写法',
     key: 'the name of the point that takes the code of plugins',
     gives: 'the item of that point, made from what the code of a plugin gave',
     onError: 'what a guest form cannot take fails that plugin, with the reason',

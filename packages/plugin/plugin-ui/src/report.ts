@@ -1,4 +1,10 @@
-import { fiberOf, lacksText, type Kept, type ReportedPoint } from '@omne-harness/plugin-protocol'
+import {
+  fiberOf,
+  lacksText,
+  type Kept,
+  type PluginRefusal,
+  type ReportedPoint,
+} from '@omne-harness/plugin-protocol'
 import type { Changes, Described } from '@omne-harness/shell-contract'
 
 export type PluginReport = Readonly<{
@@ -8,6 +14,7 @@ export type PluginReport = Readonly<{
   reason: string | null
   /** The plugin waits for these, by name; it says failed to a server that does not know waiting. */
   waiting?: readonly string[]
+  refused?: readonly PluginRefusal[]
 }>
 
 type Tree = Readonly<{
@@ -34,6 +41,7 @@ export function describedOf({ points, parts }: Described): Tree {
         item: { kind: item.kind, fields },
         example: contract.example ?? null,
         ...(scopes !== undefined && scopes !== 'all' && { scopes }),
+        title: contract.title,
       }
       return {
         name,
@@ -50,12 +58,17 @@ export function describedOf({ points, parts }: Described): Tree {
 export function reportsOf(
   states: ReadonlyMap<string, Kept>,
   conflicts: Changes['conflicts'],
+  refusedOf: (name: string) => readonly PluginRefusal[] = () => [],
 ): readonly PluginReport[] {
   const clash = (fiber: string): string | null => {
     const at = conflicts.find(each => each.by.includes(fiber))
     if (at === undefined) return null
     const others = at.by.filter(other => other !== fiber).join(', ')
     return `${at.point} ${at.key} is put as well by ${others}: neither counts`
+  }
+  const told = (report: PluginReport): PluginReport => {
+    const refused = refusedOf(report.name)
+    return refused.length === 0 ? report : { ...report, refused }
   }
   return [...states]
     .flatMap(([name, state]): PluginReport[] => {
@@ -76,11 +89,25 @@ export function reportsOf(
       const reason = kind === 'failed' ? state.reason : clash(fiberOf(name, version))
       return [{ name, version, state: kind, reason }]
     })
+    .map(told)
     .sort((left, right) => (left.name < right.name ? -1 : 1))
 }
 
+export function beforeRevisionFour(reported: Reported): Reported {
+  return {
+    ...reported,
+    plugins: reported.plugins.map(({ refused: _refused, ...rest }) => rest),
+    points: reported.points.map(({ contract, ...point }) => {
+      if (contract === undefined) return point
+      const { title: _title, ...rules } = contract
+      return { ...point, contract: rules }
+    }),
+  }
+}
+
 /** The same report for a server before revision 3 of plugin/v1: a waiting plugin is told as failed with the reason alone, and nothing of revision 3 is said. */
-export function beforeRevisionThree({ handed: _handed, ...reported }: Reported): Reported {
+export function beforeRevisionThree(told: Reported): Reported {
+  const { handed: _handed, ...reported } = beforeRevisionFour(told)
   return {
     ...reported,
     plugins: reported.plugins.map(({ waiting: _waiting, ...rest }) => rest),

@@ -260,6 +260,7 @@ describe('the drawing of a part in the desktop shell', () => {
 
   it('a point that draws by key draws what is put on the key, framed by the host; one that throws while it is drawn falls back to the generic drawing', async () => {
     const calls = defineRenderPoint<{ name: string }>({
+      title: 'test',
       name: 'notes.tool-call',
       key: 'the name of the tool',
       summary: 'How a call of one tool is drawn.',

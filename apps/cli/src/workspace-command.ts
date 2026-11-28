@@ -9,6 +9,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  refusedRequest,
 } from './command-support.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf, report } from './report.ts'
@@ -92,7 +93,7 @@ async function read(ready: Ready, workspace?: string): Promise<ExitCode> {
     workspace === undefined
       ? await link.call(workspaceProtocol, 'list', { tenant }, messageId)
       : await link.call(workspaceProtocol, 'describe', { tenant, workspace }, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }
 
@@ -116,7 +117,7 @@ async function commit(ready: Ready, call: Commit, fields: object): Promise<ExitC
     if (!open) return report(name, known, request, output)
   }
   const result = await link.call(workspaceProtocol, call, body, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   if (exitCodeOf(result) === 5)
     output.stderr(`omne ${name}: to learn the result, run it again with --resume ${operation}\n`)
   return report(name, result, request, output)

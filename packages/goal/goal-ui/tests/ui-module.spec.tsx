@@ -10,6 +10,7 @@ import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const side = definePoint<{ readonly session: string }>({
+  title: 'test',
   name: 'session.side',
   subject: { encode: value => value.session, decode: text => ({ session: text }) },
 })

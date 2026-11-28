@@ -12,5 +12,7 @@ it('exports the tool, how a call is bound to where it looks, and how its paramet
     'lookContract',
     'lookParameterCodec',
     'modeOfArguments',
+    'nowContract',
+    'nowParameterCodec',
   ])
 })

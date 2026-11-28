@@ -28,6 +28,8 @@
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/plugin-protocol": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "zod": "catalog:"
   },

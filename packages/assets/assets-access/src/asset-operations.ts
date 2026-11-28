@@ -311,15 +311,21 @@ async function write<T>(call: () => Promise<T>): Promise<T | typeof UNKNOWN> {
   }
 }
 
+const titlesOf = (title: string | undefined, pointTitle: string | undefined) => ({
+  ...(title !== undefined && { title }),
+  ...(pointTitle !== undefined && { pointTitle }),
+})
+
 const linesOf = (read: Awaited<ReturnType<CategoryEffect['impact']['of']>>) =>
   read.kind === 'changes'
-    ? read.lines.map(({ mark, of, point, key, id, says }) => ({
+    ? read.lines.map(({ mark, of, point, key, id, says, title, pointTitle }) => ({
         mark,
         of,
         point,
         key,
         id: id ?? null,
         says,
+        ...titlesOf(title, pointTitle),
       }))
     : null
 
@@ -344,7 +350,7 @@ async function effectOf(
       return listing === undefined || 'unusable' in listing ? undefined : listing
     }
     return {
-      places: placed.places.map(({ point, key, id, side, standing, says }) => {
+      places: placed.places.map(({ point, key, id, side, standing, says, title, pointTitle }) => {
         const listing = side === 'server' ? listingAt(point) : undefined
         return {
           point,
@@ -355,6 +361,7 @@ async function effectOf(
           categoryTitle: listing?.display.title ?? null,
           standing,
           says,
+          ...titlesOf(title, pointTitle),
         }
       }),
       clients:

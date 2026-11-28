@@ -77,7 +77,7 @@ describe('the bodies of plugin/v1 go to the wire and back unchanged', () => {
     ],
     ['list-reports', {}],
   ] as const)('%s refuses %j', (name, body) => {
-    expect(readSample(operations[name].body, body)).toEqual({ ok: false })
+    expect(readSample(operations[name].body, body).ok).toBe(false)
   })
 })
 
@@ -104,7 +104,7 @@ describe('the outcomes of plugin/v1 go to the wire and back unchanged', () => {
     ['report-loaded', 'succeeded', { plugins: [] }],
   ] as const)('%s %s refuses %j', (name, outcome, body) => {
     const outcomes = operations[name].outcomes as Record<string, unknown>
-    expect(readSample(outcomes[outcome] as never, body)).toEqual({ ok: false })
+    expect(readSample(outcomes[outcome] as never, body).ok).toBe(false)
   })
 
   it('a part is bytes in the process and base64 on the wire', () => {
@@ -120,15 +120,15 @@ describe('the outcomes of plugin/v1 go to the wire and back unchanged', () => {
     const { succeeded } = operations['list-reports'].outcomes
     expectRoundTrip(succeeded, { clients: [] })
     expectRoundTrip(succeeded, { clients: [{ client: 'desktop-1', ...reported }] })
-    expect(readSample(succeeded, { clients: [{ ...reported }] })).toEqual({ ok: false })
+    expect(readSample(succeeded, { clients: [{ ...reported }] }).ok).toBe(false)
   })
 
   it('observe-wanted opens on one side of a tenant for one client, and says only that it may have changed', () => {
     const observation = pluginProtocol.observations['observe-wanted']
     expectRoundTrip(observation.open, { tenant, side: 'client', client: 'desktop-1' })
-    expect(readSample(observation.open, { tenant, side: 'client' })).toEqual({ ok: false })
+    expect(readSample(observation.open, { tenant, side: 'client' }).ok).toBe(false)
     expectRoundTrip(observation.frame, { kind: 'changed' })
-    expect(readSample(observation.frame, { kind: 'changed', plugins: [] })).toEqual({ ok: false })
-    expect(readSample(observation.open, { tenant })).toEqual({ ok: false })
+    expect(readSample(observation.frame, { kind: 'changed', plugins: [] }).ok).toBe(false)
+    expect(readSample(observation.open, { tenant }).ok).toBe(false)
   })
 })

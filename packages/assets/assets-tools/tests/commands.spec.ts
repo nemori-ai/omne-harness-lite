@@ -413,7 +413,7 @@ describe('impact', () => {
       lines(
         'done OmneExtensions impact',
         'bundle pill-send (not published), publish:',
-        '  + shell.part-style / session.composer.send   → in effect; shadows built-in',
+        '  + shell.part-style「session.composer.send」   → in effect; shadows built-in',
         'nothing else changes.',
         'loads on: client. Server: nothing to load.',
         'tree rev 7c1f.41',
@@ -468,8 +468,8 @@ describe('impact', () => {
         lines(
           'done OmneExtensions impact',
           `bundle pill-send (published), ${change}:`,
-          '  ! shell.part-style / session.composer.send   → conflict with bundle round-buttons (same tenant).',
-          '  ~ round-buttons: shell.part-style / session.composer.send   in effect → conflict',
+          '  ! shell.part-style「session.composer.send」   → conflict with bundle round-buttons (same tenant).',
+          '  ~ round-buttons: shell.part-style「session.composer.send」   in effect → conflict',
           'Disable round-buttons first, or leave this member out.',
           'tree rev 7c1f.41',
         ),
@@ -554,7 +554,7 @@ describe('show', () => {
       lines(
         ...HEAD,
         'places:',
-        '  shell.part-style / session.composer.send   [in effect]   shadows built-in',
+        '  shell.part-style「session.composer.send」   [in effect]   shadows built-in',
         'clients:',
         '  desktop, connected   loaded',
         'source: this held version, 2 files (11 bytes): bundle.json, a.js',

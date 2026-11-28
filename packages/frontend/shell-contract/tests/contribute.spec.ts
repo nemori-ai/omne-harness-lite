@@ -260,7 +260,7 @@ describe('contribute', () => {
       expect(shell.items('attached')).toEqual([])
       const { definePoint } = await import('@omne-harness/shell-contract')
       const text = { encode: (value: string) => value, decode: (value: string) => value }
-      definePoint({ name: 'test.chat', subject: text }).declare(root.shell)
+      definePoint({ title: 'test', name: 'test.chat', subject: text }).declare(root.shell)
       expect(shell.items('attached').map(item => item.id)).toEqual(['card'])
     })
   })

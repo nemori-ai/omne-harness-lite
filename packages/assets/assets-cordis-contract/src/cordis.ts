@@ -47,6 +47,7 @@ import {
 
 const categoriesContract: Contract = Object.freeze({
   name: ASSET_CATEGORIES_POINT,
+  title: '资产的类别',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,
@@ -153,7 +154,11 @@ export class AssetCategoriesService extends Service {
     // Read from `this`, not captured: Cordis gives the caller its own view, so the items are put as the caller.
     const { tree } = this
     this.ctx.effect(
-      () => tree.put(by => [contributed(admitted, by), declare(point)]),
+      () =>
+        tree.put(by => [
+          contributed(admitted, by),
+          declare({ ...point, title: admitted.display.title }),
+        ]),
       'assetCategories.contribute',
     )
   }

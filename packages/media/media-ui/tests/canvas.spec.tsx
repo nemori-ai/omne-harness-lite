@@ -17,11 +17,13 @@ type Reference = Readonly<{ kind: string; ref: string }>
 
 /** The canvas's points as its interface module declares them; the case stands in for that host. */
 const element = defineRenderPoint<MediaCanvasElementSubject>({
+  title: 'test',
   name: 'canvas.element',
   key: 'the name of the kind',
   summary: 'How a thing of one kind is drawn on the canvas.',
 })
 const intake = defineRenderPoint<MediaCanvasIntakeSubject>({
+  title: 'test',
   name: 'canvas.intake',
   key: 'what is handed onto the canvas',
   summary: 'How what is dropped onto the canvas becomes a reference put on it.',

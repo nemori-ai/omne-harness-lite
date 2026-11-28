@@ -33,7 +33,8 @@ function scripted(reports: CallReport[]) {
       return { kind: 'uncertain' }
     },
   }
-  return { requests, client: createClient(notesProtocol, createInProcessTransport(peer)) }
+  const transport = createInProcessTransport(peer)
+  return { requests, transport, client: createClient(notesProtocol, transport) }
 }
 
 const NOTE = object({ noteId: 'n-1', title: 'first' })
@@ -82,7 +83,62 @@ describe('a client from one protocol contract', () => {
     )
     expect(refusal).toBeInstanceOf(ClientRequestError)
     expect((refusal as Error).name).toBe('ClientRequestError')
+    expect((refusal as ClientRequestError).rejection).toEqual({
+      at: ['noteId'],
+      given: '7',
+      allows: 'a text that is not empty',
+    })
     expect(requests).toEqual([])
+  })
+
+  it('does not write back what was given to an operation that carries a credential', async () => {
+    const withCredential = {
+      ...notesProtocol,
+      operations: {
+        ...notesProtocol.operations,
+        'read-note': { ...notesProtocol.operations['read-note'], carriesCredential: true as const },
+      },
+    }
+    const { requests, transport } = scripted([])
+    const client = createClient(withCredential, transport)
+    const refusal = await client['read-note']({ noteId: 7 as unknown as string }).catch(
+      (error: unknown) => error,
+    )
+    expect((refusal as ClientRequestError).rejection).toEqual({
+      at: ['noteId'],
+      given: 'withheld: this operation carries a credential',
+      allows: 'a text that is not empty',
+    })
+    expect((refusal as Error).message).not.toContain('7;')
+    expect(requests).toEqual([])
+  })
+
+  it('reads why the other end refused a message', async () => {
+    const said: JsonValue = {
+      kind: 'object',
+      entries: [
+        {
+          key: 'rejection',
+          value: {
+            kind: 'object',
+            entries: [
+              { key: 'at', value: { kind: 'array', items: [{ kind: 'string', value: 'noteId' }] } },
+              { key: 'given', value: { kind: 'string', value: '7' } },
+              { key: 'allows', value: { kind: 'string', value: 'a text that is not empty' } },
+            ],
+          },
+        },
+      ],
+    }
+    const { client } = scripted([{ kind: 'answered', outcome: 'protocol-rejected', body: said }])
+    expect(await client['read-note']({ noteId: 'n-1' })).toEqual({
+      outcome: 'protocol-rejected',
+      rejection: { at: ['noteId'], given: '7', allows: 'a text that is not empty' },
+    })
+    const { client: quiet } = scripted([
+      { kind: 'answered', outcome: 'protocol-rejected', body: { kind: 'object', entries: [] } },
+    ])
+    expect(await quiet['read-note']({ noteId: 'n-1' })).toEqual({ outcome: 'protocol-rejected' })
   })
 })
 

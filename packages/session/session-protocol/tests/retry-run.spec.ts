@@ -33,16 +33,16 @@ describe('retry-run', () => {
     ['without a control identity', { tenant, session, run: 'run-1' }],
     ['with an urgency', { tenant, session, controlId: 'control', run: 'run-1', urgency: 'force' }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readSample(retry.body, sample)).toEqual({ ok: false })
+    expect(readSample(retry.body, sample).ok).toBe(false)
   })
 
   it('answers succeeded with whether the answer is recalled, and the other outcomes empty', () => {
     expectRoundTrip(retry.outcomes.succeeded, { recovered: false })
     expectRoundTrip(retry.outcomes.succeeded, { recovered: true })
-    expect(readSample(retry.outcomes.succeeded, {})).toEqual({ ok: false })
+    expect(readSample(retry.outcomes.succeeded, {}).ok).toBe(false)
     for (const outcome of ['invalid', 'archived', 'frozen', 'not-found', 'no-change'] as const) {
       expect(expectRoundTrip(retry.outcomes[outcome], {})).toEqual({})
-      expect(readSample(retry.outcomes[outcome], { reason: 'x' })).toEqual({ ok: false })
+      expect(readSample(retry.outcomes[outcome], { reason: 'x' }).ok).toBe(false)
     }
   })
 })

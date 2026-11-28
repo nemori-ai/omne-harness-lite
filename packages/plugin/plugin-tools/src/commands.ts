@@ -10,6 +10,7 @@ import {
 } from './client.ts'
 import type { ClientTree, ExtensionSight } from './port.ts'
 import type { ArgumentsOf, ExtensionPointsCommandName } from './protocol.ts'
+import { PROTOCOL_KEY, protocolLines } from './protocol-shape.ts'
 import { CANNOT_READ, done, invalid, unavailable, type Answer } from './results.ts'
 import type { TreeChange } from './revisions.ts'
 import { pointText, rulesOf } from './rules.ts'
@@ -141,7 +142,35 @@ const find: Handler<'find'> = (sight, { query, side, limit = FIND_LIMIT }) => {
   return done('find', lines, sight.revisions.current())
 }
 
+/** One protocol the tenant can call, as its contract says it; one it cannot is not there, with the nearest it can. */
+function protocolShown(sight: ExtensionSight, asked: string, name: string, major: number): Answer {
+  const read = <T>(of: () => T): T | 'unavailable' => {
+    try {
+      return of()
+    } catch {
+      return 'unavailable'
+    }
+  }
+  const shown = read(() => sight.protocol?.(name, major) ?? 'unavailable')
+  if (shown === 'unavailable')
+    return unavailable('show', 'the protocols cannot be read now; nothing was read')
+  if (shown !== 'not-found') return done('show', protocolLines(shown), sight.revisions.current())
+  const known = read(() => sight.protocols?.() ?? 'unavailable')
+  const close = known === 'unavailable' ? [] : nearest(asked, known)
+  return invalid(
+    [
+      `there is no protocol "${asked}" this tenant can call now.`,
+      close.length === 0 ? '' : `Nearest: ${close.join(', ')}.`,
+      'show access.protocols lists the protocols there are now.',
+    ]
+      .filter(part => part !== '')
+      .join(' '),
+  )
+}
+
 const show: Handler<'show'> = (sight, { name }) => {
+  const protocol = PROTOCOL_KEY.exec(name)
+  if (protocol !== null) return protocolShown(sight, name, protocol[1]!, Number(protocol[2]))
   const read = seen(sight)
   if (read.server === 'unavailable' && read.clients === 'unavailable')
     return unavailable('show', NEITHER)
@@ -153,7 +182,8 @@ const show: Handler<'show'> = (sight, { name }) => {
     if (contract !== undefined) {
       const form = serverForm(read.server, name)
       const admission = sight.admission?.('server', name, rulesOf(contract), form)
-      blocks.push(serverPointLines(read.server, contract, sight.scope, admission))
+      const titleOf = sight.memberTitle ?? (() => undefined)
+      blocks.push(serverPointLines(read.server, contract, sight.scope, admission, titleOf))
     }
     names.push(...points.keys())
   }

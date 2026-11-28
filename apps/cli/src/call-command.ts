@@ -4,6 +4,7 @@ import {
   encodeTenantText,
   guestContract,
   type ProtocolContract,
+  rejectionText,
 } from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -45,8 +46,8 @@ async function bodyOf(given: string | undefined): Promise<Readonly<{ body: unkno
 }
 
 /** Why `scoped` gave no protocols to call: the kind of result, or the outcome it answered. */
-const unreadOf = (result: CallResult | undefined): string =>
-  result === undefined ? 'refused' : result.kind === 'response' ? result.outcome : result.kind
+const unreadOf = (result: CallResult): string =>
+  result.kind === 'response' ? result.outcome : result.kind
 
 async function runCall(
   args: readonly string[],
@@ -92,8 +93,11 @@ async function runCall(
   }
   const messageId = environment.services.newId()
   const result = await link.call(protocol, operation, given.body as never, messageId)
-  if (result === undefined)
-    return said(output, `the body does not fit the rule of ${named} ${operation}`)
+  if (result.kind === 'rejected')
+    return said(
+      output,
+      `the body does not fit the rule of ${named} ${operation}: ${rejectionText(result.rejection)}`,
+    )
   if (result.kind !== 'response' || result.outcome !== 'succeeded')
     return report(NAME, result, { messageId, tenant: encodeTenantText(tenant) }, output)
   try {

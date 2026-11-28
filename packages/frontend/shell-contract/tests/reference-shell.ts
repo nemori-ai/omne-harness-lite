@@ -44,7 +44,7 @@ export async function startShell(points: readonly string[] = TEST_POINTS): Promi
   await root.plugin(DynamisService)
   const host = root.plugin(ReferenceShell)
   await host
-  for (const name of points) definePoint({ name, subject: text }).declare(root.shell)
+  for (const name of points) definePoint({ title: 'test', name, subject: text }).declare(root.shell)
   return { root, shell: root.shell as unknown as ReferenceShell, host }
 }
 

@@ -273,8 +273,8 @@ describe('scopes are named, never printed raw', () => {
     expect(tree).toContain('mine#1  [effective, this tenant]')
     expect(tree).toContain('wide#1  [effective, another scope]')
     expect(tree).toContain('Shell  [effective, shell#1, deployment]')
-    expect(show).toContain('  mine   mine#1 this tenant   [in effect]')
-    expect(show).toContain('  wide   wide#1 another scope   [in effect]')
+    expect(show).toContain('  skill.skills「mine」   mine#1 this tenant   [in effect]')
+    expect(show).toContain('  skill.skills「wide」   wide#1 another scope   [in effect]')
   })
 
   it('in changes', async () => {

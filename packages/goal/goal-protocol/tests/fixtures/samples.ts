@@ -35,7 +35,7 @@ export function expectRoundTrip(codec: AnyCodec, sample: unknown): unknown {
 }
 
 export const rejected = (codec: AnyCodec, sample: unknown) =>
-  expect(readSample(codec, sample)).toEqual({ ok: false })
+  expect(readSample(codec, sample).ok).toBe(false)
 
 const state = {
   status: 'paused',

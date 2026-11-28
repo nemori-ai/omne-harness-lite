@@ -7,7 +7,13 @@ import type {
 } from '@omne-harness/access-cordis-contract'
 import type { Scope } from '@omne-harness/dynamis'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import { livesAt, type Codec, type OperationContract } from '@omne-harness/public-contract'
+import {
+  livesAt,
+  withheld,
+  type Codec,
+  type OperationContract,
+  type Rejection,
+} from '@omne-harness/public-contract'
 import {
   createObservationHub,
   type HubDiagnosticCode,
@@ -24,7 +30,14 @@ import {
   type SettleNote,
 } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
-import { EMPTY_BODY, writeAnswer, writeBare, writeNotExecuted, type NotExecuted } from './answer.ts'
+import {
+  EMPTY_BODY,
+  rejectedBody,
+  writeAnswer,
+  writeBare,
+  writeNotExecuted,
+  type NotExecuted,
+} from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
 import { establish, proofOf, tenantOf, type Established, type SignedIn } from './identity-rule.ts'
@@ -219,16 +232,54 @@ type Opening =
       kind: 'refused'
       code: 'access.message-id-rejected' | 'access.revision-rejected'
       carried: Readonly<{ messageId?: string }>
+      rejection: Rejection
     }>
 
 /** The message id, then the revision the call is read and written at: the lesser of the two ends'. */
+const HEADER_SHOWN = 120
+
+const headerText = (value: string | readonly string[] | undefined): string => {
+  if (value === undefined) return 'missing'
+  if (typeof value !== 'string') return `given ${String(value.length)} times`
+  const shown = JSON.stringify(value)
+  return shown.length <= HEADER_SHOWN
+    ? shown
+    : `${shown.slice(0, HEADER_SHOWN)}… (${String(value.length)} characters)`
+}
+
 function openingOf(req: IncomingMessage, entered: Entered): Opening {
   const messageId = messageIdOf(req)
   if (messageId === undefined)
-    return { kind: 'refused', code: 'access.message-id-rejected', carried: {} }
+    return {
+      kind: 'refused',
+      code: 'access.message-id-rejected',
+      carried: {},
+      rejection: {
+        at: [],
+        given: `the header omne-message-id ${headerText(req.headers['omne-message-id'])}`,
+        allows: 'one omne-message-id header: 1 to 128 visible ASCII characters, no space',
+      },
+    }
   const claimed = claimedRevision(req)
   if (claimed === undefined || !livesAt(entered.member.contract.since, claimed))
-    return { kind: 'refused', code: 'access.revision-rejected', carried: { messageId } }
+    return {
+      kind: 'refused',
+      code: 'access.revision-rejected',
+      carried: { messageId },
+      rejection:
+        claimed === undefined
+          ? {
+              at: [],
+              given: `the header omne-contract-revision ${headerText(req.headers['omne-contract-revision'])}`,
+              allows:
+                'one omne-contract-revision header: a whole number from 1, without a leading zero',
+            }
+          : {
+              at: [],
+              given: `contract revision ${String(claimed)}`,
+              allows: `a contract revision this ${entered.member.kind} lives at: ${String(entered.member.contract.since ?? 1)} or later`,
+            },
+    }
   return { kind: 'opened', messageId, revision: Math.min(entered.revision, claimed) }
 }
 
@@ -245,18 +296,35 @@ const quietly =
     } catch {}
   }
 
+const refused = (rejection: Rejection, close: boolean) =>
+  ({ outcome: 'protocol-rejected', body: rejectedBody(rejection), close }) as const
+
+const overLimit = (maxBytes: number): Rejection => ({
+  at: [],
+  given: 'a body past the limit',
+  allows: `a body of at most ${String(maxBytes)} bytes`,
+})
+
 type BodyOutcome =
   | Readonly<{ kind: 'read'; value: unknown }>
-  | Readonly<{ kind: 'over' }>
-  | Readonly<{ kind: 'rejected' }>
+  | Readonly<{ kind: 'over'; maxBytes: number }>
+  | Readonly<{ kind: 'rejected'; rejection: Rejection }>
   | Readonly<{ kind: 'interrupted'; by: Interruption }>
 
-type BodyRule = Readonly<{ limit: OperationContract['limit']; codec: Codec<unknown> }>
+type BodyRule = Readonly<{
+  limit: OperationContract['limit']
+  codec: Codec<unknown>
+  credential: boolean
+}>
 
 function bodyRuleOf(member: Entered['member']): BodyRule {
   return member.kind === 'operation'
-    ? { limit: member.contract.limit, codec: member.contract.body }
-    : { limit: member.contract.limit ?? 'small', codec: member.contract.open }
+    ? {
+        limit: member.contract.limit,
+        codec: member.contract.body,
+        credential: member.contract.carriesCredential === true,
+      }
+    : { limit: member.contract.limit ?? 'small', codec: member.contract.open, credential: false }
 }
 
 async function readBodyOf(
@@ -268,14 +336,26 @@ async function readBodyOf(
 ): Promise<BodyOutcome> {
   const maxBytes = settings.bodyLimits[rule.limit]
   const read = await readBody(req, maxBytes, watch.halt)
-  if (read.kind === 'over') return { kind: 'over' }
+  if (read.kind === 'over') return { kind: 'over', maxBytes }
   if (read.kind === 'aborted') return { kind: 'interrupted', by: 'gone' }
   if (read.kind === 'stopped') return { kind: 'interrupted', by: watch.interruption() ?? 'gone' }
   const limits = settings.readLimits(maxBytes)
   const json = readJsonBytes(read.bytes, limits)
-  if (json.kind !== 'ok') return { kind: 'rejected' }
+  if (json.kind !== 'ok')
+    return {
+      kind: 'rejected',
+      rejection: {
+        at: [],
+        given: `a body that does not read as JSON (${json.kind})`,
+        allows: 'one JSON text within the limits of this operation',
+      },
+    }
   const decoded = rule.codec.read(json.value, limits, revision)
-  return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
+  if (decoded.ok) return { kind: 'read', value: decoded.value }
+  return {
+    kind: 'rejected',
+    rejection: rule.credential ? withheld(decoded.rejection) : decoded.rejection,
+  }
 }
 
 async function checkLogin(identity: AccessIdentity, login: SignedIn): Promise<LoginCheck> {
@@ -368,16 +448,18 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     const opening = openingOf(req, entered)
     if (opening.kind === 'refused') {
       note(opening.code)
-      const refusal = { outcome: 'protocol-rejected', body: EMPTY_BODY, close: true } as const
-      writeAnswer(res, { ...refusal, ...opening.carried })
+      writeAnswer(res, { ...refused(opening.rejection, true), ...opening.carried })
       entered.leave()
       return
     }
     const { messageId, revision } = opening
     // Before the body is read in full, an answer closes the connection: otherwise Node would read
     // the rest of the body off the wire to reuse it.
-    const early = (outcome: 'denied' | 'basis-unavailable' | 'protocol-rejected'): void => {
-      writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: true })
+    const early = (
+      outcome: 'denied' | 'basis-unavailable' | 'protocol-rejected',
+      body = EMPTY_BODY,
+    ): void => {
+      writeAnswer(res, { outcome, body, messageId, close: true })
       entered.leave()
     }
     const interrupted = (by: Interruption): void => {
@@ -408,15 +490,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
           return interrupted(failure.by)
         case 'over':
           note('access.body-over-limit')
-          return early('protocol-rejected')
+          return early('protocol-rejected', rejectedBody(overLimit(failure.maxBytes)))
         case 'rejected':
           note('access.body-rejected')
-          writeAnswer(res, {
-            outcome: 'protocol-rejected',
-            body: EMPTY_BODY,
-            messageId,
-            close: false,
-          })
+          writeAnswer(res, { ...refused(failure.rejection, false), messageId })
           entered.leave()
       }
     }

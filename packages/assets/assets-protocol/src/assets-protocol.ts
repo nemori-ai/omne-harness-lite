@@ -98,6 +98,11 @@ const assetRow = object({
 })
 /** What a line of an effect says: empty where there is nothing to say, such as a place in effect. */
 const said = { kind: 'string' } as const
+/** What a person sees a member and its point called in the app; there when one is written, from revision 3. */
+const titles = {
+  title: { rule: text, optional: true, since: 3 },
+  pointTitle: { rule: text, optional: true, since: 3 },
+} as const
 const impactLine = object({
   mark: { rule: literal('+', '-', '~', '!') },
   of: { rule: nullable(text) },
@@ -105,6 +110,7 @@ const impactLine = object({
   key: { rule: said },
   id: { rule: nullable(text) },
   says: { rule: said },
+  ...titles,
 })
 /** Where a held one is placed and whether each place is in effect, and what disabling or removing it takes back. */
 const assetEffect = object({
@@ -119,6 +125,7 @@ const assetEffect = object({
         categoryTitle: { rule: nullable(text) },
         standing: { rule: text },
         says: { rule: said },
+        ...titles,
       }),
     ),
   },

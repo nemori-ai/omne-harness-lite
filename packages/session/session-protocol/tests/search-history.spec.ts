@@ -62,7 +62,7 @@ describe('search-history', () => {
     ['with a limit of zero', { ...least, limit: 0 }],
     ['with a field it does not know', { ...least, roles: ['user'] }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readSample(search.body, sample)).toEqual({ ok: false })
+    expect(readSample(search.body, sample).ok).toBe(false)
   })
 
   it('answers a page that is through, and one that says why it is not', () => {
@@ -93,13 +93,13 @@ describe('search-history', () => {
   ])('does not answer %s', (_label, sample) => {
     const page =
       'reason' in sample ? { hits: [], next: null, complete: false, incomplete: sample } : sample
-    expect(readSample(search.outcomes.succeeded, page)).toEqual({ ok: false })
+    expect(readSample(search.outcomes.succeeded, page).ok).toBe(false)
   })
 
   it('says which part of a search it refuses and why, and nothing with limited', () => {
     expectRoundTrip(search.outcomes.invalid, { field: 'query', reason: 'pattern-invalid' })
     expectRoundTrip(search.outcomes.invalid, { field: 'cursor', reason: 'the index was rebuilt' })
-    expect(readSample(search.outcomes.invalid, { field: 'tenant', reason: 'x' })).toEqual({
+    expect(readSample(search.outcomes.invalid, { field: 'tenant', reason: 'x' })).toMatchObject({
       ok: false,
     })
     expect(expectRoundTrip(search.outcomes.limited, {})).toEqual({})

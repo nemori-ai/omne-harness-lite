@@ -127,7 +127,16 @@ describe('an observation goes through the whole pipeline', () => {
       body: JSON.stringify({ noteId: 'x'.repeat(3000) }),
     })
     expect(over.status).toBe(400)
-    expect(over.json).toEqual({ outcome: 'protocol-rejected', body: {} })
+    expect(over.json).toEqual({
+      outcome: 'protocol-rejected',
+      body: {
+        rejection: {
+          at: [],
+          given: 'a body past the limit',
+          allows: 'a body of at most 2048 bytes',
+        },
+      },
+    })
     const big = open(fixture, 'watch-tenant', {
       body: JSON.stringify({ noteId: 'x'.repeat(3000) }),
     })
@@ -135,7 +144,16 @@ describe('an observation goes through the whole pipeline', () => {
     big.close()
     const outside = await call(fixture.port, 'watch-note', { body: '{"noteId":"n-1","extra":1}' })
     expect(outside.status).toBe(400)
-    expect(outside.json).toEqual({ outcome: 'protocol-rejected', body: {} })
+    expect(outside.json).toEqual({
+      outcome: 'protocol-rejected',
+      body: {
+        rejection: {
+          at: ['extra'],
+          given: '1',
+          allows: 'no field "extra" here: an object with the fields noteId',
+        },
+      },
+    })
   })
 })
 

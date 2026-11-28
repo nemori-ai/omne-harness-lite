@@ -1,4 +1,4 @@
-import type { CategoryEffect, PublishContent } from '@omne-harness/assets'
+import type { CategoryEffect, PublishContent, RefusedLine } from '@omne-harness/assets'
 import {
   IMAGE_SUFFIXES,
   MANIFEST_FILE,
@@ -20,6 +20,7 @@ export type ToldByClient = Readonly<{
       item: Readonly<{ kind: string }>
       binding: string
       scopes?: Readonly<{ why: string; note: string }>
+      title?: string
     }>
     dataKeys?: readonly Readonly<{ name: string }>[]
   }>[]
@@ -29,6 +30,7 @@ export type ToldByClient = Readonly<{
     state: 'loaded' | 'failed' | 'held'
     reason: string | null
     waiting?: readonly string[]
+    refused?: readonly RefusedLine[]
   }>[]
 }>
 
@@ -119,7 +121,8 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
       const names = dataKeys === undefined ? {} : { dataKeys: dataKeys.map(each => each.name) }
       const scopes = contract?.scopes
       const closed = scopes === undefined ? {} : { closed: { why: scopes.why, note: scopes.note } }
-      known.set(name, { name, side: 'client', takes, when, ...names, ...closed })
+      const title = contract?.title === undefined ? {} : { title: contract.title }
+      known.set(name, { name, side: 'client', takes, when, ...names, ...closed, ...title })
     }
   return [...known.values()]
 }
@@ -129,9 +132,10 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
 function toldOf(clients: readonly ToldByClient[], name: string, version: string) {
   return clients.map(({ client, plugins }) => {
     const one = plugins.find(each => each.name === name && `sha256:${each.version}` === version)
+    const refused = one?.refused === undefined ? {} : { refused: one.refused }
     if (one?.waiting !== undefined)
-      return { client, state: 'waiting' as const, reason: one.waiting.join(', ') }
-    return { client, state: one?.state ?? null, reason: one?.reason ?? null }
+      return { client, state: 'waiting' as const, reason: one.waiting.join(', '), ...refused }
+    return { client, state: one?.state ?? null, reason: one?.reason ?? null, ...refused }
   })
 }
 
@@ -190,6 +194,10 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           held: sameLayer(mine.manifest, mine.name, holding.plugins),
           clients: clients === undefined ? null : toldOf(clients, mine.name, mine.held.version),
           server: server === null ? null : serverTold(server.get(mine.name), mine.held.version),
+          points: [
+            ...ports.serverPoints(),
+            ...(clients === undefined ? [] : clientPoints(clients)),
+          ],
         })
         return { kind: 'placed', ...told, advice: joined([told.advice, wornAdvice(mine.manifest)]) }
       },

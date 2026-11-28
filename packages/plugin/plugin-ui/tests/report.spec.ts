@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FloorPort } from '@omne-harness/plugin-ui'
 import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
-import { STYLE_POINT, definePart } from '@omne-harness/shell-contract'
+import { STYLE_POINT, definePart, type Trouble } from '@omne-harness/shell-contract'
 import { ReferenceShell, serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
 import { fakeSource, given } from './support/fake-source.ts'
 
@@ -14,6 +14,22 @@ class Signed extends ReferenceShell {
   constructor(ctx: Context) {
     super(ctx)
     this.tenant = ALICE
+  }
+}
+
+/** A shell that cannot read a red send button: it says so of the place, not of who put it. */
+class Fussy extends Signed {
+  protected override troubles(): readonly Trouble[] {
+    return this.registry()
+      .placed.filter(each => each.point === STYLE_POINT && each.key === 'notes.send')
+      .map(each => ({
+        point: each.point,
+        key: each.key,
+        id: each.id,
+        at: ['base', 'color'],
+        given: '"red"',
+        allows: 'a color of the tokens',
+      }))
   }
 }
 
@@ -47,8 +63,8 @@ type Sent = Readonly<{
   parts: readonly Readonly<{ name: string }>[]
 }>
 
-async function world(floor?: FloorPort, reports?: boolean) {
-  const started = await startShellOf(Signed)
+async function world(floor?: FloorPort, reports?: boolean, shell: typeof Signed = Signed) {
+  const started = await startShellOf(shell)
   let notes: Context | undefined
   await started.root.plugin({
     name: 'notes-ui',
@@ -218,5 +234,29 @@ describe('what the client tells the server of itself', () => {
     await t.module.dispose()
     title.declare(t.notes.shell)
     expect(await t.quiet()).toBe(1)
+  })
+})
+
+describe("what the host could not read of a plugin, told as that plugin's refused", () => {
+  it('names the plugin that put the item, with where, given and allows', async () => {
+    const t = await world(undefined, undefined, Fussy)
+    t.source.set(ALICE, [given('brand', 'v1', colored('red'))])
+    await vi.waitFor(() =>
+      expect(t.last()?.plugins).toEqual([
+        {
+          name: 'brand',
+          version: 'v1',
+          state: 'loaded',
+          reason: null,
+          refused: [
+            {
+              at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/u),
+              target: `${STYLE_POINT}「notes.send」`,
+              rejection: { at: ['base', 'color'], given: '"red"', allows: 'a color of the tokens' },
+            },
+          ],
+        },
+      ]),
+    )
   })
 })

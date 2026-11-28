@@ -22,12 +22,15 @@ import {
   type KeyedPoint,
   type PointSink,
   type ServiceKey,
+  type Trouble,
 } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
 import { handedNames, installOn, presentIn, type Code } from './install.ts'
 import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
+import { createRefusals, systemClock, troublesOf, type Clock } from './refusals.ts'
 import {
+  beforeRevisionFour,
   beforeRevisionThree,
   createReporter,
   describedOf,
@@ -50,6 +53,7 @@ export type PluginUiOptions = Readonly<{
   /** Where the choice of skins is drawn: the place above the list of one category of the assets page. */
   skinsAbove?: KeyedPoint<Readonly<{ category: string }>>
   reports?: boolean
+  clock?: Clock
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
@@ -78,6 +82,7 @@ function loadFor(
     clientId = () => crypto.randomUUID(),
     looks: _looks,
     reports = true,
+    clock = systemClock,
     ...pace
   } = options
   let skins: ReadonlySet<string> | undefined
@@ -86,15 +91,32 @@ function loadFor(
   const risen = floor.rise(text)
   const known = new Set(risen.want)
   const marked = new Set<string>()
+  const refusals = createRefusals(clock, () => reporter.touch())
   const loader = createLoader({
     held: risen.held ? heldOf(risen.want) : new Map(),
     install(listed) {
       const fiber = fiberOf(listed.name, listed.version)
       floor.want(text, fiber)
       known.add(fiber)
-      return installOn(shell, listed, scopeOf(listed), code)
+      refusals.clear(listed.name)
+      return installOn(shell, listed, scopeOf(listed), code, (target, rejection) =>
+        refusals.note(listed.name, target, rejection),
+      )
     },
   })
+  const seen = new Map<string, string>()
+  const ownerOf = (trouble: Trouble): string | undefined => {
+    const fibers = new Map<string, string>()
+    for (const [name, state] of loader.states())
+      if (state.kind !== 'loading') fibers.set(fiberOf(name, state.version), name)
+    return shell
+      .registry()
+      .placed.filter(
+        each => each.point === trouble.point && each.key === trouble.key && each.id === trouble.id,
+      )
+      .map(each => fibers.get(each.instance.fiber))
+      .find(name => name !== undefined)
+  }
   const mark = (held: ReadonlySet<string>): void => {
     for (const fiber of marked) {
       if (held.has(fiber)) continue
@@ -122,15 +144,22 @@ function loadFor(
   const reporter = !reports
     ? SILENT
     : createReporter(
-        () => ({
-          plugins: reportsOf(loader.states(), shell.changes().conflicts),
-          ...describedOf(shell.described()),
-          handed: handedNames(code, shell),
-        }),
+        () => {
+          const described = shell.described()
+          const troubled = troublesOf(described.troubles, ownerOf, seen, clock)
+          const refused = (name: string) => [...refusals.of(name), ...(troubled.get(name) ?? [])]
+          return {
+            plugins: reportsOf(loader.states(), shell.changes().conflicts, refused),
+            ...describedOf(described),
+            handed: handedNames(code, shell),
+          }
+        },
         async reported => {
           const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
-          const answer = await send(reported)
-          if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          for (const told of [reported, beforeRevisionFour(reported)]) {
+            const answer = await send(told)
+            if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          }
           return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
         },
       )
@@ -145,7 +174,11 @@ function loadFor(
     recheck()
     if (listed) reporter.touch()
   }
-  const unwatch = [shell.watchAdoptions(told), shell.watchChanges(told)]
+  const unwatch = [
+    shell.watchAdoptions(told),
+    shell.watchChanges(told),
+    shell.subscribe('pages', told),
+  ]
   loader.watch(settle)
   const stopFollowing = followWanted({
     client,

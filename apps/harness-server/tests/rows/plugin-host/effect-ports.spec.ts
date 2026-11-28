@@ -19,6 +19,7 @@ const contract = (name: string, kind: Contract['item']['kind'], binding: Contrac
     keys: 'private',
     conformance: null,
     summary: `The ${name} point.`,
+    title: name,
   }) satisfies Contract
 
 function registryWith(contracts: readonly Contract[]): Registry {
@@ -55,10 +56,22 @@ describe('the points of the server tree, as a plugin member is checked against t
 
   it('the point of a category takes what the category is made from; another takes data or code as declared', () => {
     expect(serverPointsOf(registry, categories)).toEqual([
-      { name: 'agent.agents', side: 'server', takes: 'data', when: 'running' },
-      { name: 'loop.steps', side: 'server', takes: 'code', when: 'build' },
-      { name: 'skill.skills', side: 'server', takes: 'directory', when: 'running' },
-      { name: 'tool.cards', side: 'server', takes: 'data', when: 'running' },
+      {
+        name: 'agent.agents',
+        side: 'server',
+        takes: 'data',
+        when: 'running',
+        title: 'agent.agents',
+      },
+      { name: 'loop.steps', side: 'server', takes: 'code', when: 'build', title: 'loop.steps' },
+      {
+        name: 'skill.skills',
+        side: 'server',
+        takes: 'directory',
+        when: 'running',
+        title: 'skill.skills',
+      },
+      { name: 'tool.cards', side: 'server', takes: 'data', when: 'running', title: 'tool.cards' },
     ])
   })
 

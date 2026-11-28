@@ -7,6 +7,7 @@ import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testi
 type Call = Readonly<{ name: string; state: string }>
 
 const calls = defineRenderPoint<Call>({
+  title: 'test',
   name: 'notes.tool-call',
   key: 'the name of the tool',
   summary: 'How a call of one tool is drawn.',
@@ -220,6 +221,7 @@ describe('a point that draws by key', () => {
 
   it('a point whose keys the server tells reads them from what the connection tells, and says so when it cannot', () => {
     const rows = defineRenderPoint<Call>({
+      title: 'test',
       name: 'notes.entry',
       key: 'the name of the source',
       summary: 'How a row is drawn, by its source.',

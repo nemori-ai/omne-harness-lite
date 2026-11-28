@@ -241,7 +241,7 @@ describe('a body reads as the governance family reads it', () => {
       invalid.push(missing)
     }
     for (const sample of invalid) {
-      expect(identityProtocol.operations[name].body.read(json(sample), limits)).toEqual({
+      expect(identityProtocol.operations[name].body.read(json(sample), limits)).toMatchObject({
         ok: false,
       })
     }
@@ -269,7 +269,7 @@ describe('a body reads as the governance family reads it', () => {
     const body = { tenantId: JSON.stringify({ organization }) }
     expect(
       identityProtocol.operations['switch-current-tenant'].body.read(json(body), limits),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })
 
@@ -304,6 +304,6 @@ describe('C5: issue-login carries the credential', () => {
 
   it('rejects a succeeded body without loginId', () => {
     const { loginId: _, ...withoutId } = issued
-    expect(succeeded.read(json(withoutId), limits)).toEqual({ ok: false })
+    expect(succeeded.read(json(withoutId), limits).ok).toBe(false)
   })
 })

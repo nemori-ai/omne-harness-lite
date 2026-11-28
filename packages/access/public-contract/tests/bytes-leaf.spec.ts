@@ -77,7 +77,7 @@ describe.each([['with the base64 of the platform'], ['without it']])('the bytes 
     ['null', { kind: 'null' }],
   ] as const)('rejects %s', (_label, value) => {
     off()
-    expect(part.read(holding(value as JsonValue), limits)).toEqual({ ok: false })
+    expect(part.read(holding(value as JsonValue), limits).ok).toBe(false)
   })
 
   it.each([
@@ -85,7 +85,7 @@ describe.each([['with the base64 of the platform'], ['without it']])('the bytes 
     ['an array of numbers', [65]],
     ['an array buffer', new ArrayBuffer(1)],
   ])('does not write %s as bytes', (_label, value) => {
-    expect(part.write({ bytes: value as never }, limits)).toEqual({ ok: false })
+    expect(part.write({ bytes: value as never }, limits).ok).toBe(false)
   })
 
   it('carries a megabyte there and back fast enough to carry files (the middle of five runs)', () => {

@@ -12,6 +12,7 @@ import { startShell as startBare } from './fixtures/reference-shell.ts'
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const detail = definePoint<{ readonly session: string; readonly call: string }>({
+  title: 'test',
   name: 'session.call-detail',
   subject: {
     encode: value => JSON.stringify([value.session, value.call]),

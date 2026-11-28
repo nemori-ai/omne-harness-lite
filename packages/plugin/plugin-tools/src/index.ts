@@ -5,7 +5,16 @@ export {
   extensionPointsToolModule,
 } from './author.ts'
 export { attachExtensionSight, extensionSightOf } from './port.ts'
-export type { Admission, ClientTree, ExtensionSight, PointRules } from './port.ts'
+export type {
+  Admission,
+  ClientTree,
+  ExtensionSight,
+  FieldData,
+  PointRules,
+  ProtocolRules,
+  ProtocolShown,
+  RuleData,
+} from './port.ts'
 export {
   extensionPointsAdoption,
   extensionPointsCommandNames,

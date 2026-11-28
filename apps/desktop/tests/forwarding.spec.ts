@@ -187,6 +187,21 @@ describe('登录 cookie', () => {
     expect(page.setCookies).toEqual([])
   })
 
+  it('登录被拒：服务端拒收答被拒，不写成不可用；不签发 cookie', async () => {
+    const { page, server } = start()
+    server.answer('identity/v1 issue-login', () =>
+      answered('protocol-rejected', {
+        rejection: {
+          at: ['loginIdentifier'],
+          given: 'withheld: this operation carries a credential',
+          allows: 'a text that is not empty',
+        },
+      }),
+    )
+    expect(await page.login()).toEqual({ result: 'rejected' })
+    expect(page.setCookies).toEqual([])
+  })
+
   it('已经带着 cookie 再登录：答不可用，不向服务端发登录', async () => {
     const { page, server } = start()
     await page.login()

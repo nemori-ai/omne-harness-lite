@@ -15,6 +15,7 @@ import {
 } from '../../../src/rows/plugin-server/service.ts'
 
 const LABELS: Contract = {
+  title: 'test',
   name: 'notes.labels',
   tree: 'server',
   arity: 'keyed-one',

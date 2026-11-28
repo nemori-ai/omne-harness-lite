@@ -488,7 +488,10 @@ html[data-face='back'] .booting {
 
 .shell-view *,
 .shell-view *::before,
-.shell-view *::after {
+.shell-view *::after,
+.shell-viewing *,
+.shell-viewing *::before,
+.shell-viewing *::after {
   animation: none !important;
   transition: none !important;
 }

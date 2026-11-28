@@ -17,6 +17,7 @@ type Holding = Readonly<{ category: string; name: string }>
 
 /** The point the assets module hosts; the case stands in for it and declares it. */
 const holding = defineKeyedPoint<Holding>({
+  title: 'test',
   name: 'assets.holding',
   subject: { encode: value => JSON.stringify(value), decode: text => JSON.parse(text) as Holding },
 })

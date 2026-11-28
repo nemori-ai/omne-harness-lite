@@ -25,6 +25,7 @@ export const PROTOCOLS = 'access.protocols'
 
 export const protocolsContract: Contract = Object.freeze({
   name: PROTOCOLS,
+  title: '对客户端开放的协议',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

@@ -29,7 +29,7 @@ describe('background-call', () => {
       { tenant, session, controlId: 'control', producer: { kind: 'tool', call: '' } },
       { tenant, session, producer },
     ])
-      expect(readSample(background.body, sample)).toEqual({ ok: false })
+      expect(readSample(background.body, sample).ok).toBe(false)
   })
 
   it('answers requested, or background when the relation is already established', () => {
@@ -37,7 +37,7 @@ describe('background-call', () => {
       expectRoundTrip(background.outcomes.succeeded, { kind, controlId: 'control', producer })
     expect(
       readSample(background.outcomes.succeeded, { kind: 'stopped', controlId: 'c', producer }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })
 
@@ -97,6 +97,6 @@ describe('list-background-calls', () => {
       { ...item('b1', 'stopped') },
       { ...item('b1', 'running'), source: 'nowhere' },
     ])
-      expect(readSample(list.outcomes.succeeded, { calls: [wrong] })).toEqual({ ok: false })
+      expect(readSample(list.outcomes.succeeded, { calls: [wrong] }).ok).toBe(false)
   })
 })

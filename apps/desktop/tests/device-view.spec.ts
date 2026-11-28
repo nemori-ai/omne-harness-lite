@@ -16,7 +16,11 @@ const ASKED: ViewAsked = {
 type Listener = (...args: never[]) => void
 
 /** A window whose page mounts or not, then says the marks given, one per read. */
-function standIn(log: string[], name: string, page: { mounts: boolean; marks: (string | null)[] }) {
+function standIn(
+  log: string[],
+  name: string,
+  page: { mounts: boolean; marks: (string | null)[]; structure?: string },
+) {
   const listeners = new Map<string, Set<Listener>>()
   let destroyed = false
   const emit = (event: string, ...args: unknown[]) => {
@@ -34,6 +38,7 @@ function standIn(log: string[], name: string, page: { mounts: boolean; marks: (s
       isDestroyed: () => destroyed,
       executeJavaScript: async code => {
         if (code.includes('booting')) return page.mounts
+        if (code.includes('data-view-structure')) return page.structure ?? null
         return page.marks.length > 1 ? page.marks.shift() : page.marks[0]
       },
     },
@@ -159,5 +164,26 @@ describe('POST /device/view', () => {
     const { route } = routeWith([])
     expect(route(new Request('omne-app://app/device/screen'))).toBeUndefined()
     expect((await route(new Request(`omne-app://app${DEVICE_VIEW}`)))?.status).toBe(405)
+  })
+})
+
+describe('what the drawing page drew, with its picture', () => {
+  it('a page that left what it drew answers JSON: the picture in base64, its size, and the structure', async () => {
+    const log: string[] = []
+    const structure = { page: 'notes', width: 400, height: 300, parts: [], layers: [], more: 0 }
+    const route = deviceViewRoute({
+      open: () =>
+        standIn(log, 'w', { mounts: true, marks: ['ready'], structure: JSON.stringify(structure) }),
+      deadlineMs: 1000,
+      sleep: async () => undefined,
+    })
+    const response = await route(post(ASKED))
+    expect(response?.headers.get('content-type')).toBe('application/json')
+    expect(await response?.json()).toEqual({
+      png: Buffer.from([137, 80, 78, 71]).toString('base64'),
+      width: 400,
+      height: 300,
+      structure,
+    })
   })
 })

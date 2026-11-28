@@ -31,7 +31,24 @@ export function bindReleaseAppView(
       async look(asked, signal) {
         const inspections = ctx.get(interfaceInspectionsKey)
         if (inspections === undefined || !tenant.ok) return { kind: 'unavailable', why: 'unbound' }
-        return inspections.inspect(tenant.value, asked, signal)
+        const answer = await inspections.inspect(tenant.value, asked, signal)
+        return answer.kind === 'seen' ? { kind: 'unavailable', why: 'mismatched' } : answer
+      },
+      async now(asked, signal) {
+        const inspections = ctx.get(interfaceInspectionsKey)
+        if (inspections === undefined || !tenant.ok) return { kind: 'unavailable', why: 'unbound' }
+        const answer = await inspections.inspect(tenant.value, asked, signal)
+        if (answer.kind === 'image') return { kind: 'unavailable', why: 'mismatched' }
+        if (answer.kind !== 'seen') return answer
+        const { seen, met } = answer
+        return seen.kind === 'structure'
+          ? { kind: 'seen', structure: seen.structure, met }
+          : {
+              kind: 'seen',
+              image: { bytes: seen.bytes, width: seen.width, height: seen.height },
+              ...(seen.structure !== undefined && { structure: seen.structure }),
+              met,
+            }
       },
       media: {
         async put({ mediaType, bytes }) {

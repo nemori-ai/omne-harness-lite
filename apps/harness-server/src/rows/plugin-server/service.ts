@@ -1,5 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { Kept } from '@omne-harness/plugin-protocol'
+import type { Kept, Member } from '@omne-harness/plugin-protocol'
 
 /**
  * How the server stands with the plugins of each tenant, for the rows that show it to an agent.
@@ -12,6 +12,8 @@ export abstract class PluginServerService extends Service {
   }
   /** By the name of each plugin; undefined for a tenant the server has not taken up. */
   abstract readonly states: (tenant: string) => ReadonlyMap<string, Kept> | undefined
+  /** The members of the version a fiber put, as its manifest wrote them; undefined for a fiber of no plugin. */
+  abstract readonly members: (fiber: string) => readonly Member[] | undefined
 }
 export const pluginServerKey = PluginServerService.provide
 
@@ -23,12 +25,22 @@ declare module '@deepseek-ai/cordis' {
 
 class PluginServerImpl extends PluginServerService {
   readonly states: PluginServerService['states']
-  constructor(ctx: Context, states: PluginServerService['states']) {
+  readonly members: PluginServerService['members']
+  constructor(
+    ctx: Context,
+    states: PluginServerService['states'],
+    members: PluginServerService['members'],
+  ) {
     super(ctx)
     this.states = states
+    this.members = members
   }
 }
 
-export function providePluginServer(ctx: Context, states: PluginServerService['states']) {
-  return new PluginServerImpl(ctx, states)
+export function providePluginServer(
+  ctx: Context,
+  states: PluginServerService['states'],
+  members: PluginServerService['members'] = () => undefined,
+) {
+  return new PluginServerImpl(ctx, states, members)
 }

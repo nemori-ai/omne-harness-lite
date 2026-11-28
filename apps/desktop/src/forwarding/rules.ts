@@ -71,7 +71,7 @@ const LOGIN_RESULTS: Readonly<
   unavailable: 'unavailable',
   'basis-unavailable': 'unavailable',
   'stage-not-provided': 'unavailable',
-  'protocol-rejected': 'unavailable',
+  'protocol-rejected': 'rejected',
 }
 
 type Identity = ProtocolContract['operations'][string]['identity']
@@ -185,7 +185,7 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
           credential: credentials.credential,
         })
       } catch (error) {
-        return { result: error instanceof ClientRequestError ? 'unavailable' : 'unknown' }
+        return { result: error instanceof ClientRequestError ? 'rejected' : 'unknown' }
       }
       if (answer.outcome !== 'succeeded') return { result: LOGIN_RESULTS[answer.outcome] }
       return {
