@@ -186,6 +186,7 @@ describe('two tenants, two clients (IV-4)', () => {
   })
 
   it('a tenant whose only client arrived and left has no one to ask; a leave of a tenant with none changes nothing', () => {
+    expect(run([arrive(ACME, 'c-1')]).effects).toEqual([])
     const gone = run([arrive(ACME, 'c-1'), { kind: 'leave', tenant: ACME, client: 'c-1' }]).ledger
     expect(run([ask('r-1', ACME)], gone).effects).toEqual([
       { kind: 'settle', request: 'r-1', answer: { kind: 'client-absent' } },

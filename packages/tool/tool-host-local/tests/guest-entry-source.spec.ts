@@ -132,6 +132,11 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
     expect(result.content).toMatchObject([
       { kind: 'text', text: 'done weather__forecast\n{"city":"Oslo","sky":"sunny"}' },
     ])
+    expect([result.data, result.original, result.attachments]).toEqual([
+      { kind: 'none' },
+      { kind: 'none' },
+      [],
+    ])
   })
 
   it('answers a read whose function threw with its failure, and leaves a write whose function threw unknown; neither runs again, and the ports close', async () => {
@@ -191,6 +196,10 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
         'forecast: summary is one sentence',
       )
     expect(refused({ tools: ['x'] })).toThrow('the code gives { tools }: at least one tool')
+    expect(refused({ tools: null })).toThrow('the code gives { tools }: at least one tool')
+    expect(refused({ tools: { 'forecast-x': { ...forecast, run: () => 1 } } })).toThrow(
+      'forecast-x: a tool name is lower case letters, digits and _',
+    )
   })
 
   it('says a name that is not one of its tools; a value that is not JSON is the failure of a read; a write keeps what it threw as the cause', async () => {

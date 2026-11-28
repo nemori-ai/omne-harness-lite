@@ -237,6 +237,24 @@ describe('the connection grows the clients of the protocols of the tenant its lo
     await settle()
     expect(t.keys()).toEqual([])
     expect(await held['look']!({})).toEqual({ outcome: 'unavailable' })
+    const reads = t.reads.length
+    await t.push(snapshot(2, 2))
+    expect(t.reads).toHaveLength(reads)
+  })
+
+  it('a frame that tells the same count of changes does not read again', async () => {
+    const t = await world()
+    await t.push(snapshot(1, 4))
+    const reads = t.reads.length
+    await t.push(snapshot(2, 4))
+    expect(t.reads).toHaveLength(reads)
+  })
+
+  it('a protocol whose contract the client cannot make is not put; the others are', async () => {
+    const t = await world('signed-out')
+    t.answers.push(answered(contractOf('weather'), contractOf('broken', 'number')))
+    await t.sign('signed-in')
+    expect(t.keys()).toEqual(['weather/v1'])
   })
 
   it("a new login while one is followed takes the last one's protocols and reads for the new one", async () => {
