@@ -25,10 +25,20 @@ export {
 } from './parse/shape.ts'
 export { INSPECT_REJECTIONS } from './failures.ts'
 export { projectAssetBody } from './project.ts'
+export { isSkillSourcePrefix, SKILL_ENTRY_SOURCES_POINT } from './entry-source.ts'
+export type {
+  SkillEntrySource,
+  SkillSourceEntry,
+  SkillSourceFailure,
+  SkillSourceFile,
+  SkillSourceRead,
+  SkillSourceText,
+} from './entry-source.ts'
 export type {
   ByteRange,
   CatalogEntry,
   CatalogQuery,
+  RankedDocument,
   ReadContent,
   ReadResult,
   ReadTarget,

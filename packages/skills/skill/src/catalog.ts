@@ -1,6 +1,11 @@
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
+import {
+  sameCapability,
+  type CatalogEntry,
+  type RankedDocument,
+  type SkillCatalog,
+} from '@omne-harness/skill-contract'
 import type { CatalogResolution } from '@omne-harness/skill-contract/provider'
 import { buildCorpus, rank, type Corpus, type RankingParameters } from '@omne-harness/text-search'
 import { answered, parseLawfulSet, parseVerdict } from './port-answer.ts'
@@ -117,6 +122,15 @@ function ranked(
   return order.flatMap(name => entries.filter(entry => entry.capability.name === name))
 }
 
+/** The names of the documents as a search for this text ranks them, with these parameters. */
+export function orderDocuments(
+  text: string,
+  documents: readonly RankedDocument[],
+  ranking: RankingParameters,
+): readonly string[] {
+  return rank(buildCorpus(documents.map(({ name, fields }) => ({ name, fields }))), text, ranking)
+}
+
 export function createSkillCatalog<P, S>(
   ports: Pick<SkillPorts<P, S>, 'readCheck' | 'resolution'>,
   options: Readonly<{ ranking: RankingParameters }>,
@@ -150,5 +164,6 @@ export function createSkillCatalog<P, S>(
       const granted = await listing(access, scope, lawful => ordered(lawful, query.text))
       return 'ok' in granted ? succeed(ordered(granted.ok, query.text)) : granted
     },
+    order: (text, documents) => orderDocuments(text, documents, ranking),
   }
 }

@@ -11,13 +11,16 @@ export type SkillsEntry =
       name: string
       description?: string
       needs?: SkillsMissingTools
+      origin?: string
     }>
   | Readonly<{ kind: 'disabled'; name: string; description?: string; reason: string }>
 
 export type SkillsPage = Readonly<{ entries: readonly SkillsEntry[]; next: string | null }>
 
-/** The layer a Skill is read from and the version read. */
-export type SkillsSource = Readonly<{ layer: string; version: string }>
+/** The layer a Skill is read from and the version read; or, for a Skill from outside the assets, where it comes from. */
+export type SkillsSource =
+  | Readonly<{ layer: string; version: string }>
+  | Readonly<{ external: string }>
 
 type Provenance = Readonly<{ source?: SkillsSource; missingTools?: SkillsMissingTools }>
 
