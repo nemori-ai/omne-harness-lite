@@ -542,6 +542,15 @@ describe('where a held plugin is placed now', () => {
     expect(told.clients?.[0]?.says).toBe(
       'waits for what it lacks: it loads by itself when that is there',
     )
+    const one = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: null }, loaded],
+      server: null,
+    })
+    expect(one.places[0]?.standing).toBe('not in effect')
   })
 
   it('says a client that told nothing of it has not loaded it yet', () => {

@@ -127,6 +127,31 @@ describe('a contract of a tenant written as data', () => {
       { ...data, operations: { a: { ...data.operations.forecast, result: { kind: 'array' } } } },
       'a: result: an array rule has an item',
     ],
+    ['null', null, 'a contract is { name, major, operations }'],
+    [
+      'a second field of a kind there is not',
+      {
+        ...data,
+        operations: {
+          a: {
+            ...data.operations.forecast,
+            body: {
+              kind: 'object',
+              fields: { city: { rule: text }, latitude: { rule: { kind: 'number' } } },
+            },
+          },
+        },
+      },
+      `a: body.latitude: number is not a kind of rule; a rule is one of ${KINDS}`,
+    ],
+    [
+      'a literal rule with no value in its values',
+      {
+        ...data,
+        operations: { a: { ...data.operations.forecast, result: { kind: 'literal', values: [] } } },
+      },
+      'a: result: a literal rule has values, each a string or a boolean',
+    ],
     ['a name that is not text', { ...data, name: 7 }, 'a contract is { name, major, operations }'],
     [
       'an operation that is not a record',
