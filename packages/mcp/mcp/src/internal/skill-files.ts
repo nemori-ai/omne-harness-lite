@@ -46,26 +46,20 @@ function frontmatterOf(text: string): unknown {
   }
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
-  if (Array.isArray(left) || Array.isArray(right))
-    return (
-      Array.isArray(left) &&
-      Array.isArray(right) &&
-      left.length === right.length &&
-      left.every((item, at) => sameValue(item, right[at]))
-    )
-  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null)
-    return left === right
-  const keys = Object.keys(left)
-  return (
-    keys.length === Object.keys(right).length &&
-    keys.every(
-      key =>
-        Object.hasOwn(right, key) &&
-        sameValue((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]),
-    )
+/** A value with the keys of every object in order, so two values that mean the same write the same. */
+function ordered(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(ordered)
+  if (typeof value !== 'object' || value === null) return value
+  const record = value as Record<string, unknown>
+  return Object.fromEntries(
+    Object.keys(record)
+      .toSorted()
+      .map(key => [key, ordered(record[key])]),
   )
 }
+
+const sameValue = (left: unknown, right: unknown): boolean =>
+  left !== undefined && JSON.stringify(ordered(left)) === JSON.stringify(ordered(right))
 
 /** A fetched file, held to its listing: the size and digest of its bytes, and for the skill's SKILL.md the frontmatter. */
 export async function checkedFile(

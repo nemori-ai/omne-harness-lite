@@ -73,6 +73,22 @@ function fileOf(json: JsonValue, root: string): SkillFileEntry | undefined {
 
 type Read = Readonly<{ ok: McpSkill }> | Readonly<{ refused: RefusedSkill }>
 
+function filesOf(
+  resources: JsonValue | undefined,
+  uri: string,
+): readonly SkillFileEntry[] | SkillRefusal {
+  if (textOf(resources) === 'dynamic') return 'dynamic'
+  const items = itemsOf(resources)
+  if (items === undefined) return 'malformed'
+  if (items.length > SKILL_FILE_LIMIT) return 'too-large'
+  const files = items.map(item => fileOf(item, rootOf(uri)))
+  if (!files.every(file => file !== undefined)) return 'malformed'
+  const unique = new Set(files.map(file => file.uri)).size === files.length
+  if (!unique || !files.some(file => file.uri === uri)) return 'malformed'
+  const bytes = files.reduce((total, file) => total + file.size, 0)
+  return bytes > SKILL_BYTE_LIMIT ? 'too-large' : files
+}
+
 /** One listed skill, or why it is not taken: unreadable, dynamic, or over the bounds. */
 export function readSkillEntry(json: JsonValue): Read {
   const uri = isObject(json) ? (textOf(member(json, 'uri')) ?? '') : ''
@@ -84,17 +100,8 @@ export function readSkillEntry(json: JsonValue): Read {
     return refused('malformed')
   if (!SKILL_NAME.test(name) || name.length > 64 || !uri.endsWith(`/${ENTRY_FILE}`))
     return refused('malformed')
-  const resources = member(json, 'resources')
-  if (textOf(resources) === 'dynamic') return refused('dynamic')
-  const items = itemsOf(resources)
-  if (items === undefined) return refused('malformed')
-  if (items.length > SKILL_FILE_LIMIT) return refused('too-large')
-  const files = items.map(item => fileOf(item, rootOf(uri)))
-  if (!files.every(file => file !== undefined)) return refused('malformed')
-  if (new Set(files.map(file => file.uri)).size !== files.length) return refused('malformed')
-  if (!files.some(file => file.uri === uri)) return refused('malformed')
-  if (files.reduce((total, file) => total + file.size, 0) > SKILL_BYTE_LIMIT)
-    return refused('too-large')
+  const files = filesOf(member(json, 'resources'), uri)
+  if (typeof files === 'string') return refused(files)
   return { ok: { name, description: { untrusted: description }, uri, frontmatter, files } }
 }
 
