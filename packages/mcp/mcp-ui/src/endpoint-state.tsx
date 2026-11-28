@@ -1,7 +1,7 @@
 import type { McpProtocol } from '@omne-harness/mcp-protocol'
 import { readTenantText, type Codec } from '@omne-harness/public-contract'
 import { InlineNotice, LoadingIndicator, LoadingState } from '@omne-harness/ui-kit'
-import { useEffect, useState, type JSX } from 'react'
+import { useCallback, useEffect, useState, type JSX } from 'react'
 import { mcpEndpointActions, mcpEndpointStatus } from './parts.ts'
 import type { McpStatus } from './port.ts'
 
@@ -74,7 +74,7 @@ export function useEndpointState(
   tenant: string,
   name: string,
   changes = 0,
-): Readonly<{ state: EndpointState; refresh: () => void }> {
+): Readonly<{ state: EndpointState; refresh: () => void; reread: () => void }> {
   const [state, setState] = useState<EndpointState>({ kind: 'reading' })
   const [turn, setTurn] = useState(0)
   useEffect(() => {
@@ -108,7 +108,8 @@ export function useEndpointState(
       .catch(() => undefined)
       .finally(() => setTurn(count => count + 1))
   }
-  return { state, refresh }
+  const reread = useCallback(() => setTurn(count => count + 1), [])
+  return { state, refresh, reread }
 }
 
 const CREDENTIAL: Readonly<Partial<Record<NonNullable<Endpoint['credentialState']>, string>>> = {

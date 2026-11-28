@@ -7,6 +7,7 @@ import { createStatus } from '../status.ts'
 import { createTasks } from '../tasks.ts'
 import { createTaskWatch, type TaskTimer } from '../watch.ts'
 import { createChangeFeed } from './changes.ts'
+import { createConnect } from '../connect.ts'
 import { createFollowing, type Pause } from './follow.ts'
 import { InFlightCalls } from './in-flight.ts'
 import { createConnectionTable, type ConnectionTable, type TableRuntime } from './table.ts'
@@ -70,6 +71,7 @@ export function assemble<P, S>(
       invoker,
       ...(watch === undefined ? {} : { tasks: watch }),
       status: createStatus(deps),
+      connect: createConnect(deps),
       connections: {
         ...connections,
         closeAll: async () => {

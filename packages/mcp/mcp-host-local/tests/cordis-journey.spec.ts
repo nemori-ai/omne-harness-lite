@@ -55,6 +55,7 @@ const CONFIG: McpPluginConfig = {
   maxActions: 100,
   instructionsByteLimit: 4096,
   taskWatch: { pollFloorMs: 1000, backoffCapMs: 30_000 },
+  oauth: { pendingMs: 600_000, requestMs: 10_000, metadataDocument: null },
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },
 }
 

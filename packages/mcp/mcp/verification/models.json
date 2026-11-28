@@ -1,7 +1,7 @@
 {
   "member": "mcp",
   "model": "models/ConnectionTable.tla",
-  "scope": "finite models: ConnectionTable (the connection table of Streamable HTTP endpoints with a credential: one or two keys, at most two ensure, one release, one closeAll, one lose, one port deviation; bounds fire in creation order; two keys fire no bound), Calls (the call port over an abstract table: at most four keys, one correlation key, one task), Continuation (one action call as a checkpointed entry source: at most three checkpoints, one task, two process losses), Events (one event subscription: three events, two subscribers, two process losses) and Authorization (one OAuth grant: two connections begun, two requests at once, two refreshes answered). Safety, and P8 T1 and P14 T1 under weak fairness. No refinement proof between the models or to the implementation; no real transport, peer, authorization server or storage.",
+  "scope": "finite models: ConnectionTable (the connection table of Streamable HTTP endpoints with a credential: one or two keys, at most two ensure, one release, one closeAll, one lose, one port deviation; bounds fire in creation order; two keys fire no bound), Calls (the call port over an abstract table: at most four keys, one correlation key, one task), Continuation (one action call as a checkpointed entry source: at most three checkpoints, one task, two process losses) and Events (one event subscription: three events, two subscribers, two process losses). Safety, and P8 T1 and P14 T1 under weak fairness. No refinement proof between the models or to the implementation; no real transport, peer or storage.",
   "workers": 2,
   "timeoutSeconds": 600,
   "cases": [
@@ -81,12 +81,6 @@
       "name": "events-valid",
       "model": "models/Events.tla",
       "config": "models/events-valid.cfg",
-      "expected": "complete"
-    },
-    {
-      "name": "authz-valid",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-valid.cfg",
       "expected": "complete"
     }
   ],
@@ -282,42 +276,6 @@
       "model": "models/Events.tla",
       "config": "models/events-bad-keep-stream.cfg",
       "expected": "I16_NoSubscriberNoStream"
-    },
-    {
-      "name": "authz-bad-stale-state",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-stale-state.cfg",
-      "expected": "I9_ExchangeChecked"
-    },
-    {
-      "name": "authz-bad-skip-iss",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-skip-iss.cfg",
-      "expected": "I9_ExchangeChecked"
-    },
-    {
-      "name": "authz-bad-exchange-twice",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-exchange-twice.cfg",
-      "expected": "I9_ExchangeOnce"
-    },
-    {
-      "name": "authz-bad-parallel-refresh",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-parallel-refresh.cfg",
-      "expected": "I10_OneRefresh"
-    },
-    {
-      "name": "authz-bad-wipe-on-unknown",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-wipe-on-unknown.cfg",
-      "expected": "P_UnknownKeeps"
-    },
-    {
-      "name": "authz-bad-reconnect-on-unknown",
-      "model": "models/Authorization.tla",
-      "config": "models/authz-bad-reconnect-on-unknown.cfg",
-      "expected": "P_ReconnectAfterRefusal"
     }
   ]
 }

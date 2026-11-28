@@ -66,9 +66,9 @@ export const MUTANTS: readonly Mutant[] = [
     file: 'src/session.ts',
     replacements: [
       {
-        find: '      void this.callHandle(() => credential.reportRejection())\n',
+        find: '      void this.callHandle(() => credential.reportRejection(refusal))\n',
         replace:
-          '      void this.callHandle(() => credential.reportRejection().then(() => credential.reportRejection()))\n',
+          '      void this.callHandle(() => credential.reportRejection(refusal).then(() => credential.reportRejection(refusal)))\n',
       },
     ],
     spec: EXPLORER,

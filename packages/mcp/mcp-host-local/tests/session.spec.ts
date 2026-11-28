@@ -1691,8 +1691,8 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     const credential = countingCredential()
     const hanging: HttpCredentialHandle & typeof credential = {
       ...credential,
-      reportRejection: () => {
-        credential.reportRejection()
+      reportRejection: refusal => {
+        void credential.reportRejection(refusal)
         return new Promise<void>(() => undefined)
       },
     }
@@ -1726,8 +1726,8 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     const credential = countingCredential()
     const hanging: HttpCredentialHandle & typeof credential = {
       ...credential,
-      reportRejection: () => {
-        credential.reportRejection()
+      reportRejection: refusal => {
+        void credential.reportRejection(refusal)
         return new Promise<void>(() => undefined)
       },
     }

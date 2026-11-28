@@ -20,7 +20,7 @@ const target = (() => {
 
 it('the root entry exports the factory only', async () => {
   const root = (await import('@omne-harness/mcp-host-local')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual(['createLocalTransportFactory'])
+  expect(Object.keys(root).sort()).toEqual(['createLocalTransportFactory', 'createOAuthFetch'])
 })
 
 describe('the options are checked at once (RangeError)', () => {

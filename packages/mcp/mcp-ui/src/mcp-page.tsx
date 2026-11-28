@@ -14,6 +14,7 @@ import {
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
+import { EndpointConnect } from './endpoint-connect.tsx'
 import {
   EndpointActions,
   EndpointStatus,
@@ -121,7 +122,7 @@ function Endpoint({
 }): JSX.Element {
   const { view } = reach
   const DefaultRow = view.Row
-  const { state, refresh } = useEndpointState(
+  const { state, refresh, reread } = useEndpointState(
     reach.status,
     reach.tenant,
     endpoint.name,
@@ -131,6 +132,13 @@ function Endpoint({
     <section className="mcp-endpoint" aria-label={endpoint.name} {...mcpEndpoint.props}>
       <h3 className="mcp-endpoint-title">{endpoint.name}</h3>
       <EndpointStatus state={state} />
+      <EndpointConnect
+        status={reach.status}
+        tenant={reach.tenant}
+        name={endpoint.name}
+        state={state}
+        reread={reread}
+      />
       {endpoint.rows.filter(drawnHere).map(row => (
         <CallPermission key={row.key} row={row} view={view} />
       ))}

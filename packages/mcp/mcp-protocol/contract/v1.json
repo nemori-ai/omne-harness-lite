@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c",
-    "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d"
+    "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d",
+    "3": "sha256:a8ef438f329c39157d9da7ede88792035647099486a931fd39a928cf4c9232c0"
   },
   "major": 1,
   "name": "mcp",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-endpoints": {
@@ -47,6 +48,153 @@
       }
     },
     "operations": {
+      "begin-connect": {
+        "body": {
+          "fields": {
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "disabled",
+                    "target-missing",
+                    "target-invalid",
+                    "client-id-invalid",
+                    "no-resource-metadata",
+                    "no-authorization-server",
+                    "issuer-mismatch",
+                    "no-pkce",
+                    "insecure-endpoint",
+                    "malformed",
+                    "no-registration",
+                    "registration-refused"
+                  ]
+                }
+              },
+              "text": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "expiresAt": {
+                "rule": {
+                  "kind": "instant"
+                }
+              },
+              "url": {
+                "rule": {
+                  "kind": "string"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true,
+          "unsupported": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "not-oauth"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 3
+      },
+      "disconnect": {
+        "body": {
+          "fields": {
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "disconnected": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "disconnected"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true,
+          "unsupported": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "not-oauth"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 3
+      },
       "list-endpoints": {
         "body": {
           "fields": {
@@ -122,6 +270,17 @@
                             }
                           ]
                         }
+                      },
+                      "connect": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "available",
+                            "connecting"
+                          ]
+                        },
+                        "since": 3
                       },
                       "connection": {
                         "rule": {
@@ -364,6 +523,17 @@
                           }
                         ]
                       }
+                    },
+                    "connect": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "available",
+                          "connecting"
+                        ]
+                      },
+                      "since": 3
                     },
                     "connection": {
                       "rule": {

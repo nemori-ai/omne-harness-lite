@@ -15,6 +15,7 @@ import type {
 import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
 import type { ListingDefect } from './listing.ts'
 import type { EndpointBodyRejection } from './endpoint.ts'
+import type { CallbackReceiver, ConnectRefusal, GrantConnector } from './grant.ts'
 import type {
   BlockedReason,
   CallOutcome,
@@ -173,7 +174,8 @@ export type ConnectionState =
 export type EndpointStatusView = Readonly<{
   ref: EndpointRef
   connection: ConnectionState
-  credential: 'present' | 'absent' | 'invalid' | 'not-required'
+  credential: 'present' | 'absent' | 'invalid' | 'not-required' | 'reconnect-required'
+  connect?: 'available' | 'connecting'
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
 }>
 
@@ -223,6 +225,15 @@ export type McpPorts<P, S> = Readonly<{
   transports: McpTransportFactory
   checkOutput: OutputValidator
   clock?: McpClock
+  /** The OAuth grants; without it an OAuth endpoint's credential reads as absent. */
+  grants?: GrantConnector
+  callbacks?: CallbackReceiver
+}>
+
+export type OAuthConfig = Readonly<{
+  pendingMs: number
+  requestMs: number
+  metadataDocument?: string
 }>
 
 export type McpConfig<P> = Readonly<{
@@ -231,6 +242,22 @@ export type McpConfig<P> = Readonly<{
   maxActions: number
   instructionsByteLimit: number
   taskWatch?: TaskWatchConfig
+  oauth?: OAuthConfig
+}>
+
+export type ConnectFailure =
+  | Extract<Refusal, { kind: 'not-available-to-you' | 'blocked' | 'unknown' }>
+  | Readonly<{ kind: 'not-oauth' }>
+  | Readonly<{ kind: 'config-missing' | 'config-invalid'; item: 'target' | 'client-id' }>
+  | Readonly<{ kind: 'refused'; reason: ConnectRefusal }>
+
+/** A person connects an OAuth endpoint and ends the connection; agents have no way in. */
+export type EndpointConnect<P> = Readonly<{
+  begin(
+    access: Access<P>,
+    ref: EndpointRef,
+  ): Promise<Outcome<Readonly<{ url: string; expiresAt: number }>, ConnectFailure>>
+  disconnect(access: Access<P>, ref: EndpointRef): Promise<Outcome<'disconnected', ConnectFailure>>
 }>
 
 export type McpServices<P, S> = Readonly<{
@@ -240,4 +267,5 @@ export type McpServices<P, S> = Readonly<{
   tasks?: TaskWatch<P>
   status: EndpointStatus<P, S>
   connections: Connections<P>
+  connect: EndpointConnect<P>
 }>

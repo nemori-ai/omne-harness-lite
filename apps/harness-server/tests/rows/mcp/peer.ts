@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { createServer, type Server } from 'node:http'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { NodeStreamableHTTPServerTransport, toNodeHandler } from '@modelcontextprotocol/node'
 import {
   acceptedContent,
@@ -25,12 +25,22 @@ export type PeerAction = Readonly<{
 
 export type PeerCall = Readonly<{ action: string; text: string }>
 
-/** A peer given a bearer answers 401 to every request that does not carry it. */
-export type PeerOptions = Readonly<{ bearer?: string }>
+export type BearerVerdict = 'ok' | 'unauthorized' | 'insufficient-scope'
+
+/** A peer given a bearer answers 401 to every request that does not carry it; given an OAuth check it publishes its resource metadata and asks the check. */
+export type PeerOptions = Readonly<{
+  bearer?: string
+  oauth?: Readonly<{
+    authorizationServer: string
+    check: (authorization: string | undefined) => BearerVerdict
+  }>
+}>
 
 export type TestPeer = Readonly<{
   target: string
   calls: readonly PeerCall[]
+  /** Each request it was sent under an OAuth check, with its authorization header, in order. */
+  authorizations: readonly Readonly<{ request: string; header: string | null }>[]
   /** The actions the peer offers from now on, on the sessions it has and on new ones. */
   offer(actions: readonly PeerAction[]): void
   /** Cuts every open connection without answering. */
@@ -115,8 +125,11 @@ export async function testPeer(
     return peer
   }
 
+  const authorizations: { request: string; header: string | null }[] = []
+  let target = ''
   const server: Server = createServer(async (request, response) => {
     response.setHeader('connection', 'close')
+    if (options.oauth !== undefined && (await oauthAnswered(request, response))) return
     if (
       options.bearer !== undefined &&
       request.headers.authorization !== `Bearer ${options.bearer}`
@@ -154,10 +167,42 @@ export async function testPeer(
       }),
     )
   })
+  async function oauthAnswered(request: IncomingMessage, response: ServerResponse) {
+    const oauth = options.oauth
+    if (oauth === undefined) return false
+    const metadata = `${new URL(target).origin}/.well-known/oauth-protected-resource/mcp`
+    if (request.url === new URL(metadata).pathname) {
+      response.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          resource: target,
+          authorization_servers: [oauth.authorizationServer],
+          scopes_supported: ['read'],
+        }),
+      )
+      return true
+    }
+    authorizations.push({
+      request: `${request.method ?? ''} ${request.url ?? ''}`,
+      header: request.headers.authorization ?? null,
+    })
+    const verdict = oauth.check(request.headers.authorization)
+    if (verdict === 'ok') return false
+    const challenge =
+      verdict === 'unauthorized'
+        ? `Bearer resource_metadata="${metadata}"`
+        : 'Bearer error="insufficient_scope", scope="write"'
+    response
+      .writeHead(verdict === 'unauthorized' ? 401 : 403, { 'www-authenticate': challenge })
+      .end()
+    return true
+  }
+
   const port = await listenFree(server)
+  target = `http://127.0.0.1:${String(port)}/mcp`
   return {
-    target: `http://127.0.0.1:${String(port)}/mcp`,
+    target,
     calls,
+    authorizations,
     offer(actions) {
       const offeredBefore = offered
       offered = actions

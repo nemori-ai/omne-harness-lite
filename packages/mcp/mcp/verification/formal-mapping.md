@@ -97,17 +97,16 @@
 | `calls-bad-send-unguarded`     | 负控                 | `P16_NoRequestOnRefusing` 违反                   |
 | `calls-bad-wait-answer`        | 负控（活性）         | `LiveSpec` 下 `P14_EveryCallAnswers` 有时序反例  |
 
-## 接续、事件订阅与 OAuth 授权
+## 接续与事件订阅
 
-[Continuation.tla](models/Continuation.tla)、[Events.tla](models/Events.tla)、[Authorization.tla](models/Authorization.tla) 是三份独立的小模型，各守[包组规格](../../SPEC.md#不变式)里新加的一组不变式。它们与上面两份模型之间没有精化关系，也没有到实现的精化证明：有限实例没有反例，不等于实现符合；实现的符合由各成员的用例与发行应用里的用例核对。`Authorization.tla` 守的规则归成员 `mcp-authorization`，模型随那个成员走。
+[Continuation.tla](models/Continuation.tla)、[Events.tla](models/Events.tla) 是两份独立的小模型，各守[包组规格](../../SPEC.md#不变式)里新加的一组不变式。它们与上面两份模型之间没有精化关系，也没有到实现的精化证明：有限实例没有反例，不等于实现符合；实现的符合由各成员的用例与发行应用里的用例核对。OAuth 授权的模型在成员 `mcp-authorization` 里，见[它的形式映射](../../mcp-authorization/verification/formal-mapping.md)。
 
 模型的前提，都是别人的保证：
 
 - `Continuation`：一个检查点只有一个后继，一份答复只被采用一次，已关的等待不接受答复。这三条归 Tool（它的不变式 TL-29）。
 - `Events`：对端的事件按产生的次序交来，可以重复交，可以忘掉最旧的；存储的一次提交要么全成立要么全不成立。
-- `Authorization`：授权服务器每次成功续期都换掉续期材料；回跳可以来自任何人，带任何曾经发出过的状态值。
 
-模型省掉的：真实的传输与时限（归 `TransportSession` 与 `Calls`）；多个订阅之间、多个接入点之间的交错；令牌的内容与加密；写入结果不知道时存储一侧的认回（归存储契约）。
+模型省掉的：真实的传输与时限（归 `TransportSession` 与 `Calls`）；多个订阅之间、多个接入点之间的交错；写入结果不知道时存储一侧的认回（归存储契约）。
 
 ### 性质
 
@@ -119,8 +118,6 @@
 | MC-36 | `Events`：`I12_NothingLostSilently`、`I13_StoredOnce`、`P_PositionForward` | `mcp` 的事件接收：落盘与位置前进同一次提交 |
 | MC-37 | `Events`：`I14_GapIsReported`、`P_TerminatedIsReported` | 缺口与终止的记录与报告 |
 | MC-38 | `Events`：`I16_NoSubscriberNoStream`、`P_StreamOnlyWhenReceiving` | 订阅者的增减与流的开关 |
-| MC-32 | `Authorization`：`I9_ExchangeChecked`、`I9_ExchangeOnce` | `mcp-authorization` 的回跳处理 |
-| MC-33 | `Authorization`：`I10_OneRefresh`、`P_UnknownKeeps`、`P_ReconnectAfterRefusal` | `mcp-authorization` 的续期 |
 
 ### 动作
 
@@ -137,10 +134,6 @@
 | `Receive`、`Again` | 收到下一条事件；对端重复交来的不再落盘 |
 | `Deliver` | 消费者收下一条已落盘的事件 |
 | `Terminate`、`ConnectionLost`、`ConnectionBack`、`Break` | 对端终止；连接丢了与回来；流断了 |
-| `Authorization`：`Begin` | 人开始一次连接，新的待完成的 OAuth 授权顶掉旧的 |
-| `Callback` | 回跳到了：只为仍然有效的那一条、核过签发方之后换令牌 |
-| `Use`、`RefreshAnswered`、`RefreshUnknown` | 用令牌；过期先续；续期被答复或没有应答 |
-| `Disconnect` | 断开 |
 
 ### 负控的缺陷
 
@@ -154,12 +147,6 @@
 | `no-dedup` | 对端重复交来的事件再落盘一次 | `I13_StoredOnce` |
 | `silent-gap` | 位置跳过对端忘掉的事件而不记缺口 | `I12_NothingLostSilently` |
 | `keep-stream` | 最后一个订阅者走了或进程丢了之后流还开着 | `I16_NoSubscriberNoStream` |
-| `stale-state` | 接受已经作废的状态值 | `I9_ExchangeChecked` |
-| `skip-iss` | 不核签发方就换令牌 | `I9_ExchangeChecked` |
-| `exchange-twice` | 换过令牌的待完成的 OAuth 授权还能再换 | `I9_ExchangeOnce` |
-| `parallel-refresh` | 每个使用者各发一次续期 | `I10_OneRefresh` |
-| `wipe-on-unknown` | 续期没有应答时删掉续期材料 | `P_UnknownKeeps` |
-| `reconnect-on-unknown` | 续期没有应答时就要人重新连接 | `P_ReconnectAfterRefusal` |
 
 ### 配置的预期
 
@@ -167,5 +154,4 @@
 | --- | --- | --- |
 | `cont-valid` | 正控：三个检查点、两次进程丢失 | 通过 |
 | `events-valid` | 正控：三条事件、两个订阅者、两次进程丢失 | 通过 |
-| `authz-valid` | 正控：两次开始连接、两个同时的使用者、两次续期被答复 | 通过 |
-| `cont-bad-*`、`events-bad-*`、`authz-bad-*` | 负控，每份开一个缺陷钩子 | 违反上表那一行的性质 |
+| `cont-bad-*`、`events-bad-*` | 负控，每份开一个缺陷钩子 | 违反上表那一行的性质 |

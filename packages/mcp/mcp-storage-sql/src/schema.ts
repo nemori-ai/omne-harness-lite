@@ -3,15 +3,37 @@ export const PROTOCOL = 'mcp-store/1'
 export const HANDLER = 'mcp.store.read'
 export const MIGRATION = { owner: PARTICIPANT, id: 'mcp-1' }
 export const TABLES = ['mcp_catalogs', 'mcp_continuations', 'mcp_tasks']
+export const GRANT_MIGRATION = { owner: PARTICIPANT, id: 'mcp-2' }
+export const GRANT_TABLES = ['mcp_pending', 'mcp_grants', 'mcp_clients']
+export const OWNED_TABLES = [...TABLES, ...GRANT_TABLES]
 
 /** What a catalog row holds: one kind of the peer's directory. */
 export const CATALOG_KINDS = ['actions'] as const
 export type CatalogKind = (typeof CATALOG_KINDS)[number]
 
-export const SCRIPTS = ['writeCatalog', 'markContinuation', 'recordTask', 'moveTask'] as const
+export const SCRIPTS = [
+  'writeCatalog',
+  'markContinuation',
+  'recordTask',
+  'moveTask',
+  'beginPending',
+  'takePending',
+  'voidPending',
+  'writeGrant',
+  'removeGrant',
+  'register',
+  'forgetHolding',
+] as const
 export type ScriptName = (typeof SCRIPTS)[number]
 
-export const READS = ['readCatalog', 'readTask', 'followingTasks'] as const
+export const READS = [
+  'readCatalog',
+  'readTask',
+  'followingTasks',
+  'readGrant',
+  'readClient',
+  'keptHoldings',
+] as const
 export type ReadName = (typeof READS)[number]
 
 /** The key of one catalog row; the tenant is a column of every row and of every read. */

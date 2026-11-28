@@ -1,6 +1,7 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member } from './json.ts'
 import type { AuthorizationDiscovery } from './outcomes.ts'
+import type { CredentialRefusal } from './ports.ts'
 
 export const METADATA_PATH = '/.well-known/oauth-protected-resource'
 
@@ -14,6 +15,14 @@ export function authorizationChallengeOf(header: string | undefined): ReadonlyMa
       parameters.set(name.toLowerCase(), value)
   }
   return parameters
+}
+
+/** A refusal whose challenge names `insufficient_scope` asks for its scopes; any other asks for a new token. */
+export function credentialRefusalOf(header: string | undefined): CredentialRefusal {
+  const challenge = authorizationChallengeOf(header)
+  if (challenge.get('error') !== 'insufficient_scope') return { kind: 'unauthorized' }
+  const scopes = (challenge.get('scope') ?? '').split(' ').filter(scope => scope.length > 0)
+  return { kind: 'insufficient-scope', scopes }
 }
 
 export function metadataCandidatesOf(
