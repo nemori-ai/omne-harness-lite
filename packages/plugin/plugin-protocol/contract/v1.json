@@ -2,11 +2,12 @@
   "digests": {
     "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166",
     "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e",
-    "3": "sha256:2822e85a47c5cb1ab293949b38475980b37473627bfe8ea49369a7e10770241f"
+    "3": "sha256:2822e85a47c5cb1ab293949b38475980b37473627bfe8ea49369a7e10770241f",
+    "4": "sha256:8bf0df70f1d66ab41da1d4f4f1c60d9e0144a2cc9b0a2f2c2db6cd811978121f"
   },
   "major": 1,
   "name": "plugin",
-  "revision": 3,
+  "revision": 4,
   "rules": {
     "observations": {
       "observe-wanted": {
@@ -350,6 +351,13 @@
                                         "kind": "object"
                                       },
                                       "since": 3
+                                    },
+                                    "title": {
+                                      "optional": true,
+                                      "rule": {
+                                        "kind": "text"
+                                      },
+                                      "since": 4
                                     },
                                     "version": {
                                       "rule": {
@@ -890,6 +898,13 @@
                               "kind": "object"
                             },
                             "since": 3
+                          },
+                          "title": {
+                            "optional": true,
+                            "rule": {
+                              "kind": "text"
+                            },
+                            "since": 4
                           },
                           "version": {
                             "rule": {

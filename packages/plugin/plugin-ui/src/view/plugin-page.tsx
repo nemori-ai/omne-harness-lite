@@ -17,6 +17,7 @@ import {
   StatusPill,
   Switch,
 } from '@omne-harness/ui-kit'
+import { memberName } from '@omne-harness/plugin-protocol'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
 import type {
   PlacedMember,
@@ -118,19 +119,6 @@ const STANDING: Readonly<Record<string, string>> = {
   'not known': '还不知道',
   conflict: '撞键',
 }
-
-type Named = Readonly<{ point: string; key: string; id: string | null }>
-
-const nameOf = ({ key, id }: Named): string => id ?? key
-
-const placeOf = (member: Named & Readonly<{ categoryTitle: string | null }>): string =>
-  member.categoryTitle ?? member.point
-
-const sameMember = (left: Named, right: Named): boolean =>
-  left.point === right.point && left.key === right.key && left.id === right.id
-
-const kindOf = (places: readonly PlacedMember[], line: TakenBack): string =>
-  placeOf(places.find(place => sameMember(place, line)) ?? { ...line, categoryTitle: null })
 
 /** What the page can tell of what the plugin brought: still being read the first time, or told (nothing when it cannot tell). */
 type Told =
@@ -252,7 +240,7 @@ function PluginReading({
           told.kind === 'reading' ? (
             <LoadingState label="正在读取会收回什么……" />
           ) : (
-            <TakenBackList lines={takenBack} places={effect?.places ?? []} />
+            <TakenBackList lines={takenBack} />
           )
         }
         kept={
@@ -283,8 +271,7 @@ function Member({
   const { category } = member
   return (
     <li className="plugin-view-member">
-      <span>{nameOf(member)}</span>{' '}
-      <span className="plugin-view-member-place">{placeOf(member)}</span>
+      <span>{memberName(member)}</span>
       {enabled && member.standing !== 'in effect' && (
         <span className="plugin-view-member-trouble">
           <StatusPill tone="caution">{STANDING[member.standing] ?? member.standing}</StatusPill>{' '}
@@ -300,17 +287,14 @@ function Member({
   )
 }
 
-function TakenBackList({
-  lines,
-  places,
-}: Readonly<{ lines: readonly TakenBack[] | null; places: readonly PlacedMember[] }>): JSX.Element {
+function TakenBackList({ lines }: Readonly<{ lines: readonly TakenBack[] | null }>): JSX.Element {
   if (lines === null) return <p>这一次说不出会收回什么。</p>
   if (lines.length === 0) return <p>没有要收回的。</p>
   return (
     <ul className="plugin-view-taken-back">
       {lines.map(line => (
         <li key={`${line.of ?? ''}\n${line.point}\n${line.key}\n${line.id ?? ''}`}>
-          {nameOf(line)} <span className="plugin-view-member-place">{kindOf(places, line)}</span>
+          {memberName(line)}
         </li>
       ))}
     </ul>

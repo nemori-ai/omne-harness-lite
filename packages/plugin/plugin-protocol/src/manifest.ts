@@ -10,7 +10,13 @@ export const MANIFEST_FILE = 'plugin.json'
 export const MANIFEST_SCHEMA = 1
 
 /** Where a member goes: one item on one point, under one key. */
-export type MemberPlace = Readonly<{ point: string; key: string; id?: string; rank?: number }>
+export type MemberPlace = Readonly<{
+  point: string
+  key: string
+  id?: string
+  rank?: number
+  title?: string
+}>
 export type DataMember = MemberPlace & Readonly<{ data: JsonValue }>
 export type DirectoryMember = MemberPlace & Readonly<{ directory: string }>
 export type ModuleMember = MemberPlace & Readonly<{ module: string; export: string }>
@@ -61,14 +67,22 @@ export function memberKind(member: Member): (typeof WAYS)[number] {
 class Refused extends Error {}
 
 function placeOf(fields: Fields, at: string): MemberPlace {
-  const { point, key, id, rank } = fields
+  const { point, key, id, rank, title } = fields
   if (typeof point !== 'string' || point.trim() === '') throw new Refused(`${at} names no point`)
   if (typeof key !== 'string') throw new Refused(`${at} has no key`)
   if (id !== undefined && typeof id !== 'string')
     throw new Refused(`${at} has an id that is not text`)
   if (rank !== undefined && (typeof rank !== 'number' || !Number.isFinite(rank)))
     throw new Refused(`${at} has a rank that is not a number`)
-  return { point, key, ...(id !== undefined && { id }), ...(rank !== undefined && { rank }) }
+  if (title !== undefined && (typeof title !== 'string' || title.trim() === ''))
+    throw new Refused(`${at} has a title that is not text`)
+  return {
+    point,
+    key,
+    ...(id !== undefined && { id }),
+    ...(rank !== undefined && { rank }),
+    ...(title !== undefined && { title }),
+  }
 }
 
 function pathOf(value: unknown, at: string): string {

@@ -1,6 +1,6 @@
 import type { ClientLine, PlacedLine } from '@omne-harness/assets'
 import type { PluginManifest, SideName } from '@omne-harness/plugin-protocol'
-import { placedOf, rivals, type PluginHeld } from './effect.ts'
+import { named, placedOf, rivals, type KnownPoint, type PluginHeld } from './effect.ts'
 
 /** What one connected client last told of this plugin; `state` is null when it told nothing of it. */
 export type ClientTold = Readonly<{
@@ -24,6 +24,8 @@ export type PluginPlacementInput = Readonly<{
   clients: readonly ClientTold[] | null
   /** The server; null when this tree loads no plugin on the server. */
   server: ServerTold | null
+  /** The points the trees tell of now, for the titles a person sees them called. */
+  points?: readonly KnownPoint[]
 }>
 
 export type PluginPlacement = Readonly<{
@@ -105,19 +107,20 @@ function standingOf(input: PluginPlacementInput, side: SideName): Standing {
 
 /** Where a held plugin is placed and whether each place is in effect, from its manifest and what each side told. */
 export function pluginPlacement(input: PluginPlacementInput): PluginPlacement {
-  const places = placedOf(input.manifest).map((placed): PlacedLine => {
+  const lines = placedOf(input.manifest).map((placed): PlacedLine => {
     const { point, key, id } = placed.member
     const { side } = placed
-    const named = { point, key, ...(id !== undefined && { id }), side }
+    const where = { point, key, ...(id !== undefined && { id }), side }
     const [rival] = input.enabled ? rivals(input.name, placed, input.held) : []
     return rival === undefined
-      ? { ...named, ...standingOf(input, side) }
+      ? { ...where, ...standingOf(input, side) }
       : {
-          ...named,
+          ...where,
           standing: 'conflict',
           says: `with plugin ${rival}; neither is in effect, the built-in shows`,
         }
   })
+  const places = named(lines, placedOf(input.manifest), input.points ?? [])
   const failed =
     input.clients?.some(client => client.state === 'failed') === true ||
     (input.manifest.server !== undefined && input.server?.state === 'failed')

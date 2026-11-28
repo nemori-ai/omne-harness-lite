@@ -11,6 +11,7 @@ import {
 
 const entrySourcesContract: Contract = Object.freeze({
   name: ENTRY_SOURCES_POINT,
+  title: '斜杠命令的来源',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

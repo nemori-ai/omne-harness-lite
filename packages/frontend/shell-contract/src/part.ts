@@ -65,6 +65,7 @@ export type PartsRead =
 
 export const partsContract: Contract = {
   name: PARTS_POINT,
+  title: '部位',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,

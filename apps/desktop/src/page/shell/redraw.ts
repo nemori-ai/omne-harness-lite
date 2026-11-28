@@ -4,6 +4,7 @@ import {
   type ProjectionRange,
   type RenderDrawer,
   type RenderPoint,
+  type Trouble,
 } from '@omne-harness/shell-contract'
 import { iconNames, PIECES, type Redraw, type RedrawKind } from '@omne-harness/ui-kit'
 import type { ReactNode } from 'react'
@@ -25,6 +26,7 @@ const ICON_EXAMPLE = [
 
 export const iconPoint: RenderPoint<IconSubject> = defineRenderPoint({
   name: 'shell.icon',
+  title: '图标',
   key: 'the name of the icon: OmneExtensionPoints show shell.icon lists the names',
   summary:
     'How one icon is drawn everywhere the interface shows it, by its name: in the sidebar, on a button, in a list.',
@@ -42,6 +44,7 @@ const PIECE_EXAMPLE = [
 
 export const piecePoint: RenderPoint<object> = defineRenderPoint({
   name: 'shell.piece',
+  title: '共用件的画法',
   key: `one of the shared pieces of the interface: ${PIECES.join(', ')}`,
   summary:
     'How one shared piece of the interface is drawn wherever a page shows it: the loading mark, an empty state, a notice in a page, the body of the figure of the agent.',
@@ -101,4 +104,19 @@ export function redrawRelay(): RedrawRelay {
       }
     },
   }
+}
+
+export function iconTroubles(
+  pages: readonly Readonly<{ id: string; icon: string }>[],
+  drawn: (name: string) => boolean,
+): readonly Trouble[] {
+  const known = new Set(iconNames())
+  return pages
+    .filter(page => !known.has(page.icon) && !drawn(page.icon))
+    .map(page => ({
+      point: 'shell.pages',
+      key: '',
+      id: page.id,
+      says: `the icon "${page.icon}" is not a name the kit knows, and shell.icon draws none by it: the sidebar draws a question mark. OmneExtensionPoints show shell.icon lists the names`,
+    }))
 }

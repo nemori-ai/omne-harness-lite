@@ -12,6 +12,7 @@ import {
   type SlotName,
   type ToastBoard,
   TOKENS_POINT,
+  type Trouble,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
@@ -20,7 +21,14 @@ import { goHome, toFront } from './home.ts'
 import { ownActions, turnActions } from './keys.ts'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
-import { projectedRange, redrawKeys, redrawPoints, redrawThrough } from './redraw.ts'
+import {
+  iconPoint,
+  iconTroubles,
+  projectedRange,
+  redrawKeys,
+  redrawPoints,
+  redrawThrough,
+} from './redraw.ts'
 import type { TokenNow } from './changes-sheet.ts'
 import type { Face, ShellState } from './state.ts'
 
@@ -133,6 +141,10 @@ export class DesktopShell extends ShellService {
 
   protected override knowsToken(name: string): boolean {
     return this.state.knowsToken(name)
+  }
+
+  protected override troubles(): readonly Trouble[] {
+    return iconTroubles(this.items('pages'), name => this.drawsAt(iconPoint.name, name))
   }
 
   protected override dataKeysOf(point: string): readonly TokenNow[] | undefined {

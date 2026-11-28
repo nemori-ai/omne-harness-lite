@@ -28,6 +28,7 @@ const message = definePart<Note>({
   depths: ['tokens', 'style', 'render'],
 })
 const calls = defineRenderPoint<Note>({
+  title: 'test',
   name: 'notes.tool-call',
   key: 'the name of the tool',
   summary: 'How a call of one tool is drawn.',

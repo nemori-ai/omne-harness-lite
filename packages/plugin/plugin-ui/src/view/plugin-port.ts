@@ -11,6 +11,9 @@ export type PlacedMember = Readonly<{
   categoryTitle: string | null
   standing: string
   says: string
+  /** What a person sees the member and its point called, when one is written. */
+  title?: string
+  pointTitle?: string
 }>
 
 export type TakenBack = Readonly<{
@@ -20,6 +23,8 @@ export type TakenBack = Readonly<{
   key: string
   id: string | null
   says: string
+  title?: string
+  pointTitle?: string
 }>
 
 export type PluginEffect = Readonly<{

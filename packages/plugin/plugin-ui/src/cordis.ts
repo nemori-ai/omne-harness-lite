@@ -28,6 +28,7 @@ import { followWanted, type Sleep } from './follow.ts'
 import { handedNames, installOn, presentIn, type Code } from './install.ts'
 import { createWear, memoryLookStore, type LookStore, type Wear } from './looks.ts'
 import {
+  beforeRevisionFour,
   beforeRevisionThree,
   createReporter,
   describedOf,
@@ -129,8 +130,10 @@ function loadFor(
         }),
         async reported => {
           const send = (told: Reported) => client['report-loaded']({ tenant, client: id, ...told })
-          const answer = await send(reported)
-          if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          for (const told of [reported, beforeRevisionFour(reported)]) {
+            const answer = await send(told)
+            if (answer.outcome !== 'unavailable') return answer.outcome === 'succeeded'
+          }
           return (await send(beforeRevisionThree(reported))).outcome === 'succeeded'
         },
       )

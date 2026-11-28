@@ -34,7 +34,11 @@ const nodesOf = (show: (layout: AttachedLayout) => ReactNode): readonly ReactNod
 describe('definePoint', () => {
   it('hands each item the decoded subject and the tenant, and the host the id, the label and the node', async () => {
     const { root, shell } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     side.declare(shell)
     const received: PointProps<Session>[] = []
     await root.plugin({
@@ -62,7 +66,11 @@ describe('definePoint', () => {
 
   it('returns what the layout returns', async () => {
     const { shell } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     side.declare(shell)
     expect(side.slot(shell, { session: 'ses_1' }, entries => `${entries.length} items`)).toBe(
       '0 items',
@@ -71,7 +79,11 @@ describe('definePoint', () => {
 
   it('keeps its name as the anchor, so an item placed straight into the attached slot shows too', async () => {
     const { root, shell } = await startShell()
-    const dock = definePoint<Session>({ name: 'session.dock', subject: sessionCodec })
+    const dock = definePoint<Session>({
+      title: 'test',
+      name: 'session.dock',
+      subject: sessionCodec,
+    })
     dock.declare(shell)
     await root.plugin({
       name: 'direct',
@@ -93,7 +105,11 @@ describe('definePoint', () => {
 
   it('draws nothing for an item when the text does not decode, and does not throw', async () => {
     const { root, shell } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     side.declare(shell)
     let rendered = 0
     await root.plugin({
@@ -118,7 +134,11 @@ describe('definePoint', () => {
 
   it('takes the item down when the scope of the contributor unloads', async () => {
     const { root, shell } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     side.declare(shell)
     const contributor = root.plugin({
       name: 'contributor',
@@ -135,9 +155,17 @@ describe('definePoint', () => {
 
   it('lets two points hold the same item id', async () => {
     const { root, shell } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     side.declare(shell)
-    const dock = definePoint<Session>({ name: 'session.dock', subject: sessionCodec })
+    const dock = definePoint<Session>({
+      title: 'test',
+      name: 'session.dock',
+      subject: sessionCodec,
+    })
     dock.declare(shell)
     await root.plugin({
       name: 'contributor',
@@ -167,7 +195,11 @@ const holdingCodec: PointCodec<Holding> = {
 describe('defineKeyedPoint', () => {
   it('shows an item only under the key it was placed for', async () => {
     const { root, shell } = await startShell()
-    const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    const holding = defineKeyedPoint<Holding>({
+      title: 'test',
+      name: 'assets.holding',
+      subject: holdingCodec,
+    })
     holding.declare(shell)
     await root.plugin({
       name: 'mcp-ui',
@@ -191,7 +223,11 @@ describe('defineKeyedPoint', () => {
 
   it('accepts an item for a key before any host shows that key', async () => {
     const { root, shell } = await startShell()
-    const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    const holding = defineKeyedPoint<Holding>({
+      title: 'test',
+      name: 'assets.holding',
+      subject: holdingCodec,
+    })
     holding.declare(shell)
     await root.plugin({
       name: 'early',
@@ -208,7 +244,11 @@ describe('defineKeyedPoint', () => {
 
   it('lets two keys hold the same item id and refuses a repeated id of one module under one key', async () => {
     const { root, shell } = await startShell()
-    const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    const holding = defineKeyedPoint<Holding>({
+      title: 'test',
+      name: 'assets.holding',
+      subject: holdingCodec,
+    })
     holding.declare(shell)
     const error = await new Promise<unknown>(resolve => {
       root.plugin({
@@ -235,7 +275,11 @@ describe('defineKeyedPoint', () => {
 
   it('answers a conflict when another module repeats an id under one key; the other keys stay', async () => {
     const { root, shell } = await startShell()
-    const holding = defineKeyedPoint<Holding>({ name: 'assets.holding', subject: holdingCodec })
+    const holding = defineKeyedPoint<Holding>({
+      title: 'test',
+      name: 'assets.holding',
+      subject: holdingCodec,
+    })
     holding.declare(shell)
     const put = (name: string, key: string) =>
       root.plugin({
@@ -255,8 +299,13 @@ describe('defineKeyedPoint', () => {
   })
 
   it('carries its contract: a keyed point holds a list for each key, a plain one a list', () => {
-    const plain = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const plain = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     const keyed = defineKeyedPoint<Holding>({
+      title: 'test',
       name: 'assets.holding',
       subject: holdingCodec,
       summary: 'What a holding shows beside itself.',
@@ -277,6 +326,7 @@ describe('defineKeyedPoint', () => {
       revision: 2,
       keys: 'private',
       conformance: null,
+      title: 'test',
     }
     expect(plain.contract).toEqual({
       ...shared,
@@ -294,13 +344,21 @@ describe('defineKeyedPoint', () => {
       summary: 'What a holding shows beside itself.',
       example: expect.stringMatching(/^\{"point":"assets\.holding","key":"<key>",/u),
     })
-    const bare = defineKeyedPoint<Holding>({ name: 'assets.category', subject: holdingCodec })
+    const bare = defineKeyedPoint<Holding>({
+      title: 'test',
+      name: 'assets.category',
+      subject: holdingCodec,
+    })
     expect(bare.contract.key).toBe('the key the host shows')
   })
 
   it('throws when one module declares the same point twice', async () => {
     const { root } = await startShell()
-    const side = definePoint<Session>({ name: 'session.side', subject: sessionCodec })
+    const side = definePoint<Session>({
+      title: 'test',
+      name: 'session.side',
+      subject: sessionCodec,
+    })
     const error = await new Promise<unknown>(resolve => {
       root.plugin({
         name: 'host',

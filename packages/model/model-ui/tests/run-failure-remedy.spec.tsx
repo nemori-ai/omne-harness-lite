@@ -27,6 +27,7 @@ const DOWN: Fault = { cause: 'upstream-unavailable', upstreamStatus: null, throt
 
 /** The point the session module hosts; the case stands in for it and declares it. */
 const runFailure = definePoint<RunFailure>({
+  title: 'test',
   name: 'session.run-failure',
   subject: {
     encode: value => JSON.stringify(value),

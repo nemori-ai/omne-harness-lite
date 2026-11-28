@@ -1973,6 +1973,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../plugin/plugin-protocol
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract

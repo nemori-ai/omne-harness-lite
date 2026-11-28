@@ -1,11 +1,12 @@
 {
   "digests": {
     "1": "sha256:413257d73f87625b471258278c15238fd33ab87b2b5eeb65539ac420ca1fb19c",
-    "2": "sha256:d0fd75b96c239c86a84fc5b48b61db1f33940b230a1ddb7f0e95a4de060b2086"
+    "2": "sha256:d0fd75b96c239c86a84fc5b48b61db1f33940b230a1ddb7f0e95a4de060b2086",
+    "3": "sha256:7be64b15dc032604b467c193e2552ecd24cad5bff312c8bdb22adafd819ac00f"
   },
   "major": 1,
   "name": "assets",
-  "revision": 2,
+  "revision": 3,
   "rules": {
     "observations": {
       "observe-assets": {
@@ -712,10 +713,24 @@
                                     "kind": "text"
                                   }
                                 },
+                                "pointTitle": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                },
                                 "says": {
                                   "rule": {
                                     "kind": "string"
                                   }
+                                },
+                                "title": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
                                 }
                               },
                               "kind": "object"
@@ -781,6 +796,13 @@
                                 "kind": "text"
                               }
                             },
+                            "pointTitle": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
+                            },
                             "says": {
                               "rule": {
                                 "kind": "string"
@@ -807,6 +829,13 @@
                               "rule": {
                                 "kind": "text"
                               }
+                            },
+                            "title": {
+                              "optional": true,
+                              "rule": {
+                                "kind": "text"
+                              },
+                              "since": 3
                             }
                           },
                           "kind": "object"
@@ -868,10 +897,24 @@
                                     "kind": "text"
                                   }
                                 },
+                                "pointTitle": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
+                                },
                                 "says": {
                                   "rule": {
                                     "kind": "string"
                                   }
+                                },
+                                "title": {
+                                  "optional": true,
+                                  "rule": {
+                                    "kind": "text"
+                                  },
+                                  "since": 3
                                 }
                               },
                               "kind": "object"

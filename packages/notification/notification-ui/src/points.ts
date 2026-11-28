@@ -14,6 +14,7 @@ export const INBOX_SECTIONS = 'notification.inbox-sections'
 /** Where another domain puts a section into the notification panel, under the notifications. */
 export const inboxSections: Point<InboxSubject> = definePoint({
   name: INBOX_SECTIONS,
+  title: '通知面板的栏',
   summary: 'The sections other domains put into the notification page, under the notifications.',
   subject: {
     encode: subject => subject.recipient,
@@ -32,6 +33,7 @@ export const NOTIFICATION_SOURCES = 'notification.sources'
 /** Where the domain of a source draws the rows of its own notifications. */
 export const notificationEntry: RenderPoint<NotificationEntrySubject> = defineRenderPoint({
   name: NOTIFICATION_ENTRY,
+  title: '一条通知的画法',
   key: 'the name of the source, as the server registers it on notification.sources: OmneExtensionPoints show notification.sources lists the names',
   summary: 'How a row of the notification inbox is drawn, by the source of the notification.',
   keysFrom: NOTIFICATION_SOURCES,

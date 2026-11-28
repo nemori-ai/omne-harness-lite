@@ -72,6 +72,7 @@ export function registryOf(...byFiber: readonly (readonly [string, readonly Entr
 
 export const contract = (name: string, over: Partial<Contract> = {}): Contract => ({
   name,
+  title: name,
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

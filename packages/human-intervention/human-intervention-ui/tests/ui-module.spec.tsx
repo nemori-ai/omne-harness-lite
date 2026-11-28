@@ -16,6 +16,7 @@ const TENANT =
 const ANCHOR = 'session.transcript'
 const SESSION = 'ses_0123456789abcdef'
 const dock = definePoint<{ readonly session: string }>({
+  title: 'test',
   name: ANCHOR,
   subject: { encode: value => value.session, decode: text => ({ session: text }) },
 })

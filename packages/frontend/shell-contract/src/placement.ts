@@ -105,6 +105,7 @@ const places: readonly Contract[] = [
     binding: 'build',
     onError: 'the gate shows that this item cannot be read',
     summary: `The login gate: all the shell shows while nobody is signed in. ${FIXED}`,
+    title: '登录门',
   },
   {
     ...SHARED,
@@ -126,6 +127,7 @@ const places: readonly Contract[] = [
     resolve: 'most-specific',
     onError: 'only this page shows that it cannot be read',
     summary: `The pages of the shell, in the order of their order and id. ${OPEN}`,
+    title: '一级页面',
     example: EXAMPLE.pages,
   },
   {
@@ -139,6 +141,7 @@ const places: readonly Contract[] = [
     resolve: 'most-specific',
     onError: 'only this section shows that it cannot be read',
     summary: `The sections of the sidebar, in the order of their order and id. ${OPEN}`,
+    title: '侧栏区',
     example: EXAMPLE.sidebar,
   },
   {
@@ -153,6 +156,7 @@ const places: readonly Contract[] = [
     resolve: 'most-specific',
     onError: 'only this item is not drawn',
     summary: `What floats over the whole application once somebody is signed in, in the order of their order and id. ${OPEN}`,
+    title: '浮层',
     example: EXAMPLE.float,
   },
   {
@@ -167,6 +171,7 @@ const places: readonly Contract[] = [
     resolve: 'most-specific',
     onError: 'only this item shows that it cannot be read; the shell still turns to the front',
     summary: `The back of the application: its other face once somebody is signed in. ${OPEN}`,
+    title: '反面',
     example: EXAMPLE.back,
   },
   {
@@ -193,6 +198,7 @@ const places: readonly Contract[] = [
     conformance:
       "from revision 2 the item may know pictures; from revision 3 a sent outcome may carry said, and reply(scope, said, listener) gives the listener the whole text the agent has said so far with coming, ended or unknown, and nothing after ended or unknown; from revision 4 the item names itself with id, and one of the tenant takes the place of the app's",
     summary: `Where the words a person says to the figure go, and what the agent says back: the item draws nothing, and the shell asks it afresh each time. ${OPEN}`,
+    title: '说话位',
     example: EXAMPLE.say,
   },
 ]
@@ -224,6 +230,7 @@ export const actionsContract: Contract = {
   onError: 'the action is not run, and the person is told why',
   summary:
     'The shell actions by name: what a key, the palette and a button run. A module puts its own; they leave with it. The actions of the shell itself are locked.',
+  title: '外壳的动作',
   example: EXAMPLE.actions,
 }
 
@@ -239,6 +246,7 @@ export const keymapContract: Contract = {
   onError: 'the keys are the ones the actions come with',
   summary:
     "The account's changes to the keys of the actions: what the dispatcher and the palette read.",
+  title: '键位',
   example: EXAMPLE.keymap,
 }
 
@@ -258,7 +266,7 @@ function attachedExample(name: string, keyed: boolean): string {
 export function pointContract(
   name: string,
   keyed: boolean,
-  words: Readonly<{ summary?: string; key?: string }> = {},
+  words: Readonly<{ title: string; summary?: string; key?: string }>,
 ): Contract {
   return {
     ...SHARED,
@@ -275,6 +283,7 @@ export function pointContract(
     binding: 'run',
     onError: 'only this item shows that it cannot be read',
     summary: words.summary ?? `The point ${name}.`,
+    title: words.title,
     example: attachedExample(name, keyed),
   }
 }
@@ -283,6 +292,7 @@ export type DrawingWords = Readonly<{
   name: string
   key: string
   summary: string
+  title: string
   subject?: string
   example?: string
   scopes?: Scopes

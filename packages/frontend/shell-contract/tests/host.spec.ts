@@ -110,7 +110,12 @@ describe('what the shell hands the loader of plugins', () => {
 describe('what the tree of the interface has now', () => {
   it('is its points and its parts by name, each with what it is; a part that leaves is no longer there', async () => {
     const t = await world()
-    const card = defineRenderPoint({ name: 'notes.card', key: 'the kind', summary: 'A note.' })
+    const card = defineRenderPoint({
+      title: 'test',
+      name: 'notes.card',
+      key: 'the kind',
+      summary: 'A note.',
+    })
     card.declare(t.shell)
     const told = t.shell.described()
     expect(told.parts).toEqual([

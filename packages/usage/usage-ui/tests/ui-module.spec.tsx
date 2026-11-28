@@ -23,8 +23,8 @@ const session = {
   encode: (value: { session: string }) => value.session,
   decode: (text: string) => ({ session: text }),
 }
-const sessionSide = definePoint({ name: 'session.side', subject: session })
-const sessionStatus = definePoint({ name: 'session.status', subject: session })
+const sessionSide = definePoint({ title: 'test', name: 'session.side', subject: session })
+const sessionStatus = definePoint({ title: 'test', name: 'session.status', subject: session })
 
 /** The host of these points is not on this tree: the case stands in for it and declares them. */
 async function startShell() {

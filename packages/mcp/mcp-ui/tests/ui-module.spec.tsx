@@ -13,6 +13,7 @@ beforeAll(stubAnimation)
 afterEach(cleanup)
 
 const page = definePoint<Readonly<{ host: string }>>({
+  title: 'test',
   name: 'test.category-page',
   subject: { encode: subject => subject.host, decode: host => ({ host }) },
 })

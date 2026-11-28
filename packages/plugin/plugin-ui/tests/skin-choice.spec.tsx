@@ -13,6 +13,7 @@ import { fakeSource, given, givenSkin } from './support/fake-source.ts'
 
 /** The place above the list of one category of the assets page, as the application hands it to the loader. */
 const skinsAbove = defineKeyedPoint<Readonly<{ category: string }>>({
+  title: 'test',
   name: 'assets.category',
   subject: { encode: value => value.category, decode: text => ({ category: text }) },
 })
@@ -44,6 +45,7 @@ const send = definePart({
   depths: ['style'],
 })
 const aboveCategory = defineKeyedPoint<Readonly<{ category: string }>>({
+  title: 'test',
   name: 'assets.category',
   subject: { encode: value => value.category, decode: text => ({ category: text }) },
 })

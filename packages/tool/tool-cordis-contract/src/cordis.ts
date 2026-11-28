@@ -466,6 +466,7 @@ export const toolCatalogKey = ToolCatalogService.provide
 
 const entrySourcesContract: Contract = Object.freeze({
   name: TOOL_ENTRY_SOURCES_POINT,
+  title: '工具的条目来源',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

@@ -38,7 +38,12 @@ const send = definePart({
   summary: '把写好的一条发出去',
   depths: ['style'],
 })
-const card = defineRenderPoint({ name: 'notes.card', key: 'the kind', summary: 'A note.' })
+const card = defineRenderPoint({
+  title: 'test',
+  name: 'notes.card',
+  key: 'the kind',
+  summary: 'A note.',
+})
 const colored = (color: string, key = 'notes.send') => ({
   point: STYLE_POINT,
   key,

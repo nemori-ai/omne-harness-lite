@@ -15,6 +15,7 @@ export type GivenDetail = Extract<Detail, { state: 'given' }>
 
 const point = defineRenderPoint<string>({
   name: 'human-intervention.release-detail',
+  title: '放行卡的详情',
   summary:
     'How the typed value in the detail of a release card is drawn, by the domain that owns its kind.',
   key: 'the kind of the typed value, with its major version',

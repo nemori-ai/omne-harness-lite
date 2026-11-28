@@ -34,6 +34,7 @@ export function describedOf({ points, parts }: Described): Tree {
         item: { kind: item.kind, fields },
         example: contract.example ?? null,
         ...(scopes !== undefined && scopes !== 'all' && { scopes }),
+        title: contract.title,
       }
       return {
         name,
@@ -79,8 +80,21 @@ export function reportsOf(
     .sort((left, right) => (left.name < right.name ? -1 : 1))
 }
 
+/** The same report for a server before revision 4 of plugin/v1: the rules of a point say no title. */
+export function beforeRevisionFour(reported: Reported): Reported {
+  return {
+    ...reported,
+    points: reported.points.map(({ contract, ...point }) => {
+      if (contract === undefined) return point
+      const { title: _title, ...rules } = contract
+      return { ...point, contract: rules }
+    }),
+  }
+}
+
 /** The same report for a server before revision 3 of plugin/v1: a waiting plugin is told as failed with the reason alone, and nothing of revision 3 is said. */
-export function beforeRevisionThree({ handed: _handed, ...reported }: Reported): Reported {
+export function beforeRevisionThree(told: Reported): Reported {
+  const { handed: _handed, ...reported } = beforeRevisionFour(told)
   return {
     ...reported,
     plugins: reported.plugins.map(({ waiting: _waiting, ...rest }) => rest),

@@ -11,6 +11,7 @@ import { startTree, waitListening } from './support.ts'
 // The rules are not the entry's: a second declaration of its point that differs from the first.
 const rival = {
   name: 'access.protocols',
+  title: 'test',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

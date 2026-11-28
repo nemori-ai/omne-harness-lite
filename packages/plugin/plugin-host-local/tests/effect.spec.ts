@@ -608,3 +608,49 @@ describe('where a held plugin is placed now', () => {
     expect(answer.places[0]).toMatchObject({ standing: 'not known' })
   })
 })
+
+describe('the names a person sees, on the lines of an impact and of where it is placed', () => {
+  const page = {
+    point: 'shell.pages',
+    key: '',
+    id: 'weather',
+    title: '天气',
+    module: 'p.js',
+    export: 'page',
+  }
+  const titled: readonly KnownPoint[] = POINTS.map(point =>
+    point.name === 'shell.pages' ? { ...point, title: '一级页面' } : point,
+  )
+  const named = (line: Readonly<{ title?: string; pointTitle?: string }>) => [
+    line.title,
+    line.pointTitle,
+  ]
+
+  it('a line carries the title the member gives itself and the title of its point', () => {
+    const body = manifest('weather', [page, SEND])
+    const impact = pluginImpact({
+      name: 'weather',
+      change: 'publish',
+      manifest: body,
+      held: [],
+      points: titled,
+    })
+    expect(impact.lines.map(named)).toEqual([
+      ['天气', '一级页面'],
+      [undefined, undefined],
+    ])
+    const placed = pluginPlacement({
+      name: 'weather',
+      manifest: body,
+      enabled: true,
+      held: [],
+      clients: null,
+      server: null,
+      points: titled,
+    })
+    expect(placed.places.map(named)).toEqual([
+      ['天气', '一级页面'],
+      [undefined, undefined],
+    ])
+  })
+})

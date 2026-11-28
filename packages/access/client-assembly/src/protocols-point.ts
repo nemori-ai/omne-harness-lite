@@ -15,6 +15,7 @@ export const CONNECTION_PROTOCOLS_POINT = 'connection.protocols'
 
 export const protocolsContract: Contract = Object.freeze({
   name: CONNECTION_PROTOCOLS_POINT,
+  title: '连着的协议',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,
@@ -45,6 +46,7 @@ export type ServerPoints = Readonly<{
 
 export const serverPointsContract: Contract = Object.freeze({
   name: CONNECTION_SERVER_POINTS,
+  title: '服务端公开的键',
   tree: 'client',
   arity: 'one',
   keyFrom: null,

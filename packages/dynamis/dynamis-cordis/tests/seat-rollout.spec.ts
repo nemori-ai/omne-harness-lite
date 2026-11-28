@@ -27,6 +27,7 @@ const mod1 = { fiber: 'mod', generation: 1 }
 const mod2 = { fiber: 'mod', generation: 2 }
 
 const one: Contract = {
+  title: 'test',
   name: 'host.one',
   tree: 'server',
   arity: 'keyed-one',

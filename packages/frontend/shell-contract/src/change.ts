@@ -77,6 +77,7 @@ export type Changes = Readonly<{
 
 export const tokensContract: Contract = {
   name: TOKENS_POINT,
+  title: '令牌',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: PARTS_POINT,
@@ -99,6 +100,7 @@ export const tokensContract: Contract = {
 
 export const styleContract: Contract = {
   name: STYLE_POINT,
+  title: '部位的样式',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: PARTS_POINT,
@@ -129,6 +131,7 @@ const RENDER_EXAMPLE = [
 
 export const renderContract: Contract = {
   name: RENDER_POINT,
+  title: '部位的画法',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: PARTS_POINT,
@@ -150,6 +153,7 @@ export const renderContract: Contract = {
 
 export const layoutContract: Contract = {
   name: LAYOUT_POINT,
+  title: '页面的次序',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,
@@ -170,6 +174,7 @@ export const layoutContract: Contract = {
 
 export const phraseContract: Contract = {
   name: PHRASE_POINT,
+  title: '现成的话',
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,
@@ -653,8 +658,15 @@ export function laidOut<T extends Readonly<{ id: string }>>(
 
 export const GUEST_FORMS_POINT = 'plugin.guest-forms'
 
-const lent = (name: string, key: string, field: string, summary: string): Contract => ({
+const lent = (
+  name: string,
+  key: string,
+  field: string,
+  summary: string,
+  title: string,
+): Contract => ({
   name,
+  title,
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,
@@ -678,12 +690,14 @@ export const pluginContracts: readonly Contract[] = [
     'the name of a port, as a plugin writes it in needs',
     'make',
     'The ports this tree lends to the code of plugins. A plugin names the ones it uses in needs.',
+    '借给 Plugin 的口',
   ),
   lent(
     GUEST_FORMS_POINT,
     'the name of the point whose items its host makes from what a member gives',
     'form',
     'How the host of a point makes one item of it from what a member of a plugin gives: data or what the code gave.',
+    'Plugin 的专门写法',
   ),
 ]
 

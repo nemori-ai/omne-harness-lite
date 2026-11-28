@@ -6,6 +6,7 @@ import type {
   Placement,
 } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
+import { memberName } from '@omne-harness/plugin-protocol'
 import { columns } from './results.ts'
 
 export const HOW: Readonly<Record<CategoryListing['creation'], string>> = {
@@ -30,9 +31,9 @@ export const reused = (id: string) =>
 
 export const CANNOT_READ = 'cannot be read now'
 
-/** One line of an impact: what would happen at one place, and to whom when it is another holding. */
-export const impactLine = ({ mark, of, point, key, says }: ImpactLine): string =>
-  `  ${mark} ${of === null ? '' : `${of}: `}${point} / ${key}   ${says}`
+/** One line of an impact: what would happen to which member, and to whom when it is another holding. */
+export const impactLine = (line: ImpactLine): string =>
+  `  ${line.mark} ${line.of === null ? '' : `${line.of}: `}${memberName(line)}   ${line.says}`
 
 /** The impact lines, then nothing else changes when no line changes a state or fails to take effect. */
 export function impactBody(
@@ -71,10 +72,10 @@ export function placedLines(placed: Placed): string[] {
       : [
           'places:',
           ...columns(
-            placed.places.map(({ point, key, standing, says }) => [
-              `  ${point} / ${key}`,
-              `[${standing}]`,
-              says,
+            placed.places.map(place => [
+              `  ${memberName(place)}`,
+              `[${place.standing}]`,
+              place.says,
             ]),
           ),
         ]

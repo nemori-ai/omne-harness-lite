@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { memberName } from '@omne-harness/plugin-protocol'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PluginPage } from '../src/view/plugin-page.tsx'
 import type {
@@ -11,6 +12,14 @@ import type {
 } from '../src/view/plugin-port.ts'
 import { stubAnimation } from './support/dom-stubs.ts'
 
+const TAKEN = {
+  of: null,
+  point: 'tool.tools',
+  key: 'wordcount',
+  id: null,
+  says: '',
+  pointTitle: '工具',
+}
 const EFFECT: PluginEffect = {
   places: [
     {
@@ -22,11 +31,12 @@ const EFFECT: PluginEffect = {
       categoryTitle: '工具',
       standing: 'in effect',
       says: '',
+      pointTitle: '工具',
     },
   ],
   advice: null,
-  disable: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', id: null, says: '' }],
-  remove: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', id: null, says: '' }],
+  disable: [{ ...TAKEN, mark: '-' }],
+  remove: [{ ...TAKEN, mark: '-' }],
 }
 
 const entryWith = (detail: PluginDetail | null, enabled: boolean): PluginEntry => ({
@@ -112,21 +122,25 @@ describe('the page of one plugin', () => {
     expect(screen.getByRole('button', { name: '禁用整份' }).hasAttribute('disabled')).toBe(false)
   })
 
-  it('names what it put on a point that tells its items by id by that id, so two on one point are told apart', () => {
-    const on = (point: string, id: string) => ({
-      place: {
-        point,
-        key: '',
-        id,
-        side: 'client' as const,
-        category: null,
-        categoryTitle: null,
-        standing: 'in effect',
-        says: '',
-      },
-      line: { mark: '-' as const, of: null, point, key: '', id, says: '' },
-    })
-    const brought = [on('shell.pages', 'weather'), on('shell.pages', 'weather-map')]
+  it('names each member as memberName does, the page and the panel alike: its title, or the title of its point and its id', () => {
+    const on = (point: string, id: string, title?: string) => {
+      const named = { pointTitle: '一级页面', ...(title !== undefined && { title }) }
+      return {
+        place: {
+          point,
+          key: '',
+          id,
+          side: 'client' as const,
+          category: null,
+          categoryTitle: null,
+          standing: 'in effect',
+          says: '',
+          ...named,
+        },
+        line: { mark: '-' as const, of: null, point, key: '', id, says: '', ...named },
+      }
+    }
+    const brought = [on('shell.pages', 'weather', '天气'), on('shell.pages', 'weather-map')]
     const effect: PluginEffect = {
       ...EFFECT,
       places: brought.map(each => each.place),
@@ -135,15 +149,11 @@ describe('the page of one plugin', () => {
     shown({ kind: 'read', asset: { effect } })
     const items = (within: HTMLElement) =>
       [...within.querySelectorAll('li')].map(item => item.textContent?.trim())
-    expect(items(screen.getByRole('region', { name: 'tool-kit' }))).toEqual([
-      'weather shell.pages',
-      'weather-map shell.pages',
-    ])
+    const names = ['「天气」（一级页面）', '一级页面「weather-map」']
+    expect(items(screen.getByRole('region', { name: 'tool-kit' }))).toEqual(names)
+    expect(names).toEqual(brought.map(each => memberName(each.place)))
     fireEvent.click(screen.getByRole('switch', { name: '启用「tool-kit」' }))
-    expect(items(screen.getByRole('dialog'))).toEqual([
-      'weather shell.pages',
-      'weather-map shell.pages',
-    ])
+    expect(items(screen.getByRole('dialog'))).toEqual(names)
   })
 
   it('disabled, lists what it brought without a status word on each; enabled, a member not in effect says why', () => {
@@ -152,7 +162,7 @@ describe('the page of one plugin', () => {
       places: EFFECT.places.map(place => ({ ...place, standing: 'not in effect', says })),
     })
     shown({ kind: 'read', asset: { effect: off('it is disabled') } }, false)
-    expect(screen.getByText('wordcount')).toBeTruthy()
+    expect(screen.getByText('工具「wordcount」')).toBeTruthy()
     expect(screen.queryByText('没有生效')).toBeNull()
     expect(screen.queryByText(/it is disabled/u)).toBeNull()
     cleanup()

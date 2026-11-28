@@ -111,6 +111,7 @@ const PROTOCOLS: Contract = {
   conformance: null,
   scopes: GRANTS_ITSELF,
   summary: 'The protocols a case serves to the modules on this tree.',
+  title: '协议',
 }
 
 export const protocolsPoint: Plugin.Object = {

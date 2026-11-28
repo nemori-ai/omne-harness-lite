@@ -36,6 +36,7 @@ export const json = (value: unknown) => {
 
 export const contract = (name: string, over: Partial<Contract> = {}): Contract => ({
   name,
+  title: name,
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

@@ -55,6 +55,7 @@ export type KeyedPoint<S> = KeyedPointSink<S> &
 export type PointDeclaration<S> = Readonly<{
   name: string
   subject: PointCodec<S>
+  title: string
   summary?: string
   key?: string
 }>
@@ -167,6 +168,7 @@ export type RenderPointDeclaration = Readonly<{
   name: string
   key: string
   summary: string
+  title: string
   keysFrom?: string
   subject?: string
   example?: string

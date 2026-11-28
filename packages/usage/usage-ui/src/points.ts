@@ -30,6 +30,7 @@ const isData = (value: unknown): value is Readonly<Record<string, unknown>> =>
 
 export const usageWidget: KeyedPoint<WidgetSubject> = defineKeyedPoint({
   name: USAGE_WIDGET,
+  title: '用量页的一块',
   summary: 'The cards of the usage panel: each reads its own data.',
   key: 'the position of the panel: tenant, session or status',
   subject: json(isWidgetSubject),
@@ -37,6 +38,7 @@ export const usageWidget: KeyedPoint<WidgetSubject> = defineKeyedPoint({
 
 export const usagePresentation: KeyedPoint<Readonly<Record<string, unknown>>> = defineKeyedPoint({
   name: USAGE_PRESENTATION,
+  title: '用量的呈现',
   summary: 'The chart types of the usage panel: each draws data of one shape.',
   key: 'the shape of the data: series, breakdown or reading',
   subject: json(isData),

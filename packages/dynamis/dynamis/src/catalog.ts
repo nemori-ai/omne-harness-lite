@@ -63,6 +63,7 @@ export type Contract = Readonly<{
   conformance: string | null
   scopes?: Scopes
   summary: string
+  title: string
   /** One item of this point as its author writes it, to copy. The registry does not read it. */
   example?: string
 }>
@@ -83,6 +84,7 @@ export const catalogContract: Contract = Object.freeze({
   keys: 'private',
   conformance: null,
   summary: 'The catalog: one item declares one extension point and carries its contract.',
+  title: '拓展点的目录',
   scopes: Object.freeze({
     only: 'deployment',
     why: 'one-per-process',
@@ -200,6 +202,10 @@ const CONTRACT_RULES: readonly (readonly [
   [contract => isText(contract['gives']), 'gives is not text'],
   [contract => isText(contract['onError']), 'onError is not text'],
   [contract => isText(contract['summary']), 'summary is not text'],
+  [
+    contract => isText(contract['title']) && String(contract['title']).trim() !== '',
+    'title is empty or not text',
+  ],
   [contract => isOneOf(RESOLVES, contract['resolve']), 'the resolve rule is unknown'],
   [contract => isOneOf(BINDINGS, contract['binding']), 'the binding time is unknown'],
   [

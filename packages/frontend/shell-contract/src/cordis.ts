@@ -49,7 +49,7 @@ import {
 } from './change.ts'
 import { GRANTS_ITSELF } from './closed.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
-import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
+import type { Described, Fallen, Hosted, ScopeSource, ShellLogin, Trouble } from './host.ts'
 import {
   protocolClientOf,
   pointReader,
@@ -116,6 +116,7 @@ const offered = (name: string): Contract => ({
   keys: 'private',
   conformance: null,
   summary: `What one view module provides to the others under ${name}.`,
+  title: `界面模块提供的 ${name}`,
 })
 
 function adoptOn(registry: Registry, references: Readonly<Record<string, Reference>>): Adoption {
@@ -288,7 +289,16 @@ export abstract class ShellService extends Service implements ShellSlots {
           within,
         }))
         .sort((left, right) => (left.name < right.name ? -1 : 1)),
+      troubles: this.troubles(),
     }
+  }
+
+  protected troubles(): readonly Trouble[] {
+    return []
+  }
+
+  protected drawsAt(point: string, key: string): boolean {
+    return this.drawingAt(point, key, lookScope(this.scope.get(), this.worn)) !== undefined
   }
 
   guestForm(point: string): ClientGuestForm | undefined {

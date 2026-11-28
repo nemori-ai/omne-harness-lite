@@ -124,7 +124,8 @@ export async function setup(
   await root.plugin(shellPlugin(state))
   if (options.connection !== null)
     root.reflect.provide('connection', options.connection ?? quietConnection)
-  for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
+  for (const name of TEST_POINTS)
+    definePoint({ title: 'test', name, subject: TEXT }).declare(root.shell)
   const gated = new Map<string, Plugin.Object[]>()
   for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage]) {
     const gate = (module as Partial<Gated>).gatedBy

@@ -61,6 +61,7 @@ export {
   type LoaderDeps,
   type Outcome,
 } from './loader.ts'
+export { memberName, type Named } from './member-name.ts'
 export { wantedOf, type Offered, type Wanted } from './wanted.ts'
 export {
   genericItem,

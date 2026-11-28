@@ -26,6 +26,7 @@ export const CANVAS_KINDS_POINT = 'canvas.kinds'
 
 export const canvasKindsContract: Contract = Object.freeze({
   name: CANVAS_KINDS_POINT,
+  title: '画布的种类',
   tree: 'server',
   arity: 'keyed-one',
   keyFrom: null,

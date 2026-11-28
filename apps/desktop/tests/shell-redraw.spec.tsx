@@ -229,3 +229,29 @@ describe('the shared pieces of the kit in the desktop shell', () => {
     quiet.mockRestore()
   })
 })
+
+describe('what the shell could not read in a page it drew', () => {
+  it('names a page whose icon the kit does not know, until shell.icon draws one by that name', async () => {
+    const t = await shown()
+    const own = await t.module('own')
+    const weather = { id: 'weather', title: 'Weather', order: 50, render: () => null }
+    await act(async () => {
+      own.shell.contribute('pages', { ...weather, icon: 'weather' })
+      own.shell.contribute('pages', { ...weather, id: 'time', icon: 'time' })
+      await settle()
+    })
+    expect(t.service.described().troubles).toEqual([
+      {
+        point: 'shell.pages',
+        key: '',
+        id: 'weather',
+        says: 'the icon "weather" is not a name the kit knows, and shell.icon draws none by it: the sidebar draws a question mark. OmneExtensionPoints show shell.icon lists the names',
+      },
+    ])
+    await act(async () => {
+      iconPoint.put(own.shell, 'weather', () => <b />, tenantScope(ALICE))
+      await settle()
+    })
+    expect(t.service.described().troubles).toEqual([])
+  })
+})

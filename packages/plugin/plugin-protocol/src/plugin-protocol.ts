@@ -68,6 +68,7 @@ const contract = object({
     optional: true,
     since: 3,
   },
+  title: { rule: text, optional: true, since: 4 },
 })
 const dataKey = object({ name: { rule: text }, now: { rule: oneOf(text, nothing) } })
 const point = object({
@@ -167,6 +168,6 @@ export const pluginProtocol = defineProtocol({
 })
 export type PluginProtocol = typeof pluginProtocol
 
-/** One point as a client tells of it: its name, a line on it, and, from revision 2, its rules and the names its data may use. */
+/** One point as a client tells of it: its name, a line on it, and, from revision 2, its rules and the names its data may use; from revision 4 its rules carry its title. */
 export type ReportedPoint = RuleValue<typeof point>
 export type ReportedPointContract = NonNullable<ReportedPoint['contract']>

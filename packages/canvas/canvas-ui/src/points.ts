@@ -38,6 +38,7 @@ const KIND_KEY =
 
 export const canvasElement: RenderPoint<CanvasElementSubject> = defineRenderPoint({
   name: CANVAS_ELEMENT,
+  title: '纸上的一样东西',
   key: KIND_KEY,
   summary: 'How a thing of one kind is drawn on the canvas, by the domain that owns the kind.',
   keysFrom: CANVAS_KINDS,
@@ -53,6 +54,7 @@ export const canvasElement: RenderPoint<CanvasElementSubject> = defineRenderPoin
 
 export const canvasPicker: RenderPoint<CanvasPickerSubject> = defineRenderPoint({
   name: CANVAS_PICKER,
+  title: '从一类里挑一个',
   key: KIND_KEY,
   summary: 'How a person picks one thing of a kind from the search, to put it on the canvas.',
   keysFrom: CANVAS_KINDS,
@@ -68,6 +70,7 @@ export const canvasPicker: RenderPoint<CanvasPickerSubject> = defineRenderPoint(
 
 export const canvasIntake: RenderPoint<CanvasIntakeSubject> = defineRenderPoint({
   name: CANVAS_INTAKE,
+  title: '递到纸上的东西',
   key: 'what is handed onto the canvas: files is the one there is now',
   summary: 'How what is dropped onto the canvas becomes a reference put on it.',
   subject:
@@ -82,6 +85,7 @@ export const canvasIntake: RenderPoint<CanvasIntakeSubject> = defineRenderPoint(
 
 export const canvasAppRender: RenderPoint<CanvasAppSubject> = defineRenderPoint({
   name: CANVAS_APP_RENDER,
+  title: '小应用',
   key: 'the name of the canvas app, any text: it is the identifier of a canvas.app reference',
   summary: 'How the canvas app of this name is drawn, put by the plugin that brings it.',
   subject: 'name, the name of the canvas app',

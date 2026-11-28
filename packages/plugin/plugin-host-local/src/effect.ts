@@ -17,6 +17,7 @@ export type KnownPoint = Readonly<{
   /** The names the data of a member may use, where the point lists them; absent when any name may be used. */
   dataKeys?: readonly string[]
   closed?: Readonly<{ why: string; note: string }>
+  title?: string
 }>
 
 export type PluginImpactInput = Readonly<{
@@ -113,6 +114,24 @@ function strayName(member: Member, point: KnownPoint): string | null {
 const line = (mark: ImpactLine['mark'], placed: Placed, says: string, of: string | null = null) => {
   const { point, key, id } = placed.member
   return { mark, of, point, key, ...(id !== undefined && { id }), says } satisfies ImpactLine
+}
+
+export function named<L extends Readonly<{ point: string; key: string; id?: string }>>(
+  lines: readonly L[],
+  members: readonly Placed[],
+  points: readonly KnownPoint[],
+): readonly L[] {
+  return lines.map(each => {
+    const member = members.find(
+      ({ member: m }) => m.point === each.point && m.key === each.key && m.id === each.id,
+    )?.member
+    const pointTitle = points.find(point => point.name === each.point)?.title
+    return {
+      ...each,
+      ...(member?.title !== undefined && { title: member.title }),
+      ...(pointTitle !== undefined && { pointTitle }),
+    }
+  })
 }
 
 type Told = Readonly<{ lines: readonly ImpactLine[]; advice: string | null }>
@@ -217,8 +236,9 @@ export function pluginImpact(input: PluginImpactInput): PluginImpact {
       : placedOf(before.manifest)
           .filter(old => !now.some(placed => same(placed, old)))
           .map(old => line('-', old, '→ goes away: the new version does not write it'))
+  const members = [...now, ...(before === undefined ? [] : placedOf(before.manifest))]
   return {
-    lines: [...told.flatMap(each => each.lines), ...dropped],
+    lines: named([...told.flatMap(each => each.lines), ...dropped], members, input.points),
     loads: loadsOf(manifest),
     advice: told.find(each => each.advice !== null)?.advice ?? null,
   }

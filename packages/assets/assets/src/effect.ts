@@ -10,6 +10,8 @@ export type ImpactLine = Readonly<{
   point: string
   key: string
   id?: string
+  title?: string
+  pointTitle?: string
   says: string
 }>
 
@@ -37,6 +39,8 @@ export type PlacedLine = Readonly<{
   point: string
   key: string
   id?: string
+  title?: string
+  pointTitle?: string
   standing: string
   says: string
   side?: 'client' | 'server'

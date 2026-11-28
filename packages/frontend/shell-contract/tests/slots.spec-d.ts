@@ -356,8 +356,8 @@ test('a point takes no key and a keyed point requires one, on both sides', () =>
     encode: value => value.session,
     decode: text => ({ session: text }),
   }
-  const plain = definePoint({ name: 'session.side', subject: codec })
-  const keyed = defineKeyedPoint({ name: 'assets.holding', subject: codec })
+  const plain = definePoint({ title: 'test', name: 'session.side', subject: codec })
+  const keyed = defineKeyedPoint({ title: 'test', name: 'assets.holding', subject: codec })
   expectTypeOf(plain.contribute).parameters.toEqualTypeOf<[PointContributor, PointItem<Session>]>()
   expectTypeOf(plain.slot).parameters.toEqualTypeOf<[PointHost, Session, AttachedLayout]>()
   expectTypeOf(keyed.contribute).parameters.toEqualTypeOf<

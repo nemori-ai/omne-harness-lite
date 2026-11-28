@@ -63,6 +63,7 @@ const send = definePart<{ label: string }>({
   depths: ['render'],
 })
 const card = defineRenderPoint<{ title: string }>({
+  title: 'test',
   name: 'notes.card',
   key: 'the kind of a note',
   summary: 'How a note of one kind is drawn.',
