@@ -172,6 +172,47 @@ describe('通用写法：代码交回的东西成为这个点的一项', () => {
     })
   })
 
+  it('清单没给标识时留着交回的那个；这个点不收标识与次序时清单给的也不放进去', () => {
+    const render = () => null
+    const page = rules({
+      item: {
+        kind: 'pure',
+        fields: { id: 'string', title: 'string', rank: 'number', render: 'function' },
+      },
+    })
+    expect(genericItem(page, { id: 'mine', title: 'Notes', rank: 1, render }, {})).toEqual({
+      item: { id: 'mine', title: 'Notes', rank: 1, render },
+    })
+    expect(genericItem(two, { available: render, run: render }, { id: 'x', rank: 3 })).toEqual({
+      item: { available: render, run: render },
+    })
+  })
+
+  it('只要一个字段而它不是函数时，交回的函数不算；字段是文字或真假的，种类不对说缺哪一个', () => {
+    const titled = rules({ item: { kind: 'pure', fields: { title: 'string' } } })
+    expect(genericItem(titled, () => null)).toEqual({
+      kind: 'refused',
+      detail: 'what was given is not an item of the point, which asks for title',
+    })
+    expect(genericItem(titled, { title: 7 })).toEqual({
+      kind: 'refused',
+      detail: 'the item lacks title (string)',
+    })
+    const toggle = rules({ item: { kind: 'pure', fields: { on: 'boolean' } } })
+    expect(genericItem(toggle, { on: 'yes' })).toEqual({
+      kind: 'refused',
+      detail: 'the item lacks on (boolean)',
+    })
+    expect(genericItem(toggle, { on: false })).toEqual({ item: { on: false } })
+    expect(genericItem(two, null)).toEqual({
+      kind: 'refused',
+      detail: 'what was given is not an item of the point, which asks for available, run',
+    })
+    expect(reasonText({ kind: 'wrong-way', takes: 'data', gives: 'code' })).toBe(
+      'the point takes data; this member gives code',
+    )
+  })
+
   it('交回的既不是那个函数也不是对象：说明这个点要什么', () => {
     expect(genericItem(two, () => null)).toEqual({
       kind: 'refused',

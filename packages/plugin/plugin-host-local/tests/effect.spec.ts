@@ -144,6 +144,18 @@ describe('what publishing a plugin would change', () => {
     ])
   })
 
+  it('members of two plugins on one point under other keys are not a conflict', () => {
+    const SUBMIT = { point: 'shell.part-style', key: 'session.composer.submit', data: { base: {} } }
+    const answer = pluginImpact({
+      name: 'pill',
+      change: 'publish',
+      manifest: manifest('pill', [SEND]),
+      held: [held('round', manifest('round', [SUBMIT]))],
+      points: POINTS,
+    })
+    expect(lines(answer)).toEqual(['+ shell.part-style / session.composer.send   → in effect'])
+  })
+
   it('a point that is not there now is said, with the nearest names that are', () => {
     const typo = { ...ACCENT, point: 'shell.token' }
     const answer = pluginImpact({
@@ -498,6 +510,38 @@ describe('where a held plugin is placed now', () => {
       server: null,
     })
     expect(off.places[0]).toMatchObject({ standing: 'not in effect', says: 'it is disabled' })
+  })
+
+  it('is not in effect while a client waits for what it lacks, and says what the client waits for', () => {
+    const answer = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: 'the point session.tool-call' }],
+      server: null,
+    })
+    expect(answer.places.map(place => [place.standing, place.says])).toEqual([
+      ['not in effect', 'the client waits for what it lacks'],
+      ['not in effect', 'the client waits for what it lacks'],
+    ])
+    expect(answer.clients).toEqual([
+      {
+        label: 'desktop-1, connected',
+        says: 'waits for the point session.tool-call: it loads by itself when that is there',
+      },
+    ])
+    const told = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: null }],
+      server: null,
+    })
+    expect(told.clients?.[0]?.says).toBe(
+      'waits for what it lacks: it loads by itself when that is there',
+    )
   })
 
   it('says a client that told nothing of it has not loaded it yet', () => {

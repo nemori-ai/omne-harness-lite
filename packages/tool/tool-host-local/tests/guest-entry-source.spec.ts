@@ -183,5 +183,68 @@ describe('the form a plugin writes its tools in (TL-77)', () => {
       refused({ tools: { forecast: { ...forecast, effect: 'delete', run: () => 1 } } }),
     ).toThrow(/read or write/u)
     expect(refused({ tools: { forecast } })).toThrow(/run is a function/u)
+    expect(refused({ tools: { forecast: 'x' } })).toThrow(
+      'forecast: a tool is { summary, params, effect, run }',
+    )
+    for (const summary of ['  ', 7])
+      expect(refused({ tools: { forecast: { ...forecast, summary, run: () => 1 } } })).toThrow(
+        'forecast: summary is one sentence',
+      )
+    expect(refused({ tools: ['x'] })).toThrow('the code gives { tools }: at least one tool')
+  })
+
+  it('says a name that is not one of its tools; a value that is not JSON is the failure of a read; a write keeps what it threw as the cause', async () => {
+    const thrown = new Error('disk full')
+    const source = guestEntrySource<string>(
+      {
+        tools: {
+          forecast: { ...forecast, run: () => () => 'a function' },
+          remember: {
+            ...forecast,
+            effect: 'write',
+            run: () => {
+              throw thrown
+            },
+          },
+        },
+      },
+      host([]),
+      SHAPE,
+    )
+    await expect(source.execute(call('weather__nothing', {}))).rejects.toThrow(
+      'weather__nothing is not a tool of this plugin',
+    )
+    expect(resultOf(await source.execute(call('weather__forecast', {}))).content).toMatchObject([
+      { kind: 'text', text: 'weather__forecast failed: it returned a value that is not JSON' },
+    ])
+    await expect(source.execute(call('weather__remember', {}))).rejects.toMatchObject({
+      cause: thrown,
+    })
+  })
+
+  it('runs the function inside what the loader wraps it in, and declares text in and out with no capability required', async () => {
+    const log: string[] = []
+    const source = guestEntrySource<string>(
+      { tools: { forecast: { ...forecast, run: () => log.push('run') } } },
+      {
+        ...host(log),
+        within: run => {
+          log.push('within')
+          return run()
+        },
+      },
+      SHAPE,
+    )
+    await source.execute(call('weather__forecast', { city: 'Oslo' }))
+    expect(log).toEqual(['open alice-principal', 'within', 'run', 'close'])
+    const listed = await source.list({ principal: 'p', tenant: 't' as never })
+    if (!('ok' in listed)) throw new Error('not listed')
+    const definition = listed.ok.entries[0]?.definition
+    if (definition?.kind !== 'commands') throw new Error('not a command tool')
+    expect(definition.requiredCapabilities).toEqual([])
+    expect([
+      definition.declarations.inputModalities,
+      definition.declarations.outputModalities,
+    ]).toEqual([['text'], ['text']])
   })
 })
