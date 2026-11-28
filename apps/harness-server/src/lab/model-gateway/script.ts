@@ -9,11 +9,25 @@ const call = z.strictObject({
   tool: z.string().min(1),
   arguments: z.record(z.string(), z.unknown()),
 })
+const generated = z.strictObject({
+  seed: z.number().int().min(0),
+  bytes: z
+    .number()
+    .int()
+    .min(1)
+    .max(8 * 1024 * 1024),
+})
 const step = z
-  .strictObject({ when, say: z.string().min(1).optional(), call: z.array(call).min(1).optional() })
+  .strictObject({
+    when,
+    say: z.string().min(1).optional(),
+    text: generated.optional(),
+    call: z.array(call).min(1).optional(),
+    reasoning: generated.optional(),
+  })
   .refine(
-    given => (given.say === undefined) !== (given.call === undefined),
-    'a step either says a sentence (say) or calls tools (call), one of the two',
+    given => [given.say, given.text, given.call].filter(one => one !== undefined).length === 1,
+    'a step says a sentence (say), says generated text (text) or calls tools (call), one of the three',
   )
 const judging = z.strictObject({
   when,
@@ -57,13 +71,76 @@ function stream(frames: readonly object[]): GatewayAnswer {
   return { status: 200, contentType: 'text/event-stream', body: `${body}data: [DONE]\n\n` }
 }
 
-function chatAnswer(found: ModelScript['steps'][number] | undefined, model: string): GatewayAnswer {
+const WORDS = [
+  'amber',
+  'basin',
+  'cedar',
+  'delta',
+  'ember',
+  'fjord',
+  'grove',
+  'haven',
+  'inlet',
+  'jetty',
+  'knoll',
+  'ledge',
+  'marsh',
+  'north',
+  'oasis',
+  'plain',
+  'quay',
+  'ridge',
+  'shore',
+  'tarn',
+  'upland',
+  'vale',
+  'weir',
+  'yard',
+]
+
+export function generatedText(seed: number, bytes: number): string {
+  let state = (seed * 2654435761 + 1) >>> 0
+  let text = ''
+  while (text.length < bytes) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    text += `${WORDS[state % WORDS.length] ?? 'plain'} `
+  }
+  return `${text.slice(0, bytes - 1)}.`
+}
+
+type Step = ModelScript['steps'][number]
+
+const reasoningOf = (found: Step | undefined): object[] =>
+  found?.reasoning === undefined
+    ? []
+    : [
+        {
+          reasoning_details: [
+            {
+              type: 'reasoning.encrypted',
+              id: `rs_lab_${String(found.reasoning.seed)}`,
+              index: 0,
+              format: 'openai-responses-v1',
+              data: generatedText(found.reasoning.seed, found.reasoning.bytes),
+            },
+          ],
+        },
+      ]
+
+function chatAnswer(found: Step | undefined, model: string): GatewayAnswer {
   const serving = { model, provider: model.startsWith('anthropic/') ? 'Anthropic' : 'OpenAI' }
-  if (found?.call === undefined)
+  const thought = reasoningOf(found).map(delta => ({ ...serving, choices: [{ delta }] }))
+  if (found?.call === undefined) {
+    const content =
+      found?.text === undefined
+        ? (found?.say ?? NO_STEP)
+        : generatedText(found.text.seed, found.text.bytes)
     return stream([
-      { ...serving, choices: [{ delta: { content: found?.say ?? NO_STEP } }] },
+      ...thought,
+      { ...serving, choices: [{ delta: { content } }] },
       { choices: [{ delta: {}, finish_reason: 'stop' }] },
     ])
+  }
   const calls = found.call.map((made, index) => ({
     index,
     id: made.id,
@@ -71,6 +148,7 @@ function chatAnswer(found: ModelScript['steps'][number] | undefined, model: stri
     function: { name: made.tool, arguments: JSON.stringify(made.arguments) },
   }))
   return stream([
+    ...thought,
     { ...serving, choices: [{ delta: { tool_calls: calls } }] },
     { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
   ])
@@ -132,6 +210,15 @@ export function providerUrlOf(
 }
 
 /** The answer a script gives one request: a judging by `judgings`, any other request by `steps`. */
+export function fittingStep(
+  given: ModelScript,
+  request: Parameters<GatewayScript>[0],
+): number | null {
+  if (decisionOf(request.rawBody) !== null) return null
+  const found = given.steps.findIndex(rule => fits(rule.when, request.body))
+  return found < 0 ? null : found
+}
+
 export function scriptedAnswer(
   given: ModelScript,
   request: Parameters<GatewayScript>[0],
@@ -158,12 +245,44 @@ type Layer = Readonly<{ ops: readonly Operation[] }>
 
 const SENDING_ROW = 'model-records'
 
-/** The operator layer with every endpoint of the release provider pointed at the gateway. */
-export function withModelRoute<L extends Layer>(layer: L, url: string): L {
+function sendingRow<L extends Layer>(layer: L, what: string) {
   const row = layer.ops.find(op => op.id === SENDING_ROW)
   const sendStage = row?.config['sendStage'] as Readonly<Record<string, unknown>> | undefined
   if (row === undefined || sendStage === undefined)
-    throw new Error(`model script: the operator layer has no send stage in ${SENDING_ROW} to route`)
-  const config = { ...row.config, sendStage: { ...sendStage, endpoints: { openrouter: url } } }
-  return { ...layer, ops: layer.ops.map(op => (op === row ? { ...op, config } : op)) }
+    throw new Error(`${what}: the operator layer has no send stage in ${SENDING_ROW}`)
+  return { row, sendStage }
+}
+
+const withSendStage = <L extends Layer>(layer: L, row: Operation, sendStage: object): L => ({
+  ...layer,
+  ops: layer.ops.map(op => (op === row ? { ...op, config: { ...row.config, sendStage } } : op)),
+})
+
+/** The operator layer with every endpoint of the release provider pointed at the gateway. */
+export function withModelRoute<L extends Layer>(layer: L, url: string): L {
+  const { row, sendStage } = sendingRow(layer, 'model script')
+  return withSendStage(layer, row, { ...sendStage, endpoints: { openrouter: url } })
+}
+
+const PROFILES_ROW = 'model-profiles'
+
+export function withCompactionTrigger<L extends Layer>(layer: L, percent: string): L {
+  if (!/^(100|[1-9][0-9]?)$/u.test(percent))
+    throw new Error(`compaction trigger: ${percent} is not a whole percent from 1 to 100`)
+  const { row, sendStage } = sendingRow(layer, 'compaction trigger')
+  const profiles = sendStage['profiles'] as Readonly<Record<string, unknown>> | undefined
+  const sending = withSendStage(layer, row, {
+    ...sendStage,
+    profiles: { ...profiles, compactionTriggerPercent: percent },
+  })
+  if (!sending.ops.some(op => op.id === PROFILES_ROW))
+    throw new Error(`compaction trigger: the operator layer has no ${PROFILES_ROW} row`)
+  return {
+    ...sending,
+    ops: sending.ops.map(op =>
+      op.id === PROFILES_ROW
+        ? { ...op, config: { ...op.config, compactionTriggerPercent: percent } }
+        : op,
+    ),
+  }
 }

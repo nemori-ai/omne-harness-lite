@@ -4,6 +4,7 @@ import type {
   StorageControl,
   StorageResidual,
   StorageScope,
+  StorageReadings,
 } from '@omne-harness/sql-contract'
 import type { SqliteStorageConfig } from './config.ts'
 import type { Domains, Lifecycle } from './domains.ts'
@@ -62,6 +63,7 @@ export type CloseDeps = Readonly<{
   inFlight: InFlight
   readers: ReaderPool
   latch: ReportLatch
+  readings: Readonly<{ snapshot(): StorageReadings }>
 }>
 
 const sleep = (ms: number, signal: AbortSignal): Promise<'deadline'> =>
@@ -132,5 +134,6 @@ export function createControl(deps: CloseDeps): StorageControl {
     assemblyReportSettled(): void {
       deps.latch.settle()
     },
+    readings: () => deps.readings.snapshot(),
   }
 }

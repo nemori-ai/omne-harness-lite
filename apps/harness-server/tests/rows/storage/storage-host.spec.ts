@@ -7,6 +7,7 @@ import type {
   SqlMaterialCatalog,
   StorageCloseResult,
   StorageControl,
+  StorageReadings,
 } from '@omne-harness/sql-contract'
 import { IDENTITY_PARTICIPANT } from '@omne-harness/identity-sql'
 import { StorageHostService } from '@omne-harness/sql-contract/cordis'
@@ -34,7 +35,12 @@ type FakeControl = StorageControl & {
   settled: number
 }
 
-function fakeControl(answer: () => Promise<StorageCloseResult>): FakeControl {
+const NOTHING: StorageReadings = { reads: [], commits: [], participants: [], queries: [] }
+
+function fakeControl(
+  answer: () => Promise<StorageCloseResult>,
+  counted: StorageReadings = NOTHING,
+): FakeControl {
   const control: FakeControl = {
     closes: [],
     settled: 0,
@@ -45,6 +51,7 @@ function fakeControl(answer: () => Promise<StorageCloseResult>): FakeControl {
     assemblyReportSettled() {
       control.settled += 1
     },
+    readings: () => counted,
   }
   return control
 }
@@ -201,6 +208,57 @@ describe('the registration lands on the storage row fiber', () => {
       },
     ])
     expect(report.overall).toBe('incomplete')
+  })
+})
+
+describe('the readings of the host', () => {
+  test('are nothing before a provider is attached, and what the provider counted after', async () => {
+    const { host } = await hostOn(expectedStorage)
+    expect(host.readings()).toEqual(NOTHING)
+    const counted: StorageReadings = {
+      reads: [
+        { domain: 'session', handler: 'read-history', read: 3, unavailable: 1, cancelled: 0 },
+      ],
+      commits: [
+        {
+          domain: 'session',
+          committed: 2,
+          recalled: 0,
+          rolledBack: 0,
+          unknown: 0,
+          conflicted: 0,
+          rejected: 0,
+          bytes: 900,
+        },
+      ],
+      participants: [{ domain: 'session', participant: 'session', committed: 2 }],
+      queries: [{ domain: 'session', answered: 1, unknown: 0 }],
+    }
+    host.attachControl(fakeControl(closed, counted))
+    expect(host.readings()).toEqual(counted)
+  })
+
+  test('add up, row by row, when the host kept more than one control', async () => {
+    const { host } = await hostOn(expectedStorage)
+    const one = {
+      domain: 'session',
+      handler: 'read-history',
+      read: 3,
+      unavailable: 0,
+      cancelled: 0,
+    }
+    const other = {
+      domain: 'identity',
+      handler: 'read-standing',
+      read: 5,
+      unavailable: 0,
+      cancelled: 2,
+    }
+    host.attachControl(fakeControl(closed, { ...NOTHING, reads: [one] }))
+    expect(() =>
+      host.attachControl(fakeControl(closed, { ...NOTHING, reads: [{ ...one, read: 4 }, other] })),
+    ).toThrow(SupervisionRefused)
+    expect(host.readings().reads).toEqual([{ ...one, read: 7 }, other])
   })
 })
 

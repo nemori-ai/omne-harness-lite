@@ -99,6 +99,26 @@
       "project": [
         "src/**/*.ts"
       ]
+    },
+    "tools/perf-harness": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "benchmarks": {
+      "entry": [
+        "src/cli.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@omne-harness/harness-server",
+        "@omne-harness/cli"
+      ]
     }
   }
 }

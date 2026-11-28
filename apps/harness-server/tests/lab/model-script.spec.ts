@@ -4,8 +4,11 @@ import { resolveLocations } from '../../src/local/locations.ts'
 import { localOperatorLayer } from '../../src/local/operator-defaults.ts'
 import { captureShellEnvironment } from '../../src/local/settings.ts'
 import {
+  fittingStep,
+  generatedText,
   parseModelScript,
   scriptedAnswer,
+  withCompactionTrigger,
   withModelRoute,
   type ModelScript,
 } from '../../src/lab/model-gateway/script.ts'
@@ -41,6 +44,88 @@ const SCRIPT: ModelScript = parseModelScript(
     ],
   }),
 )
+
+describe('the text a script generates', () => {
+  it('has exactly the bytes asked for, whatever the size, and is the same for the same seed', () => {
+    for (const bytes of [1, 2, 7, 256, 4096, 65_537])
+      expect(Buffer.byteLength(generatedText(3, bytes))).toBe(bytes)
+    expect(generatedText(3, 4096)).toBe(generatedText(3, 4096))
+    expect(generatedText(3, 4096)).not.toBe(generatedText(4, 4096))
+  })
+
+  it('is plain words: it holds no digit and no mark a script could find its steps by', () => {
+    expect(generatedText(1, 8192)).toMatch(/^[a-z ]+\.$/u)
+  })
+
+  it('is whole words of a small vocabulary with one space between them, cut where the bytes end', () => {
+    const words = generatedText(1, 8192).slice(0, -1).split(' ')
+    const whole = words.slice(0, -1)
+    expect(whole.every(word => /^[a-z]{4,6}$/u.test(word))).toBe(true)
+    expect(new Set(whole).size).toBe(24)
+    expect(generatedText(2, 1)).toBe('.')
+  })
+
+  it('answers a step with generated text of the size it names, after the reasoning it names', () => {
+    const script = parseModelScript(
+      JSON.stringify({
+        steps: [
+          {
+            when: { has: ['long'] },
+            text: { seed: 5, bytes: 2000 },
+            reasoning: { seed: 6, bytes: 3000 },
+          },
+          {
+            when: { has: ['think'] },
+            call: [{ id: 'call_a', tool: 'Files', arguments: {} }],
+            reasoning: { seed: 7, bytes: 100 },
+          },
+        ],
+      }),
+    )
+    const said = frames(scriptedAnswer(script, asked(chat('long'))).body) as {
+      choices: {
+        delta: { content?: string; reasoning_details?: { data: string; type: string }[] }
+      }[]
+    }[]
+    expect(said[0]?.choices[0]?.delta.reasoning_details).toEqual([
+      {
+        type: 'reasoning.encrypted',
+        id: 'rs_lab_6',
+        index: 0,
+        format: 'openai-responses-v1',
+        data: generatedText(6, 3000),
+      },
+    ])
+    expect(said[1]?.choices[0]?.delta.content).toBe(generatedText(5, 2000))
+    const called = frames(scriptedAnswer(script, asked(chat('think'))).body) as {
+      choices: { delta: Record<string, unknown>; finish_reason?: string }[]
+    }[]
+    expect(Object.keys(called[0]?.choices[0]?.delta ?? {})).toEqual(['reasoning_details'])
+    expect(Object.keys(called[1]?.choices[0]?.delta ?? {})).toEqual(['tool_calls'])
+    expect(called[2]?.choices[0]?.finish_reason).toBe('tool_calls')
+  })
+
+  it('says which step answers a request: the first that fits, none for a judging or when nothing fits', () => {
+    expect(fittingStep(SCRIPT, asked(chat('请整理待办')))).toBe(0)
+    expect(fittingStep(SCRIPT, asked(chat('请整理待办', 'call_list')))).toBe(1)
+    expect(fittingStep(SCRIPT, asked(chat('别的')))).toBe(2)
+    const none = parseModelScript('{"steps":[{"when":{"has":["x"]},"say":"a"}]}')
+    expect(fittingStep(none, asked(chat('别的')))).toBeNull()
+    expect(fittingStep(SCRIPT, asked(JSON.stringify({ questions: {} })))).toBeNull()
+  })
+
+  it('refuses a step that both says and generates, or names text of no size', () => {
+    const step = (given: object) => JSON.stringify({ steps: [{ when: {}, ...given }] })
+    expect(() => parseModelScript(step({ say: 'a', text: { seed: 1, bytes: 10 } }))).toThrow(
+      /one of the three/u,
+    )
+    expect(() => parseModelScript(step({ text: { seed: 1, bytes: 0 } }))).toThrow(/model script/u)
+    expect(() => parseModelScript(step({ call: [] }))).toThrow(/model script/u)
+    expect(() => parseModelScript(step({ reasoning: { seed: 1, bytes: 10 } }))).toThrow(
+      /one of the three/u,
+    )
+  })
+})
 
 describe('a model script of the lab assembly', () => {
   it('names the provider the model of the request is served by: a model record refuses an answer of another provider', () => {
@@ -154,7 +239,7 @@ describe('a model script of the lab assembly', () => {
 
   it('says where a script is wrong and what a step may be', () => {
     expect(() => parseModelScript('{"steps":[{"when":{},"say":"a"},{"when":{}}]}')).toThrow(
-      /a step either says a sentence \(say\) or calls tools \(call\), one of the two[\s\S]*steps\[1\]/u,
+      /a step says a sentence \(say\), says generated text \(text\) or calls tools \(call\), one of the three[\s\S]*steps\[1\]/u,
     )
   })
 })
@@ -197,9 +282,39 @@ describe('the operator layer with the model route of the lab gateway', () => {
     expect(kept).toEqual(rest)
   })
 
+  it('replaces the share of the window at which a compaction is due in the two rows that hold it, and nothing else of the layer', () => {
+    const profilesOf = (layer: typeof local) =>
+      (sendingOf(layer).sendStage as unknown as { profiles: Record<string, unknown> }).profiles
+    const rowOf = (layer: typeof local) =>
+      layer.ops.find(op => op.id === 'model-profiles')?.config as Record<string, unknown>
+    const lowered = withCompactionTrigger(local, '3')
+    expect(profilesOf(local)['compactionTriggerPercent']).toBe('80')
+    expect(profilesOf(lowered)).toEqual({ ...profilesOf(local), compactionTriggerPercent: '3' })
+    expect(rowOf(lowered)).toEqual({ ...rowOf(local), compactionTriggerPercent: '3' })
+    expect(sendingOf(lowered).sendStage.network).toEqual(sendingOf(local).sendStage.network)
+    const others = (layer: typeof local) =>
+      layer.ops.filter(op => op.id !== 'model-records' && op.id !== 'model-profiles')
+    expect(others(lowered)).toEqual(others(local))
+    for (const percent of ['0', '101', '2.5', 'half', '', '05', '1000', ' 5', '5 ', '5x', 'x5'])
+      expect(() => withCompactionTrigger(local, percent)).toThrow(
+        `compaction trigger: ${percent} is not a whole percent from 1 to 100`,
+      )
+    for (const percent of ['1', '9', '10', '99', '100'])
+      expect(profilesOf(withCompactionTrigger(local, percent))['compactionTriggerPercent']).toBe(
+        percent,
+      )
+    expect(() => withCompactionTrigger({ ops: [] }, '3')).toThrow(
+      'compaction trigger: the operator layer has no send stage in model-records',
+    )
+    const lone = { ops: local.ops.filter(op => op.id !== 'model-profiles') }
+    expect(() => withCompactionTrigger(lone, '3')).toThrow(/model-profiles/u)
+  })
+
   it('refuses a layer without the row that sends, or without its send stage: the script would never be asked', () => {
     const without = { ops: local.ops.filter(op => op.id !== 'model-records') }
-    expect(() => withModelRoute(without, 'https://x')).toThrow(/model-records/u)
+    expect(() => withModelRoute(without, 'https://x')).toThrow(
+      'model script: the operator layer has no send stage in model-records',
+    )
     const bare = {
       ops: [{ kind: 'replace' as const, id: 'model-records', config: { owners: [] } }],
     }

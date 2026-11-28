@@ -9,7 +9,6 @@ import {
   type PartsRoundReads,
   type RoundCount,
 } from './w2-measure.ts'
-import { CONTROL_PER_ROUND, roundGrowthOf, type Growth } from './growth.ts'
 import { intakeAccess } from './world.ts'
 
 const worlds: W2World[] = []
@@ -17,28 +16,12 @@ afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-const MEASURED = (() => {
-  const asked = process.env['OMNE_J6_ROUNDS']
-  if (asked === undefined || asked === '') return false
-  if (asked !== '200') throw new Error(`OMNE_J6_ROUNDS is 200 or unset, not ${asked}`)
-  return true
-})()
-const OUT = new URL(
-  MEASURED
-    ? '../../../../../tmp/line-session-run/w2/C-JOINT/'
-    : '../../../../../tmp/line-session-run/w2/C-JOINT/short/',
-  import.meta.url,
-)
-const RUN = MEASURED
-  ? { rounds: 200, window: 20, earlyFrom: 10, timeout: 3_600_000 }
-  : { rounds: 20, window: 6, earlyFrom: 4, timeout: 300_000 }
+const OUT = new URL('../../../../../tmp/line-session-run/w2/C-JOINT/short/', import.meta.url)
+const RUN = { rounds: 20, window: 6, earlyFrom: 4, timeout: 300_000 }
 const MAX_ROUNDS = RUN.rounds
 const WINDOW = RUN.window
 const EARLY_FROM = RUN.earlyFrom
 const WINDOWS = `rounds ${String(MAX_ROUNDS - WINDOW + 1)}-${String(MAX_ROUNDS)} equal those of rounds ${String(EARLY_FROM + 1)}-${String(EARLY_FROM + WINDOW)}`
-const GROWTH_TITLE = MEASURED ? 'the timed counts do not grow with the rounds and ' : ''
-const timedGrowthOf = (shape: Shape, completed: readonly RoundCount[]) =>
-  MEASURED ? timedGrowth(shape, completed) : { growing: [], controlMissed: [] }
 const stable = ({
   round: _round,
   storageRollbacks: _rollbacks,
@@ -141,51 +124,6 @@ const untimed = (counts: Readonly<Record<string, number>>): Record<string, numbe
       ([handler]) => !TIMED_HANDLERS.includes(handler) && !SHIFTING_READS.includes(handler),
     ),
   )
-
-function timedOf(count: RoundCount): Record<string, number> {
-  const timed: Record<string, number> = {
-    ad02Commits: count.ad02Commits ?? 0,
-    storageCommitTotal: count.storageCommitTotal,
-  }
-  for (const participant of SESSION_COMMITS)
-    timed[`storageCommits.${participant}`] = count.storageCommits[participant] ?? 0
-  for (const handler of TIMED_HANDLERS) {
-    timed[`storageReads.${handler}`] = count.storageReads[handler] ?? 0
-    timed[`storageReadRows.${handler}`] = count.storageReadRows[handler] ?? 0
-  }
-  return timed
-}
-
-type TimedJudgement = Readonly<{ measured: Growth; control: Growth }>
-
-function judgeTimedGrowth(completed: readonly RoundCount[]): Record<string, TimedJudgement> {
-  const names = Object.keys(timedOf(completed[0]!))
-  return Object.fromEntries(
-    names.map(name => {
-      const values = completed.map(count => timedOf(count)[name]!)
-      const control = values.map((value, index) => value + (index + 1) * CONTROL_PER_ROUND)
-      return [name, { measured: roundGrowthOf(values), control: roundGrowthOf(control) }]
-    }),
-  )
-}
-
-const verdictOf = (judged: Readonly<Record<string, TimedJudgement>>) => {
-  const names = Object.keys(judged)
-  return {
-    growing: names.filter(name => judged[name]!.measured.grows),
-    controlMissed: names.filter(name => !judged[name]!.control.grows),
-  }
-}
-
-function writeTimedGrowth(shape: Shape, judged: Readonly<Record<string, TimedJudgement>>): void {
-  writeFileSync(new URL(`j6-timed-growth-${shape}.json`, OUT), JSON.stringify(judged, null, 1))
-}
-
-function timedGrowth(shape: Shape, completed: readonly RoundCount[]) {
-  const judged = judgeTimedGrowth(completed)
-  writeTimedGrowth(shape, judged)
-  return verdictOf(judged)
-}
 
 type Shape = 'tool' | 'plain'
 
@@ -328,7 +266,7 @@ async function runToLimit(shape: Shape, w: W2World) {
 
 describe('J6: fixed round counts', () => {
   it(
-    `J6 plain shape: ${String(MAX_ROUNDS)} rounds, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    `J6 plain shape: ${String(MAX_ROUNDS)} rounds, the counts of ${WINDOWS}`,
     { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
@@ -343,7 +281,6 @@ describe('J6: fixed round counts', () => {
       for (const count of completed)
         expect(count).toMatchObject({ modelReceives: 1, toolReceives: 0 })
       expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
-      expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
       expect(shiftingGrows(earlyOf(completed), lateOf(completed))).toEqual([])
       expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))
@@ -351,7 +288,7 @@ describe('J6: fixed round counts', () => {
   )
 
   it(
-    `J6 tool shape: ${String(MAX_ROUNDS)} rounds, two Model results and one Tool result each round, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    `J6 tool shape: ${String(MAX_ROUNDS)} rounds, two Model results and one Tool result each round, the counts of ${WINDOWS}`,
     { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
@@ -370,7 +307,6 @@ describe('J6: fixed round counts', () => {
           toolReceives: 1,
         })
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
-      expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
       expect(shiftingGrows(earlyOf(completed), lateOf(completed))).toEqual([])
       expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))

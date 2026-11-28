@@ -180,7 +180,7 @@ export const stderrWriter = lineWriter(process.stderr)
 export async function serveUntilStopped(
   inputs: ServeInputs,
   stopOnStdinClose: boolean,
-  extra: Pick<RunServeOptions, 'time' | 'instance' | 'extraPlugins'> = {},
+  extra: Pick<RunServeOptions, 'time' | 'instance' | 'extraPlugins' | 'visibility'> = {},
 ): Promise<number> {
   const { port, ...rest } = inputs
   const controller = new AbortController()
