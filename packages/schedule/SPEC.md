@@ -51,7 +51,7 @@
 | 放行详情的画法（种类 `schedule.activation@1`）   | 人工介入的界面，经它的按键的点 | `schedule-ui` 登记一个组件，画让安排生效这一类调用的名字与接下来几次 |
 | 工具 `Schedules`                                 | Tool 与 agent             | 管理、查询与预览安排                       |
 | 工具 `Jobs`                                      | Tool 与 agent             | 查 Job、取消、直接发起；读本会话的 Job |
-| 执行方、成果承接者与程序的登记面                 | 接会话的适配成员、别的领域、应用 | 三个拓展点：按工作路径登记 `JobExecutor`；按引用登记发布、回传、归档、通知的承接者；按名字登记程序。发行里不预置程序 |
+| 执行方、成果承接者与程序的登记面                 | 接会话的适配成员、别的领域、应用 | 三个拓展点：按工作路径登记 `JobExecutor`（`scheduleExecutors`）；按引用登记发布、回传、归档、通知的承接者（`scheduleCarriers`）；按名字登记程序（`schedulePrograms`）。发行里不预置程序。`scheduleExecutors` 与 `scheduleCarriers` 关，理由 `grants-itself`：执行者决定一个程序以谁的身份跑。`schedulePrograms` 开，按发问的租户读：租户装的 Plugin 放得上，放的一项只在这个租户里算数 |
 | 内置的发布「Job 详情」                           | 安排的作者                | 正式成果在 Job 详情里可读就算发布成立；不打扰、不归档 |
 | 公开协议 `schedule/v3`                           | 接入入口、命令行与界面    | 人管理与查询自己的安排                     |
 
