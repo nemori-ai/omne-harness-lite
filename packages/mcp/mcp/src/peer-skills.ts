@@ -15,6 +15,7 @@ import {
   type ReadFailure,
   type SkillCatalogRecord,
   type SkillCatalogView,
+  type SkillFileEntry,
   type SkillFileFailure,
   type SkillFileRequest,
   type SkillFileText,
@@ -25,7 +26,12 @@ import type { ChangeFeed } from './internal/changes.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
-import { checkedFile, createSkillFileCache, sliceText } from './internal/skill-files.ts'
+import {
+  checkedFile,
+  createSkillFileCache,
+  sliceText,
+  type Checked,
+} from './internal/skill-files.ts'
 import { ensureOptionsOf, type ConnectionTable, type Ensured } from './internal/table.ts'
 
 export type PeerSkillsDependencies<P, S> = Readonly<{
@@ -105,6 +111,19 @@ async function relistedOn<P>(
     now !== undefined && 'refused' in now ? [...record.refused, now.refused] : record.refused
   const { revision: _, ...rest } = record
   return { ...rest, skills: same ? [...others, now.ok] : others, refused }
+}
+
+/** One listed file fetched from the peer and held to its listing; unknown when the peer gives no content. */
+async function fetchedOn<P>(
+  table: ConnectionTable<P>,
+  ensured: Ensured,
+  file: SkillFileEntry,
+  skill: McpSkill,
+): Promise<Checked | 'unknown'> {
+  const bound = table.runtime.startBound(ensured.bound, 'listing')
+  const content = await onWire(table, ensured, bound, wire => wire.readResource?.(file.uri))
+  if (content === undefined || 'failure' in content) return 'unknown'
+  return checkedFile(file, skill, content.ok)
 }
 
 /** The skills of a peer: listed whole with each published catalog of actions, each file read only where the listing names it and checked before it is given. */
@@ -208,10 +227,8 @@ export function createPeerSkills<P, S>(deps: PeerSkillsDependencies<P, S>): Peer
     }
     // A file the listing does not name is one the peer gives besides it: not fetched, and the entry is asked again.
     if (file === undefined) return changed()
-    const bound = table.runtime.startBound(ensured.ok.bound, 'listing')
-    const content = await onWire(table, ensured.ok, bound, wire => wire.readResource?.(file.uri))
-    if (content === undefined || 'failure' in content) return fail(UNKNOWN)
-    const checked = await checkedFile(file, skill, content.ok)
+    const checked = await fetchedOn(table, ensured.ok, file, skill)
+    if (checked === 'unknown') return fail(UNKNOWN)
     if (checked.kind === 'changed') return changed()
     if (checked.kind === 'not-text') return fail({ kind: 'not-text' })
     cache.put(file, checked.bytes)
