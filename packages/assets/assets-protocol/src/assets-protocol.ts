@@ -103,6 +103,7 @@ const impactLine = object({
   of: { rule: nullable(text) },
   point: { rule: text },
   key: { rule: said },
+  id: { rule: nullable(text) },
   says: { rule: said },
 })
 /** Where a held one is placed and whether each place is in effect, and what disabling or removing it takes back. */
@@ -112,6 +113,7 @@ const assetEffect = object({
       object({
         point: { rule: text },
         key: { rule: said },
+        id: { rule: nullable(text) },
         side: { rule: nullable(literal('client', 'server')) },
         category: { rule: nullable(text) },
         categoryTitle: { rule: nullable(text) },

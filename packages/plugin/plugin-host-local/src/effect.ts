@@ -51,7 +51,8 @@ export const placedOf = (manifest: PluginManifest): readonly Placed[] =>
 const same = (left: Placed, right: Placed): boolean =>
   left.side === right.side &&
   left.member.point === right.member.point &&
-  left.member.key === right.member.key
+  left.member.key === right.member.key &&
+  left.member.id === right.member.id
 
 export function rivals(
   name: string,
@@ -109,8 +110,10 @@ function strayName(member: Member, point: KnownPoint): string | null {
   return `→ ${stray} is not a name this point takes.${hint} OmneExtensionPoints show ${point.name} lists them. It would not be in effect.`
 }
 
-const line = (mark: ImpactLine['mark'], placed: Placed, says: string, of: string | null = null) =>
-  ({ mark, of, point: placed.member.point, key: placed.member.key, says }) satisfies ImpactLine
+const line = (mark: ImpactLine['mark'], placed: Placed, says: string, of: string | null = null) => {
+  const { point, key, id } = placed.member
+  return { mark, of, point, key, ...(id !== undefined && { id }), says } satisfies ImpactLine
+}
 
 type Told = Readonly<{ lines: readonly ImpactLine[]; advice: string | null }>
 

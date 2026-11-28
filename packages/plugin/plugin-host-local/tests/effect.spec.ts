@@ -30,6 +30,7 @@ const POINTS: readonly KnownPoint[] = [
   { name: 'shell.tokens', side: 'client', takes: 'data', when: 'running' },
   { name: 'session.tool-call', side: 'client', takes: 'code', when: 'running' },
   { name: 'shell.pages', side: 'client', takes: 'code', when: 'build' },
+  { name: 'shell.sidebar', side: 'client', takes: 'code', when: 'running' },
   { name: 'skill.skills', side: 'server', takes: 'directory', when: 'running' },
 ]
 
@@ -109,6 +110,38 @@ describe('what publishing a plugin would change', () => {
       '~ round: shell.part-style / session.composer.send   in effect → conflict',
     ])
     expect(answer.advice).toBe('Disable round first, or leave this member out.')
+  })
+
+  it('on a point that tells its items by id, items of two plugins under other ids are not a conflict; under one id they are', () => {
+    const side = (id: string) => ({
+      point: 'shell.sidebar',
+      key: '',
+      id,
+      module: 's.js',
+      export: 's',
+    })
+    const publishing = (theirs: string) =>
+      pluginImpact({
+        name: 'weather',
+        change: 'publish',
+        manifest: manifest('weather', [side('weather-now')]),
+        held: [held('notes', manifest('notes', [side(theirs)]))],
+        points: POINTS,
+      })
+    expect(publishing('notes-recent').lines).toEqual([
+      {
+        mark: '+',
+        of: null,
+        point: 'shell.sidebar',
+        key: '',
+        id: 'weather-now',
+        says: '→ in effect',
+      },
+    ])
+    expect(publishing('weather-now').lines.map(line => [line.mark, line.of, line.id])).toEqual([
+      ['!', null, 'weather-now'],
+      ['~', 'notes', 'weather-now'],
+    ])
   })
 
   it('a point that is not there now is said, with the nearest names that are', () => {
@@ -412,6 +445,34 @@ describe('where a held plugin is placed now', () => {
       says: 'with plugin round; neither is in effect, the built-in shows',
     })
     expect(answer.places[1]?.standing).toBe('in effect')
+  })
+
+  it('tells the id of an item on a point that tells its items by id; pages of two plugins under other ids are both in effect', () => {
+    const page = (id: string) => ({
+      point: 'shell.sidebar',
+      key: '',
+      id,
+      module: 's.js',
+      export: 's',
+    })
+    const answer = pluginPlacement({
+      name: 'weather',
+      manifest: manifest('weather', [page('weather-now')]),
+      enabled: true,
+      held: [held('notes', manifest('notes', [page('notes-recent')]))],
+      clients: [loaded],
+      server: null,
+    })
+    expect(answer.places).toEqual([
+      {
+        point: 'shell.sidebar',
+        key: '',
+        id: 'weather-now',
+        side: 'client',
+        standing: 'in effect',
+        says: '',
+      },
+    ])
   })
 
   it('is not known while no client is connected, and not in effect while it is disabled', () => {
