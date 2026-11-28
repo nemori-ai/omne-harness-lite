@@ -179,6 +179,60 @@ describe('the skills MCP peers bring, as a source of Skills (C401, C404, C405)',
     ).toEqual({ failure: expected })
   })
 
+  it('asks for no refresh when the catalog is there, or when the peer offers no skills', async () => {
+    const taken = sourceOf()
+    await taken.source.list(alice)
+    const none = sourceOf({
+      views: {
+        docs: succeed({
+          kind: 'not-declared',
+          freshness: { acquiredAt: '2026-11-28T04:00:00.000Z', changedNotified: false },
+        }),
+      },
+    })
+    expect(await none.source.list(alice)).toEqual({ ok: [] })
+    expect([...taken.asked, ...none.asked].filter(([kind]) => kind === 'refresh')).toEqual([])
+  })
+
+  it('lists nothing when the refresh comes in time but the catalog is still not there', async () => {
+    const stuck = createMcpSkillSource<Principal>({
+      endpoints: async () => succeed([ref('docs')]),
+      discovery: {
+        skills: async () => succeed({ kind: 'not-acquired' }),
+        refresh: async () => succeed({ kind: 'published', revision: 2 as never }),
+      },
+      skills: { read: async () => fail({ kind: 'unknown' }) },
+      acquireWaitMs: 50,
+      connectBound: 1000 as never,
+    })
+    expect(await stuck.list(alice)).toEqual({ ok: [] })
+  })
+
+  it('reads as not found for one the endpoint is not for, and as unavailable when the endpoints cannot be read', async () => {
+    const signal = new AbortController().signal
+    const range = { start: 0, length: 10 }
+    const stranger = sourceOf({ read: async () => fail({ kind: 'not-available-to-you' }) })
+    expect(await stranger.source.read(alice, 'mcp__docs__style', { range, signal })).toEqual({
+      failure: 'not-found',
+    })
+    const unread = sourceOf({ endpoints: 'unknown' })
+    expect(await unread.source.read(alice, 'mcp__docs__style', { range, signal })).toEqual({
+      failure: 'unavailable',
+    })
+  })
+
+  it('lists the files of no skill it does not hold, nor of a catalog not taken yet', async () => {
+    const signal = new AbortController().signal
+    const other = sourceOf({ views: { docs: succeed(acquired([{ ...style, name: 'tone' }])) } })
+    expect(await other.source.listFiles(alice, 'mcp__docs__style', signal)).toEqual({
+      failure: 'not-found',
+    })
+    const pending = sourceOf({ views: { docs: succeed({ kind: 'not-acquired' }) } })
+    expect(await pending.source.listFiles(alice, 'mcp__docs__style', signal)).toEqual({
+      failure: 'not-found',
+    })
+  })
+
   it.each(['mcp__style', 'mcp____style', 'mcp__docs__', 'web__docs__style', 'mcp__other__style'])(
     'answers not found for %s, a name that is not one of an adopted endpoint',
     async name => {
