@@ -21,7 +21,7 @@ const MENU = [
   'help {name?=help|tree|find|show|changes} - Read command usage.',
   'tree {side?=server|client, under?, depth?} - Show hosts, points, keys and what is placed on them, as an indented tree. Start here when you do not know a name.',
   'find {query, side?=server|client, limit?} - Find points and interface parts by the words a person would use ("send button", "chat background"). Returns names to pass to show.',
-  'show {name} - Read one point or one interface part in full: its rules, what a contribution must give, what the host gives it, and what is placed there now.',
+  'show {name} - Read one point or one interface part in full: its rules, what a contribution must give, what the host gives it, and what is placed there now. Given a protocol as <name>/v<major>, read each operation with its body field by field and what each field allows.',
   'changes {since?} - What appeared, went away or changed state since a tree revision: points, categories, contributions. Every result ends with the current revision.',
 ]
 const GUIDE = [

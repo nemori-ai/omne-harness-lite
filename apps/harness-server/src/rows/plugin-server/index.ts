@@ -38,6 +38,7 @@ import {
   fiberOf,
   wantedOf,
   type Absent,
+  type Member,
   type PortFactory,
   type Wanted,
 } from '@omne-harness/plugin-protocol'
@@ -226,8 +227,10 @@ export const pluginServerRow = defineRow({
       declare(guestFormsContract),
     ])
     const refs = new Map<string, ReadonlyMap<string, HeldRef>>()
+    const membersOf = new Map<string, readonly Member[]>()
     const install = (tenant: string, wanted: Wanted) => {
       const held = refs.get(tenant)?.get(`${wanted.name}\n${wanted.version}`)
+      membersOf.set(fiberOf(wanted.name, wanted.version), wanted.members)
       return serverInstall({
         scope: scopeOfLayer('tenant', tenant),
         point: name => serverPointOf(ctx, name, heldIn(held, wanted.name)),
@@ -250,7 +253,11 @@ export const pluginServerRow = defineRow({
           : serverPointOf(ctx, name) !== undefined,
       )
     const side = createServerSide({ floor, install, present })
-    providePluginServer(ctx, tenant => side.states(tenant))
+    providePluginServer(
+      ctx,
+      tenant => side.states(tenant),
+      fiber => membersOf.get(fiber),
+    )
     const converge = (tenant: string, plugins: readonly HeldPlugin[]): void => {
       refs.set(tenant, new Map(plugins.map(each => [`${each.name}\n${each.version}`, each.held])))
       side.converge(tenant, wantedOf(plugins, 'server'))

@@ -1,4 +1,4 @@
-import type { CategoryEffect, PublishContent } from '@omne-harness/assets'
+import type { CategoryEffect, PublishContent, RefusedLine } from '@omne-harness/assets'
 import {
   IMAGE_SUFFIXES,
   MANIFEST_FILE,
@@ -30,6 +30,7 @@ export type ToldByClient = Readonly<{
     state: 'loaded' | 'failed' | 'held'
     reason: string | null
     waiting?: readonly string[]
+    refused?: readonly RefusedLine[]
   }>[]
 }>
 
@@ -131,9 +132,10 @@ function clientPoints(clients: readonly ToldByClient[]): readonly KnownPoint[] {
 function toldOf(clients: readonly ToldByClient[], name: string, version: string) {
   return clients.map(({ client, plugins }) => {
     const one = plugins.find(each => each.name === name && `sha256:${each.version}` === version)
+    const refused = one?.refused === undefined ? {} : { refused: one.refused }
     if (one?.waiting !== undefined)
-      return { client, state: 'waiting' as const, reason: one.waiting.join(', ') }
-    return { client, state: one?.state ?? null, reason: one?.reason ?? null }
+      return { client, state: 'waiting' as const, reason: one.waiting.join(', '), ...refused }
+    return { client, state: one?.state ?? null, reason: one?.reason ?? null, ...refused }
   })
 }
 

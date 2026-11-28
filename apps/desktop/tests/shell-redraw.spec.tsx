@@ -245,7 +245,10 @@ describe('what the shell could not read in a page it drew', () => {
         point: 'shell.pages',
         key: '',
         id: 'weather',
-        says: 'the icon "weather" is not a name the kit knows, and shell.icon draws none by it: the sidebar draws a question mark. OmneExtensionPoints show shell.icon lists the names',
+        at: ['icon'],
+        given: '"weather"',
+        allows:
+          'a name the kit knows, or one shell.icon draws: the sidebar draws a question mark instead. OmneExtensionPoints show shell.icon lists the names',
       },
     ])
     await act(async () => {

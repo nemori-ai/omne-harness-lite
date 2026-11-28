@@ -397,6 +397,25 @@ describe('where a held plugin is placed now', () => {
     expect(answer.advice).toBeNull()
   })
 
+  it('says under a client what it refused of the plugin lately', () => {
+    const refused = [
+      {
+        at: '2026-11-28T06:00:00.000Z',
+        target: 'weather/v1/look',
+        rejection: { at: ['days'], given: '30', allows: 'a whole number from 1 to 7' },
+      },
+    ]
+    const answer = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ ...loaded, refused }],
+      server: null,
+    })
+    expect(answer.clients).toEqual([{ label: 'desktop-1, connected', says: 'loaded', refused }])
+  })
+
   it('is not in effect where a client could not load it, with what the client said', () => {
     const failed = {
       client: 'desktop-1',

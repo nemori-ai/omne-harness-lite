@@ -28,3 +28,35 @@ describe('OmneExtensions names a member as memberName does, as the Plugin page d
     expect(placed).toEqual(['places:', `  ${memberName(weather)}   [in effect]`])
   })
 })
+
+describe('OmneExtensions show says what each client refused of a plugin lately', () => {
+  it('under the client, one line each: when, what, where, what was given, what is allowed', () => {
+    const placed = placedLines({
+      kind: 'placed',
+      places: [],
+      clients: [
+        {
+          label: 'desktop-1, connected',
+          says: 'loaded',
+          refused: [
+            {
+              at: '2026-11-28T06:00:00.000Z',
+              target: 'weather/v1/look',
+              rejection: { at: ['days'], given: '30', allows: 'a whole number from 1 to 7' },
+            },
+          ],
+        },
+        { label: 'laptop, connected', says: 'loaded' },
+      ],
+      advice: null,
+    })
+    expect(placed).toEqual([
+      'places: none',
+      'clients:',
+      '  desktop-1, connected   loaded',
+      '    refused:',
+      '      2026-11-28T06:00:00.000Z   weather/v1/look   days is 30; allows a whole number from 1 to 7',
+      '  laptop, connected      loaded',
+    ])
+  })
+})

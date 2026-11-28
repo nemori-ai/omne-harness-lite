@@ -28,6 +28,7 @@
 - `OutcomeBodies` · `protocol.d.ts`
 - `ProtocolContract` · `protocol.d.ts`
 - `REJECTION_BODY` · `rule-codec.d.ts`
+- `REJECTION_RULE` · `rule-codec.d.ts`
 - `Rejection` · `rule-codec.d.ts`
 - `Rule` · `rule.d.ts`
 - `RuleValue` · `rule-codec.d.ts`
@@ -56,11 +57,13 @@
 
 ## 入口 `./snapshot` · `snapshot.d.ts`
 
+- `ContractRules` · `snapshot.d.ts`
 - `ContractSnapshot` · `snapshot.d.ts`
 - `NextSnapshot` · `snapshot.d.ts`
 - `SnapshotStore` · `snapshot.d.ts`
 - `checkRecorded` · `snapshot.d.ts`
 - `contractDigest` · `snapshot.d.ts`
+- `contractRules` · `snapshot.d.ts`
 - `nextSnapshot` · `snapshot.d.ts`
 - `snapshotProblems` · `snapshot.d.ts`
 
@@ -426,7 +429,7 @@ export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganiz
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
-export { pathText, REJECTION_BODY, rejectionText, ruleCodec, withheld } from './rule-codec.ts';
+export { pathText, REJECTION_BODY, REJECTION_RULE, rejectionText, ruleCodec, withheld, } from './rule-codec.ts';
 export type { Codec, CodecResult, Rejection, RuleValue } from './rule-codec.ts';
 export { allowsOf, LEAF_ALLOWS } from './leaf-codec.ts';
 export type { FieldRule, LeafKind, Rule } from './rule.ts';
@@ -673,6 +676,37 @@ export type RuleValue<R extends Rule> = R extends {
     readonly rules: readonly (infer O extends Rule)[];
 } ? RuleValue<O> : never;
 export declare function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>>;
+export declare const REJECTION_RULE: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly at: {
+            readonly rule: {
+                readonly kind: 'array';
+                readonly item: {
+                    readonly kind: 'one-of';
+                    readonly rules: readonly [
+                        {
+                            readonly kind: 'string';
+                        },
+                        {
+                            readonly kind: 'count';
+                        }
+                    ];
+                };
+            };
+        };
+        readonly given: {
+            readonly rule: {
+                readonly kind: 'string';
+            };
+        };
+        readonly allows: {
+            readonly rule: {
+                readonly kind: 'string';
+            };
+        };
+    };
+};
 export declare const REJECTION_BODY: Codec<{
     readonly rejection?: {
         readonly allows: string;
@@ -749,6 +783,8 @@ export type SnapshotStore = Readonly<{
     write: (text: string) => void;
     append: boolean;
 }>;
+export type ContractRules = Plain;
+export declare const contractRules: (protocol: ProtocolContract) => ContractRules;
 export declare function contractDigest(protocol: ProtocolContract, revision: number, sha256: (bytes: Uint8Array) => Uint8Array): string | undefined;
 export declare function snapshotProblems(protocol: ProtocolContract, recorded: unknown): Promise<string[]>;
 export type NextSnapshot = Readonly<{

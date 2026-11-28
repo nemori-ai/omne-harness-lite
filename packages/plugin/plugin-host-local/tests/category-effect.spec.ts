@@ -285,6 +285,24 @@ describe('where a held plugin is placed now', () => {
     })
   })
 
+  it('carries what a client refused of the version the tenant holds', async () => {
+    const version = 'a'.repeat(64)
+    const refused = [
+      {
+        at: '2026-11-28T06:00:00.000Z',
+        target: 'tidy/v1/add',
+        rejection: { at: ['text'], given: '""', allows: 'a text of at least one character' },
+      },
+    ]
+    const told = client([{ version, state: 'loaded' }])
+    const answer = await placed({
+      clients: () => [{ ...told, plugins: told.plugins.map(each => ({ ...each, refused })) }],
+    })
+    expect(answer.kind === 'placed' && answer.clients).toEqual([
+      { label: 'desktop-1, connected', says: 'loaded', refused },
+    ])
+  })
+
   it('counts nothing a client told of another version', async () => {
     const version = 'b'.repeat(64)
     const stale = await placed({ clients: () => [client([{ version, state: 'loaded' }])] })

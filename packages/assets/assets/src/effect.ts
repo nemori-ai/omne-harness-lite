@@ -45,7 +45,13 @@ export type PlacedLine = Readonly<{
   says: string
   side?: 'client' | 'server'
 }>
-export type ClientLine = Readonly<{ label: string; says: string }>
+export type RefusedLine = Readonly<{
+  at: string
+  target: string
+  rejection: Readonly<{ at: readonly (string | number)[]; given: string; allows: string }>
+}>
+
+export type ClientLine = Readonly<{ label: string; says: string; refused?: readonly RefusedLine[] }>
 
 /** Where a holding is placed now and whether each place is in effect. The assembly adapts this port. */
 export type Placement = Readonly<{

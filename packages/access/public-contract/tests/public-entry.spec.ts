@@ -6,6 +6,7 @@ it('exports the identity text codecs, the common contract, the user message and 
     'LEAF_ALLOWS',
     'OUTCOMES',
     'REJECTION_BODY',
+    'REJECTION_RULE',
     'accessProtocol',
     'allowsOf',
     'defineProtocol',

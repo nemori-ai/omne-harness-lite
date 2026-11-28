@@ -163,25 +163,23 @@ function engineCodec(rule: Rule): Codec<unknown> {
   }
 }
 
+/** A rejection as data, for any protocol that carries one. */
+export const REJECTION_RULE = {
+  kind: 'object',
+  fields: {
+    at: {
+      rule: {
+        kind: 'array',
+        item: { kind: 'one-of', rules: [{ kind: 'string' }, { kind: 'count' }] },
+      },
+    },
+    given: { rule: { kind: 'string' } },
+    allows: { rule: { kind: 'string' } },
+  },
+} as const
+
 /** The body of protocol-rejected for every protocol; a peer that does not say why answers an empty body. */
 export const REJECTION_BODY = ruleCodec({
   kind: 'object',
-  fields: {
-    rejection: {
-      rule: {
-        kind: 'object',
-        fields: {
-          at: {
-            rule: {
-              kind: 'array',
-              item: { kind: 'one-of', rules: [{ kind: 'string' }, { kind: 'count' }] },
-            },
-          },
-          given: { rule: { kind: 'string' } },
-          allows: { rule: { kind: 'string' } },
-        },
-      },
-      optional: true,
-    },
-  },
+  fields: { rejection: { rule: REJECTION_RULE, optional: true } },
 })

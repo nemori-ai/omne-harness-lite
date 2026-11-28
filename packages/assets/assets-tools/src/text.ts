@@ -4,9 +4,11 @@ import type {
   ImpactLine,
   ManagedAsset,
   Placement,
+  RefusedLine,
 } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import { memberName } from '@omne-harness/plugin-protocol'
+import { rejectionText } from '@omne-harness/public-contract'
 import { columns } from './results.ts'
 
 export const HOW: Readonly<Record<CategoryListing['creation'], string>> = {
@@ -63,6 +65,16 @@ export function assetHead(asset: Asset): string[] {
   return said === '' ? [head] : [head, said]
 }
 
+const refusedLines = (refused: readonly RefusedLine[]): string[] =>
+  refused.length === 0
+    ? []
+    : [
+        '    refused:',
+        ...refused.map(
+          ({ at, target, rejection }) => `      ${at}   ${target}   ${rejectionText(rejection)}`,
+        ),
+      ]
+
 /** Where it is placed and how each client loaded it; a port that cannot answer says so, and the rest still shows. */
 export function placedLines(placed: Placed): string[] {
   if (placed.kind === 'unavailable') return [`places: ${CANNOT_READ}: ${placed.reason}`]
@@ -79,13 +91,16 @@ export function placedLines(placed: Placed): string[] {
             ]),
           ),
         ]
-  if (placed.clients !== null)
+  if (placed.clients !== null) {
+    const clients = placed.clients
+    const rows = columns(clients.map(({ label, says }) => [`  ${label}`, says]))
     lines.push(
       'clients:',
-      ...(placed.clients.length === 0
+      ...(clients.length === 0
         ? ['  none connected']
-        : columns(placed.clients.map(({ label, says }) => [`  ${label}`, says]))),
+        : rows.flatMap((row, index) => [row, ...refusedLines(clients[index]?.refused ?? [])])),
     )
+  }
   if (placed.advice !== null) lines.push(placed.advice)
   return lines
 }

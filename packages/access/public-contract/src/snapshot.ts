@@ -83,6 +83,10 @@ function partsData(parts: Readonly<Record<string, Part>>, data: Data, at: number
   return Object.fromEntries(live.map(([name, part]) => [name, data(part as never, at)]))
 }
 
+export type ContractRules = Plain
+
+export const contractRules = (protocol: ProtocolContract): ContractRules => rulesOf(protocol)
+
 function rulesOf(protocol: ProtocolContract, at?: number): Plain {
   return {
     operations: partsData(protocol.operations, operationData as Data, at),

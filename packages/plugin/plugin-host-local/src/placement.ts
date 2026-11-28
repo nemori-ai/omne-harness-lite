@@ -1,4 +1,4 @@
-import type { ClientLine, PlacedLine } from '@omne-harness/assets'
+import type { ClientLine, PlacedLine, RefusedLine } from '@omne-harness/assets'
 import type { PluginManifest, SideName } from '@omne-harness/plugin-protocol'
 import { named, placedOf, rivals, type KnownPoint, type PluginHeld } from './effect.ts'
 
@@ -7,6 +7,7 @@ export type ClientTold = Readonly<{
   client: string
   state: 'loaded' | 'failed' | 'held' | 'waiting' | null
   reason: string | null
+  refused?: readonly RefusedLine[]
 }>
 
 /** How the server stands with the version the tenant holds; `state` is null when it has not taken it up yet. */
@@ -37,7 +38,7 @@ export type PluginPlacement = Readonly<{
 const STOPPED =
   'stopped: the app did not come up twice in a row with this one wanted. It runs without it. Publish a new version, or disable it.'
 
-function toldBy({ client, state, reason }: ClientTold): ClientLine {
+function toldBy({ client, state, reason, refused }: ClientTold): ClientLine {
   const says =
     state === null
       ? 'not loaded yet'
@@ -48,7 +49,8 @@ function toldBy({ client, state, reason }: ClientTold): ClientLine {
           : state === 'waiting'
             ? `waits for ${reason ?? 'what it lacks'}: it loads by itself when that is there`
             : `failed: ${reason ?? 'no reason was told'}`
-  return { label: `${client}, connected`, says }
+  const lines = refused === undefined || refused.length === 0 ? {} : { refused }
+  return { label: `${client}, connected`, says, ...lines }
 }
 
 type Standing = Readonly<{ standing: string; says: string }>

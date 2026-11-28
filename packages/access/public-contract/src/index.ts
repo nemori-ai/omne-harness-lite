@@ -11,7 +11,14 @@ export {
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'
 export { OUTCOMES } from './outcome.ts'
 export type { FixedOutcome, Outcome } from './outcome.ts'
-export { pathText, REJECTION_BODY, rejectionText, ruleCodec, withheld } from './rule-codec.ts'
+export {
+  pathText,
+  REJECTION_BODY,
+  REJECTION_RULE,
+  rejectionText,
+  ruleCodec,
+  withheld,
+} from './rule-codec.ts'
 export type { Codec, CodecResult, Rejection, RuleValue } from './rule-codec.ts'
 export { allowsOf, LEAF_ALLOWS } from './leaf-codec.ts'
 export type { FieldRule, LeafKind, Rule } from './rule.ts'

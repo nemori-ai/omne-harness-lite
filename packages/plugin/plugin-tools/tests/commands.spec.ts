@@ -1,3 +1,4 @@
+import { memberName } from '@omne-harness/plugin-protocol'
 import { describe, expect, it } from 'vitest'
 import { declare, install, retire, type Registry } from '@omne-harness/dynamis'
 import { answerExtensionPoints } from '@omne-harness/plugin-tools'
@@ -219,13 +220,29 @@ describe('show', () => {
         'the host gives it: the directory of the skill',
         'when it throws: the skill is not offered',
         'now:',
-        '  pdf-tools   pdf#1 this tenant   [in effect]',
+        '  skill.skills「pdf-tools」   pdf#1 this tenant   [in effect]',
         'tree rev 7c1f.0',
       ].join('\n'),
     )
     const t2 = await sighted(world({ scope: ['t2'] })).text('show', { name: SKILLS })
-    expect(t2).toContain('  meeting-notes   notes#1 this tenant   [in effect]')
+    expect(t2).toContain('  skill.skills「meeting-notes」   notes#1 this tenant   [in effect]')
     expect(t2).not.toContain('pdf-tools')
+  })
+
+  it('names a member as memberName does: the title its plugin gave it, with the title of its point', async () => {
+    const titled = sighted(world(), '7c1f', {
+      memberTitle: (fiber, point, key) =>
+        fiber === 'pdf' && point === SKILLS && key === 'pdf-tools' ? 'PDF 工具' : undefined,
+    })
+    const text = await titled.text('show', { name: SKILLS })
+    const named = memberName({
+      title: 'PDF 工具',
+      point: SKILLS,
+      pointTitle: SKILLS,
+      key: 'pdf-tools',
+    })
+    expect(named).toBe('「PDF 工具」（skill.skills）')
+    expect(text).toContain(`  ${named}   pdf#1 this tenant   [in effect]`)
   })
 
   it('a point with nothing placed, and an entry that breaks the rules', async () => {
@@ -234,7 +251,7 @@ describe('show', () => {
     const server = registryOf(...serverParts(), ['bad', [entry(SKILLS, 'broken', { item: {} })]])
     const text = await sighted(world({ server })).text('show', { name: SKILLS })
     expect(text).toContain(
-      '  broken   bad#1 deployment   [not in effect: breach (the item lacks label (string))]',
+      '  skill.skills「broken」   bad#1 deployment   [not in effect: breach (the item lacks label (string))]',
     )
   })
 
@@ -282,7 +299,7 @@ describe('a point declared while the system runs', () => {
       'the host gives it: nothing',
       'when it throws: the section is left out',
       'now:',
-      '  sales / q1   sales#1 deployment   [in effect]',
+      '  reports.sections「sales / q1」   sales#1 deployment   [in effect]',
       'tree rev 7c1f.0',
     ])
   })

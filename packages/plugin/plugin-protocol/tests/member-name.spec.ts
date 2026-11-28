@@ -8,13 +8,22 @@ describe('one name for a member', () => {
     ).toBe('「天气」（一级页面）')
   })
 
-  it('writes the title of the point and the id or key when the member gives no title', () => {
+  it('writes the title of the point and the key, the id, or both when the member gives no title', () => {
     expect(
-      memberName({ point: 'shell.pages', pointTitle: '一级页面', key: 'k', id: 'weather' }),
-    ).toBe('一级页面「weather」')
+      memberName({ point: 'reports.sections', pointTitle: '报表的节', key: 'sales', id: 'q1' }),
+    ).toBe('报表的节「sales / q1」')
     expect(
       memberName({ point: 'shell.parts', pointTitle: '部位', key: 'weather.card', id: null }),
     ).toBe('部位「weather.card」')
+  })
+
+  it('is the point alone for the one member of a point that takes no key', () => {
+    expect(memberName({ point: 'shell.gate', pointTitle: '登录门', key: '', id: '' })).toBe(
+      '登录门',
+    )
+    expect(
+      memberName({ point: 'shell.pages', pointTitle: '一级页面', key: '', id: 'weather' }),
+    ).toBe('一级页面「weather」')
   })
 
   it('falls back to the name of the point when the point has no title to tell', () => {

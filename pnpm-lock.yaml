@@ -1976,6 +1976,9 @@ importers:
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../../plugin/plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -6546,6 +6549,12 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract

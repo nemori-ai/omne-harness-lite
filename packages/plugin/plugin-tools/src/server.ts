@@ -14,9 +14,10 @@ import {
   type Scope,
   type TreeNode,
 } from '@omne-harness/dynamis'
+import { memberName } from '@omne-harness/plugin-protocol'
 import type { Admission } from './port.ts'
 import { pointLines, rulesOf, type Form } from './rules.ts'
-import { columns, cut, insideText, moreLine, placeOf, scopeText, stateText } from './text.ts'
+import { columns, cut, insideText, moreLine, scopeText, stateText } from './text.ts'
 
 /** The server side of the tree as the asker sees it. */
 export function serverSide(
@@ -103,7 +104,20 @@ function receiptOf(registry: Registry, entry: Placed): string {
   return effect === undefined ? 'not in effect' : stateText(effect.state, effect.detail)
 }
 
-function placedLines(registry: Registry, name: string, scope: Scope): string[] {
+export type MemberTitle = (
+  fiber: string,
+  point: string,
+  key: string,
+  id: string,
+) => string | undefined
+
+function placedLines(
+  registry: Registry,
+  contract: Contract,
+  scope: Scope,
+  titleOf: MemberTitle,
+): string[] {
+  const { name, title: pointTitle } = contract
   const read = candidates(registry, name, null, scope)
   if (read.kind !== 'read') return [`  cannot be read now: ${read.reason} ${read.detail}`]
   const rows = [
@@ -114,10 +128,18 @@ function placedLines(registry: Registry, name: string, scope: Scope): string[] {
     })),
   ]
   if (rows.length === 0) return ['  (nothing placed)']
-  return rows.map(
-    ({ entry, state }) =>
-      `  ${placeOf(entry.key, entry.id) || '(no key)'}   ${entry.instance.fiber}#${entry.instance.generation} ${scopeText(entry.scope, scope)}   [${state}]`,
-  )
+  return rows.map(({ entry, state }) => {
+    const { key, id, instance } = entry
+    const title = titleOf(instance.fiber, name, key, id)
+    const named = memberName({
+      point: name,
+      pointTitle,
+      key,
+      id,
+      ...(title !== undefined && { title }),
+    })
+    return `  ${named}   ${instance.fiber}#${instance.generation} ${scopeText(entry.scope, scope)}   [${state}]`
+  })
 }
 
 const GUEST_FORMS = 'plugin.guest-forms'
@@ -156,6 +178,7 @@ export function serverPointLines(
   contract: Contract,
   scope: Scope,
   admission?: Admission,
+  titleOf: MemberTitle = () => undefined,
 ): string[] {
   const rules = rulesOf(contract)
   const head = { name: contract.name, side: contract.tree, summary: contract.summary }
@@ -163,7 +186,7 @@ export function serverPointLines(
     ...pointLines(head, rules, admission, formOf(registry, contract.name), SERVER_HANDED),
     ...(contract.name === PORTS ? portLines(registry, scope) : []),
     'now:',
-    ...placedLines(registry, contract.name, scope),
+    ...placedLines(registry, contract, scope, titleOf),
   ]
 }
 

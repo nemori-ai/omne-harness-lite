@@ -21,6 +21,8 @@ import {
   type ScopeSource,
   type Toast,
 } from '@omne-harness/shell-contract'
+import type { Rejection } from '@omne-harness/public-contract'
+import { recording } from './refusals.ts'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
 export type Code = Readonly<{
@@ -200,13 +202,23 @@ function handedTo(
 
 const PROTOCOL = /^([^/]+)\/v([1-9][0-9]*)$/u
 
-function portsOf(shell: InstallShell, needs: readonly string[]): object | string {
+export type NoteRefused = (target: string, rejection: Rejection) => void
+
+function portsOf(
+  shell: InstallShell,
+  needs: readonly string[],
+  note: NoteRefused,
+): object | string {
   const ports: Record<string, unknown> = {}
   for (const need of needs) {
     const key = PROTOCOL.exec(need)
     if (key === null) return `needs ${need}: this side lends only protocols, each <name>/v<major>`
     const protocol = needProtocol({ name: key[1]!, major: Number(key[2]) })
-    ports[need] = protocolClientOf(() => shell.registry(), protocol)
+    ports[need] = recording(
+      protocolClientOf(() => shell.registry(), protocol),
+      need,
+      note,
+    )
   }
   return Object.freeze(ports)
 }
@@ -341,9 +353,10 @@ export async function installOn(
   listed: Listed,
   scope: Scope,
   code?: Code,
+  note: NoteRefused = () => undefined,
 ): Promise<Outcome> {
   if (listed.fault !== undefined) return failed(listed.fault)
-  const ports = portsOf(shell, listed.needs ?? [])
+  const ports = portsOf(shell, listed.needs ?? [], note)
   if (typeof ports === 'string') return failed(ports)
   const steps = stepsOf(shell, listed, scope, ports, code)
   if (!Array.isArray(steps)) return steps as Outcome

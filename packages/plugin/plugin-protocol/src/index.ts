@@ -33,6 +33,7 @@ export {
   pluginProtocol,
   type PluginProtocol,
   type ReportedPoint,
+  type PluginRefusal,
   type ReportedPointContract,
 } from './plugin-protocol.ts'
 export {

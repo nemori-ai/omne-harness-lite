@@ -11,5 +11,6 @@ export type Named = Readonly<{
 export function memberName(member: Named): string {
   const place = member.pointTitle ?? member.point
   if (member.title !== undefined && member.title !== null) return `「${member.title}」（${place}）`
-  return `${place}「${member.id ?? member.key}」`
+  const which = [member.key, member.id ?? ''].filter(part => part !== '').join(' / ')
+  return which === '' ? place : `${place}「${which}」`
 }

@@ -18,6 +18,8 @@ import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { pluginReportsKey, type PluginReportsService } from '../plugin-access/reports-service.ts'
 import { serverPointOf } from '../plugin-server/index.ts'
+import { pluginServerKey, type PluginServerService } from '../plugin-server/service.ts'
+import { protocolKeys, protocolOf } from './protocol-sight.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
@@ -30,7 +32,17 @@ export type ExtensionSightPorts = Readonly<{
   /** What names this process in a revision. */
   process: string
   admission?: ExtensionSight['admission']
+  membersOf?: (fiber: string) => readonly Member[] | undefined
 }>
+
+const titleFrom =
+  (
+    membersOf: NonNullable<ExtensionSightPorts['membersOf']>,
+  ): NonNullable<ExtensionSight['memberTitle']> =>
+  (fiber, point, key, id) =>
+    membersOf(fiber)?.find(
+      member => member.point === point && member.key === key && (member.id ?? '') === id,
+    )?.title
 
 export type ExtensionSights = Readonly<{
   of(tenant: string): ExtensionSight
@@ -45,13 +57,21 @@ export function createExtensionSights(ports: ExtensionSightPorts): ExtensionSigh
   if (first !== undefined) revisions.record(first)
   const stop = ports.onChanged(registry => revisions.record(registry))
   return {
-    of: tenant => ({
-      scope: scopeOfLayer('tenant', tenant),
-      server: () => ports.registry() ?? 'unavailable',
-      clients: () => ports.reportsOf(tenant) ?? 'unavailable',
-      revisions,
-      ...(ports.admission !== undefined && { admission: ports.admission }),
-    }),
+    of: tenant => {
+      const scope = scopeOfLayer('tenant', tenant)
+      return {
+        scope,
+        server: () => ports.registry() ?? 'unavailable',
+        clients: () => ports.reportsOf(tenant) ?? 'unavailable',
+        revisions,
+        ...(ports.admission !== undefined && { admission: ports.admission }),
+        protocol: (name, major) => protocolOf(ports.registry(), name, major, scope),
+        protocols: () => protocolKeys(ports.registry(), scope),
+        ...(ports.membersOf !== undefined && {
+          memberTitle: titleFrom(ports.membersOf),
+        }),
+      }
+    },
     revision: () => revisions.current(),
     close: stop,
   }
@@ -111,6 +131,8 @@ function sightsOf(ctx: Context): ExtensionSights {
     onChanged: listener => ctx.on('dynamis-cordis/changed', listener),
     process: randomBytes(2).toString('hex'),
     admission: admissionOf(ctx),
+    membersOf: fiber =>
+      (ctx.get(pluginServerKey) as PluginServerService | undefined)?.members(fiber),
   })
   sights.set(ctx, made)
   ctx.effect(() => () => made.close(), 'tool-bindings.extension-points.close')

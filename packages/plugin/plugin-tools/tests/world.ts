@@ -188,13 +188,18 @@ export type World = {
 }
 
 /** A sight over a world the test changes in place, with revisions the test records. */
-export function sighted(world: World, process = '7c1f') {
+export function sighted(
+  world: World,
+  process = '7c1f',
+  more: Pick<ExtensionSight, 'protocol' | 'protocols' | 'memberTitle'> = {},
+) {
   const revisions = createRevisions({ process })
   const sight: ExtensionSight = {
     scope: world.scope,
     server: () => world.server,
     clients: () => world.clients,
     revisions,
+    ...more,
   }
   const execution = attachExtensionSight(scope(), sight)
   async function run(command: string, params: unknown = {}) {

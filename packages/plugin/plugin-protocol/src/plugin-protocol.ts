@@ -1,4 +1,10 @@
-import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
+import {
+  defineProtocol,
+  REJECTION_RULE,
+  ruleCodec,
+  type Rule,
+  type RuleValue,
+} from '@omne-harness/public-contract'
 
 type Fields = Readonly<
   Record<string, { readonly rule: Rule; readonly optional?: true; readonly since?: number }>
@@ -26,12 +32,18 @@ const wanted = object({
   manifest: { rule: text },
   files: { rule: array(file) },
 })
+const refusal = object({
+  at: { rule: text },
+  target: { rule: text },
+  rejection: { rule: REJECTION_RULE },
+})
 const report = object({
   name: { rule: text },
   version: { rule: text },
   state: { rule: literal('loaded', 'failed', 'held') },
   reason: { rule: oneOf(text, nothing) },
   waiting: { rule: array(text), optional: true, since: 3 },
+  refused: { rule: array(refusal), optional: true, since: 4 },
 })
 
 /** The rules of a point as its owner declared them: what the key is, what an item gives and is given, and one to copy. */
@@ -171,3 +183,4 @@ export type PluginProtocol = typeof pluginProtocol
 /** One point as a client tells of it: its name, a line on it, and, from revision 2, its rules and the names its data may use; from revision 4 its rules carry its title. */
 export type ReportedPoint = RuleValue<typeof point>
 export type ReportedPointContract = NonNullable<ReportedPoint['contract']>
+export type PluginRefusal = RuleValue<typeof refusal>
