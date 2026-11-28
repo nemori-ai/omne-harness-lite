@@ -16,6 +16,7 @@ const EFFECT: PluginEffect = {
     {
       point: 'tool.tools',
       key: 'wordcount',
+      id: null,
       side: 'server',
       category: 'tool',
       categoryTitle: '工具',
@@ -24,8 +25,8 @@ const EFFECT: PluginEffect = {
     },
   ],
   advice: null,
-  disable: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', says: '' }],
-  remove: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', says: '' }],
+  disable: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', id: null, says: '' }],
+  remove: [{ mark: '-', of: null, point: 'tool.tools', key: 'wordcount', id: null, says: '' }],
 }
 
 const entryWith = (detail: PluginDetail | null, enabled: boolean): PluginEntry => ({
@@ -109,6 +110,40 @@ describe('the page of one plugin', () => {
     fireEvent.click(screen.getByRole('switch', { name: '启用「tool-kit」' }))
     expect(screen.getByRole('dialog').textContent).toContain('这一次说不出会收回什么。')
     expect(screen.getByRole('button', { name: '禁用整份' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('names what it put on a point that tells its items by id by that id, so two on one point are told apart', () => {
+    const on = (point: string, id: string) => ({
+      place: {
+        point,
+        key: '',
+        id,
+        side: 'client' as const,
+        category: null,
+        categoryTitle: null,
+        standing: 'in effect',
+        says: '',
+      },
+      line: { mark: '-' as const, of: null, point, key: '', id, says: '' },
+    })
+    const brought = [on('shell.pages', 'weather'), on('shell.pages', 'weather-map')]
+    const effect: PluginEffect = {
+      ...EFFECT,
+      places: brought.map(each => each.place),
+      disable: brought.map(each => each.line),
+    }
+    shown({ kind: 'read', asset: { effect } })
+    const items = (within: HTMLElement) =>
+      [...within.querySelectorAll('li')].map(item => item.textContent?.trim())
+    expect(items(screen.getByRole('region', { name: 'tool-kit' }))).toEqual([
+      'weather shell.pages',
+      'weather-map shell.pages',
+    ])
+    fireEvent.click(screen.getByRole('switch', { name: '启用「tool-kit」' }))
+    expect(items(screen.getByRole('dialog'))).toEqual([
+      'weather shell.pages',
+      'weather-map shell.pages',
+    ])
   })
 
   it('disabled, lists what it brought without a status word on each; enabled, a member not in effect says why', () => {

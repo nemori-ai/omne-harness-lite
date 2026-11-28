@@ -4,6 +4,8 @@ import type { ComponentType } from 'react'
 export type PlacedMember = Readonly<{
   point: string
   key: string
+  /** The id of the item, on a point that tells its items by id. */
+  id: string | null
   side: 'client' | 'server' | null
   category: string | null
   categoryTitle: string | null
@@ -16,6 +18,7 @@ export type TakenBack = Readonly<{
   of: string | null
   point: string
   key: string
+  id: string | null
   says: string
 }>
 

@@ -1,7 +1,7 @@
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { defineProtocol, type OperationContract, type ProtocolContract } from './protocol.ts'
 import { ruleCodec, type Codec } from './rule-codec.ts'
-import type { Rule } from './rule.ts'
+import type { LeafKind, Rule } from './rule.ts'
 
 export type GuestOperationData = Readonly<{
   effect: 'read' | 'commit'
@@ -26,6 +26,75 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 
 const codecOf = ruleCodec as unknown as (rule: Rule) => Codec<unknown>
 
+/** Every kind a leaf of a rule can be: a record, so the compiler holds it to `LeafKind`. */
+const LEAVES: Readonly<Record<LeafKind, true>> = {
+  text: true,
+  string: true,
+  boolean: true,
+  null: true,
+  account: true,
+  organization: true,
+  login: true,
+  tenant: true,
+  instant: true,
+  'plain-date': true,
+  session: true,
+  'page-bytes': true,
+  bytes: true,
+  revision: true,
+  'positive-integer': true,
+  count: true,
+  'page-limit': true,
+  parameters: true,
+  json: true,
+  'user-message': true,
+}
+const KINDS = [...Object.keys(LEAVES), 'literal', 'object', 'array', 'one-of'].join(', ')
+
+function fieldsFault(fields: unknown, at: string): string | undefined {
+  if (!isRecord(fields)) return `${at}: an object rule has fields`
+  for (const [name, field] of Object.entries(fields)) {
+    if (!isRecord(field)) return `${at}.${name}: a field is { rule, optional?, since? }`
+    const fault = ruleFault(field['rule'], `${at}.${name}`)
+    if (fault !== undefined) return fault
+  }
+  return undefined
+}
+
+/** The first thing a rule written as data gets wrong, named by where it is; nothing when it is a rule. */
+function ruleFault(rule: unknown, at: string): string | undefined {
+  if (!isRecord(rule) || typeof rule['kind'] !== 'string') return `${at}: a rule is { kind, … }`
+  const kind = rule['kind']
+  if (Object.hasOwn(LEAVES, kind)) return undefined
+  switch (kind) {
+    case 'literal': {
+      const values = rule['values']
+      return Array.isArray(values) &&
+        values.length > 0 &&
+        values.every(value => typeof value === 'string' || typeof value === 'boolean')
+        ? undefined
+        : `${at}: a literal rule has values, each a string or a boolean`
+    }
+    case 'object':
+      return fieldsFault(rule['fields'], at)
+    case 'array':
+      return rule['item'] === undefined
+        ? `${at}: an array rule has an item`
+        : ruleFault(rule['item'], `${at}[]`)
+    case 'one-of': {
+      const rules = rule['rules']
+      if (!Array.isArray(rules) || rules.length === 0) return `${at}: a one-of rule has rules`
+      for (const each of rules) {
+        const fault = ruleFault(each, at)
+        if (fault !== undefined) return fault
+      }
+      return undefined
+    }
+    default:
+      return `${at}: ${kind} is not a kind of rule; a rule is one of ${KINDS}`
+  }
+}
+
 const EFFECTS: ReadonlySet<unknown> = new Set(['read', 'commit'])
 const LIMITS: ReadonlySet<unknown> = new Set(['small', 'input'])
 
@@ -38,6 +107,9 @@ function operationOf(name: string, given: unknown): GuestOperationData | string 
 }
 
 function contractOf(name: string, operation: GuestOperationData): OperationContract | string {
+  const fault =
+    ruleFault(operation.body as unknown, 'body') ?? ruleFault(operation.result as unknown, 'result')
+  if (fault !== undefined) return `${name}: ${fault}`
   try {
     return {
       identity: 'acting-tenant',

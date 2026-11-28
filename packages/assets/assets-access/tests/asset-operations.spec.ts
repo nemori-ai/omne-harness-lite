@@ -1,10 +1,20 @@
 import type { AnswerOf } from '@omne-harness/access-cordis-contract'
-import { capabilityId, type AssetRow, type CapabilityId } from '@omne-harness/assets'
+import {
+  capabilityId,
+  type AssetRow,
+  type CapabilityId,
+  type CategoryEffect,
+} from '@omne-harness/assets'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
 import { createAssetsContribution } from '../src/contribution.ts'
-import type { ChangeListener, ManagementPort, TargetTenantPrincipals } from '../src/ports.ts'
+import type {
+  CategoriesPort,
+  ChangeListener,
+  ManagementPort,
+  TargetTenantPrincipals,
+} from '../src/ports.ts'
 import { fixtureLogin, loginIdentity, type FixtureLogin } from './fixtures/world.ts'
 
 const limits: JsonLimits = {
@@ -113,7 +123,7 @@ const METHOD: Record<Name, Method> = {
 const READS: readonly Name[] = ['list-assets', 'describe-asset', 'query-asset-operation']
 const NAMES = Object.keys(METHOD) as Name[]
 
-function setup() {
+function setup(categories?: CategoriesPort) {
   const calls: { method: Method; input: Record<string, unknown> }[] = []
   const state = {
     refusal: undefined as 'denied' | 'basis-unavailable' | 'throw' | undefined,
@@ -143,7 +153,7 @@ function setup() {
   const listeners: { tenant: string; listener: ChangeListener }[] = []
   const contribution = createAssetsContribution({
     settings: () => undefined,
-    categories: () => undefined,
+    categories: () => categories,
     management: () => (state.face ? face : undefined),
     changes: () => ({
       subscribe(tenant, listener) {
@@ -453,6 +463,120 @@ describe('the fourth step: one domain outcome, one wire outcome', () => {
     const answer = await world.call(name)
     expect(answer).toEqual(wire)
     expect(writes(name, answer)).toBe(true)
+  })
+})
+
+describe('describe-asset with a category that tells its effect', () => {
+  const asset = {
+    kind: 'asset',
+    row: ROW,
+    revision: 3,
+    content: { kind: 'directory', entries: [{ path: 'SKILL.md', bytes: 9 }] },
+    standing: { kind: 'filtered', reason: 'disabled' },
+    settings: true,
+  }
+  const placement = (kind: 'placed' | 'unavailable'): CategoryEffect['placement'] => ({
+    of: async () =>
+      kind === 'unavailable'
+        ? { kind, reason: 'the clients cannot be read now' }
+        : {
+            kind,
+            places: [
+              {
+                point: 'shell.pages',
+                key: '',
+                id: 'weather',
+                side: 'client',
+                standing: 'in effect',
+                says: '',
+              },
+              {
+                point: 'tool.tools',
+                key: 'weather__forecast',
+                side: 'server',
+                standing: 'not in effect',
+                says: 'it is disabled',
+              },
+            ],
+            clients: [{ label: 'desktop-1, connected', says: 'loaded' }],
+            advice: null,
+          },
+  })
+  const impact: CategoryEffect['impact'] = {
+    of: async ({ change }) => ({
+      kind: 'changes',
+      lines: [
+        { mark: '-', of: null, point: 'shell.pages', key: '', id: 'weather', says: `→ ${change}` },
+        { mark: '~', of: 'notes', point: 'tool.tools', key: 'x', says: 'conflict → in effect' },
+      ],
+      loads: null,
+      advice: null,
+    }),
+  }
+  const categoriesWith = (effect: CategoryEffect) =>
+    ({
+      effectOf: () => effect,
+      atPoint: (point: string) =>
+        point === 'tool.tools' ? { category: 'tool', display: { title: '工具' } } : undefined,
+    }) as unknown as CategoriesPort
+
+  it('tells each place with its id, side, the category a server place falls in and its title, and what disabling and removing take back', async () => {
+    const world = setup(categoriesWith({ placement: placement('placed'), impact }))
+    world.state.answer = asset
+    const answer = await world.call('describe-asset')
+    expect(writes('describe-asset', answer)).toBe(true)
+    const line = (change: string) => [
+      { mark: '-', of: null, point: 'shell.pages', key: '', id: 'weather', says: `→ ${change}` },
+      {
+        mark: '~',
+        of: 'notes',
+        point: 'tool.tools',
+        key: 'x',
+        id: null,
+        says: 'conflict → in effect',
+      },
+    ]
+    expect('body' in answer && (answer.body as { effect?: unknown }).effect).toEqual({
+      places: [
+        {
+          point: 'shell.pages',
+          key: '',
+          id: 'weather',
+          side: 'client',
+          category: null,
+          categoryTitle: null,
+          standing: 'in effect',
+          says: '',
+        },
+        {
+          point: 'tool.tools',
+          key: 'weather__forecast',
+          id: null,
+          side: 'server',
+          category: 'tool',
+          categoryTitle: '工具',
+          standing: 'not in effect',
+          says: 'it is disabled',
+        },
+      ],
+      clients: [{ label: 'desktop-1, connected', says: 'loaded' }],
+      advice: null,
+      disable: line('disable'),
+      remove: line('remove'),
+    })
+  })
+
+  it('leaves the effect out when where it is placed cannot be read now, or the category tells none', async () => {
+    for (const categories of [
+      categoriesWith({ placement: placement('unavailable'), impact }),
+      { effectOf: () => undefined } as unknown as CategoriesPort,
+    ]) {
+      const world = setup(categories)
+      world.state.answer = asset
+      const answer = await world.call('describe-asset')
+      expect(answer.outcome).toBe('succeeded')
+      expect('body' in answer && 'effect' in (answer.body as object)).toBe(false)
+    }
   })
 })
 

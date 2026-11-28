@@ -30,6 +30,7 @@ const POINTS: readonly KnownPoint[] = [
   { name: 'shell.tokens', side: 'client', takes: 'data', when: 'running' },
   { name: 'session.tool-call', side: 'client', takes: 'code', when: 'running' },
   { name: 'shell.pages', side: 'client', takes: 'code', when: 'build' },
+  { name: 'shell.sidebar', side: 'client', takes: 'code', when: 'running' },
   { name: 'skill.skills', side: 'server', takes: 'directory', when: 'running' },
 ]
 
@@ -109,6 +110,50 @@ describe('what publishing a plugin would change', () => {
       '~ round: shell.part-style / session.composer.send   in effect → conflict',
     ])
     expect(answer.advice).toBe('Disable round first, or leave this member out.')
+  })
+
+  it('on a point that tells its items by id, items of two plugins under other ids are not a conflict; under one id they are', () => {
+    const side = (id: string) => ({
+      point: 'shell.sidebar',
+      key: '',
+      id,
+      module: 's.js',
+      export: 's',
+    })
+    const publishing = (theirs: string) =>
+      pluginImpact({
+        name: 'weather',
+        change: 'publish',
+        manifest: manifest('weather', [side('weather-now')]),
+        held: [held('notes', manifest('notes', [side(theirs)]))],
+        points: POINTS,
+      })
+    expect(publishing('notes-recent').lines).toEqual([
+      {
+        mark: '+',
+        of: null,
+        point: 'shell.sidebar',
+        key: '',
+        id: 'weather-now',
+        says: '→ in effect',
+      },
+    ])
+    expect(publishing('weather-now').lines.map(line => [line.mark, line.of, line.id])).toEqual([
+      ['!', null, 'weather-now'],
+      ['~', 'notes', 'weather-now'],
+    ])
+  })
+
+  it('members of two plugins on one point under other keys are not a conflict', () => {
+    const SUBMIT = { point: 'shell.part-style', key: 'session.composer.submit', data: { base: {} } }
+    const answer = pluginImpact({
+      name: 'pill',
+      change: 'publish',
+      manifest: manifest('pill', [SEND]),
+      held: [held('round', manifest('round', [SUBMIT]))],
+      points: POINTS,
+    })
+    expect(lines(answer)).toEqual(['+ shell.part-style / session.composer.send   → in effect'])
   })
 
   it('a point that is not there now is said, with the nearest names that are', () => {
@@ -414,6 +459,34 @@ describe('where a held plugin is placed now', () => {
     expect(answer.places[1]?.standing).toBe('in effect')
   })
 
+  it('tells the id of an item on a point that tells its items by id; pages of two plugins under other ids are both in effect', () => {
+    const page = (id: string) => ({
+      point: 'shell.sidebar',
+      key: '',
+      id,
+      module: 's.js',
+      export: 's',
+    })
+    const answer = pluginPlacement({
+      name: 'weather',
+      manifest: manifest('weather', [page('weather-now')]),
+      enabled: true,
+      held: [held('notes', manifest('notes', [page('notes-recent')]))],
+      clients: [loaded],
+      server: null,
+    })
+    expect(answer.places).toEqual([
+      {
+        point: 'shell.sidebar',
+        key: '',
+        id: 'weather-now',
+        side: 'client',
+        standing: 'in effect',
+        says: '',
+      },
+    ])
+  })
+
   it('is not known while no client is connected, and not in effect while it is disabled', () => {
     const none = pluginPlacement({
       name: 'pill',
@@ -437,6 +510,47 @@ describe('where a held plugin is placed now', () => {
       server: null,
     })
     expect(off.places[0]).toMatchObject({ standing: 'not in effect', says: 'it is disabled' })
+  })
+
+  it('is not in effect while a client waits for what it lacks, and says what the client waits for', () => {
+    const answer = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: 'the point session.tool-call' }],
+      server: null,
+    })
+    expect(answer.places.map(place => [place.standing, place.says])).toEqual([
+      ['not in effect', 'the client waits for what it lacks'],
+      ['not in effect', 'the client waits for what it lacks'],
+    ])
+    expect(answer.clients).toEqual([
+      {
+        label: 'desktop-1, connected',
+        says: 'waits for the point session.tool-call: it loads by itself when that is there',
+      },
+    ])
+    const told = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: null }],
+      server: null,
+    })
+    expect(told.clients?.[0]?.says).toBe(
+      'waits for what it lacks: it loads by itself when that is there',
+    )
+    const one = pluginPlacement({
+      name: 'pill',
+      manifest: pill,
+      enabled: true,
+      held: [],
+      clients: [{ client: 'desktop-1', state: 'waiting', reason: null }, loaded],
+      server: null,
+    })
+    expect(one.places[0]?.standing).toBe('not in effect')
   })
 
   it('says a client that told nothing of it has not loaded it yet', () => {

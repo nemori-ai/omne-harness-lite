@@ -536,6 +536,71 @@ describe('清单之外的目标：这份登录的租户自己的协议（DT-64�
   })
 })
 
+describe('清单之外的目标：记着的答复跟着登录与可用性走（DT-64）', () => {
+  it('退出之后这份登录记着的答复不留：再登录同一个证明，调它的协议要重读一次', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    server.answer('identity/v1 revoke-login', () => answered('succeeded'))
+    const reads = () => server.seen.filter(item => item.target === 'access/v1 scoped').length
+    await page.login()
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    expect(await page.json('/bridge/logout')).toEqual({ result: 'signed-out' })
+    await page.login()
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(2)
+  })
+
+  it('同一个订阅里，scoped 没变的帧不清记着的答复；可用性的流结束时，结束原样交给页面', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    const snapshot = { kind: 'snapshot', revision: 1, protocols: [], conflicts: [], scoped: 4 }
+    let next = (): void => undefined
+    server.stream('access/v1 availability', async function* () {
+      yield value(snapshot)
+      await new Promise<void>(resolve => (next = resolve))
+      yield value(snapshot)
+      await new Promise<void>(resolve => (next = resolve))
+      return { kind: 'ended', reason: 'the server stops' } as const
+    })
+    const reads = () => server.seen.filter(item => item.target === 'access/v1 scoped').length
+    await page.login()
+    const events = reading(await page.get('/bridge/events?page=p'))
+    expect((await attach(page, 'a-1', AVAILABILITY)).status).toBe(200)
+    await events.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    next()
+    await events.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    next()
+    expect(await events.next(1)).toEqual([
+      { id: 'a-1', event: { kind: 'end', end: { kind: 'ended', reason: 'the server stops' } } },
+    ])
+    await events.cancel()
+  })
+
+  it('清单里别的观察的帧不当成可用性读：帧里写着 scoped 变了，记着的答复照旧', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    server.stream('session/v1 observe-session', async function* () {
+      yield value({ kind: 'snapshot', revision: 1, protocols: [], conflicts: [], scoped: 9 })
+      return { kind: 'ended', reason: 'done' } as const
+    })
+    const reads = () => server.seen.filter(item => item.target === 'access/v1 scoped').length
+    await page.login()
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    const events = reading(await page.get('/bridge/events?page=p'))
+    expect((await attach(page, 'o-1', OBSERVE)).status).toBe(200)
+    await events.next(2)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    await events.cancel()
+  })
+})
+
 describe('来源', () => {
   it('POST 不带 Origin、带别的 Origin、不是 JSON：都拒绝，记一行', async () => {
     const { forwarding, server, lines } = start()

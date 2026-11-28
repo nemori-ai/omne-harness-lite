@@ -119,8 +119,18 @@ const STANDING: Readonly<Record<string, string>> = {
   conflict: '撞键',
 }
 
-const kindOf = (places: readonly PlacedMember[], point: string, key: string): string =>
-  places.find(place => place.point === point && place.key === key)?.categoryTitle ?? point
+type Named = Readonly<{ point: string; key: string; id: string | null }>
+
+const nameOf = ({ key, id }: Named): string => id ?? key
+
+const placeOf = (member: Named & Readonly<{ categoryTitle: string | null }>): string =>
+  member.categoryTitle ?? member.point
+
+const sameMember = (left: Named, right: Named): boolean =>
+  left.point === right.point && left.key === right.key && left.id === right.id
+
+const kindOf = (places: readonly PlacedMember[], line: TakenBack): string =>
+  placeOf(places.find(place => sameMember(place, line)) ?? { ...line, categoryTitle: null })
 
 /** What the page can tell of what the plugin brought: still being read the first time, or told (nothing when it cannot tell). */
 type Told =
@@ -214,7 +224,7 @@ function PluginReading({
                 <ul className="plugin-view-members">
                   {members.map(member => (
                     <Member
-                      key={`${member.point}\n${member.key}`}
+                      key={`${member.point}\n${member.key}\n${member.id ?? ''}`}
                       member={member}
                       enabled={row.enabled}
                       go={go}
@@ -273,8 +283,8 @@ function Member({
   const { category } = member
   return (
     <li className="plugin-view-member">
-      <span>{member.key}</span>
-      <span className="plugin-view-member-place">{member.categoryTitle ?? member.point}</span>
+      <span>{nameOf(member)}</span>{' '}
+      <span className="plugin-view-member-place">{placeOf(member)}</span>
       {enabled && member.standing !== 'in effect' && (
         <span className="plugin-view-member-trouble">
           <StatusPill tone="caution">{STANDING[member.standing] ?? member.standing}</StatusPill>{' '}
@@ -299,9 +309,8 @@ function TakenBackList({
   return (
     <ul className="plugin-view-taken-back">
       {lines.map(line => (
-        <li key={`${line.of ?? ''}\n${line.point}\n${line.key}`}>
-          {line.key}{' '}
-          <span className="plugin-view-member-place">{kindOf(places, line.point, line.key)}</span>
+        <li key={`${line.of ?? ''}\n${line.point}\n${line.key}\n${line.id ?? ''}`}>
+          {nameOf(line)} <span className="plugin-view-member-place">{kindOf(places, line)}</span>
         </li>
       ))}
     </ul>

@@ -313,7 +313,14 @@ async function write<T>(call: () => Promise<T>): Promise<T | typeof UNKNOWN> {
 
 const linesOf = (read: Awaited<ReturnType<CategoryEffect['impact']['of']>>) =>
   read.kind === 'changes'
-    ? read.lines.map(({ mark, of, point, key, says }) => ({ mark, of, point, key, says }))
+    ? read.lines.map(({ mark, of, point, key, id, says }) => ({
+        mark,
+        of,
+        point,
+        key,
+        id: id ?? null,
+        says,
+      }))
     : null
 
 /** What a category that answers its effect tells of one held asset; nothing when it answers none. */
@@ -337,11 +344,12 @@ async function effectOf(
       return listing === undefined || 'unusable' in listing ? undefined : listing
     }
     return {
-      places: placed.places.map(({ point, key, side, standing, says }) => {
+      places: placed.places.map(({ point, key, id, side, standing, says }) => {
         const listing = side === 'server' ? listingAt(point) : undefined
         return {
           point,
           key,
+          id: id ?? null,
           side: side ?? null,
           category: listing?.category ?? null,
           categoryTitle: listing?.display.title ?? null,

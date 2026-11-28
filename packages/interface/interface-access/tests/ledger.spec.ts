@@ -150,4 +150,47 @@ describe('two tenants, two clients (IV-4)', () => {
     const left = run([{ kind: 'leave', tenant: ACME, client: 'c-3' }], both).ledger
     expect(run([ask('r-1', ACME)], left).effects[0]).toMatchObject({ client: 'c-1' })
   })
+
+  it("another tenant's requests on their way do not count toward this tenant's limit", () => {
+    const betaFull = run(
+      ['a', 'b', 'c', 'd'].map(each => ask(each, BETA)),
+      both,
+    ).ledger
+    expect(run([ask('r-1', ACME)], betaFull).effects).toEqual([
+      { kind: 'send', tenant: ACME, client: 'c-3', asked: asked('r-1') },
+    ])
+  })
+
+  it('a delivery from a client of the same name under another tenant is not found', () => {
+    const twins = run([arrive(ACME, 'c-9'), arrive(BETA, 'c-9'), ask('r-1', ACME)]).ledger
+    expect(run([deliver('r-1', IMAGE, 'c-9', BETA)], twins).effects).toEqual([
+      { kind: 'delivered', outcome: 'not-found' },
+    ])
+  })
+
+  it('a client that leaves takes only its own requests: not those of a client of the same name under another tenant, nor of another client of its tenant', () => {
+    const twins = run([
+      arrive(ACME, 'c-9'),
+      ask('r-1', ACME),
+      arrive(BETA, 'c-9'),
+      ask('r-2', BETA),
+      arrive(ACME, 'c-8'),
+      ask('r-3', ACME),
+    ]).ledger
+    const left = run([{ kind: 'leave', tenant: ACME, client: 'c-9' }], twins)
+    expect(left.effects).toEqual([
+      { kind: 'settle', request: 'r-1', answer: { kind: 'unavailable', why: 'client-left' } },
+    ])
+    expect([...left.ledger.pending.keys()]).toEqual(['r-2', 'r-3'])
+    expect(run([{ kind: 'expire', request: 'r-1' }], left.ledger).effects).toEqual([])
+  })
+
+  it('a tenant whose only client arrived and left has no one to ask; a leave of a tenant with none changes nothing', () => {
+    expect(run([arrive(ACME, 'c-1')]).effects).toEqual([])
+    const gone = run([arrive(ACME, 'c-1'), { kind: 'leave', tenant: ACME, client: 'c-1' }]).ledger
+    expect(run([ask('r-1', ACME)], gone).effects).toEqual([
+      { kind: 'settle', request: 'r-1', answer: { kind: 'client-absent' } },
+    ])
+    expect(run([{ kind: 'leave', tenant: BETA, client: 'c-2' }]).ledger).toEqual(EMPTY_LEDGER)
+  })
 })

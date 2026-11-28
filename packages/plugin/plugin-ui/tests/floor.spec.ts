@@ -181,6 +181,15 @@ describe('the loader on the floor', () => {
     expect(t.without('settle')).toEqual(['rise alice'])
   })
 
+  it('says nothing to the floor when the tenant leaves before the list is read: nothing of this start has an outcome', async () => {
+    const t = await world(UP)
+    t.source.set(ALICE, 'unavailable')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    t.shell.scope.set(undefined)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(t.calls).toEqual(['rise alice'])
+  })
+
   it('does not say all is settled while a load is in the air', async () => {
     let land: ((file: unknown) => void) | undefined
     const t = await world(UP, {

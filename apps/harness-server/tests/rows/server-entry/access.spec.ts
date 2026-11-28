@@ -311,6 +311,7 @@ describe('the serve process with the release', () => {
         'goal/v1',
         'human-intervention/v1',
         'identity/v1',
+        'interface/v1',
         'mcp/v1',
         'media/v1',
         'model/v1',
