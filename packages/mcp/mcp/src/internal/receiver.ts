@@ -270,45 +270,69 @@ async function ended(context: ReceiverContext, reason: TerminationReason): Promi
   }
 }
 
+type Opened = Extract<Ready, { kind: 'ready' }>
+type Opening =
+  | Readonly<{ kind: 'stop' }>
+  | Readonly<{ kind: 'again' }>
+  | Readonly<{ kind: 'open'; row: SubscriptionRow; ready: Opened }>
+
+const STOP = { kind: 'stop' } as const
+const AGAIN = { kind: 'again' } as const
+
+async function opening(context: ReceiverContext): Promise<Opening> {
+  const read = await rowOf(context)
+  if ('failure' in read) return AGAIN
+  if (read.ok === 'absent' || read.ok.state === 'terminated') return STOP
+  const ready = await context.ready()
+  if (context.signal.aborted) return STOP
+  if (ready.kind === 'ended') {
+    await ended(context, ready.reason)
+    return STOP
+  }
+  if (ready.kind === 'waiting') {
+    await marked(context, 'waiting', null)
+    return AGAIN
+  }
+  if (read.ok.state === 'waiting') await marked(context, 'receiving', null)
+  return { kind: 'open', row: read.ok, ready }
+}
+
+async function afterward(
+  context: ReceiverContext,
+  end: RunEnd,
+  ready: Opened,
+): Promise<'stop' | 'again' | 'progressed'> {
+  if (end.kind === 'stopped') return 'stop'
+  if (end.kind === 'terminated') {
+    await ended(context, end.reason)
+    if (end.reason === 'type-gone' || end.reason === 'schema-changed') await ready.refetch()
+    return 'stop'
+  }
+  if (end.kind === 'header-mismatch') await ready.refetch()
+  return end.kind === 'broken' && end.progressed ? 'progressed' : 'again'
+}
+
 /** One subscription being received: opened with its position, opened again after a break, ended when the peer ends it. */
 export async function receive(context: ReceiverContext): Promise<void> {
   let attempt = 0
   let opened = false
-  const backoff = async (): Promise<void> => {
+  while (!context.signal.aborted) {
+    const step = await opening(context)
+    if (step.kind === 'stop') return
+    let next: 'stop' | 'again' | 'progressed' = 'again'
+    if (step.kind === 'open') {
+      const { row, ready } = step
+      const first: Gap =
+        row.cursor === null && (opened || !context.fresh) ? 'possibly-missed' : null
+      opened = true
+      const intake = new Intake(context, row, ready.allowed)
+      const run = row.delivery === 'push' ? streamed : polled
+      const end = await run(context, ready.transport, requestOf(ready.type, row), intake, first)
+      next = await afterward(context, end, ready)
+    }
+    if (next === 'stop') return
+    attempt = next === 'progressed' ? 0 : attempt
     await context.pause(Math.min(250 * 2 ** attempt, context.bounds.backoffCapMs))
     attempt += 1
-  }
-  while (!context.signal.aborted) {
-    const read = await rowOf(context)
-    if ('failure' in read) {
-      await backoff()
-      continue
-    }
-    if (read.ok === 'absent' || read.ok.state === 'terminated') return
-    const row = read.ok
-    const ready = await context.ready()
-    if (context.signal.aborted) return
-    if (ready.kind === 'ended') return ended(context, ready.reason)
-    if (ready.kind === 'waiting') {
-      await marked(context, 'waiting', null)
-      await backoff()
-      continue
-    }
-    if (row.state === 'waiting') await marked(context, 'receiving', null)
-    const first: Gap = row.cursor === null && (opened || !context.fresh) ? 'possibly-missed' : null
-    opened = true
-    const intake = new Intake(context, row, ready.allowed)
-    const request = requestOf(ready.type, row)
-    const run = row.delivery === 'push' ? streamed : polled
-    const end = await run(context, ready.transport, request, intake, first)
-    if (end.kind === 'stopped') return
-    if (end.kind === 'terminated') {
-      await ended(context, end.reason)
-      if (end.reason === 'type-gone' || end.reason === 'schema-changed') await ready.refetch()
-      return
-    }
-    if (end.kind === 'header-mismatch') await ready.refetch()
-    if (end.kind === 'broken' && end.progressed) attempt = 0
-    await backoff()
   }
 }

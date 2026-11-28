@@ -1,5 +1,7 @@
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
+  EndpointRef,
+  EventSubscriptionRequest,
   EventSubscriptions,
   EventType,
   McpClock,
@@ -38,6 +40,28 @@ const viewOf = (key: SubscriptionKey, row: SubscriptionRow): SubscriptionView =>
   state: row.state,
   reason: row.reason,
   subscribers: row.subscribers.length,
+})
+
+const joined = (row: SubscriptionRow, subscriber: string): SubscriptionRow => ({
+  ...row,
+  subscribers: [...row.subscribers, subscriber],
+  revision: row.revision + 1,
+})
+
+const fresh = (
+  ref: EndpointRef,
+  request: EventSubscriptionRequest,
+  delivery: SubscriptionRow['delivery'],
+): SubscriptionRow => ({
+  endpoint: ref.name,
+  delivery,
+  arguments: request.arguments,
+  cursor: null,
+  state: 'receiving',
+  reason: null,
+  subscribers: [request.subscriber],
+  revision: 1,
+  delivered: 0,
 })
 
 const deliveryOf = (type: EventType): 'push' | 'poll' | undefined =>
@@ -86,23 +110,7 @@ export function createEventSubscriptions<P, S>(
           resume(prepared, ref, key, false)
           return succeed(viewOf(key, existing))
         }
-        const row: SubscriptionRow = existing
-          ? {
-              ...existing,
-              subscribers: [...existing.subscribers, request.subscriber],
-              revision: existing.revision + 1,
-            }
-          : {
-              endpoint: ref.name,
-              delivery,
-              arguments: request.arguments,
-              cursor: null,
-              state: 'receiving',
-              reason: null,
-              subscribers: [request.subscriber],
-              revision: 1,
-              delivered: 0,
-            }
+        const row = existing ? joined(existing, request.subscriber) : fresh(ref, request, delivery)
         const written = await write(prepared, key, row, existing?.revision ?? 'absent')
         if ('failure' in written && written.failure === 'unavailable') return fail(UNKNOWN)
         if ('failure' in written) continue
