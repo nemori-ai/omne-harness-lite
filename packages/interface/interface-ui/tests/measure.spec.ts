@@ -11,6 +11,8 @@ const page = `
     <section data-omne-part="weather.card"><p>晴，  二十度</p></section>
   </main>
   <div role="dialog" aria-label="禁用"><p>禁用整份？</p><button>禁用整份</button></div>
+  <div role="status"></div>
+  <section hidden><div role="status">这段时间没有数据</div></section>
 `
 
 afterEach(() => {
@@ -18,7 +20,7 @@ afterEach(() => {
 })
 
 describe('what is drawn now, read without changing anything', () => {
-  it('lists each part with its text and its parent, and each dialog open on top', () => {
+  it('lists each part with its text and its parent, and each dialog open on top; an empty or hidden one is not', () => {
     document.body.innerHTML = page
     const read = measure(document, { page: 'weather' })
     expect(read.page).toBe('weather')

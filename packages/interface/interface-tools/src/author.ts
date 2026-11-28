@@ -358,14 +358,15 @@ export function createAppViewAuthor(
       },
       inspect: {
         summary:
-          'What the person sees now: each part with its text and box, and dialogs open on top.',
+          'What the person sees in this app now: each part with its text and box, and dialogs open on top.',
         operation: inspecting.ok,
         release: { gate: 'inspect' },
         readOnly: true,
         modalities: ['text'],
       },
       shot: {
-        summary: 'A picture of the window the person uses, now; with part, of that part only.',
+        summary:
+          "A picture of this app's window as the person sees it now; with part, of that part only.",
         operation: shooting.ok,
         release: { gate: 'shot' },
         readOnly: true,

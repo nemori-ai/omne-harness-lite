@@ -68,11 +68,16 @@ export function measure(root: Document, options: MeasureOptions = {}): Structure
       within: index < 0 ? null : index,
     }
   })
-  const layers = [...root.querySelectorAll(LAYERS)].map((element): LayerSeen => ({
-    role: element.getAttribute('role') as LayerSeen['role'],
-    label: labelOf(element),
-    text: textOf(element),
-  }))
+  const layers = [...root.querySelectorAll(LAYERS)]
+    .filter(element => element.closest('[hidden]') === null)
+    .map(
+      (element): LayerSeen => ({
+        role: element.getAttribute('role') as LayerSeen['role'],
+        label: labelOf(element),
+        text: textOf(element),
+      }),
+    )
+    .filter(layer => layer.text !== '' || layer.label !== '')
   return {
     page: options.page ?? null,
     width,
