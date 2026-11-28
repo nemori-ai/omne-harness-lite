@@ -551,6 +551,36 @@ describe('清单之外的目标：记着的答复跟着登录与可用性走（D
     expect(reads()).toBe(2)
   })
 
+  it('同一个订阅里，scoped 没变的帧不清记着的答复；可用性的流结束时，结束原样交给页面', async () => {
+    const { page, server } = start()
+    tellsWeather(server)
+    const snapshot = { kind: 'snapshot', revision: 1, protocols: [], conflicts: [], scoped: 4 }
+    let next = (): void => undefined
+    server.stream('access/v1 availability', async function* () {
+      yield value(snapshot)
+      await new Promise<void>(resolve => (next = resolve))
+      yield value(snapshot)
+      await new Promise<void>(resolve => (next = resolve))
+      return { kind: 'ended', reason: 'the server stops' } as const
+    })
+    const reads = () => server.seen.filter(item => item.target === 'access/v1 scoped').length
+    await page.login()
+    const events = reading(await page.get('/bridge/events?page=p'))
+    expect((await attach(page, 'a-1', AVAILABILITY)).status).toBe(200)
+    await events.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    next()
+    await events.next(1)
+    await page.json('/bridge/call', call('weather', 'look'))
+    expect(reads()).toBe(1)
+    next()
+    expect(await events.next(1)).toEqual([
+      { id: 'a-1', event: { kind: 'end', end: { kind: 'ended', reason: 'the server stops' } } },
+    ])
+    await events.cancel()
+  })
+
   it('清单里别的观察的帧不当成可用性读：帧里写着 scoped 变了，记着的答复照旧', async () => {
     const { page, server } = start()
     tellsWeather(server)
