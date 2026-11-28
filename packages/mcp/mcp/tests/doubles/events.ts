@@ -19,7 +19,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { assemble } from '../../src/internal/assembly.ts'
 import type { Step } from './scripted-transport.ts'
 import { reshapedTransports } from './transports.ts'
-import { adoptHttp, world } from './world.ts'
+import { adoptHttp, world, type Settings } from './world.ts'
 
 export const desk = endpointRefOf('desk')
 
@@ -63,6 +63,7 @@ export function eventWorld(
     script: readonly Step[]
     records?: MemoryEventRecords
     eventStore?: ReturnType<typeof createMemoryCatalogStore<EventCatalogRecord>>
+    settings?: Settings
   }>,
 ) {
   const w = world({ script: options.script, config: { events: EVENTS } })
@@ -89,7 +90,10 @@ export function eventWorld(
       })
     },
   }))
-  adoptHttp(w, desk, { auth: 'none' })
+  adoptHttp(w, desk, {
+    auth: 'none',
+    ...(options.settings === undefined ? {} : { settings: options.settings }),
+  })
   const { services } = assemble(
     { ...w.ports, eventStore, eventRecords: records, transports },
     w.config,

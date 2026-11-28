@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SubscriptionKey } from '@omne-harness/mcp-contract/provider'
-import { jsonOf } from '@omne-harness/mcp-contract/testing'
+import { createMemoryEventRecords, jsonOf, millisOf } from '@omne-harness/mcp-contract/testing'
 import { alice, home } from './doubles/identities.ts'
 import { desk, eventOf, eventWorld, offering, settle, typeOf } from './doubles/events.ts'
 import type { Step } from './doubles/scripted-transport.ts'
@@ -164,6 +164,38 @@ describe('a subscription being received (C302, C303, I12, I13)', () => {
     second?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
     await settle()
     expect(await readIds(made)).toEqual(['a', 'b'])
+  })
+
+  it('a batch the storage took but answered not known for is taken as not known: the stream opens again where the storage stands, and nothing is kept twice', async () => {
+    const records = createMemoryEventRecords()
+    let blur = false
+    const made = eventWorld({
+      script: listed(typeOf('incident.created')),
+      records: {
+        ...records,
+        async receive(key, batch, bounds) {
+          const done = await records.receive(key, batch, bounds)
+          if (!blur) return done
+          blur = false
+          return { failure: 'unknown' }
+        },
+      },
+    })
+    opened.push(made)
+    await made.services.subscriptions.subscribe(alice, desk, created)
+    await settle()
+    made.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+    await settle()
+    blur = true
+    made.streams[0]?.send({ kind: 'event', event: eventOf('b'), cursor: 'c2' })
+    await settle()
+    expect(made.streams[0]?.signal.aborted).toBe(true)
+    const second = made.streams[1]
+    expect(second?.request.cursor).toBe('c2')
+    second?.send({ kind: 'event', event: eventOf('b'), cursor: 'c2' })
+    second?.send({ kind: 'event', event: eventOf('c'), cursor: 'c3' })
+    await settle()
+    expect(await readIds(made)).toEqual(['a', 'b', 'c'])
   })
 
   it('three heartbeats with nothing heard and the stream is taken as dead and opened again', async () => {
@@ -385,5 +417,43 @@ describe('missed events, ends and the last subscriber (C304, C305)', () => {
     await settle()
     expect(await rowOf(made)).toMatchObject({ state: 'terminated', reason: 'unavailable' })
     expect(made.streams).toHaveLength(1)
+  })
+})
+
+describe('an endpoint with no connect timeout of its own (C302, C303)', () => {
+  it('is connected within the bound the asker gives, on subscribing and on the read that takes it up after a restart', async () => {
+    const absent = { connectTimeout: { kind: 'absent' } } as const
+    const first = eventWorld({ script: listed(typeOf('incident.created')), settings: absent })
+    opened.push(first)
+    expect(await first.services.subscriptions.subscribe(alice, desk, created)).toEqual({
+      failure: { kind: 'config-missing', item: 'connect-timeout' },
+    })
+    const bound = millisOf(10_000)
+    const subscribed = await first.services.subscriptions.subscribe(alice, desk, {
+      ...created,
+      connectBound: bound,
+    })
+    expect(subscribed).toMatchObject({ ok: { delivery: 'push' } })
+    await settle()
+    first.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+    await settle()
+    await first.services.connections.closeAll()
+    const again = eventWorld({
+      script: [{ discover: offering }],
+      records: first.records,
+      eventStore: first.eventStore,
+      settings: absent,
+    })
+    opened.push(again)
+    const read = await again.services.subscriptions.read(alice, desk, {
+      name: 'incident.created',
+      arguments: jsonOf({}),
+      after: 0,
+      limit: 10,
+      connectBound: bound,
+    })
+    expect(read).toMatchObject({ ok: { subscription: { state: 'receiving' } } })
+    await settle()
+    expect(again.streams.map(stream => stream.request.cursor)).toEqual(['c1'])
   })
 })

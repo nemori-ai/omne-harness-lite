@@ -3,7 +3,7 @@
     "1": "sha256:5ba04583fc7fb45d896bd0a90b9289f0d57a6c56225ddeed74aefeb30f59ff5c",
     "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d",
     "3": "sha256:a8ef438f329c39157d9da7ede88792035647099486a931fd39a928cf4c9232c0",
-    "4": "sha256:00b9b1ae67b8ec7968e0a8368021fa3db38c824b52848c85ea132065a4300011"
+    "4": "sha256:a611b409199e6599d8b0e44fe5698ca746fb17c08a2747087f9b4ecbdc9187cd"
   },
   "major": 1,
   "name": "mcp",
@@ -749,6 +749,212 @@
           }
         }
       },
+      "read-events": {
+        "body": {
+          "fields": {
+            "after": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "arguments": {
+              "rule": {
+                "kind": "parameters"
+              }
+            },
+            "event": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "items": {
+                "rule": {
+                  "item": {
+                    "kind": "one-of",
+                    "rules": [
+                      {
+                        "fields": {
+                          "data": {
+                            "rule": {
+                              "kind": "json"
+                            }
+                          },
+                          "eventId": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "event"
+                              ]
+                            }
+                          },
+                          "name": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "receivedAt": {
+                            "rule": {
+                              "kind": "instant"
+                            }
+                          },
+                          "seq": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          },
+                          "timestamp": {
+                            "rule": {
+                              "kind": "string"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      {
+                        "fields": {
+                          "kind": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "gap"
+                              ]
+                            }
+                          },
+                          "reason": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "peer-truncated",
+                                "trimmed",
+                                "possibly-missed"
+                              ]
+                            }
+                          },
+                          "receivedAt": {
+                            "rule": {
+                              "kind": "instant"
+                            }
+                          },
+                          "seq": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    ]
+                  },
+                  "kind": "array"
+                }
+              },
+              "subscription": {
+                "rule": {
+                  "fields": {
+                    "arguments": {
+                      "rule": {
+                        "kind": "parameters"
+                      }
+                    },
+                    "delivery": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "poll",
+                          "push"
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "reason": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "literal",
+                            "values": [
+                              "refused",
+                              "type-gone",
+                              "schema-changed",
+                              "unavailable"
+                            ]
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "state": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "receiving",
+                          "waiting",
+                          "terminated"
+                        ]
+                      }
+                    },
+                    "subscribers": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 4
+      },
       "refresh-endpoint": {
         "body": {
           "fields": {
@@ -808,6 +1014,184 @@
           },
           "unknown": true
         }
+      },
+      "subscribe-events": {
+        "body": {
+          "fields": {
+            "arguments": {
+              "rule": {
+                "kind": "parameters"
+              }
+            },
+            "event": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "subscription": {
+                "rule": {
+                  "fields": {
+                    "arguments": {
+                      "rule": {
+                        "kind": "parameters"
+                      }
+                    },
+                    "delivery": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "poll",
+                          "push"
+                        ]
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "reason": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "literal",
+                            "values": [
+                              "refused",
+                              "type-gone",
+                              "schema-changed",
+                              "unavailable"
+                            ]
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "state": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "receiving",
+                          "waiting",
+                          "terminated"
+                        ]
+                      }
+                    },
+                    "subscribers": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true,
+          "unsupported": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "no-events",
+                    "no-such-type",
+                    "webhook-only"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        },
+        "since": 4
+      },
+      "unsubscribe-events": {
+        "body": {
+          "fields": {
+            "arguments": {
+              "rule": {
+                "kind": "parameters"
+              }
+            },
+            "event": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-visible": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "unsubscribed": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "unsubscribed",
+                    "not-subscribed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        },
+        "since": 4
       }
     }
   }

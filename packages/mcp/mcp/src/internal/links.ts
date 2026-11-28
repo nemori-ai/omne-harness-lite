@@ -6,6 +6,7 @@ import {
   type EndpointRef,
   type EventsConfig,
   type EventType,
+  type Millis,
   type PeerAccount,
   type SubscribeFailure,
 } from '@omne-harness/mcp-contract'
@@ -16,10 +17,15 @@ import { admitForUse, type UseGate } from './guard.ts'
 import { ask } from './port.ts'
 import { receive, type Ready } from './receiver.ts'
 import { readAccountOf } from './settings.ts'
-import type { Ensured } from './table.ts'
+import { ensureOptionsOf, type Ensured } from './table.ts'
 import { tenantTextOf } from './text.ts'
 
-type Receiver<P> = { access: Access<P>; ref: EndpointRef; readonly stop: AbortController }
+type Receiver<P> = {
+  access: Access<P>
+  ref: EndpointRef
+  connectBound: Millis | undefined
+  readonly stop: AbortController
+}
 
 export type Prepared<P> = Readonly<{
   records: EventRecords
@@ -27,6 +33,7 @@ export type Prepared<P> = Readonly<{
   access: Access<P>
   account: PeerAccount
   holding: SubscriptionKey['holding']
+  connectBound: Millis | undefined
 }>
 
 export const UNKNOWN = { kind: 'unknown' } as const
@@ -47,7 +54,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
   const receivers = new Map<string, Receiver<P>>()
   let closed = false
 
-  async function prepare(access: Access<P>, ref: EndpointRef) {
+  async function prepare(access: Access<P>, ref: EndpointRef, connectBound?: Millis) {
     const records = ports.eventRecords
     const bounds = config.events
     if (records === undefined || bounds === undefined || closed) return fail(UNKNOWN)
@@ -61,6 +68,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       access,
       account: account.ok,
       holding: admitted.ok.ref.holding,
+      connectBound,
     }
     return succeed({ prepared, admitted: admitted.ok })
   }
@@ -80,24 +88,31 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
     return 'failure' in read ? fail(UNKNOWN) : succeed(read.ok)
   }
 
-  async function ensureOn(admitted: AdmittedEndpoint, access: Access<P>) {
-    const ensured = await table.ensure(admitted, access)
+  async function ensureOn(
+    admitted: AdmittedEndpoint,
+    access: Access<P>,
+    connectBound: Millis | undefined,
+  ) {
+    const ensured = await table.ensure(admitted, access, ensureOptionsOf(connectBound))
     if ('ok' in ensured) return ensured
     const { reason } = ensured.failure
     return fail(reason.kind === 'effect-unknown' ? UNKNOWN : reason)
   }
 
-  async function ensuredFor(access: Access<P>, ref: EndpointRef) {
-    const admitted = await admitForUse(gate, access, ref)
-    return 'failure' in admitted ? admitted : ensureOn(admitted.ok, access)
+  async function ensuredFor(receiver: Receiver<P>) {
+    const admitted = await admitForUse(gate, receiver.access, receiver.ref)
+    return 'failure' in admitted
+      ? admitted
+      : ensureOn(admitted.ok, receiver.access, receiver.connectBound)
   }
 
   async function typeFor(
-    access: Access<P>,
+    prepared: Prepared<P>,
     admitted: AdmittedEndpoint,
     name: string,
   ): Promise<Outcome<EventType, SubscribeFailure>> {
-    const ensured = await ensureOn(admitted, access)
+    const { access } = prepared
+    const ensured = await ensureOn(admitted, access, prepared.connectBound)
     if ('failure' in ensured) return ensured
     let catalog = await typesIn(ensured.ok)
     if ('ok' in catalog && catalog.ok === 'absent') {
@@ -114,7 +129,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
   }
 
   async function ready(receiver: Receiver<P>, key: SubscriptionKey): Promise<Ready> {
-    const ensured = await ensuredFor(receiver.access, receiver.ref)
+    const ensured = await ensuredFor(receiver)
     if ('failure' in ensured) {
       const { kind } = ensured.failure
       return kind === 'not-available-to-you' || kind === 'blocked'
@@ -140,9 +155,15 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
     if (running !== undefined) {
       running.access = prepared.access
       running.ref = ref
+      running.connectBound = prepared.connectBound ?? running.connectBound
       return
     }
-    const receiver: Receiver<P> = { access: prepared.access, ref, stop: new AbortController() }
+    const receiver: Receiver<P> = {
+      access: prepared.access,
+      ref,
+      connectBound: prepared.connectBound,
+      stop: new AbortController(),
+    }
     receivers.set(text, receiver)
     const work = receive({
       key,

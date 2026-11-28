@@ -339,3 +339,97 @@ describe('mcp events (C301)', () => {
     )
   })
 })
+
+describe('mcp subscribe, unsubscribe and tail (C302, C304)', () => {
+  const subscription = {
+    name: 'incident.created',
+    arguments: { queue: 'ops' },
+    delivery: 'push',
+    state: 'receiving',
+    reason: null,
+    subscribers: 1,
+  }
+  const answering =
+    (operation: string, body: unknown) =>
+    (seen: Seen): Answer | undefined =>
+      seen.operation === operation ? { outcome: 'succeeded', body } : undefined
+
+  it('subscribes with the arguments given, and says how the events will come', async () => {
+    const service = await loggedIn(answering('subscribe-events', { subscription }))
+    const result = await cli([
+      'mcp',
+      'subscribe',
+      'desk',
+      'incident.created',
+      '--args',
+      '{"queue":"ops"}',
+    ])
+    expect([result.code, result.stderr, result.stdout]).toEqual([
+      0,
+      '',
+      'subscribed to incident.created: push, receiving\n',
+    ])
+    expect(result.code).toBe(0)
+    expect(mcpCalls(service).at(-1)?.body).toEqual({
+      tenant: tenantText,
+      name: 'desk',
+      event: 'incident.created',
+      arguments: { queue: 'ops' },
+    })
+  })
+
+  it('arguments that are not a JSON object, a missing event and a position that is not a count are refused before any call', async () => {
+    const service = await loggedIn(answering('subscribe-events', { subscription }))
+    for (const args of [
+      ['mcp', 'subscribe', 'desk', 'incident.created', '--args', '[1]'],
+      ['mcp', 'subscribe', 'desk', 'incident.created', '--args', 'nope'],
+      ['mcp', 'tail', 'desk', 'incident.created', '--after', '-1'],
+    ])
+      expect((await cli(args)).code).toBe(2)
+    expect((await cli(['mcp', 'subscribe', 'desk'])).code).toBe(2)
+    expect(mcpCalls(service)).toEqual([])
+  })
+
+  it('leaving says whether the person was a subscriber', async () => {
+    await loggedIn(answering('unsubscribe-events', { unsubscribed: 'not-subscribed' }))
+    expect((await cli(['mcp', 'unsubscribe', 'desk', 'incident.created'])).stdout).toBe(
+      'not subscribed\n',
+    )
+  })
+
+  it('tail shows the subscription as it stands, then each event and gap, after the position given', async () => {
+    const service = await loggedIn(
+      answering('read-events', {
+        subscription: { ...subscription, state: 'terminated', reason: 'refused' },
+        items: [
+          {
+            seq: 4,
+            receivedAt: '2026-11-27T22:00:00.000Z',
+            kind: 'event',
+            eventId: 'e4',
+            name: 'incident.created',
+            timestamp: '2026-11-27T21:59:59Z',
+            data: { id: 'e4', level: 2 },
+          },
+          {
+            seq: 5,
+            receivedAt: '2026-11-27T22:00:00.000Z',
+            kind: 'gap',
+            reason: 'possibly-missed',
+          },
+        ],
+      }),
+    )
+    const result = await cli(['mcp', 'tail', 'desk', 'incident.created', '--after', '3'])
+    expect([result.code, result.stderr]).toEqual([0, ''])
+    expect(result.stdout).toBe(
+      [
+        'Subscription: incident.created, push, terminated (refused)',
+        '4  2026-11-27T21:59:59Z  e4  {"id":"e4","level":2}',
+        '5  -- gap: possibly-missed',
+        '',
+      ].join('\n'),
+    )
+    expect(mcpCalls(service).at(-1)?.body).toMatchObject({ after: 3, limit: 100, arguments: {} })
+  })
+})

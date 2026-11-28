@@ -307,6 +307,7 @@ export type EventSubscriptionRequest = Readonly<{
   name: string
   arguments: JsonValue
   subscriber: string
+  connectBound?: Millis
 }>
 
 export interface EventSubscriptions<P> {
@@ -327,7 +328,13 @@ export interface EventSubscriptions<P> {
   read(
     access: Access<P>,
     ref: EndpointRef,
-    request: Readonly<{ name: string; arguments: JsonValue; after: number; limit: number }>,
+    request: Readonly<{
+      name: string
+      arguments: JsonValue
+      after: number
+      limit: number
+      connectBound?: Millis
+    }>,
   ): Promise<
     Outcome<
       Readonly<{ subscription: SubscriptionView; items: readonly StoredOccurrence[] }>,

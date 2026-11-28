@@ -62,10 +62,10 @@ export function createEventSubscriptions<P, S>(
 
   return {
     async subscribe(access, ref, request) {
-      const opened = await prepare(access, ref)
+      const opened = await prepare(access, ref, request.connectBound)
       if ('failure' in opened) return opened
       const { prepared, admitted } = opened.ok
-      const type = await typeFor(access, admitted, request.name)
+      const type = await typeFor(prepared, admitted, request.name)
       if ('failure' in type) return type
       const delivery = deliveryOf(type.ok)
       if (delivery === undefined) return fail({ kind: 'not-subscribable', reason: 'webhook-only' })
@@ -155,7 +155,7 @@ export function createEventSubscriptions<P, S>(
     },
 
     async read(access, ref, request) {
-      const opened = await prepare(access, ref)
+      const opened = await prepare(access, ref, request.connectBound)
       if ('failure' in opened) return opened
       const { prepared } = opened.ok
       const key = keyOf(prepared, request.name, request.arguments)

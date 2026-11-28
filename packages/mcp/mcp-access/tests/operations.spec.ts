@@ -9,6 +9,7 @@ import {
   fixtureLogin,
   knownAction,
   notAcquired,
+  QUEUE,
   readyStatus,
   ref,
   type World,
@@ -754,5 +755,138 @@ describe('step 5: list-event-types (C301)', () => {
     })
     expect(await world.events(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
     expect(await world.events(alice, 'absent')).toEqual({ outcome: 'not-visible', body: {} })
+  })
+})
+
+describe('step 5: subscribe-events, unsubscribe-events, read-events (C302, C304, C305)', () => {
+  const view = {
+    name: 'incident.created',
+    arguments: QUEUE,
+    delivery: 'push',
+    state: 'receiving',
+    reason: null,
+    subscribers: 1,
+  } as const
+
+  it('subscribes the asker by the person it stands for, and says the subscription as it stands', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', { status: readyStatus(docs), subscribe: succeed(view) })
+    expect(await world.subscribe(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: { subscription: view },
+    })
+    expect(world.seen.find(each => each.op === 'subscribe')?.asked).toEqual({
+      name: 'incident.created',
+      arguments: QUEUE,
+      subscriber: `person:${alice.loginText}`,
+      connectBound: 10_000,
+    })
+  })
+
+  it('a type that cannot be subscribed says why; one not for the asker is not visible; an answer not known stays not known', async () => {
+    const world = createWorld()
+    const answers = [
+      [
+        fail({ kind: 'not-subscribable', reason: 'webhook-only' }),
+        { outcome: 'unsupported', body: { reason: 'webhook-only' } },
+      ],
+      [fail({ kind: 'not-available-to-you' }), { outcome: 'not-visible', body: {} }],
+      [fail({ kind: 'unknown' }), { outcome: 'unknown' }],
+      [fail({ kind: 'blocked', reason: 'disabled' }), { outcome: 'basis-unavailable' }],
+      [
+        () => {
+          throw new Error('face fault')
+        },
+        { outcome: 'unknown' },
+      ],
+    ] as const
+    for (const [answer, outcome] of answers) {
+      world.define(alice, 'docs', { status: readyStatus(docs), subscribe: answer as never })
+      expect(await world.subscribe(alice, 'docs')).toEqual(outcome)
+    }
+  })
+
+  it("another account's tenant is denied before any face is asked; without the face it is unavailable", async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', { status: readyStatus(docs), subscribe: succeed(view) })
+    expect(await world.subscribe(bob, 'docs', alice)).toEqual({ outcome: 'denied' })
+    expect(world.seen.some(each => each.op === 'subscribe')).toBe(false)
+    const none = createWorld({ subscriptions: false })
+    none.define(alice, 'docs', { status: readyStatus(docs) })
+    expect(await none.subscribe(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+    expect(await none.readEvents(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('unsubscribing says whether the asker was a subscriber', async () => {
+    const world = createWorld()
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      unsubscribe: succeed('not-subscribed'),
+    })
+    expect(await world.unsubscribe(alice, 'docs')).toEqual({
+      outcome: 'succeeded',
+      body: { unsubscribed: 'not-subscribed' },
+    })
+    expect(world.seen.find(each => each.op === 'unsubscribe')?.asked).toMatchObject({
+      subscriber: `person:${alice.loginText}`,
+    })
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      unsubscribe: fail({ kind: 'unknown' }),
+    })
+    expect(await world.unsubscribe(alice, 'docs')).toEqual({ outcome: 'unknown' })
+  })
+
+  it('reads what came, events and gaps in order from after the given one; a subscription there is none of is not found', async () => {
+    const world = createWorld()
+    const receivedAt = '2026-11-27T22:00:00.000Z'
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      readEvents: succeed({
+        subscription: { ...view, state: 'terminated', reason: 'refused' },
+        items: [
+          {
+            seq: 4,
+            kind: 'event',
+            receivedAt,
+            eventId: 'e4',
+            name: 'incident.created',
+            timestamp: 't',
+            data: QUEUE,
+          },
+          { seq: 5, kind: 'gap', receivedAt, reason: 'possibly-missed' },
+        ],
+      }),
+    })
+    const read = await world.readEvents(alice, 'docs', 3, 2)
+    expect(read).toMatchObject({
+      outcome: 'succeeded',
+      body: {
+        subscription: { state: 'terminated', reason: 'refused' },
+        items: [
+          { seq: 4, kind: 'event', eventId: 'e4', data: QUEUE },
+          { seq: 5, kind: 'gap', reason: 'possibly-missed' },
+        ],
+      },
+    })
+    if (read.outcome !== 'succeeded') throw new Error('not read')
+    expect(read.body.items.map(item => encodeInstant(item.receivedAt))).toEqual([
+      receivedAt,
+      receivedAt,
+    ])
+    expect(world.seen.find(each => each.op === 'read-events')?.asked).toEqual({
+      name: 'incident.created',
+      arguments: QUEUE,
+      after: 3,
+      limit: 2,
+      connectBound: 10_000,
+    })
+    world.define(alice, 'docs', { status: readyStatus(docs) })
+    expect(await world.readEvents(alice, 'docs')).toEqual({ outcome: 'not-found', body: {} })
+    world.define(alice, 'docs', {
+      status: readyStatus(docs),
+      readEvents: fail({ kind: 'unknown' }),
+    })
+    expect(await world.readEvents(alice, 'docs')).toEqual({ outcome: 'basis-unavailable' })
   })
 })

@@ -9,9 +9,11 @@ import {
   mcpAdoptionViewKey,
   mcpEndpointConnectKey,
   mcpEndpointStatusKey,
+  mcpEventSubscriptionsKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
+import { principalKey } from '../mcp/principal-key.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -27,6 +29,7 @@ function mcpPrincipals(ctx: Context): McpPrincipals {
       const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
+    subscriberOf: principal => `person:${principalKey(principal)}`,
   }
 }
 
@@ -37,7 +40,14 @@ function facesOf(ctx: Context): McpFaces | undefined {
   const discovery = ctx.get(mcpActionDiscoveryKey, false)
   if (adoption === undefined || status === undefined || discovery === undefined) return undefined
   const connect = ctx.get(mcpEndpointConnectKey, false)
-  return { adoption, status, discovery, ...(connect === undefined ? {} : { connect }) }
+  const subscriptions = ctx.get(mcpEventSubscriptionsKey, false)
+  return {
+    adoption,
+    status,
+    discovery,
+    ...(connect === undefined ? {} : { connect }),
+    ...(subscriptions === undefined ? {} : { subscriptions }),
+  }
 }
 
 const plugin = createMcpAccessPlugin({ principals: mcpPrincipals, faces: facesOf })

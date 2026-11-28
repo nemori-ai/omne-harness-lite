@@ -52,7 +52,7 @@ it('the cordis entry gives the plugin factory and nothing else at run time', asy
   expect(Object.keys(cordis)).toEqual(['createMcpAccessPlugin'])
 })
 
-it('mounts mcp/v1 with its six operations and the observation of changes', async () => {
+it('mounts mcp/v1 with its nine operations and the observation of changes', async () => {
   const { registry, contribution } = await assemble()
   expect(registry.mounted).toHaveLength(1)
   expect(contribution.protocol).toBe(mcpProtocol)
@@ -63,6 +63,9 @@ it('mounts mcp/v1 with its six operations and the observation of changes', async
     'begin-connect',
     'disconnect',
     'list-event-types',
+    'subscribe-events',
+    'unsubscribe-events',
+    'read-events',
   ])
   expect(Object.keys(contribution.observations)).toEqual(['observe-endpoints'])
 })

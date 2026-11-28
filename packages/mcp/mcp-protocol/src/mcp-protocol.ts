@@ -9,6 +9,7 @@ const anyText = { kind: 'string' } as const
 const count = { kind: 'count' } as const
 const tenant = { kind: 'tenant' } as const
 const nothing = { kind: 'null' } as const
+const parameters = { kind: 'parameters' } as const
 
 const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
 const literal = <const V extends readonly string[]>(...values: V) =>
@@ -61,6 +62,14 @@ const ofTenant = { tenant: { rule: tenant } } as const
 const ofEndpoint = { ...ofTenant, name: { rule: text } } as const
 const notVisible = ruleCodec(object({}))
 const notOAuth = ruleCodec(object({ reason: { rule: literal('not-oauth') } }))
+const ofSubscription = {
+  ...ofEndpoint,
+  event: { rule: text },
+  arguments: { rule: parameters },
+} as const
+const notSubscribable = ruleCodec(
+  object({ reason: { rule: literal('no-events', 'no-such-type', 'webhook-only') } }),
+)
 
 /** Why a connection could not be begun; the text is the server's sentence for the person. */
 const notBegun = ruleCodec(
@@ -92,12 +101,39 @@ const eventType = object({
   delivery: { rule: array(literal('poll', 'push', 'webhook')) },
 })
 
+const subscription = object({
+  name: { rule: text },
+  arguments: { rule: parameters },
+  delivery: { rule: literal('poll', 'push') },
+  state: { rule: literal('receiving', 'waiting', 'terminated') },
+  reason: { rule: nullable(literal('refused', 'type-gone', 'schema-changed', 'unavailable')) },
+  subscribers: { rule: count },
+})
+
+const received = { seq: { rule: count }, receivedAt: { rule: { kind: 'instant' } } } as const
+
+const occurrence = oneOf(
+  object({
+    ...received,
+    kind: { rule: literal('event') },
+    eventId: { rule: text },
+    name: { rule: text },
+    timestamp: { rule: anyText },
+    data: { rule: { kind: 'json' } },
+  }),
+  object({
+    ...received,
+    kind: { rule: literal('gap') },
+    reason: { rule: literal('peer-truncated', 'trimmed', 'possibly-missed') },
+  }),
+)
+
 const eventTypes = oneOf(
   object({ kind: { rule: literal('acquired') }, types: { rule: array(eventType) } }),
   object({ kind: { rule: literal('not-declared', 'not-acquired') } }),
 )
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`; revision 4 lists the event types of an endpoint. */
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`; revision 4 lists the event types of an endpoint, subscribes the person to one and reads what came; an unknown answer to a subscription is read with `read-events`. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,
@@ -163,6 +199,47 @@ export const mcpProtocol = defineProtocol({
       outcomes: {
         succeeded: ruleCodec(object({ events: { rule: eventTypes } })),
         'not-visible': notVisible,
+      },
+      since: 4,
+    },
+    'subscribe-events': {
+      ...read,
+      effect: 'commit',
+      body: ruleCodec(object(ofSubscription)),
+      outcomes: {
+        succeeded: ruleCodec(object({ subscription: { rule: subscription } })),
+        'not-visible': notVisible,
+        unsupported: notSubscribable,
+      },
+      since: 4,
+    },
+    'unsubscribe-events': {
+      ...read,
+      effect: 'commit',
+      body: ruleCodec(object(ofSubscription)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ unsubscribed: { rule: literal('unsubscribed', 'not-subscribed') } }),
+        ),
+        'not-visible': notVisible,
+      },
+      since: 4,
+    },
+    'read-events': {
+      ...read,
+      body: ruleCodec(
+        object({
+          ...ofSubscription,
+          after: { rule: count },
+          limit: { rule: { kind: 'page-limit' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ subscription: { rule: subscription }, items: { rule: array(occurrence) } }),
+        ),
+        'not-visible': notVisible,
+        'not-found': ruleCodec(object({})),
       },
       since: 4,
     },

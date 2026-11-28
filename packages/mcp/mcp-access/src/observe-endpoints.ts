@@ -12,6 +12,7 @@ export type EndpointObservationInput = Readonly<{
 }>
 
 const ENDPOINTS: Frame = Object.freeze({ kind: 'changed', about: 'endpoints' })
+const EVENTS: Frame = Object.freeze({ kind: 'changed', about: 'events' })
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 
@@ -47,6 +48,7 @@ export function createEndpointObservation(
     if (status === undefined) return UNAVAILABLE
 
     let pending = true
+    let events = false
     let closed = false
     let wake: (() => void) | undefined
     const rouse = (): void => {
@@ -57,9 +59,10 @@ export function createEndpointObservation(
     let unsubscribe: () => void
     try {
       unsubscribe = status.subscribe({
-        changed(tenant) {
+        changed(tenant, about) {
           if (textOf(tenant) !== tenantText) return
-          pending = true
+          if (about === 'events') events = true
+          else pending = true
           rouse()
         },
         closed() {
@@ -87,7 +90,7 @@ export function createEndpointObservation(
       try {
         for (;;) {
           if (signal.aborted || closed) return 'unavailable'
-          if (!pending) {
+          if (!pending && !events) {
             await new Promise<void>(resolve => {
               wake = resolve
             })
@@ -95,8 +98,13 @@ export function createEndpointObservation(
           }
           const current = await admission()
           if (current !== 'admitted') return current
-          pending = false
-          yield ENDPOINTS
+          if (pending) {
+            pending = false
+            yield ENDPOINTS
+          } else {
+            events = false
+            yield EVENTS
+          }
         }
       } finally {
         release()

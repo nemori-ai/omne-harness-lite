@@ -8,6 +8,7 @@ import {
   unrecognized,
   usageError,
 } from './command-support.ts'
+import { treeOf, type JsonTree } from './json-tree.ts'
 import type { Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report } from './report.ts'
@@ -15,9 +16,21 @@ import { splitArguments } from './split-arguments.ts'
 
 const JSON_SWITCH = '--json'
 const NO_WAIT_SWITCH = '--no-wait'
+const ARGS_OPTION = '--args'
+const AFTER_OPTION = '--after'
+const PAGE = 100
 const POLL_MS = 500
 
-type Action = 'list' | 'show' | 'refresh' | 'connect' | 'disconnect' | 'events'
+type Action =
+  | 'list'
+  | 'show'
+  | 'refresh'
+  | 'connect'
+  | 'disconnect'
+  | 'events'
+  | 'subscribe'
+  | 'unsubscribe'
+  | 'tail'
 
 const WORDS: Readonly<Record<Action, number>> = {
   list: 0,
@@ -26,6 +39,9 @@ const WORDS: Readonly<Record<Action, number>> = {
   connect: 1,
   disconnect: 1,
   events: 1,
+  subscribe: 2,
+  unsubscribe: 2,
+  tail: 2,
 }
 
 const isAction = (value: string | undefined): value is Action =>
@@ -39,6 +55,21 @@ type Endpoint = Readonly<{
   connect?: string
   use: Readonly<{ kind: string; reason?: string }>
   catalog: Readonly<{ kind: string; actions?: number; reason?: string | null }>
+}>
+type Subscription = Readonly<{
+  name: string
+  delivery: string
+  state: string
+  reason: string | null
+  subscribers: number
+}>
+type Item = Readonly<{
+  seq: number
+  kind: string
+  eventId?: string
+  timestamp?: string
+  data?: unknown
+  reason?: string
 }>
 type ActionRow = Readonly<{
   name: string
@@ -76,6 +107,14 @@ const catalogOf = ({ kind, actions, reason }: Endpoint['catalog']) =>
   kind === 'acquired'
     ? `${String(actions)} actions`
     : `not acquired${reason === null || reason === undefined ? '' : `: ${reason}`}`
+
+const stateOf = ({ state, reason }: Subscription) =>
+  reason === null ? state : `${state} (${reason})`
+
+const itemLine = (item: Item) =>
+  item.kind === 'gap'
+    ? `${String(item.seq)}  -- gap: ${item.reason ?? ''}`
+    : `${String(item.seq)}  ${item.timestamp ?? ''}  ${item.eventId ?? ''}  ${JSON.stringify(item.data)}`
 
 const RENDER = {
   list: (body: unknown) =>
@@ -129,6 +168,19 @@ const RENDER = {
       ...types.map(type => [type.name, type.delivery.join(','), type.description]),
     ])
   },
+  subscribe: (body: unknown) => {
+    const { subscription } = body as { subscription: Subscription }
+    return `subscribed to ${subscription.name}: ${subscription.delivery}, ${stateOf(subscription)}\n`
+  },
+  unsubscribe: (body: unknown) =>
+    (body as { unsubscribed: string }).unsubscribed === 'unsubscribed'
+      ? 'unsubscribed\n'
+      : 'not subscribed\n',
+  tail: (body: unknown) => {
+    const { subscription, items } = body as { subscription: Subscription; items: Item[] }
+    const head = `Subscription: ${subscription.name}, ${subscription.delivery}, ${stateOf(subscription)}`
+    return `${[head, ...items.map(itemLine)].join('\n')}\n`
+  },
 }
 
 type Invocation = Readonly<{
@@ -136,20 +188,26 @@ type Invocation = Readonly<{
   name: string
   values: ReadonlyMap<string, string>
   word: string | undefined
+  event: string | undefined
 }>
 
 function readInvocation(action: Action, rest: readonly string[]): Invocation | string {
   const name = `mcp ${action}`
-  const { words, options } = splitArguments(rest, [serverOption])
+  const subscribing = WORDS[action] === 2
+  const accepted = subscribing
+    ? [serverOption, ARGS_OPTION, ...(action === 'tail' ? [AFTER_OPTION] : [])]
+    : [serverOption]
+  const { words, options } = splitArguments(rest, accepted)
   const read = readOptions(options, {
-    accepted: [serverOption],
+    accepted,
     switches: action === 'connect' ? [JSON_SWITCH, NO_WAIT_SWITCH] : [JSON_SWITCH],
     required: [],
   })
   if (read.kind === 'unrecognized' || words.length > WORDS[action]) return unrecognized(name)
   if (read.kind === 'missing') return missingOption(name, read.option)
-  if (words.length < WORDS[action]) return missingOption(name, '<name>')
-  return { action, name, values: read.values, word: words[0] }
+  if (words.length < WORDS[action])
+    return missingOption(name, words.length === 0 ? '<name>' : '<event>')
+  return { action, name, values: read.values, word: words[0], event: words[1] }
 }
 
 async function runMcp(
@@ -219,8 +277,34 @@ function printed(invocation: Invocation, body: unknown, output: CliOutput): Exit
     : 0
 }
 
+function argumentsOf(invocation: Invocation): JsonTree | undefined {
+  try {
+    const value: unknown = JSON.parse(invocation.values.get(ARGS_OPTION) ?? '{}')
+    const tree = treeOf(value)
+    return tree.kind === 'object' && !Array.isArray(value) ? tree : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function afterOf(invocation: Invocation): number | undefined {
+  const text = invocation.values.get(AFTER_OPTION) ?? '0'
+  return /^(0|[1-9][0-9]{0,14})$/.test(text) ? Number(text) : undefined
+}
+
 function callOf(invocation: Invocation, tenant: TenantId, link: Link, messageId: string) {
   const name = invocation.word ?? ''
+  if (WORDS[invocation.action] === 2) {
+    const args = argumentsOf(invocation)
+    const after = afterOf(invocation)
+    if (args === undefined || after === undefined) return undefined
+    const named = { tenant, name, event: invocation.event ?? '', arguments: args as never }
+    if (invocation.action === 'subscribe')
+      return link.call(mcpProtocol, 'subscribe-events', named, messageId)
+    if (invocation.action === 'unsubscribe')
+      return link.call(mcpProtocol, 'unsubscribe-events', named, messageId)
+    return link.call(mcpProtocol, 'read-events', { ...named, after, limit: PAGE }, messageId)
+  }
   switch (invocation.action) {
     case 'list':
       return link.call(mcpProtocol, 'list-endpoints', { tenant }, messageId)
@@ -234,13 +318,15 @@ function callOf(invocation: Invocation, tenant: TenantId, link: Link, messageId:
       return link.call(mcpProtocol, 'disconnect', { tenant, name }, messageId)
     case 'events':
       return link.call(mcpProtocol, 'list-event-types', { tenant, name }, messageId)
+    default:
+      return undefined
   }
 }
 
 export const mcpCommand: CommandSpec = {
   name: 'mcp',
-  usage: 'list|show|refresh|connect|disconnect|events',
+  usage: 'list|show|refresh|connect|disconnect|events|subscribe|unsubscribe|tail',
   summary:
-    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), fetch the actions of one again (refresh <name>), connect an OAuth endpoint in a browser and wait until it is connected (connect <name> [--no-wait]), end that connection (disconnect <name>), or list the kinds of events one offers (events <name>).',
+    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), fetch the actions of one again (refresh <name>), connect an OAuth endpoint in a browser and wait until it is connected (connect <name> [--no-wait]), end that connection (disconnect <name>), list the kinds of events one offers (events <name>), subscribe to one kind or leave it (subscribe|unsubscribe <name> <event> [--args <json>]), or show what came of a subscription (tail <name> <event> [--args <json>] [--after <seq>]).',
   run: runMcp,
 }

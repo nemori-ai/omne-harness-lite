@@ -1,7 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
-import { standingPrincipalRef } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { createMcpEntrySource } from '@omne-harness/mcp-bridge'
 import {
@@ -48,7 +47,6 @@ import {
 import { gatedCategoryContract } from '../../entry/category-gates.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
-import { classify } from '../authorization/principals.ts'
 import { provideResidentEndpoints, residentEndpointsKey } from './resident-endpoints.ts'
 import {
   tenantAssetSettingsKey,
@@ -58,6 +56,7 @@ import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { settingsSecretItemsKey } from '../settings/index.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { createCredentialUse, credentialKey } from './credential.ts'
+import { principalKey } from './principal-key.ts'
 import {
   createEndpointAdoption,
   createEndpointEligibility,
@@ -107,14 +106,6 @@ export const mcpRowConfig = z.strictObject({
 })
 
 const UNKNOWN = { kind: 'unknown' } as const
-
-function principalKey(principal: unknown): string {
-  const who = classify(principal)
-  if (who === null) throw new TypeError('MCP was asked by a principal the release does not know')
-  return who.column === 'system'
-    ? `system/${who.principal.component}`
-    : standingPrincipalRef(who.principal)
-}
 
 // The settings of all MCP endpoints of a tenant are one read, shared by every endpoint until the stamp moves.
 function factsOf(ctx: Context, stamp: AdoptionStamp): EndpointFacts {
