@@ -189,7 +189,7 @@ function fill(label: string, value: string): void {
 describe('the form', () => {
   it('F1 a wrong name or address is said under its field and nothing is sent', async () => {
     const fake = fakeGovernance(readOf())
-    render(<McpCreateForm governance={fake.governance} tenant={TENANT} />)
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
     await settle()
     fill('名字（必填）', 'Docs')
     fill('地址（必填）', 'docs.example')
@@ -204,9 +204,17 @@ describe('the form', () => {
     expect(fake.calls.filter(call => call.startsWith('create'))).toEqual([])
   })
 
-  it('F2 with a key: makes it, writes the address, then the key as a secret, and says it is added; the key is in no call', async () => {
+  it('F2 with a key: makes it, writes the address, then the key as a secret, says it is added and asks it for its actions; the key is in no call', async () => {
     const fake = fakeGovernance(readOf())
-    render(<McpCreateForm governance={fake.governance} tenant={TENANT} />)
+    const refreshed: string[] = []
+    const status = {
+      'read-endpoint': () => new Promise(() => undefined),
+      'refresh-endpoint': (body: { name: string }) => {
+        refreshed.push(body.name)
+        return Promise.resolve({ outcome: 'succeeded', body: { kind: 'published' } })
+      },
+    } as never
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={status} />)
     await settle()
     fill('名字（必填）', 'docs')
     fill('地址（必填）', 'https://docs.example/mcp')
@@ -246,11 +254,13 @@ describe('the form', () => {
     expect(screen.getByText('已加上 docs。它在下面，连上之后列出它的动作。')).toBeTruthy()
     expect(fake.calls.join('\n')).not.toContain('sk-very-secret')
     expect((screen.getByLabelText('名字（必填）') as HTMLInputElement).value).toBe('')
+    expect(screen.queryByText('名字只能有小写字母、数字和短横，不超过 64 个字。')).toBeNull()
+    expect(refreshed).toEqual(['docs'])
   })
 
   it('F3 a refused 新建 says why and keeps what was filled in', async () => {
     const fake = fakeGovernance(readOf())
-    render(<McpCreateForm governance={fake.governance} tenant={TENANT} />)
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
     await settle()
     fill('名字（必填）', 'docs')
     fill('地址（必填）', 'https://docs.example/mcp')
@@ -266,7 +276,7 @@ describe('the form', () => {
 
   it('F4 a 新建 whose answer is unknown offers 再确认一次', async () => {
     const fake = fakeGovernance(readOf())
-    render(<McpCreateForm governance={fake.governance} tenant={TENANT} />)
+    render(<McpCreateForm governance={fake.governance} tenant={TENANT} status={null} />)
     await settle()
     fill('名字（必填）', 'docs')
     fill('地址（必填）', 'https://docs.example/mcp')

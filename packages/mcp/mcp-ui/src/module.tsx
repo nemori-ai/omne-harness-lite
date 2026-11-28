@@ -42,7 +42,9 @@ export function createMcpUiModule({ page, governance, createForm }: McpUiOptions
         id: 'mcp-ui.create',
         order: 0,
         render: ({ scope }) =>
-          scope === undefined ? null : <McpCreateForm governance={port} tenant={scope} />,
+          scope === undefined ? null : (
+            <McpCreateForm governance={port} tenant={scope} status={status} />
+          ),
       })
     },
   })

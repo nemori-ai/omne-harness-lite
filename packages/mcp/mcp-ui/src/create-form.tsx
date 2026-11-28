@@ -1,5 +1,6 @@
 import { Button, Disclosure, Field, InlineNotice, Input, Segmented } from '@omne-harness/ui-kit'
-import { useEffect, useId, useState, useSyncExternalStore, type JSX } from 'react'
+import { readTenantText } from '@omne-harness/public-contract'
+import { useCallback, useEffect, useId, useState, useSyncExternalStore, type JSX } from 'react'
 import {
   advance,
   bodyOf,
@@ -12,7 +13,7 @@ import {
 } from './create-steps.ts'
 import { MCP_CATEGORY } from './mcp-page.tsx'
 import { mcpCreate } from './parts.ts'
-import type { McpGovernance, McpSnapshot, McpView } from './port.ts'
+import type { McpGovernance, McpSnapshot, McpStatus, McpView } from './port.ts'
 
 const AUTHS = [
   { value: 'none', label: '不用' },
@@ -30,23 +31,46 @@ const EMPTY: Entered = {
 }
 const EDITING: Phase = { kind: 'editing' }
 
-export type McpCreateFormProps = Readonly<{ governance: McpGovernance; tenant: string }>
+export type McpCreateFormProps = Readonly<{
+  governance: McpGovernance
+  tenant: string
+  status: McpStatus | null
+}>
 
 /** The 新建 of an MCP endpoint: name, address and how it signs in, at once; the address and the key are written right after it is made. */
-export function McpCreateForm({ governance, tenant }: McpCreateFormProps): JSX.Element | null {
+export function McpCreateForm({
+  governance,
+  tenant,
+  status,
+}: McpCreateFormProps): JSX.Element | null {
   const [view, setView] = useState<McpView | null>(null)
   useEffect(() => {
     const opened = governance.open(tenant, MCP_CATEGORY)
     setView(opened)
     return opened.close
   }, [governance, tenant])
-  return view === null ? null : <CreateBody view={view} />
+  // Once its settings are written it is asked for its actions at once: a person sees it connect.
+  const connect = useCallback(
+    (name: string): void => {
+      const owner = readTenantText(tenant)
+      if (status === null || owner === undefined) return
+      void status['refresh-endpoint']({ tenant: owner, name }).catch(() => undefined)
+    },
+    [status, tenant],
+  )
+  return view === null ? null : <CreateBody view={view} connect={connect} />
 }
 
 const listedIn = (snapshot: McpSnapshot) => (name: string) =>
   snapshot.kind === 'read' && snapshot.holdings.some(each => each.name === name)
 
-function CreateBody({ view }: { readonly view: McpView }): JSX.Element {
+function CreateBody({
+  view,
+  connect,
+}: {
+  readonly view: McpView
+  readonly connect: (name: string) => void
+}): JSX.Element {
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
   const [entered, setEntered] = useState<Entered>(EMPTY)
   const [phase, setPhase] = useState<Phase>(EDITING)
@@ -60,8 +84,12 @@ function CreateBody({ view }: { readonly view: McpView }): JSX.Element {
       else view.setValue(key, { kind: 'string', value: placing.value })
     }
     if (next.phase !== phase) setPhase(next.phase)
-    if (next.phase.kind === 'placed' && phase.kind !== 'placed') setEntered(EMPTY)
-  }, [phase, snapshot, view])
+    if (next.phase.kind === 'placed' && phase.kind !== 'placed') {
+      setEntered(EMPTY)
+      setChecked(false)
+      connect(next.phase.name)
+    }
+  }, [phase, snapshot, view, connect])
   const busy = phase.kind === 'creating' || phase.kind === 'placing'
   const problems = problemsOf(entered, listedIn(snapshot))
   const set = (field: keyof Entered) => (value: string) =>
