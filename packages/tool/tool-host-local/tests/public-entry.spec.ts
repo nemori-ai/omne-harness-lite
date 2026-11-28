@@ -12,6 +12,9 @@ import {
 it('root entry exports the local start coordinator, the host clock, the registry and Catalog (G7), the absent ports and the guard factories', () => {
   expect(Object.keys(root).sort()).toEqual([
     'DEFAULT_ENTRY_SOURCE_POLICY',
+    'GUEST_TOOL_CATEGORY',
+    'GUEST_TOOL_GATE',
+    'GUEST_TOOL_GATES',
     'SOURCE_ENTRY_SETTINGS',
     'START_COORDINATOR_OWNER',
     'START_GUARDS_DOMAIN_KEY',
@@ -47,6 +50,8 @@ it('root entry exports the local start coordinator, the host clock, the registry
     'createLocalToolResultDelivery',
     'createRetainedTerminalLedger',
     'forwardIntentOfCall',
+    'guestEntrySource',
+    'guestToolExecutor',
     'localArgumentLimits',
     'retentionHostDomain',
     'startCoordinatorAdoption',

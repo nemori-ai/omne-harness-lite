@@ -1,4 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { scopeOfLayer } from '@omne-harness/assets'
+import type { Scope } from '@omne-harness/dynamis'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Access, SourceLayer, ToolAvailability } from '@omne-harness/tool-contract'
 import {
@@ -12,9 +15,15 @@ import {
   type ToolEntrySourcesService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 
+/** The scope the point of entry sources is read with for one who asks: the layer of the tenant it acts for. */
+export function entrySourceScope(access: Access<unknown>): Scope {
+  const tenant = tenantCodec.encode(access.tenant)
+  if (!tenant.ok) throw new TypeError('the tenant of the asker is not a minted TenantId')
+  return scopeOfLayer('tenant', tenant.value)
+}
+
 export type SourcedEntries = Readonly<{
-  /** Whether a source now in service owns this name. */
-  owns(name: string): boolean
+  owns(access: Access<unknown>, name: string): boolean
   /** The entry its source last listed to this asker under this name. */
   entry(access: Access<unknown>, name: string): ToolSourceEntry | undefined
 }>
@@ -61,17 +70,19 @@ function warmed(
 }
 
 export function sourcedEntriesOf(ctx: Context): SourcedEntries {
-  const sourceOf = (name: string) => {
+  const sourceOf = (access: Access<unknown>, name: string) => {
     const service = ctx.get(toolEntrySourcesKey, false) as
       | ToolEntrySourcesService<unknown, ToolMessageContentBlock>
       | undefined
-    const owners = service?.sources().filter(source => name.startsWith(source.prefix)) ?? []
+    const owners =
+      service?.sources(entrySourceScope(access)).filter(source => name.startsWith(source.prefix)) ??
+      []
     return owners.length === 1 ? owners[0] : undefined
   }
   return Object.freeze({
-    owns: name => sourceOf(name) !== undefined,
+    owns: (access, name) => sourceOf(access, name) !== undefined,
     entry: (access, name) => {
-      const source = sourceOf(name)
+      const source = sourceOf(access, name)
       try {
         return source?.select(access, name) ?? warmed(source, access)
       } catch {

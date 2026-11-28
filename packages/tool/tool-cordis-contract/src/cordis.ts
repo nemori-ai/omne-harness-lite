@@ -14,7 +14,7 @@ import {
   type ToolResultReceiver,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
-import { declare, deployment, list, type Contract } from '@omne-harness/dynamis'
+import { declare, deployment, list, type Contract, type Scope } from '@omne-harness/dynamis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { Plugin } from '@deepseek-ai/cordis'
 import {
@@ -486,16 +486,11 @@ const entrySourcesContract: Contract = Object.freeze({
   onError:
     'a source whose listing throws, times out or names an entry outside its prefix answers unavailable; the other sources and the registry answer as usual',
   version: 1,
-  revision: 2,
+  revision: 3,
   keys: 'public',
   conformance: null,
-  scopes: {
-    only: 'deployment',
-    why: 'one-per-process',
-    note: 'The tool catalog asks this point for the whole deployment, not for the tenant who calls, so a source a tenant put here would not be offered.',
-  } as const,
   summary:
-    'The sources of tool entries besides the binding registry: each item lists, selects and executes the entries under one name prefix.',
+    'The sources of tool entries besides the binding registry: each item lists, selects and executes the entries under one name prefix. It is read as the tenant who asks: a source of the deployment is seen by every tenant and is locked, a source a tenant put by that tenant alone.',
 })
 
 /** @owner packages/tool/tool-cordis-contract */
@@ -511,13 +506,13 @@ export class ToolEntrySourcesService<P, B extends ContentBlock> extends Service 
     this.tree = tree
   }
 
-  /** The sources now in service. A prefix with two sources has none; a point that cannot be read gives none. */
-  sources(): readonly ToolEntrySource<P, B>[] {
+  /** The sources now in service for the one who asks. A prefix with two sources has none; a point that cannot be read gives none. */
+  sources(asker: Scope): readonly ToolEntrySource<P, B>[] {
     const read = list<ToolEntrySource<P, B>>(
       this.tree.registry(),
       TOOL_ENTRY_SOURCES_POINT,
       null,
-      deployment,
+      asker,
     )
     return read.kind === 'read' ? read.items.map(({ entry }) => entry.item) : []
   }
@@ -560,6 +555,7 @@ export class ToolEntrySourcesService<P, B extends ContentBlock> extends Service 
               rank: 0,
               digest: `${source.prefix}@${by.fiber}#${by.generation}`,
               item: source,
+              lock: true,
             },
           ],
           { drain: drained },

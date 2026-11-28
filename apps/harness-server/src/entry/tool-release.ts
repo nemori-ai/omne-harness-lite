@@ -472,7 +472,8 @@ export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefiniti
         })
       const released = releaseDefinitionOf(ctx, name)
       if (released !== undefined) return succeed(released)
-      const listed = sourced.owns(name) ? sourced.entry({ principal, tenant }, name) : undefined
+      const asker = { principal, tenant }
+      const listed = sourced.owns(asker, name) ? sourced.entry(asker, name) : undefined
       return listed === undefined
         ? heldDefinitionNow(ctx, { principal, tenant }, name)
         : succeed(listed.definition)

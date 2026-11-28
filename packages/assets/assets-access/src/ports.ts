@@ -108,7 +108,10 @@ type ItemInput = Readonly<{
 }>
 type WriteInput = ItemInput & Readonly<{ operation: string; expectedRevision: string }>
 
-export type CategoriesPort = Pick<CategoryView, 'list' | 'describe' | 'lookup'>
+export type CategoriesPort = Pick<
+  CategoryView,
+  'list' | 'describe' | 'lookup' | 'atPoint' | 'effectOf'
+>
 
 export type ManagementPort = TenantManagement<Principal>
 

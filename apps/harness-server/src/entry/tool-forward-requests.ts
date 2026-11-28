@@ -101,7 +101,8 @@ async function targetOrigin(
   const entry = release.manifest.entries.find(item => item.asset.name === intent.name)
   if (entry !== undefined) return succeed<TargetOrigin>({ kind: 'release', entry })
   const entries = ports.sourced?.()
-  if (entries?.owns(intent.name) === true) return succeed<TargetOrigin>({ kind: 'source', entries })
+  if (entries?.owns(access, intent.name) === true)
+    return succeed<TargetOrigin>({ kind: 'source', entries })
   const held = await ports.held?.(access, intent.name)
   if (held?.kind === 'unavailable')
     return fail({

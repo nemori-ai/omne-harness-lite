@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "name": "page-reader",
+  "summary": "A tool the agent calls in a session: it reads the text of a page at an address, through the port web.",
+  "server": {
+    "needs": ["web"],
+    "members": [
+      {
+        "point": "tool.entry-sources",
+        "key": "reader__",
+        "module": "tools.js",
+        "export": "tools"
+      }
+    ]
+  }
+}

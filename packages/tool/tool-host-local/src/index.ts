@@ -136,3 +136,13 @@ export {
   type LocalProgramCallsInput,
 } from './program-calls.ts'
 export { TOOL_PROGRAM_OWNER } from './program-source.ts'
+export {
+  GUEST_TOOL_CATEGORY,
+  GUEST_TOOL_GATE,
+  GUEST_TOOL_GATES,
+  guestEntrySource,
+  guestToolExecutor,
+  type GuestEntryContext,
+  type GuestEntryShape,
+  type GuestTool,
+} from './guest-entry-source.ts'

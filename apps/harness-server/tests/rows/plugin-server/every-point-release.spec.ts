@@ -110,6 +110,25 @@ describe('every point of the server tree of the release (PL-I27, PL-I29)', () =>
         console.log(
           `server points:\n${[...verdicts].map(([point, v]) => `  ${point}: ${v.open ? 'open' : 'closed'} ${v.said}`).join('\n')}`,
         )
+        // C7: the points of the server tree closed to plugins, and why; any other closed point is a defect.
+        const why = (said: string) =>
+          /^the point is closed to plugins \(([a-z-]+)\)/u.exec(said)?.[1] ?? said
+        expect(
+          Object.fromEntries(
+            [...verdicts].filter(([, v]) => !v.open).map(([point, v]) => [point, why(v.said)]),
+          ),
+        ).toEqual({
+          'assets.categories': 'one-per-process',
+          'canvas.kinds': 'one-per-process',
+          'dynamis.points': 'one-per-process',
+          'notification.sources': 'one-per-process',
+          'slash-command.entry-sources': 'one-per-process',
+          'plugin.guest-forms': 'grants-itself',
+          'plugin.ports': 'grants-itself',
+          'model.providers': 'the category model-provider is not created through the general entry',
+          'plugin.plugins': 'a plugin does not hold a plugin',
+          'plugin.skins': 'a plugin does not hold a skin',
+        })
 
         // A closed point refuses a member, for the reason the tool gave: one judgment, read in two places.
         // A category refuses it when the plugin is published; any other point when the server loads it.

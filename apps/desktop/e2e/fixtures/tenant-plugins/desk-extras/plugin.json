@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "name": "desk-extras",
+  "summary": "A tab beside the conversation, an action with its key, and a part of its own.",
+  "client": {
+    "members": [
+      { "point": "session.side", "key": "", "id": "desk-extras.notes", "rank": 50, "module": "side.js", "export": "item" },
+      { "point": "shell.actions", "key": "", "id": "desk-extras.hello", "rank": 50, "module": "hello.js", "export": "hello" },
+      { "point": "shell.keymap", "key": "", "module": "keys.js", "export": "keys" },
+      {
+        "point": "shell.parts",
+        "key": "desk-extras.panel",
+        "data": { "label": "Extras panel", "summary": "The tab this plugin adds beside a conversation", "depths": ["style"] }
+      }
+    ]
+  }
+}

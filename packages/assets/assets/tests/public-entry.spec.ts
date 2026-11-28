@@ -29,6 +29,7 @@ it('exports the registry, identity, and pin operations', () => {
     'listAssets',
     'packageBody',
     'packageDigest',
+    'packageValue',
     'pinBody',
     'projectAssetSettings',
     'publishRefusal',
@@ -39,6 +40,7 @@ it('exports the registry, identity, and pin operations', () => {
     'scopeOfLayer',
     'summarizeVersion',
     'unknownCategory',
+    'withPlaced',
     'withinDirectory',
   ])
 })

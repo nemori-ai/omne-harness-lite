@@ -53,6 +53,9 @@
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },
+    "packages/plugin/plugin-ui/src/view/plugin-page.tsx | 在「 {member.categoryTitle ?? category} 」里看": {
+      "name": 1
+    },
     "packages/schedule/schedule-ui/src/view/job-provenance.tsx | {words}": {
       "name": 1
     },

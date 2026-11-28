@@ -18,13 +18,16 @@ import {
 } from '@omne-harness/tool-host-local/cordis'
 import { createToolMessageResultCodec } from '@omne-harness/tool'
 import { DEFAULT_ENTRY_SOURCE_POLICY } from '@omne-harness/tool-host-local'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { defineRow } from '../../row.ts'
+import { webPortEntry } from './web-port.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createReleaseAvailability } from './availability.ts'
 import { releaseCatalogViewOf } from './catalog-view.ts'
 import { z } from 'zod'
 import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { entrySourceScope } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
@@ -223,6 +226,7 @@ const bindingsPlugin: Plugin.Object = {
         ? {}
         : {
             entrySources: {
+              scope: entrySourceScope,
               codec: createToolMessageResultCodec(config.sources.resultMaxBytes),
               policy: {
                 ...DEFAULT_ENTRY_SOURCE_POLICY,
@@ -232,6 +236,11 @@ const bindingsPlugin: Plugin.Object = {
           }),
     })
     new Bindings(ctx)
+    const { web } = config
+    if (web !== undefined)
+      ctx.inject([dynamisKey], child => {
+        ;(child.get(dynamisKey) as DynamisService).put([webPortEntry(web.fetch)])
+      })
   },
 }
 

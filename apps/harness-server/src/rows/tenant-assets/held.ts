@@ -27,6 +27,7 @@ export type HeldOnRegistry = Readonly<{
   /** The registry changed: when the categories differ, every tenant is told again what it holds. */
   registryChanged(): void
   namesOf(tenantRef: string, category: string): HeldNames | undefined
+  placed(category: string, tenantRef: string): readonly AssetEntry[]
 }>
 
 type Kept = {
@@ -38,7 +39,7 @@ type Kept = {
   names: Map<string, HeldNames>
 }
 
-/** A definition a plugin placed for this tenant, within a directory of the plugin's package, as the ledger would list it. */
+/** A definition a plugin placed for this tenant, a directory or a value of the plugin's package, as the ledger would list it. */
 function placedEntry(
   category: string,
   tenant: string,
@@ -46,9 +47,9 @@ function placedEntry(
 ): readonly AssetEntry[] {
   const { scope, item } = entry
   const capability = capabilityId(category, entry.key)
-  if (item.within === undefined || scope[0] !== 'tenant' || scope[1] !== tenant || !capability.ok)
-    return []
-  const { asset, version } = item
+  const inside = item.within !== undefined || item.valueAt !== undefined
+  if (!inside || scope[0] !== 'tenant' || scope[1] !== tenant || !capability.ok) return []
+  const { asset, version, from } = item
   return [
     {
       capability: capability.id,
@@ -57,6 +58,7 @@ function placedEntry(
       version,
       selection: 'pinned',
       enabled: !item.disabled,
+      ...(from === undefined ? {} : { from }),
     },
   ]
 }
@@ -106,7 +108,15 @@ export function heldOnRegistry(
       ? undefined
       : { registry: now, point: listing.point }
   }
+  const placedOf = (category: string, ref: string): readonly AssetEntry[] => {
+    const at = pointOf(category)
+    if (at === undefined) return []
+    const read = list<HeldItem>(at.registry, at.point, null, scopeOfLayer('tenant', ref))
+    if (read.kind !== 'read') return []
+    return read.items.flatMap(({ entry }) => placedEntry(category, ref, entry))
+  }
   return {
+    placed: placedOf,
     heldOf(tenant) {
       const state: Kept = {
         place: categories().holdingsOf(tenant, ({ category, name }) => {
@@ -138,13 +148,7 @@ export function heldOnRegistry(
             const assets = await open(ref)
             return assets === undefined ? undefined : tenantListing(assets)
           },
-          placed(category, ref) {
-            const at = pointOf(category)
-            if (at === undefined) return []
-            const read = list<HeldItem>(at.registry, at.point, null, scopeOfLayer('tenant', ref))
-            if (read.kind !== 'read') return []
-            return read.items.flatMap(({ entry }) => placedEntry(category, ref, entry))
-          },
+          placed: placedOf,
         },
         tenantRef,
       ),

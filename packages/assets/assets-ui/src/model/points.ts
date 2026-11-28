@@ -35,13 +35,19 @@ const holdingSubject: PointCodec<HoldingSubject> = {
   },
 }
 
-export type AssetsPageSubject = Readonly<Record<never, never>>
+/** `asset`: the one of the shown category the shell points at, when it names one. */
+export type AssetsPageSubject = Readonly<{ asset?: string }>
 
 const PAGE_SUBJECT = 'assets'
 
 const pageSubject: PointCodec<AssetsPageSubject> = {
-  encode: () => PAGE_SUBJECT,
-  decode: text => (text === PAGE_SUBJECT ? {} : undefined),
+  encode: ({ asset }) => (asset === undefined ? PAGE_SUBJECT : `${PAGE_SUBJECT}:${asset}`),
+  decode: text =>
+    text === PAGE_SUBJECT
+      ? {}
+      : text.startsWith(`${PAGE_SUBJECT}:`)
+        ? { asset: text.slice(PAGE_SUBJECT.length + 1) }
+        : undefined,
 }
 
 export const ASSETS_CATEGORY = 'assets.category'

@@ -127,7 +127,9 @@ export const tenantAssetsRow = defineRow({
     const layerStoreOf = (tenant: string, assets: AssetsLocal | undefined) =>
       assets === undefined
         ? undefined
-        : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
+        : createTenantLayerStore(assets, tenant, categories, layerSources(tenant), category =>
+            held.placed(category, tenant),
+          )
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,

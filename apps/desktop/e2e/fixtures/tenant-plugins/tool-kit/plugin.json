@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "tool-kit",
+  "summary": "Counts the words of a text, and echoes one.",
+  "server": {
+    "members": [
+      { "point": "tool.tools", "key": "wordcount", "directory": "tools/wordcount" },
+      { "point": "tool.entry-sources", "key": "kit__", "module": "tools.js", "export": "tools" }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { standingOf } from '@omne-harness/dynamis'
-import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { DynamisService, dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import {
   TOOL_ENTRY_SOURCES_POINT,
   type ToolEntrySource,
@@ -40,6 +40,31 @@ async function tree() {
 
 const tick = () => new Promise<void>(resolve => setTimeout(resolve, 5))
 
+const ALICE = ['tenant', 'alice'] as const
+const BOB = ['tenant', 'bob'] as const
+
+/** A source a tenant puts, the way the plugin loader puts the members of a tenant's plugin. */
+const putBy = (name: string, scope: readonly string[], given: Source) => ({
+  name,
+  inject: [dynamisKey],
+  apply(ctx: Context) {
+    const tree = ctx.get(dynamisKey) as DynamisService
+    ctx.effect(() =>
+      tree.put(by => [
+        {
+          point: TOOL_ENTRY_SOURCES_POINT,
+          key: given.prefix,
+          id: '',
+          scope,
+          rank: 0,
+          digest: `${given.prefix}@${by.fiber}#${by.generation}`,
+          item: given,
+        },
+      ]),
+    )
+  },
+})
+
 describe('the tool entry sources on a real Cordis root', () => {
   it('declares the point, keyed by the prefix, on the server tree', async () => {
     const { root } = await tree()
@@ -60,12 +85,12 @@ describe('the tool entry sources on a real Cordis root', () => {
   it('has a source while the plugin that brings it lives, and not after', async () => {
     const { root, service } = await tree()
     const probe = source('probe__')
-    expect(service.sources()).toEqual([])
+    expect(service.sources([])).toEqual([])
     const fiber = root.plugin(bringing('probe', probe))
     await fiber.await()
-    expect(service.sources()).toEqual([probe])
+    expect(service.sources([])).toEqual([probe])
     await fiber.dispose()
-    expect(service.sources()).toEqual([])
+    expect(service.sources([])).toEqual([])
   })
 
   it('has neither of two sources that own one prefix, and the other prefixes as usual', async () => {
@@ -77,9 +102,9 @@ describe('the tool entry sources on a real Cordis root', () => {
       root.plugin(bringing('other', other)),
     ]
     await Promise.all(fibers.map(fiber => fiber.await()))
-    expect(service.sources()).toEqual([other])
+    expect(service.sources([])).toEqual([other])
     await fibers[1]?.dispose()
-    expect(service.sources().toSorted((a, b) => a.prefix.localeCompare(b.prefix))).toEqual([
+    expect(service.sources([]).toSorted((a, b) => a.prefix.localeCompare(b.prefix))).toEqual([
       other,
       first,
     ])
@@ -89,7 +114,7 @@ describe('the tool entry sources on a real Cordis root', () => {
     const { root } = await tree()
     const fiber = root.plugin(bringing('bad', source('probe')))
     await fiber.await().catch(() => undefined)
-    expect((root.get(toolEntrySourcesKey) as Sources).sources()).toEqual([])
+    expect((root.get(toolEntrySourcesKey) as Sources).sources([])).toEqual([])
   })
 
   it('keeps a leaving source out of service at once, and takes it off when its calls in flight end', async () => {
@@ -103,7 +128,7 @@ describe('the tool entry sources on a real Cordis root', () => {
       left = true
     })
     await tick()
-    expect(service.sources()).toEqual([])
+    expect(service.sources([])).toEqual([])
     expect(root.dynamis.registry().retiring).toHaveLength(1)
     first()
     first()
@@ -121,6 +146,33 @@ describe('the tool entry sources on a real Cordis root', () => {
     service.hold('probe__')()
     await fiber.dispose()
     expect(root.dynamis.registry().retiring).toEqual([])
-    expect(service.sources()).toEqual([])
+    expect(service.sources([])).toEqual([])
+  })
+
+  it('is read as the tenant who asks: a source of the deployment for all, a source a tenant put for that tenant alone (TL-76)', async () => {
+    const { root, service } = await tree()
+    const [shared, own] = [source('shared__'), source('notes__')]
+    await root.plugin(bringing('shared', shared)).await()
+    await root.plugin(putBy('alice-notes', ALICE, own)).await()
+    const prefixes = (asker: readonly string[]) =>
+      service
+        .sources(asker)
+        .map(each => each.prefix)
+        .toSorted()
+    expect(prefixes(ALICE)).toEqual(['notes__', 'shared__'])
+    expect(prefixes(BOB)).toEqual(['shared__'])
+    expect(prefixes([])).toEqual(['shared__'])
+  })
+
+  it('keeps a source of the deployment for every tenant: a tenant that puts its prefix does not replace it (TL-76)', async () => {
+    const { root, service } = await tree()
+    const [official, posing] = [source('mcp__'), source('mcp__')]
+    await root.plugin(bringing('official', official)).await()
+    await root
+      .plugin(putBy('alice-mcp', ALICE, posing))
+      .await()
+      .catch(() => undefined)
+    expect(service.sources(ALICE)).toEqual([official])
+    expect(service.sources(BOB)).toEqual([official])
   })
 })
