@@ -346,7 +346,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | `attached(位置的名字, 对象)`                              | 给出附着位置里 `anchor` 与位置的名字相同的全部项的渲染结果，按存放的次序排；每一项收到 `{ scope, subject }`，`scope` 是外壳当前的租户文本，`subject` 是这里给的对象。位置里的项放进或撤下、租户变了，已经渲染出来的结果跟着变。没有匹配的项时什么都不渲染                                                                                  |
 | `arranged(位置的名字, 对象, 排版函数)`                    | 和 `attached` 取同样的项、同样的次序，但不替宿主拼在一起：把每一项的标识、标签、渲染结果（`AttachedEntry`）交给宿主的排版函数，给出排版函数的返回值。没有匹配的项时排版函数收到空表。订阅位置与租户的变化仍在外壳里，宿主不碰存放                                                                                                          |
 
-`login(凭据)` 只交出凭据，答案只有结果，不含任何登录证明：`signed-in`、`auth-failed`、`unknown`、`unavailable`。`logout()` 的结果是 `signed-out` 或 `unknown`。结果不知道就是 `unknown`，不写成成功或失败。
+`login(凭据)` 只交出凭据，答案只有结果，不含任何登录证明：`signed-in`、`auth-failed`、`rejected`（填写的内容不合契约，没有发出或服务端拒收）、`unknown`、`unavailable`。`logout()` 的结果是 `signed-out` 或 `unknown`。结果不知道就是 `unknown`，不写成成功或失败。
 
 外壳的实现给它画的每一项包一层错误隔离：一项的渲染抛出时，只有这一项显示读不出（FE-I14）。坏了的一项显示什么，归外壳的实现。
 

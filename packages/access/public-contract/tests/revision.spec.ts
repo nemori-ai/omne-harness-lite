@@ -55,19 +55,19 @@ describe('writing at a revision', () => {
 
   it('still refuses a value with a key the rule does not have', () => {
     const stray = { ...full, other: 1 } as unknown as typeof full
-    expect(note.write(stray, limits, 1)).toEqual({ ok: false })
+    expect(note.write(stray, limits, 1).ok).toBe(false)
   })
 
   it('still refuses a later field of the wrong kind, though it is not written', () => {
     const wrong = { title: 'Plan', colour: 7 } as unknown as typeof full
-    expect(note.write(wrong, limits, 1)).toEqual({ ok: false })
+    expect(note.write(wrong, limits, 1).ok).toBe(false)
   })
 })
 
 describe('reading at a revision', () => {
   it('refuses a field that came after it: reading stays strict (V1)', () => {
-    expect(note.read(wireAt2, limits, 1)).toEqual({ ok: false })
-    expect(note.read(wireAt3, limits, 2)).toEqual({ ok: false })
+    expect(note.read(wireAt2, limits, 1).ok).toBe(false)
+    expect(note.read(wireAt3, limits, 2).ok).toBe(false)
   })
 
   it('reads the fields up to it', () => {
@@ -134,7 +134,7 @@ describe('inside arrays, nested objects and one-of', () => {
     const written = codec.write(value, limits, 2)
     if (!written.ok) throw new Error('did not write')
     expect(codec.read(written.value, limits, 2)).toEqual({ ok: true, value })
-    expect(codec.read(written.value, limits, 1)).toEqual({ ok: false })
+    expect(codec.read(written.value, limits, 1).ok).toBe(false)
   })
 })
 

@@ -163,7 +163,7 @@ describe('a null cursor and a cursor exclude each other', () => {
     const parsed = JSON.stringify(body)
     const read = readJsonText(parsed, limits)
     if (read.kind !== 'ok') throw new Error('fixture json did not read')
-    expect(operation.body.read(read.value, limits)).toEqual({ ok: false })
+    expect(operation.body.read(read.value, limits).ok).toBe(false)
   })
 })
 

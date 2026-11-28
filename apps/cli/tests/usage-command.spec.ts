@@ -2,7 +2,7 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandMissing, commandUnrecognized } from './support/expected.ts'
+import { commandMissing, commandUnrecognized, commandRefused } from './support/expected.ts'
 import {
   defaultAnswer,
   startFakeService,
@@ -139,19 +139,35 @@ describe('omne query-usage, list-usage-records and read-context-occupancy', () =
   })
 
   it.each([
-    [['query-usage', ...range, '--zone', 'UTC', '--bucket', 'minute']],
-    [['query-usage', ...range, '--zone', 'UTC', '--group-by', 'model,purpose,tool']],
-    [['query-usage', ...range, '--zone', 'UTC', '--group-by', 'request']],
-    [['query-usage', '--since', 'yesterday', '--before', '2026-11-20T00:00:00Z', '--zone', 'UTC']],
-    [['list-usage-records', ...range, '--limit', '0']],
-    [['list-usage-records', ...range, '--limit', '101']],
-    [['list-usage-records', ...range, '--limit', '05']],
-    [['read-context-occupancy', '--session', 'not-hex']],
-  ])('refuses %j as a usage error and sends nothing', async args => {
+    [['query-usage', ...range, '--zone', 'UTC', '--bucket', 'minute'], undefined],
+    [
+      ['query-usage', ...range, '--zone', 'UTC', '--group-by', 'model,purpose,tool'],
+      'groupBy is ["model","purpose","tool"]; allows a list of at most 2 items',
+    ],
+    [['query-usage', ...range, '--zone', 'UTC', '--group-by', 'request'], undefined],
+    [
+      ['query-usage', '--since', 'yesterday', '--before', '2026-11-20T00:00:00Z', '--zone', 'UTC'],
+      undefined,
+    ],
+    [['list-usage-records', ...range, '--limit', '0'], undefined],
+    [
+      ['list-usage-records', ...range, '--limit', '101'],
+      'limit is 101; allows a whole number from 1 to 100',
+    ],
+    [['list-usage-records', ...range, '--limit', '05'], undefined],
+    [
+      ['read-context-occupancy', '--session', 'not-hex'],
+      'session is "not-hex"; allows a session id: 64 lowercase hex digits',
+    ],
+  ] as const)('refuses %j as a usage error and sends nothing', async (args, reason) => {
     const service = await serve()
-    const result = await cli(args)
+    const result = await cli([...args])
     expect(result.code).toBe(2)
-    expect(result.stderr).toBe(commandUnrecognized(args[0] ?? ''))
+    expect(result.stderr).toBe(
+      reason === undefined
+        ? commandUnrecognized(args[0] ?? '')
+        : commandRefused(args[0] ?? '', reason),
+    )
     expect(service.seen.filter(seen => Object.hasOwn(answers, seen.operation))).toEqual([])
   })
 

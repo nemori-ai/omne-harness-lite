@@ -17,6 +17,7 @@
 - `GuestContractData` · `guest-contract.d.ts`
 - `GuestContractRead` · `guest-contract.d.ts`
 - `GuestOperationData` · `guest-contract.d.ts`
+- `LEAF_ALLOWS` · `leaf-codec.d.ts`
 - `LeafKind` · `rule.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
 - `OUTCOMES` · `outcome.d.ts`
@@ -26,10 +27,13 @@
 - `Outcome` · `outcome.d.ts`
 - `OutcomeBodies` · `protocol.d.ts`
 - `ProtocolContract` · `protocol.d.ts`
+- `REJECTION_BODY` · `rule-codec.d.ts`
+- `Rejection` · `rule-codec.d.ts`
 - `Rule` · `rule.d.ts`
 - `RuleValue` · `rule-codec.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
 - `accessProtocol` · `access-protocol.d.ts`
+- `allowsOf` · `leaf-codec.d.ts`
 - `defineProtocol` · `protocol.d.ts`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeLoginStateIdText` · `identity-text.d.ts`
@@ -39,13 +43,16 @@
 - `guestContractData` · `guest-contract.d.ts`
 - `guestContractOfTree` · `guest-contract.d.ts`
 - `livesAt` · `revision.d.ts`
+- `pathText` · `rule-codec.d.ts`
 - `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readTenantText` · `identity-text.d.ts`
+- `rejectionText` · `rule-codec.d.ts`
 - `revisionOf` · `revision.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
+- `withheld` · `rule-codec.d.ts`
 
 ## 入口 `./snapshot` · `snapshot.d.ts`
 
@@ -419,8 +426,9 @@ export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganiz
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
-export { ruleCodec } from './rule-codec.ts';
-export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
+export { pathText, REJECTION_BODY, rejectionText, ruleCodec, withheld } from './rule-codec.ts';
+export type { Codec, CodecResult, Rejection, RuleValue } from './rule-codec.ts';
+export { allowsOf, LEAF_ALLOWS } from './leaf-codec.ts';
 export type { FieldRule, LeafKind, Rule } from './rule.ts';
 export { livesAt, projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
@@ -435,12 +443,20 @@ export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBo
 
 ```ts
 import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
-import type { Rule } from './rule.ts';
+import type { LeafKind, Rule } from './rule.ts';
 export type Fields = Readonly<Record<string, unknown>>;
 export type Converted = {
     readonly local: unknown;
     readonly wire: JsonValue;
 };
+export type Refused = {
+    readonly refused: true;
+    readonly at: readonly (string | number)[];
+    readonly given: unknown;
+    readonly allows: string;
+};
+export type Conversion = Converted | Refused;
+export declare const isRefused: (outcome: Conversion) => outcome is Refused;
 export type Direction = 'encode' | 'decode';
 export declare function fields(value: unknown): Fields | undefined;
 export declare function exact(value: Fields, required: readonly string[], optional?: readonly string[]): boolean;
@@ -449,7 +465,11 @@ export declare function textWire(value: JsonValue | undefined): string | undefin
 export declare function stringWire(value: string): JsonValue;
 export declare function wireObject(value: Readonly<Record<string, JsonValue>>): JsonValue;
 export declare function nodeOf(input: unknown): JsonValue | undefined;
-export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits, revision?: number): Converted | undefined;
+export declare const LEAF_ALLOWS: {
+    readonly [K in LeafKind]: string;
+};
+export declare function allowsOf(rule: Rule): string;
+export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits, revision?: number): Conversion;
 ```
 
 ## 声明文件 `outcome.d.ts`
@@ -576,12 +596,21 @@ import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
 import type { Instant } from '@omne-harness/utc-instant';
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 import type { LeafKind, Rule } from './rule.ts';
+export type Rejection = {
+    readonly at: readonly (string | number)[];
+    readonly given: string;
+    readonly allows: string;
+};
 export type CodecResult<T> = {
     readonly ok: true;
     readonly value: T;
 } | {
     readonly ok: false;
+    readonly rejection: Rejection;
 };
+export declare function pathText(at: readonly (string | number)[]): string;
+export declare function withheld(rejection: Rejection): Rejection;
+export declare function rejectionText(rejection: Rejection): string;
 export type Codec<T> = {
     readonly read: (value: JsonValue, limits: JsonLimits, revision?: number) => CodecResult<T>;
     readonly write: (value: T, limits: JsonLimits, revision?: number) => CodecResult<JsonValue>;
@@ -644,6 +673,13 @@ export type RuleValue<R extends Rule> = R extends {
     readonly rules: readonly (infer O extends Rule)[];
 } ? RuleValue<O> : never;
 export declare function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>>;
+export declare const REJECTION_BODY: Codec<{
+    readonly rejection?: {
+        readonly allows: string;
+        readonly at: readonly (string | number)[];
+        readonly given: string;
+    };
+}>;
 export {};
 ```
 

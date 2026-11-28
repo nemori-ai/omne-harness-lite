@@ -109,7 +109,7 @@ describe('call', () => {
     [
       'a body that does not fit the rule',
       ['call', 'weather/v1', 'forecast', '--body', '{"town":"Paris"}'],
-      'omne call: the body does not fit the rule of weather/v1 forecast\n',
+      'omne call: the body does not fit the rule of weather/v1 forecast: town is "Paris"; allows no field "town" here: an object with the fields city\n',
     ],
     [
       'a body that is not JSON',

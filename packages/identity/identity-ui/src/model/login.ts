@@ -19,6 +19,7 @@ export type LoginPorts = Readonly<{
 
 export const LOGIN_TEXT: Readonly<Record<Exclude<LoginResult, 'signed-in'>, string>> = {
   'auth-failed': '登录名或密码不对。',
+  rejected: '填写的内容不合规则。',
   unknown: '不知道登录有没有成功：没有收到可信的答复。请再试一次。',
   unavailable: '现在登录不了：服务暂时不可用。请稍后再试。',
 }

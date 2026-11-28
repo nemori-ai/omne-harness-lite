@@ -10,10 +10,10 @@ describe('read-permission-mode', () => {
   it('names the session and answers the mode with its permission revision', () => {
     expectRoundTrip(read.body, { tenant, session })
     for (const mode of modes) expectRoundTrip(read.outcomes.succeeded, { mode, revision: '3' })
-    expect(readSample(read.outcomes.succeeded, { mode: 'ask', revision: '3' })).toEqual({
+    expect(readSample(read.outcomes.succeeded, { mode: 'ask', revision: '3' })).toMatchObject({
       ok: false,
     })
-    expect(readSample(read.outcomes.succeeded, { mode: 'never' })).toEqual({ ok: false })
+    expect(readSample(read.outcomes.succeeded, { mode: 'never' }).ok).toBe(false)
   })
 })
 
@@ -32,7 +32,7 @@ describe('change-permission-mode', () => {
       { tenant, session, mode: 'never', expectedRevision: '0', collaboration: 'co-work' },
     ],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readSample(change.body, sample)).toEqual({ ok: false })
+    expect(readSample(change.body, sample).ok).toBe(false)
   })
 
   it('answers changed and no-change with the mode and revision now; the conflict empty', () => {

@@ -1,7 +1,7 @@
 import type { Contract, Effect } from '@omne-harness/dynamis'
 export type LoginCredentials = Readonly<{ loginIdentifier: string; credential: string }>
 
-export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+export type LoginResult = 'signed-in' | 'auth-failed' | 'rejected' | 'unknown' | 'unavailable'
 
 export type LogoutResult = 'signed-out' | 'unknown'
 

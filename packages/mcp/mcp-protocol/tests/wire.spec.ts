@@ -45,15 +45,15 @@ describe('the request bodies', () => {
     ['no name', { tenant }],
     ['a field it does not have', { tenant, name: 'docs', extra: 1 }],
   ])('read-endpoint and refresh-endpoint refuse %s', (_label, sample) => {
-    expect(readSample(operations['read-endpoint'].body, sample)).toEqual({ ok: false })
-    expect(readSample(operations['refresh-endpoint'].body, sample)).toEqual({ ok: false })
+    expect(readSample(operations['read-endpoint'].body, sample).ok).toBe(false)
+    expect(readSample(operations['refresh-endpoint'].body, sample).ok).toBe(false)
   })
 
   it('list-endpoints refuses a name and a missing tenant', () => {
-    expect(readSample(operations['list-endpoints'].body, { tenant, name: 'docs' })).toEqual({
+    expect(readSample(operations['list-endpoints'].body, { tenant, name: 'docs' })).toMatchObject({
       ok: false,
     })
-    expect(readSample(operations['list-endpoints'].body, {})).toEqual({ ok: false })
+    expect(readSample(operations['list-endpoints'].body, {}).ok).toBe(false)
   })
 })
 
@@ -108,7 +108,9 @@ describe('list-endpoints succeeded', () => {
     ['an empty name', { ...usable, name: '' }],
     ['no catalog', { ...usable, catalog: undefined }],
   ])('refuses an item with %s', (_label, item) => {
-    expect(readSample(operations['list-endpoints'].outcomes.succeeded, { items: [item] })).toEqual({
+    expect(
+      readSample(operations['list-endpoints'].outcomes.succeeded, { items: [item] }),
+    ).toMatchObject({
       ok: false,
     })
   })
@@ -127,19 +129,19 @@ describe('read-endpoint', () => {
   it('keeps the actions apart from the endpoint, and refuses a read without them', () => {
     expect(
       readSample(operations['read-endpoint'].outcomes.succeeded, { endpoint: usable }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     expect(
       readSample(operations['read-endpoint'].outcomes.succeeded, {
         endpoint: usable,
         actions: [{ ...action, available: 'yes' }],
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     expect(
       readSample(operations['read-endpoint'].outcomes.succeeded, {
         endpoint: usable,
         actions: [{ ...action, name: '' }],
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 
   it('answers not-visible with an empty body and refuses one that says something', () => {
@@ -148,7 +150,7 @@ describe('read-endpoint', () => {
       readSample(operations['read-endpoint'].outcomes['not-visible'], {
         reason: 'no such endpoint',
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })
 
@@ -167,7 +169,7 @@ describe('refresh-endpoint', () => {
     ['no reason member', { refreshed: 'failed' }],
     ['a reason that is not text', { refreshed: 'failed', reason: 3 }],
   ])('refuses %s', (_label, sample) => {
-    expect(readSample(operations['refresh-endpoint'].outcomes.succeeded, sample)).toEqual({
+    expect(readSample(operations['refresh-endpoint'].outcomes.succeeded, sample)).toMatchObject({
       ok: false,
     })
   })
@@ -182,8 +184,8 @@ describe('observe-endpoints', () => {
 
   it('opens with a tenant and nothing else', () => {
     expectRoundTrip(open, { tenant })
-    expect(readSample(open, {})).toEqual({ ok: false })
-    expect(readSample(open, { tenant, name: 'docs' })).toEqual({ ok: false })
+    expect(readSample(open, {}).ok).toBe(false)
+    expect(readSample(open, { tenant, name: 'docs' }).ok).toBe(false)
   })
 
   it.each(['endpoints', 'events'])('a frame says the %s may have changed', about => {
@@ -195,6 +197,6 @@ describe('observe-endpoints', () => {
     ['no subject', { kind: 'changed' }],
     ['another kind', { kind: 'ended', about: 'endpoints' }],
   ])('refuses a frame with %s', (_label, sample) => {
-    expect(readSample(frame, sample)).toEqual({ ok: false })
+    expect(readSample(frame, sample).ok).toBe(false)
   })
 })

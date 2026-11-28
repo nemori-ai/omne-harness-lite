@@ -1,8 +1,12 @@
 import type { JsonLimits } from '@omne-harness/json-text'
 import {
   livesAt,
+  REJECTION_BODY,
+  rejectionText,
   revisionOf,
+  withheld,
   type Codec,
+  type Rejection,
   type ObservationContract,
   type OperationContract,
   type ProtocolContract,
@@ -17,7 +21,9 @@ export type BodyOf<O extends OperationContract> = ValueOf<O['body']>
 export type AnswerOf<O extends OperationContract> = {
   [K in keyof O['outcomes'] & string]: O['outcomes'][K] extends Codec<infer T>
     ? { readonly outcome: K; readonly body: T }
-    : { readonly outcome: K }
+    : K extends 'protocol-rejected'
+      ? { readonly outcome: K; readonly rejection?: Rejection }
+      : { readonly outcome: K }
 }[keyof O['outcomes'] & string]
 
 export type LocalOutcome = { readonly outcome: 'unavailable' } | { readonly outcome: 'uncertain' }
@@ -54,12 +60,15 @@ export type ClientOf<P extends ProtocolContract> = {
   }
 }
 
+/** A request this end could not write: nothing was sent. It says where the value is wrong and what is allowed. */
 export class ClientRequestError extends Error {
   override readonly name = 'ClientRequestError'
   readonly target: string
-  constructor(target: string) {
-    super(`${target}: the value does not fit the contract or the limits`)
+  readonly rejection: Rejection
+  constructor(target: string, rejection: Rejection) {
+    super(`${target}: ${rejectionText(rejection)}; not sent`)
     this.target = target
+    this.rejection = rejection
   }
 }
 
@@ -99,9 +108,16 @@ function answerOf(
   outcomes: Outcomes,
   report: CallReport & { kind: 'answered' },
   limits: JsonLimits,
-): { readonly outcome: string; readonly body?: unknown } {
+): { readonly outcome: string; readonly body?: unknown; readonly rejection?: unknown } {
   if (!Object.hasOwn(outcomes, report.outcome)) return UNCERTAIN
   const codec = outcomes[report.outcome]
+  if (codec === true && report.outcome === 'protocol-rejected') {
+    const said = REJECTION_BODY.read(report.body, limits)
+    if (!said.ok) return UNCERTAIN
+    return said.value.rejection === undefined
+      ? { outcome: report.outcome }
+      : { outcome: report.outcome, rejection: said.value.rejection }
+  }
   if (codec === true) return isEmptyObject(report) ? { outcome: report.outcome } : UNCERTAIN
   const read = codec!.read(report.body, limits)
   return read.ok ? { outcome: report.outcome, body: read.value } : UNCERTAIN
@@ -163,7 +179,11 @@ export function createClient<P extends ProtocolContract>(
     options: CallOptions = {},
   ) {
     const written = operation.body.write(body as never, limits)
-    if (!written.ok) throw new ClientRequestError(target(name))
+    if (!written.ok)
+      throw new ClientRequestError(
+        target(name),
+        operation.carriesCredential === true ? withheld(written.rejection) : written.rejection,
+      )
     if (!known(operation.body, operation.since, body, written.value)) return UNAVAILABLE
     const request: CallRequest = {
       protocol: key,
@@ -196,7 +216,7 @@ export function createClient<P extends ProtocolContract>(
     options: ObserveOptions,
   ): AsyncGenerator<unknown, ObservationEnd<ObservationContract>> {
     const written = contract.open.write(open as never, limits)
-    if (!written.ok) throw new ClientRequestError(target(name))
+    if (!written.ok) throw new ClientRequestError(target(name), written.rejection)
     if (!known(contract.open, contract.since, open, written.value)) return { kind: 'unavailable' }
     const stream = transport.observe({
       protocol: key,

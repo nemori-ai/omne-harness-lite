@@ -17,6 +17,29 @@ import { livesAt } from './revision.ts'
 
 export type Fields = Readonly<Record<string, unknown>>
 export type Converted = { readonly local: unknown; readonly wire: JsonValue }
+/** Why a value did not fit: where it is, what was given there and what the rule allows. */
+export type Refused = {
+  readonly refused: true
+  readonly at: readonly (string | number)[]
+  readonly given: unknown
+  readonly allows: string
+}
+export type Conversion = Converted | Refused
+export const isRefused = (outcome: Conversion): outcome is Refused => 'refused' in outcome
+const refuse = (
+  given: unknown,
+  allows: string,
+  at: readonly (string | number)[] = [],
+): Refused => ({
+  refused: true,
+  at,
+  given,
+  allows,
+})
+const under = (key: string | number, refused: Refused): Refused => ({
+  ...refused,
+  at: [key, ...refused.at],
+})
 export type Direction = 'encode' | 'decode'
 type Leaf = (input: unknown, direction: Direction, limits: JsonLimits) => Converted | undefined
 type TreeKind = 'parameters' | 'json' | 'user-message'
@@ -367,6 +390,30 @@ function bytes(input: unknown, direction: Direction): Converted | undefined {
   return local === undefined ? undefined : { local, wire: node }
 }
 
+/** What each leaf allows, said once: the leaves check the same bounds these sentences name. */
+export const LEAF_ALLOWS: { readonly [K in LeafKind]: string } = {
+  'positive-integer': `a whole number from 1 to ${String(Number.MAX_SAFE_INTEGER)}`,
+  count: 'a whole number from 0 up, without a leading zero',
+  'page-limit': `a whole number from 1 to ${String(HITL_PAGE_LIMIT)}`,
+  text: 'a text that is not empty',
+  string: 'a text',
+  session: 'a session id: 64 lowercase hex digits',
+  'page-bytes': 'a page cursor: a positive whole number written as text',
+  bytes: 'bytes as canonical base64: padded, no spare bits, no white space',
+  revision: 'a revision: a whole number from 0 written as text',
+  boolean: 'true or false',
+  null: 'null',
+  account: 'an account id',
+  organization: 'an organization id',
+  login: 'a login state id',
+  tenant: 'a tenant: its organization and account as JSON text',
+  instant: 'an instant in UTC, ISO 8601 ending in Z',
+  'plain-date': 'a calendar date YYYY-MM-DD that exists',
+  parameters: 'a JSON object',
+  json: 'a JSON value',
+  'user-message': 'a JSON object whose role is "user"',
+}
+
 const leaves: { readonly [K in LeafKind]: Leaf } = {
   'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
   count,
@@ -396,6 +443,35 @@ function isLeaf(rule: Rule): rule is Extract<Rule, { readonly kind: LeafKind }> 
   return Object.hasOwn(leaves, rule.kind)
 }
 
+const literalAllows = (values: readonly (string | boolean)[]): string =>
+  `one of ${values.map(value => JSON.stringify(value)).join(', ')}`
+
+/** One sentence for what a rule allows; a field-by-field account is the rule data itself. */
+export function allowsOf(rule: Rule): string {
+  if (isLeaf(rule)) return LEAF_ALLOWS[rule.kind]
+  switch (rule.kind) {
+    case 'literal':
+      return literalAllows(rule.values)
+    case 'object': {
+      const names = Object.keys(rule.fields)
+      return names.length === 0
+        ? 'an empty object'
+        : `an object with the fields ${names.join(', ')}`
+    }
+    case 'array': {
+      const least = rule.nonempty === true ? 'at least one, ' : ''
+      const most = rule.max === undefined ? '' : `at most ${String(rule.max)}, `
+      return `a list (${least}${most}each ${allowsOf(rule.item)})`
+    }
+    case 'one-of':
+      return `one of: ${rule.rules.map(allowsOf).join('; or ')}`
+    default: {
+      const unreachable: never = rule
+      return unreachable
+    }
+  }
+}
+
 function literal(rule: Extract<Rule, { kind: 'literal' }>, value: unknown): Converted | undefined {
   if (typeof value === 'string' && rule.values.includes(value))
     return { local: value, wire: stringWire(value) }
@@ -406,21 +482,34 @@ function literal(rule: Extract<Rule, { kind: 'literal' }>, value: unknown): Conv
 
 function convertObject(
   rule: Extract<Rule, { kind: 'object' }>,
+  input: unknown,
   data: Fields | undefined,
   direction: Direction,
   limits: JsonLimits,
   revision: number | undefined,
-): Converted | undefined {
+): Conversion {
   const later = (key: string): boolean => !livesAt(rule.fields[key]?.since, revision)
   const unknown = (key: string): boolean =>
     !Object.hasOwn(rule.fields, key) || (direction === 'decode' && later(key))
-  if (data === undefined || Object.keys(data).some(unknown)) return undefined
+  if (data === undefined) return refuse(input, allowsOf(rule))
+  const stray = Object.keys(data).find(unknown)
+  if (stray !== undefined)
+    return refuse(
+      data[stray],
+      Object.hasOwn(rule.fields, stray)
+        ? `no field "${stray}" at revision ${String(revision)}: it is there from revision ${String(rule.fields[stray]?.since)}`
+        : `no field "${stray}" here: ${allowsOf(rule)}`,
+      [stray],
+    )
   const local: Record<string, unknown> = {}
   const wire: Record<string, JsonValue> = {}
   for (const [key, field] of Object.entries(rule.fields)) {
-    if (!Object.hasOwn(data, key) && field.optional) continue
+    if (!Object.hasOwn(data, key)) {
+      if (field.optional) continue
+      return refuse(undefined, `${allowsOf(field.rule)}: the field is required`, [key])
+    }
     const converted = convert(field.rule, data[key], direction, limits, revision)
-    if (converted === undefined) return undefined
+    if (isRefused(converted)) return under(key, converted)
     if (later(key)) continue
     local[key] = converted.local
     wire[key] = converted.wire
@@ -430,22 +519,20 @@ function convertObject(
 
 function convertList(
   rule: Extract<Rule, { kind: 'array' }>,
+  input: unknown,
   data: readonly unknown[] | undefined,
   direction: Direction,
   limits: JsonLimits,
   revision: number | undefined,
-): Converted | undefined {
-  if (
-    data === undefined ||
-    data.length > limits.maxItems ||
-    (rule.nonempty && data.length === 0) ||
-    (rule.max !== undefined && data.length > rule.max)
-  )
-    return undefined
+): Conversion {
+  const most = Math.min(limits.maxItems, rule.max ?? limits.maxItems)
+  if (data === undefined) return refuse(input, allowsOf(rule))
+  if (data.length > most) return refuse(input, `a list of at most ${String(most)} items`)
+  if (rule.nonempty && data.length === 0) return refuse(input, 'a list with at least one item')
   const values: Converted[] = []
-  for (const item of data) {
+  for (const [index, item] of data.entries()) {
     const converted = convert(rule.item, item, direction, limits, revision)
-    if (converted === undefined) return undefined
+    if (isRefused(converted)) return under(index, converted)
     values.push(converted)
   }
   return {
@@ -455,17 +542,17 @@ function convertList(
 }
 
 function firstMatch(
-  rules: readonly Rule[],
+  rule: Extract<Rule, { kind: 'one-of' }>,
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
   revision: number | undefined,
-): Converted | undefined {
-  for (const option of rules) {
+): Conversion {
+  for (const option of rule.rules) {
     const converted = convert(option, input, direction, limits, revision)
-    if (converted !== undefined) return converted
+    if (!isRefused(converted)) return converted
   }
-  return undefined
+  return refuse(input, allowsOf(rule))
 }
 
 function itemsOf(input: unknown, direction: Direction): readonly unknown[] | undefined {
@@ -480,23 +567,25 @@ export function convert(
   direction: Direction,
   limits: JsonLimits,
   revision?: number,
-): Converted | undefined {
-  if (isLeaf(rule)) return leaves[rule.kind](input, direction, limits)
+): Conversion {
+  if (isLeaf(rule))
+    return leaves[rule.kind](input, direction, limits) ?? refuse(input, LEAF_ALLOWS[rule.kind])
   switch (rule.kind) {
     case 'literal':
-      return literal(rule, primitive(input, direction))
+      return literal(rule, primitive(input, direction)) ?? refuse(input, literalAllows(rule.values))
     case 'object':
       return convertObject(
         rule,
+        input,
         direction === 'decode' ? objectWire(nodeOf(input)) : fields(input),
         direction,
         limits,
         revision,
       )
     case 'array':
-      return convertList(rule, itemsOf(input, direction), direction, limits, revision)
+      return convertList(rule, input, itemsOf(input, direction), direction, limits, revision)
     case 'one-of':
-      return firstMatch(rule.rules, input, direction, limits, revision)
+      return firstMatch(rule, input, direction, limits, revision)
     default: {
       const unreachable: never = rule
       return unreachable

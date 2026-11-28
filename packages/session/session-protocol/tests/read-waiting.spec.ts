@@ -28,7 +28,7 @@ describe('read-waiting', () => {
     ['without a tenant', { session }],
     ['with a run', { tenant, session, run: 'run-1' }],
   ])('refuses a body %s', (_label, sample) => {
-    expect(readSample(read.body, sample)).toEqual({ ok: false })
+    expect(readSample(read.body, sample).ok).toBe(false)
   })
 
   it.each([
@@ -84,11 +84,11 @@ describe('read-waiting', () => {
       },
     ],
   ])('refuses a succeeded body %s', (_label, sample) => {
-    expect(readSample(read.outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readSample(read.outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it('answers invalid with an empty body', () => {
     expect(expectRoundTrip(read.outcomes.invalid, {})).toEqual({})
-    expect(readSample(read.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
+    expect(readSample(read.outcomes.invalid, { reason: 'x' }).ok).toBe(false)
   })
 })

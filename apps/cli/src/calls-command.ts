@@ -1,4 +1,4 @@
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId, rejectionText } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { toolProtocol } from '@omne-harness/tool-protocol'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
@@ -12,6 +12,7 @@ import {
   usageError,
   type Option,
   type OwnerResolution,
+  refusedRequest,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -124,7 +125,7 @@ async function runShow(invocation: Invocation, output: CliOutput): Promise<ExitC
   const { name } = invocation
   const messageId = invocation.newId()
   const result = await readCall(invocation, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   if (invocation.values.has(JSON_SWITCH))
     return report(name, result, echoOf(invocation, messageId), output)
   const code = exitCodeOf(result)
@@ -149,6 +150,8 @@ function stopOf(what: string, result: CallResult): Stop {
   if (result.kind === 'uncertain') return { reason: `${what} had no trusted answer`, code }
   if (result.kind === 'unavailable')
     return { reason: `${what} was not sent: the service is unavailable`, code }
+  if (result.kind === 'rejected')
+    return { reason: `${what} was not sent: ${rejectionText(result.rejection)}`, code }
   return { reason: `${what} was answered ${result.outcome}`, code }
 }
 
@@ -202,7 +205,7 @@ async function referenceOf(
     { tenant: invocation.owner, session },
     invocation.newId(),
   )
-  if (result === undefined || result.kind !== 'response' || result.outcome !== 'succeeded')
+  if (result.kind !== 'response' || result.outcome !== 'succeeded')
     return {
       stop: stopOf(
         'the list of background calls',
@@ -223,7 +226,7 @@ async function resultVersion(invocation: Invocation): Promise<Version> {
   const given = invocation.values.get('--result')
   if (given !== undefined) return { version: given }
   const result = await readCall(invocation, invocation.newId())
-  if (result === undefined) return 'usage'
+  if (result.kind === 'rejected') return 'usage'
   if (result.kind !== 'response' || result.outcome !== 'succeeded')
     return stopOf('the call read', result)
   const version = (result.body as { call: CallView }).call.result
@@ -249,7 +252,7 @@ async function runOutputBody(
     { tenant: invocation.owner, reference, after },
     invocation.newId(),
   )
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   if (result.kind !== 'response' || result.outcome !== 'succeeded') {
     const stop = stopOf('the output read', result)
     return written(name, '', stop.code, output, stop.reason)
@@ -271,13 +274,13 @@ async function readPages(invocation: Invocation, version: string): Promise<Pages
   let text = ''
   let cursor: string | null = null
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result: CallResult | undefined = await invocation.link.call(
+    const result: CallResult = await invocation.link.call(
       toolProtocol,
       'read-call-result',
       { tenant: invocation.owner, reference, result: version, cursor },
       invocation.newId(),
     )
-    if (result === undefined) return 'usage'
+    if (result.kind === 'rejected') return 'usage'
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { text, stop: stopOf(`page ${page}`, result) }
     const body = result.body as { content: readonly Block[]; next: string | null }
@@ -335,13 +338,14 @@ async function runChildren(given: Invocation, output: CliOutput): Promise<ExitCo
   const items: Child[] = []
   let cursor: string | null = null
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result: CallResult | undefined = await given.link.call(
+    const result: CallResult = await given.link.call(
       toolProtocol,
       'list-call-children',
       { tenant: given.owner, reference: call.reference, cursor },
       given.newId(),
     )
-    if (result === undefined) return usageError(output, unrecognized(name))
+    if (result.kind === 'rejected')
+      return usageError(output, refusedRequest(name, result.rejection))
     if (result.kind !== 'response' || result.outcome !== 'succeeded') {
       const stop = stopOf(`page ${page}`, result)
       return written(name, page === 1 ? '' : childrenText(items), stop.code, output, stop.reason)
@@ -369,7 +373,8 @@ async function runSessionCall(
       { tenant, session },
       messageId,
     )
-    if (result === undefined) return usageError(output, unrecognized(name))
+    if (result.kind === 'rejected')
+      return usageError(output, refusedRequest(name, result.rejection))
     if (values.has(JSON_SWITCH)) return report(name, result, echoOf(invocation, messageId), output)
     const code = exitCodeOf(result)
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
@@ -401,7 +406,7 @@ async function runSessionCall(
           messageId,
         )
       : await link.call(sessionProtocol, 'background-call', body, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind === 'rejected') return usageError(output, refusedRequest(name, result.rejection))
   return report(name, result, echoOf(invocation, messageId, { controlId }), output)
 }
 

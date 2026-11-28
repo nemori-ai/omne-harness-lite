@@ -102,7 +102,9 @@ describe('what the client sends, by what it knows of the other end', () => {
 
   it('a value that does not fit the contract still throws, whatever the other end is at', async () => {
     const { client } = clientAt(1)
-    await expect(client['read']!({ id: 7 })).rejects.toThrow('does not fit the contract')
+    await expect(client['read']!({ id: 7 })).rejects.toThrow(
+      'drafts/v1/read: id is 7; allows a text that is not empty; not sent',
+    )
   })
 
   it('asks what the other end is at for every call: it can change while the client lives', async () => {

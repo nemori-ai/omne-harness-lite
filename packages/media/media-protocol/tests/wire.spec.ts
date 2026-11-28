@@ -110,7 +110,7 @@ describe('the bodies of media/v1 go to the wire and back unchanged', () => {
     ['read-media-page', { tenant, ref, offset: 0, limit: 10, target: { maxBytes: 1 } }],
     ['describe-media', { tenant, ref: { ...ref, bytes: 39458 } }],
   ] as const)('%s refuses a body outside its rule', (name, body) => {
-    expect(readSample(operations[name].body, body)).toEqual({ ok: false })
+    expect(readSample(operations[name].body, body).ok).toBe(false)
   })
 })
 
@@ -201,7 +201,7 @@ describe('the outcomes of media/v1 go to the wire and back unchanged', () => {
     ],
   ] as const)('%s %s refuses %j', (name, outcome, body) => {
     const outcomes = operations[name].outcomes as Record<string, unknown>
-    expect(readSample(outcomes[outcome] as never, body)).toEqual({ ok: false })
+    expect(readSample(outcomes[outcome] as never, body).ok).toBe(false)
   })
 })
 
@@ -221,7 +221,7 @@ describe('what preprocessing came to goes to the wire and back unchanged', () =>
     expectRoundTrip(observation.frame, { kind: 'changed' })
     expect(
       readSample(observation.frame, { kind: 'changed', preprocess: { kind: 'running' } }),
-    ).toEqual({ ok: false })
-    expect(readSample(observation.open, { tenant })).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
+    expect(readSample(observation.open, { tenant }).ok).toBe(false)
   })
 })

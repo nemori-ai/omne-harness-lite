@@ -150,7 +150,7 @@ async function read(
     const body = { ...asked.query, tenant: asked.tenant, cursor }
     const messageId = page === 1 ? ids.first : ids.newId()
     const result = await link.call(sessionProtocol, 'search-history', body, messageId)
-    if (result === undefined) return undefined
+    if (result.kind === 'rejected') return undefined
     if (result.kind !== 'response' || result.outcome !== 'succeeded')
       return { hits, last, stopped: result, pages: page }
     last = result.body as unknown as Page

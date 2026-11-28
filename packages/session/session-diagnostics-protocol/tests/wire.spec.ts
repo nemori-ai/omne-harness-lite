@@ -162,7 +162,7 @@ describe('read-session-diagnostics request body', () => {
     ['a session that is no session', { tenant, session: 'short', cursor: 'c' }],
     ['a field it does not have', { ...target, cursor: 'c', extra: 1 }],
   ])('refuses %s', (_label, sample) => {
-    expect(readSample(operation.body, sample)).toEqual({ ok: false })
+    expect(readSample(operation.body, sample).ok).toBe(false)
   })
 })
 
@@ -185,7 +185,7 @@ describe('read-session-diagnostics outcome bodies', () => {
     expectRoundTrip(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'unknown' }))
     expect(
       readSample(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'maybe' })),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 
   it('carries, from revision 2 on, the reasoning effort of each attempt and where it came from, or that it is not known', () => {
@@ -204,7 +204,7 @@ describe('read-session-diagnostics outcome bodies', () => {
       expectRoundTrip(answered, withAttempt({ ...attempt, effort }))
     expect(
       readSample(answered, withAttempt({ ...attempt, effort: { value: 'high', basis: 'guess' } })),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     const profile = {
       owner: 'model',
       name: 'anthropic/claude-sonnet-5',
@@ -259,7 +259,7 @@ describe('read-session-diagnostics outcome bodies', () => {
       }),
       withCall({ ...found, progress: { ...progress, made: 2 } }, attempt),
     ])
-      expect(readSample(operation.outcomes.succeeded, broken)).toEqual({ ok: false })
+      expect(readSample(operation.outcomes.succeeded, broken).ok).toBe(false)
   })
 
   it('round-trips a page of no runs and a run without a terminal', () => {
@@ -335,11 +335,11 @@ describe('read-session-diagnostics outcome bodies', () => {
     ],
     ['with a field it does not have', { ...page, extra: 1 }],
   ])('refuses a succeeded page %s', (_label, sample) => {
-    expect(readSample(operation.outcomes.succeeded, sample)).toEqual({ ok: false })
+    expect(readSample(operation.outcomes.succeeded, sample).ok).toBe(false)
   })
 
   it('writes an empty body for invalid and refuses a body with a member', () => {
     expect(expectRoundTrip(operation.outcomes.invalid, {})).toEqual({})
-    expect(readSample(operation.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
+    expect(readSample(operation.outcomes.invalid, { reason: 'x' }).ok).toBe(false)
   })
 })

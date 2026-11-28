@@ -1,7 +1,7 @@
 import type { Transport } from '@omne-harness/sdk/core'
 import type { LoginStateSource } from '@omne-harness/client-assembly/cordis'
 
-export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+export type LoginResult = 'signed-in' | 'auth-failed' | 'rejected' | 'unknown' | 'unavailable'
 
 export type LogoutResult = 'signed-out' | 'unknown'
 

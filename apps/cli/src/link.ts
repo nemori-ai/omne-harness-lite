@@ -1,3 +1,4 @@
+import type { Rejection } from '@omne-harness/public-contract'
 import {
   accessProtocol,
   type AvailabilityFrame,
@@ -19,6 +20,8 @@ export type CallResult =
   | { readonly kind: 'response'; readonly outcome: string; readonly body: unknown }
   | { readonly kind: 'uncertain' }
   | { readonly kind: 'unavailable'; readonly reason?: string }
+  /** The body did not fit the contract: nothing was sent. */
+  | { readonly kind: 'rejected'; readonly rejection: Rejection }
 
 export type Login = { readonly proof: string; readonly tenant: string }
 
@@ -26,13 +29,13 @@ export type WatchEnd = Readonly<{ kind: string; reason?: string; outcome?: strin
 
 export interface Link {
   readonly origin: string
-  /** Resolves to undefined when the body does not fit the contract: a usage error. */
+  /** Resolves to a refusal when the body does not fit the contract: a usage error that says why. */
   call<P extends ProtocolContract, K extends keyof P['operations'] & string>(
     protocol: P,
     operation: K,
     body: BodyOf<P['operations'][K]>,
     messageId: string,
-  ): Promise<CallResult | undefined>
+  ): Promise<CallResult>
   /** The frames of an observation as plain values, until it ends; the end is the return value. */
   observe<P extends ProtocolContract, K extends keyof P['observations'] & string>(
     protocol: P,
@@ -169,7 +172,8 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
       try {
         answer = await client[operation]!(body, { messageId })
       } catch (error) {
-        if (error instanceof ClientRequestError) return undefined
+        if (error instanceof ClientRequestError)
+          return { kind: 'rejected', rejection: error.rejection }
         throw error
       }
       if (answer.outcome === 'unavailable') return unavailable(protocol)

@@ -7,7 +7,12 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import type { JsonLimits } from '@omne-harness/json-text'
-import type { Codec, OperationContract } from '@omne-harness/public-contract'
+import {
+  withheld,
+  type Codec,
+  type CodecResult,
+  type OperationContract,
+} from '@omne-harness/public-contract'
 import type { Entered, Refusal } from '../registry/registry.ts'
 import { settleCall, systemClock, type SettledAnswer } from '../settle/settle.ts'
 import type { PipelineAccess, PipelineSettings } from './pipeline.ts'
@@ -57,12 +62,15 @@ function bodyOf(
   body: unknown,
   limits: JsonLimits,
   revision: number,
-): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+): CodecResult<unknown> {
   try {
     const wire = contract.body.write(body as never, limits, revision)
-    return wire.ok ? contract.body.read(wire.value, limits, revision) : { ok: false }
-  } catch {
-    return { ok: false }
+    return wire.ok ? contract.body.read(wire.value, limits, revision) : wire
+  } catch (thrown) {
+    return {
+      ok: false,
+      rejection: { at: [], given: 'a value that could not be written', allows: String(thrown) },
+    }
   }
 }
 
@@ -117,7 +125,9 @@ export function createInProcessCalls(
     const body = bodyOf(contract, call.body, limits, revision)
     if (!body.ok) {
       entered.leave()
-      return answered('protocol-rejected')
+      return answered('protocol-rejected', {
+        rejection: contract.carriesCredential === true ? withheld(body.rejection) : body.rejection,
+      })
     }
     const settled = await settleCall({
       entered,

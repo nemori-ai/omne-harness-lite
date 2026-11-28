@@ -1,7 +1,9 @@
 import {
   encodeTenantText,
   readTenantText,
+  rejectionText,
   ruleCodec,
+  type Rejection,
   type RuleValue,
   type TenantId,
 } from '@omne-harness/public-contract'
@@ -18,6 +20,11 @@ const serverRefused = 'omne: --server must be a loopback http address\n'
 const invalidLogin = 'omne: login state is invalid\n'
 
 export type Option = ReadonlyMap<string, string>
+
+/** A request this end could not write: it says where the value is wrong and what is allowed. Nothing was sent. */
+export function refusedRequest(command: string, rejection: Rejection): string {
+  return `omne ${command}: ${rejectionText(rejection)}; not sent\n${hint}`
+}
 
 export function unrecognized(command: string): string {
   return `omne ${command}: unrecognized arguments\n${hint}`

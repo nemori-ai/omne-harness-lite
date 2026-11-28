@@ -334,7 +334,7 @@ test('the login port is self-contained and states the client assembly login stat
     (listener: (state: ShellLoginState) => void) => () => void
   >()
   expectTypeOf<ShellLogin['login']>().returns.resolves.toEqualTypeOf<
-    'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+    'signed-in' | 'auth-failed' | 'rejected' | 'unknown' | 'unavailable'
   >()
 })
 

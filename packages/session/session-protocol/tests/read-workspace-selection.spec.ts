@@ -27,7 +27,7 @@ describe('read-workspace-selection', () => {
   it('names the session it reads, and nothing else', () => {
     expectRoundTrip(read.body, { tenant, session })
     for (const sample of [{ tenant }, { tenant, session, workspace }])
-      expect(readSample(read.body, sample)).toEqual({ ok: false })
+      expect(readSample(read.body, sample).ok).toBe(false)
   })
 
   it('answers the workspace the session stands at, and the directory and state of its working directory', () => {
@@ -65,6 +65,6 @@ describe('read-workspace-selection', () => {
       },
       { workspace: null, state: 'default', directory: null, reason: null },
     ])
-      expect(readSample(read.outcomes.succeeded, sample)).toEqual({ ok: false })
+      expect(readSample(read.outcomes.succeeded, sample).ok).toBe(false)
   })
 })

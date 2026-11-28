@@ -27,6 +27,11 @@ export const emptyCredential = 'omne: empty credential\n'
 export function commandUnrecognized(command: string): string {
   return `omne ${command}: unrecognized arguments\nRun omne --help for usage.\n`
 }
+
+/** A request the client could not write: the reason the contract gives, and nothing sent. */
+export function commandRefused(command: string, reason: string): string {
+  return commandUnrecognized(command).replace('unrecognized arguments', `${reason}; not sent`)
+}
 export function commandMissing(command: string, option: string): string {
   return `omne ${command}: missing ${option}\nRun omne --help for usage.\n`
 }

@@ -7,6 +7,7 @@ import {
   serverOption,
   unrecognized,
   usageError,
+  refusedRequest,
 } from './command-support.ts'
 import { treeOf, type JsonTree } from './json-tree.ts'
 import type { Link } from './link.ts'
@@ -224,6 +225,8 @@ async function runMcp(
   const messageId = environment.services.newId()
   const result = await callOf(invocation, loaded.tenant, loaded.link, messageId)
   if (result === undefined) return usageError(output, unrecognized(invocation.name))
+  if (result.kind === 'rejected')
+    return usageError(output, refusedRequest(invocation.name, result.rejection))
   const echo = { messageId, tenant: encodeTenantText(loaded.tenant) }
   const readable = result.kind === 'response' && result.outcome === 'succeeded'
   if (invocation.values.has(JSON_SWITCH) || !readable)

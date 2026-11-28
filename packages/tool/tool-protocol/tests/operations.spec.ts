@@ -47,8 +47,8 @@ describe('read-call', () => {
 
   it('names one call by its reference and answers its phase, relation, terminal, effect and controls', () => {
     expectRoundTrip(read.body, { tenant, reference })
-    expect(readSample(read.body, { tenant })).toEqual({ ok: false })
-    expect(readSample(read.body, { tenant, reference: '' })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant }).ok).toBe(false)
+    expect(readSample(read.body, { tenant, reference: '' }).ok).toBe(false)
     expectRoundTrip(read.outcomes.succeeded, { call })
     expectRoundTrip(read.outcomes.succeeded, {
       call: {
@@ -62,12 +62,12 @@ describe('read-call', () => {
     })
     expect(
       readSample(read.outcomes.succeeded, { call: { ...call, relation: 'detached' } }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
     expect(
       readSample(read.outcomes.succeeded, {
         call: { ...call, controls: [{ ...call.controls[0], progress: 'done' }] },
       }),
-    ).toEqual({ ok: false })
+    ).toMatchObject({ ok: false })
   })
 })
 
@@ -77,7 +77,7 @@ describe('read-call-result', () => {
   it('reads one result version a page at a time', () => {
     expectRoundTrip(read.body, { tenant, reference, result: 'tres_1', cursor: null })
     expectRoundTrip(read.body, { tenant, reference, result: 'tres_1', cursor: 'page-2' })
-    expect(readSample(read.body, { tenant, reference, cursor: null })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant, reference, cursor: null }).ok).toBe(false)
     expectRoundTrip(read.outcomes.succeeded, {
       result: 'tres_1',
       terminal: { kind: 'completed', detail: null },
@@ -96,7 +96,7 @@ describe('observe-call', () => {
     expectRoundTrip(observe.frame, { kind: 'snapshot', call, process: [] })
     expectRoundTrip(observe.frame, { kind: 'delta', call, process: [{ index: '0' }] })
     expectRoundTrip(observe.frame, { kind: 'gap' })
-    expect(readSample(observe.frame, { kind: 'refreshing' })).toEqual({ ok: false })
+    expect(readSample(observe.frame, { kind: 'refreshing' }).ok).toBe(false)
   })
 })
 
@@ -114,8 +114,8 @@ describe('list-call-children', () => {
   it('names the parent by its reference with a cursor that may be null', () => {
     expectRoundTrip(list.body, { tenant, reference, cursor: null })
     expectRoundTrip(list.body, { tenant, reference, cursor: '49' })
-    expect(readSample(list.body, { tenant, reference })).toEqual({ ok: false })
-    expect(readSample(list.body, { tenant, cursor: null })).toEqual({ ok: false })
+    expect(readSample(list.body, { tenant, reference }).ok).toBe(false)
+    expect(readSample(list.body, { tenant, cursor: null }).ok).toBe(false)
   })
 
   it('answers a page of positions: ordinal, tool, command, preview, one state word and the child reference', () => {
@@ -128,10 +128,10 @@ describe('list-call-children', () => {
       next: '3',
     })
     const page = (changed: object) => ({ items: [{ ...item, ...changed }], next: null })
-    expect(readSample(list.outcomes.succeeded, page({ state: 'paused' }))).toEqual({ ok: false })
-    expect(readSample(list.outcomes.succeeded, page({ ordinal: -1 }))).toEqual({ ok: false })
-    expect(readSample(list.outcomes.succeeded, page({ ordinal: 'one' }))).toEqual({ ok: false })
-    expect(readSample(list.outcomes.succeeded, page({ tool: '' }))).toEqual({ ok: false })
+    expect(readSample(list.outcomes.succeeded, page({ state: 'paused' })).ok).toBe(false)
+    expect(readSample(list.outcomes.succeeded, page({ ordinal: -1 })).ok).toBe(false)
+    expect(readSample(list.outcomes.succeeded, page({ ordinal: 'one' })).ok).toBe(false)
+    expect(readSample(list.outcomes.succeeded, page({ tool: '' })).ok).toBe(false)
   })
 
   it.each([

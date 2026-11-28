@@ -8,7 +8,9 @@ import {
   type AccessFixture,
 } from './support/access-kit.ts'
 
-const REJECTED = '{"outcome":"protocol-rejected","body":{}}'
+const rejected = (at: readonly (string | number)[], given: string, allows: string): string =>
+  JSON.stringify({ outcome: 'protocol-rejected', body: { rejection: { at, given, allows } } })
+const OVER = rejected([], 'a body past the limit', 'a body of at most 2048 bytes')
 const SIZE = 3000
 
 let fixture: AccessFixture
@@ -35,7 +37,7 @@ describe('the limit is the operation’s', () => {
 
     const over = await call(fixture.port, 'read-note', { body: small })
     expect(over.status).toBe(400)
-    expect(over.text).toBe(REJECTED)
+    expect(over.text).toBe(OVER)
     expect(over.headers.connection).toBe('close')
     expect(over.headers['omne-message-id']).toBe(MESSAGE_ID)
     expect(fixture.notes.calls).toEqual([])
@@ -63,7 +65,7 @@ describe('the limit is the operation’s', () => {
     )
     expect(reply).toMatch(/^HTTP\/1\.1 400 /)
     expect(reply).toMatch(/\r\nconnection: close\r\n/i)
-    expect(reply.endsWith(REJECTED)).toBe(true)
+    expect(reply.endsWith(OVER)).toBe(true)
     expect(fixture.notes.calls).toEqual([])
   })
 
@@ -71,21 +73,35 @@ describe('the limit is the operation’s', () => {
     const reply = await rawCall(fixture.port, '/api/notes/v1/read-note', rawHeaders(SIZE))
     expect(reply).toMatch(/^HTTP\/1\.1 400 /)
     expect(reply).toMatch(/\r\nconnection: close\r\n/i)
-    expect(reply.endsWith(REJECTED)).toBe(true)
+    expect(reply.endsWith(OVER)).toBe(true)
   })
 })
 
 describe('the strict read', () => {
+  const unread = (kind: string): string =>
+    rejected(
+      [],
+      `a body that does not read as JSON (${kind})`,
+      'one JSON text within the limits of this operation',
+    )
   it.each([
-    ['not JSON', '{"noteId":'],
-    ['a repeated key', '{"noteId":"a","noteId":"b"}'],
-    ['a field outside the contract', '{"noteId":"a","extra":1}'],
-    ['a field of the wrong type', '{"noteId":1}'],
-    ['no body', ''],
-  ])('%s is protocol-rejected with the connection kept', async (_case, body) => {
+    ['not JSON', '{"noteId":', unread('syntax')],
+    ['a repeated key', '{"noteId":"a","noteId":"b"}', unread('duplicate-key')],
+    [
+      'a field outside the contract',
+      '{"noteId":"a","extra":1}',
+      rejected(['extra'], '1', 'no field "extra" here: an object with the fields noteId'),
+    ],
+    [
+      'a field of the wrong type',
+      '{"noteId":1}',
+      rejected(['noteId'], '1', 'a text that is not empty'),
+    ],
+    ['no body', '', unread('empty')],
+  ])('%s is protocol-rejected with the connection kept and says why', async (_case, body, said) => {
     const reply = await call(fixture.port, 'read-note', { body })
     expect(reply.status).toBe(400)
-    expect(reply.text).toBe(REJECTED)
+    expect(reply.text).toBe(said)
     expect(reply.headers.connection).not.toBe('close')
     expect(reply.headers['omne-message-id']).toBe(MESSAGE_ID)
     expect(fixture.notes.calls).toEqual([])

@@ -94,7 +94,7 @@ HTTP 传输把两类失败认作没发出：连接建立之前就失败的（连
 | `stage-not-provided` | 本阶段或本部署不提供该操作             | 主体是否存在、登录是否有效                     |
 | `protocol-rejected`  | 消息不被接受，以及被拒的原因：在哪、给了什么、允许什么 | 任何业务事实 |
 
-五种结果的正文永远是空对象：`denied`、`basis-unavailable`、`unknown`、`uniform-auth-failure`、`stage-not-provided`。领域在类型上给不了它们字段。`protocol-rejected` 的正文是共同的拒绝 `{ rejection }`（见[协议契约与编解码](#协议契约与编解码)），由管道与客户端核心给出，领域同样给不了它字段。原因只说调用方自己送来的东西与公开的契约，不披露别的事实；正文读不出 JSON、超过上限、修订号头不合时，`at` 为空，`allows` 写那一条限度。
+五种结果的正文永远是空对象：`denied`、`basis-unavailable`、`unknown`、`uniform-auth-failure`、`stage-not-provided`。领域在类型上给不了它们字段。`protocol-rejected` 的正文是共同的拒绝 `{ rejection }`（见[协议契约与编解码](#协议契约与编解码)），由管道与客户端核心给出，领域同样给不了它字段。原因只说调用方自己送来的东西与公开的契约，不披露别的事实；正文读不出 JSON、超过上限、消息号或修订号头不合时，`at` 为空，`allows` 写那一条限度。带凭据的操作（`carriesCredential`）不写回给的值，`given` 写明扣下了：凭据只出现在请求里。契约里 `protocol-rejected` 仍记为固定结局（快照里是 `true`）：它的正文形状归共同契约，不归某一份协议，所以加原因不改任何协议的修订号。
 
 ### 拒绝一致与不披露
 
