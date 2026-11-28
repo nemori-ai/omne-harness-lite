@@ -408,6 +408,30 @@ describe('missed events, ends and the last subscriber (C304, C305)', () => {
     expect(await rowOf(made)).toMatchObject({ state: 'receiving' })
   })
 
+  it('an endpoint blocked or withdrawn while its stream is open ends the subscription at the next message, and that message is not kept', async () => {
+    for (const change of ['blocked', 'withdrawn'] as const) {
+      const made = arranged()
+      await made.services.subscriptions.subscribe(alice, desk, created)
+      await settle()
+      made.streams[0]?.send({ kind: 'event', event: eventOf('a'), cursor: 'c1' })
+      await settle()
+      if (change === 'blocked') made.w.eligibility.block(alice, desk, 'disabled')
+      else made.w.adoption.withdraw(home, desk)
+      made.streams[0]?.send({ kind: 'event', event: eventOf('b'), cursor: 'c2' })
+      await settle()
+      expect(await rowOf(made), change).toMatchObject({
+        state: 'terminated',
+        reason: 'unavailable',
+      })
+      expect(made.streams[0]?.signal.aborted, change).toBe(true)
+      const kept = await made.records.occurrences(KEY, 0, 10)
+      expect('ok' in kept && kept.ok.map(item => item.kind === 'event' && item.eventId)).toEqual([
+        'a',
+      ])
+      expect(made.streams, change).toHaveLength(1)
+    }
+  })
+
   it('an endpoint no longer adopted ends its subscriptions', async () => {
     const made = arranged()
     await made.services.subscriptions.subscribe(alice, desk, created)

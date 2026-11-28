@@ -6,6 +6,7 @@ import {
   type EndpointRef,
   type EventsConfig,
   type EventType,
+  type McpPorts,
   type Millis,
   type PeerAccount,
   type SubscribeFailure,
@@ -47,6 +48,21 @@ const keyText = (key: SubscriptionKey): string =>
     key.arguments,
   ])
 
+async function typesOf(store: McpPorts<unknown, unknown>['eventStore'], ensured: Ensured) {
+  if (store === undefined) return fail(UNKNOWN)
+  const read = await ask(() => store.read(ensured.catalogKey), fail('unavailable' as const))
+  return 'failure' in read ? fail(UNKNOWN) : succeed(read.ok)
+}
+
+async function allowedFor<P, S>(gate: UseGate<P, S>, receiver: Receiver<P>) {
+  const now = await admitForUse(gate, receiver.access, receiver.ref)
+  if ('ok' in now) return 'yes' as const
+  const { kind } = now.failure
+  return kind === 'not-available-to-you' || kind === 'blocked'
+    ? ('no' as const)
+    : ('unknown' as const)
+}
+
 /** How a subscription reaches its peer: the endpoint admitted for the person, its connection, its event type, its receiver. */
 export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P, S>) {
   const { ports, config, table, clock, changes, eventTypes, pause, timer } = deps
@@ -81,12 +97,7 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
     arguments: subscriptionArgumentsText(args),
   })
 
-  async function typesIn(ensured: Ensured) {
-    const store = ports.eventStore
-    if (store === undefined) return fail(UNKNOWN)
-    const read = await ask(() => store.read(ensured.catalogKey), fail('unavailable' as const))
-    return 'failure' in read ? fail(UNKNOWN) : succeed(read.ok)
-  }
+  const typesIn = (ensured: Ensured) => typesOf(ports.eventStore, ensured)
 
   async function ensureOn(
     admitted: AdmittedEndpoint,
@@ -145,7 +156,8 @@ export function createSubscriptionLinks<P, S>(deps: SubscriptionsDependencies<P,
       catalog.ok === 'absent' ? undefined : catalog.ok.types.find(each => each.name === key.name)
     if (type === undefined) return { kind: 'ended', reason: 'type-gone' }
     const refetch = () => eventTypes.publish(ensured.ok, receiver.access)
-    return { kind: 'ready', transport: wire.ok, type, refetch }
+    const allowed = () => allowedFor(gate, receiver)
+    return { kind: 'ready', transport: wire.ok, type, refetch, allowed }
   }
 
   /** A standing subscription is received by whoever touched it last; a restart takes it up again at the next touch. */

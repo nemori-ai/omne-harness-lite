@@ -19,7 +19,14 @@ import type { Pause } from './follow.ts'
 import { ask } from './port.ts'
 
 export type Ready =
-  | Readonly<{ kind: 'ready'; transport: McpTransport; type: EventType; refetch(): Promise<void> }>
+  | Readonly<{
+      kind: 'ready'
+      transport: McpTransport
+      type: EventType
+      refetch(): Promise<void>
+      /** Whether the endpoint may still be used now: asked before anything the peer sends is kept. */
+      allowed(): Promise<'yes' | 'no' | 'unknown'>
+    }>
   | Readonly<{ kind: 'waiting' }>
   | Readonly<{ kind: 'ended'; reason: TerminationReason }>
 
@@ -64,22 +71,28 @@ function refusedEnd(failure: TransportFailure, progressed: boolean): RunEnd {
 }
 
 /** Takes in what one open request brings: each batch is stored, with the position after it, before anyone hears of it. */
+type Stored = 'ok' | 'absent' | 'failed' | 'withdrawn'
+
 class Intake {
   progressed = false
   private last: string | null
   private readonly context: ReceiverContext
+  private readonly allowed: () => Promise<'yes' | 'no' | 'unknown'>
 
-  constructor(context: ReceiverContext, row: SubscriptionRow) {
+  constructor(
+    context: ReceiverContext,
+    row: SubscriptionRow,
+    allowed: () => Promise<'yes' | 'no' | 'unknown'>,
+  ) {
     this.context = context
     this.last = row.cursor
+    this.allowed = allowed
   }
 
-  async store(
-    events: readonly Occurrence[],
-    cursor: string | null,
-    gap: Gap,
-  ): Promise<'ok' | 'absent' | 'failed'> {
+  async store(events: readonly Occurrence[], cursor: string | null, gap: Gap): Promise<Stored> {
     const { context } = this
+    const allowed = await this.allowed().catch(() => 'unknown' as const)
+    if (allowed !== 'yes') return allowed === 'no' ? 'withdrawn' : 'failed'
     if (events.length === 0 && gap === null && (cursor === null || cursor === this.last))
       return 'ok'
     const at = context.clock.now().toISOString()
@@ -97,6 +110,15 @@ class Intake {
     return 'ok'
   }
 }
+
+const WITHDRAWN: RunEnd = { kind: 'terminated', reason: 'unavailable' }
+
+const endOf = (result: Exclude<Stored, 'ok'>, intake: Intake): RunEnd =>
+  result === 'absent'
+    ? STOPPED
+    : result === 'withdrawn'
+      ? WITHDRAWN
+      : { kind: 'broken', progressed: intake.progressed }
 
 function requestOf(type: EventType, row: SubscriptionRow): EventRequest {
   return {
@@ -132,10 +154,10 @@ async function streamed(
       if (!armed.signal.aborted) stop.abort()
     })
   }
-  const stored = async (outcome: Promise<'ok' | 'absent' | 'failed'>): Promise<void> => {
+  const stored = async (outcome: Promise<Stored>): Promise<void> => {
     const result = await outcome
     if (result === 'ok') return
-    ended = result === 'absent' ? STOPPED : { kind: 'broken', progressed: intake.progressed }
+    ended = endOf(result, intake)
     stop.abort()
   }
   const take = async (message: EventStreamMessage): Promise<void> => {
@@ -194,8 +216,7 @@ async function polled(
     const opened = answer.truncated ? 'peer-truncated' : gap
     gap = null
     const result = await intake.store(events, answer.cursor, opened)
-    if (result === 'absent') return STOPPED
-    if (result === 'failed') return { kind: 'broken', progressed: intake.progressed }
+    if (result !== 'ok') return endOf(result, intake)
     cursor = answer.cursor ?? cursor
     if (answer.hasMore) continue
     const wait = Number.isFinite(answer.nextPollMs) ? answer.nextPollMs : 0
@@ -256,14 +277,14 @@ export async function receive(context: ReceiverContext): Promise<void> {
     if (row.state === 'waiting') await marked(context, 'receiving', null)
     const first: Gap = row.cursor === null && (opened || !context.fresh) ? 'possibly-missed' : null
     opened = true
-    const intake = new Intake(context, row)
+    const intake = new Intake(context, row, ready.allowed)
     const request = requestOf(ready.type, row)
     const run = row.delivery === 'push' ? streamed : polled
     const end = await run(context, ready.transport, request, intake, first)
     if (end.kind === 'stopped') return
     if (end.kind === 'terminated') {
       await marked(context, 'terminated', end.reason)
-      if (end.reason !== 'refused') await ready.refetch()
+      if (end.reason === 'type-gone' || end.reason === 'schema-changed') await ready.refetch()
       return
     }
     if (end.kind === 'header-mismatch') await ready.refetch()

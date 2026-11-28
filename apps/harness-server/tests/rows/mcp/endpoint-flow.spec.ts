@@ -1390,3 +1390,115 @@ it(
     expect(exits).toEqual([0, 0])
   },
 )
+
+it(
+  'C304 C305 a subscription ends when its endpoint is disabled, keeping nothing the peer sends after; a peer that ends one because the type is gone has its kinds of events listed again',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const type = (name: string) => ({
+      name,
+      description: `${name} happened`,
+      delivery: ['push'],
+      inputSchema: { type: 'object' },
+      payloadSchema: { type: 'object' },
+    })
+    const peer = await modernPeer([ECHO], {
+      events: [type('incident.created'), type('deploy.done')],
+    })
+    peers.push(peer)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const mcp = createClient(
+          mcpProtocol,
+          protocolTransport(originOf(tree.port), savedCredentials(tree.home)),
+        )
+        const named = (event: string) => ({
+          tenant: w.tenant,
+          name: 'live',
+          event,
+          arguments: { kind: 'object', entries: [] } as never,
+        })
+        const read = (event: string) => mcp['read-events']({ ...named(event), after: 0, limit: 50 })
+        at('register, subscribe, and take one event in')
+        const holding = await registered(w, 'live')
+        await configured(w, 'live', 'target', peer.target, 'live-target')
+        await mcp['refresh-endpoint']({ tenant: w.tenant, name: 'live' })
+        expect(await mcp['subscribe-events'](named('incident.created'))).toMatchObject({
+          outcome: 'succeeded',
+        })
+        await settled(
+          tree,
+          'the stream to be open',
+          async () => peer.log.open(),
+          open => open === 1,
+        )
+        peer.log.emit('incident.created', { id: 1 })
+        await settled(
+          tree,
+          'the first event to be stored',
+          () => read('incident.created'),
+          answer => answer.outcome === 'succeeded' && answer.body.items.length === 1,
+        )
+        at('disable the endpoint: what the peer sends after is not kept, and the stream closes')
+        const off = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'live-off',
+          holding,
+          enabled: false,
+        })
+        expect(off).toMatchObject({ outcome: 'succeeded' })
+        peer.log.emit('incident.created', { id: 2 })
+        await settled(
+          tree,
+          'the stream to close',
+          async () => peer.log.open(),
+          open => open === 0,
+        )
+        const on = await w.assets['set-asset-enabled']({
+          tenant: w.tenant,
+          operation: 'live-on',
+          holding,
+          enabled: true,
+        })
+        expect(on).toMatchObject({ outcome: 'succeeded' })
+        const ended = await read('incident.created')
+        expect(ended).toMatchObject({
+          outcome: 'succeeded',
+          body: { subscription: { state: 'terminated', reason: 'unavailable' } },
+        })
+        expect(ended.outcome === 'succeeded' && ended.body.items.length).toBe(1)
+        at(
+          'the peer ends another because its type is gone: ended, and the kinds of events are listed again',
+        )
+        expect(await mcp['subscribe-events'](named('deploy.done'))).toMatchObject({
+          outcome: 'succeeded',
+        })
+        await settled(
+          tree,
+          'the stream to be open',
+          async () => peer.log.open(),
+          open => open === 1,
+        )
+        const listed = peer.asked.get('events/list') ?? 0
+        peer.log.terminate(-32023)
+        const gone = await settled(
+          tree,
+          'the subscription to be ended',
+          () => read('deploy.done'),
+          answer =>
+            answer.outcome === 'succeeded' && answer.body.subscription.state === 'terminated',
+        )
+        expect(gone).toMatchObject({ body: { subscription: { reason: 'type-gone' } } })
+        await settled(
+          tree,
+          'the kinds of events to be listed again',
+          async () => peer.asked.get('events/list') ?? 0,
+          count => count > listed,
+        )
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
