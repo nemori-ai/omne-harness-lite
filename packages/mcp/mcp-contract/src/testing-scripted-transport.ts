@@ -1,7 +1,11 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
-import { authorizationChallengeOf, startAuthorizationDiscovery } from './authorization.ts'
+import {
+  authorizationChallengeOf,
+  credentialRefusalOf,
+  startAuthorizationDiscovery,
+} from './authorization.ts'
 import type { Generation, TaskId } from './brands.ts'
 import {
   OFFERED_LEGACY_VERSION,
@@ -490,7 +494,7 @@ class ScriptedTransport implements McpTransport {
     if (credential !== undefined && this.authorized.has(entry.id) && !this.rejectionReported) {
       this.rejectionReported = true
       void Promise.resolve()
-        .then(() => credential.reportRejection())
+        .then(() => credential.reportRejection(credentialRefusalOf(headers['www-authenticate'])))
         .catch(() => undefined)
     }
     this.settle(entry, { wire: credentialRejectedAnswerOf(), headers })

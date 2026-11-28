@@ -1,9 +1,11 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { listFollowing, loadCatalog, loadTask, type SqlPort } from './rows.ts'
+import { loadClient, loadGrant, type GrantCells } from './rows-grants.ts'
+import { keptHoldings } from './rows-holdings.ts'
 import { HANDLER, PROTOCOL, READS, type ReadName, type TaskRowCells } from './schema.ts'
 
-type ReadRequest = Readonly<{ read: ReadName; key: never; tenant: string }>
+type ReadRequest = Readonly<{ read: ReadName; key: never; tenant: string; issuer: string }>
 
 const RUN: Record<ReadName, (port: SqlPort, request: ReadRequest) => unknown> = {
   readCatalog(port, request) {
@@ -15,6 +17,15 @@ const RUN: Record<ReadName, (port: SqlPort, request: ReadRequest) => unknown> = 
   },
   followingTasks(port, request) {
     return { ok: listFollowing(port, request.tenant) }
+  },
+  readGrant(port, request) {
+    return { ok: loadGrant(port, request.key as GrantCells) ?? 'absent' }
+  },
+  readClient(port, request) {
+    return { ok: loadClient(port, request.tenant, request.issuer) }
+  },
+  keptHoldings(port, request) {
+    return { ok: keptHoldings(port, request.tenant) }
   },
 }
 

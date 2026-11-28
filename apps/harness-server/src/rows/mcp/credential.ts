@@ -4,8 +4,13 @@ import {
   mcpEndpointGates,
   type CredentialBinding,
 } from '@omne-harness/mcp-contract'
-import type { CredentialUse, HttpCredentialHandle } from '@omne-harness/mcp-contract/provider'
-import { fail, succeed } from '@omne-harness/operation-result'
+import type {
+  CredentialFailure,
+  CredentialUse,
+  GrantKey,
+  HttpCredentialHandle,
+} from '@omne-harness/mcp-contract/provider'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SecretBindingKey,
   SecretCustodyManagement,
@@ -20,38 +25,56 @@ export const CREDENTIAL_ITEM = 'credential'
 export type CredentialCustody = Pick<SecretCustodyUse, 'use'> &
   Partial<Pick<SecretCustodyManagement, 'describe'>>
 
-/** Where the credential of one endpoint of one tenant is kept: the key its settings item is written under. */
-export function credentialKey(tenant: TenantId, endpoint: string): SecretBindingKey {
+/** Where a secret item of one endpoint of one tenant is kept: the key its settings item is written under. */
+export function endpointItemKey(
+  tenant: TenantId,
+  endpoint: string,
+  item: string,
+): SecretBindingKey {
   return holdingKey(
     { layer: 'tenant', tenant },
     {
       providerId: mcpEndpointGates.ownerId,
       definitionId: categoryCapabilityId(mcpEndpointGates.category, endpoint),
     },
-    CREDENTIAL_ITEM,
+    item,
   )
 }
 
-/** The binding adoption hands MCP: the holding the credential belongs to, and the endpoint's name. */
+export const credentialKey = (tenant: TenantId, endpoint: string): SecretBindingKey =>
+  endpointItemKey(tenant, endpoint, CREDENTIAL_ITEM)
+
+/** The binding adoption hands MCP: the holding the credential belongs to, the endpoint's name, and whether it is an OAuth grant. */
 export function credentialBinding(
   holding: string,
   endpoint: string,
+  kind: 'static' | 'oauth' = 'static',
 ): CredentialBinding | undefined {
-  const text = JSON.stringify([holding, endpoint])
+  const text = JSON.stringify(kind === 'oauth' ? [holding, endpoint, kind] : [holding, endpoint])
   return isCredentialBinding(text) ? text : undefined
 }
 
-function endpointOf(binding: CredentialBinding, holding: string): string | undefined {
+function boundOf(
+  binding: CredentialBinding,
+  holding: string,
+): Readonly<{ endpoint: string; oauth: boolean }> | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(binding)
   } catch {
     return undefined
   }
-  if (!Array.isArray(parsed) || parsed.length !== 2) return undefined
-  const [of, endpoint] = parsed as unknown[]
-  return of === holding && typeof endpoint === 'string' ? endpoint : undefined
+  if (!Array.isArray(parsed) || parsed.length < 2 || parsed.length > 3) return undefined
+  const [of, endpoint, kind] = parsed as unknown[]
+  if (of !== holding || typeof endpoint !== 'string') return undefined
+  if (parsed.length === 3 && kind !== 'oauth') return undefined
+  return { endpoint, oauth: parsed.length === 3 }
 }
+
+export type GrantUse = (
+  key: GrantKey,
+  target: string,
+) => Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
 
 function httpHandle(secret: string): HttpCredentialHandle {
   let usable = true
@@ -74,11 +97,21 @@ function httpHandle(secret: string): HttpCredentialHandle {
 // The custody is read at each acquisition: while it is away the answer is `unknown`.
 export function createCredentialUse(
   custody: () => CredentialCustody | undefined,
+  grants?: GrantUse,
 ): CredentialUse<unknown> {
   return {
-    async acquire(access, holding, _purpose, binding) {
-      const endpoint = endpointOf(binding, holding)
-      if (endpoint === undefined) return fail('missing')
+    async acquire(access, holding, purpose, binding) {
+      const bound = boundOf(binding, holding)
+      if (bound === undefined) return fail('missing')
+      const { endpoint } = bound
+      if (bound.oauth) {
+        if (grants === undefined) return fail('missing')
+        try {
+          return await grants({ tenant: access.tenant, holding, endpoint }, purpose.target)
+        } catch {
+          return fail('unknown')
+        }
+      }
       const store = custody()
       if (store === undefined) return fail('unknown')
       let used: ReturnType<SecretCustodyUse['use']>

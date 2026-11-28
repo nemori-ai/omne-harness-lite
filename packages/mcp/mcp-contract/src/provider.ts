@@ -7,6 +7,7 @@ export type {
   CredentialFailure,
   CredentialUse,
   EligibilityVerdict,
+  CredentialRefusal,
   HttpCredentialHandle,
   HttpPurpose,
   TaskRecords,
@@ -29,3 +30,24 @@ export type {
   TransportMaterial,
   WithheldReason,
 } from './transport.ts'
+export type {
+  AuthorizationRecords,
+  CallbackReceiver,
+  ConnectInput,
+  ConnectRefusal,
+  GrantConnector,
+  GrantStanding,
+  ClientAuthMethod,
+  ClientRegistration,
+  GrantFacts,
+  GrantKey,
+  GrantSecrets,
+  GrantState,
+  OAuthAnswer,
+  OAuthBody,
+  OAuthFetch,
+  PendingAuthorization,
+  RegistrationWay,
+  SecretSlot,
+} from './grant.ts'
+export type { HoldingRows, KeptHolding } from './holdings.ts'

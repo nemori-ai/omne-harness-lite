@@ -1,20 +1,28 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  AuthorizationRecordsService,
   CatalogStoreService,
   ContinuationRecordsService,
+  HoldingRowsService,
+  mcpAuthorizationRecordsKey,
   mcpCatalogStoreKey,
   mcpContinuationRecordsKey,
+  mcpHoldingRowsKey,
   mcpTaskRecordsKey,
   TaskRecordsService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import type {
+  AuthorizationRecords,
   CatalogStore,
   ContinuationRecords,
+  HoldingRows,
   TaskRecords,
 } from '@omne-harness/mcp-contract/provider'
 import {
+  createSqlAuthorizationRecords,
   createSqlCatalogStore,
   createSqlContinuationRecords,
+  createSqlHoldingRows,
   createSqlTaskRecords,
   mcpStoreParticipant,
   type McpSqlOptions,
@@ -94,11 +102,44 @@ class SqlContinuationRecords extends ContinuationRecordsService {
   }
 }
 
+/** The OAuth grants of MCP in the storage domain of their tenant; the tokens are not here. */
+class SqlAuthorizationRecords extends AuthorizationRecordsService {
+  declare readonly begin: AuthorizationRecords['begin']
+  declare readonly take: AuthorizationRecords['take']
+  declare readonly void: AuthorizationRecords['void']
+  declare readonly read: AuthorizationRecords['read']
+  declare readonly write: AuthorizationRecords['write']
+  declare readonly remove: AuthorizationRecords['remove']
+  declare readonly registration: AuthorizationRecords['registration']
+  declare readonly register: AuthorizationRecords['register']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlAuthorizationRecords(sqlOptions(ctx)))
+  }
+}
+
+class SqlHoldingRows extends HoldingRowsService {
+  declare readonly kept: HoldingRows['kept']
+  declare readonly forget: HoldingRows['forget']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    Object.assign(this, createSqlHoldingRows(sqlOptions(ctx)))
+  }
+}
+
 export const mcpStorageSqlRow = defineRow({
   row: 'mcp-storage-sql',
   implementation: 'real',
   manifest: {
-    provides: [mcpCatalogStoreKey, mcpContinuationRecordsKey, mcpTaskRecordsKey],
+    provides: [
+      mcpCatalogStoreKey,
+      mcpContinuationRecordsKey,
+      mcpTaskRecordsKey,
+      mcpAuthorizationRecordsKey,
+      mcpHoldingRowsKey,
+    ],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: null,
   },
@@ -110,6 +151,8 @@ export const mcpStorageSqlRow = defineRow({
       new SqlCatalogStore(ctx)
       new SqlContinuationRecords(ctx)
       new SqlTaskRecords(ctx)
+      new SqlAuthorizationRecords(ctx)
+      new SqlHoldingRows(ctx)
     },
   },
 })

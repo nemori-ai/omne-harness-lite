@@ -117,6 +117,7 @@
     "@omne-harness/loop-extension-host-local": "workspace:*",
     "@omne-harness/mcp": "workspace:*",
     "@omne-harness/mcp-access": "workspace:*",
+    "@omne-harness/mcp-authorization": "workspace:*",
     "@omne-harness/mcp-bridge": "workspace:*",
     "@omne-harness/mcp-contract": "workspace:*",
     "@omne-harness/mcp-cordis-contract": "workspace:*",

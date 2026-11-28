@@ -3,6 +3,7 @@ import { createMcp } from '@omne-harness/mcp'
 import type {
   ActionDiscovery,
   ActionInvoker,
+  EndpointConnect,
   EndpointStatus,
   McpConfig,
   McpPorts,
@@ -11,9 +12,11 @@ import type {
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CallbackReceiver,
   CatalogStore,
   CredentialFailure,
   CredentialUse,
+  GrantConnector,
   HttpCredentialHandle,
   HttpPurpose,
   TaskRecords,
@@ -22,9 +25,12 @@ import type {
 import {
   ActionDiscoveryService,
   ActionInvokerService,
+  EndpointConnectService,
   EndpointStatusService,
   TaskWatchService,
   mcpAdoptionViewKey,
+  mcpCallbackReceiverKey,
+  mcpGrantConnectorKey,
   mcpCatalogStoreKey,
   mcpTaskRecordsKey,
   mcpCredentialUseKey,
@@ -46,13 +52,19 @@ export type McpPluginParts = Readonly<
     Pick<LocalTransportOptions, 'fetch'>
 >
 
+export type OAuthPluginConfig = Readonly<{
+  pendingMs: number
+  requestMs: number
+  metadataDocument: string | null
+}>
+
 export type McpPluginConfig = Readonly<
-  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch'> &
-    Omit<LocalTransportOptions, 'fetch'> & { taskWatch: TaskWatchConfig }
+  Omit<McpConfig<unknown>, 'principalKey' | 'taskWatch' | 'oauth'> &
+    Omit<LocalTransportOptions, 'fetch'> & { taskWatch: TaskWatchConfig; oauth: OAuthPluginConfig }
 >
 
 type ClientInfo = McpPluginConfig['clientInfo']
-type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch'>
+type Bounds = Omit<McpPluginConfig, 'clientInfo' | 'taskWatch' | 'oauth'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
 const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
@@ -62,6 +74,12 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxLongRequests: true,
   clientInfo: true,
   taskWatch: true,
+  oauth: true,
+}
+const OAUTH_FIELDS: Readonly<Record<keyof OAuthPluginConfig, true>> = {
+  pendingMs: true,
+  requestMs: true,
+  metadataDocument: true,
 }
 const TASK_WATCH_FIELDS: Readonly<Record<keyof TaskWatchConfig, true>> = {
   pollFloorMs: true,
@@ -118,6 +136,18 @@ function taskWatchOf(value: unknown): TaskWatchConfig | string {
   return { pollFloorMs, backoffCapMs }
 }
 
+function oauthOf(value: unknown): OAuthPluginConfig | string {
+  if (!isPlainRecord(value)) return 'oauth must be an object'
+  const fields = fieldsIssue(value, OAUTH_FIELDS, 'oauth')
+  if (fields !== undefined) return fields
+  const { pendingMs, requestMs, metadataDocument } = value
+  if (typeof pendingMs !== 'number') return 'oauth.pendingMs must be a number'
+  if (typeof requestMs !== 'number') return 'oauth.requestMs must be a number'
+  if (metadataDocument !== null && typeof metadataDocument !== 'string')
+    return 'oauth.metadataDocument must be a text or null'
+  return { pendingMs, requestMs, metadataDocument }
+}
+
 function issue(message: string): ConfigResult {
   return { issues: [{ message }] }
 }
@@ -136,7 +166,9 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
       if (typeof clientInfo === 'string') return issue(clientInfo)
       const taskWatch = taskWatchOf(value['taskWatch'])
       if (typeof taskWatch === 'string') return issue(taskWatch)
-      return { value: { ...bounds, clientInfo, taskWatch } }
+      const oauth = oauthOf(value['oauth'])
+      if (typeof oauth === 'string') return issue(oauth)
+      return { value: { ...bounds, clientInfo, taskWatch, oauth } }
     },
   },
 }
@@ -280,6 +312,33 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
   }
 }
 
+class HostEndpointConnect extends EndpointConnectService<unknown> {
+  readonly begin: EndpointConnect<unknown>['begin']
+  readonly disconnect: EndpointConnect<unknown>['disconnect']
+  constructor(ctx: Context, connect: EndpointConnect<unknown>) {
+    super(ctx)
+    this.begin = (...args) => connect.begin(...args)
+    this.disconnect = (...args) => connect.disconnect(...args)
+  }
+}
+
+// Read at each call: a connector or a receiver that is away answers unavailable.
+function grantsOf(ctx: Context): GrantConnector {
+  const away = () => Promise.resolve(fail('unavailable' as const))
+  return {
+    begin: input => ctx.get(mcpGrantConnectorKey)?.begin(input) ?? away(),
+    disconnect: key => ctx.get(mcpGrantConnectorKey)?.disconnect(key) ?? away(),
+    standing: key => ctx.get(mcpGrantConnectorKey)?.standing(key) ?? away(),
+  }
+}
+
+function callbacksOf(ctx: Context): CallbackReceiver {
+  return {
+    open: until =>
+      ctx.get(mcpCallbackReceiverKey)?.open(until) ?? Promise.resolve(fail('unavailable' as const)),
+  }
+}
+
 export function createMcpPlugin(parts: McpPluginParts) {
   return definePlugin<McpPluginConfig>({
     name: 'mcp',
@@ -291,6 +350,8 @@ export function createMcpPlugin(parts: McpPluginParts) {
         credentials: credentialsOf(ctx),
         store: storeOf(ctx),
         tasks: tasksOf(ctx),
+        grants: grantsOf(ctx),
+        callbacks: callbacksOf(ctx),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
           maxLongRequests: config.maxLongRequests,
@@ -305,6 +366,13 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
         taskWatch: config.taskWatch,
+        oauth: {
+          pendingMs: config.oauth.pendingMs,
+          requestMs: config.oauth.requestMs,
+          ...(config.oauth.metadataDocument === null
+            ? {}
+            : { metadataDocument: config.oauth.metadataDocument }),
+        },
       })
       ctx.effect(
         () => async () => {
@@ -315,6 +383,7 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostActionDiscovery(ctx, services.discovery)
       new HostActionInvoker(ctx, services.invoker)
       new HostEndpointStatus(ctx, services.status)
+      new HostEndpointConnect(ctx, services.connect)
       if (services.tasks !== undefined) new HostTaskWatch(ctx, services.tasks)
     },
   })

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { SECRET_TEXT_MAX_LENGTH, parseSecretText } from '../src/secrets.ts'
+import {
+  CUSTODIAN_SECRET_MAX_LENGTH,
+  SECRET_TEXT_MAX_LENGTH,
+  parseSecretText,
+} from '../src/secrets.ts'
 
 describe('parseSecretText', () => {
   it.each([
@@ -20,6 +24,15 @@ describe('parseSecretText', () => {
     const limit = 'k'.repeat(SECRET_TEXT_MAX_LENGTH)
     expect(parseSecretText(`  ${limit}  `)).toEqual({ ok: true, value: limit })
     expect(parseSecretText(`${limit}k`)).toEqual({ ok: false, reason: 'too-long' })
+  })
+
+  it('a trusted custodian may declare a larger bound for its own purpose; it stays a bound', () => {
+    const token = 'k'.repeat(SECRET_TEXT_MAX_LENGTH + 1)
+    expect(parseSecretText(token)).toEqual({ ok: false, reason: 'too-long' })
+    expect(parseSecretText(token, 16_384)).toEqual({ ok: true, value: token })
+    expect(parseSecretText('k'.repeat(16_385), 16_384)).toEqual({ ok: false, reason: 'too-long' })
+    expect(() => parseSecretText('k', CUSTODIAN_SECRET_MAX_LENGTH + 1)).toThrow(RangeError)
+    expect(() => parseSecretText('k', 0)).toThrow(RangeError)
   })
 
   it('keeps a legal input without the whitespace around it, and nothing else changes', () => {

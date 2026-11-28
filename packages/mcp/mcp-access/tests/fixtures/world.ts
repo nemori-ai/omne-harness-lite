@@ -62,6 +62,9 @@ export const loginIdentity = (login: FixtureLogin): LoginIdentity =>
 type Status = Awaited<ReturnType<McpFaces['status']['inspect']>>
 type Current = Awaited<ReturnType<McpFaces['discovery']['current']>>
 type Refreshed = Awaited<ReturnType<McpFaces['discovery']['refresh']>>
+type Connect = NonNullable<McpFaces['connect']>
+type Begun = Awaited<ReturnType<Connect['begin']>>
+type Ended = Awaited<ReturnType<Connect['disconnect']>>
 
 /** What the faces say of one endpoint; a function is a call that throws or answers when asked. */
 export type EndpointScript = {
@@ -70,6 +73,8 @@ export type EndpointScript = {
   status?: Status | (() => Status)
   current?: Current | (() => Current)
   refresh?: Refreshed | (() => Refreshed)
+  begin?: Begun | (() => Begun)
+  disconnect?: Ended | (() => Ended)
 }
 
 export const readyStatus = (ref: EndpointRef, fields: Partial<EndpointStatusView> = {}): Status =>
@@ -126,7 +131,9 @@ export const SECRET = 'sk-live-0123456789-secret'
 
 export const ref = (name: string): EndpointRef => endpointRefOf(name)
 
-export type WorldOptions = Readonly<{ faces?: boolean }>
+export type WorldOptions = Readonly<{ faces?: boolean; connect?: boolean }>
+
+export const BEGUN_AT = 1_800_000_000_000
 
 export function createWorld(options: WorldOptions = {}) {
   const authority = inProcessPrincipalAuthority()
@@ -246,6 +253,35 @@ export function createWorld(options: WorldOptions = {}) {
         return run(scriptOf(access.tenant, request.ref.name)?.refresh, published)
       },
     },
+    ...(options.connect === false
+      ? {}
+      : {
+          connect: {
+            async begin(access, endpointRef) {
+              seen.push({
+                op: 'begin',
+                principal: access.principal,
+                tenant: access.tenant,
+                name: endpointRef.name,
+              })
+              const begun: Begun = succeed({
+                url: 'https://auth.example/authorize?s=1',
+                expiresAt: BEGUN_AT,
+              })
+              return run(scriptOf(access.tenant, endpointRef.name)?.begin, begun)
+            },
+            async disconnect(access, endpointRef) {
+              seen.push({
+                op: 'disconnect',
+                principal: access.principal,
+                tenant: access.tenant,
+                name: endpointRef.name,
+              })
+              const ended: Ended = succeed('disconnected')
+              return run(scriptOf(access.tenant, endpointRef.name)?.disconnect, ended)
+            },
+          },
+        }),
   }
 
   const contribution = createMcpContribution({
@@ -308,6 +344,10 @@ export function createWorld(options: WorldOptions = {}) {
       contribution.operations['read-endpoint'](callOf(login), { tenant: target.tenant, name }),
     refresh: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
       contribution.operations['refresh-endpoint'](callOf(login), { tenant: target.tenant, name }),
+    begin: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['begin-connect'](callOf(login), { tenant: target.tenant, name }),
+    disconnect: (login: FixtureLogin, name: string, target: FixtureLogin = login) =>
+      contribution.operations['disconnect'](callOf(login), { tenant: target.tenant, name }),
   }
 }
 

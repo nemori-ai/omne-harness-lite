@@ -33,11 +33,13 @@ export type McpSqlOptions = Readonly<{
   bind(tenant: string): Promise<TenantBinding | null>
 }>
 
-type Committed = Readonly<{ kind: 'answer'; response: unknown }> | Readonly<{ kind: 'unknown' }>
+export type Committed =
+  | Readonly<{ kind: 'answer'; response: unknown }>
+  | Readonly<{ kind: 'unknown' }>
 
-const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue
+export const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue
 
-function tenantText(key: Pick<CatalogKey, 'tenant'>): string {
+export function tenantText(key: Pick<CatalogKey, 'tenant'>): string {
   const encoded = tenantCodec.encode(key.tenant)
   if (!encoded.ok) throw new TypeError('the tenant did not come from legal-identity')
   return encoded.value
@@ -64,7 +66,7 @@ const taskCellsOf = (key: TaskRowKey): TaskRowCells => ({
 
 const scopeOf = (tenant: string) => ({ kind: 'tenant', tenant }) as const
 
-function committer(options: McpSqlOptions) {
+export function committer(options: McpSqlOptions) {
   return async function commit(
     tenant: string,
     script: ScriptName,
@@ -113,7 +115,7 @@ export function createSqlContinuationRecords(options: McpSqlOptions): Continuati
   }
 }
 
-function reader(options: McpSqlOptions) {
+export function reader(options: McpSqlOptions) {
   return async function read(
     tenant: string,
     name: ReadName,

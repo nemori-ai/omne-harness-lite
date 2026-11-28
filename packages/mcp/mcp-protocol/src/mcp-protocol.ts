@@ -35,6 +35,7 @@ const endpoint = object({
     optional: true,
     since: 2,
   },
+  connect: { rule: literal('available', 'connecting'), optional: true, since: 3 },
   use: {
     rule: oneOf(
       object({ kind: { rule: literal('usable') } }),
@@ -59,9 +60,33 @@ const action = object({
 const ofTenant = { tenant: { rule: tenant } } as const
 const ofEndpoint = { ...ofTenant, name: { rule: text } } as const
 const notVisible = ruleCodec(object({}))
+const notOAuth = ruleCodec(object({ reason: { rule: literal('not-oauth') } }))
+
+/** Why a connection could not be begun; the text is the server's sentence for the person. */
+const notBegun = ruleCodec(
+  object({
+    reason: {
+      rule: literal(
+        'disabled',
+        'target-missing',
+        'target-invalid',
+        'client-id-invalid',
+        'no-resource-metadata',
+        'no-authorization-server',
+        'issuer-mismatch',
+        'no-pkce',
+        'insecure-endpoint',
+        'malformed',
+        'no-registration',
+        'registration-refused',
+      ),
+    },
+    text: { rule: anyText },
+  }),
+)
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
-/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes. */
+/** mcp/v1. A person sees how each MCP endpoint of the tenant stands, reads one with its actions, and asks it to fetch its actions again; revision 2 adds the state of the credential and the observation of changes; revision 3 connects and disconnects an OAuth endpoint, and what became of an unknown answer to either is read with `read-endpoint`. */
 export const mcpProtocol = defineProtocol({
   name: 'mcp',
   major: 1,
@@ -95,6 +120,31 @@ export const mcpProtocol = defineProtocol({
         ),
         'not-visible': notVisible,
       },
+    },
+    'begin-connect': {
+      ...read,
+      effect: 'commit',
+      body: ruleCodec(object(ofEndpoint)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ url: { rule: anyText }, expiresAt: { rule: { kind: 'instant' } } }),
+        ),
+        'not-visible': notVisible,
+        unsupported: notOAuth,
+        'not-committed': notBegun,
+      },
+      since: 3,
+    },
+    disconnect: {
+      ...read,
+      effect: 'commit',
+      body: ruleCodec(object(ofEndpoint)),
+      outcomes: {
+        succeeded: ruleCodec(object({ disconnected: { rule: literal('disconnected') } })),
+        'not-visible': notVisible,
+        unsupported: notOAuth,
+      },
+      since: 3,
     },
   },
   observations: {

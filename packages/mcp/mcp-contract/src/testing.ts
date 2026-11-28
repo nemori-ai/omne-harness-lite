@@ -44,6 +44,16 @@ export {
   type TaskRecordsFixture,
 } from './testing-tasks.ts'
 export {
+  createMemoryAuthorizationRecords,
+  createMemoryGrantSecrets,
+  mcpAuthorizationRecordsConformance,
+  sampleGrant,
+  samplePending,
+  type AuthorizationRecordsFixture,
+  type MemoryAuthorizationRecords,
+  type MemoryGrantSecrets,
+} from './testing-grants.ts'
+export {
   actionNameOf,
   adoptionRevisionOf,
   connectionTargetOf,

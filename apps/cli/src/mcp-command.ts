@@ -14,10 +14,18 @@ import { report } from './report.ts'
 import { splitArguments } from './split-arguments.ts'
 
 const JSON_SWITCH = '--json'
+const NO_WAIT_SWITCH = '--no-wait'
+const POLL_MS = 500
 
-type Action = 'list' | 'show' | 'refresh'
+type Action = 'list' | 'show' | 'refresh' | 'connect' | 'disconnect'
 
-const WORDS: Readonly<Record<Action, number>> = { list: 0, show: 1, refresh: 1 }
+const WORDS: Readonly<Record<Action, number>> = {
+  list: 0,
+  show: 1,
+  refresh: 1,
+  connect: 1,
+  disconnect: 1,
+}
 
 const isAction = (value: string | undefined): value is Action =>
   value !== undefined && Object.hasOwn(WORDS, value)
@@ -27,6 +35,7 @@ type Endpoint = Readonly<{
   connection: Readonly<{ state: string; reason: string | null }>
   credential: string
   credentialState?: string
+  connect?: string
   use: Readonly<{ kind: string; reason?: string }>
   catalog: Readonly<{ kind: string; actions?: number; reason?: string | null }>
 }>
@@ -54,7 +63,9 @@ function table(rows: readonly (readonly string[])[]): string {
 const credentialOf = ({ name, credential, credentialState }: Endpoint) =>
   credentialState === 'rejected'
     ? `rejected (set the right one: omne setting set mcp:${name} credential)`
-    : (credentialState ?? credential)
+    : credentialState === 'reconnect-required'
+      ? `reconnect-required (connect again: omne mcp connect ${name})`
+      : (credentialState ?? credential)
 
 const connectionOf = ({ state, reason }: Endpoint['connection']) =>
   reason === null ? state : `${state} (${reason})`
@@ -101,6 +112,9 @@ const RENDER = {
     const { refreshed, reason } = body as { refreshed: string; reason: string | null }
     return `${refreshed}${reason === null ? '' : `: ${reason}`}\n`
   },
+  connect: (body: unknown) =>
+    `Open this address in a browser and consent:\n${(body as { url: string }).url}\n`,
+  disconnect: () => 'disconnected\n',
 }
 
 type Invocation = Readonly<{
@@ -115,7 +129,7 @@ function readInvocation(action: Action, rest: readonly string[]): Invocation | s
   const { words, options } = splitArguments(rest, [serverOption])
   const read = readOptions(options, {
     accepted: [serverOption],
-    switches: [JSON_SWITCH],
+    switches: action === 'connect' ? [JSON_SWITCH, NO_WAIT_SWITCH] : [JSON_SWITCH],
     required: [],
   })
   if (read.kind === 'unrecognized' || words.length > WORDS[action]) return unrecognized(name)
@@ -142,7 +156,41 @@ async function runMcp(
   const readable = result.kind === 'response' && result.outcome === 'succeeded'
   if (invocation.values.has(JSON_SWITCH) || !readable)
     return report(invocation.name, result, echo, output)
-  return printed(invocation, result.body, output)
+  const shown = printed(invocation, result.body, output)
+  if (invocation.action !== 'connect' || shown !== 0 || invocation.values.has(NO_WAIT_SWITCH))
+    return shown
+  const until = Date.parse(String((result.body as { expiresAt: unknown }).expiresAt))
+  return waitConnected(invocation, loaded.tenant, loaded.link, until, environment, output)
+}
+
+type Reading = Readonly<{ kind: string; outcome?: string; body?: unknown }>
+
+/** Until the person consented or the connection was given up: connected when the credential is there, else not. */
+async function waitConnected(
+  invocation: Invocation,
+  tenant: TenantId,
+  link: Link,
+  until: number,
+  environment: CommandEnvironment,
+  output: CliOutput,
+): Promise<ExitCode> {
+  const name = invocation.word ?? ''
+  while (
+    /* wall-clock: operation-timing -- wait for the consent until the connection is given up. */ Date.now() <
+    until
+  ) {
+    await new Promise(resolve => setTimeout(resolve, POLL_MS))
+    const id = environment.services.newId()
+    const read = (await link.call(mcpProtocol, 'read-endpoint', { tenant, name }, id)) as Reading
+    if (read.kind !== 'response' || read.outcome !== 'succeeded') continue
+    const { endpoint } = read.body as { endpoint: Endpoint }
+    if (endpoint.connect === 'connecting') continue
+    const connected = endpoint.credentialState === 'present'
+    output.stdout(connected ? 'connected\n' : 'not connected\n')
+    return connected ? 0 : 3
+  }
+  output.stdout('not connected: the consent did not come back in time\n')
+  return 3
 }
 
 function printed(invocation: Invocation, body: unknown, output: CliOutput): ExitCode {
@@ -166,13 +214,17 @@ function callOf(invocation: Invocation, tenant: TenantId, link: Link, messageId:
       return link.call(mcpProtocol, 'read-endpoint', { tenant, name }, messageId)
     case 'refresh':
       return link.call(mcpProtocol, 'refresh-endpoint', { tenant, name }, messageId)
+    case 'connect':
+      return link.call(mcpProtocol, 'begin-connect', { tenant, name }, messageId)
+    case 'disconnect':
+      return link.call(mcpProtocol, 'disconnect', { tenant, name }, messageId)
   }
 }
 
 export const mcpCommand: CommandSpec = {
   name: 'mcp',
-  usage: 'list|show|refresh',
+  usage: 'list|show|refresh|connect|disconnect',
   summary:
-    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), or fetch the actions of one again (refresh <name>).',
+    'Show how each MCP endpoint of the acting tenant stands (list), show one with its actions (show <name>), fetch the actions of one again (refresh <name>), connect an OAuth endpoint in a browser and wait until it is connected (connect <name> [--no-wait]), or end that connection (disconnect <name>).',
   run: runMcp,
 }

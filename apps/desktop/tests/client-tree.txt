@@ -409,6 +409,8 @@ system
           mcp-ui#1  [effective]
         mcp.endpoint.actions
           mcp-ui#1  [effective]
+        mcp.endpoint.connect
+          mcp-ui#1  [effective]
         mcp.endpoint.permission
           mcp-ui#1  [effective]
         mcp.endpoint.status

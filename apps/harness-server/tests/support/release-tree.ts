@@ -755,6 +755,8 @@ export type ReleaseTree = Readonly<{
   hitl: ToolHitlHolder
   toolRuntime(): ReleaseToolRuntime
   records: readonly S0Record[]
+  /** What the server wrote to its standard error so far. */
+  serverOutput(): readonly string[]
   /** The authorization header of each request the model gateway received, in order. */
   modelAuthorizations(): readonly (string | null)[]
   cli(args: readonly string[], credential?: string): ReturnType<typeof runOmne>
@@ -1114,6 +1116,7 @@ async function serveOnce(
       hitl,
       toolRuntime,
       records,
+      serverOutput: () => serverErrors,
       modelAuthorizations: state.modelAuthorizations,
       cli,
       relogin,

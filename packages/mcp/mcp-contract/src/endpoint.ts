@@ -55,14 +55,19 @@ export function parseEndpointBody(
 
 const TARGET = 'setting:placement-identity:target'
 const CREDENTIAL = 'setting:placement-identity:credential'
+const CLIENT_ID = 'setting:placement-identity:client-id'
+const CLIENT_SECRET = 'setting:placement-identity:client-secret'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
 /** The setting by which the holder opens the actions of an endpoint to programs. */
 export const PROGRAM_CALLS_SETTING = 'program-calls'
 const PROGRAM_CALLS = `setting:preference:${PROGRAM_CALLS_SETTING}`
 
+// Static and OAuth share one set of items, so a body that changes between them keeps what was set.
+const CREDENTIALED = [CREDENTIAL, CLIENT_ID, CLIENT_SECRET]
+const AUTH_DECLARATIONS = { none: [], static: CREDENTIALED, oauth: CREDENTIALED } as const
+
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
-  const credential = definition.auth === 'none' ? [] : [CREDENTIAL]
-  return [TARGET, ...credential, CONNECT_TIMEOUT, PROGRAM_CALLS]
+  return [TARGET, ...AUTH_DECLARATIONS[definition.auth], CONNECT_TIMEOUT, PROGRAM_CALLS]
 }
 
 const SCHEMA_LIMITS = {
@@ -150,9 +155,29 @@ const CREDENTIAL_ITEM = settingItem({
   id: 'credential',
   category: 'placement-identity',
   title: '凭据',
-  description: '连接这个接入点时出示的凭据。',
+  description: '认证方式是 static 时，连接这个接入点出示的凭据；oauth 时不用它。',
   impact: '下一次连接带这份凭据；没有设时对端会拒绝。',
   clear: '这一层不再提供凭据。',
+  valueSchema: { type: 'string', minLength: 1 },
+  sensitivity: 'secret',
+})
+const CLIENT_ID_ITEM = settingItem({
+  id: 'client-id',
+  category: 'placement-identity',
+  title: '客户端标识',
+  description: '认证方式是 oauth 时，在对方授权服务器那里登记的应用的客户端标识；不填时自动登记。',
+  impact: '下一次点「连接」时用这个标识；没有设时按对方支持的方式自动登记。',
+  clear: '这一层不再提供客户端标识。',
+  valueSchema: { type: 'string', minLength: 1, maxLength: 2048 },
+  sensitivity: 'ordinary',
+})
+const CLIENT_SECRET_ITEM = settingItem({
+  id: 'client-secret',
+  category: 'placement-identity',
+  title: '客户端密钥',
+  description: '认证方式是 oauth 时，登记的应用带的客户端密钥；公开客户端不填。',
+  impact: '换令牌与续期时用这份密钥向授权服务器证明身份。',
+  clear: '这一层不再提供客户端密钥。',
   valueSchema: { type: 'string', minLength: 1 },
   sensitivity: 'secret',
 })
@@ -182,6 +207,9 @@ const PROGRAM_CALLS_ITEM: EndpointSettingItem = {
   default: { kind: 'value', value: false },
 }
 
+const CREDENTIALED_ITEMS = [CREDENTIAL_ITEM, CLIENT_ID_ITEM, CLIENT_SECRET_ITEM]
+const AUTH_ITEMS = { none: [], static: CREDENTIALED_ITEMS, oauth: CREDENTIALED_ITEMS } as const
+
 // The version is the digest of the content: a new body that keeps the same settings keeps the values set.
 function settingsOf(definition: EndpointDefinition): EndpointSettingDefinitions {
   const content = settingsContentOf(definition)
@@ -210,12 +238,7 @@ function settingsContentOf(
         order: 1,
       },
     ],
-    items: [
-      TARGET_ITEM,
-      ...(definition.auth === 'none' ? [] : [CREDENTIAL_ITEM]),
-      CONNECT_TIMEOUT_ITEM,
-      PROGRAM_CALLS_ITEM,
-    ],
+    items: [TARGET_ITEM, ...AUTH_ITEMS[definition.auth], CONNECT_TIMEOUT_ITEM, PROGRAM_CALLS_ITEM],
   }
 }
 

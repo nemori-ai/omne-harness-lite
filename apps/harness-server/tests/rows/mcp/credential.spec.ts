@@ -10,6 +10,7 @@ import type {
   ConnectionTarget,
   EndpointHolding,
 } from '@omne-harness/mcp-contract'
+import type { HttpCredentialHandle } from '@omne-harness/mcp-contract/provider'
 import { mcpCredentialUseConformance, runConformanceCase } from '@omne-harness/mcp-contract/testing'
 import { parseSecretText, type SecretBindingKey } from '@omne-harness/settings'
 import {
@@ -96,4 +97,47 @@ it('answers unknown while the custody is away, and a binding it cannot read is m
   const port = createCredentialUse(() => custodyOf(new Map()))
   const strange = 'not a binding' as CredentialBinding
   expect(await port.acquire(access, holding, purpose, strange)).toEqual({ failure: 'missing' })
+})
+
+it('C205 an OAuth binding goes to the grant of its own holding and endpoint, for the target of the request; a static one never does', async () => {
+  const asked: unknown[] = []
+  const handle: HttpCredentialHandle = {
+    purpose: 'http-authorization',
+    authorize: async () => ({ ok: true }),
+    reportRejection: async () => undefined,
+    release: async () => undefined,
+  }
+  const port = createCredentialUse(
+    () => custodyOf(new Map([[JSON.stringify(credentialKey(home, 'docs')), SECRET]])),
+    async (key, target) => (asked.push({ key, target }), { ok: handle }),
+  )
+  const purpose = {
+    kind: 'http-authorization',
+    target: 'https://peer.example/mcp' as ConnectionTarget,
+  } as const
+  const access = { principal: null, tenant: home }
+  const oauth = credentialBinding(holding, 'desk', 'oauth')
+  if (oauth === undefined) throw new TypeError('no binding')
+  expect(await port.acquire(access, holding, purpose, oauth)).toEqual({ ok: handle })
+  expect(asked).toEqual([
+    { key: { tenant: home, holding, endpoint: 'desk' }, target: 'https://peer.example/mcp' },
+  ])
+  expect(await port.acquire(access, 'held-other' as EndpointHolding, purpose, oauth)).toEqual({
+    failure: 'missing',
+  })
+  expect(await port.acquire(access, holding, purpose, bound('docs'))).toMatchObject({
+    ok: { purpose: 'http-authorization' },
+  })
+  expect(asked).toHaveLength(1)
+  const forged = JSON.stringify([holding, 'desk', 'other']) as CredentialBinding
+  expect(await port.acquire(access, holding, purpose, forged)).toEqual({ failure: 'missing' })
+  const without = createCredentialUse(() => custodyOf(new Map()))
+  expect(await without.acquire(access, holding, purpose, oauth)).toEqual({ failure: 'missing' })
+  const throwing = createCredentialUse(
+    () => custodyOf(new Map()),
+    async () => {
+      throw new Error('away')
+    },
+  )
+  expect(await throwing.acquire(access, holding, purpose, oauth)).toEqual({ failure: 'unknown' })
 })

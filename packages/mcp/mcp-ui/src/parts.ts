@@ -45,10 +45,20 @@ export const mcpEndpointActions = definePart({
   when: '这个接入点的状态读到时',
 })
 
+export const mcpEndpointConnect = definePart({
+  name: 'mcp.endpoint.connect',
+  label: '连接',
+  summary: 'OAuth 接入点在浏览器里连上、等你同意或断开',
+  within: 'mcp.endpoint',
+  depths: ['tokens', 'style'],
+  when: '这个接入点用 OAuth 且状态读到时',
+})
+
 export const mcpParts = [
   mcpPage,
   mcpEndpoint,
   mcpEndpointPermission,
   mcpEndpointStatus,
+  mcpEndpointConnect,
   mcpEndpointActions,
 ] as const

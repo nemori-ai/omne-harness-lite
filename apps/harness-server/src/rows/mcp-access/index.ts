@@ -7,6 +7,7 @@ import { isMillis } from '@omne-harness/mcp-contract'
 import {
   mcpActionDiscoveryKey,
   mcpAdoptionViewKey,
+  mcpEndpointConnectKey,
   mcpEndpointStatusKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { z } from 'zod'
@@ -35,7 +36,8 @@ function facesOf(ctx: Context): McpFaces | undefined {
   const status = ctx.get(mcpEndpointStatusKey, false)
   const discovery = ctx.get(mcpActionDiscoveryKey, false)
   if (adoption === undefined || status === undefined || discovery === undefined) return undefined
-  return { adoption, status, discovery }
+  const connect = ctx.get(mcpEndpointConnectKey, false)
+  return { adoption, status, discovery, ...(connect === undefined ? {} : { connect }) }
 }
 
 const plugin = createMcpAccessPlugin({ principals: mcpPrincipals, faces: facesOf })

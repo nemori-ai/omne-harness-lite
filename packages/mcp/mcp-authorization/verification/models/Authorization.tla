@@ -11,7 +11,7 @@
 (* The properties are I9 and I10 of the MCP SPEC and two rules of the      *)
 (* grant: an unknown outcome of a refresh removes nothing, and a grant     *)
 (* asks for a new connection only after the authorization server refused.  *)
-(* The model moves when the SPEC's member `mcp-authorization` is created.  *)
+(* It belongs to the member `mcp-authorization`, whose tests check it.     *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 

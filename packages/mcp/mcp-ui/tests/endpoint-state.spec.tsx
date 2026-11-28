@@ -126,7 +126,7 @@ it('E2 it cannot be used: the status line says why, the credential that is missi
 
 it('E2b a credential the endpoint rejected: the status line says so and where to change it (C101)', async () => {
   const reason =
-    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one'
+    'the credential of the endpoint was rejected by the endpoint; the person needs to set the right one, or connect again if the endpoint signs in with OAuth'
   const rejected = stood({
     connection: { state: 'lost', reason },
     credential: 'present',
@@ -340,3 +340,80 @@ it('E18 a tenant text the page cannot read opens no observation; a client withou
     expect(await screen.findByText('已连上')).toBeTruthy()
     expect(vi.getTimerCount()).toBe(timers)
   }))
+
+it('E18 an OAuth endpoint not connected offers 连接: it opens the address in the browser and reads again (C201)', async () => {
+  const fake = fakeStatus(
+    answered(
+      stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+      null,
+    ),
+    answered(
+      stood({ credential: 'absent', credentialState: 'absent', connect: 'connecting' }),
+      null,
+    ),
+  )
+  const opened: string[] = []
+  vi.spyOn(window, 'open').mockImplementation(url => (opened.push(String(url)), null))
+  const begun: string[] = []
+  const status: McpStatus = {
+    ...fake.status,
+    'begin-connect': body => {
+      begun.push(body.name)
+      return Promise.resolve({
+        outcome: 'succeeded',
+        body: { url: 'https://auth.example/a', expiresAt: undefined as never },
+      })
+    },
+  }
+  shownWith(status)
+  expect(await screen.findByText('这个接入点要先经 OAuth 连上。')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '连接' }))
+  expect(await screen.findByText('在浏览器里同意之后回到这里。')).toBeTruthy()
+  expect(begun).toEqual(['context7'])
+  expect(opened).toEqual(['https://auth.example/a'])
+  expect(screen.queryByRole('button', { name: '连接' })).toBeNull()
+  vi.restoreAllMocks()
+})
+
+it('E19 a grant that wants a new connection offers 重新连接, one that is there offers 断开, a static endpoint shows neither (C204, C206)', async () => {
+  const again = fakeStatus(
+    answered(
+      stood({ credential: 'present', credentialState: 'reconnect-required', connect: 'available' }),
+      null,
+    ),
+  )
+  shownWith({
+    ...again.status,
+    'begin-connect': () => new Promise(() => undefined),
+  })
+  expect(await screen.findByRole('button', { name: '重新连接' })).toBeTruthy()
+  cleanup()
+  const ended: string[] = []
+  const fake = fakeStatus(
+    answered(
+      stood({ credential: 'present', credentialState: 'present', connect: 'available' }),
+      null,
+    ),
+    answered(
+      stood({ credential: 'absent', credentialState: 'absent', connect: 'available' }),
+      null,
+    ),
+  )
+  shownWith({
+    ...fake.status,
+    disconnect: body => {
+      ended.push(body.name)
+      return Promise.resolve({ outcome: 'succeeded', body: { disconnected: 'disconnected' } })
+    },
+  })
+  expect(await screen.findByText('已经经 OAuth 连上。')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '断开' }))
+  expect(await screen.findByText('这个接入点要先经 OAuth 连上。')).toBeTruthy()
+  expect(ended).toEqual(['context7'])
+  cleanup()
+  shownWith(
+    fakeStatus(answered(stood({ credential: 'present', credentialState: 'present' }), null)).status,
+  )
+  expect(await screen.findByText('已连上')).toBeTruthy()
+  expect(section().querySelector('[data-omne-part="mcp.endpoint.connect"]')).toBeNull()
+})
