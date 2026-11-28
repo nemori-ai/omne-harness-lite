@@ -181,6 +181,19 @@ describe('connecting at the edges (C201, C206)', () => {
     expect(Object.keys(n.begun[0] ?? {})).not.toContain('metadataDocument')
   })
 
+  it('says the address the consent comes back to as the receiver says it now, and nothing without one (C8)', () => {
+    const o = oauthWorld()
+    expect(o.mcp.connect.callback()).toBeUndefined()
+    const told = createMcp(
+      { ...o.mcpPorts, callbacks: { ...o.mcpPorts.callbacks!, address: () => REDIRECT } },
+      { ...CONFIG, oauth: OAUTH },
+    )
+    expect(told.connect.callback()).toBe(REDIRECT)
+    expect(
+      createMcp(without(o.mcpPorts, 'callbacks'), { ...CONFIG, oauth: OAUTH }).connect.callback(),
+    ).toBeUndefined()
+  })
+
   it('without the grants, the receiver or the OAuth configuration nothing is opened or begun', async () => {
     const cases = [
       (o: ReturnType<typeof oauthWorld>) =>

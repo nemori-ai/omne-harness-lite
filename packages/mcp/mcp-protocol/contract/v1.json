@@ -4,11 +4,12 @@
     "2": "sha256:369df947aa0c3b8c2f0303209d48cc675ba96e5036c270795769a58b9608df2d",
     "3": "sha256:a8ef438f329c39157d9da7ede88792035647099486a931fd39a928cf4c9232c0",
     "4": "sha256:a3eb483ebe545634553ed02b1cb8e6919c83bd4c2e046dda669b986a94145d9a",
-    "5": "sha256:8f4bf8cd3a97d1a90195dfa262ac3924deaaa9c0aabcd1d1a8539e882f53cf51"
+    "5": "sha256:8f4bf8cd3a97d1a90195dfa262ac3924deaaa9c0aabcd1d1a8539e882f53cf51",
+    "6": "sha256:1a2b1e2b534909393e6a028e31c6814aaf63771d21646c0dade93ee091fb821f"
   },
   "major": 1,
   "name": "mcp",
-  "revision": 5,
+  "revision": 6,
   "rules": {
     "observations": {
       "observe-endpoints": {
@@ -222,6 +223,13 @@
                 "rule": {
                   "item": {
                     "fields": {
+                      "callback": {
+                        "optional": true,
+                        "rule": {
+                          "kind": "text"
+                        },
+                        "since": 6
+                      },
                       "catalog": {
                         "rule": {
                           "kind": "one-of",
@@ -624,6 +632,13 @@
               "endpoint": {
                 "rule": {
                   "fields": {
+                    "callback": {
+                      "optional": true,
+                      "rule": {
+                        "kind": "text"
+                      },
+                      "since": 6
+                    },
                     "catalog": {
                       "rule": {
                         "kind": "one-of",

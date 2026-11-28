@@ -125,4 +125,16 @@
   display: flex;
   gap: var(--omne-space-inline);
 }
+
+.mcp-endpoint-callback {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.mcp-endpoint-callback code {
+  font-family: var(--omne-font-mono, monospace);
+  user-select: all;
+}
 }

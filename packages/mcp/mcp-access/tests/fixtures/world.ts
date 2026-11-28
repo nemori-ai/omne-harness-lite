@@ -324,6 +324,7 @@ export function createWorld(options: WorldOptions = {}) {
       ? {}
       : {
           connect: {
+            callback: () => 'http://127.0.0.1:7861/callback',
             async begin(access, endpointRef) {
               seen.push({
                 op: 'begin',

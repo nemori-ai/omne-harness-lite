@@ -100,5 +100,6 @@ export function createCallbackReceiver(
     },
     close,
     listening: () => server !== undefined,
+    address: () => address,
   }
 }

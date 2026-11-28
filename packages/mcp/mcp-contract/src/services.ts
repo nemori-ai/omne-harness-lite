@@ -324,6 +324,7 @@ export type ConnectFailure =
 
 /** A person connects an OAuth endpoint and ends the connection; agents have no way in. */
 export type EndpointConnect<P> = Readonly<{
+  callback(): string | undefined
   begin(
     access: Access<P>,
     ref: EndpointRef,

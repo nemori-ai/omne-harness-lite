@@ -392,6 +392,51 @@ it('E18 an OAuth endpoint not connected offers 连接: it opens the address in t
   vi.restoreAllMocks()
 })
 
+it('E20 an OAuth endpoint not connected shows the address its consent comes back to; a server that wants an application registered first is said in Chinese, with where the identifier goes (C8)', async () => {
+  const callback = 'http://127.0.0.1:7861/callback'
+  const fake = fakeStatus(
+    answered(
+      stood({ credential: 'absent', credentialState: 'absent', connect: 'available', callback }),
+      null,
+    ),
+  )
+  const status: McpStatus = {
+    ...fake.status,
+    'begin-connect': () =>
+      Promise.resolve({
+        outcome: 'not-committed',
+        body: { reason: 'no-registration', text: 'register an application first' },
+      }),
+  }
+  shownWith(status)
+  expect(await screen.findByText(callback)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '连接' }))
+  expect(
+    await screen.findByText(
+      '对方要求先登记一个应用：在对方那里登记，回跳地址填下面这个，得到的客户端标识填进下面「客户端标识」一行，再点「连接」。',
+    ),
+  ).toBeTruthy()
+  expect(screen.queryByText('register an application first', { exact: false })).toBeNull()
+})
+
+it('E21 a connected OAuth endpoint and a static one show no address to come back to (C8)', async () => {
+  shownWith(
+    fakeStatus(
+      answered(
+        stood({
+          credential: 'present',
+          credentialState: 'present',
+          connect: 'available',
+          callback: 'http://127.0.0.1:7861/callback',
+        }),
+        null,
+      ),
+    ).status,
+  )
+  expect(await screen.findByText('已经经 OAuth 连上。')).toBeTruthy()
+  expect(screen.queryByText('http://127.0.0.1:7861/callback')).toBeNull()
+})
+
 it('E19 a grant that wants a new connection offers 重新连接, one that is there offers 断开, a static endpoint shows neither (C204, C206)', async () => {
   const again = fakeStatus(
     answered(
